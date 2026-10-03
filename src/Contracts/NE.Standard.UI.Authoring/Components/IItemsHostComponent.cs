@@ -33,6 +33,19 @@ public interface IItemsHostComponent : IItemsComponent
     int WindowSize { get; }
 
     /// <summary>
+    /// Gets the registered property key for <see cref="Paging"/>.
+    /// </summary>
+    static UIProperty PagingProperty { get; } = new(nameof(Paging));
+
+    /// <summary>
+    /// Gets whether a windowed host shows its window as a page of <see cref="WindowSize"/> rows: the scroll asks for no window, and a
+    /// pager aimed at the host, or Page Up and Page Down in it, asks for another by offset. A host holding its rows whole has nothing
+    /// to page.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    bool? Paging { get; }
+
+    /// <summary>
     /// Gets the registered property key for <see cref="WindowOffset"/>.
     /// </summary>
     static UIProperty WindowOffsetProperty { get; } = new(nameof(WindowOffset));

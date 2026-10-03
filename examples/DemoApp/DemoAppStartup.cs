@@ -5,6 +5,7 @@ using DemoApp.Controllers.Contents.Badge;
 using DemoApp.Controllers.Contents.Icon;
 using DemoApp.Controllers.Contents.Image;
 using DemoApp.Controllers.Contents.Link;
+using DemoApp.Controllers.Contents.Message;
 using DemoApp.Controllers.Contents.Paragraph;
 using DemoApp.Controllers.Contents.Separator;
 using DemoApp.Controllers.Contents.Text;
@@ -28,6 +29,7 @@ using DemoApp.Controllers.Inputs.TextInput;
 using DemoApp.Controllers.Inputs.Toggle;
 using DemoApp.Controllers.Items.ItemsView;
 using DemoApp.Controllers.Items.KeyValueAction;
+using DemoApp.Controllers.Items.Pager;
 using DemoApp.Controllers.Items.Table;
 using DemoApp.Controllers.Items.Tree;
 using DemoApp.Controllers.Layouts.Card;
@@ -54,6 +56,7 @@ using DemoApp.Views.Contents.Badge;
 using DemoApp.Views.Contents.Icon;
 using DemoApp.Views.Contents.Image;
 using DemoApp.Views.Contents.Link;
+using DemoApp.Views.Contents.Message;
 using DemoApp.Views.Contents.Paragraph;
 using DemoApp.Views.Contents.Separator;
 using DemoApp.Views.Contents.Text;
@@ -77,6 +80,7 @@ using DemoApp.Views.Inputs.TextInput;
 using DemoApp.Views.Inputs.Toggle;
 using DemoApp.Views.Items.ItemsView;
 using DemoApp.Views.Items.KeyValueAction;
+using DemoApp.Views.Items.Pager;
 using DemoApp.Views.Items.Table;
 using DemoApp.Views.Items.Tree;
 using DemoApp.Views.Layouts.Card;
@@ -114,6 +118,11 @@ public sealed class DemoAppStartup : UIStartupBase
         // report in Development names only words the demo has not translated.
         _ = application.ConfigureLocalization(options => options.KeyPrefixes.Add(DemoTranslations.KeyPrefix));
 
+        // The focus ring in the brand's ink, as on every demo: the framework's default purple read 2.3:1 on the dark page.
+        _ = application.ConfigureTheme(theme => theme
+            .ConfigureLightPalette(static palette => palette with { FocusRing = palette.PrimaryInk })
+            .ConfigureDarkPalette(static palette => palette with { FocusRing = palette.PrimaryInk }));
+
         _ = application.Route<HomeView>("/");
 
         // Screens
@@ -144,6 +153,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<CommandsView, CommandsController>("/mechanisms/commands");
         _ = application.Route<ValuesView, ValuesController>("/mechanisms/values");
         _ = application.Route<ListsView, ListsController>("/mechanisms/lists");
+        _ = application.Route<PagesView, PagesController>("/mechanisms/pages");
 
         // Actions
         _ = application.Route<ButtonView, ButtonController>("/actions/button");
@@ -170,6 +180,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<IconView, IconController>("/contents/icon");
         _ = application.Route<ImageView, ImageController>("/contents/image");
         _ = application.Route<LinkView, LinkController>("/contents/link");
+        _ = application.Route<MessageView, MessageController>("/contents/message");
         _ = application.Route<SeparatorView, SeparatorController>("/contents/separator");
         _ = application.Route<TextView, TextController>("/contents/text");
         _ = application.Route<ParagraphView, ParagraphController>("/contents/paragraph");
@@ -208,6 +219,7 @@ public sealed class DemoAppStartup : UIStartupBase
         // Items
         _ = application.Route<ItemsViewView, ItemsViewController>("/items/items-view");
         _ = application.Route<TableView, TableController>("/items/table");
+        _ = application.Route<PagerView, PagerController>("/items/pager");
         _ = application.Route<TreeView, TreeController>("/items/tree");
 
         // Overlays

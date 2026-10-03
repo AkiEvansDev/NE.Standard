@@ -20,10 +20,15 @@ internal static class UIViewCompiler
         foreach (UIDialog dialog in view.Dialogs)
             context.AddDialog(dialog);
 
+        context.AddShortcuts(view.Shortcuts);
+
         UIViewCompilationResult result = context.BuildResult();
 
         UICompiledBindingSourceIndex sources = new(result.BindingSources);
         UICompiledBindingTemplateIndex templates = new(result.BindingTemplates);
+        UIComponentGraph graph = new(result.Nodes);
+        UIComponentStateIndex state = new(result.States);
+        UICompiledBindingIndex bindings = new(result.Bindings, sources, templates);
 
         return new CompiledView
         {
@@ -32,15 +37,16 @@ internal static class UIViewCompiler
             Options = view.Options,
             Regions = result.Regions,
             Dialogs = result.Dialogs,
-            Graph = new UIComponentGraph(result.Nodes),
-            State = new UIComponentStateIndex(result.States),
+            Graph = graph,
+            State = state,
             Sources = sources,
             Templates = templates,
             Contexts = new UIComponentContextIndex(result.Contexts),
-            Bindings = new UICompiledBindingIndex(result.Bindings, sources, templates),
+            Bindings = bindings,
             Interactions = new UIInteractionIndex(result.Interactions),
             Events = new UIEventIndex(result.Events, sources, templates),
             Validations = new UIValidationIndex(result.Validations, result.ValidationMessageTargets),
+            ItemProjections = UIItemProjectionBuilder.Build(graph, state, bindings, templates),
             Warnings = result.Warnings,
             Fingerprint = UIViewFingerprint.Compute(result.Nodes, result.Bindings, result.Events, result.Interactions)
         };

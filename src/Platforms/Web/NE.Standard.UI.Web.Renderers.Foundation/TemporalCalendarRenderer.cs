@@ -64,7 +64,10 @@ public static class TemporalCalendarRenderer
         => NativeInputRendererBase.RenderHiddenValueInput(context, root, end ? $"{TemporalClassName}__end-value-input" : $"{TemporalClassName}__value-input", valueInput =>
         {
             if (end)
+            {
                 _ = valueInput.Attribute(WebAttributes.TemporalEnd);
+                _ = valueInput.Attribute(WebAttributes.ValueEnd);
+            }
 
             RenderCanonical(context, valueInput, property, canonical, "value", ValueOperations, shown);
         }, part: end ? "end" : null);

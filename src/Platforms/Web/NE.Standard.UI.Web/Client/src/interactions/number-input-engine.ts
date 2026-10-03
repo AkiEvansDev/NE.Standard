@@ -5,7 +5,9 @@
 import { NumberFormatAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import { readNumberCulture } from "../rendering/number-format.ts";
+import type { NumberCulturePack } from "../rendering/number-format.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
+import type { Phrase } from "../runtime/words.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { displayNumberText, editNumberText, parseNumberText, sanitizeNumberText, trimTrailingZeros } from "./number-text.ts";
@@ -107,9 +109,7 @@ export class NumberInputEngine {
         const kept = this.values.get(input) ?? input.value;
         const value = input.hasAttribute(TrimZerosAttribute) ? trimTrailingZeros(kept) : kept;
         const culture = readNumberCulture(input);
-        const text = input === document.activeElement
-            ? editNumberText(value, culture, formatOf(input))
-            : displayNumberText(value, culture, { format: formatOf(input), thousands: !input.hasAttribute(NoThousandsAttribute) });
+        const text = input === document.activeElement ? editNumberText(value, culture, formatOf(input)) : restText(input, value, culture);
 
         input.value = text;
         this.shown.set(input, text);
@@ -232,7 +232,10 @@ export class NumberInputEngine {
         this.step(input, domEvent.key === "ArrowDown" ? -1 : 1);
     }
 
-    /** Moves the field one step up or down from what it shows, held inside Min and Max, and reports it as a typed value is reported. */
+    /**
+     * Moves the field one step up or down from what it shows, held inside Min and Max as a slider's handle is — a step is never past
+     * them, where a typed value may be and is refused in words — and reports it as a typed value is reported.
+     */
     private step(input: HTMLInputElement, direction: 1 | -1): void {
         const step = Number(input.getAttribute(StepAttribute) ?? "1");
         const current = Number(this.showsOwnText(input) ? this.valueOf(input) : readTyped(input) ?? "0") || 0;
@@ -255,6 +258,40 @@ export class NumberInputEngine {
 
 function asField(target: EventTarget | null): HTMLInputElement | null {
     return target instanceof HTMLInputElement && target.classList.contains(FieldClass) ? target : null;
+}
+
+/**
+ * The words a number field's value past its Min or Max is refused in, the bound written as the field shows a value at rest; null
+ * for a value inside them, an empty one, text that is no number, or an element that is no number field's root.
+ */
+export function numberBoundRefusal(root: Element, read: (field: HTMLInputElement) => unknown): Phrase | null {
+    const input = root.classList.contains(RootClass) ? root.querySelector<HTMLInputElement>(`.${FieldClass}`) : null;
+    const value = input === null ? null : read(input);
+
+    if (input === null || typeof value !== "string" || value.trim().length === 0 || !Number.isFinite(Number(value)))
+        return null;
+
+    const min = readNumberBound(input, MinAttribute);
+    const max = readNumberBound(input, MaxAttribute);
+
+    if (min !== null && Number(value) < Number(min))
+        return { key: "ui.value.min", args: { min: restText(input, min, readNumberCulture(input)) } };
+
+    if (max !== null && Number(value) > Number(max))
+        return { key: "ui.value.max", args: { max: restText(input, max, readNumberCulture(input)) } };
+
+    return null;
+}
+
+function readNumberBound(input: HTMLInputElement, attribute: string): string | null {
+    const bound = input.getAttribute(attribute)?.trim() ?? "";
+
+    return bound.length > 0 && Number.isFinite(Number(bound)) ? bound : null;
+}
+
+/** A value as the field shows it at rest: in its culture and DisplayFormat, grouped unless the author turned that off. */
+function restText(input: HTMLInputElement, invariant: string, culture: NumberCulturePack): string {
+    return displayNumberText(invariant, culture, { format: formatOf(input), thousands: !input.hasAttribute(NoThousandsAttribute) });
 }
 
 /** The field's text read in its culture and format as invariant text, or null for text that is no number. */

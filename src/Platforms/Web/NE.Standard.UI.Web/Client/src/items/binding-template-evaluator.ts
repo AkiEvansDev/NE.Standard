@@ -16,6 +16,17 @@ export type ItemStackEntry = {
 
 const NotResolved: BindingTemplateResolution = { ok: false };
 
+// The wire leaves an item's nulls out: a property a record does not carry is read as the null it held.
+const NotCarried: BindingTemplateResolution = { ok: true, value: null };
+
+// Set on a page in development (`item-projections.ts`): told of every read of a property a record does not carry.
+let notCarriedReader: ((record: object, propertyName: string) => void) | null = null;
+
+/** Names who hears of a read of a property a record does not carry; null stops it. */
+export function onNotCarried(reader: ((record: object, propertyName: string) => void) | null): void {
+    notCarriedReader = reader;
+}
+
 export function tryResolveItemTemplateValue(
     stack: readonly ItemStackEntry[],
     template: string | null | undefined,
@@ -29,6 +40,15 @@ export function tryResolveItemTemplateValue(
 
     // Scope parameters index nothing here, and leaving them in would misalign every "[]" the template has.
     const effectiveParameters = (parameters ?? []).filter(parameter => getBindingParameterKind(parameter.kind) !== "Scope");
+
+    // What comes before the last row key is read and then dropped, as the walk starts again at that row: the names before it (the
+    // list the row is in) are not what a row carries, so a miss there is not reported as a property the server left out.
+    let lastDynamic = -1;
+
+    for (let at = 0; at < effectiveParameters.length; at++) {
+        if (getBindingParameterKind(effectiveParameters[at].kind) === "Dynamic")
+            lastDynamic = at;
+    }
 
     let current: unknown = innermostItem;
     let scope: unknown = innermostItem;
@@ -95,7 +115,7 @@ export function tryResolveItemTemplateValue(
             return NotResolved;
 
         if (currentValid) {
-            const propertyResolution = tryReadItemProperty(current, path.slice(start, i));
+            const propertyResolution = readItemProperty(current, path.slice(start, i), parameterIndex > lastDynamic);
 
             if (propertyResolution.ok)
                 current = propertyResolution.value;
@@ -156,7 +176,7 @@ function resolveStackItem(stack: readonly ItemStackEntry[], componentId: IdValue
     return NotResolved;
 }
 
-/** The value at a dotted property path of an item, each step read by the one rule below; undefined where a step is missing. */
+/** The value at a dotted property path of an item, each step read by the one rule below; undefined where a step cannot be taken. */
 export function readItemPropertyPath(item: unknown, path: string): unknown {
     let current: unknown = item;
 
@@ -173,6 +193,11 @@ export function readItemPropertyPath(item: unknown, path: string): unknown {
 }
 
 export function tryReadItemProperty(item: unknown, propertyName: string): BindingTemplateResolution {
+    return readItemProperty(item, propertyName, true);
+}
+
+/** The one rule a property is read by; `reports` says whether a property the record does not carry is told of. */
+function readItemProperty(item: unknown, propertyName: string, reports: boolean): BindingTemplateResolution {
     if (item === null || item === undefined)
         return NotResolved;
 
@@ -185,7 +210,17 @@ export function tryReadItemProperty(item: unknown, propertyName: string): Bindin
     const record = item as Record<string, unknown>;
     const key = resolveItemPropertyKey(record, propertyName);
 
-    return Object.hasOwn(record, key) ? { ok: true, value: record[key] } : NotResolved;
+    if (Object.hasOwn(record, key))
+        return { ok: true, value: record[key] };
+
+    // A list has no properties to leave out.
+    if (Array.isArray(item))
+        return NotResolved;
+
+    if (reports)
+        notCarriedReader?.(record, propertyName);
+
+    return NotCarried;
 }
 
 /** The key this record holds a property under, or the wire form to create it as; reads and writes must use this one rule. */
@@ -199,9 +234,15 @@ export function resolveItemPropertyKey(record: Record<string, unknown>, property
     if (Object.hasOwn(record, camelCase))
         return camelCase;
 
-    const lowerName = propertyName.toLowerCase();
+    // Walked for every property an item leaves out, so a key of another length is passed by before anything is lowered.
+    let lowerName: string | null = null;
 
-    for (const key of Object.keys(record)) {
+    for (const key in record) {
+        if (key.length !== propertyName.length || !Object.hasOwn(record, key))
+            continue;
+
+        lowerName ??= propertyName.toLowerCase();
+
         if (key.toLowerCase() === lowerName)
             return key;
     }

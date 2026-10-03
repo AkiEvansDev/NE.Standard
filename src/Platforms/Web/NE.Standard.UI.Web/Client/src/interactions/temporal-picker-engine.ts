@@ -17,7 +17,7 @@ import {
 } from "./temporal-calendar.ts";
 import type { CalendarState } from "./temporal-calendar.ts";
 import {
-    applyPageLanguage, CalendarRootClass, clampPushedValue, clampToRange, defaultMoment, hourLabel, isDayOffered, isEndPart, isRange, isTwelveHour,
+    applyPageLanguage, CalendarRootClass, clampToRange, defaultMoment, hourLabel, isDayOffered, isEndPart, isRange, isTwelveHour,
     MaxAttribute, MinAttribute, orderPeriod, parseCanonical, PickerAttributes, readBound, readCulturePack, readDayOffer, readFormat,
     readMode, readStep, readValue, readValueOf, RootClass, TemporalRootSelector, toCanonical, typedValue, valueInputOf, writeValueOf
 } from "./temporal-dom.ts";
@@ -32,8 +32,6 @@ const OpenClass = "ui-temporal-input--open";
 const CalendarBodyClass = "ui-calendar__body";
 const TimeCellClass = "ui-temporal-input__time-cell";
 const TimeColumnClass = "ui-temporal-input__time-column";
-
-const PopupGap = 4;
 
 /** How long a clock column has to stand still before what it brought to the middle counts as chosen. */
 const ScrollSettleDelay = 140;
@@ -212,9 +210,6 @@ export class TemporalPickerEngine {
     // Formatted here, not server-side, so a live patch and the initial render produce the same string; formatTemporal mirrors WebTemporalFormat.
     private applyDisplay(pickers: Iterable<HTMLElement>): void {
         for (const picker of pickers) {
-            // Before the field is read: the picker only stops an out-of-range value from being chosen.
-            clampPushedValue(picker);
-
             const placeholder = temporalPlaceholder(readFormat(picker), placeholderLetters());
             // A format of digits alone asks a phone for its digit keyboard rather than its letters.
             const inputMode = isDigitFormat(readFormat(picker)) ? "numeric" : "text";
@@ -263,11 +258,10 @@ export class TemporalPickerEngine {
 
         const typed = typedValue(picker, domEvent.target.value);
         const moment = parseCanonical(typed, readMode(picker));
-        // Pulled inside Min/Max before it goes, as a pushed value is: the server refuses one outside them as it stands.
-        const canonical = moment === null ? typed : toCanonical(clampToRange(picker, moment), readMode(picker));
+        // Past Min or Max it stays as typed, refused in words by the validation engine: never pulled back to the bound.
+        const canonical = moment === null ? typed : toCanonical(moment, readMode(picker));
 
-        // A day the grid would not offer — as typed, or as the bounds pulled it — is not taken but written back over: no day near an
-        // unmarked one stands for it.
+        // A day the grid would not offer is not taken but written back over: no day near an unmarked one stands for it.
         if (isUnmarkedDay(picker, canonical)) {
             const held = readValueOf(picker, isEndPart(domEvent.target));
 
@@ -646,7 +640,7 @@ export class TemporalPickerEngine {
             owner: picker,
             popup,
             anchor: picker.querySelector<HTMLElement>(`.${RootClass}__row`) ?? picker,
-            placement: { placement: "bottom-end", gap: PopupGap },
+            placement: { placement: "bottom-end" },
             openers: toggle === null ? [] : [toggle],
             returnFocus: () => fieldOf(picker, this.getState(picker).activeEnd === "end")
         });

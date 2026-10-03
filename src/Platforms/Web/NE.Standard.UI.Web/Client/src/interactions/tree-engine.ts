@@ -20,13 +20,13 @@ import type { PropertyStateStore } from "../state/property-state-store";
 import { observeComponents } from "./dom-mutations";
 import { clearDragMarks, markDragStart } from "./drag-marks";
 import { openInlineRename } from "./inline-rename";
-import { removableRows } from "./items-selection-engine";
+import { enterRow, pressRow, removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
 import { isInert, isItemDisabled } from "./interactive-state";
 import { focusedRow, litRow, nameRowBy, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
-import { chooseRow, choosesOnEnter, ensureAnchor, keyGestureOf, PlainGesture, rowKey, selectedRows } from "./row-selection";
+import { chooseRow, ensureAnchor, keyGestureOf, PlainGesture, rowKey, selectedRows } from "./row-selection";
 import type { TreeKeyMove, TreeMovePlace, TreeNodePlace } from "./tree-drop";
 import { keyMovePlace, placeMoves, siblingAfter, takesDrop } from "./tree-drop";
 
@@ -493,9 +493,9 @@ export class TreeEngine {
 
         switch (domEvent.key) {
             case " ":
-                // Space toggles the node under the cursor and leaves the rest as they are.
+                // Space toggles the node under the cursor and leaves the rest as they are; a tree that chooses nothing presses it, as a list does.
                 if (!chooseRow(tree, rows, current, { shift: false, ctrl: true }))
-                    return;
+                    pressRow(current, null);
                 break;
             case "ArrowRight":
                 // A folded node unfolds; an unfolded one hands the focus to its first child.
@@ -512,11 +512,9 @@ export class TreeEngine {
                     this.setFocus(tree, this.parentOf(tree, current), PlainGesture);
                 break;
             case "Enter":
-                // Enter chooses like a click and opens like a double click; a chosen group stands, since Delete reads it.
-                if (choosesOnEnter(tree) && !selectedRows(rows).includes(current))
-                    chooseRow(tree, rows, current, PlainGesture);
-
-                current.dispatchEvent(new Event("open", { bubbles: true }));
+                // As on a list's row: chooses, raises the node's click and opens it. A node is never one control (its chevron folds),
+                // and Enter does not fold: Right and Left do.
+                enterRow(tree, rows, current, null);
                 break;
             case "F2":
                 if (!this.canRename(tree, current))

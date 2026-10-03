@@ -6,7 +6,7 @@ namespace NE.Standard.UI.Primitives.Interaction;
 public enum UIValidationPresentation
 {
     /// <summary>
-    /// A line under the field, except where the field sits in a cell of a grid — a table's, a key-value row's — where it is a mark.
+    /// A line under the field, except where the field sits in a table's cell, where it is a mark; an open key-value row keeps the line.
     /// </summary>
     Auto = 0,
 

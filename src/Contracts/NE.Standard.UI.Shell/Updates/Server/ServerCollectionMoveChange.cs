@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace NE.Standard.UI.Shell.Updates.Server;
 
@@ -10,6 +11,7 @@ public sealed class ServerCollectionMoveChange
     /// <summary>
     /// Gets the previous item index, when addressed by index.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? OldIndex { get; init; }
 
     /// <summary>
@@ -20,6 +22,7 @@ public sealed class ServerCollectionMoveChange
     /// <summary>
     /// Gets the moved item key, when addressed by key.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Key { get; init; }
 
     /// <summary>

@@ -152,8 +152,8 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnNodeClick(command, UIAction.ArgCurrentItem(argumentName));
 
     /// <summary>
-    /// Registers the command a press on a node runs, after the selection has followed the press; a press on the chevron only folds,
-    /// and Enter opens rather than presses, as in an items view.
+    /// Registers the command a press on a node runs, after the selection has followed the press; a press on the chevron only folds.
+    /// Enter on a node presses it and then opens it, as on an items view's row; Space presses it in a tree that chooses nothing.
     /// </summary>
     public T OnNodeClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRowClick(command, arguments);

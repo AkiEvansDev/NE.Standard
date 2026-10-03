@@ -6,14 +6,19 @@ using NE.Standard.UI.Abstractions.Identity;
 namespace NE.Standard.UI.Shell.Commands;
 
 /// <summary>
-/// Represents a command request raised from a compiled UI event.
+/// Represents a command request raised from a compiled UI event, or from an action the runtime offered the page (a notification's).
 /// </summary>
 public sealed class UICommandRequest
 {
     /// <summary>
-    /// Gets the compiled event id that raised the command.
+    /// Gets the compiled event id that raised the command; empty for an offered action.
     /// </summary>
-    public required UIEventId EventId { get; init; }
+    public UIEventId EventId { get; init; }
+
+    /// <summary>
+    /// Gets the id of the action the runtime offered the page (<c>UINotificationAction</c>), run once, in place of an event.
+    /// </summary>
+    public string? Action { get; init; }
 
     /// <summary>
     /// Gets dynamic parameters used to materialize command argument bindings.
@@ -33,8 +38,11 @@ public sealed class UICommandRequest
     /// </summary>
     public void Validate()
     {
-        if (EventId.IsEmpty)
-            throw new InvalidOperationException("Event id must not be empty.");
+        if (EventId.IsEmpty == (Action is null))
+            throw new InvalidOperationException("A command request names either an event or an offered action.");
+
+        if (Action is not null && string.IsNullOrWhiteSpace(Action))
+            throw new InvalidOperationException("Action id must not be blank.");
 
         ArgumentNullException.ThrowIfNull(DynamicParameters);
     }

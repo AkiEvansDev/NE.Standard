@@ -25,7 +25,7 @@ public static class WebSessionHttpContextExtensions
         ArgumentNullException.ThrowIfNull(http);
 
         UIApplication application = http.RequestServices.GetRequiredService<UIApplication>();
-        var sessionId = WebClientRequest.ReadSessionId(http, application.Sessions);
+        var sessionId = WebClientRequest.ReadSessionId(http, http.RequestServices.GetRequiredService<WebSessionCookie>());
 
         if (string.IsNullOrWhiteSpace(sessionId))
             return null;

@@ -7,17 +7,17 @@ namespace DemoApp.Views.Base;
 internal abstract class DemoScreenView : DemoView
 {
     /// <summary>
-    /// Whether the screen takes the content region's height rather than its own content's: a messenger, whose panes scroll inside
-    /// themselves and keep the composer in sight. Never shorter than a pane's header, a few rows and its composer; below that the
-    /// region scrolls.
+    /// The screen's height where it takes the content region's rather than its own content's: a messenger or an editor, whose panes
+    /// scroll inside themselves and keep the composer or the status line in sight. Never shorter than a pane's header, a few rows and
+    /// its foot; below that the region scrolls. Unset, the screen is as tall as its content.
     /// </summary>
-    protected virtual bool FillsHeight => false;
+    protected virtual UIResponsive<UILayoutLength>? ScreenHeight => null;
 
     // The screen is a sample as a whole, its copy and its data shown as written: content for the unkeyed report.
     protected sealed override void DrawContent(WrapPanelComponent container)
     {
-        if (FillsHeight)
-            _ = container.SetHeight(UILayoutLength.Fill()).SetMinHeight(UILayoutLength.Absolute(360));
+        if (ScreenHeight is { } height)
+            _ = container.SetHeight(height).SetMinHeight(UILayoutLength.Absolute(360));
 
         _ = container.AsContentTree().AddChild(CreateScreen());
     }

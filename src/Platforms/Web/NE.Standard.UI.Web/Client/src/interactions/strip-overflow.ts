@@ -305,7 +305,7 @@ class StripOverflowMenu {
             owner: strip,
             popup: this.menu,
             anchor: button,
-            placement: { placement: "bottom-end", gap: 4 },
+            placement: { placement: "bottom-end" },
             openers: [button],
             focus: current ?? false,
             returnFocus: () => button

@@ -2,7 +2,7 @@
 // One list for both, naming the framework's popups, field boxes and a row's grip beside native tags, since a select's option is a div,
 // not a <select>; `@ui-surface-inner-control` in ui-surface.less is its twin (surface-controls.test.ts).
 
-import { ActionBarClass, ListTriggerClass, PopupRoleSelector, RowGripClass } from "../addressing/dom-attributes.ts";
+import { ActionBarClass, ListTriggerClass, NoRowOpenAttribute, PopupRoleSelector, RowGripClass } from "../addressing/dom-attributes.ts";
 
 // The box a field draws around its input and its marks: `@ui-input-field-state` in styles/mixins/field.less, which a new field shape joins too.
 export const FieldBoxSelector = `.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .${ListTriggerClass}, .ui-field-box`;
@@ -17,14 +17,14 @@ const PressableSelector = "button, a, summary, [role='button']";
 
 /**
  * The one control a row is — a tile that is a button — or null for a row with none, with several, or with one that is not pressed (a
- * field). Its grip, a popup it holds (its right-click menu) and that menu's action bar are not what the row is, nor is anything inside
- * the control itself.
+ * field). Its grip, a popup it holds (its right-click menu), that menu's action bar and a part that answers a press itself (a grid's
+ * chevron or checkbox, `data-ui-no-row-open`) are not what the row is, nor is anything inside the control itself.
  */
 export function soleControlOf(row: Element): HTMLElement | null {
     const controls: Element[] = [];
 
     for (const control of row.querySelectorAll(ControlSelector)) {
-        if (control.classList.contains(RowGripClass) || !isOwnControlOf(row, control) || controls.some(outer => outer.contains(control)))
+        if (control.classList.contains(RowGripClass) || !isOwnControlOf(row, control) || isOwnPress(row, control) || controls.some(outer => outer.contains(control)))
             continue;
 
         controls.push(control);
@@ -36,6 +36,25 @@ export function soleControlOf(row: Element): HTMLElement | null {
     const sole = controls[0];
 
     return sole instanceof HTMLElement && sole.matches(PressableSelector) ? sole : null;
+}
+
+/** The controls standing in the parts of a row that answer a press themselves (a grid's chevron, its checkbox): the row's keys reach them. */
+export function ownPressControlsOf(row: Element): HTMLElement[] {
+    const controls: HTMLElement[] = [];
+
+    for (const control of row.querySelectorAll<HTMLElement>(NativeControlSelector)) {
+        if (isOwnPress(row, control) && isOwnControlOf(row, control))
+            controls.push(control);
+    }
+
+    return controls;
+}
+
+/** Whether the control stands in a part of the row that answers a press itself rather than standing for the row. */
+function isOwnPress(row: Element, control: Element): boolean {
+    const part = control.closest(`[${NoRowOpenAttribute}]`);
+
+    return part !== null && part !== row && row.contains(part);
 }
 
 /**

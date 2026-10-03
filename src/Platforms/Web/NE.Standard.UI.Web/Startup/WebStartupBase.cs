@@ -1,6 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -29,6 +30,7 @@ public abstract class WebStartupBase<TStartup>
         _ = services.AddOptions<WebViewRenderCacheOptions>();
         _ = services.AddOptions<WebEndpointOptions>();
         _ = services.AddOptions<WebValueOptions>();
+        _ = services.AddOptions<WebHubOptions>();
         _ = services.AddOptions<WebResponseCompressionOptions>();
 
         ConfigureServices(services);
@@ -55,7 +57,7 @@ public abstract class WebStartupBase<TStartup>
                 static (options, ui) => options.EnableForHttps = ui.Value.EnableForHttps
             );
 
-        _ = services.AddSignalR().AddJsonProtocol(WebHubProtocol.Configure);
+        _ = services.AddSignalR(static options => options.AddFilter<WebHubCallLimiter>()).AddJsonProtocol(WebHubProtocol.Configure);
 
         services.TryAddSingleton<IWebAssetRegistry, WebAssetRegistry>();
         services.TryAddSingleton<IWebRendererRegistry, WebRendererRegistry>();
@@ -69,8 +71,10 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton(TimeProvider.System);
         // The upload endpoint's count of bytes in flight per session; the value store keeps an allowance of its own.
         services.TryAddSingleton<WebSessionAllowance>();
+        services.TryAddSingleton<WebSessionCookie>();
         services.TryAddSingleton<WebValueStagingStore>();
         services.TryAddSingleton<WebOutgoingValues>();
+        services.TryAddSingleton<WebHubCallLimiter>();
         services.TryAddSingleton<WebUIMetrics>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
         services.TryAddSingleton<IUIDialogService, StandardWebDialogService>();

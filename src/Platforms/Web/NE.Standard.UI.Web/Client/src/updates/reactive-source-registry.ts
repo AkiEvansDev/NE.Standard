@@ -1,17 +1,23 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { ValueEndAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { getIdValue } from "../metadata/metadata-index.ts";
-import type { WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
+import type { MetadataIndex, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import type { PropertyPatchEngine, PropertyValueChange } from "./property-patch-engine.ts";
 import { ValueSyncEventNames } from "./value-binding-engine.ts";
 
 export type ReactiveSourceCallback = (change: PropertyValueChange) => void;
 
+/** The property a period's end field holds; every other field of the component writes any of its other sources. */
+const EndValuePropertyName = "EndValue";
+
 export type ReactiveSourceEdits = {
     readonly root: ParentNode;
     /** Reads a field the reader edited, as its binding would send it. */
     readonly valueReaders: Pick<ValueReaderRegistry, "readBound">;
+    /** Names a source's property, so a period's two fields each record their own end; left out, a field records every source. */
+    readonly metadata?: Pick<MetadataIndex, "getPropertyDefinition">;
 };
 
 /** Tells a watcher its source changed: by a push or an interaction through the patch engine, or by the reader's own edit. */
@@ -28,7 +34,7 @@ export class ReactiveSourceRegistry {
             return;
 
         for (const eventName of ValueSyncEventNames)
-            edits.root.addEventListener(eventName, domEvent => this.applyEditedValue(domEvent, edits.valueReaders), true);
+            edits.root.addEventListener(eventName, domEvent => this.applyEditedValue(domEvent, edits), true);
     }
 
     public watch(source: WebRenderPropertyReferenceMetadata, callback: ReactiveSourceCallback): () => void {
@@ -58,7 +64,7 @@ export class ReactiveSourceRegistry {
      * (docs/VALUES.md §3), and a patch would reach every value-change handler — the interaction engine, which hears the edit
      * itself, would run the field's interactions a second time.
      */
-    private applyEditedValue(domEvent: Event, valueReaders: Pick<ValueReaderRegistry, "readBound">): void {
+    private applyEditedValue(domEvent: Event, edits: ReactiveSourceEdits): void {
         if (!(domEvent.target instanceof Element))
             return;
 
@@ -68,9 +74,14 @@ export class ReactiveSourceRegistry {
         if (sources === undefined)
             return;
 
-        const value = valueReaders.readBound(domEvent.target);
+        const value = edits.valueReaders.readBound(domEvent.target);
+        const end = domEvent.target.hasAttribute(ValueEndAttribute);
 
         for (const source of sources) {
+            // A range's start is no source of its end's rule, nor its end of the start's: a band filters by both at once.
+            if (edits.metadata !== undefined && (edits.metadata.getPropertyDefinition(source.propertyId)?.propertyName === EndValuePropertyName) !== end)
+                continue;
+
             const change = this.propertyPatchEngine.recordValue(source, [], value);
 
             if (change !== null)

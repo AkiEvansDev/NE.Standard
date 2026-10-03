@@ -2,6 +2,8 @@
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
 @import "../mixins/interactive.less";
+@import "../mixins/focus.less";
+@import "../mixins/elevation.less";
 
 // The page's own ground, plain, which a band standing over the page (the sticky header, the phone's bottom bar) repeats.
 .ui-root-ground() {
@@ -100,6 +102,30 @@
 [data-ui-region="footer"] {
     grid-column: 1 / 4;
     grid-row: 3;
+}
+
+// The skip link (WebViewRenderer, on a page with a left side): out of sight and out of the grid, but the page's first stop; holding
+// the keyboard, a primary chip at the page's top-left corner. Not on a focus the pointer gave, so no tap ever shows it.
+.ui-shell__skip-link {
+    .ui-visually-hidden();
+}
+
+.ui-shell__skip-link@{ui-keyboard-focus} {
+    position: fixed;
+    top: @ui-space-2;
+    left: @ui-space-2;
+    z-index: @ui-z-skip-link;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: @ui-space-2 @ui-space-4;
+    overflow: visible;
+    clip: auto;
+    border-radius: var(--ui-radius-button);
+    background: var(--ui-color-primary);
+    color: var(--ui-color-on-primary);
+    text-decoration: none;
+    .ui-elevation-3();
 }
 
 // UIShellLayout.FullHeightSides: the sides run from the top of the page to its bottom, the header and footer between them.

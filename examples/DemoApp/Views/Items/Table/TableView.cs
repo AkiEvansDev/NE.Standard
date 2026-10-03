@@ -21,6 +21,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     private const string BorderGroup = nameof(TableController.BorderGroup);
     private const string ActionGroup = nameof(TableController.ActionGroup);
     private const string ChosenGroup = nameof(TableController.ChosenGroup);
+    private const string PressedGroup = nameof(TableController.PressedGroup);
     private const string GripGroup = nameof(TableController.GripGroup);
 
     public static string ViewKey => "demo.items.table";
@@ -82,7 +83,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
 
     protected override IVisualComponent[] CreateExamples()
         // Two stacks of two, as tall as each other: in pairs, each short table left a hole beside the tall one next to it.
-        => [DemoUI.CreateHalf(CreateColumnKindsGroup(), CreateCellListGroup()), DemoUI.CreateHalf(CreateChosenGroup(), CreateGripGroup())];
+        => [DemoUI.CreateHalf(CreateColumnKindsGroup(), CreateCellListGroup()), DemoUI.CreateHalf(CreateChosenGroup(), CreatePressedGroup(), CreateGripGroup())];
 
     /// <summary>
     /// A column is any template bound to the row: a glyph, words, a number against the right edge, a badge, a button; a caption may wear
@@ -144,6 +145,27 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                 .OnRowOpenWithItemKey(nameof(TableController.OpenChosenRow)),
             note: "Ctrl and Shift choose as a file manager's rows do. Enter or a double click opens the row and leaves the group chosen; the pointer's wash answers on a striped row too.",
             context: ChosenGroup
+        );
+    }
+
+    /// <summary>
+    /// Rows that do something on a press without being chosen: a grid to a reader, one stop of the Tab order, Enter or Space on the
+    /// keyboard's row running the row's click as the pointer's press does.
+    /// </summary>
+    private static ContainerComponent CreatePressedGroup()
+    {
+        return DemoUI.CreateExample("Rows that open on a press",
+            new TableComponent()
+                .SetHorizontalScroll(UIScrollMode.Auto)
+                .SetItems(DemoDeploymentRow.CreateDeployments().GetRange(0, 5))
+                .AddTextColumn("Service", nameof(DemoDeploymentRow.Service))
+                .AddTextColumn("Region", nameof(DemoDeploymentRow.Region))
+                .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
+                .SetRowHoverable(true)
+                .SetResizableColumns(true)
+                .OnRowClickWithItemKey(nameof(TableController.OpenPressedRow)),
+            note: "Nothing is chosen here: a click on a row, or Enter or Space on the keyboard's row, runs the row's click. The table is one stop of the Tab order: the arrows, Home, End, Page Up and Page Down walk its rows, Up from the first goes to its captions, where Shift with Left or Right sizes a column, and Down comes back.",
+            context: PressedGroup
         );
     }
 

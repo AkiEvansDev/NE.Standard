@@ -2,21 +2,28 @@
 // How a gesture changes the chosen set is `row-selection.ts`'s.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { NoRowOpenAttribute, NoRowSelectAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, UnremovableAttribute } from "../addressing/dom-attributes.ts";
+import {
+    ItemsHostAttribute, NoRowOpenAttribute, NoRowSelectAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, TableScrollClass, UnremovableAttribute
+} from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { ownControlOf, soleControlOf } from "./own-control.ts";
+import { ownControlOf, ownPressControlsOf, soleControlOf } from "./own-control.ts";
 import { ownDescendants } from "./own-descendants.ts";
-import { isRovingKey } from "./roving-focus.ts";
 import { isInert, isItemDisabled } from "./interactive-state.ts";
 import type { RowAxis } from "./row-cursor.ts";
-import { dispatchRowEvent, focusedRow, litRow, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
+import { dispatchRowEvent, focusedRow, isRowKey, litRow, resolveRowTarget, RowPressEventName, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
 import {
     chooseRow, choosesOnEnter, ensureAnchor, gestureOf, KeyboardRowsRootSelector as KeyboardRootSelector, keyGestureOf, markSelectedRows, PlainGesture,
     selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector, setAnchor
 } from "./row-selection.ts";
+import { applyHeaderStops, enterHeader, handleHeaderKey, headerTableOf } from "./table-header-group.ts";
 
 // The keys besides the arrows this engine answers; any other passes without the rows being read.
 const ActionKeys = new Set([" ", "Enter", "Delete"]);
+
+const TableRootSelector = ".ui-table";
+
+// A host's own boxes: its rows' host and a table's scrolling box, either of which may be the element that scrolls.
+const HostBoxSelector = `:scope > [${ItemsHostAttribute}], :scope > .${TableScrollClass}, :scope > .${TableScrollClass} > [${ItemsHostAttribute}]`;
 
 export type ItemsSelectionEngineOptions = {
     readonly root?: ParentNode;
@@ -33,6 +40,7 @@ export class ItemsSelectionEngine {
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
+        this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
 
         // A pushed key, a re-rendered row and a switched mode all land as mutations with the same answer.
         observeComponents(
@@ -49,22 +57,34 @@ export class ItemsSelectionEngine {
     }
 
     /**
-     * Marks the chosen rows from whichever keys the mode reads; the root is a tab stop from the renderer, whatever the mode. A row that
-     * is one control (a tile that is a button) is pressed through the cursor, so its control is no stop of its own: the list is one.
+     * Marks the chosen rows from whichever keys the mode reads; the root is a tab stop from the renderer, whatever the mode, and the
+     * host's one. A row that is one control (a tile that is a button) is pressed through the cursor, and a part of a row that answers a
+     * press itself (a grid's chevron or checkbox) is reached by the row's keys, so neither is a stop of its own; a table's header is
+     * reached from its rows.
      */
     private apply(root: HTMLElement): void {
         const rows = this.ownItems(root);
 
         markSelectedRows(root, rows);
 
+        // The browser makes a scrolling box with no stop inside it a stop of its own.
+        for (const box of root.querySelectorAll<HTMLElement>(HostBoxSelector))
+            leaveTabOrder(box);
+
         if (!root.matches(KeyboardRootSelector))
             return;
+
+        if (root.matches(TableRootSelector))
+            applyHeaderStops(root);
 
         for (const row of rows) {
             const control = soleControlOf(row);
 
-            if (control !== null && control.getAttribute("tabindex") !== "-1")
-                control.setAttribute("tabindex", "-1");
+            if (control !== null)
+                leaveTabOrder(control);
+
+            for (const own of ownPressControlsOf(row))
+                leaveTabOrder(own);
         }
     }
 
@@ -122,6 +142,16 @@ export class ItemsSelectionEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.altKey || !(domEvent.target instanceof Element))
             return;
 
+        // A table's header is a group of its own, walked by its own keys and left by Down for the rows.
+        const header = headerTableOf(domEvent.target);
+
+        if (header !== null && !isInert(header)) {
+            if (handleHeaderKey(domEvent, header, () => this.enterRows(header)))
+                domEvent.preventDefault();
+
+            return;
+        }
+
         // The nearest host of any kind, so a tree in a list's row keeps its arrows; a key in a row's control or the host's chrome is theirs.
         const found = rowKeyTarget(domEvent.target);
 
@@ -135,7 +165,7 @@ export class ItemsSelectionEngine {
 
         const axis = axisOf(root);
 
-        if (!ActionKeys.has(domEvent.key) && !isRovingKey(domEvent.key, axis === "grid" ? "both" : axis))
+        if (!ActionKeys.has(domEvent.key) && !isRowKey(domEvent.key, axis))
             return;
 
         const rows = this.ownItems(root);
@@ -157,6 +187,12 @@ export class ItemsSelectionEngine {
             return;
         }
 
+        // Up past the first row, or in a table with no row to stand on, goes to its header, as the grid pattern's Up from a top cell does.
+        if (domEvent.key === "ArrowUp" && !domEvent.shiftKey && !domEvent.ctrlKey && !domEvent.metaKey && root.matches(TableRootSelector) && enterHeader(root)) {
+            domEvent.preventDefault();
+            return;
+        }
+
         if (current === null || isItemDisabled(current))
             return;
 
@@ -166,22 +202,11 @@ export class ItemsSelectionEngine {
         switch (domEvent.key) {
             case " ":
                 // Space toggles the row under the cursor and leaves the rest as they are; a host that chooses nothing presses it.
-                if (!chooseRow(root, rows, current, { shift: false, ctrl: true })) {
-                    if (control === null)
-                        return;
-
-                    control.click();
-                }
+                if (!chooseRow(root, rows, current, { shift: false, ctrl: true }))
+                    pressRow(current, control);
                 break;
             case "Enter":
-                // The keyboard's click and double click; a chosen group under the cursor stands, since Delete reads that same group.
-                if (choosesOnEnter(root) && !selectedRows(rows).includes(current))
-                    chooseRow(root, rows, current, PlainGesture);
-
-                if (control === null)
-                    dispatchRowEvent(current, "open");
-                else
-                    control.click();
+                enterRow(root, rows, current, control);
                 break;
             case "Delete": {
                 // The chosen group goes together; the controller decides each removal, and with nothing removable the key is the page's.
@@ -202,9 +227,66 @@ export class ItemsSelectionEngine {
         domEvent.preventDefault();
     }
 
+    /** Down from a table's header: the keyboard back on the table, on the row it stood on, else the first, as an arrow puts it there. */
+    private enterRows(table: HTMLElement): void {
+        const rows = this.ownItems(table);
+        const row = litRow(rows) ?? resolveRowTarget("ArrowDown", rows, null, "vertical");
+
+        table.focus({ preventScroll: true });
+
+        if (row === null)
+            return;
+
+        setRowFocus(table, rows, row);
+
+        if (table.getAttribute(SelectionAttribute) === "one")
+            chooseRow(table, rows, row, PlainGesture);
+    }
+
+    /** A press on a host's own box, past its rows, focuses the box: the keyboard goes to the root, where the rows' keys are read. */
+    private handleFocusIn(domEvent: Event): void {
+        const box = domEvent.target instanceof HTMLElement && domEvent.target.matches(`[${ItemsHostAttribute}], .${TableScrollClass}`) ? domEvent.target : null;
+        const root = box?.closest<HTMLElement>(RootSelector) ?? null;
+
+        if (box !== null && root !== null && [...root.querySelectorAll(HostBoxSelector)].includes(box))
+            root.focus({ preventScroll: true });
+    }
+
     private ownItems(root: HTMLElement): HTMLElement[] {
         return ownDescendants(root, ItemSelector, RootSelector);
     }
+}
+
+/** Takes an element out of the Tab order, focusable still; written only when it changes, so an observer is not woken for nothing. */
+function leaveTabOrder(element: HTMLElement): void {
+    if (element.getAttribute("tabindex") !== "-1")
+        element.setAttribute("tabindex", "-1");
+}
+
+/**
+ * Enter on the cursor's row of any host, a tree's too: the keyboard's click and double click. It chooses where the host chooses on
+ * Enter — a chosen group under the cursor stands, since Delete reads that same group —, presses the row, and opens it unless the press
+ * was the row's one control's.
+ */
+export function enterRow(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, control: HTMLElement | null): void {
+    if (choosesOnEnter(root) && !selectedRows(rows).includes(row))
+        chooseRow(root, rows, row, PlainGesture);
+
+    pressRow(row, control);
+
+    if (control === null)
+        dispatchRowEvent(row, "open");
+}
+
+/**
+ * The row's click from the keyboard: its one control pressed, else the row's own click command raised — through an event only the
+ * event pipeline hears, so no engine that reads a pointer's click (a detail's toggle, a popup's dismissal) takes it for one.
+ */
+export function pressRow(row: HTMLElement, control: HTMLElement | null): void {
+    if (control === null)
+        dispatchRowEvent(row, RowPressEventName);
+    else
+        control.click();
 }
 
 /** How the host's rows lie for the arrows: a wrap in lines whatever its orientation, a horizontal list both ways, the rest up and down. */

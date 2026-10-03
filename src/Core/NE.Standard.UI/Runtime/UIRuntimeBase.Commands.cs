@@ -83,13 +83,22 @@ internal abstract partial class UIRuntimeBase
         // Held for the whole run: a command's effects (focus, scroll) belong to the tab that raised it, not whichever attached last.
         using IDisposable invocation = BeginInvocation(invoker);
 
-        CompiledUIEvent compiledEvent;
+        CompiledUIEvent? compiledEvent = null;
+        OfferedCommand? offered = null;
         IUICommandMetadata metadata;
 
         try
         {
-            compiledEvent = View.Events.GetRequired(request.EventId);
-            metadata = Controller.GetCommandMetadata(compiledEvent.Command);
+            if (request.Action is null)
+            {
+                compiledEvent = View.Events.GetRequired(request.EventId);
+                metadata = Controller.GetCommandMetadata(compiledEvent.Command);
+            }
+            else
+            {
+                offered = TakeOffer(request.Action);
+                metadata = Controller.GetCommandMetadata(offered.Command);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -109,12 +118,12 @@ internal abstract partial class UIRuntimeBase
         }
 
         if (metadata.ConcurrencyMode == UICommandConcurrencyMode.Background)
-            return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessBackgroundCommand", detach: request.RequestId is not null, cancellationToken).ConfigureAwait(false);
+            return await ProcessEventCoreAsync(invoker, request, metadata.Name, compiledEvent, offered, "ProcessBackgroundCommand", detach: request.RequestId is not null, maxRuns: metadata.MaxConcurrent, cancellationToken).ConfigureAwait(false);
 
         await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await ProcessEventCoreAsync(invoker, request, compiledEvent, "ProcessExclusiveCommand", detach: false, cancellationToken).ConfigureAwait(false);
+            return await ProcessEventCoreAsync(invoker, request, metadata.Name, compiledEvent, offered, "ProcessExclusiveCommand", detach: false, maxRuns: 0, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -122,24 +131,43 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
-    private async Task<UICommandExecutionResult> ProcessEventCoreAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, string operation, bool detach, CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs a command an event or an offered action raised, or starts it detached; <paramref name="maxRuns"/> above zero holds it to
+    /// that many runs at once in this runtime.
+    /// </summary>
+    private async Task<UICommandExecutionResult> ProcessEventCoreAsync(UIHandle invoker, UICommandRequest request, string command, CompiledUIEvent? compiledEvent, OfferedCommand? offered, string operation, bool detach, int maxRuns, CancellationToken cancellationToken)
     {
         IReadOnlyDictionary<string, object?> arguments;
         var step = "EnsureEventTarget";
 
         try
         {
-            await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            if (compiledEvent is null)
             {
-                EnsureEventTargetOpenNoLock(compiledEvent, request.DynamicParameters);
-
-                step = "BuildCommandArguments";
-                arguments = BuildCommandArguments(compiledEvent, request.DynamicParameters);
+                // An offered action stands on no component to gate: the offer is its gate, spent as it was taken.
+                arguments = offered?.Arguments ?? FrozenDictionary<string, object?>.Empty;
             }
-            finally
+            else
             {
-                _ = _stateLock.Release();
+                await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    EnsureEventTargetOpenNoLock(compiledEvent, request.DynamicParameters);
+
+                    step = "BuildCommandArguments";
+                    arguments = BuildCommandArguments(compiledEvent, request.DynamicParameters);
+                }
+                finally
+                {
+                    _ = _stateLock.Release();
+                }
+            }
+
+            // Last, once nothing else can refuse the press, so a refused press holds no run.
+            if (maxRuns > 0)
+            {
+                step = "EnterRun";
+                EnterRun(command, maxRuns);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -159,12 +187,55 @@ internal abstract partial class UIRuntimeBase
             }, invoker, cancellationToken).ConfigureAwait(false);
         }
 
-        if (detach)
-            return Detach(invoker, request, compiledEvent, arguments, operation, cancellationToken);
+        var run = maxRuns > 0 ? command : null;
 
-        UICommandExecutionResult result = await ExecuteCommandAsync(invoker, request, compiledEvent, arguments, operation, cancellationToken).ConfigureAwait(false);
+        if (detach)
+            return Detach(invoker, request, command, arguments, operation, run, cancellationToken);
+
+        UICommandExecutionResult result;
+
+        try
+        {
+            result = await ExecuteCommandAsync(invoker, request, command, arguments, operation, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (run is not null)
+                LeaveRun(run);
+        }
 
         return await PublishCommandResultAsync(result, invoker, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Counts one more run of a background command, refused as an unauthorised command is where <paramref name="maxRuns"/> are under way
+    /// already: the page's own press is refused before it is sent, so a run past it is another tab's or a hand-made call.
+    /// </summary>
+    private void EnterRun(string command, int maxRuns)
+    {
+        lock (_runsSync)
+        {
+            var running = _runs.GetValueOrDefault(command);
+
+            if (running >= maxRuns)
+                throw new UICommandBusyException($"Command '{command}' already has {running} run(s) under way, the most its MaxConcurrent allows.");
+
+            _runs[command] = running + 1;
+        }
+    }
+
+    /// <summary>Counts one run of a background command out; a command with none under way leaves no entry behind.</summary>
+    private void LeaveRun(string command)
+    {
+        lock (_runsSync)
+        {
+            var running = _runs.GetValueOrDefault(command) - 1;
+
+            if (running > 0)
+                _runs[command] = running;
+            else
+                _ = _runs.Remove(command);
+        }
     }
 
     // Read once per argument by the command and dropped: a plain dictionary, not a frozen one whose build would never pay back.
@@ -330,7 +401,7 @@ internal abstract partial class UIRuntimeBase
     /// reads the state its tab pressed it on before its first await, as an awaited one does. It keeps the invoke's token, which
     /// the hub ties to the connection: a closed connection cancels it, and a runtime asked to go waits for it.
     /// </remarks>
-    private UICommandExecutionResult Detach(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
+    private UICommandExecutionResult Detach(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, CancellationToken cancellationToken)
     {
         // The run holds the runtime as a command of its own, taken before the invoke lets go of its hold.
         _ = Interlocked.Increment(ref _commandsInFlight);
@@ -340,15 +411,15 @@ internal abstract partial class UIRuntimeBase
             Command = AcceptedCommand,
             Changes = ServerChangeSet.Empty,
             Accepted = true,
-            Completion = RunDetachedAsync(invoker, request, compiledEvent, arguments, operation, cancellationToken)
+            Completion = RunDetachedAsync(invoker, request, command, arguments, operation, run, cancellationToken)
         };
     }
 
     /// <summary>
     /// Runs an accepted command to its end and pushes its result to the tab that raised it, answering whether it succeeded;
-    /// never faults, so nothing it throws goes unobserved.
+    /// never faults, so nothing it throws goes unobserved; <paramref name="run"/> is the counted run it lets go of at its end.
     /// </summary>
-    private async Task<bool> RunDetachedAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
+    private async Task<bool> RunDetachedAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, CancellationToken cancellationToken)
     {
         var succeeded = false;
         var pushed = false;
@@ -357,7 +428,7 @@ internal abstract partial class UIRuntimeBase
         {
             using IDisposable invocation = BeginInvocation(invoker);
 
-            UICommandExecutionResult result = await ExecuteCommandAsync(invoker, request, compiledEvent, arguments, operation, cancellationToken).ConfigureAwait(false);
+            UICommandExecutionResult result = await ExecuteCommandAsync(invoker, request, command, arguments, operation, cancellationToken).ConfigureAwait(false);
             succeeded = result.Command.Success;
 
             await PushCommandResultAsync(invoker, new UICommandExecutionResult
@@ -382,6 +453,9 @@ internal abstract partial class UIRuntimeBase
         }
         finally
         {
+            if (run is not null)
+                LeaveRun(run);
+
             try
             {
                 await LeaveCommandAsync().ConfigureAwait(false);
@@ -399,12 +473,12 @@ internal abstract partial class UIRuntimeBase
     /// Runs the command and gathers what it changed for the invoker; a failure goes through the controller's exception handler
     /// and comes back as a failed result.
     /// </summary>
-    private async Task<UICommandExecutionResult> ExecuteCommandAsync(UIHandle invoker, UICommandRequest request, CompiledUIEvent compiledEvent, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
+    private async Task<UICommandExecutionResult> ExecuteCommandAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
     {
         try
         {
             UICommandResult commandResult = await Controller
-                .ExecuteCommandAsync(compiledEvent.Command, arguments, cancellationToken)
+                .ExecuteCommandAsync(command, arguments, cancellationToken)
                 .ConfigureAwait(false);
 
             commandResult = WithFailureNotification(ResolveRuntimeCommandResult(commandResult), exception: null);
@@ -515,6 +589,9 @@ internal abstract partial class UIRuntimeBase
     {
         if (exception is null)
             return result.Error;
+
+        if (exception is UICommandBusyException)
+            return _application.ErrorHandling.CommandBusyMessage;
 
         if (exception is UnauthorizedAccessException)
             return _application.ErrorHandling.CommandRefusedMessage;

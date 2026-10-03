@@ -4,9 +4,7 @@
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { ActionBarClass, DisabledClass, InActionBarAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, PassiveMenuEntrySelector, SmallGhostButtonClasses } from "../addressing/dom-attributes.ts";
 import { isInert } from "./interactive-state.ts";
-import type { TooltipWordsProvider } from "./tooltip-engine.ts";
 import { IconMarkAttribute, IconUrlProperty, isIconClassName } from "../rendering/icon-value.ts";
-import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 
 export const ActionBarButtonClass = `${ActionBarClass}__button`;
@@ -165,19 +163,7 @@ export function actionBarEntryOf(button: Element): HTMLElement | null {
     return entries.get(button) ?? null;
 }
 
-/** The words an entry shows as its title: the button's name and its tooltip. */
+/** The words an entry shows as its title: the button's name. */
 function entryWords(entry: HTMLElement): string {
     return entry.querySelector(TitleSelector)?.textContent?.trim() ?? "";
 }
-
-/** A bar's icon says its entry's title as its tooltip, read off the entry as the tooltip opens, so a language switch is heard. */
-export const ActionBarButtonWords: TooltipWordsProvider = {
-    anchor: target => target.closest(`.${ActionBarButtonClass}`),
-    words: button => {
-        const entry = actionBarEntryOf(button);
-        const words = entry === null ? clientStrings.text("ui.actionbar.more") : entryWords(entry);
-
-        // The words as the entry shows them, never read again as markup.
-        return words.length === 0 ? null : escapeInlineMarkup(words);
-    }
-};

@@ -8,12 +8,12 @@ namespace NE.Standard.UI.Primitives.Annotations;
 public enum UICommandConcurrencyMode
 {
     /// <summary>
-    /// Only one invocation of the command may run at a time.
+    /// One exclusive command of the runtime runs at a time, whichever command it is; background commands and value writes go on beside it.
     /// </summary>
     Exclusive = 0,
 
     /// <summary>
-    /// The command may run concurrently with other invocations.
+    /// The command runs beside the exclusive command in progress and other background commands, and lets go of its tab at once.
     /// </summary>
     Background = 1
 }
@@ -47,4 +47,11 @@ public sealed class UICommandAttribute : Attribute
     /// Gets or sets how concurrent command invocations are handled.
     /// </summary>
     public UICommandConcurrencyMode ConcurrencyMode { get; init; } = UICommandConcurrencyMode.Exclusive;
+
+    /// <summary>
+    /// Gets or sets how many runs of a <see cref="UICommandConcurrencyMode.Background"/> command one runtime may have under way at
+    /// once; a press past it is refused. One by default: a second run of an export or a query beside the first is one nobody asked for.
+    /// </summary>
+    /// <remarks>Held on the server, whatever the page sends; an exclusive command already runs one at a time.</remarks>
+    public int MaxConcurrent { get; init; } = 1;
 }

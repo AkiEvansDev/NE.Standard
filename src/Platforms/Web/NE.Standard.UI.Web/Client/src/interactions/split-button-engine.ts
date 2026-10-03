@@ -10,7 +10,6 @@ const MainClass = "ui-split-button__main";
 const ToggleClass = "ui-split-button__toggle";
 const MenuClass = "ui-split-button__menu";
 const OpenClass = "ui-split-button--open";
-const MenuGap = 4;
 
 export type SplitButtonEngineOptions = {
     readonly root?: ParentNode;
@@ -103,7 +102,7 @@ export class SplitButtonEngine {
             owner: button,
             popup: menu,
             anchor: button,
-            placement: { placement: "bottom-end", gap: MenuGap },
+            placement: { placement: "bottom-end" },
             openers: openersOf(button)
         });
 

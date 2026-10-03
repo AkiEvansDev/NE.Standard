@@ -69,9 +69,9 @@ video {
     .ui-focus-ring();
 }
 
-// A layer holding the keyboard (popup-focus.ts) and a list opened by the pointer, whose container holds it until an arrow, are no
-// controls: no ring, as on a dialog's surface.
-:is([data-ui-focus-holder], .ui-context-menu, .ui-split-button__menu > .ui-menu, .ui-language-switcher__menu):focus {
+// A layer holding the keyboard (popup-focus.ts), a list opened by the pointer, whose container holds it until an arrow, and the region
+// the skip link put it on are no controls: no ring, as on a dialog's surface.
+:is([data-ui-focus-holder], .ui-context-menu, .ui-split-button__menu > .ui-menu, .ui-language-switcher__menu, [data-ui-region]):focus {
     outline: none;
 }
 

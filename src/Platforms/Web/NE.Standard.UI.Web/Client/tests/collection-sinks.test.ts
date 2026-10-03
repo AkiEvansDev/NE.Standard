@@ -29,7 +29,8 @@ test("a move carries both positions and a missing field reads as null, never und
 
     const reset = toCollectionChange({ kind: 0, action: "Reset", component: { id: 7 }, items: [{}] }, component, 7, []);
 
-    assert.deepEqual(reset.items, [{ key: null, oldKey: null, index: null, item: undefined }]);
+    // The wire leaves a null item out too.
+    assert.deepEqual(reset.items, [{ key: null, oldKey: null, index: null, item: null }]);
 });
 
 test("the registry hands a change to the sink of its kind and says when there is none", () => {

@@ -16,10 +16,18 @@
     <ProjectReference Include="..\..\addons\CodeInput\src\NE.Standard.UI.CodeInput\NE.Standard.UI.CodeInput.csproj" />
   </ItemGroup>
 
+  <!-- The mechanism controllers as written, for the Controller tab of an example's code (DemoSources). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Controllers\Mechanisms\*.cs" LogicalName="DemoApp.Sources.%(Filename)%(Extension)" Visible="false" />
+  </ItemGroup>
+
   <!-- The monorepo's tests reach the controllers, which a demo keeps internal; a mirror has no tests to name. -->
   <ItemGroup Condition="'$(InMonorepo)' == 'true'">
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>NE.Test.Standard.UI.Examples</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Test.DemoApp.Screens</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
 

@@ -61,6 +61,7 @@ public static class DemoIcons
     public const string LayoutDashboard = MaterialIcons.Dashboard;
 
     public const string Home = MaterialIcons.Home;
+    public const string Screens = MaterialIcons.Devices;
     public const string Settings = MaterialIcons.Settings;
     public const string Palette = MaterialIcons.Palette;
     public const string LightMode = MaterialIcons.LightMode;

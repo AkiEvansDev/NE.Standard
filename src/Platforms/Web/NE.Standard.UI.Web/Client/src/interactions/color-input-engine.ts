@@ -36,8 +36,6 @@ const VariantAttribute = "data-ui-color-variant";
 const NoPickerAttribute = "data-ui-color-no-picker";
 const NoPaletteAttribute = "data-ui-color-no-palette";
 
-const PopupGap = 4;
-
 /** What one colour input is currently showing; both the picked and the palette colour are kept. */
 type ColorState = {
     pane: "picker" | "palette";
@@ -490,7 +488,7 @@ export class ColorInputEngine {
             owner: input,
             popup,
             anchor: anchor ?? input,
-            placement: { placement: "bottom-end", gap: PopupGap },
+            placement: { placement: "bottom-end" },
             openers: toggle === null ? [] : [toggle],
             focus: popup.querySelector<HTMLElement>(`[${TabSelectedAttribute}]`) ?? true
         });

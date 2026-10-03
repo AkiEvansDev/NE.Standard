@@ -70,8 +70,9 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Whether a value written to an input, or to a period's end, falls outside its <c>Min</c>/<c>Max</c> or on a day it does not offer.
-    /// A cleared value, or text that reads as no value, is left to the ordinary path, which keeps the one and refuses the other.
+    /// Whether a value written to an input, or to a period's end, falls outside its <c>Min</c>/<c>Max</c>, on a day it does not offer,
+    /// past a range slider's other end, or off a slider's step. A cleared value, or text that reads as no value, is left to the ordinary
+    /// path, which keeps the one and refuses the other.
     /// </summary>
     /// <remarks>
     /// The text is read as the write itself reads it — by the input's own format and culture — and the read handed on to the write, so
@@ -101,7 +102,9 @@ internal abstract partial class UIRuntimeBase
                 && checks.MarkedDays is { } days
                 && value is DateOnly day
                 && IsClosedNoLock(only, dynamicParameters)
-                && !IsMarkedNoLock(days, day, dynamicParameters));
+                && !IsMarkedNoLock(days, day, dynamicParameters))
+            || (checks.Ends is { } ends && IsPastOtherEndNoLock(ends, property == IPeriodInputComponent.EndValueProperty, value, dynamicParameters))
+            || (checks.Step is { } step && IsOffStepNoLock(step, checks.Min, value, dynamicParameters));
     }
 
     /// <summary>
@@ -156,6 +159,46 @@ internal abstract partial class UIRuntimeBase
             return true;
 
         return marked is IEnumerable<DateOnly> markedDays && MarkedDaysComponentExtensions.IsMarked(markedDays, day);
+    }
+
+    /// <summary>
+    /// Whether a range's end written lies past the other as the controller holds it — a start above the end, an end below the start —
+    /// or nearer to it than the least distance; another end unset, or one the server cannot read, holds nothing.
+    /// </summary>
+    private bool IsPastOtherEndNoLock(UIPeriodEnds ends, bool isEnd, object value, object?[] dynamicParameters)
+    {
+        if ((isEnd ? ends.Start : ends.End) is not { } other
+            || value is not decimal written
+            || !TryReadGateNoLock(other, dynamicParameters, out var read)
+            || !RecursiveValueCoercion.TryCoerce(read, typeof(decimal), out var otherEnd)
+            || otherEnd is not decimal held)
+        {
+            return false;
+        }
+
+        var distance = ends.MinDistance is { } least && ReadDecimalNoLock(least, dynamicParameters) is decimal set ? set : 0m;
+
+        return isEnd ? written - held < distance : held - written < distance;
+    }
+
+    /// <summary>A check's value as a number, or none where it is unset, unread or no number.</summary>
+    private decimal? ReadDecimalNoLock(UIGateValue gateValue, object?[] dynamicParameters)
+        => TryReadGateValueNoLock(gateValue, dynamicParameters, out var read) && RecursiveValueCoercion.TryCoerce(read, typeof(decimal), out var typed) && typed is decimal number
+            ? number
+            : null;
+
+    /// <summary>
+    /// Whether a slider's value lies between two steps counted from its <c>Min</c> (0 where unread), in decimal arithmetic, so a step
+    /// of 0.1 holds 0.3 exactly; a step unset, unread or not above zero holds nothing.
+    /// </summary>
+    private bool IsOffStepNoLock(UIGateValue step, UIGateValue? min, object value, object?[] dynamicParameters)
+    {
+        if (value is not decimal written || ReadDecimalNoLock(step, dynamicParameters) is not decimal size || size <= 0)
+            return false;
+
+        var origin = min is { } bound && ReadDecimalNoLock(bound, dynamicParameters) is decimal lower ? lower : 0m;
+
+        return (written - origin) % size != 0;
     }
 
     private static bool IsChoice(UIProperty property)

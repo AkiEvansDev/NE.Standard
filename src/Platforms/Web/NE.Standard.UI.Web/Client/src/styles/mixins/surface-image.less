@@ -38,6 +38,8 @@
     // shows as it is meanwhile.
     &[data-ui-surface-image][data-ui-surface-image-blur]:not(.ui-loading, [data-ui-row-drop]) {
         isolation: isolate;
+        // The layer covers the padding box, so the picture stops there too: under the border it stayed sharp, a frame round the blur.
+        background-clip: padding-box;
 
         & when (@scroller = false) {
             position: relative;

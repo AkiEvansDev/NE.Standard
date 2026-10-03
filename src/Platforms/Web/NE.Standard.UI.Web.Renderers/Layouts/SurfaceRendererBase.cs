@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -31,6 +32,21 @@ public abstract class SurfaceRendererBase : WebComponentRendererBase
             WebDomOperation.ToggleClass(ClickableClassName),
             WebDomOperation.ToggleAttribute(WebAttributes.EventSuppress(EventNames.Click), condition: WebValueCondition.IsFalse)
         ]);
+
+        RenderLiveRegion(context, root);
+    }
+
+    // A message's role, read as its words change and as it is shown; a clickable surface's role is the press engine's (a button or
+    // a group), and a picture of a surface says nothing.
+    private static void RenderLiveRegion(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        if (context.IsPresentationCopy || ReadRenderValue(context, SurfaceComponent.ClickableProperty, false))
+            return;
+
+        UILiveRegion? live = ReadRenderValue<UILiveRegion?>(context, SurfaceComponent.LiveRegionProperty, null);
+
+        if (live is UILiveRegion region)
+            _ = root.Attribute("role", region == UILiveRegion.Alert ? "alert" : "status");
     }
 
     private static void RenderClickableStop(IHtmlElementBuilder target, bool? value)

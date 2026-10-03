@@ -154,31 +154,47 @@
     min-width: 0;
 }
 
+// An open row stands its cells in its first line, a closed row's height, each centred there as a closed row's are: the field's message
+// line grows the row under that line, and the key, the field and the save and cancel pair stay where they were. Centred on the whole
+// row, they all moved down by half the line as it came. The padding stays, or the box rounds odd.
 .ui-key-value-action__row[data-ui-row-editing] {
-    // The input's message grows the row while key and buttons stay level with the field; the padding stays, or the box rounds odd.
-    align-items: center;
+    --ui-key-value-line: calc(@ui-button-height-sm + 2px);
+    align-items: start;
 }
 
+    .ui-key-value-action__row[data-ui-row-editing] > :is(.ui-key-value-action__key, .ui-key-value-action__edit-action) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-content: center;
+        min-height: var(--ui-key-value-line);
+    }
+
+    // The field at the line's top, set down by what the line has over the field's height: its message hangs below the line.
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input:has(> :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline)) {
+        padding-top: calc((var(--ui-key-value-line) - @ui-button-height-sm) / 2);
+    }
+
     // The editor fills the cell's width.
-    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         flex: 1 1 auto;
-        align-self: center;
+        align-self: flex-start;
         .ui-responsive-property(min-width, --ui-min-width, 0);
     }
 
-    // Set back by the field's own inset, whatever its appearance, so its text starts near where the value's did — never further than
-    // the column gap less a step, or a field's box closed up against the key.
-    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
-        .ui-responsive-property(margin, --ui-margin, 0 0 0 calc(-1 * min(var(--ui-field-inset, calc(@ui-space-3 + var(--ui-border-width, 1px))), @ui-space-3 - @ui-space-1)));
+    // Set back by the field's own inset, so its text starts on the value's first glyph. The inset is narrowed to the column gap less a
+    // step, or a box set back by a full one closed up against the key.
+    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+        .ui-field-narrow-inset(@ui-space-3 - @ui-space-1);
+        .ui-responsive-property(margin, --ui-margin, 0 0 0 calc(-1 * var(--ui-field-inset, calc(@ui-space-3 + var(--ui-border-width, 1px)))));
     }
 
     // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline.
-    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         align-self: center;
         .ui-responsive-property(margin, --ui-margin, 0);
     }
 
-    .ui-key-value-action__value-input :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
+    .ui-key-value-action__value-input :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
         flex: 1 1 auto;
         min-height: @ui-button-height-sm;
     }
@@ -201,7 +217,7 @@
     }
 
     .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__edit-action {
-        display: block;
+        display: grid;
     }
 
 // The framework's pencil, check and cross, their words kept for the reader.

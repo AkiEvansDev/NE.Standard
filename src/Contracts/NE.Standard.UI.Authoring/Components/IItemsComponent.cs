@@ -23,6 +23,11 @@ public interface IItemsComponent : ITemplatedComponent, IBindableItemsComponent
     static UIProperty QueryProperty { get; } = new(nameof(Query));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="ItemReads"/>.
+    /// </summary>
+    static UIProperty ItemReadsProperty { get; } = new(nameof(ItemReads));
+
+    /// <summary>
     /// Gets filtering and sorting rules applied to the items collection.
     /// </summary>
     UIItemsView? ItemsView { get; }
@@ -32,6 +37,12 @@ public interface IItemsComponent : ITemplatedComponent, IBindableItemsComponent
     /// two-way bound, so a windowed source is asked with them.
     /// </summary>
     UIItemsQuery? Query { get; }
+
+    /// <summary>
+    /// Gets what the page reads off the rows beyond what the templates, rules and keys read — a client engine reading items raw —
+    /// or <see langword="null"/> for nothing more; a row carries only what is read (<see cref="UIItemReads.Whole"/> sends it whole).
+    /// </summary>
+    UIItemReads? ItemReads { get; }
 
     /// <summary>
     /// Gets whether the bound <c>Items</c> collection currently holds at least one row.

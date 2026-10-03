@@ -102,9 +102,13 @@
         border-radius: 0;
     }
 
+    // An icon alone is a square, as an icon button is: as wide as the strip is tall inside its edge. Not aspect-ratio, which a segment
+    // stretched in a strip with no set height cannot resolve; narrower, the strip read as squashed beside its icon buttons.
     .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
         .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
         aspect-ratio: auto;
+        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-control-height} - 2 * var(--ui-border-width, 1px))");
+        justify-content: center;
     }
 
     .ui-button-group--small .ui-button-group__item > .ui-button {
@@ -113,6 +117,11 @@
 
     .ui-button-group--small .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
         .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-button-height-sm} - 2 * var(--ui-border-width, 1px))");
+    }
+
+    .ui-button-group--large .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
+        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-button-height-lg} - 2 * var(--ui-border-width, 1px))");
     }
 
     .ui-button-group--large .ui-button-group__item > .ui-button {

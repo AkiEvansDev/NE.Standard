@@ -62,10 +62,10 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        // A table whose rows are chosen is a grid: the keyboard walks its rows and each says whether it is chosen.
+        // A table whose rows are chosen or pressed is a grid: the keyboard walks its header and rows, and a chosen row says so.
         var selectable = RenderSelectableRole(context, root);
 
-        _ = root.Attribute("role", selectable ? "grid" : "table");
+        _ = root.Attribute("role", ActsAsGrid(context) ? "grid" : "table");
         var cellRole = CellRole(context);
 
         RenderFlags(context, root);
@@ -101,9 +101,13 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderUnderTable(context, root, columns);
     }
 
-    /// <summary>What a cell is to a screen reader: a grid's cell where rows are chosen, a table's otherwise — for a package's cells too.</summary>
-    protected static string CellRole(WebRenderContext context)
-        => ResolveSelectionMode(context) is UISelectionMode.One or UISelectionMode.Many ? "gridcell" : "cell";
+    /// <summary>What a cell is to a screen reader: a grid's cell where the table acts as one, a table's otherwise — for a package's cells too.</summary>
+    protected string CellRole(WebRenderContext context)
+        => ActsAsGrid(context) ? "gridcell" : "cell";
+
+    /// <summary>Whether the table acts as a grid — its rows chosen, or raising a command on a press — rather than a table that is only read.</summary>
+    protected virtual bool ActsAsGrid(WebRenderContext context)
+        => ResolveSelectionMode(context) is UISelectionMode.One or UISelectionMode.Many || RowsAct(context);
 
     /// <summary>The seven switches, each a modifier the stylesheet reads, and the rows' drag and its grip the engine reads; a bound one flips live.</summary>
     protected virtual void RenderFlags(WebRenderContext context, IHtmlElementBuilder root)
@@ -397,7 +401,8 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         {
             _ = resizer.Class(ResizerClassName);
             _ = resizer.Attribute("role", "separator");
-            _ = resizer.Attribute("tabindex", "0");
+            // No stop of the Tab order: the header's keyboard sizes a column by Shift with an arrow on its caption.
+            _ = resizer.Attribute("tabindex", "-1");
             _ = resizer.Attribute("aria-orientation", "vertical");
             WebWords.Write(context, resizer, "aria-label", UIStrings.TableResizeColumn);
             _ = resizer.Attribute(WebAttributes.TableColumn, index.ToString(CultureInfo.InvariantCulture));

@@ -8,7 +8,8 @@
 // A button, an action, a list entry: `::after`, since a button's `::before` may be its glyph (a key-value row's pencil, a "…").
 .ui-button:not(.ui-tab-header, .ui-menu-item),
 .ui-action,
-.ui-language-switcher__choice {
+.ui-language-switcher__choice,
+.ui-pager__size-choice {
     .ui-press-ripple(after);
 }
 
@@ -26,7 +27,7 @@
 }
 
 // The wave stands on the element's frame, so an element not positioned of its own is while it plays.
-:is(.ui-language-switcher__choice, .ui-select__option, .ui-items-view__item, .ui-items-view__item > [data-ui-id], .ui-table__row, .ui-tree__row, .ui-key-value-action__row).ui-pressing {
+:is(.ui-language-switcher__choice, .ui-pager__size-choice, .ui-select__option, .ui-items-view__item, .ui-items-view__item > [data-ui-id], .ui-table__row, .ui-tree__row, .ui-key-value-action__row).ui-pressing {
     position: relative;
 }
 

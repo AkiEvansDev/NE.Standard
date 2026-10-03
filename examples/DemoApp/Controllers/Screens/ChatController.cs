@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DemoApp.Controllers.Screens;
 
@@ -72,7 +73,10 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
     [RecursiveMember]
     public partial string Group { get; private set; } = sent.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    /// <summary>The message's own actions: pin, edit and delete also stand in its action bar, reply and copy only in its menu.</summary>
+    /// <summary>
+    /// The message's own actions: pin, edit and delete also stand in its action bar, reply and copy only in its menu; each answers the
+    /// key its menu shows, for the message under the list's cursor.
+    /// </summary>
     [RecursiveMember(false)]
     public RecursiveCollection<MenuItem> Actions { get; } = CreateActions();
 
@@ -97,12 +101,13 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
     private static RecursiveCollection<MenuItem> CreateActions()
         =>
         [
-            new() { Id = "pin", Title = "demo.screens.chat.action.pin", Icon = UIGlyphs.Pin, InActionBar = true },
-            new() { Id = "edit", Title = "demo.screens.chat.action.edit", Icon = UIGlyphs.Edit, InActionBar = true },
-            new() { Id = "delete", Title = "demo.screens.chat.action.delete", Icon = UIGlyphs.Delete, IconColor = UIThemeColor.Danger, TitleColor = UIThemeColor.Danger, InActionBar = true },
+            new() { Id = "pin", Title = "demo.screens.chat.action.pin", Icon = UIGlyphs.Pin, InActionBar = true, Shortcut = "P" },
+            new() { Id = "edit", Title = "demo.screens.chat.action.edit", Icon = UIGlyphs.Edit, InActionBar = true, Shortcut = "E" },
+            new() { Id = "delete", Title = "demo.screens.chat.action.delete", Icon = UIGlyphs.Delete, IconColor = UIThemeColor.Danger, TitleColor = UIThemeColor.Danger, InActionBar = true, Shortcut = "Delete" },
             new() { Id = "rule", Kind = UIMenuItemKind.Separator },
-            new() { Id = "reply", Title = "demo.screens.chat.action.reply", Icon = DemoIcons.Outline(DemoIcons.MessageSquare) },
-            new() { Id = "copy", Title = "demo.screens.chat.action.copy", Icon = DemoIcons.Outline(DemoIcons.Copy) }
+            new() { Id = "reply", Title = "demo.screens.chat.action.reply", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), Shortcut = "R" },
+            // C alone: Ctrl+C stays the browser's copy of the words the reader selected in a message.
+            new() { Id = "copy", Title = "demo.screens.chat.action.copy", Icon = DemoIcons.Outline(DemoIcons.Copy), Shortcut = "C" }
         ];
 }
 
@@ -112,6 +117,8 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
 /// </summary>
 internal sealed class DemoConversationSource : UIItemSourceBase<DemoChatMessage>
 {
+    private static readonly TimeSpan OlderHistoryLatency = TimeSpan.FromMilliseconds(400);
+
     private List<DemoChatMessage> _history = [];
 
     /// <summary>Shows another chat: its history, from the end.</summary>
@@ -159,20 +166,45 @@ internal sealed class DemoConversationSource : UIItemSourceBase<DemoChatMessage>
     public DemoChatMessage? Get(string id)
         => Find(id);
 
-    /// <summary>Takes a message out of the history and out of the window, its row with it.</summary>
-    public void Delete(string id)
+    /// <summary>Takes a message out of the history and out of the window, its row with it, answering where it stood (-1 for nowhere).</summary>
+    public int Delete(string id)
     {
         var index = _history.FindIndex(message => string.Equals(message.Id, id, StringComparison.Ordinal));
 
         if (index < 0)
-            return;
+            return -1;
 
         _history.RemoveAt(index);
         _ = Remove(id);
+
+        return index;
     }
 
-    protected override Task<UIItemWindow<DemoChatMessage>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
+    /// <summary>A message deleted a moment ago goes back where it stood: into the history, and into the window if the reader holds that stretch.</summary>
+    public void Restore(DemoChatMessage message, int index)
     {
+        index = Math.Clamp(index, 0, _history.Count);
+        _history.Insert(index, message);
+
+        if (TotalCount is int total)
+            TotalCount = total + 1;
+
+        if (Offset is not int offset)
+            return;
+
+        // Before the window it moves the window's start on by one; past its end, while more follows, it is not the reader's to see yet.
+        if (index < offset)
+            Offset = offset + 1;
+        else if (index < offset + Items.Count || (index == offset + Items.Count && !HasMoreAfter))
+            Items.Insert(index - offset, message);
+    }
+
+    protected override async Task<UIItemWindow<DemoChatMessage>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
+    {
+        // Older history answers a beat late, as a server's would: what the conversation's ring at its top stands for meanwhile.
+        if (request.Anchor.Kind == UIItemAnchorKind.Before)
+            await Task.Delay(OlderHistoryLatency, cancellationToken).ConfigureAwait(false);
+
         var start = request.Anchor.Kind switch
         {
             UIItemAnchorKind.Start => 0,
@@ -187,7 +219,7 @@ internal sealed class DemoConversationSource : UIItemSourceBase<DemoChatMessage>
 
         DemoChatMessage[] items = [.. _history.Skip(start).Take(request.Count)];
 
-        return Task.FromResult(new UIItemWindow<DemoChatMessage>(items)
+        return new UIItemWindow<DemoChatMessage>(items)
         {
             Offset = start,
             TotalCount = _history.Count,
@@ -195,7 +227,7 @@ internal sealed class DemoConversationSource : UIItemSourceBase<DemoChatMessage>
             HasMoreAfter = start + items.Length < _history.Count,
             // Only the source knows the day of the message just above the window: the window's first row is headed when that differs.
             GroupBefore = start > 0 ? _history[start - 1].Group : null
-        });
+        };
     }
 
     private int IndexOf(string key)
@@ -259,6 +291,10 @@ internal sealed partial class ChatController : UIControllerBase
     private int _sent;
     private int _received;
     private DemoChatItem _open;
+
+    // What a delete took, by the message's id, for the toast's Undo to put back: a soft delete. A real store would purge the row once
+    // the toast's window has passed; this history lives in memory, so there is nothing to purge.
+    private readonly Dictionary<string, (DemoChatItem Chat, DemoChatMessage Message, int Index)> _deleted = new(StringComparer.Ordinal);
 
     // UTC until the reader's zone is heard, as the page attaches.
     private TimeZoneInfo _zone = TimeZoneInfo.Utc;
@@ -512,8 +548,16 @@ internal sealed partial class ChatController : UIControllerBase
         KeyDays();
         Describe(_open);
 
+        // Every chat of the list, not only the open one: a message sent elsewhere into another chat lifts it and counts as unread.
+        foreach (DemoChatItem chat in Chats)
+            Context.Subscribe(Topic(chat.Id));
+
         return Conversation.ShowAsync(_open.History, cancellationToken);
     }
+
+    /// <summary>The topic of a chat, which every page listing it subscribes to and a message sent in it is posted to.</summary>
+    public static string Topic(string chatId)
+        => $"demo-chat:{chatId}";
 
     private void KeyDays()
     {
@@ -632,7 +676,12 @@ internal sealed partial class ChatController : UIControllerBase
     {
         chat.Unread = 0;
         _ = Finish(chat);
+        CountUnread();
+    }
 
+    /// <summary>The rail's Chats badge: what every chat holds unread.</summary>
+    private void CountUnread()
+    {
         var unread = Chats.Sum(static chat => chat.Unread);
 
         Sections[0].BadgeText = unread == 0 ? null : unread.ToString(CultureInfo.InvariantCulture);
@@ -670,7 +719,26 @@ internal sealed partial class ChatController : UIControllerBase
             files += selection.Files.Length;
         }
 
+        var sent = _sent;
+
         Post(files);
+
+        if (_sent == sent)
+            return;
+
+        var chatId = _open.Id;
+        var words = _open.History[^1].Text;
+        var author = Context.Handle.Session.UserId ?? string.Empty;
+
+        // Every other page listing the chat hears it, each in the order the messages were sent; this one has it already. The demo
+        // keeps messages nowhere but in its pages, so a page kept for its tab to come back takes it too rather than catching up then.
+        _ = await Context.Services.GetRequiredService<IUIBroadcast>().PostAsync<ChatController>(Topic(chatId), other =>
+        {
+            if (!ReferenceEquals(other, this))
+                other.Hear(chatId, author, words);
+
+            return Task.CompletedTask;
+        }, viewersOnly: false, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Posts the draft with a line for the files; nothing when there is neither.</summary>
@@ -695,6 +763,37 @@ internal sealed partial class ChatController : UIControllerBase
         // Empty, not null: an empty list is what clears the shelf.
         AttachmentIds = [];
         Raise(_open);
+    }
+
+    /// <summary>
+    /// A message another page sent into one of these chats: theirs here, named by its author in a group, joining the conversation if
+    /// the chat is open and counted unread if not; the chat rises either way.
+    /// </summary>
+    internal void Hear(string chatId, string author, string words)
+    {
+        DemoChatItem? chat = Chats.FirstOrDefault(chat => chat.Id == chatId);
+
+        if (chat is null)
+            return;
+
+        _received++;
+
+        DemoChatMessage message = new(string.Create(CultureInfo.InvariantCulture, $"received-{_received}"), chat.IsGroup ? author : string.Empty, words, DateTimeOffset.UtcNow, mine: false);
+
+        message.KeyDay(_zone);
+
+        if (chat == _open)
+        {
+            Conversation.Add(message);
+        }
+        else
+        {
+            chat.History.Add(message);
+            chat.Unread++;
+        }
+
+        Raise(chat);
+        CountUnread();
     }
 
     /// <summary>The chat written in rises to the top of the list, as a messenger's does, its last words the newest.</summary>
@@ -833,8 +932,7 @@ internal sealed partial class ChatController : UIControllerBase
                 message.Text = message.Text.EndsWith(" (edited)", StringComparison.Ordinal) ? message.Text : message.Text + " (edited)";
                 break;
             case "delete":
-                Conversation.Delete(id);
-                break;
+                return Delete(message);
             case "reply":
                 return UICommandResult.Ok([InsertTextEffect.Literal(ComposerId, $"> {message.Text}\n")]);
             case "copy":
@@ -844,6 +942,33 @@ internal sealed partial class ChatController : UIControllerBase
         }
 
         return UICommandResult.Ok();
+    }
+
+    /// <summary>Deletes at once, with no question first, and offers the way back for as long as the toast stands.</summary>
+    private UICommandResult Delete(DemoChatMessage message)
+    {
+        _deleted[message.Id] = (_open, message, Conversation.Delete(message.Id));
+
+        return UICommandResult.Ok(
+        [
+            new ShowNotificationEffect(UIPhrase.Of("demo.screens.chat.deleted"))
+            {
+                Action = new UINotificationAction(UIPhrase.Of("demo.screens.undo"), nameof(RestoreMessage), message.Id)
+            }
+        ]);
+    }
+
+    /// <summary>The toast's Undo, on no button: the message goes back where it stood, in its own chat even if another is open now.</summary>
+    [UICommand]
+    public void RestoreMessage(string id)
+    {
+        if (!_deleted.Remove(id, out (DemoChatItem Chat, DemoChatMessage Message, int Index) deleted) || deleted.Index < 0)
+            return;
+
+        if (ReferenceEquals(deleted.Chat, _open))
+            Conversation.Restore(deleted.Message, deleted.Index);
+        else
+            deleted.Chat.History.Insert(Math.Min(deleted.Index, deleted.Chat.History.Count), deleted.Message);
     }
 
     /// <summary>One more folder on the rail, before the settings.</summary>

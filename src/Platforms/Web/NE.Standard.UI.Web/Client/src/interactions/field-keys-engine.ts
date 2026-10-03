@@ -28,6 +28,12 @@ export const FieldEnterEvent: { readonly name: string; readonly registration: Om
     registration: { settlesValue: true }
 };
 
+/**
+ * Raised on a field that keeps the focus while a chord presses something (`shortcut-engine.ts`): what was typed is committed where it
+ * stands, as Enter commits it, so the command reads it.
+ */
+export const CommitInPlaceEventName = "ui-commit-in-place";
+
 export type FieldKeysEngineOptions = {
     readonly root?: ParentNode;
 };
@@ -66,6 +72,10 @@ export class FieldKeysEngine {
                 this.committedValue = domEvent.target.value;
         }, true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent));
+        this.root.addEventListener(CommitInPlaceEventName, domEvent => {
+            if (domEvent.target instanceof HTMLInputElement || domEvent.target instanceof HTMLTextAreaElement)
+                this.commitInPlace(domEvent.target);
+        });
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {

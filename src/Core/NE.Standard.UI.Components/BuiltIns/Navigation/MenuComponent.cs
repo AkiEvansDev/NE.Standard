@@ -186,6 +186,8 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         }
 
         // One level deep: the nested menu carries no nested menu of its own.
+        // The row decorator draws an entry's sub-entries when it has any, and opens it as it arrives when it is expanded.
+        _ = AddItemReads($"{nameof(IMenuItemModel.Items)}.{nameof(IMenuItemModel.Id)}", nameof(IMenuItemModel.Expanded));
         _ = SetTemplateVariantCore(SubmenuTemplateKey, MenuComponent.CreateNested().BindItems(nameof(IMenuItemModel.Items), UIBindingScope.Relative));
     }
 

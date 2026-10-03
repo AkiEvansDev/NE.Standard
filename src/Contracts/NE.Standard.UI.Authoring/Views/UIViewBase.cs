@@ -12,6 +12,7 @@ public abstract class UIViewBase : IUIView
 {
     private UIRegion[]? _regions;
     private UIDialog[]? _dialogs;
+    private UIShortcut[]? _shortcuts;
 
     /// <inheritdoc />
     public virtual string Title => GetType().Name;
@@ -41,6 +42,9 @@ public abstract class UIViewBase : IUIView
             return _dialogs!;
         }
     }
+
+    /// <inheritdoc />
+    public IReadOnlyList<UIShortcut> Shortcuts => _shortcuts ??= [.. CreateShortcuts()];
 
     /// <summary>
     /// Creates the header region content.
@@ -72,6 +76,12 @@ public abstract class UIViewBase : IUIView
     /// </summary>
     protected virtual IReadOnlyList<UIDialog> CreateDialogs() => [];
 
+    /// <summary>
+    /// Creates the view's own key chords: <c>new UIShortcut("/", new FocusEffect(SearchId))</c>, compiled into the view as its events
+    /// are; a chord claimed twice, or one the browser keeps for itself, is refused when the view compiles.
+    /// </summary>
+    protected virtual IReadOnlyList<UIShortcut> CreateShortcuts() => [];
+
     private void EnsureBuilt()
     {
         if (_regions is not null && _dialogs is not null)
@@ -79,11 +89,13 @@ public abstract class UIViewBase : IUIView
 
         UIViewBuildContext context = new();
 
+        // The order the page reads in, which the shell's DOM follows: a screen reader and Tab reach the content before the right side and
+        // the footer. The grid places each region by name, so the order moves nothing on screen.
         context.AddRegion(RegionNames.Header, CreateHeader());
-        context.AddRegion(RegionNames.Footer, CreateFooter());
         context.AddRegion(RegionNames.LeftSide, CreateLeftSide());
-        context.AddRegion(RegionNames.RightSide, CreateRightSide());
         context.AddRegion(RegionNames.Content, CreateContent());
+        context.AddRegion(RegionNames.RightSide, CreateRightSide());
+        context.AddRegion(RegionNames.Footer, CreateFooter());
         context.AddDialogs(CreateDialogs());
         context.AddDialogs(CollectComponentDialogs(context));
 

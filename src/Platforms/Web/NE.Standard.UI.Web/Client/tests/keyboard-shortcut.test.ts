@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { matchesShortcut, parseShortcut, shortcutKey } from "../src/interactions/keyboard-shortcut.ts";
+import { formatShortcut, matchesShortcut, parseShortcut, shortcutKey, shortcutWords } from "../src/interactions/keyboard-shortcut.ts";
 
 function keyEvent(code: string, modifiers: { ctrl?: boolean; shift?: boolean; alt?: boolean; meta?: boolean } = {}): KeyboardEvent {
     return {
@@ -89,4 +89,22 @@ test("Ctrl+Meta authored together is not loosened by the Mac rule", () => {
 
 test("shortcutKey collides two authored spellings of the same shortcut", () => {
     assert.equal(shortcutKey(parseShortcut("ctrl+s")!), shortcutKey(parseShortcut("Ctrl+S")!));
+});
+
+test("a chord is written in the platform's words: Ctrl and Shift elsewhere, Apple's glyphs in Apple's order on a Mac", () => {
+    const save = parseShortcut("shift+ctrl+s")!;
+    const remove = parseShortcut("Ctrl+Meta+Alt+Delete")!;
+
+    assert.equal(formatShortcut(save, false), "Ctrl+Shift+S");
+    assert.equal(formatShortcut(save, true), "⇧⌘S");
+    assert.equal(formatShortcut(remove, false), "Ctrl+Alt+Meta+Delete");
+    assert.equal(formatShortcut(remove, true), "⌃⌥⌘⌦");
+    assert.equal(formatShortcut(parseShortcut("/")!, true), "/");
+    assert.equal(formatShortcut(parseShortcut("Up")!, false), "Up");
+    assert.equal(formatShortcut(parseShortcut("Esc")!, false), "Esc");
+});
+
+test("a package's chord is written as the framework writes its own, and a string naming no key is none", () => {
+    assert.equal(shortcutWords.words("ctrl+b"), "Ctrl+B");
+    assert.equal(shortcutWords.words("Ctrl"), null);
 });

@@ -87,8 +87,19 @@ internal sealed partial class CheckoutController : UIControllerBase
     [RecursiveMember]
     public partial string? Promo { get; set; }
 
+    /// <summary>The field's own line, for a press with no code in it; a code the server judged is a message under the field.</summary>
     [RecursiveMember]
     public partial UIValidationMessage? PromoNotice { get; set; }
+
+    /// <summary>What the server made of the code: one line, shown in the message of the verdict's severity.</summary>
+    [RecursiveMember]
+    public partial string PromoVerdict { get; set; } = string.Empty;
+
+    [RecursiveMember]
+    public partial UIVisibility PromoAppliedVisibility { get; set; } = UIVisibility.Collapsed;
+
+    [RecursiveMember]
+    public partial UIVisibility PromoRefusedVisibility { get; set; } = UIVisibility.Collapsed;
 
     /// <summary>The subscription's lines, rewritten in place when the plan, the servers or the region change.</summary>
     [RecursiveMember(false)]
@@ -128,34 +139,42 @@ internal sealed partial class CheckoutController : UIControllerBase
     public void UpdateSummary()
         => Recalculate();
 
-    /// <summary>The one code the panel knows takes a tenth off; any other is refused on the field itself.</summary>
+    /// <summary>
+    /// The one code the panel knows takes a tenth off, said in a success message; any other is refused in a danger one. An empty
+    /// press is the field's own business, said on its line.
+    /// </summary>
     [UICommand]
     public void ApplyPromo()
     {
         var code = Promo?.Trim() ?? string.Empty;
 
         _discounted = IsPromo(code);
-        PromoNotice = code switch
-        {
-            "" => UIValidationMessage.Info("Type a code first."),
-            _ when _discounted => UIValidationMessage.Info("A tenth off, as promised."),
-            _ => UIValidationMessage.Error($"\"{code}\" is not a code we know.")
-        };
+        PromoNotice = code.Length == 0 ? UIValidationMessage.Info("Type a code first.") : null;
+        PromoVerdict = code.Length == 0 ? string.Empty : _discounted
+            ? $"{PromoCode} takes a tenth off every month, as promised."
+            : $"\"{code}\" is not a code we know. Codes come with the newsletter, and are written in capitals.";
+        PromoAppliedVisibility = code.Length > 0 && _discounted ? UIVisibility.Visible : UIVisibility.Collapsed;
+        PromoRefusedVisibility = code.Length > 0 && !_discounted ? UIVisibility.Visible : UIVisibility.Collapsed;
         Recalculate();
     }
 
     private static bool IsPromo(string? code)
         => string.Equals(code, PromoCode, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The field no longer holds the code the discount was given for: the discount goes until a code is applied again.</summary>
+    /// <summary>
+    /// The field no longer holds the code the verdict was given for: a refusal goes, and so does the discount, until a code is
+    /// applied again.
+    /// </summary>
     [UICommand]
     public void PromoChanged()
     {
+        PromoRefusedVisibility = UIVisibility.Collapsed;
+
         if (!_discounted || IsPromo(Promo?.Trim()))
             return;
 
         _discounted = false;
-        PromoNotice = null;
+        PromoAppliedVisibility = UIVisibility.Collapsed;
         Recalculate();
     }
 

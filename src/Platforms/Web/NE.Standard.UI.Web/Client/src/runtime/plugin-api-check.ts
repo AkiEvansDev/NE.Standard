@@ -20,8 +20,9 @@ import type { ItemSelection } from "../interactions/row-selection";
 import type { TableColumns } from "../interactions/table-columns-engine";
 import type { TooltipShowOptions, Tooltips } from "../interactions/tooltip-engine";
 import type { componentStates } from "../interactions/interactive-state";
-import type { FieldMarkSeverity, FieldMarkWords, FieldValidation } from "../interactions/validation-engine";
+import type { FieldMarkSeverity, FieldMarkWords, FieldValidation, FieldVerdict, RuleJudging } from "../interactions/validation-engine";
 import type { wheel } from "../interactions/wheel-notches";
+import type { shortcutWords } from "../interactions/keyboard-shortcut";
 import type { pluginDomNames } from "../addressing/dom-attributes";
 import type { InlineRenameOptions, InlineRenames } from "../interactions/inline-rename";
 import type { pluginFocus } from "../interactions/popup-focus";
@@ -63,8 +64,10 @@ export type HandedOut = [
     Assignable<typeof rovingFocus, Contract.RovingFocus>,
     Assignable<typeof pluginFocus, Contract.Focus>,
     Assignable<typeof componentStates, Contract.ComponentStates>,
-    Assignable<FieldValidation, Contract.FieldValidation>,
+    Assignable<FieldValidation & RuleJudging, Contract.FieldValidation>,
+    Assignable<FieldVerdict, Contract.ValidationVerdict>,
     Assignable<typeof wheel, Contract.WheelReading>,
+    Assignable<typeof shortcutWords, Contract.ShortcutWords>,
     Assignable<typeof pluginDomNames, Contract.DomNames>,
     Assignable<FileUploads, Contract.FileUploads>,
     Assignable<TableColumns, Contract.TableColumns>,

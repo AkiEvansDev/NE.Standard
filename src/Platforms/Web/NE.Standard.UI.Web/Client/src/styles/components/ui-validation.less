@@ -39,8 +39,8 @@
 }
 
 // In a grid cell a message line would grow the row, so it becomes a corner mark with a tooltip; `Marker`/`Message` override it.
+// An open key-value row is a form and keeps the line under its field: its corner mark's words covered the row above.
 .ui-table__cell [data-ui-validation-message],
-.ui-key-value-action__value-input [data-ui-validation-message],
 .ui-validation--marker > .ui-validation-message {
     --ui-validation-presentation: marker;
 }
@@ -55,7 +55,7 @@
     display: none;
 }
 
-// A key-value row's field goes when the row closes, taking its mark: the engine keeps a copy in the named cell instead.
+// A key-value row's field goes when the row closes, taking its message: the engine keeps a copy, a dot, in the named cell instead.
 .ui-key-value-action__value-input [data-ui-validation-message] {
     --ui-validation-marker-host: ui-key-value-action__value;
 }

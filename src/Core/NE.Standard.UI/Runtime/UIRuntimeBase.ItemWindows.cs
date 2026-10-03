@@ -380,7 +380,8 @@ internal abstract partial class UIRuntimeBase
             {
                 source = ResolveItemSourceNoLock(componentId, []);
                 query = BuildItemsQueryNoLock(componentId);
-                count = ReadWindowSizeNoLock(componentId);
+                // The size the page last asked for — a page size the viewer chose — else the host's own.
+                count = source.ReplacingCount ?? ReadWindowSizeNoLock(componentId);
             }
             catch (InvalidOperationException)
             {

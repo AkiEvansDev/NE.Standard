@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/loading-ring.less";
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 @import "../mixins/row-grip.less";
@@ -135,6 +136,96 @@
     overflow-anchor: none;
 }
 
+// A windowed list draws the rows it has not fetched as grey bars in their shape, never a spinner: a spacer stands for them, and the
+// window engine writes the row's measured height (`--ui-window-row`) and, in a wrapping list, a tile's step (`--ui-window-tile`) for
+// the masks that cut the bars. It reads `--ui-window-look` to put a few such rows after a list that cannot count while its next
+// rows come. A shimmer runs while a window is read; reduced motion stops it (core/preferences.less) and the bars stay.
+@ui-skeleton-host: ~".ui-items-view:not(.ui-items-view--indicator) > [data-ui-host-mode='windowed']";
+
+@{ui-skeleton-host} {
+    --ui-window-look: skeleton;
+}
+
+@{ui-skeleton-host} > [data-ui-window-spacer] {
+    --ui-skeleton-row: var(--ui-window-row, 2.5rem);
+    --ui-skeleton-inset: clamp(0.25rem, calc(var(--ui-skeleton-row) * 0.2), 0.75rem);
+
+    padding-inline: @ui-space-2;
+    background-color: var(--ui-wash-hover);
+    background-repeat: no-repeat;
+    mask-image: linear-gradient(to bottom, transparent var(--ui-skeleton-inset), #000 var(--ui-skeleton-inset), #000 calc(var(--ui-skeleton-row) - var(--ui-skeleton-inset)), transparent calc(var(--ui-skeleton-row) - var(--ui-skeleton-inset)));
+    mask-size: 100% var(--ui-skeleton-row);
+    mask-repeat: repeat-y;
+    mask-clip: content-box;
+}
+
+    // The rows before the window end where its first row starts.
+    @{ui-skeleton-host} > [data-ui-window-spacer="top"] {
+        mask-position: bottom;
+    }
+
+    // A wrapping list's rows are tiles: a second mask cuts each bar at a tile's step, the gap left between them.
+    .ui-items-view--wrap:not(.ui-items-view--indicator) > [data-ui-host-mode="windowed"] > [data-ui-window-spacer] {
+        mask-image:
+            linear-gradient(to bottom, transparent var(--ui-skeleton-inset), #000 var(--ui-skeleton-inset), #000 calc(var(--ui-skeleton-row) - var(--ui-skeleton-inset)), transparent calc(var(--ui-skeleton-row) - var(--ui-skeleton-inset))),
+            linear-gradient(to right, #000 calc(var(--ui-window-tile, 100%) - var(--ui-items-view-gap, 0px)), transparent 0);
+        mask-size: 100% var(--ui-skeleton-row), var(--ui-window-tile, 100%) 100%;
+        mask-repeat: repeat-y, repeat-x;
+        mask-composite: intersect;
+        padding-inline: 0;
+    }
+
+    @{ui-skeleton-host}[data-ui-window-pending] > [data-ui-window-spacer] {
+        background-image: linear-gradient(90deg, transparent, var(--ui-wash-hover), transparent);
+        background-size: 40% 100%;
+        animation: ui-skeleton-shimmer 1.4s linear infinite;
+    }
+
+@keyframes ui-skeleton-shimmer {
+    from {
+        background-position: -67% 0;
+    }
+
+    to {
+        background-position: 167% 0;
+    }
+}
+
+@ui-window-indicator: ~".ui-items-view--indicator:not(.ui-loading):has(> [data-ui-window-pending])::after";
+
+// `LoadingLook = Indicator` (a conversation): no rows stand in, the spacers stay blank, and a small ring stands over the rows in view
+// at the edge the next ones come in at — the top for older rows, the bottom for newer — positioned on the view, so nothing moves as
+// it comes and goes. A loading ring like the others, named in `@ui-loading-rings` (core/preferences.less): it keeps turning.
+.ui-items-view--indicator {
+    position: relative;
+
+    > [data-ui-host-mode="windowed"] {
+        --ui-window-look: indicator;
+    }
+}
+
+@{ui-window-indicator} {
+    .ui-loading-ring();
+
+    content: "";
+    position: absolute;
+    top: @ui-space-2;
+    left: 50%;
+    z-index: 1;
+    // A disc of the raised ground around the ring, so it reads over a message or a picture behind the list as well as over its ground.
+    background-color: var(--ui-color-surface);
+    box-shadow: 0 0 0 0.375rem var(--ui-color-surface);
+    color: var(--ui-color-on-surface);
+    font-size: 1.25rem;
+    translate: -50% 0;
+    pointer-events: none;
+}
+
+    .ui-items-view--indicator:not(.ui-loading):has(> [data-ui-window-pending="after"])::after {
+        top: auto;
+        bottom: @ui-space-2;
+    }
+
 // flex-shrink: 0 — the host is a scroller and its content is meant to be bigger than it, not squeezed to fit.
 .ui-items-view--stack > .ui-items-view__host > *,
 .ui-items-view--stack > [data-ui-items-host] > * {
@@ -237,6 +328,11 @@
 }
 
 .ui-row-cursor(~".ui-items-view", ~".ui-items-view__item");
+
+// A wrap's row is display: contents and draws no outline: its tile wears the keyboard's edge.
+.ui-items-view--wrap@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
+    .ui-keyboard-frame();
+}
 .ui-row-bar(~".ui-items-view", ~".ui-items-view__item");
 
 .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id] {

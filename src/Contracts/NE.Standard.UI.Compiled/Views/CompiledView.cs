@@ -79,6 +79,11 @@ public sealed class CompiledView
     /// </summary>
     public required UIValidationIndex Validations { get; init; }
 
+    /// <summary>
+    /// Gets what the page reads off each items host's rows, so a row carries that alone.
+    /// </summary>
+    public UIItemProjectionIndex ItemProjections { get; init; } = UIItemProjectionIndex.Empty;
+
     /// <summary>What compiled but is not what the author meant, for the host to log.</summary>
     public IReadOnlyList<string> Warnings { get; init; } = [];
 

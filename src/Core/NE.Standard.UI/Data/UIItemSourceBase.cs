@@ -60,6 +60,12 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
     public partial IReadOnlyDictionary<string, object>? Aggregates { get; protected set; }
 
     /// <summary>
+    /// How many items the last read that replaced the window asked for: what a reload after a changed rule reads again, so a page
+    /// size the viewer chose holds.
+    /// </summary>
+    internal int? ReplacingCount { get; set; }
+
+    /// <summary>
     /// Reads a window and makes it the realized one. Called by the runtime when the client asks.
     /// </summary>
     public abstract Task LoadWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken = default);
@@ -106,6 +112,9 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
             window.Validate(request);
 
             ApplyWindow(request, window);
+
+            if (request.Mode != UIItemWindowMode.Extend)
+                ReplacingCount = request.Count;
         }
         finally
         {

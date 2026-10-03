@@ -586,7 +586,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         if (validation is { } message)
         {
             _ = target.Class(ValidationClass(message.Severity));
-            _ = target.Style("--ui-validation-color", $"var(--ui-color-{ValidationColor(message.Severity)})");
+            _ = target.Style("--ui-validation-color", $"var(--ui-color-{ValidationColor(message.Severity)}-ink)");
         }
 
         // Auto says nothing on the element: the stylesheet decides by where the field stands, and the engine reads its decision.

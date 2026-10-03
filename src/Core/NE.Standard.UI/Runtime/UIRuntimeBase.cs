@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Views;
@@ -56,11 +57,19 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     private readonly SemaphoreSlim _exclusiveCommandLock = new(1, 1);
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
 
+    // The background commands under way, by command, held to each one's MaxConcurrent.
+    private readonly Lock _runsSync = new();
+    private readonly Dictionary<string, int> _runs = new(StringComparer.Ordinal);
+
     // A runtime that sends what it drains holds this from before a drain to the end of its send; taken before the state lock, never
     // inside it.
     private readonly SemaphoreSlim _sendOrder = new(1, 1);
 
     private readonly List<RecursiveChange> _changeBuffer = [];
+
+    // The hosts sent their whole list while one round of changes is turned into updates. The list is read once the round's changes
+    // are all made, so a later change of the same round to one of them is in it already and, sent as well, would be applied twice.
+    private readonly HashSet<UIComponentAddress> _wholeLists = [];
     // Each update numbered as it is queued, so a client instance is sent only what came after its attach snapshot.
     private readonly List<PendingUpdate> _pendingUpdates = [];
     private long _updateSequence;
@@ -160,6 +169,9 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     private bool RequestDispose()
     {
         _ = Interlocked.Exchange(ref _disposeRequested, 1);
+
+        // After the request, so a subscription racing it is either dropped here or refused by it.
+        LeaveBroadcast();
 
         return Volatile.Read(ref _commandsInFlight) == 0 && TryClaimDispose();
     }

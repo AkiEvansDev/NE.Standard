@@ -46,7 +46,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
 
     protected override IVisualComponent[] CreateExamples()
         // The pairs beside the two short groups stacked, as tall together; the three hosts across the page, three to a row.
-        => [CreatePairsGroup(), DemoUI.CreateHalf(CreateChoiceGroup(), CreateTogglesGroup()), CreateHostsGroup()];
+        => [CreatePairsGroup(), DemoUI.CreateHalf(CreateChoiceGroup(), CreateTogglesGroup()), CreateHostsGroup(), CreateShortcutsGroup()];
 
     /// <summary>
     /// A type says which button of the pair to press: one filled per group, the rest bare.
@@ -235,6 +235,28 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
             ),
             columns: 24,
             note: "Pressed turns a button into a toggle: it wears the selected ground while it is down, a press flips it, and bound two-way the state goes back to the controller."
+        );
+    }
+
+    /// <summary>
+    /// A chord presses a button from anywhere on the page, as a menu entry's does, and its tooltip says which, in the reader's
+    /// platform's words: after the tooltip it wrote, else after its label.
+    /// </summary>
+    private static ContainerComponent CreateShortcutsGroup()
+    {
+        return DemoUI.CreateExample("A key that presses it",
+            UILayout.Row(4,
+                UIButtons.Ghost("Bold").SetPressed(false).SetShortcut("Ctrl+B"),
+                UIButtons.Ghost("Italic").SetPressed(false).SetShortcut("Ctrl+I"),
+                new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Star))
+                    .SetTooltip("Star the draft")
+                    .SetPressed(false)
+                    .SetShortcut("Alt+S")
+            ),
+            columns: 24,
+            note: "SetShortcut(\"Ctrl+B\") on any button: the page's one registry presses it, the same one a menu entry's chord and the view's own CreateShortcuts go through. A modified chord fires from a field too, what was typed sent first; an unmodified key typed into a field is the field's; an open dialog keeps the page's chords out of reach. The tooltip names the chord, ⌘ on a Mac, and a chord claimed twice, or one the browser keeps (Ctrl+T, Ctrl+W, Ctrl+Tab), is refused when the view compiles."
         );
     }
 }

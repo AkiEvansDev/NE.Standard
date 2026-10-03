@@ -6,9 +6,9 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Inputs.MultiSelect;
 
 /// <summary>
-/// One multi-select and every property that can be bound to it; then a set of weekdays, regions up to a limit, the people a page reaches drawn with their role, and the field at its three sizes and read-only.
+/// One multi-select and every property that can be bound to it; then a set of weekdays, regions up to a limit, the people a page reaches drawn with their role, labels the reader types, and the field at its three sizes and read-only.
 /// </summary>
-/// <remarks>The value is bound both ways, so the Value row follows every chip the preview takes or lets go. The list stays open while options are toggled; a chip's cross, the clear button and Backspace in the field take chips out.</remarks>
+/// <remarks>The value is bound both ways, so the Value row follows every chip the preview takes or lets go. The list stays open while options are toggled; a chip's cross, the clear button and Backspace in the field take chips out, and the arrows walk the chips.</remarks>
 internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
@@ -83,7 +83,7 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateWeekdaysGroup(), CreateStaffGroup()], [CreateRegionsGroup(), CreateSizesGroup()]);
+        => DemoUI.CreateColumns([CreateWeekdaysGroup(), CreateStaffGroup(), CreateLabelsGroup()], [CreateRegionsGroup(), CreateSizesGroup()]);
 
     /// <summary>The ordinary case: a set out of a short list, kept in the order it was chosen.</summary>
     private static ContainerComponent CreateWeekdaysGroup()
@@ -135,6 +135,38 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
         );
     }
 
+    /// <summary>
+    /// Free text: the reader's own labels as chips — Enter or a comma adds one, a pasted list adds each — the options standing as
+    /// suggestions, a rule every label must match and a limit, both refusing a label on the field's line; then a field whose Enter
+    /// takes the first suggestion rather than the text.
+    /// </summary>
+    private static ContainerComponent CreateLabelsGroup()
+    {
+        return DemoUI.CreateExample("Labels, typed",
+            UILayout.Stack(12)
+                .AddChild(new MultiSelectComponent()
+                    .SetTitle("Labels on the ticket")
+                    .SetPlaceholder("Type a label")
+                    .SetAllowFreeText()
+                    .SetOptions(Labels())
+                    .SetValue(["billing", "needs-repro"])
+                    .SetMaxSelected(5)
+                    .RegexEach(@"^[^\s,]{2,24}$", "A label is 2 to 24 characters, with no spaces.")
+                    .SetShowClearButton()
+                )
+                .AddChild(UIText.Note("SetAllowFreeText: Enter or a comma makes a chip of the text, and a pasted \"a, b, c\" three; the options are suggestions as you type, an arrow picks one. RegexEach refuses \"q 4\", and a sixth label is refused too — each stays in the entry, said on the field's line."))
+                .AddChild(new MultiSelectComponent()
+                    .SetTitle("Watchers, the first suggestion taken")
+                    .SetPlaceholder("Type a name")
+                    .SetAllowFreeText()
+                    .SetTagEntry(UITagEntry.FirstSuggestion)
+                    .SetOptions(Staff())
+                    .SetValue(["grace"])
+                )
+                .AddChild(UIText.Note("SetTagEntry(UITagEntry.FirstSuggestion): the first person the text names is marked as you type, and Enter takes them; a name nobody has is taken as typed, and Escape takes the mark off first."))
+        );
+    }
+
     /// <summary>The field's three sizes, a caption inside the box, and a field that shows its chips but takes nothing.</summary>
     private static ContainerComponent CreateSizesGroup()
     {
@@ -182,6 +214,16 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
             new() { Id = "eu-north", Title = "Europe North", Description = "Stockholm", Group = "Europe" },
             new() { Id = "us-east", Title = "US East", Description = "Ashburn", Group = "Americas" },
             new() { Id = "ap-south", Title = "Asia South", Description = "Singapore", Group = "Asia Pacific" }
+        ];
+
+    private static OptionItem[] Labels()
+        => [
+            new() { Id = "billing", Title = "billing" },
+            new() { Id = "backend", Title = "backend" },
+            new() { Id = "frontend", Title = "frontend" },
+            new() { Id = "needs-repro", Title = "needs-repro" },
+            new() { Id = "security", Title = "security" },
+            new() { Id = "docs", Title = "docs" }
         ];
 
     private static OptionItem[] Staff()

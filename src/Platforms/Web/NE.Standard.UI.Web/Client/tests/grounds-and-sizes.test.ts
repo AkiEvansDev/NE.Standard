@@ -106,14 +106,14 @@ test("a surface's own opaque fill is its ground, and a Tinted one's mix outranks
     assert.match(declarations(".ui-button--primary") ?? "", /--ui-ground: var\(--ui-surface-color, var\(--ui-color-primary\)\);/);
 });
 
-test("a range's track is a step over whatever ground it stands on, so a slider in a dialog still shows one", () => {
+test("a range's track is the mark, translucent over whatever ground it stands on, so a slider in a dialog still shows one", () => {
     // The mixin's own track rule, not a state's tint over it (an invalid slider's) nor a size step.
     const tracks = [...css.matchAll(/::-(?:webkit-slider-runnable|moz-range)-track \{([^}]*)\}/g)].map(match => match[1]).filter(track => track.includes("border-radius:"));
 
     assert.ok(tracks.length >= 2, "no range track rules");
 
     for (const track of tracks)
-        assert.match(track, /background-color: color-mix\(in srgb, var\(--ui-color-on-surface\) 14%, transparent\);/, "a track painted in the raised ground vanishes on a dialog, whose ground it is");
+        assert.match(track, /background-color: var\(--ui-color-mark\);/, "a track painted in the raised ground vanishes on a dialog, whose ground it is");
 });
 
 test("a popup is never wider than the window less the margin its placement keeps", () => {

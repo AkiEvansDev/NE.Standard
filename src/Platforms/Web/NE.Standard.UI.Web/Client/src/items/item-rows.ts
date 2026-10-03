@@ -12,7 +12,7 @@ export type ItemRows = {
     itemOf(row: Element): unknown;
     /** The items a virtualized host holds whole, as its rules left them; null for any other host. */
     itemsOf(host: Element): readonly unknown[] | null;
-    /** The value at an item's dotted property path, matched in any case; undefined where a step is missing. */
+    /** The value at an item's dotted property path, matched in any case: null for a property left out, undefined where a step cannot be taken. */
     readPath(item: unknown, path: string): unknown;
     renderVariant(row: Element, componentId: number, variantKey: string): Element | null;
     /** Whether a key landed where a host's row keyboard answers it: on the host itself or in one of its own rows, not in its chrome. */

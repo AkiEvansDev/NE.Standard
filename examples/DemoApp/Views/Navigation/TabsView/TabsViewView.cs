@@ -164,7 +164,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
                     .SetEmptyTemplate(new DefaultEmptyTemplate()
                         .SetIcon(DemoIcons.Outline(DemoIcons.File))
                         .SetTitle("No documents open")
-                        .SetDescription("Open one from the tree, or press Ctrl+N.")
+                        .SetDescription("Open one from the tree.")
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )

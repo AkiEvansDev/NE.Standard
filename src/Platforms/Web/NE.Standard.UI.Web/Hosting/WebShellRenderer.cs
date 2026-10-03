@@ -174,12 +174,14 @@ public static class WebShellRenderer
         // The page's form, so a password field with no FormId stands in a form beside its login, as a browser and a password manager
         // expect. `dialog` makes a submission a no-op, never a navigation carrying the fields in the address, and `novalidate` keeps
         // the browser's own checks and bubbles off: the framework's buttons are all `type="button"`, and Enter is the field keys engine's.
+        // `role="none"`: the whole page is no form to a screen reader, whose list of landmarks would open with an unnamed one.
         _ = body.Element("form", root =>
         {
             _ = root.Attribute("id", context.RootElementId);
             _ = root.Attribute(WebAttributes.Root);
             _ = root.Attribute("method", "dialog");
             _ = root.Attribute("novalidate");
+            _ = root.Attribute("role", "none");
 
             if (context.StandInNavigation is UINavigationRequest standIn)
                 _ = root.Attribute(WebAttributes.Navigation, JsonSerializer.Serialize(new { route = standIn.Route, parameters = standIn.Parameters }, MetadataJsonOptions));
@@ -374,6 +376,7 @@ public static class WebShellRenderer
                 ("itemWrapperRole", itemsTemplate.ItemWrapperRole),
                 ("announcesSelection", itemsTemplate.AnnouncesSelection ? true : null),
                 ("rowDecorator", itemsTemplate.RowDecorator),
+                ("itemPaths", itemsTemplate.ItemPaths),
                 ("composite", itemsTemplate.Composite is null ? null : Written(
                     ("itemElementName", itemsTemplate.Composite.ItemElementName),
                     ("itemClassName", itemsTemplate.Composite.ItemClassName),
@@ -457,15 +460,11 @@ public static class WebShellRenderer
                     propertyId = target.Message.PropertyId
                 }
             }),
-            // The item itself is the author's data and keeps its nulls; only the host's own address drops an empty one.
+            // Each item written as a change carries it, so a row the page reconciles reads the same either way.
             itemValues = metadata.ItemValues.Select(static itemValues => Written(
                 ("componentId", itemValues.ComponentId.Value),
                 ("dynamicParameters", itemValues.DynamicParameters.Count == 0 ? null : itemValues.DynamicParameters),
-                ("items", itemValues.Items.Select(static item => new
-                {
-                    key = item.Key,
-                    item = item.Item
-                }))
+                ("items", itemValues.Items)
             )),
             // The key as it came: a string, or a phrase in its own wire shape.
             words = metadata.Words.Select(static word => Written(

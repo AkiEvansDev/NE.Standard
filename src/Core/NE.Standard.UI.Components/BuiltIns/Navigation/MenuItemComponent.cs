@@ -37,13 +37,6 @@ public abstract partial class MenuItemComponent<T> : ButtonComponent<T>
     public bool? Selected { get; set; }
 
     /// <summary>
-    /// Gets or sets the key combination that fires this entry, written as <c>Ctrl+Shift+P</c>.
-    /// </summary>
-    /// <remarks>Not translatable: a combination names physical keys.</remarks>
-    [UIComponentProperty(DefaultValue = null)]
-    public string? Shortcut { get; set; }
-
-    /// <summary>
     /// Gets or sets whether a <see cref="UIMenuItemKind.Check"/> entry is on.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]

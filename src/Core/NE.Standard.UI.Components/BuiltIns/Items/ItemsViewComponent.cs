@@ -9,6 +9,7 @@ using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
@@ -143,6 +144,14 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </summary>
     [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = UIDragHandlePlacement.End)]
     public UIDragHandlePlacement? DragHandlePlacement { get; set; }
+
+    /// <summary>
+    /// Gets or sets what a windowed view shows while it reads rows it does not have yet: grey bars in the rows' shape, the default,
+    /// or a small ring at the edge the rows come in at, for rows unlike each other — a conversation's messages.
+    /// </summary>
+    /// <remarks>Decided at render: it is how the view draws the rows it stands for, not a state.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIItemsLoadingLook.Skeleton)]
+    public UIItemsLoadingLook? LoadingLook { get; set; }
 
     /// <summary>
     /// Gets or sets the layout algorithm used to arrange items.

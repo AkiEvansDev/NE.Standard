@@ -21,6 +21,11 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>NE.Benchmarks.Standard.UI</_Parameter1>
     </AssemblyAttribute>
+    <!-- The same slice: the test host builds the application as UIStartupBase does, with its scheduler parked, and hands a flush to
+         the pages the way the scheduled one does. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Standard.UI.Testing</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <ItemGroup>

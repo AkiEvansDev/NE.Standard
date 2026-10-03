@@ -16,6 +16,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
     // Every button, menu entry, breadcrumb and tab caption registers these, so they are built once.
     private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonClass)];
     private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonSizeClass)];
+    private static readonly WebDomOperation[] ShortcutOperations = [WebDomOperation.Attribute(WebAttributes.Shortcut)];
 
     protected override string ElementName => "button";
 
@@ -41,6 +42,8 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
             OverflowStyleRenderer.RenderOverflow(context, root);
 
         RenderButtonLook(context, root);
+
+        RenderShortcut(context, root);
 
         // The form the button submits (OnSubmit): the framework's, and a real button joins the browser's own by `form`, as its fields do.
         NativeInputRendererBase.RenderFormId(context, root, ButtonComponent.SubmitFormIdProperty, WebAttributes.SubmitFormId, joinsForm: IsButtonElement);
@@ -70,6 +73,17 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
                 _ = target.Class(WebClassNames.ButtonSize(size));
         }, SizeOperations);
     }
+
+    /// <summary>
+    /// The chord that presses the control, as the attribute the page's shortcut registry reads (<c>shortcut-engine.ts</c>); the client
+    /// writes it in the control's tooltip, and a menu entry's at its end, in the reader's platform's words.
+    /// </summary>
+    private static void RenderShortcut(WebRenderContext context, IHtmlElementBuilder root)
+        => _ = RenderProperty<string?>(context, root, ButtonComponent.ShortcutProperty, static (target, value) =>
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                _ = target.Attribute(WebAttributes.Shortcut, value);
+        }, ShortcutOperations);
 
     /// <summary>
     /// Draws the button's label (icon, title, description, badge) into a box the chrome can address; a titleless control takes

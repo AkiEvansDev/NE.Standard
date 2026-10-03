@@ -26,6 +26,7 @@ internal static class DemoButtonBindings
             .BindPadding($"{buttonGroup}.{nameof(ButtonGroupContext.Padding)}")
             .BindBackground($"{buttonGroup}.{nameof(ButtonGroupContext.Background)}")
             .BindOverflow($"{buttonGroup}.{nameof(ButtonGroupContext.Overflow)}")
+            .BindShortcut($"{buttonGroup}.{nameof(ButtonGroupContext.Shortcut)}")
             .BindIcon($"{contentGroup}.{nameof(TextContentGroupContext.Icon)}")
             .BindIconColor($"{contentGroup}.{nameof(TextContentGroupContext.IconColor)}")
             .BindIconSize($"{contentGroup}.{nameof(TextContentGroupContext.IconSize)}")

@@ -32,6 +32,8 @@ const TablePartSelector = `.${RootClass}, .${TableRowClass}, [${TableColumnAttri
 
 /** The authored track list (the renderer's variable) and the viewer's, which the stylesheet reads over it. */
 const AuthoredVariable = "--ui-table-columns";
+const StickyTopVariable = "--ui-table-sticky-top";
+const StickyBottomVariable = "--ui-table-sticky-bottom";
 const SizedVariable = "--ui-table-sized-columns";
 /** Where a pinned column after the first sticks, one variable per column (TableComponentRenderer.PinVariablePrefix). */
 const PinVariablePrefix = "--ui-table-pin-";
@@ -207,6 +209,12 @@ export class TableColumnsEngine {
             // A content or star track changes with the table's width, and the pinned columns after it move with it.
             observeSize(table, () => this.pin(table));
 
+            const scroll = table.querySelector<HTMLElement>(ScrollSelector);
+
+            // The rows that stick over the others in a box scrolling both ways, measured whenever the box changes.
+            if (scroll !== null)
+                observeSize(scroll, () => markStickyRows(table, scroll));
+
             const host = table.querySelector<HTMLElement>(HostSelector);
 
             // A scrollbar coming changes the host's content box, whether rows arrived or the table was resized.
@@ -304,11 +312,12 @@ export class TableColumnsEngine {
         this.columnStates.set(table, { places, hidden, last: last ?? -1 });
         this.stampUnstyledColumns(table, false);
 
-        // A column the viewer may move is a control the keyboard reaches; one the table already made a tab stop keeps what it has.
+        // A column the viewer may move is a control the keyboard reaches through the header's group, not the Tab order; one the table
+        // already made a stop keeps what it has.
         if (table.classList.contains(ReorderableClass)) {
             for (const column of columns) {
                 if (!column.anchored && !column.cell.hasAttribute("tabindex"))
-                    column.cell.setAttribute("tabindex", "0");
+                    column.cell.setAttribute("tabindex", "-1");
             }
         }
 
@@ -514,7 +523,8 @@ export class TableColumnsEngine {
             return;
         }
 
-        const handle = domEvent.target.closest<HTMLElement>(ResizerSelector);
+        // The handle itself, or Shift with an arrow on its caption: the header's keyboard stands on the captions (table-header-group.ts).
+        const handle = domEvent.target.closest<HTMLElement>(ResizerSelector) ?? (domEvent.shiftKey ? captionHandle(domEvent.target) : null);
 
         if (handle === null || this.drag.active)
             return;
@@ -802,6 +812,37 @@ export class TableColumnsEngine {
         domEvent.preventDefault();
         domEvent.stopPropagation();
     }
+}
+
+/**
+ * The height of the table's own rows above its rows' host (the header) and below it (a package's footer), which stick over the rows in
+ * a box scrolling both ways: the box keeps a row the keyboard brings into view clear of them (`scroll-padding`, ui-table.less).
+ */
+function markStickyRows(table: HTMLElement, scroll: HTMLElement): void {
+    let top = 0;
+    let bottom = 0;
+    let passed = false;
+
+    for (const child of scroll.children) {
+        if (child.matches(`.${HostClass}`))
+            passed = true;
+        else if (!(child instanceof HTMLElement) || child.getAttribute("role") !== "row")
+            continue;
+        else if (passed)
+            bottom += child.offsetHeight;
+        else
+            top += child.offsetHeight;
+    }
+
+    table.style.setProperty(StickyTopVariable, `${top}px`);
+    table.style.setProperty(StickyBottomVariable, `${bottom}px`);
+}
+
+/** The resize handle of the caption a key landed on, where it shows; null for a key elsewhere or a column that does not size. */
+function captionHandle(target: Element): HTMLElement | null {
+    const handle = target.matches(`.${HeaderCellClass}`) ? target.querySelector<HTMLElement>(`:scope > ${ResizerSelector}`) : null;
+
+    return handle !== null && handle.getClientRects().length > 0 ? handle : null;
 }
 
 /** Whether the rows' grips stand in a track before the columns' (`DragHandle` at the start, shown): a track no column owns. */

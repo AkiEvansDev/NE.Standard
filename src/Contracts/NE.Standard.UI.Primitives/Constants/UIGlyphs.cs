@@ -199,4 +199,11 @@ public static class UIGlyphs
     public const string FolderZip = "ne-folder-zip";
     public const string AudioFile = "ne-audio-file";
     public const string VideoFile = "ne-video-file";
+
+    /// <summary>Markdown's marks, for a format bar: bold, italic, struck through, a heading, a bulleted list (<see cref="ListNumbered"/> is the numbered one).</summary>
+    public const string Bold = "ne-bold";
+    public const string Italic = "ne-italic";
+    public const string Strikethrough = "ne-strikethrough";
+    public const string Heading = "ne-heading";
+    public const string ListBulleted = "ne-list-bulleted";
 }

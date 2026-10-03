@@ -5,14 +5,14 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Mechanisms;
 
 /// <summary>
-/// The language switcher, and every kind of word a switch writes again where it stands: a static key, a value a command set, a phrase
-/// with a count and one with a name, rows built after the page loaded, the chrome's own words, a validation message and the tab's
-/// title; options and a field's words as phrases, a moment inside a sentence; and content, which no switch touches.
+/// The language switcher, and every kind of word a switch writes again where it stands: a key and content, which no switch touches, a
+/// key a command set, a phrase with a count and one with a name, phrases in options and in a field, the framework's own words, a
+/// rule's message, rows built after the page loaded and a moment inside a sentence — one to a section.
 /// </summary>
 /// <remarks>The demo carries whole zh-Hans and Russian tables of its own (<see cref="DemoTranslations"/>); the framework ships English only.</remarks>
 internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
 {
-    private const string MomentGroup = nameof(WordsController.MomentGroup);
+    private const string Words = "demo.language.";
 
     public static string ViewKey => "demo.mechanisms.words";
 
@@ -20,20 +20,26 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
     protected override string Header => "demo.mechanisms.words.header";
     protected override string HeaderDescription => "demo.mechanisms.words.description";
 
+    // Read across, two to a row: switching, then the kinds of words from the plainest to a moment, then a switch from the server.
     protected override void DrawContent(WrapPanelComponent container)
-    {
-        // Paired by height, so no group stands beside a hole: the switcher first, the rest two of a size to a row.
-        _ = container.AddChildren(DemoUI.CreateColumns(
-            [CreateSwitcherGroup(), CreateValueGroup(), CreatePhraseGroup(), CreateRowsGroup()],
-            [CreateContentGroup(), CreateChromeGroup(), CreateMomentGroup(), CreateFieldWordsGroup()]
-            )
+        => _ = container.AddChildren(
+            CreateSwitcherGroup(),
+            CreateContentGroup(),
+            CreateCommandKeyGroup(),
+            CreateCountGroup(),
+            CreateNameGroup(),
+            CreatePhraseGroup(),
+            CreateFieldWordsGroup(),
+            CreateChromeGroup(),
+            CreateRulesGroup(),
+            CreateRowsGroup(),
+            CreateMomentGroup(),
+            CreateCommandGroup()
         );
-    }
 
     private static ContainerComponent CreateSwitcherGroup()
-    {
-        return DemoUI.CreateGroup(null, "demo.language.group.switcher",
-            content => content.AddChild(UILayout.Row(12)
+        => DemoUI.CreateExample(Words + "group.switcher",
+            UILayout.Row(12)
                 .AddChild(new LanguageSwitcherComponent())
                 .AddChild(new LanguageSwitcherComponent()
                     .SetDisplay(UILanguageDisplay.Name)
@@ -41,157 +47,54 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
                     .SetType(UIButtonType.Outline)
                     .SetLanguages(["en", "zh-Hans"])
                 )
-                .AddChild(new LanguageSwitcherComponent().SetLanguages(["en"]))
-                .AddChild(new ButtonComponent()
-                    .OnClick(nameof(WordsController.SwitchFromCommandAsync))
-                    .SetType(UIButtonType.Ghost)
-                    .SetTitle("demo.language.switch-from-command")
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "demo.language.note.switcher"
+                .AddChild(new LanguageSwitcherComponent().SetLanguages(["en"])),
+            note: Words + "note.switcher"
         );
-    }
 
-    /// <summary>A static key, a key a command sets, a count and a name: each switches in place, none by a round trip of its own.</summary>
-    private static ContainerComponent CreateValueGroup()
-    {
-        return DemoUI.CreateGroup(null, "demo.language.group.values",
-            content => content.AddChild(UILayout.Stack(12)
-                .AddChild(new TextComponent().SetTitle("demo.language.static").SetTitleWrap(true))
-                .AddChild(UILayout.Row(8)
-                    .AddChild(new BadgeComponent().BindText(nameof(WordsController.Label)))
-                    .AddChild(new ButtonComponent().OnClick(nameof(WordsController.ShowCards)).SetType(UIButtonType.Ghost).SetTitle("demo.language.cards"))
-                    .AddChild(new ButtonComponent().OnClick(nameof(WordsController.ShowDecks)).SetType(UIButtonType.Ghost).SetTitle("demo.language.decks"))
-                )
-                .AddChild(UILayout.Row(8)
-                    .AddChild(new TextComponent().BindTitle(nameof(WordsController.Files)))
-                    .AddChild(new ButtonComponent().OnClick(nameof(WordsController.RemoveFile)).SetType(UIButtonType.Ghost).SetTitle("−").SetAccessibleName("demo.language.remove-file"))
-                    .AddChild(new ButtonComponent().OnClick(nameof(WordsController.AddFile)).SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Add).SetTooltip("demo.language.add-file"))
-                )
-                .AddChild(new TextComponent().BindTitle(nameof(WordsController.Greeting)))
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "demo.language.note.values"
-        );
-    }
-
-    /// <summary>
-    /// Rows the page builds after it loaded, each with a select whose options every row shares from the root: a row added later is
-    /// drawn with them, and its words switch with the rest.
-    /// </summary>
-    private static ContainerComponent CreateRowsGroup()
-    {
-        return DemoUI.CreateGroup(null, "demo.language.group.rows",
-            content => content.AddChild(UILayout.Stack(12)
-                .AddChild(new ItemsViewComponent()
-                    .BindItems(nameof(WordsController.Effects))
-                    .SetSpacing(8)
-                    .SetTemplate(UILayout.Columns(8,
-                        new TextComponent()
-                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
-                            .SetVerticalAlignment(UIAlignment.Center),
-                        new SelectComponent()
-                            .BindOptions(nameof(WordsController.Schools), UIBindingScope.Root)
-                            .BindValue(nameof(LanguageEffectItem.School), UIBindingScope.Relative)
-                    ))
-                )
-                .AddChild(UILayout.Row(8)
-                    .AddChild(new ButtonComponent()
-                        .OnClick(nameof(WordsController.AddEffect))
-                        .SetType(UIButtonType.Outline)
-                        .SetIcon(DemoIcons.Add)
-                        .SetTitle("demo.language.add-effect")
-                    )
-                    .AddChild(new ButtonComponent()
-                        .OnClick(nameof(WordsController.AddSchool))
-                        .SetType(UIButtonType.Ghost)
-                        .SetIcon(DemoIcons.Add)
-                        .SetTitle("demo.language.add-school")
-                    )
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "demo.language.note.rows"
-        );
-    }
-
-    /// <summary>
-    /// The chrome's own words — a clear button's name, a select's placeholder, a chip's remove, a palette colour's name — and a
-    /// field's validation messages, a key and a phrase with its limit, switch with the page.
-    /// </summary>
-    private static ContainerComponent CreateChromeGroup()
-    {
-        return DemoUI.CreateGroup(null, "demo.language.group.chrome",
-            content => content.AddChild(UILayout.Stack(12)
-                .AddChild(new TextInputComponent().SetShowClearButton().SetPlaceholder("demo.language.placeholder"))
-                .AddChild(new TextInputComponent()
-                    .SetTitle("demo.language.name")
-                    .Required("demo.language.name-required")
-                    .Regex("^.{0,12}$", UIPhrase.Of("demo.language.name-max", ("max", 12)))
-                )
-                .AddChild(new ColorInputComponent())
-                .AddChild(new SelectComponent()
-                    .SetShowClearButton()
-                    .SetOptions(
-                    [
-                        new OptionItem { Id = "fire", Title = "demo.language.school.fire" },
-                        new OptionItem { Id = "frost", Title = "demo.language.school.frost" }
-                    ])
-                )
-                .AddChild(new MultiSelectComponent()
-                    .SetValue(["arcane"])
-                    .SetOptions(
-                    [
-                        new OptionItem { Id = "fire", Title = "demo.language.school.fire" },
-                        new OptionItem { Id = "arcane", Title = "demo.language.school.arcane" }
-                    ])
-                )
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "demo.language.note.chrome"
-        );
-    }
-
-    /// <summary>
-    /// A key of the table, shown once looked up and once as content, which is never looked up — the way to show a string that has
-    /// the demo's prefix as written; without the prefix a string is content everywhere.
-    /// </summary>
+    /// <summary>A string with the demo's prefix is a key; marked content, it is shown as written. Without the prefix it is content everywhere.</summary>
     private static ContainerComponent CreateContentGroup()
-    {
-        return DemoUI.CreateGroup(null, "demo.language.group.content",
-            content => content.AddChild(UILayout.Row(24)
+        => DemoUI.CreateExample(Words + "group.content",
+            UILayout.Row(24)
                 .AddChild(new TextComponent().SetTitle("demo.language.cards"))
-                .AddChild(new TextComponent().SetTitle("demo.language.cards").AsContent(ITextBaseComponent.TitleProperty))
-                .SetPlacement(1, 1, 24, 1)
-            ),
-            note: "demo.language.note.content"
+                .AddChild(new TextComponent().SetTitle("demo.language.cards").AsContent(ITextBaseComponent.TitleProperty)),
+            note: Words + "note.content"
         );
-    }
 
-    /// <summary>
-    /// Every word of the field a phrase: the caption, the placeholder and the help badge's words are keys the page translates, the help
-    /// with a number in its slot.
-    /// </summary>
-    private static ContainerComponent CreateFieldWordsGroup()
-    {
-        return DemoUI.CreateExample("demo.language.group.field",
-            new TextInputComponent()
-                .SetTitle(UIPhrase.Of("demo.inputs.text-input.name.title"))
-                .SetPlaceholder(UIPhrase.Of("demo.inputs.text-input.name.placeholder"))
-                .SetHelp(UIPhrase.Of("demo.inputs.text-input.name.help", ("max", 32)))
-                .SetMaxLength(32),
-            note: "demo.language.note.field"
+    private static ContainerComponent CreateCommandKeyGroup()
+        => DemoUI.CreateExample(Words + "group.command-key",
+            UILayout.Row(8)
+                .AddChild(new BadgeComponent()
+                    .SetVerticalAlignment(UIAlignment.Center)
+                    .BindText(nameof(WordsController.Label))
+                )
+                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("demo.language.cards").OnClick(nameof(WordsController.ShowCards)))
+                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("demo.language.decks").OnClick(nameof(WordsController.ShowDecks))),
+            note: Words + "note.command-key",
+            controller: [DemoCode.Of<WordsController>(nameof(WordsController.Label), nameof(WordsController.ShowCards), nameof(WordsController.ShowDecks))]
         );
-    }
 
-    /// <summary>
-    /// Words that are phrases: a heading with a count, and options whose titles carry a city and a count, each written in the page's
-    /// language and its plural form.
-    /// </summary>
+    private static ContainerComponent CreateCountGroup()
+        => DemoUI.CreateExample(Words + "group.count",
+            UILayout.Row(8)
+                .AddChild(new TextComponent()
+                    .SetVerticalAlignment(UIAlignment.Center)
+                    .BindTitle(nameof(WordsController.Files))
+                )
+                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("−").SetAccessibleName("demo.language.remove-file").OnClick(nameof(WordsController.RemoveFile)))
+                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Add).SetTooltip("demo.language.add-file").OnClick(nameof(WordsController.AddFile))),
+            note: Words + "note.count",
+            controller: [DemoCode.Of<WordsController>("_files", nameof(WordsController.Files), nameof(WordsController.AddFile), nameof(WordsController.RemoveFile), "FilesPhrase")]
+        );
+
+    private static ContainerComponent CreateNameGroup()
+        => DemoUI.CreateExample(Words + "group.name",
+            new TextComponent().BindTitle(nameof(WordsController.Greeting)),
+            note: Words + "note.name",
+            controller: [DemoCode.Of<WordsController>(nameof(WordsController.Greeting), "OnAttachedAsync", "GreetingFor", "OnLanguageChangedAsync")]
+        );
+
     private static ContainerComponent CreatePhraseGroup()
-    {
-        return DemoUI.CreateExample("demo.language.group.phrases",
+        => DemoUI.CreateExample(Words + "group.phrases",
             UILayout.Stack(12)
                 .AddChild(new TextComponent()
                     .SetTitle(UIPhrase.Of("demo.inputs.select.regions.heading", ("count", 4)))
@@ -208,16 +111,88 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
                     ])
                     .SetValue("eu-central")
                 ),
-            note: "demo.language.note.phrases"
+            note: Words + "note.phrases"
         );
-    }
 
-    /// <summary>
-    /// A moment inside a sentence: an action's description is a phrase whose argument is a moment, and so is a toast's message.
-    /// </summary>
+    private static ContainerComponent CreateFieldWordsGroup()
+        => DemoUI.CreateExample(Words + "group.field",
+            new TextInputComponent()
+                .SetTitle(UIPhrase.Of("demo.inputs.text-input.name.title"))
+                .SetPlaceholder(UIPhrase.Of("demo.inputs.text-input.name.placeholder"))
+                .SetHelp(UIPhrase.Of("demo.inputs.text-input.name.help", ("max", 32)))
+                .SetMaxLength(32),
+            note: Words + "note.field"
+        );
+
+    private static ContainerComponent CreateChromeGroup()
+        => DemoUI.CreateExample(Words + "group.chrome",
+            UILayout.Stack(12)
+                .AddChild(new TextInputComponent().SetShowClearButton().SetPlaceholder("demo.language.placeholder"))
+                .AddChild(new SelectComponent()
+                    .SetShowClearButton()
+                    .SetOptions(
+                    [
+                        new OptionItem { Id = "fire", Title = "demo.language.school.fire" },
+                        new OptionItem { Id = "frost", Title = "demo.language.school.frost" }
+                    ])
+                )
+                .AddChild(new MultiSelectComponent()
+                    .SetValue(["arcane"])
+                    .SetOptions(
+                    [
+                        new OptionItem { Id = "fire", Title = "demo.language.school.fire" },
+                        new OptionItem { Id = "arcane", Title = "demo.language.school.arcane" }
+                    ])
+                )
+                .AddChild(new ColorInputComponent()),
+            note: Words + "note.chrome"
+        );
+
+    private static ContainerComponent CreateRulesGroup()
+        => DemoUI.CreateExample(Words + "group.rules",
+            new TextInputComponent()
+                .SetTitle("demo.language.name")
+                .Required("demo.language.name-required")
+                .Regex("^.{0,12}$", UIPhrase.Of("demo.language.name-max", ("max", 12))),
+            note: Words + "note.rules"
+        );
+
+    /// <summary>Every row's select shares its options from the root: a row added later is drawn with them, and its words switch with the rest.</summary>
+    private static ContainerComponent CreateRowsGroup()
+        => DemoUI.CreateExample(Words + "group.rows",
+            UILayout.Stack(12)
+                .AddChild(new ItemsViewComponent()
+                    .BindItems(nameof(WordsController.Effects))
+                    .SetSpacing(8)
+                    .SetTemplate(UILayout.Columns(8,
+                        new TextComponent()
+                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .SetVerticalAlignment(UIAlignment.Center),
+                        new SelectComponent()
+                            .BindOptions(nameof(WordsController.Schools), UIBindingScope.Root)
+                            .BindValue(nameof(LanguageEffectItem.School), UIBindingScope.Relative)
+                    ))
+                )
+                .AddChild(UILayout.Row(8)
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Outline)
+                        .SetIcon(DemoIcons.Add)
+                        .SetTitle("demo.language.add-effect")
+                        .OnClick(nameof(WordsController.AddEffect))
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Add)
+                        .SetTitle("demo.language.add-school")
+                        .OnClick(nameof(WordsController.AddSchool))
+                    )
+                ),
+            note: Words + "note.rows",
+            controller: [DemoCode.Of<LanguageEffectItem>(), DemoCode.Of<WordsController>("_rows", nameof(WordsController.Effects), nameof(WordsController.Schools), nameof(WordsController.AddEffect), nameof(WordsController.AddSchool))]
+        );
+
     private static ContainerComponent CreateMomentGroup()
-    {
-        return DemoUI.CreateExample("demo.language.group.moment",
+        => DemoUI.CreateExample(Words + "group.moment",
             UILayout.Stack(4)
                 .AddChild(new ActionComponent()
                     .SetIcon(DemoIcons.Mail)
@@ -229,12 +204,25 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
                     .SetTitle("Maintenance window")
                     .BindDescription(nameof(MomentWordsGroupContext.Starts), UIBindingScope.Relative)
                 ),
-            note: "demo.language.note.moment",
-            context: MomentGroup,
+            note: Words + "note.moment",
+            context: nameof(WordsController.MomentGroup),
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
-                ["demo.language.back-up"] = nameof(WordsController.BackUpNow)
-            })
+                [Words + "back-up"] = nameof(WordsController.BackUpNow)
+            }),
+            // The actions' column would leave the two entries too narrow for their descriptions.
+            controlsBelow: true,
+            controller: [DemoCode.Of<MomentWordsGroupContext>(), DemoCode.Of<WordsController>(nameof(WordsController.MomentGroup), nameof(WordsController.BackUpNow))]
         );
-    }
+
+    private static ContainerComponent CreateCommandGroup()
+        => DemoUI.CreateExample(Words + "group.command",
+            new ButtonComponent()
+                .SetType(UIButtonType.Outline)
+                .SetHorizontalAlignment(UIAlignment.Start)
+                .SetTitle("demo.language.switch-from-command")
+                .OnClick(nameof(WordsController.SwitchFromCommandAsync)),
+            note: Words + "note.command",
+            controller: [DemoCode.Of<WordsController>(nameof(WordsController.SwitchFromCommandAsync))]
+        );
 }

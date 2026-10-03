@@ -44,22 +44,29 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         RenderLayout(context, root, ItemsViewComponent.LayoutTypeProperty, ItemsViewComponent.OrientationProperty, ItemsViewComponent.SpacingProperty);
         RenderSelection(context, root);
 
-        // An option may hold no control of its own, so rows with buttons or fields are a list's items whatever the selection.
-        var listbox = RenderSelectableRole(context, root) && !RowsHoldControls(context);
+        // An option may hold no control of its own, so rows with buttons or fields are a list's items whatever the selection; rows that
+        // are pressed without being chosen are options too, since the keyboard walks and presses them as a listbox's.
+        var selectable = RenderSelectableRole(context, root);
+        var listbox = (selectable || RowsAct(context)) && !RowsHoldControls(context);
+        var announces = selectable && listbox;
 
         _ = root.Attribute("role", listbox ? "listbox" : "list");
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-items-view--row-hover");
         RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-items-view--no-empty", WebValueCondition.IsFalse);
+
+        // Read by the stylesheet, which draws the ring in the skeleton's place and says so to the window engine (`--ui-window-look`).
+        if (ReadRenderValue<UIItemsLoadingLook?>(context, ItemsViewComponent.LoadingLookProperty, null) == UIItemsLoadingLook.Indicator)
+            _ = root.Class("ui-items-view--indicator");
         RenderDraggableRows(context, root);
         RenderTemplates(context, root);
 
         var grip = DrawsRowGrip(context);
 
-        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, rowDecorator: grip ? RowGripDecorator : null, itemWrapperRole: listbox ? "option" : "listitem", announcesSelection: listbox);
+        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, rowDecorator: grip ? RowGripDecorator : null, itemWrapperRole: listbox ? "option" : "listitem", announcesSelection: announces);
         RegisterItemsFilterSortMetadata(context);
-        RenderItems(context, root, listbox, grip);
+        RenderItems(context, root, listbox, announces, grip);
     }
 
     /// <summary>Whether a row template holds anything a press lands on — a button, a field, a link — rather than only words and pictures.</summary>
@@ -99,7 +106,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         return false;
     }
 
-    private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root, bool listbox, bool grip)
+    private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root, bool listbox, bool announces, bool grip)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
@@ -121,7 +128,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
             RenderItemList(context, host, items, ItemClassName, decorateItem: (itemRoot, item, index) =>
             {
                 _ = itemRoot.Attribute("role", listbox ? "option" : "listitem");
-                MarkSelected(itemRoot, item, selected, announce: listbox);
+                MarkSelected(itemRoot, item, selected, announce: announces);
             }, appendItem: grip ? (itemRoot, _, _) => RenderRowGrip(context, itemRoot) : null, limit: virtualized ? VirtualizedFirstPaintRows : null, publishValues: virtualized);
         });
     }

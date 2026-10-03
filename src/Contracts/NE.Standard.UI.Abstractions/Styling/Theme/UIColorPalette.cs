@@ -11,8 +11,11 @@ public sealed record UIColorPalette
     // WCAG's floor for words: an on-colour and an ink derived from a colour clear it.
     private const double ReadableRatio = 4.5;
 
-    // WCAG's floor for graphics: a series' line, bar or sector clears it on the page and on a card.
+    // WCAG's floor for graphics: a series' line, bar or sector clears it on the page and on a card; a control's mark on a raised card too.
     private const double GraphicRatio = 3;
+
+    // The text's share in a raised card's ground: `--ui-surface-raised`, which WebThemeCssBuilder writes from the same number.
+    private const double RaisedCardShare = 0.08;
 
     // Eight, far apart on the wheel; the Info and Success hues are among them, the warning and danger ones are not.
     private static readonly ColorVariant[] DefaultSeries =
@@ -173,6 +176,24 @@ public sealed record UIColorPalette
     public ColorVariant Border { get; init; } = ColorVariant.FromRgb(255, 255, 255, ColorAdjustment.None, 0, 26);
 
     /// <summary>
+    /// The edge that says a control is there: a field's border or line, an unchecked box's, radio's or switch's ring — a graphic
+    /// read against what it stands on, where <see cref="Border"/> only parts one region from another.
+    /// </summary>
+    /// <remarks>
+    /// Unset, <see cref="OnSurface"/> at the least opacity that reads 3:1 over <see cref="Background"/>, over <see cref="Surface"/>
+    /// and over a raised card (the surface with 8 % of the text), so it stands off whichever ground the control is on. Drawn when
+    /// read, so a palette with other grounds or another text colour draws its own.
+    /// </remarks>
+    public ColorVariant Mark
+    {
+        get => _mark ?? MarkOn(OnSurface, Background, Surface);
+        init => _mark = value;
+    }
+
+    // Null until an author sets one: drawn for this palette's grounds and text.
+    private readonly ColorVariant? _mark;
+
+    /// <summary>
     /// The color used for drop shadows.
     /// </summary>
     public ColorVariant Shadow { get; init; } = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 120);
@@ -287,6 +308,44 @@ public sealed record UIColorPalette
         return series;
     }
 
+    /// <summary>
+    /// <paramref name="ink"/> at the least opacity that reads 3:1 laid over the page, a card and a raised card; opaque where none does.
+    /// </summary>
+    private static ColorVariant MarkOn(ColorVariant ink, ColorVariant background, ColorVariant surface)
+    {
+        System.Drawing.Color drawn = ink.ToColor();
+        ColorVariant raised = Over(drawn, RaisedCardShare, surface);
+
+        for (var opacity = 1; opacity < byte.MaxValue; opacity++)
+        {
+            ColorVariant step = ColorVariant.FromRgb(drawn.R, drawn.G, drawn.B, ColorAdjustment.None, 0, (byte)opacity);
+
+            if (ReadsOver(step, background) && ReadsOver(step, surface) && ReadsOver(step, raised))
+                return step;
+        }
+
+        return ColorVariant.FromRgb(drawn.R, drawn.G, drawn.B);
+    }
+
+    /// <summary>Whether a translucent colour, laid over the ground, reads as a graphic against it.</summary>
+    private static bool ReadsOver(ColorVariant color, ColorVariant ground)
+    {
+        System.Drawing.Color top = color.ToColor();
+
+        return UIColorContrast.Ratio(Over(top, top.A / 255d, ground), ground) >= GraphicRatio;
+    }
+
+    /// <summary>A colour laid at a share over an opaque ground, channel by channel as the browser composites it, in whole levels.</summary>
+    private static ColorVariant Over(System.Drawing.Color top, double alpha, ColorVariant ground)
+    {
+        System.Drawing.Color under = ground.ToColor();
+
+        return ColorVariant.FromRgb(Blend(top.R, under.R, alpha), Blend(top.G, under.G, alpha), Blend(top.B, under.B, alpha), ColorAdjustment.None, 0, byte.MaxValue);
+    }
+
+    private static byte Blend(byte top, byte under, double alpha)
+        => (byte)System.Math.Round((top * alpha) + (under * (1 - alpha)));
+
     /// <summary>The colour as words on the page: moved toward the page's text a tenth at a time until it reads there.</summary>
     private ColorVariant InkOnPage(ColorVariant color)
         => FirstReadable(color, UIColorContrast.IsLight(Background) ? ColorAdjustment.Shade : ColorAdjustment.Tint, Background);
@@ -342,6 +401,7 @@ public sealed record UIColorPalette
         FocusRing.Validate();
 
         Border.Validate();
+        Mark.Validate();
         Shadow.Validate();
         Overlay.Validate();
 

@@ -1,6 +1,7 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
 import {
-    ActionBarClass, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute
+    ActionBarClass, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute,
+    TooltipSeverityAttribute as SeverityAttribute
 } from "../addressing/dom-attributes.ts";
 import { applyInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
@@ -15,6 +16,8 @@ const TooltipId = "ui-tooltip";
 const VisibleClass = "ui-tooltip--visible";
 // A control's own popup trigger while its list or panel is open; a disclosure that is merely expanded names no popup.
 const OpenSelector = "[aria-haspopup][aria-expanded=\"true\"]";
+// What takes a press for itself: a link or a button inside the part a mark speaks for keeps its own press.
+const PressControlSelector = "a[href], button, input, select, textarea, label, [role='button'], [role='link'], [tabindex]";
 
 // The side a tooltip takes when its anchor names none; above, because that covers nothing the reader is about to need.
 const DefaultPlacement: AnchoredPopupPlacement = "top";
@@ -56,6 +59,8 @@ export type TooltipWordsProvider = {
     words(anchor: Element): string | null;
     /** The side the words take where the anchor names none (a rail's title beside it, toward the content); unset, the default. */
     placement?(anchor: Element): AnchoredPopupPlacement | null;
+    /** Words that follow the anchor's own tooltip where it wrote one (a control's key chord after "Save"); unset, nothing. */
+    after?(anchor: Element): string | null;
 };
 
 const providers = new Set<TooltipWordsProvider>();
@@ -140,13 +145,24 @@ function onPointerOut(event: Event): void {
     const related = (event as PointerEvent).relatedTarget;
     // The one on screen, else the one waiting to open: leaving either calls it off.
     const current = anchor ?? scheduled?.target ?? null;
+    const area = current === null ? null : hoverArea(current);
 
-    // Moving onto a child of the same anchor is not leaving it, and neither is moving onto the tooltip.
-    if (related instanceof Node && ((current !== null && current.contains(related)) || isInsideTooltip(related)))
+    // Moving onto another part of the same area is not leaving it, and neither is moving onto the tooltip.
+    if (related instanceof Node && ((area !== null && area.contains(related)) || isInsideTooltip(related)))
         return;
 
-    if (isInsideTooltip(event.target) || (current !== null && event.target instanceof Node && current.contains(event.target)))
+    if (isInsideTooltip(event.target) || (area !== null && event.target instanceof Node && area.contains(event.target)))
         hide(false);
+}
+
+/**
+ * What the pointer stands over while it asks for an anchor's words: the control a mark speaks for — a closed row's whole value, a
+ * field around its corner mark — else the anchor itself; left from anywhere in it, the words go.
+ */
+function hoverArea(target: Element): Element {
+    const host = target.parentElement?.closest(`[${MarkAttribute}]`) ?? null;
+
+    return host !== null && findOwnAnchor(host) === target ? host : target;
 }
 
 // A keyboard focus opens the control's tooltip at once.
@@ -187,10 +203,10 @@ function onPointerDown(event: Event): void {
     if (isInsideTooltip(event.target))
         return;
 
-    const target = findAnchor(event.target);
+    const target = pressAnchor(event.target);
 
     // A control whose words are all it holds shows them on a press, the only way a touch can ask; a second press takes them away.
-    if (target !== null && target.hasAttribute(PressAttribute)) {
+    if (target !== null) {
         if (held === target) {
             hide(true);
             return;
@@ -210,8 +226,20 @@ function onPointerDown(event: Event): void {
 // The press on a control whose words are all it holds asked for them and nothing else: a checkbox's label around it would tick the box,
 // and a field's caption would hand the focus to the field, which closes them.
 function onClick(event: Event): void {
-    if (findAnchor(event.target)?.hasAttribute(PressAttribute) === true)
+    if (pressAnchor(event.target) !== null)
         event.preventDefault();
+}
+
+/** The anchor a press asks for words from, unless the press landed on a control of its own between the two (a link in a row's value). */
+function pressAnchor(target: EventTarget | null): Element | null {
+    const anchor = findAnchor(target);
+
+    if (anchor === null || !anchor.hasAttribute(PressAttribute) || !(target instanceof Element))
+        return null;
+
+    const control = target.closest(PressControlSelector);
+
+    return control === null || control.contains(anchor) ? anchor : null;
 }
 
 function isInsideTooltip(target: EventTarget | null): boolean {
@@ -242,8 +270,11 @@ function findOwnAnchor(target: Element): Element | null {
     if (element === null)
         return null;
 
-    // A tooltip of the control's own — one a controller wrote — is the control's; with none, the mark inside it speaks for it.
-    const spoken = element.hasAttribute(TooltipAttribute) ? element : element.querySelector(`[${TooltipAttribute}]`);
+    // A tooltip of the control's own — one a controller wrote — is the control's; with none, the mark inside it speaks for it, a
+    // validation mark before any other words inside (a value's text with a tooltip of its own, beside its row's mark).
+    const spoken = element.hasAttribute(TooltipAttribute)
+        ? element
+        : element.querySelector(`[${TooltipAttribute}][${SeverityAttribute}]`) ?? element.querySelector(`[${TooltipAttribute}]`);
 
     if (spoken === null)
         return null;
@@ -251,11 +282,24 @@ function findOwnAnchor(target: Element): Element | null {
     return (spoken.getAttribute(TooltipAttribute) ?? "").trim().length > 0 ? spoken : null;
 }
 
-/** An anchor's words: its own tooltip, else what a provider says for it. */
+/** An anchor's words: its own tooltip and what a provider adds after it, else what a provider says for it. */
 function anchorWords(target: Element): string {
     const own = (target.getAttribute(TooltipAttribute) ?? "").trim();
 
-    return own.length > 0 ? own : providedWords(target);
+    return own.length > 0 ? own + wordsAfter(target) : providedWords(target);
+}
+
+function wordsAfter(target: Element): string {
+    let after = "";
+
+    for (const provider of providers) {
+        const words = provider.anchor(target) === target ? provider.after?.(target)?.trim() ?? "" : "";
+
+        if (words.length > 0)
+            after += ` ${words}`;
+    }
+
+    return after;
 }
 
 function providedWords(target: Element): string {
@@ -334,6 +378,7 @@ function show(target: Element, words?: string): void {
     // The control names its tooltip; the element is aria-hidden, so the text is announced once, from the control.
     describe(describedElement(target));
     element.setAttribute("data-ui-tooltip-text", inlineMarkupToPlainText(text));
+    wearSeverity(element, target.getAttribute(SeverityAttribute));
 
     carryPopupGround(target, element);
 
@@ -385,6 +430,14 @@ function undescribe(): void {
 
 function describedBy(element: Element): string[] {
     return (element.getAttribute("aria-describedby") ?? "").split(" ").filter(id => id.length > 0);
+}
+
+/** A validation mark's words wear its severity, down the tooltip's leading edge; anything else's take it off. */
+function wearSeverity(element: HTMLElement, severity: string | null): void {
+    if (severity === null)
+        element.removeAttribute(SeverityAttribute);
+    else
+        element.setAttribute(SeverityAttribute, severity);
 }
 
 /** How a package's tooltip opens. */

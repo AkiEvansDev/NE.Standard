@@ -4,12 +4,14 @@ import { ValueReaderRegistry, resolveValueHolder, toDomString } from "../extensi
 import { DialogEngine } from "../interactions/dialog-engine";
 import { copySelection } from "../interactions/legacy-commands";
 import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
-import { NotificationEngine } from "../interactions/notification-engine";
+import { NotificationEngine, offeredAction } from "../interactions/notification-engine";
 import { dispatchOpenPicker } from "../interactions/picker-events";
 import { holdAtEnd, isEndAnchored, letGoOfEnd } from "../interactions/scroll-anchor-engine";
 import { itemsHostOf, letGoOfRow, revealItem } from "../items/item-reveal";
 import { hostOfScrollTarget, viewportOf } from "../items/items-viewport";
 import {
+    AddressClientEffect,
+    AnnounceClientEffect,
     ClientEffect,
     ClientEffectKindValue,
     CopyToClipboardClientEffect,
@@ -21,6 +23,7 @@ import {
     ScrollToItemClientEffect,
     SetThemeClientEffect,
     TargetedClientEffect,
+    getAnnouncePoliteness,
     getClientEffectKind,
     getIdValue,
     getScrollAxis,
@@ -47,12 +50,22 @@ export type EffectContext = {
 export type EffectRegistryOptions = {
     readonly dialogs?: DialogEngine;
     readonly notifications?: NotificationEngine;
+    // Runs the command the server offered a notification's action for; left out, a notification shows no action.
+    readonly runAction?: (id: string) => void;
     // Reads the value a copy effect names a component for; left out where nothing on the page holds one.
     readonly valueReaders?: ValueReaderRegistry;
     // How the chosen theme reaches the session; left out where there is no connection to report it on.
     readonly reportTheme?: (mode: ThemeName) => void;
     // How a local address is left for; left out, at once — the page's leave guard asks first while its work is unsaved.
     readonly navigate?: (url: string) => void;
+    // Where the page's state is written into its address; left out where the page keeps no history of its own.
+    readonly address?: AddressWriter;
+};
+
+/** What an address effect writes through: the route stays, the query is rewritten in place or as a new entry. */
+export type AddressWriter = {
+    replace(parameters: Record<string, unknown> | null): void;
+    push(parameters: Record<string, unknown> | null): void;
 };
 
 /** What the document declares, which has a third value the enum does not: no preference. */
@@ -69,16 +82,20 @@ export class EffectRegistry {
     private readonly handlers = new Map<string, EffectHandler>();
     private readonly dialogs: DialogEngine | undefined;
     private readonly notifications: NotificationEngine | undefined;
+    private readonly runAction: ((id: string) => void) | undefined;
     private readonly valueReaders: ValueReaderRegistry | undefined;
     private readonly reportTheme: ((mode: ThemeName) => void) | undefined;
     private readonly navigate: ((url: string) => void) | undefined;
+    private readonly address: AddressWriter | undefined;
 
     public constructor(options: EffectRegistryOptions = {}) {
         this.dialogs = options.dialogs;
         this.notifications = options.notifications;
+        this.runAction = options.runAction;
         this.valueReaders = options.valueReaders;
         this.reportTheme = options.reportTheme;
         this.navigate = options.navigate;
+        this.address = options.address;
 
         this.registerDefaults();
     }
@@ -133,6 +150,15 @@ export class EffectRegistry {
                 this.navigate(url);
             else
                 window.location.assign(url);
+        });
+
+        // No page load and no leave: the route stays, its query is the page's state (address-history.ts).
+        this.register("ReplaceAddress", context => {
+            this.writeAddress(context, (address, parameters) => address.replace(parameters));
+        });
+
+        this.register("PushAddress", context => {
+            this.writeAddress(context, (address, parameters) => address.push(parameters));
         });
 
         // On the document element: the theme is the page's, not a component's.
@@ -335,8 +361,40 @@ export class EffectRegistry {
                 return;
             }
 
-            this.notifications.show({ message: effect.message, severity: effect.severity });
+            this.notifications.show({
+                message: effect.message,
+                severity: effect.severity,
+                durationMs: typeof effect.durationMs === "number" ? effect.durationMs : undefined,
+                action: this.runAction === undefined ? undefined : offeredAction(effect.action, this.runAction)
+            });
         });
+
+        this.register("Announce", context => {
+            const effect = context.effect as AnnounceClientEffect;
+
+            if (!isPhrase(effect.message) && !isAuthorText(effect.message)) {
+                logWarn("announce effect carries no message.", context.effect);
+                return;
+            }
+
+            if (this.notifications === undefined) {
+                logWarn("announce effect arrived but no notification engine is wired up.", effect.message);
+                return;
+            }
+
+            this.notifications.announce(effect.message, getAnnouncePoliteness(effect.politeness) === "Assertive" ? "assertive" : "polite");
+        });
+    }
+
+    private writeAddress(context: EffectContext, write: (address: AddressWriter, parameters: Record<string, unknown> | null) => void): void {
+        const parameters = (context.effect as AddressClientEffect).parameters;
+
+        if (this.address === undefined) {
+            logWarn(`${context.effect.kind} effect arrived but no address history is wired up.`, context.effect);
+            return;
+        }
+
+        write(this.address, typeof parameters === "object" ? parameters : null);
     }
 
     private applyDialogEffect(context: EffectContext, kind: string, apply: (dialogs: DialogEngine, key: string) => boolean): void {

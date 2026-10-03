@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/field.less";
+@import "../mixins/focus.less";
 @import "../mixins/text.less";
 
 // The select's shell (ui-select.less) with the chosen options as chips that wrap; empty, the field keeps an input's height, a chip being shorter.
@@ -80,6 +81,58 @@
     height: 1.75rem;
     font-size: var(--ui-text-body-font-size);
     line-height: var(--ui-text-body-line-height);
+}
+
+// A free-text field's entry after the chips: the rest of the line, a few characters at least, a chip's height so an empty field keeps
+// an input's. The box around it is a text field's, so it shows the caret's pointer.
+.ui-multi-select[data-ui-select-free-text] > .ui-select__trigger {
+    cursor: text;
+}
+
+.ui-multi-select__entry {
+    flex: 1 1 4rem;
+    min-width: 4rem;
+    height: 1.5rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    outline: none;
+}
+
+.ui-input--small .ui-multi-select__entry {
+    height: 1.125rem;
+}
+
+.ui-input--large .ui-multi-select__entry {
+    height: 1.75rem;
+}
+
+// The field's placeholder stands over the empty entry, and goes once anything is typed; the engine hides it while chips stand.
+.ui-multi-select[data-ui-select-free-text] .ui-multi-select__chips {
+    position: relative;
+}
+
+    .ui-multi-select[data-ui-select-free-text] .ui-multi-select__chips > .ui-select__placeholder {
+        position: absolute;
+        inset-inline: 0;
+        top: 50%;
+        translate: 0 -50%;
+        pointer-events: none;
+    }
+
+    .ui-multi-select__chips:has(> .ui-multi-select__entry:not(:placeholder-shown)) > .ui-select__placeholder {
+        display: none;
+    }
+
+// A chip the keyboard walked onto wears the keyboard's frame; its cross, which holds the focus, draws no ring of its own.
+.ui-multi-select__chip:has(> .ui-multi-select__chip-remove@{ui-keyboard-focus}) {
+    .ui-keyboard-frame();
+}
+
+.ui-multi-select__chip-remove:focus-visible {
+    outline: none;
 }
 
 // The clear button shows once a chip stands in the field.

@@ -81,6 +81,11 @@ internal abstract partial class UIRuntimeBase
                     if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read))
                     {
                         (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
+
+                        // The field goes back to the server's value, so a refusal of an earlier text no longer speaks for what it shows.
+                        if (ClearRejectionNoLock(valueUpdate) is { } cleared)
+                            refusals.Add(cleared);
+
                         continue;
                     }
 
@@ -200,8 +205,15 @@ internal abstract partial class UIRuntimeBase
     {
         normalized = value;
 
-        if (value is not string)
+        if (value is not string text)
             return UIFormattedValueNormalization.Untouched;
+
+        // An emptied field sends its empty text: written to a value that is no text — a number, a day — it is no value at all.
+        if (string.IsNullOrWhiteSpace(text) && binding.TargetValueType is { IsValueType: true })
+        {
+            normalized = null;
+            return UIFormattedValueNormalization.Normalized;
+        }
 
         var format = TryGetComponentText(binding.Address.Component.Id, IFormattedInputComponent.FormatProperty);
         var culture = TryGetComponentText(binding.Address.Component.Id, IFormattedInputComponent.CultureProperty);

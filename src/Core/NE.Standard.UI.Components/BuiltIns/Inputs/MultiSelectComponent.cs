@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
@@ -21,6 +22,29 @@ public abstract partial class MultiSelectComponent<T, TItem>(string? id = null) 
     /// </summary>
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     public int? MaxSelected { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the reader may type values of their own — tags: an entry after the chips where Enter or a comma makes a
+    /// chip of the text, the options standing as suggestions. A typed value's key is its text; <see cref="MaxSelected"/> and a
+    /// <c>RegexEach</c> rule refuse one on the field's validation line before it becomes a chip.
+    /// </summary>
+    /// <remarks>Decided at render: it makes the entry, not the field's box, the control the reader types and lands in.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
+    public bool? AllowFreeText { get; set; }
+
+    /// <summary>
+    /// Gets or sets what Enter takes in a field taking free text while the reader types: the text as typed (the arrows pick a
+    /// suggestion), or the first suggestion the text names, marked as it is typed. Nothing without <see cref="AllowFreeText"/>.
+    /// </summary>
+    /// <remarks>Decided at render, as <see cref="AllowFreeText"/> is: it is how the entry answers its keys.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UITagEntry.TypedText)]
+    public UITagEntry? TagEntry { get; set; }
+
+    /// <summary>
+    /// Lets the reader type values of their own as chips, the options standing as suggestions.
+    /// </summary>
+    public T SetAllowFreeText()
+        => SetAllowFreeText(true);
 
     /// <summary>
     /// Sets the chosen keys, no more of them than <see cref="MaxSelected"/>; whichever of the two is set last is checked against the

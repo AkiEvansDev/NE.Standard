@@ -27,6 +27,8 @@ public static partial class UIStrings
     public const string PickerMeridiem = "ui.picker.meridiem";
     public const string PickerStart = "ui.picker.start";
     public const string PickerEnd = "ui.picker.end";
+    public const string SliderFrom = "ui.slider.from";
+    public const string SliderTo = "ui.slider.to";
 
     /// <summary>The letter a year's digits read as in a date field's placeholder: <c>yyyy</c>, <c>гггг</c>.</summary>
     public const string PickerLetterYear = "ui.picker.letter.year";
@@ -36,6 +38,9 @@ public static partial class UIStrings
     public const string PickerLetterMinute = "ui.picker.letter.minute";
     public const string PickerLetterSecond = "ui.picker.letter.second";
     public const string NotificationClose = "ui.notification.close";
+
+    /// <summary>The name of a message's ×, which hides it where it stands (the <c>UIMessage</c> preset).</summary>
+    public const string MessageDismiss = "ui.message.dismiss";
     public const string TabsMore = "ui.tabs.more";
     public const string CommandBarMore = "ui.commandbar.more";
     public const string TabClose = "ui.tab.close";
@@ -46,9 +51,29 @@ public static partial class UIStrings
     public const string SelectClear = "ui.select.clear";
     public const string SelectPlaceholder = "ui.select.placeholder";
     public const string SelectRemove = "ui.select.remove";
+
+    /// <summary>A tag typed into a full multi-select, refused: <c>{max}</c>.</summary>
+    public const string SelectFull = "ui.select.full";
     public const string SearchField = "ui.search.field";
     public const string InputClear = "ui.input.clear";
     public const string BreadcrumbsLabel = "ui.breadcrumbs.label";
+
+    /// <summary>A pager's name, its four buttons, and a page's number button: <c>{page}</c>.</summary>
+    public const string PagerLabel = "ui.pager.label";
+    public const string PagerFirst = "ui.pager.first";
+    public const string PagerPrevious = "ui.pager.previous";
+    public const string PagerNext = "ui.pager.next";
+    public const string PagerLast = "ui.pager.last";
+    public const string PagerPage = "ui.pager.page";
+
+    /// <summary>The rows a page holds: <c>{from}</c>, <c>{to}</c> and <c>{total}</c>, or, from a source that does not count, without the total.</summary>
+    public const string PagerRange = "ui.pager.range";
+    public const string PagerRows = "ui.pager.rows";
+
+    /// <summary>The page-size choice: its button's words, <c>{size}</c> rows a page, and its list's name.</summary>
+    public const string PagerSize = "ui.pager.size";
+    public const string PagerSizes = "ui.pager.sizes";
+
     public const string FileUploading = "ui.file.uploading";
     public const string FileCount = "ui.file.count";
     public const string FileFailed = "ui.file.failed";
@@ -94,6 +119,9 @@ public static partial class UIStrings
     public const string ItemsEmpty = "ui.items.empty";
     public const string CollapseToggle = "ui.collapse.toggle";
     public const string SideOpen = "ui.side.open";
+
+    /// <summary>The shell's link past the header and the left side to the page's content, seen only while it holds the keyboard.</summary>
+    public const string SkipToContent = "ui.shell.skip-to-content";
     public const string MenuSearch = "ui.menu.search";
     public const string ThemeSwitch = "ui.theme.switch";
     public const string LanguageSwitch = "ui.language.switch";
@@ -106,11 +134,21 @@ public static partial class UIStrings
     public const string ErrorTitle = "ui.error.title";
     public const string ErrorMessage = "ui.error.message";
     public const string CommandRefused = "ui.command.refused";
+    public const string CommandBusy = "ui.command.busy";
     public const string CommandFailed = "ui.command.failed";
     public const string ValueFormat = "ui.value.format";
+
+    /// <summary>A value past its field's bound, the bound as the field shows it: a number's <c>{max}</c> and <c>{min}</c>, a moment's.</summary>
+    public const string ValueAtMost = "ui.value.max";
+    public const string ValueAtLeast = "ui.value.min";
+    public const string ValueNotAfter = "ui.value.after";
+    public const string ValueNotBefore = "ui.value.before";
     public const string TreeLoading = "ui.tree.loading";
     public const string ConnectionLost = "ui.connection.lost";
     public const string ConnectionReload = "ui.connection.reload";
+
+    /// <summary>The passing notice while the page's connection is coming back, after a grace a short drop never outlasts.</summary>
+    public const string ConnectionReconnecting = "ui.connection.reconnecting";
 
     /// <summary>The framework's own question before a page holding unsaved work is left (<c>ConfirmLeaveEffect</c>).</summary>
     public const string LeaveTitle = "ui.leave.title";
@@ -145,6 +183,8 @@ public static partial class UIStrings
         [PickerMeridiem] = "AM/PM",
         [PickerStart] = "Start",
         [PickerEnd] = "End",
+        [SliderFrom] = "From",
+        [SliderTo] = "To",
         [PickerLetterYear] = "y",
         [PickerLetterMonth] = "M",
         [PickerLetterDay] = "d",
@@ -152,6 +192,7 @@ public static partial class UIStrings
         [PickerLetterMinute] = "m",
         [PickerLetterSecond] = "s",
         [NotificationClose] = "Close",
+        [MessageDismiss] = "Dismiss",
         [TabsMore] = "More tabs",
         [CommandBarMore] = "More commands",
         [TabClose] = "Close",
@@ -162,9 +203,20 @@ public static partial class UIStrings
         [SelectClear] = "Clear selection",
         [SelectPlaceholder] = "Select…",
         [SelectRemove] = "Remove {label}",
+        [SelectFull] = "No more than {max}.",
         [SearchField] = "Search",
         [InputClear] = "Clear",
         [BreadcrumbsLabel] = "Breadcrumb",
+        [PagerLabel] = "Pages",
+        [PagerFirst] = "First page",
+        [PagerPrevious] = "Previous page",
+        [PagerNext] = "Next page",
+        [PagerLast] = "Last page",
+        [PagerPage] = "Page {page}",
+        [PagerRange] = "{from}–{to} of {total}",
+        [PagerRows] = "{from}–{to}",
+        [PagerSize] = "{size} per page",
+        [PagerSizes] = "Rows per page",
         [FileUploading] = "Uploading… {percent}%",
         [FileCount] = "{count} files",
         [FileFailed] = "Upload failed.",
@@ -202,6 +254,7 @@ public static partial class UIStrings
         [ItemsEmpty] = "Nothing to show.",
         [CollapseToggle] = "Expand or collapse",
         [SideOpen] = "Open the side panel",
+        [SkipToContent] = "Skip to content",
         [MenuSearch] = "Search",
         [ThemeSwitch] = "Switch theme",
         [LanguageSwitch] = "Language: {language} ({code}), switch to {other} ({otherCode})",
@@ -212,11 +265,17 @@ public static partial class UIStrings
         [ErrorTitle] = "Something went wrong",
         [ErrorMessage] = "Something went wrong. Please try again.",
         [CommandRefused] = "You are not allowed to do that.",
+        [CommandBusy] = "That is already running.",
         [CommandFailed] = "Something went wrong. Please try again.",
         [ValueFormat] = "The value does not match the expected format.",
+        [ValueAtMost] = "At most {max}.",
+        [ValueAtLeast] = "At least {min}.",
+        [ValueNotAfter] = "Not after {max}.",
+        [ValueNotBefore] = "Not before {min}.",
         [TreeLoading] = "Loading…",
         [ConnectionLost] = "The connection to the server was lost. Reload the page to go on.",
         [ConnectionReload] = "Reload",
+        [ConnectionReconnecting] = "Reconnecting…",
         [LeaveTitle] = "Leave without saving?",
         [LeaveMessage] = "The changes on this page are not saved and will be lost.",
         [LeaveConfirm] = "Leave",

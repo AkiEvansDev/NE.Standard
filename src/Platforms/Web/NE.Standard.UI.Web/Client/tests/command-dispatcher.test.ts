@@ -104,3 +104,21 @@ test("a release does not fail a command answered on its invoke", async () => {
 
     assert.equal(await settlement(dispatch), "result:true");
 });
+
+test("an offered action is sent by its id alone, and the same one is refused while it is pending", async () => {
+    const hub = createHub();
+    const dispatcher = new CommandDispatcher(hub);
+    const action: UICommandRequest = { eventId: 0, action: "a1", dynamicParameters: ["ignored"] };
+    const dispatch = dispatcher.dispatchAsync(action);
+
+    assert.deepEqual({ ...hub.invokes[0].request, requestId: undefined }, { eventId: 0, action: "a1", dynamicParameters: [], requestId: undefined });
+    assert.equal(dispatcher.isPending(action), true);
+    assert.equal(dispatcher.isPending({ eventId: 0, action: "a2", dynamicParameters: [] }), false);
+    assert.equal(dispatcher.isPending({ eventId: 0, dynamicParameters: [] }), false);
+    await assert.rejects(dispatcher.dispatchAsync(action), /already pending/);
+
+    hub.invokes[0].answer({ command: { success: true } });
+
+    assert.equal(await settlement(dispatch), "result:true");
+    assert.equal(dispatcher.isPending(action), false);
+});

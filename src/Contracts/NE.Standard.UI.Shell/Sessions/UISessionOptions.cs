@@ -38,10 +38,13 @@ public sealed class UISessionOptions
     /// </summary>
     public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromMinutes(5);
 
-    /// <summary>
-    /// Gets or sets the name the platform uses to carry the session's secret — the cookie name on the web.
-    /// </summary>
-    public string ClientKey { get; set; } = "ne.ui.session";
+    /// <summary>Gets or sets the name the platform carries the session's secret under — the cookie name on the web.</summary>
+    /// <remarks>
+    /// <see langword="null"/> leaves it to the platform's own name for this application. A browser keeps one set of cookies per host
+    /// whatever the port, so two applications under one name sign each other out; the web's default is <c>ne.ui.session.</c>
+    /// followed by the application's name. Name it where that name may change, since a new one signs everyone out.
+    /// </remarks>
+    public string? ClientKey { get; set; }
 
     /// <summary>Gets or sets how long the client keeps the session's secret, from its last page load.</summary>
     /// <remarks>
@@ -67,7 +70,8 @@ public sealed class UISessionOptions
         if (CleanupInterval <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(CleanupInterval), CleanupInterval, "Session cleanup interval must be greater than zero.");
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(ClientKey);
+        if (ClientKey is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(ClientKey);
 
         if (ClientKeyLifetime is { } lifetime && lifetime <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(ClientKeyLifetime), lifetime, "Client key lifetime must be greater than zero.");

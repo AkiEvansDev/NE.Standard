@@ -142,6 +142,13 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     public string? Autocomplete { get; set; }
 
     /// <summary>
+    /// Gets or sets which on-screen keyboard the field asks a phone for, whatever its <see cref="Type"/>: digits for a one-time code
+    /// beside <see cref="UIAutocomplete.OneTimeCode"/>; unset, the browser's choice for the type.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIInputMode? InputMode { get; set; }
+
+    /// <summary>
     /// Enables trimming leading and trailing whitespace from the input.
     /// </summary>
     public T SetTrimInput()

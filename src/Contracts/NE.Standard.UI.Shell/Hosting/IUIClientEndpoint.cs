@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Shell.Commands;
@@ -54,6 +55,12 @@ public interface IUIClientEndpoint
 
     /// <summary>Answers a page asking to leave for <paramref name="target"/> while it holds unsaved work.</summary>
     Task<UICommandExecutionResult> RequestLeaveAsync(UIHandle handle, string target, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Answers the reader going back or forward to another history entry of the page's own route: its controller hears the entry's
+    /// <paramref name="parameters"/> in <c>OnNavigatedAsync</c> on the same runtime, the view filters not run again.
+    /// </summary>
+    Task<UICommandExecutionResult> NavigateInPlaceAsync(UIHandle handle, IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads a window of items for a windowed host.

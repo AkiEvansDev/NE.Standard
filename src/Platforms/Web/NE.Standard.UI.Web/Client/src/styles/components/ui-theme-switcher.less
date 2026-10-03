@@ -22,9 +22,10 @@
         .ui-responsive-property(padding, --ui-padding, @ui-space-3);
     }
 
-    // Measured against the control, not a label it doesn't have; :where() keeps an authored IconSize winning.
+    // An icon-only control's step of the icon scale, at every size as before (1.25em of the body stood at 17.5 px, its glyph high);
+    // :where() keeps an authored IconSize winning.
     :where(.ui-theme-switcher .ui-theme-switcher__icon) {
-        font-size: 1.25em;
+        font-size: @ui-glyph-md-lg;
     }
 
 .ui-theme-switcher__icon {

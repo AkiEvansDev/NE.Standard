@@ -16,6 +16,7 @@ import { markGroupHeader } from "./items-group-runs";
 import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
 import { renderItemRow } from "./items-row-renderer";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
+import { stampRowIndices } from "./table-row-indices";
 import { ItemsTemplateRegistry } from "./items-template-registry";
 import { ItemsTemplateRenderer, writeItemValuePath } from "./items-template-renderer";
 import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport";
@@ -396,6 +397,8 @@ export class ItemsVirtualizationEngine {
 
         const ancestors = this.options.renderer.getAncestorStack(host);
         const drawn: Element[] = [];
+        // Each drawn row with its place among them all, for a table's reader (table-row-indices.ts).
+        const placed: (readonly [Element, number])[] = [];
         let changed = false;
 
         for (let i = 0; i < total; i++) {
@@ -420,6 +423,7 @@ export class ItemsVirtualizationEngine {
                     markGroupHeader(element, row.entry.key);
 
                 drawn.push(element);
+                placed.push([element, i]);
                 continue;
             }
 
@@ -430,6 +434,7 @@ export class ItemsVirtualizationEngine {
 
             setElement(state, row, rendered);
             drawn.push(rendered);
+            placed.push([rendered, i]);
             changed = true;
         }
 
@@ -472,6 +477,7 @@ export class ItemsVirtualizationEngine {
         ensureSpacer(host, TopSpacer, before > 0 ? before - gap : 0);
         ensureSpacer(host, BottomSpacer, after > 0 ? after - gap : 0);
         ensureEmptyState(host, state.componentId, this.options.templates, this.options.renderer, total > 0);
+        stampRowIndices(host, placed, total);
 
         if (changed || state.first !== first || state.last !== last) {
             state.first = first;

@@ -1,13 +1,9 @@
 @import "../core/tokens.less";
 @import "./interactive.less";
 
-// The core's glyph font (fonts/NEGlyphs.woff2, from glyphs/build.mjs), so a host needs no icon pack. Sizes in rem, not em: a mark
-// on a fractional pixel rasterises unlike its twin.
+// The core's glyph font (fonts/NEGlyphs.woff2, from glyphs/build.mjs), so a host needs no icon pack. Sized from the icon scale
+// (`@ui-glyph-*`, tokens.less), never in em: a mark on a fractional pixel rasterises unlike its twin.
 @ui-glyph-font: "NE Glyphs";
-@ui-glyph-xs: 0.75rem; // 12px — a mark inside a field's own row: a stepper, a separator between crumbs
-@ui-glyph-sm: 0.875rem; // 14px — a field's trailing control: a select's chevron, a clear cross, a picker's toggle
-@ui-glyph-md: 1rem; // 16px — a mark beside a line of text: a menu entry, an expander, a tree node
-@ui-glyph-lg: 1.25rem; // 20px — a mark standing on its own, over a picture or in a corner
 
 // By codepoint, not ligature: the face has no letters. From MaterialSymbolsRounded's .codepoints; build.mjs holds the same set.
 @ui-glyph-chevron: "\e5cf"; // expand_more, drawn pointing down; the others turn it
@@ -143,6 +139,12 @@
 @ui-glyph-folder-zip: "\eb2c";
 @ui-glyph-audio-file: "\eb82";
 @ui-glyph-video-file: "\eb87";
+// Markdown's marks, for a format bar: bold, italic, struck through, a heading, a bulleted list.
+@ui-glyph-bold: "\e238"; // format_bold
+@ui-glyph-italic: "\e23f"; // format_italic
+@ui-glyph-strikethrough: "\e246"; // format_strikethrough
+@ui-glyph-heading: "\f85d"; // format_h1
+@ui-glyph-list-bulleted: "\e241"; // format_list_bulleted
 
 // The mark, on a pseudo-element: an em square, silent to a screen reader (`content`'s slash form), free of the host's text settings.
 .ui-glyph(@code; @size; @fill: 0) {

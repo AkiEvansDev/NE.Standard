@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
 
 namespace NE.Standard.UI.Shell.Runtime;
@@ -31,7 +34,7 @@ public sealed class UIInstance
     public string? PageId { get; init; }
 
     /// <summary>
-    /// Gets whether the client starts from an attach snapshot (<see cref="IUIRuntime.BuildAttachChangesAsync"/>) and is sent only
+    /// Gets whether the client starts from an attach snapshot (<see cref="IUIRuntime.BuildAttachChangesAsync(string, IReadOnlyCollection{UIBindingId}, CancellationToken)"/>) and is sent only
     /// what is queued after it — nothing before it; otherwise the instance is sent every change set whole.
     /// </summary>
     public bool StartsFromSnapshot { get; init; }

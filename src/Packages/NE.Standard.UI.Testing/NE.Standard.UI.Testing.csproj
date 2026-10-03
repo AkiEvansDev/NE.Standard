@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Testing</PackageId>
+    <Description>Tests for an NE.Standard UI application without a browser: boot its own startup, open a page through the host's real path, find its components, write values, press buttons and read what the page received.</Description>
+    <PackageTags>NE.Standard,UI,Testing</PackageTags>
+  </PropertyGroup>
+
+  <!-- The package's own README in place of the framework's: it is what a test author reads on the feed. -->
+  <ItemGroup>
+    <None Remove="$(MSBuildThisFileDirectory)../../../README.md" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The framework's own tests build their host on this package's internals rather than keeping a second copy of it. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Test.Standard.UI</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
+  </ItemGroup>
+
+</Project>

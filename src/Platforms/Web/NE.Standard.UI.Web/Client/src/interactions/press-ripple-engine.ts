@@ -10,7 +10,7 @@ import { isInert, isItemDisabled } from "./interactive-state.ts";
 import { ownControlOf } from "./own-control.ts";
 import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
-const EntrySelector = `.${ButtonClass}, .ui-action, .${MenuItemClass}, .ui-select__option, .ui-language-switcher__choice`;
+const EntrySelector = `.${ButtonClass}, .ui-action, .${MenuItemClass}, .ui-select__option, .ui-language-switcher__choice, .ui-pager__size-choice`;
 const KeyValueRowClass = "ui-key-value-action__row";
 const RowSelector = `${SelectionRowSelector}, .${KeyValueRowClass}`;
 const TargetSelector = `${EntrySelector}, ${RowSelector}`;

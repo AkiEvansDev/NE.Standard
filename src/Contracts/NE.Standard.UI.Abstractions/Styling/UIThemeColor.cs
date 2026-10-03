@@ -144,6 +144,11 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
     public static UIThemeColor Border => FromStyle(UIColorStyle.Border);
 
     /// <summary>
+    /// The edge that says a control is there, reading 3:1 on its ground, tracked live via <see cref="FromStyle"/>.
+    /// </summary>
+    public static UIThemeColor Mark => FromStyle(UIColorStyle.Mark);
+
+    /// <summary>
     /// The drop shadow color, tracked live via <see cref="FromStyle"/>.
     /// </summary>
     public static UIThemeColor Shadow => FromStyle(UIColorStyle.Shadow);

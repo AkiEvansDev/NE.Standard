@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
 
 namespace NE.Standard.UI.Web.Abstractions.Rendering;
@@ -38,6 +39,12 @@ public sealed class WebRenderItemsTemplateMetadata
     /// can't express (a menu's sub-entries); null when none.
     /// </summary>
     public string? RowDecorator { get; init; }
+
+    /// <summary>
+    /// The item paths the host's rows carry, dotted, so a page in development says so where it reads one the server left out; null
+    /// for a host whose items travel whole, and outside development.
+    /// </summary>
+    public IReadOnlyList<string>? ItemPaths { get; set; }
 
     public void Validate()
     {

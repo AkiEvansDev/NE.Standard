@@ -125,7 +125,9 @@ export class SignalRTransport {
         try {
             const result = await this.invokeCoreAsync<WebUIAttachResult>("AttachAsync", [request]);
 
-            this.gate.markAttached();
+            // A runtime built since the page attached is not the page's: a value waiting meanwhile would land in it, so the page reloads with nothing sent.
+            if (result.fresh !== true)
+                this.gate.markAttached();
 
             return result;
         }
@@ -145,6 +147,11 @@ export class SignalRTransport {
     /** Asks the controller about leaving for `target` while the page holds unsaved work: its answer once its changes are applied, without them. */
     public async requestLeaveAsync(target: string): Promise<UICommandExecutionResult> {
         return await this.invokeAsync<UICommandExecutionResult>("RequestLeaveAsync", [{ target }], invoked => this.inbound.answered(invoked, result => result.changes, withoutChanges));
+    }
+
+    /** Tells the controller the reader went back or forward to another entry of this route: its answer once its changes are applied, without them. */
+    public async navigateInPlaceAsync(parameters: Record<string, unknown> | null): Promise<UICommandExecutionResult> {
+        return await this.invokeAsync<UICommandExecutionResult>("NavigateInPlaceAsync", [{ parameters }], invoked => this.inbound.answered(invoked, result => result.changes, withoutChanges));
     }
 
     /** Settles once the answer's changes are applied; `before` runs just ahead of them. Fails with `ConnectionDropped` under a reconnect. */

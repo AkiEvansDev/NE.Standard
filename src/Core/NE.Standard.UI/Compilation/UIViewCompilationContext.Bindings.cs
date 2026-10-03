@@ -31,6 +31,7 @@ internal sealed partial class UIViewCompilationContext
         ValidateItemsView(component);
         EnsureSubmitOnEnterIsSound(component);
         EnsureDropTargetIsInView(component);
+        EnsurePagerTargetPages(component);
 
         UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
         List<CompiledUIPropertyValue> values = new(definitions.Length);

@@ -12,10 +12,13 @@ internal sealed class UICommandDescriptor : IUICommandMetadata
     public required UICommandInvoker Invoker { get; init; }
     public required UIAccessRule[] AccessRules { get; init; }
     public required UICommandConcurrencyMode ConcurrencyMode { get; init; }
+    public int MaxConcurrent { get; init; } = 1;
     public bool? AllowAnonymous { get; init; }
     public required IUICommandFilter[] Filters { get; init; }
 
     IReadOnlyList<UIAccessRule> IUICommandMetadata.AccessRules => AccessRules;
+
+    public IReadOnlyList<string> Parameters => Invoker.ParameterNames;
 
     private OrderedRun? _ordered;
 

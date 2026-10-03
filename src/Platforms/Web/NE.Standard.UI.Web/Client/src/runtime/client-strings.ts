@@ -46,16 +46,22 @@ export type ClientStringKey =
     | "ui.crop.cancel"
     | "ui.image.unreadable"
     | "ui.select.remove"
+    | "ui.select.full"
     | "ui.row.drag"
     | "ui.tree.loading"
     | "ui.connection.lost"
     | "ui.connection.reload"
+    | "ui.connection.reconnecting"
     | "ui.leave.title"
     | "ui.leave.message"
     | "ui.leave.confirm"
     | "ui.leave.stay"
     | "ui.actionbar.label"
     | "ui.actionbar.more"
+    | "ui.pager.page"
+    | "ui.pager.range"
+    | "ui.pager.rows"
+    | "ui.pager.size"
     | "ui.language.current"
     | "ui.language.switch";
 
@@ -563,6 +569,21 @@ function markWords(element: Element, attribute: string | null, mark: unknown): v
         element.removeAttribute(WordsAttribute);
     else if (element.getAttribute(WordsAttribute) !== text)
         element.setAttribute(WordsAttribute, text);
+}
+
+/** The words an element's text was written in, as a value writes them again: a key's as a phrase, an author's text as itself; else null. */
+export function readTextWords(element: Element): unknown {
+    const mark = readMarks(element)[TextTarget];
+
+    if (typeof mark === "string")
+        return mark;
+
+    if (!Array.isArray(mark) || typeof mark[0] !== "string")
+        return null;
+
+    const args: unknown = mark[1];
+
+    return { key: mark[0], args: args !== null && typeof args === "object" ? args : null };
 }
 
 /** An element's marks, or none where it has none or they cannot be read. */

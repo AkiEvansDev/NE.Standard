@@ -35,6 +35,9 @@ const openedByPointer = new WeakSet<Element>();
 if (typeof window !== "undefined") {
     window.addEventListener("pointerdown", domEvent => notePress(domEvent.target, domEvent.pointerType), true);
     window.addEventListener("keydown", domEvent => noteKey(domEvent), true);
+    // The focus event too, which comes before focusin: an element focused by a script after a press (a list taking its one tab stop
+    // back) matched `:focus` unmarked in between, and a style read there started the keyboard row's wash, which then faded out.
+    window.addEventListener("focus", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusin", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusout", domEvent => markPointerFocus(domEvent.target, false), true);
 }

@@ -47,6 +47,9 @@ const reducedMotion = blocksOf(css, "@media (prefers-reduced-motion: reduce)");
 const forcedColors = blocksOf(css, "@media (forced-colors: active)");
 const ringSelectors = allRules.filter(rule => /animation: ui-spin\b/.test(rule.body)).flatMap(rule => rule.selectors);
 
+// A windowed list's indicator, a ring of its own on the view's root rather than on a loading component.
+const WindowIndicator = ".ui-items-view--indicator:not(.ui-loading):has(> [data-ui-window-pending])::after";
+
 test("the reader's reduced motion is answered in one block, for animations as well as transitions", () => {
     assert.equal(reducedMotion.length, 1, "a second prefers-reduced-motion block: preferences.less is the one place for it");
 
@@ -58,12 +61,14 @@ test("the reader's reduced motion is answered in one block, for animations as we
     assert.match(everything.body, /animation-iteration-count: 1 !important/);
 });
 
-test("every loading ring keeps turning under reduced motion", () => {
+test("every loading ring keeps turning under reduced motion, a windowed list's indicator among them", () => {
     assert.ok(ringSelectors.length >= 5, "the rings were not found in the compiled stylesheet");
 
     const turning = rulesOf(reducedMotion[0]).find(rule => rule.body.includes("animation-iteration-count: infinite !important"));
 
     assert.ok(turning !== undefined, "no rule keeps the ring turning");
+
+    assert.ok(ringSelectors.includes(WindowIndicator), "a windowed list's indicator no longer wears the ring");
 
     for (const selector of ringSelectors)
         assert.ok(turning.selectors.includes(selector), `${selector} wears the ring but stops under reduced motion`);

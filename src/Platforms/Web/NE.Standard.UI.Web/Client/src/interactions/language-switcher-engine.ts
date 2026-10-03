@@ -28,7 +28,6 @@ const PageLabelClass = "ui-language-switcher__label-text--page";
 const MenuClass = "ui-language-switcher__menu";
 const ChoiceClass = "ui-language-switcher__choice";
 const OpenClass = "ui-language-switcher--open";
-const MenuGap = 4;
 // The button's name: with two languages what it switches to, with more the page's language alone (the list says the rest).
 const SwitchKey: ClientStringKey = "ui.language.switch";
 const CurrentKey: ClientStringKey = "ui.language.current";
@@ -158,7 +157,7 @@ export class LanguageSwitcherEngine {
             owner: switcher,
             popup: menu,
             anchor: switcher,
-            placement: { placement: "bottom-end", gap: MenuGap },
+            placement: { placement: "bottom-end" },
             openers: [trigger],
             focus: checked ?? false
         });

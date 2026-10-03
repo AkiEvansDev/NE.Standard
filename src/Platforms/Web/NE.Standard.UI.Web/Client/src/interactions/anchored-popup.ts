@@ -21,11 +21,17 @@ export function isAnchoredPopupPlacement(token: string): token is AnchoredPopupP
     return placements.has(token);
 }
 
+/**
+ * The room between a popup and what it opens from — a control's box, or the popup or bar its anchor stands in — for every popup that
+ * opens from something; one with an arrow (a tooltip, a slider's bubble) or a bar over its host keeps its own.
+ */
+export const PopupGap = 4;
+
 export type AnchoredPopupOptions = {
     /** Preferred side, not a demand — a side with no room flips to its opposite, and with room on neither, to a side across. */
     readonly placement: AnchoredPopupPlacement;
-    /** Distance between anchor and popup along the main axis, in pixels. */
-    readonly gap: number;
+    /** Distance between anchor (or `surface`) and popup along the main axis, in pixels; unset, `PopupGap`. */
+    readonly gap?: number;
     /** Makes the popup at least as wide as the anchor before measuring, wider when its content asks, for dropdown-shaped popups. */
     readonly minAnchorWidth?: boolean;
     /** Aligns the popup along the cross axis to this element instead of the anchor. */
@@ -37,6 +43,13 @@ export type AnchoredPopupOptions = {
      * alone: an action bar over a row the list's top edge cuts stands under the row, inside the list.
      */
     readonly boundary?: Element;
+    /**
+     * The popup or bar the anchor stands in — the menu whose entry opens a submenu, the action bar whose "…" opens a menu: the gap is
+     * kept from its edge rather than the anchor's, so a popup opened from a popup stands as far off as one opened from a control.
+     */
+    readonly surface?: Element;
+    /** Moves the popup along the cross axis by its own padding and border, so its first entry (its last, run the other way) stands level with the anchor, as a submenu beside its entry. */
+    readonly alignEntries?: boolean;
 };
 
 // The anchor is any element — an SVG shape as well as a control — since only its box is read.
@@ -258,17 +271,21 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     // Measured after the width is applied, or an anchor-wide popup is placed against its old size.
     const anchorRect = anchor.getBoundingClientRect();
     const crossRect = (anchor === placed ? options.crossAnchor ?? anchor : anchor).getBoundingClientRect();
+    // The edge the gap is kept from: the surface the anchor stands in, unless a stand-in has taken the anchor's place.
+    const edgeRect = anchor === placed && options.surface !== undefined ? options.surface.getBoundingClientRect() : anchorRect;
+    const gap = options.gap ?? PopupGap;
     const popupRect = popup.getBoundingClientRect();
     const room = roomOf(options.boundary);
     const tracking = tracked.get(popup);
     const kept = keepSide ? tracking?.side : undefined;
-    const side = kept !== undefined && fits(anchorRect, popupRect, kept, options.gap, room) ? kept : resolveSide(anchorRect, popupRect, options, room);
+    const side = kept !== undefined && fits(edgeRect, popupRect, kept, gap, room) ? kept : resolveSide(edgeRect, popupRect, options.placement, gap, room);
 
     if (tracking !== undefined)
         tracking.side = side;
 
-    let top = topOffset(anchorRect, crossRect, popupRect, side, options.gap);
-    let left = leftOffset(anchorRect, crossRect, popupRect, side, options.gap);
+    const inset = options.alignEntries === true ? entryInset(popup, side) : NoInset;
+    let top = topOffset(edgeRect, crossRect, popupRect, side, gap, inset);
+    let left = leftOffset(edgeRect, crossRect, popupRect, side, gap, inset);
 
     // The popup moves so the arrow lands on the anchor's centre; clamped instead, it would miss a small mark's.
     if (options.arrow === true) {
@@ -358,20 +375,19 @@ function roomOf(boundary: Element | undefined): Room {
     };
 }
 
-function resolveSide(anchorRect: DOMRect, popupRect: DOMRect, options: AnchoredPopupOptions, room: Room): AnchoredPopupPlacement {
-    const side = options.placement;
+function resolveSide(anchorRect: DOMRect, popupRect: DOMRect, side: AnchoredPopupPlacement, gap: number, room: Room): AnchoredPopupPlacement {
     const opposite = flip(side);
 
-    if (fits(anchorRect, popupRect, side, options.gap, room))
+    if (fits(anchorRect, popupRect, side, gap, room))
         return side;
 
-    if (fits(anchorRect, popupRect, opposite, options.gap, room))
+    if (fits(anchorRect, popupRect, opposite, gap, room))
         return opposite;
 
     // Clamped into a window too short (or too narrow) for either side of its axis, the popup would cover its own anchor: beside it
     // across the axis, it leaves the anchor in sight.
     for (const across of acrossSides(side)) {
-        if (fits(anchorRect, popupRect, across, options.gap, room))
+        if (fits(anchorRect, popupRect, across, gap, room))
             return across;
     }
 
@@ -437,34 +453,53 @@ function alignmentSuffix(placement: AnchoredPopupPlacement): string {
     return separator === -1 ? "" : placement.slice(separator);
 }
 
-function topOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): number {
+/** How far in from its edges along the cross axis a popup's entries start: its padding and border at either end. */
+type Inset = { readonly start: number; readonly end: number };
+
+const NoInset: Inset = { start: 0, end: 0 };
+
+function entryInset(popup: HTMLElement, placement: AnchoredPopupPlacement): Inset {
+    const style = getComputedStyle(popup);
+
+    return isVertical(placement)
+        ? { start: pixels(style.paddingLeft) + pixels(style.borderLeftWidth), end: pixels(style.paddingRight) + pixels(style.borderRightWidth) }
+        : { start: pixels(style.paddingTop) + pixels(style.borderTopWidth), end: pixels(style.paddingBottom) + pixels(style.borderBottomWidth) };
+}
+
+function pixels(value: string | undefined): number {
+    const parsed = Number.parseFloat(value ?? "");
+
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function topOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number, inset: Inset): number {
     if (placement.startsWith("top"))
         return anchorRect.top - gap - popupRect.height;
 
     if (placement.startsWith("bottom"))
         return anchorRect.bottom + gap;
 
-    return align(crossRect.top, crossRect.height, popupRect.height, placement);
+    return align(crossRect.top, crossRect.height, popupRect.height, placement, inset);
 }
 
-function leftOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number): number {
+function leftOffset(anchorRect: DOMRect, crossRect: DOMRect, popupRect: DOMRect, placement: AnchoredPopupPlacement, gap: number, inset: Inset): number {
     if (placement.startsWith("left"))
         return anchorRect.left - gap - popupRect.width;
 
     if (placement.startsWith("right"))
         return anchorRect.right + gap;
 
-    return align(crossRect.left, crossRect.width, popupRect.width, placement);
+    return align(crossRect.left, crossRect.width, popupRect.width, placement, inset);
 }
 
-function align(anchorStart: number, anchorSpan: number, popupSpan: number, placement: AnchoredPopupPlacement): number {
+function align(anchorStart: number, anchorSpan: number, popupSpan: number, placement: AnchoredPopupPlacement, inset: Inset): number {
     const suffix = alignmentSuffix(placement);
 
     if (suffix === "-start")
-        return anchorStart;
+        return anchorStart - inset.start;
 
     if (suffix === "-end")
-        return anchorStart + anchorSpan - popupSpan;
+        return anchorStart + anchorSpan - popupSpan + inset.end;
 
     return anchorStart + (anchorSpan - popupSpan) / 2;
 }
@@ -484,7 +519,7 @@ function visibleBand(): { readonly top: number; readonly bottom: number } {
 }
 
 /** Where the page's bottom bar starts while it shows (a phone's rail, stepped aside while the on-screen keyboard is up), else `fallback`. */
-function bottomBarTop(fallback: number): number {
+export function bottomBarTop(fallback: number): number {
     const bar = document.querySelector(`[${BottomBarAttribute}]`);
 
     if (bar === null)
@@ -496,7 +531,31 @@ function bottomBarTop(fallback: number): number {
     return rect.height > 0 && rect.width >= window.innerWidth - 1 && rect.top > 0 ? rect.top : fallback;
 }
 
+/**
+ * Places a popup at a point — a context menu at the pointer or the finger — as a native menu stands: down and to the right of it, up
+ * where there is no room below, leftward where there is none to the right, never over the point; clamped only where neither fits.
+ */
+export function placeAtPoint(popup: HTMLElement, x: number, y: number): void {
+    // Measured once shown, or a display:none popup measures as zero and never turns.
+    const rect = popup.getBoundingClientRect();
+    const band = visibleBand();
+
+    popup.style.left = `${fromPoint(x, rect.width, 0, window.innerWidth)}px`;
+    popup.style.top = `${fromPoint(y, rect.height, band.top, band.bottom)}px`;
+}
+
+/** Along one axis: the popup's start at the point where it fits, else its end there, else clamped inside the room. */
+function fromPoint(point: number, span: number, start: number, end: number): number {
+    if (point + span <= end - ViewportMargin)
+        return point;
+
+    if (point - span >= start + ViewportMargin)
+        return point - span;
+
+    return start + clampToViewport(point - start, span, end - start);
+}
+
 /** Keeps a popup inside the viewport: past the far edge it moves back by its own size rather than clipping. */
-export function clampToViewport(offset: number, popupSpan: number, viewportSpan: number): number {
+function clampToViewport(offset: number, popupSpan: number, viewportSpan: number): number {
     return Math.max(ViewportMargin, Math.min(offset, viewportSpan - popupSpan - ViewportMargin));
 }

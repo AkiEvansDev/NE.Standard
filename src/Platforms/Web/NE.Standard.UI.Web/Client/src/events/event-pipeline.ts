@@ -78,6 +78,34 @@ export class EventPipeline {
             this.attachEvent(registered);
     }
 
+    /**
+     * Sends a command no element raised — a notification's action — in turn behind the commands and values before it, and applies
+     * its answer's effects as an event's are; refused while the same one is pending.
+     */
+    public async dispatchCommandAsync(request: UICommandRequest): Promise<void> {
+        if (this.options.dispatcher.isPending(request))
+            return;
+
+        const turn = this.turns.take();
+
+        try {
+            await turn.ahead;
+            await this.options.valueBinding?.whenSent();
+
+            const dispatched = this.options.dispatcher.dispatchAsync(request);
+
+            turn.done();
+
+            const result = await dispatched;
+
+            this.options.effects.applyAll(result.command?.effects, this.options.dom);
+            this.options.afterEffects?.();
+        }
+        finally {
+            turn.done();
+        }
+    }
+
     private shouldAttach(event: RegisteredEvent): boolean {
         return this.options.metadata.hasServerEvent(event.name) ||
             this.options.interactionEngine.hasEvent(event.name) ||

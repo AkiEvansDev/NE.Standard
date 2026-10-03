@@ -3,6 +3,8 @@ import { WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 
 export const TopSpacer = "top";
 export const BottomSpacer = "bottom";
+// After the rows of a host that cannot count, while its next rows are on their way: what the reader scrolled to meanwhile.
+export const PendingSpacer = "pending";
 
 /** Stands in for the rows a host is not laying out, so its scrollbar measures the whole collection. */
 export function ensureSpacer(host: Element, position: string, height: number): void {

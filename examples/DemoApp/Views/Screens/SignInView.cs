@@ -22,9 +22,10 @@ internal sealed class SignInView : DemoScreenView, IUIViewDefinition
             .SetPadding(UIThickness.All(0, 24, 0, 0))
             .AddChild(UIPage.Card("Sign in", null, UILayout.Stack(16,
                     UIText.Note(string.Empty).BindDescription(nameof(SignInController.ReasonLine)),
+                    // Tonal: two fields on a neat centred card, which frames them; the line is for long forms that stack.
                     new TextInputComponent()
                         .SetTitle("User name")
-                        .SetAppearance(UIInputAppearance.Outline)
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetAutocomplete(UIAutocomplete.Username)
                         .SetFormId(FormId)
                         .BindValue(nameof(SignInController.UserName))
@@ -32,7 +33,7 @@ internal sealed class SignInView : DemoScreenView, IUIViewDefinition
                     new TextInputComponent()
                         .SetTitle("Password")
                         .SetType(UITextInputType.Password)
-                        .SetAppearance(UIInputAppearance.Outline)
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetAutocomplete(UIAutocomplete.CurrentPassword)
                         .SetFormId(FormId)
                         .BindValue(nameof(SignInController.Password))

@@ -91,12 +91,13 @@ export class CommandDispatcher {
 }
 
 function createPendingKey(request: UICommandRequest): string {
-    return `${JSON.stringify(request.eventId)}:${JSON.stringify(request.dynamicParameters ?? [])}`;
+    return request.action === undefined
+        ? `${JSON.stringify(request.eventId)}:${JSON.stringify(request.dynamicParameters ?? [])}`
+        : `action:${request.action}`;
 }
 
 function normalizeCommandRequest(request: UICommandRequest): UICommandRequest {
-    return {
-        eventId: getIdValue(request.eventId),
-        dynamicParameters: request.dynamicParameters ?? []
-    };
+    return request.action === undefined
+        ? { eventId: getIdValue(request.eventId), dynamicParameters: request.dynamicParameters ?? [] }
+        : { eventId: 0, action: request.action, dynamicParameters: [] };
 }

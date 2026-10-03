@@ -129,6 +129,8 @@ public static class WebThemeCssBuilder
         Append(builder, "color-danger-ink", palette.DangerInk);
 
         Append(builder, "color-border", palette.Border);
+        // A control's own edge, a graphic at 3:1 on its ground; `prefers-contrast: more` lifts the border to it (core/preferences.less).
+        Append(builder, "color-mark", palette.Mark);
         Append(builder, "color-shadow", palette.Shadow);
         Append(builder, "color-overlay", palette.Overlay);
 
@@ -205,7 +207,7 @@ public static class WebThemeCssBuilder
 
     private static void AppendSemanticVariables(StringBuilder builder)
     {
-        // The one absolute level: what a panel lifted off the page is made of. The same step lifts a popup off a raised panel or a
+        // The one absolute level: what a panel lifted off the page is made of; UIColorPalette's mark reads 3:1 on it by the same share. The same step lifts a popup off a raised panel or a
         // dialog (`.ui-popup-ground-lifted` in mixins/lift.less); the two keep one number.
         Append(builder, "surface-raised", "color-mix(in srgb, var(--ui-color-surface) 92%, var(--ui-color-on-surface) 8%)");
         // The wash a control with no fill shows when pressed; translucent since it may sit on the page or a surface. The pointer's

@@ -27,6 +27,12 @@ public sealed class RuntimeResolution
     public IUIRuntime? Runtime { get; init; }
 
     /// <summary>
+    /// Gets the id of the attached runtime, its own among every runtime built in any process, when the route declares a controller:
+    /// a page that attached before and is answered another id than its last one has a runtime built since.
+    /// </summary>
+    public string? RuntimeId { get; init; }
+
+    /// <summary>
     /// Gets the resolved route.
     /// </summary>
     public UIRouteDefinition Route => ViewResolution.Route;

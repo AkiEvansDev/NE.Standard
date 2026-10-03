@@ -38,6 +38,16 @@ public sealed record UIViewOptions
     /// </remarks>
     public bool SideDrawers { get; init; } = true;
 
+    /// <summary>Gets what the left side is to a screen reader's list of landmarks; read from the side unless the view says.</summary>
+    /// <remarks>
+    /// The header is the banner, the content the main region and the footer the content information whatever they hold; a side is the
+    /// page's navigation where it holds a menu and nothing else (in plain boxes, as a rail alone is found), and complementary otherwise.
+    /// </remarks>
+    public UISideLandmark LeftSideLandmark { get; init; }
+
+    /// <summary>Gets what the right side is to a screen reader's list of landmarks, as <see cref="LeftSideLandmark"/> says.</summary>
+    public UISideLandmark RightSideLandmark { get; init; }
+
     /// <summary>
     /// Gets which corner this view's notifications stack in.
     /// </summary>

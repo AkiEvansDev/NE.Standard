@@ -26,6 +26,15 @@
 @ui-control-height-sm: 1.5rem;
 @ui-control-height-lg: 3rem;
 
+// The icon scale: every glyph's and icon's size is one of these whole pixels, in rem at the default 16 px root. At a fraction of its
+// text (1.25em of 14 px) an icon lands on half a pixel, where the icon fonts round their ascent and stand the glyph off centre.
+@ui-glyph-xs: 0.75rem; // 12px — a mark inside a field's own row: a stepper, a separator between crumbs
+@ui-glyph-sm: 0.875rem; // 14px — a field's trailing control: a select's chevron, a clear cross, a picker's toggle; a small icon
+@ui-glyph-md: 1rem; // 16px — a mark beside a line of text: a menu entry, an expander, a tree node; a small icon button's glyph
+@ui-glyph-md-lg: 1.125rem; // 18px — an icon-only control's glyph: a button, the theme switcher, an icon strip
+@ui-glyph-lg: 1.25rem; // 20px — a mark standing on its own, over a picture or in a corner; a medium icon, a rail's glyph
+@ui-glyph-xl: 1.5rem; // 24px — a large icon button's glyph, a large icon, a large rail's glyph
+
 // A line in a list that is scanned, not pressed - a menu entry, a breadcrumb step, a calendar cell: read-down height, not press-target.
 @ui-list-row-height: 1.75rem;
 
@@ -55,13 +64,15 @@
 // A side drawer over the page, its veil just under it.
 @ui-z-drawer-veil: 49;
 @ui-z-drawer: 50;
+// The shell's skip link while it holds the keyboard, over the bands and an open drawer.
+@ui-z-skip-link: 55;
 @ui-z-tooltip: 60;
 @ui-z-dialog: 100;
 @ui-z-notification: 200;
 
-// A range's track: a step of the text over whatever ground it stands on, so it reads on the page, a card and a dialog alike (the
-// raised ground it was is the dialog's own, where it vanished); on the page it is the raised step it was.
-@ui-range-track: ~"color-mix(in srgb, var(--ui-color-on-surface) 14%, transparent)";
+// A range's track: the mark, translucent text that reads 3:1 on the page, a card and a dialog alike — the track is what says a value
+// can be slid along it (a 14 % step of the text read 1.4:1).
+@ui-range-track: ~"var(--ui-color-mark)";
 
 // How close to the viewport's edge a popup may sit; must match anchored-popup.ts's own margin.
 @ui-popup-viewport-margin: 4px;

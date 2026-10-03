@@ -62,6 +62,11 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = UIButtonSize.Medium)]
     public UIButtonSize? Size { get; set; }
 
+    /// <inheritdoc/>
+    /// <remarks>Not translatable: a chord names physical keys. A literal one is checked when the view compiles.</remarks>
+    [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = null)]
+    public string? Shortcut { get; set; }
+
     /// <summary>
     /// Gets or sets whether the button is a toggle and its pressed state: null is an ordinary button, true/false a toggle;
     /// two-way, so a press writes back.

@@ -47,6 +47,14 @@ internal sealed partial class WebUIHub : Hub
         /// <summary>The fingerprint of the compile the page was rendered from, when the page carries one.</summary>
         public string? View { get; init; }
 
+        /// <summary>
+        /// The sequence the render wrote in the page, on the page's first attach: the runtime it prepared sends only what moved past it.
+        /// </summary>
+        public long? Since { get; init; }
+
+        /// <summary>The runtime the page's last attach was answered with, on any attach after its first.</summary>
+        public string? Runtime { get; init; }
+
         public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
 
         /// <summary>The time zone the browser reports it is in (<c>Intl.DateTimeFormat().resolvedOptions().timeZone</c>).</summary>
@@ -57,8 +65,20 @@ internal sealed partial class WebUIHub : Hub
     {
         public required ServerChangeSet InitialChanges { get; init; }
 
-        /// <summary>The page was rendered from another compile of its view: it reloads rather than applies anything.</summary>
+        /// <summary>
+        /// The page was rendered from another compile of its view, or presented no session the store holds: it reloads rather than
+        /// applies anything.
+        /// </summary>
         public bool Reload { get; init; }
+
+        /// <summary>The runtime the page attached to, which its later attaches present.</summary>
+        public string? Runtime { get; init; }
+
+        /// <summary>
+        /// The page held another runtime, which is gone — a restart, an eviction, a retention run out, another tab that rebuilt it — so
+        /// what it shows belongs to nothing: it reloads rather than applies anything, and carries no changes.
+        /// </summary>
+        public bool Fresh { get; init; }
     }
 
     internal sealed class WebUIValueChangeRequest
@@ -80,6 +100,12 @@ internal sealed partial class WebUIHub : Hub
     {
         /// <summary>The address of this site the reader starts to leave for, its query and fragment included.</summary>
         public required string Target { get; init; }
+    }
+
+    internal sealed class WebUIAddressRequest
+    {
+        /// <summary>The query of the history entry the reader went back or forward to, read as an attach reads it.</summary>
+        public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
     }
 
     internal sealed class WebUISetThemeRequest
@@ -195,9 +221,22 @@ internal sealed partial class WebUIHub : Hub
 
         [LoggerMessage(EventId = 14, Level = LogLevel.Debug, Message = "Theme colours were not stored: connection '{ConnectionId}' presented no stored session.")]
         public static partial void ThemeColorsNotStored(ILogger logger, string connectionId);
+
+        [LoggerMessage(EventId = 15, Level = LogLevel.Warning, Message = "An attach to route '{Route}' was refused: connection '{ConnectionId}' is already attached to another page.")]
+        public static partial void SecondAttachRefused(ILogger logger, string route, string connectionId);
+
+        [LoggerMessage(EventId = 16, Level = LogLevel.Information, Message = "Web UI route '{Route}' for tab '{ClientWindowId}' found a runtime built since the page attached: the page reloads.")]
+        public static partial void RuntimeFresh(ILogger logger, string route, string clientWindowId);
     }
 
     private const string HandleContextItemKey = "NE.Standard.UI.Web.Handle";
+
+    // Shared: an answer that carries nothing but the reload.
+    private static readonly WebUIAttachResult ReloadResult = new()
+    {
+        InitialChanges = ServerChangeSet.Empty,
+        Reload = true
+    };
 
     // What one ask for words may carry: a page asks per frame for the keys its table lacked, never a whole dictionary.
     private const int MaxTranslateKeys = 256;
@@ -207,6 +246,7 @@ internal sealed partial class WebUIHub : Hub
     private readonly IWebViewRenderCache _renderCache;
     private readonly IWebViewRenderer _renderer;
     private readonly UIApplication _application;
+    private readonly WebSessionCookie _sessionCookie;
     private readonly IUserSessionStore _sessions;
     private readonly WebValueStagingStore _stagedValues;
     private readonly WebOutgoingValues _outgoing;
@@ -214,12 +254,13 @@ internal sealed partial class WebUIHub : Hub
     private readonly IEnumerable<IUIStringsSource> _packageStrings;
     private readonly ILogger<WebUIHub> _logger;
 
-    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger)
+    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, WebSessionCookie sessionCookie, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(renderCache);
         ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(sessionCookie);
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(stagedValues);
         ArgumentNullException.ThrowIfNull(outgoing);
@@ -231,6 +272,7 @@ internal sealed partial class WebUIHub : Hub
         _renderCache = renderCache;
         _renderer = renderer;
         _application = application;
+        _sessionCookie = sessionCookie;
         _sessions = sessions;
         _stagedValues = stagedValues;
         _outgoing = outgoing;
@@ -266,18 +308,30 @@ internal sealed partial class WebUIHub : Hub
 
         UserSessionInitData session = CreateSession(request.ClientWindowId, request.TimeZone);
 
-        UIViewResolution view = await _host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Attach, Context.ConnectionAborted).ConfigureAwait(false);
+        // No session the store holds (none presented, an unknown one, one gone idle, a store emptied by a restart): one issued here
+        // could never reach the browser, whose cookie only a page load writes — so the page reloads, and its render issues one.
+        UIViewResolution? view = _host is UIHost host
+            ? await host.ResolvePresentedViewAsync(navigation, session, Context.ConnectionAborted).ConfigureAwait(false)
+            : await _host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Attach, Context.ConnectionAborted).ConfigureAwait(false);
+
+        if (view is null)
+            return ReloadResult;
 
         // A page of another compile — the code changed under it — holds ids that address nothing here: reloaded, not fed updates.
         if (request.View is not null && !string.Equals(request.View, view.View.Fingerprint, StringComparison.Ordinal))
         {
             Log.ViewChanged(_logger, route, request.View, view.View.Fingerprint);
 
-            return new WebUIAttachResult
-            {
-                InitialChanges = ServerChangeSet.Empty,
-                Reload = true
-            };
+            return ReloadResult;
+        }
+
+        // One connection is one page: it attaches again to the runtime it holds (a full resync, a lost staged value), never to
+        // another, which would leave the first kept for its whole retention.
+        if (!MayAttach(view, request.ClientWindowId))
+        {
+            Log.SecondAttachRefused(_logger, route, Context.ConnectionId);
+
+            throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is already attached to another page.");
         }
 
         // The resolved navigation, not the requested one: a controller must see the route it's actually running, redirects included.
@@ -294,6 +348,20 @@ internal sealed partial class WebUIHub : Hub
             Context.ConnectionAborted
         ).ConfigureAwait(false);
 
+        // The runtime the page held is gone, and what the page shows — fields it accepted, a dialog, unsaved work — with it: applying
+        // this one's snapshot would leave a mixture, so the page reloads, and nothing is built for it.
+        if (request.Runtime is not null && runtime.RuntimeId is not null && !string.Equals(request.Runtime, runtime.RuntimeId, StringComparison.Ordinal))
+        {
+            Context.Items[HandleContextItemKey] = runtime.Handle;
+            Log.RuntimeFresh(_logger, route, request.ClientWindowId);
+
+            return new WebUIAttachResult
+            {
+                InitialChanges = ServerChangeSet.Empty,
+                Fresh = true
+            };
+        }
+
         // Gone after a restart cleared the cache while this page stayed open: rendered again, so its values are re-sent as on a load.
         IReadOnlyList<int> initBindingIds = await _renderCache.GetInitBindingIdsAsync(
             WebViewCacheKeys.Create(view),
@@ -303,7 +371,7 @@ internal sealed partial class WebUIHub : Hub
         // The snapshot also marks this connection's starting point: nothing queued before it is pushed to it, everything after it is.
         ServerChangeSet initialChanges = runtime.Runtime is null
             ? ServerChangeSet.Empty
-            : await runtime.Runtime.BuildAttachChangesAsync(Context.ConnectionId, [.. initBindingIds.Select(static bindingId => new UIBindingId(bindingId))], Context.ConnectionAborted).ConfigureAwait(false);
+            : await runtime.Runtime.BuildAttachChangesAsync(Context.ConnectionId, [.. initBindingIds.Select(static bindingId => new UIBindingId(bindingId))], request.Since, Context.ConnectionAborted).ConfigureAwait(false);
 
         if (runtime.Runtime is not null)
             Context.Items[HandleContextItemKey] = runtime.Handle;
@@ -314,8 +382,20 @@ internal sealed partial class WebUIHub : Hub
 
         return new WebUIAttachResult
         {
-            InitialChanges = _outgoing.Stage(initialChanges, runtime.Handle.Session.SessionId, 1)
+            InitialChanges = _outgoing.Stage(initialChanges, runtime.Handle.Session.SessionId, 1),
+            Runtime = runtime.RuntimeId
         };
+    }
+
+    /// <summary>Whether this connection may attach: one holding no handle may, one holding a handle only to that handle's runtime from its tab.</summary>
+    private bool MayAttach(UIViewResolution view, string clientWindowId)
+    {
+        if (!Context.Items.TryGetValue(HandleContextItemKey, out var value) || value is not UIHandle held)
+            return true;
+
+        return _host is UIHost host
+            ? host.NamesRuntimeOf(held, view, clientWindowId)
+            : string.Equals(held.Instance.WindowId, clientWindowId, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -341,7 +421,7 @@ internal sealed partial class WebUIHub : Hub
 
     /// <summary>The session the page's cookie names, or none where the connection has no request or the request no cookie.</summary>
     private string? ReadSessionId(HttpContext? http)
-        => http is null ? null : WebClientRequest.ReadSessionId(http, _application.Sessions);
+        => http is null ? null : WebClientRequest.ReadSessionId(http, _sessionCookie);
 
     private async ValueTask<IReadOnlyList<int>> RenderInitBindingIdsAsync(UIViewResolution view)
     {
@@ -551,6 +631,23 @@ internal sealed partial class WebUIHub : Hub
 
         UICommandExecutionResult result = await _host
             .RequestLeaveAsync(handle, request.Target, Context.ConnectionAborted)
+            .ConfigureAwait(false);
+
+        return _outgoing.Stage(result, handle.Session.SessionId, 1);
+    }
+
+    /// <summary>
+    /// The reader went back or forward to another entry of this page's route: its controller hears the entry's parameters on the same
+    /// runtime, answered and never pushed. Counted in the connection's call budget as every call is.
+    /// </summary>
+    public async Task<UICommandExecutionResult> NavigateInPlaceAsync(WebUIAddressRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        UIHandle handle = RequireHandle();
+
+        UICommandExecutionResult result = await _host
+            .NavigateInPlaceAsync(handle, request.Parameters, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
         return _outgoing.Stage(result, handle.Session.SessionId, 1);

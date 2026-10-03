@@ -7,16 +7,15 @@
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
 import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, RowFocusAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
-import { ActionBarButtonClass, ActionBarButtonWords, actionBarEntryOf, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
+import { ActionBarButtonClass, actionBarEntryOf, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } from "./anchored-popup.ts";
 import { actionBarMenuOf, isTouchOpening, OpenClass as MenuOpenClass } from "./context-menu-engine.ts";
 import { canScroll, isClippedOut, viewBoxAround } from "./element-visibility.ts";
 import { isInert } from "./interactive-state.ts";
 import { DialogAttribute } from "./open-dialogs.ts";
-import { FocusableSelector, isPointerLast, liveFocusReturn } from "./popup-focus.ts";
+import { FocusableSelector, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
 import { SelectionRootSelector } from "./row-selection.ts";
-import { registerTooltipWords } from "./tooltip-engine.ts";
 
 const HostSelector = `[${ActionBarAttribute}]`;
 const OpenDialogSelector = `[${DialogAttribute}]:not([hidden]), dialog[open]`;
@@ -29,6 +28,11 @@ const OutClass = `${ActionBarClass}--out`;
 // canvas node's selection ring) sets a wider one on itself.
 const BarGap = 6;
 const BarGapProperty = "--ui-action-bar-gap";
+
+// A double tap's second tap lands where the bar its first one brought up now stands (a canvas moving the chosen node clear for it):
+// a finger's press on a bar younger than this is held, not pressed. When each bar came up is kept by the bar.
+const DoubleTapHold = 400;
+const shownAt = new WeakMap<HTMLElement, number>();
 
 // What a change in the menu may alter in its entries as a bar shows them; the tab stops the menu engine moves are not among them.
 const EntryStateAttributes = ["class", "style", "hidden", "aria-disabled", "aria-checked", InActionBarAttribute, ...VisibilityTierAttributes];
@@ -98,8 +102,6 @@ export class ActionBarEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent));
         // Capture phase: the scroll of any box around a host, which does not bubble.
         this.root.addEventListener("scroll", () => this.markOut(), true);
-
-        registerTooltipWords(ActionBarButtonWords);
     }
 
     /**
@@ -411,6 +413,7 @@ export class ActionBarEngine {
 
         observer.observe(menu, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: EntryStateAttributes });
         this.shown.set(host, { bar, menu, observer });
+        shownAt.set(bar, Date.now());
     }
 
     /** Draws a shown bar again, the keyboard kept on the button of the entry it was on. */
@@ -446,7 +449,7 @@ export class ActionBarEngine {
     private openMore(host: HTMLElement, button: HTMLElement): void {
         const shown = this.shown.get(host);
 
-        if (shown === undefined)
+        if (shown === undefined || isHeld(button))
             return;
 
         this.menuHost = host;
@@ -678,7 +681,7 @@ function barButtons(bar: HTMLElement): HTMLElement[] {
  * opened on choosing the host now — then the entry is pressed as the menu presses it, unless the opening left it out or turned it off.
  */
 function pressEntry(entry: HTMLElement, button: HTMLElement): void {
-    if (isInert(button))
+    if (isInert(button) || isHeld(button))
         return;
 
     const menu = actionBarMenuOf(button, false);
@@ -687,6 +690,14 @@ function pressEntry(entry: HTMLElement, button: HTMLElement): void {
         return;
 
     entry.click();
+}
+
+/** A finger's press on a bar that came up less than a double tap ago: the second tap of a double tap on its host, never a press. */
+function isHeld(button: HTMLElement): boolean {
+    const bar = button.closest<HTMLElement>(BarSelector);
+    const at = bar === null ? undefined : shownAt.get(bar);
+
+    return at !== undefined && isTouchLast() && Date.now() - at < DoubleTapHold;
 }
 
 /** "More" opens the menu itself under the button, as a right press there would, the keyboard's press giving it the first entry. */

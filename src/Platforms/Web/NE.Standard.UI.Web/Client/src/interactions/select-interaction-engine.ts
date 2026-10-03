@@ -4,7 +4,8 @@ import {
 } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
-import { isChoiceFull, parseChosenKeys, parseMaxChosen, removeChosenKey, toggleChosenKey } from "./multi-select-keys.ts";
+import { enterTags, holdsTagSeparator, isChoiceFull, parseChosenKeys, parseMaxChosen, removeChosenKey, splitTags, takeTypedTags, toggleChosenKey } from "./multi-select-keys.ts";
+import type { TypedTag } from "./multi-select-keys.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { isInert, isItemDisabled, isReadOnly } from "./interactive-state.ts";
@@ -12,6 +13,7 @@ import { focusAsLastInput, focusByPointer, isPointerLast, isTouchLast, markPoint
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
 import { narrowToTerm, refreshEmptyState } from "./search-input-engine.ts";
 import { TypeAhead, typeAheadCharacter } from "./type-ahead.ts";
+import type { EntryValidation, FieldMarkWords, FieldValidation } from "./validation-engine.ts";
 
 const SelectValueAttribute = "data-ui-select-value";
 // Where the list opens when the author said so; below from the start edge otherwise.
@@ -44,11 +46,16 @@ const ChipRemoveClass = "ui-multi-select__chip-remove";
 const ChipAttribute = "data-ui-select-chip";
 // On a multi-select's root, how many options it takes at most.
 const MaxAttribute = "data-ui-select-max";
-
-const PopupGap = 4;
+// On a multi-select's root that takes the reader's own text: its entry after the chips is the control the reader types in.
+const FreeTextAttribute = "data-ui-select-free-text";
+const EntryClass = "ui-multi-select__entry";
+// On a free-text multi-select whose first suggestion Enter takes, marked as the reader types: "first-suggestion".
+const TagEntryAttribute = "data-ui-select-tag-entry";
 
 export type SelectInteractionEngineOptions = {
     readonly root?: ParentNode;
+    /** Where a free-text entry asks the field's rules about a tag, and says on its line why one was refused. */
+    readonly validation?: FieldValidation & EntryValidation;
 };
 
 // Never an attribute this engine writes itself: answering its own writes is a loop and a sync on every scroll frame.
@@ -70,6 +77,29 @@ function isSearch(select: HTMLElement): boolean {
 /** A search's text field, at the top of its list: before the options in the markup, so never one drawn inside an option. */
 function searchFieldOf(select: HTMLElement): HTMLInputElement | null {
     return isSearch(select) ? select.querySelector<HTMLInputElement>(`.${SearchInputClass}`) : null;
+}
+
+/** A free-text multi-select's entry, in its own field's box: never one drawn inside an option. */
+function entryOf(select: HTMLElement): HTMLInputElement | null {
+    return select.hasAttribute(FreeTextAttribute) ? select.querySelector<HTMLInputElement>(`:scope > .${TriggerClass} .${EntryClass}`) : null;
+}
+
+/** The text field that holds the keyboard while the list is open — a search's, a free-text entry — whose list's mark is an attribute. */
+function typedFieldOf(select: HTMLElement): HTMLInputElement | null {
+    return searchFieldOf(select) ?? entryOf(select);
+}
+
+/** Where the field's keyboard stands when it is closed: a free-text entry, else the trigger. */
+function controlOf(select: HTMLElement): HTMLElement | null {
+    return entryOf(select) ?? select.querySelector<HTMLElement>(`.${TriggerClass}`);
+}
+
+/** The free-text entry an event happened in and its multi-select, or null for any other target. */
+function entryTarget(domEvent: Event): { entry: HTMLInputElement; select: HTMLElement } | null {
+    const entry = domEvent.target instanceof HTMLInputElement && domEvent.target.classList.contains(EntryClass) ? domEvent.target : null;
+    const select = entry?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
+
+    return entry === null || select === null ? null : { entry, select };
 }
 
 /** This select's own options: a select rendered inside an option's template keeps its list to itself. */
@@ -117,8 +147,14 @@ export class SelectInteractionEngine {
     // The option key each trigger draws, so a search keeps showing a chosen option its answer to a term leaves out.
     private readonly drawnKeys = new WeakMap<HTMLElement, string>();
 
+    private readonly validation: (FieldValidation & EntryValidation) | undefined;
+
+    // The free-text fields whose line says why a tag was refused, until the reader edits the entry again.
+    private readonly refusedEntries = new WeakSet<HTMLElement>();
+
     public constructor(options: SelectInteractionEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.validation = options.validation;
 
         for (const select of this.root.querySelectorAll<HTMLElement>(`.${SelectClass}`))
             this.sync(select);
@@ -142,11 +178,144 @@ export class SelectInteractionEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
         this.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
 
-        // The clear and a chip's remove take no focus on their press: both vanish, and the focus would fall to the page's body.
+        // The clear and a chip's remove take no focus on their press: both vanish, and the focus would fall to the page's body. Nor
+        // does a press on a free-text field's box around its entry, which keeps the keyboard in the entry.
         this.root.addEventListener("mousedown", domEvent => {
-            if (domEvent.target instanceof Element && domEvent.target.closest(`[${ClearAttribute}], .${ChipRemoveClass}`) !== null)
+            if (domEvent.target instanceof Element && (domEvent.target.closest(`[${ClearAttribute}], .${ChipRemoveClass}`) !== null || isBoxAroundEntry(domEvent.target)))
                 domEvent.preventDefault();
         }, true);
+
+        // On the window, the first node an event's capture passes: the entry's text is a draft, and the value's listeners — its
+        // binding, its rules, an interaction reading it — must hear the chips, never the text being typed.
+        window.addEventListener("input", domEvent => this.handleEntryEdit(domEvent), true);
+        window.addEventListener("compositionend", domEvent => this.handleEntryEdit(domEvent), true);
+        window.addEventListener("change", domEvent => this.holdEntryDraft(domEvent), true);
+        // Ahead of the popups' own Escape, which would close the list the mark stands in.
+        window.addEventListener("keydown", domEvent => this.handleEntryEscape(domEvent), true);
+        this.root.addEventListener("paste", domEvent => this.handleEntryPaste(domEvent), true);
+    }
+
+    /** Typing in a free-text entry: a separator makes chips of what stands before it; otherwise the suggestions follow the text. */
+    private handleEntryEdit(domEvent: Event): void {
+        const target = this.holdEntryDraft(domEvent);
+
+        if (target === null || (domEvent as InputEvent).isComposing === true)
+            return;
+
+        const { entry, select } = target;
+
+        if (isFixed(select))
+            return;
+
+        this.releaseRefusal(select);
+
+        const typed = takeTypedTags(entry.value);
+
+        if (typed.tags.length > 0)
+            this.enterTyped(select, entry, typed.tags, typed.rest);
+        else
+            this.suggest(select, entry);
+    }
+
+    /** Keeps an entry's own event from every other listener, and answers the entry it was; null for any other event. */
+    private holdEntryDraft(domEvent: Event): { entry: HTMLInputElement; select: HTMLElement } | null {
+        const target = entryTarget(domEvent);
+
+        if (target === null || (this.root instanceof Node && !this.root.contains(target.select)))
+            return null;
+
+        domEvent.stopImmediatePropagation();
+        return target;
+    }
+
+    /** Escape on an entry whose first suggestion is marked takes the mark off before it closes the list: Enter then takes the text. */
+    private handleEntryEscape(domEvent: Event): void {
+        const target = domEvent instanceof KeyboardEvent && domEvent.key === "Escape" && !domEvent.defaultPrevented ? entryTarget(domEvent) : null;
+
+        if (target === null || this.openSelect !== target.select || target.select.getAttribute(TagEntryAttribute) !== "first-suggestion" || !optionsOf(target.select).some(option => option.hasAttribute(ActiveAttribute)))
+            return;
+
+        domEvent.preventDefault();
+        this.markActive(target.select, null);
+    }
+
+    /** A paste holding a separator is several tags — "a, b, c" three chips — taken with whatever the entry already held around it. */
+    private handleEntryPaste(domEvent: Event): void {
+        const target = entryTarget(domEvent);
+        const text = (domEvent as ClipboardEvent).clipboardData?.getData("text") ?? "";
+
+        if (target === null || isFixed(target.select) || !holdsTagSeparator(text))
+            return;
+
+        const { entry, select } = target;
+        const start = entry.selectionStart ?? entry.value.length;
+        const end = entry.selectionEnd ?? start;
+
+        domEvent.preventDefault();
+        this.releaseRefusal(select);
+        this.enterTyped(select, entry, splitTags(entry.value.slice(0, start) + text + entry.value.slice(end)), "");
+    }
+
+    /**
+     * Makes chips of typed tags: each the option its words name, else its own text. One past `MaxSelected`, or one the field's rules
+     * refuse, stays in the entry as typed and is said on the field's line; `rest` is what is still being typed after them.
+     */
+    private enterTyped(select: HTMLElement, entry: HTMLInputElement, texts: readonly string[], rest: string): void {
+        const keys = parseChosenKeys(select.getAttribute(SelectedKeysAttribute));
+        const max = parseMaxChosen(select.getAttribute(MaxAttribute));
+        const tags = texts.map(text => ({ text, key: optionKeyNamed(select, text) ?? text }) satisfies TypedTag);
+        const full: FieldMarkWords = { key: "ui.select.full", args: { max } };
+        const entered = enterTags<FieldMarkWords>(keys, tags, max, full, (current, next) => this.validation?.entryRefusal(select, current, next) ?? null);
+
+        if (entered.keys.length !== keys.length)
+            this.writeChosen(select, entered.keys);
+
+        entry.value = [...entered.refused, rest].filter(part => part.trim().length > 0).join(", ");
+
+        if (entered.reason !== null && this.validation !== undefined) {
+            this.validation.mark(select, "error", entered.reason);
+            this.refusedEntries.add(select);
+        }
+
+        this.suggest(select, entry);
+    }
+
+    /** Takes the line a refused tag left off, once the reader edits what they typed. */
+    private releaseRefusal(select: HTMLElement): void {
+        if (this.refusedEntries.delete(select))
+            this.validation?.mark(select, null);
+    }
+
+    /**
+     * The options the entry's text names, as a search's own options are narrowed: the list opens over them as the reader types and
+     * closes when the text names none — the text itself is then the tag. Nothing is marked, so Enter takes the text unless an arrow
+     * picked a suggestion; a field whose Enter takes the first suggestion (`UITagEntry.FirstSuggestion`) marks it as it is typed.
+     */
+    private suggest(select: HTMLElement, entry: HTMLInputElement): void {
+        narrowToTerm(entry);
+
+        const typed = entry.value.trim().length > 0;
+        const shown = typed ? optionsOf(select).filter(option => isShown(option) && !isItemDisabled(option)) : [];
+        // The first suggestion not chosen already: Enter on a chosen one would take it out.
+        const first = shown.find(option => option.getAttribute("aria-selected") !== "true") ?? null;
+
+        if (this.openSelect === select) {
+            if (shown.length > 0 || !typed)
+                this.popups.reposition(select);
+            else
+                this.close();
+        }
+        else if (shown.length > 0) {
+            this.toggle(select, true);
+        }
+
+        if (this.openSelect !== select || select.getAttribute(TagEntryAttribute) !== "first-suggestion")
+            return;
+
+        this.markActive(select, first);
+
+        if (first !== null)
+            scrollIntoList(select, first);
     }
 
     private get openSelect(): HTMLElement | null {
@@ -196,9 +365,14 @@ export class SelectInteractionEngine {
 
         const options = optionsOf(select);
         const byKey = new Map(options.map(option => [option.dataset.uiKey ?? "", option]));
-        const shown = keys.filter(key => byKey.has(key));
+        const entry = entryOf(select);
+        // A key no option has is a tag the reader typed, where the field takes free text; anywhere else, nothing to show.
+        const shown = entry === null ? keys.filter(key => byKey.has(key)) : keys;
 
         renderChips(select, shown.map(key => ({ key, label: chipLabel(byKey.get(key) ?? null, key) })));
+
+        if (entry !== null && entry.readOnly !== isFixed(select))
+            entry.readOnly = isFixed(select);
 
         const placeholder = select.querySelector<HTMLElement>(`.${PlaceholderClass}`);
 
@@ -310,8 +484,8 @@ export class SelectInteractionEngine {
         if (select === null || option === null || option.hasAttribute(ActiveAttribute) || isItemDisabled(option) || isInert(option) || option.closest(`.${SelectClass}`) !== select)
             return;
 
-        // A search's field keeps the keyboard, and its options are no tab stops.
-        if (!isSearch(select)) {
+        // A search's field and a free-text entry keep the keyboard, and their options are no tab stops.
+        if (typedFieldOf(select) === null) {
             applyRovingTabIndex(optionsOf(select).filter(candidate => !isItemDisabled(candidate)), option);
             focusByPointer(option);
         }
@@ -368,7 +542,14 @@ export class SelectInteractionEngine {
                 return;
 
             domEvent.preventDefault();
-            this.toggle(select);
+
+            const entry = select === null ? null : entryOf(select);
+
+            if (select !== null && entry !== null)
+                this.pressEntryBox(select, entry, domEvent.target === entry);
+            else
+                this.toggle(select);
+
             return;
         }
 
@@ -383,9 +564,26 @@ export class SelectInteractionEngine {
             this.choose(select, option);
     }
 
+    /**
+     * A press on a free-text field: the keyboard goes to its entry, and the suggestions open — a press on the entry itself never closes
+     * them, since it only puts the caret. A field with no options to suggest opens no list.
+     */
+    private pressEntryBox(select: HTMLElement, entry: HTMLInputElement, onEntry: boolean): void {
+        if (document.activeElement !== entry)
+            entry.focus();
+
+        if (optionsOf(select).length === 0 || (onEntry && this.openSelect === select))
+            return;
+
+        this.toggle(select);
+    }
+
     private handleKeydown(domEvent: Event): void {
         // A key composing a character is the input method's, Enter's confirming it included.
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing)
+            return;
+
+        if (this.handleEntryKey(domEvent) || this.handleChipKey(domEvent))
             return;
 
         // Only a key inside the open select: the arrows of a field focus has since reached are that field's.
@@ -419,6 +617,158 @@ export class SelectInteractionEngine {
 
         domEvent.preventDefault();
         this.choose(select, option);
+    }
+
+    /**
+     * A free-text entry's keys: Enter takes the suggestion an arrow marked, else makes chips of the text, and on an empty entry opens
+     * or closes the suggestions, as the field's Enter does in a multi-select of options alone; a comma makes a chip of the text;
+     * Backspace on an empty entry takes the last chip; ArrowLeft at the entry's start walks into the chips; the arrows move the
+     * suggestions' mark, the focus staying in the entry.
+     */
+    private handleEntryKey(domEvent: KeyboardEvent): boolean {
+        const target = entryTarget(domEvent);
+
+        if (target === null)
+            return false;
+
+        const { entry, select } = target;
+
+        if (isFixed(select))
+            return false;
+
+        switch (domEvent.key) {
+            case "ArrowLeft":
+                return entry.selectionStart === 0 && entry.selectionEnd === 0 && this.focusChip(domEvent, select, -1);
+            case "ArrowDown":
+            case "ArrowUp":
+                domEvent.preventDefault();
+
+                if (this.openSelect === select)
+                    this.moveCurrent(select, domEvent.key === "ArrowDown" ? 1 : -1);
+                else
+                    this.openSuggestions(select, entry, domEvent.key === "ArrowDown");
+
+                return true;
+            case "Enter": {
+                const marked = this.openSelect === select ? optionsOf(select).find(option => option.hasAttribute(ActiveAttribute) && isShown(option) && !isItemDisabled(option)) : undefined;
+
+                if (marked !== undefined) {
+                    domEvent.preventDefault();
+                    this.choose(select, marked);
+                    return true;
+                }
+
+                domEvent.preventDefault();
+
+                if (entry.value.trim().length === 0) {
+                    this.pressEntryBox(select, entry, false);
+                    return true;
+                }
+
+                this.releaseRefusal(select);
+                this.enterTyped(select, entry, splitTags(entry.value), "");
+                return true;
+            }
+            case ",":
+                domEvent.preventDefault();
+                this.releaseRefusal(select);
+                this.enterTyped(select, entry, splitTags(entry.value), "");
+                return true;
+            case "Backspace": {
+                if (entry.value.length > 0)
+                    return false;
+
+                const chips = select.querySelectorAll<HTMLElement>(`.${ChipsClass} > .${ChipClass}`);
+
+                if (chips.length === 0)
+                    return false;
+
+                domEvent.preventDefault();
+                this.removeChosen(select, chips[chips.length - 1].getAttribute(ChipAttribute));
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Moves the keyboard one chip along from `from` — or, with none, onto the last chip from the field's control; past the last chip it
+     * goes back to that control. Answers whether there was a chip to walk.
+     */
+    private focusChip(domEvent: KeyboardEvent, select: HTMLElement, step: -1 | 1, from: HTMLElement | null = null): boolean {
+        const chips = chipsOf(select);
+
+        if (chips.length === 0)
+            return false;
+
+        const index = from === null ? chips.length : chips.findIndex(chip => chip.contains(from));
+        const target = chips[index + step]?.querySelector<HTMLElement>(`.${ChipRemoveClass}`) ?? (step === 1 ? controlOf(select) : null);
+
+        domEvent.preventDefault();
+
+        if (target === null)
+            return true;
+
+        target.focus();
+
+        // Back in the entry, the caret stands at its start, where the walk left it.
+        if (target instanceof HTMLInputElement)
+            target.setSelectionRange(0, 0);
+
+        return true;
+    }
+
+    /** An arrow on an entry whose suggestions are closed opens them, narrowed to its text, marked at the near end. */
+    private openSuggestions(select: HTMLElement, entry: HTMLInputElement, down: boolean): void {
+        narrowToTerm(entry);
+
+        const shown = optionsOf(select).filter(option => isShown(option) && !isItemDisabled(option) && !isInert(option));
+        const start = (down ? shown[0] : shown[shown.length - 1]) ?? null;
+
+        if (start !== null)
+            this.toggle(select, true, start);
+    }
+
+    /**
+     * A chip's own keys, its remove button holding the focus: the arrows walk the chips and leave them for the field's control past the
+     * last, and Backspace or Delete takes the chip out, the focus going on to the chip that takes its place.
+     */
+    private handleChipKey(domEvent: KeyboardEvent): boolean {
+        const remove = domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(ChipRemoveClass) ? domEvent.target : null;
+        const select = remove?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
+
+        if (remove === null || select === null || !isMultiple(select))
+            return false;
+
+        switch (domEvent.key) {
+            case "ArrowLeft":
+                return this.focusChip(domEvent, select, -1, remove);
+            case "ArrowRight":
+                return this.focusChip(domEvent, select, 1, remove);
+            case "Backspace":
+            case "Delete": {
+                domEvent.preventDefault();
+
+                if (isFixed(select))
+                    return true;
+
+                const chips = chipsOf(select);
+                const index = chips.findIndex(chip => chip.contains(remove));
+                const neighbour = (chips[index + 1] ?? chips[index - 1])?.getAttribute(ChipAttribute) ?? null;
+
+                this.removeChosen(select, chips[index]?.getAttribute(ChipAttribute) ?? null);
+
+                const next = neighbour === null ? null : chipsOf(select).find(chip => chip.getAttribute(ChipAttribute) === neighbour) ?? null;
+
+                if (next !== null)
+                    next.querySelector<HTMLElement>(`.${ChipRemoveClass}`)?.focus();
+
+                return true;
+            }
+            default:
+                return false;
+        }
     }
 
     /** An arrow on a closed field opens it on its chosen option, else at the near end: the first for ArrowDown, the last for ArrowUp. */
@@ -526,6 +876,8 @@ export class SelectInteractionEngine {
                 domEvent.preventDefault();
                 this.toggle(select);
                 return true;
+            case "ArrowLeft":
+                return this.focusChip(domEvent, select, -1);
             case "Backspace": {
                 const chips = select.querySelectorAll<HTMLElement>(`.${ChipsClass} > .${ChipClass}`);
 
@@ -566,9 +918,10 @@ export class SelectInteractionEngine {
 
         this.close();
 
-        const field = searchFieldOf(select);
+        const field = typedFieldOf(select);
+        const entry = entryOf(select);
 
-        // The list answers what the field says: a search's kept term narrows it again, as typing it did.
+        // The list answers what the field says: a search's kept term, an entry's text, narrows it again, as typing it did.
         if (field !== null && !typing)
             narrowToTerm(field);
 
@@ -585,17 +938,20 @@ export class SelectInteractionEngine {
         // What the trigger and a search's field say about the list they open: which list it is; the popups say whether it is open.
         const listId = ensureElementId(list, "ui-select-list");
 
-        trigger.setAttribute("aria-controls", listId);
+        // An entry stands for the box: the box itself is no control then.
+        if (entry === null)
+            trigger.setAttribute("aria-controls", listId);
+
         field?.setAttribute("aria-controls", listId);
 
         const opened = this.popups.open({
             owner: select,
             popup,
             anchor: trigger,
-            placement: { placement: token !== null && isAnchoredPopupPlacement(token) ? token : "bottom-start", gap: PopupGap, minAnchorWidth: true },
+            placement: { placement: token !== null && isAnchoredPopupPlacement(token) ? token : "bottom-start", minAnchorWidth: true },
             // Read as "open" only while it is: a package's editor waits on an open opener before a key is its own.
-            openers: field === null ? [trigger] : [trigger, field],
-            returnFocus: () => trigger
+            openers: entry !== null ? [entry] : field === null ? [trigger] : [trigger, field],
+            returnFocus: () => entry ?? trigger
         });
 
         if (!opened)
@@ -606,7 +962,11 @@ export class SelectInteractionEngine {
             return;
         }
 
-        this.initializeSearch(select, field, start, typing);
+        if (entry === null)
+            this.initializeSearch(select, field, start, typing);
+        else
+            this.initializeEntry(select, start);
+
         holdHeightAbove(popup);
     }
 
@@ -667,6 +1027,18 @@ export class SelectInteractionEngine {
         field.select();
     }
 
+    /**
+     * A free-text entry's suggestions open with the keyboard left in the entry: the arrows move their mark, and only an arrow that
+     * opened them starts one — typing leaves none, so Enter takes the text unless the reader picked a suggestion.
+     */
+    private initializeEntry(select: HTMLElement, start: HTMLElement | null): void {
+        applyRovingTabIndex(optionsOf(select), null);
+        this.markActive(select, start);
+
+        if (start !== null)
+            scrollIntoList(select, start);
+    }
+
     // Only what can be chosen, and without the wrap: a list has a top and a bottom.
     private moveCurrent(select: HTMLElement, direction: 1 | -1): void {
         const options = optionsOf(select).filter(option => !isItemDisabled(option));
@@ -686,8 +1058,8 @@ export class SelectInteractionEngine {
         if (next === null)
             return;
 
-        // A search's field keeps the keyboard, so its list is scrolled to the mark here, as the focus scrolls a select's.
-        if (isSearch(select)) {
+        // A search's field or an entry keeps the keyboard, so its list is scrolled to the mark here, as the focus scrolls a select's.
+        if (typedFieldOf(select) !== null) {
             scrollIntoList(select, next);
         }
         else {
@@ -709,8 +1081,8 @@ export class SelectInteractionEngine {
             markPointerFocus(option, option === active && pointer);
         }
 
-        // The option a screen reader reads as current while a search's field keeps the keyboard.
-        const field = searchFieldOf(select);
+        // The option a screen reader reads as current while a search's field or an entry keeps the keyboard.
+        const field = typedFieldOf(select);
 
         if (field === null)
             return;
@@ -736,6 +1108,15 @@ export class SelectInteractionEngine {
 
             if (next !== null)
                 this.writeChosen(select, next);
+
+            // A suggestion taken stands for what was typed to find it: the entry starts again, the whole list before it.
+            const entry = entryOf(select);
+
+            if (entry !== null && entry.value.length > 0) {
+                entry.value = "";
+                this.releaseRefusal(select);
+                this.suggest(select, entry);
+            }
 
             return;
         }
@@ -771,7 +1152,7 @@ export class SelectInteractionEngine {
         this.writeChosen(select, next);
 
         if (focusWasOnChip || document.activeElement === document.body)
-            select.querySelector<HTMLElement>(`.${TriggerClass}`)?.focus();
+            controlOf(select)?.focus();
     }
 
     /** A multi-select's new value: on the root, drawn, and sent through the value input as any field's change is. */
@@ -813,11 +1194,12 @@ export class SelectInteractionEngine {
     }
 }
 
-/** Keeps the keyboard on a field's trigger after its clear, or a list's opening by a press, so it never falls to the page's body. */
+/** Keeps the keyboard in a field after its clear, or a list's opening by a press, so it never falls to the page's body. */
 function keepFieldFocus(select: HTMLElement): void {
-    const target = select.querySelector<HTMLElement>(`.${TriggerClass}`);
+    const trigger = select.querySelector<HTMLElement>(`.${TriggerClass}`);
+    const target = controlOf(select);
 
-    if (target !== null && !target.contains(document.activeElement))
+    if (trigger !== null && target !== null && !trigger.contains(document.activeElement))
         focusAsLastInput(target);
 }
 
@@ -845,6 +1227,32 @@ function scrollIntoList(select: HTMLElement, option: HTMLElement): void {
         list.scrollTop -= top - own.top;
     else if (own.bottom > bottom)
         list.scrollTop += own.bottom - bottom;
+}
+
+/** A multi-select's chips, in the order they stand. */
+function chipsOf(select: HTMLElement): HTMLElement[] {
+    return [...select.querySelectorAll<HTMLElement>(`.${ChipsClass} > .${ChipClass}`)];
+}
+
+/** A press on a free-text field's box but not on its entry: the keyboard stays in the entry rather than leaving it for the box. */
+function isBoxAroundEntry(target: Element): boolean {
+    const select = target.closest(`.${TriggerClass}`)?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
+
+    return select !== null && entryOf(select) !== null && !target.classList.contains(EntryClass);
+}
+
+/** The key of the option a typed tag names by its words or its key, case aside; null where it names none. */
+function optionKeyNamed(select: HTMLElement, text: string): string | null {
+    const wanted = text.trim().toLocaleLowerCase();
+
+    for (const option of optionsOf(select)) {
+        const key = option.dataset.uiKey;
+
+        if (key !== undefined && !isItemDisabled(option) && (key.toLocaleLowerCase() === wanted || optionLabel(option)?.trim().toLocaleLowerCase() === wanted))
+            return key;
+    }
+
+    return null;
 }
 
 /** What a chip says: the option's words as a field shows them, or its key where the option shows none. */

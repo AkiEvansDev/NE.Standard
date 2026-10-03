@@ -180,6 +180,27 @@ public sealed class UIContext
     public Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, CancellationToken cancellationToken = default)
         => Runtime.SendEffectsToAllAsync(effects, except: null, cancellationToken);
 
+    /// <summary>Subscribes this runtime to a topic <see cref="IUIBroadcast"/> posts to — a chat room, a ticket, a dashboard.</summary>
+    /// <remarks>Kept until <see cref="Unsubscribe"/> or the runtime ends, whichever comes first; subscribing twice is subscribing once.</remarks>
+    public void Subscribe(string topic)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(topic);
+
+        Topics.Subscribe(topic);
+    }
+
+    /// <summary>Stops this runtime hearing what <see cref="IUIBroadcast"/> posts to a topic; a topic it never took is ignored.</summary>
+    public void Unsubscribe(string topic)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(topic);
+
+        Topics.Unsubscribe(topic);
+    }
+
+    private IUITopicSubscriber Topics
+        => Runtime as IUITopicSubscriber
+            ?? throw new InvalidOperationException("This runtime takes no topics; the host's runtimes do.");
+
     private IUIUpdateSink Updates
         => (IUIUpdateSink?)Services.GetService(typeof(IUIUpdateSink))
             ?? throw new InvalidOperationException($"'{nameof(IUIUpdateSink)}' is not registered.");

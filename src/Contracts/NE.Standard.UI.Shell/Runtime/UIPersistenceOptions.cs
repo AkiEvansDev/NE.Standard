@@ -87,6 +87,18 @@ public sealed class UIPersistenceOptions
     /// </remarks>
     public int MaxUnclaimedRuntimesPerSession { get; set; } = 4;
 
+    /// <summary>
+    /// Gets or sets how many runtimes every session together may hold at once; zero or <see langword="null"/> is no such limit.
+    /// </summary>
+    /// <remarks>
+    /// A session costs a visitor one page load, so the per-session limits alone do not bound the memory. A new runtime past this one
+    /// gives up the runtime that has been without a page longest, whatever session holds it, and is refused only when every runtime has
+    /// a page connected or a command running: a page render then fails as a render does, an attach as an attach does. The default is
+    /// about 5 GB of the demo's pages (a runtime measured at about 1.2 MB) — the order of the upload total; a process serving more open
+    /// pages than that raises it to what its memory affords.
+    /// </remarks>
+    public int? MaxRuntimesTotal { get; set; } = 4_096;
+
     /// <summary>Gets or sets how often disconnected runtime cleanup runs.</summary>
     /// <remarks>
     /// The sweep is what ends a retention, so a runtime lives its retention plus up to one sweep. The host runs this at the
@@ -119,6 +131,9 @@ public sealed class UIPersistenceOptions
 
         if (MaxUnclaimedRuntimesPerSession <= 0)
             throw new ArgumentOutOfRangeException(nameof(MaxUnclaimedRuntimesPerSession), MaxUnclaimedRuntimesPerSession, "Max unclaimed runtimes per session must be greater than zero.");
+
+        if (MaxRuntimesTotal < 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxRuntimesTotal), MaxRuntimesTotal, "Max runtimes in total must not be negative.");
 
         if (CleanupInterval <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(CleanupInterval), CleanupInterval, "Cleanup interval must be greater than zero.");

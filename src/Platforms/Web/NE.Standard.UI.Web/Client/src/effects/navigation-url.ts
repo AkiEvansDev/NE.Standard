@@ -8,7 +8,12 @@ export function buildNavigationUrl(effect: NavigateClientEffect): string | null 
     if (route === undefined || route === null || route.length === 0)
         return null;
 
-    const search = buildQuery(effect.request?.parameters ?? null);
+    return withParameters(route, effect.request?.parameters ?? null);
+}
+
+/** A route with parameters appended to its query, ahead of its fragment: a Navigate effect's address, and the one an address effect writes. */
+export function withParameters(route: string, parameters: Record<string, unknown> | null): string {
+    const search = buildQuery(parameters);
 
     if (search.length === 0)
         return route;

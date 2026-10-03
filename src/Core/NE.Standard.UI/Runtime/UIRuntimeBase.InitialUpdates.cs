@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Compiled.Items;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Recursive;
@@ -54,7 +55,11 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <inheritdoc />
-    public async Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default)
+    public Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default)
+        => BuildAttachChangesAsync(instanceId, bindingIds, since: null, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, long? since, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         EnsureStarted();
@@ -68,6 +73,14 @@ internal abstract partial class UIRuntimeBase
             // One hold for the snapshot and the mark: an update queued before it is in the snapshot and never sent to the instance,
             // one queued after it is sent, and is newer than the snapshot.
             QueueUntakenControllerChangesNoLock();
+
+            // The page whose render this runtime answered holds that render, and is sent only what moved past it.
+            if (TakeChangesPastRenderNoLock(instanceId, since) is { } pastRender)
+            {
+                MarkSnapshot(instanceId, _updateSequence);
+
+                return pastRender;
+            }
 
             ServerChangeSet values = BuildInitialChangeSetNoLock(bindingIds);
             List<ServerCollectionChangeUIUpdate> collections = BuildInitialCollectionChangesNoLock();
@@ -124,8 +137,8 @@ internal abstract partial class UIRuntimeBase
             if (HoldsUnsavedWork)
                 AddPendingUpdateNoLock(PageState());
 
-            // A snapshot is an answer, not a queued change: no instance filters it.
-            return new ServerChangeSet { Updates = DrainPendingUpdatesNoLock().Updates };
+            // A snapshot is an answer, not a queued change: no instance filters it, and no drain takes it (the finally empties it).
+            return new ServerChangeSet { Updates = CopyPendingUpdatesNoLock().Updates };
         }
         finally
         {
@@ -180,7 +193,7 @@ internal abstract partial class UIRuntimeBase
                 Items = []
             });
 
-            if (!TryBuildCollectionItems(path, out ServerCollectionItemChange[] items) || items.Length == 0)
+            if (!TryBuildCollectionItems(path, binding, out ServerCollectionItemChange[] items) || items.Length == 0)
                 continue;
 
             updates.Add(new ServerCollectionChangeUIUpdate
@@ -192,7 +205,8 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
-    private bool TryBuildCollectionItems(RecursivePath path, out ServerCollectionItemChange[] items)
+    /// <summary>The items of a bound collection as its host is sent them, each kept to what the host reads off it.</summary>
+    private bool TryBuildCollectionItems(RecursivePath path, CompiledUIBinding binding, out ServerCollectionItemChange[] items)
     {
         items = [];
 
@@ -200,6 +214,7 @@ internal abstract partial class UIRuntimeBase
             return false;
 
         List<ServerCollectionItemChange> result = [];
+        UIItemProjection projection = View.ItemProjections.For(binding.Address.Component.Id);
         var index = 0;
 
         foreach (var item in enumerable)
@@ -208,7 +223,8 @@ internal abstract partial class UIRuntimeBase
             {
                 Index = index,
                 Key = TryGetItemKey(item),
-                Item = item
+                Item = item,
+                Projection = projection
             });
 
             index++;

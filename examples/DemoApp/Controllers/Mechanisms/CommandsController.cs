@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,43 +9,31 @@ using DemoApp.Controllers.Base;
 
 namespace DemoApp.Controllers.Mechanisms;
 
-/// <summary>
-/// The gap between a press and the server's answer, which exists only while a command is in flight.
-/// </summary>
-/// <remarks>A pair of interactions fills it from the view; <see cref="Busy"/> fills it from the server.</remarks>
-internal sealed partial class ButtonLatencyGroupContext : DemoGroupContext
+/// <summary>The wait said by the controller: <see cref="Busy"/> is on while the command runs.</summary>
+internal sealed partial class BusyGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial bool Busy { get; set; }
 }
 
-/// <summary>
-/// What a button that says nothing about itself costs: the client refuses a duplicate command, but the reader
-/// cannot tell a refused press from an unseen one.
-/// </summary>
-internal sealed partial class ButtonGuardGroupContext : DemoGroupContext
+/// <summary>How many presses reached the controller, in a badge.</summary>
+internal sealed partial class CountGroupContext : DemoGroupContext
 {
+    private int _count;
+
+    /// <summary>On while the button may be pressed; the view turns it off at the press, the command back on.</summary>
     [RecursiveMember]
-    public partial bool GuardedEnabled { get; set; } = true;
+    public partial bool Enabled { get; set; } = true;
 
     [RecursiveMember]
-    public partial string GuardedCount { get; set; } = "0";
+    public partial string Count { get; set; } = "0";
 
-    [RecursiveMember]
-    public partial string PlainCount { get; set; } = "0";
-
-    public void CountGuarded()
-        => GuardedCount = Next(GuardedCount);
-
-    public void CountPlain()
-        => PlainCount = Next(PlainCount);
-
-    private static string Next(string current)
-        => (int.Parse(current, CultureInfo.InvariantCulture) + 1).ToString(CultureInfo.InvariantCulture);
+    public void Add()
+        => Count = (++_count).ToString(CultureInfo.InvariantCulture);
 }
 
 /// <summary>One command, four stages: what it writes between awaits is on screen before it returns.</summary>
-internal sealed partial class ButtonProgressGroupContext : DemoGroupContext
+internal sealed partial class ProgressGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial bool Busy { get; set; }
@@ -64,7 +54,7 @@ internal sealed partial class ButtonProgressGroupContext : DemoGroupContext
 /// <summary>
 /// A job that runs in the background: its tab stays free, so a note typed meanwhile lands and a Cancel reaches it.
 /// </summary>
-internal sealed partial class ButtonBackgroundGroupContext : DemoGroupContext
+internal sealed partial class BackgroundGroupContext : DemoGroupContext
 {
     private readonly Lock _sync = new();
     private CancellationTokenSource? _running;
@@ -114,7 +104,7 @@ internal sealed partial class ButtonBackgroundGroupContext : DemoGroupContext
 /// <summary>
 /// The case the client's guard does not cover: two buttons, two commands, only one of which may run.
 /// </summary>
-internal sealed partial class ButtonDecisionGroupContext : DemoGroupContext
+internal sealed partial class DecisionGroupContext : DemoGroupContext
 {
     private const string Waiting = "demo.mechanisms.commands.decision.waiting";
 
@@ -143,99 +133,193 @@ internal sealed partial class ButtonDecisionGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// What a button does that a property cannot describe: waits, repeat presses, progress, failure and effects.
+/// The page's state in its address: a plan written with <c>ReplaceAddressEffect</c>, a step with <c>PushAddressEffect</c>, both read
+/// back in <c>OnNavigatedAsync</c> — on a reload, a copied link, or Back and Forward on the same runtime.
+/// </summary>
+internal sealed partial class AddressGroupContext : DemoGroupContext
+{
+    public const string Starter = "starter";
+    public const string Standard = "standard";
+    public const string Pro = "pro";
+
+    [RecursiveMember]
+    public partial string? Plan { get; set; } = Standard;
+
+    [RecursiveMember]
+    public partial UIPhrase? StepLine { get; set; } = StepPhrase(1);
+
+    public int Step { get; private set; } = 1;
+
+    /// <summary>The query the state is written as: what differs from the defaults alone, so a fresh page's address stays bare.</summary>
+    public Dictionary<string, object?> Parameters()
+    {
+        Dictionary<string, object?> parameters = new(StringComparer.Ordinal);
+
+        if (Plan is not null and not Standard)
+            parameters["plan"] = Plan;
+
+        if (Step > 1)
+            parameters["step"] = Step;
+
+        return parameters;
+    }
+
+    public void NextStep()
+        => SetStep(Step + 1);
+
+    /// <summary>Takes the state from an address: a value this page does not know reads as its default.</summary>
+    public void Read(UINavigationRequest navigation)
+    {
+        Plan = navigation.TryGetParameter("plan", out var plan) && plan is Starter or Pro ? plan : Standard;
+        SetStep(navigation.TryGetParameter("step", out int step) && step is > 1 and < 100 ? step : 1);
+    }
+
+    private void SetStep(int step)
+    {
+        Step = step;
+        StepLine = StepPhrase(step);
+    }
+
+    private static UIPhrase StepPhrase(int step)
+        => UIPhrase.Of("demo.mechanisms.commands.address.step", ("step", step));
+}
+
+/// <summary>
+/// What a button does that a property cannot describe: waits, repeat presses, progress, failure, effects and the address.
 /// </summary>
 internal sealed partial class CommandsController() : DemoController
 {
-    private const string Words = "demo.mechanisms.commands.";
-
     private static readonly (string Stage, UIBadgeType Style)[] ProvisioningStages =
     [
-        (Words + "progress.disk", UIBadgeType.Info),
-        (Words + "progress.image", UIBadgeType.Info),
-        (Words + "progress.checks", UIBadgeType.Warning),
-        (Words + "progress.firewall", UIBadgeType.Primary)
+        ("demo.mechanisms.commands.progress.disk", UIBadgeType.Info),
+        ("demo.mechanisms.commands.progress.image", UIBadgeType.Info),
+        ("demo.mechanisms.commands.progress.checks", UIBadgeType.Warning),
+        ("demo.mechanisms.commands.progress.firewall", UIBadgeType.Primary)
     ];
 
     [RecursiveMember]
-    public partial ButtonLatencyGroupContext LatencyGroup { get; set; } = new();
+    public partial DemoGroupContext WaitGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial ButtonGuardGroupContext GuardGroup { get; set; } = new();
+    public partial BusyGroupContext BusyGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial ButtonDecisionGroupContext DecisionGroup { get; set; } = new();
+    public partial CountGroupContext RepeatGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial ButtonProgressGroupContext ProgressGroup { get; set; } = new();
+    public partial CountGroupContext SelfOffGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial ButtonBackgroundGroupContext BackgroundGroup { get; set; } = new();
+    public partial DecisionGroupContext DecisionGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial DemoGroupContext ReportGroup { get; set; } = new();
+    public partial ProgressGroupContext ProgressGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial DemoGroupContext EffectGroup { get; set; } = new();
+    public partial BackgroundGroupContext BackgroundGroup { get; set; } = new();
 
-    /// <summary>
-    /// Waits two seconds and says nothing; the difference between its two callers is in the view.
-    /// </summary>
+    [RecursiveMember]
+    public partial DemoGroupContext ThrowGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext RefuseGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext NavigateGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext DownloadGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext AnnounceGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial AddressGroupContext AddressGroup { get; set; } = new();
+
+    /// <summary>The address the page arrived at, or went back or forward to: the state is read from it, whichever it was.</summary>
+    protected override Task OnNavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        AddressGroup.Read(navigation);
+        AddressGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.address-read", ("query", Query(AddressGroup.Parameters()))));
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>A choice that is not a place to go back to: the current entry's query is rewritten.</summary>
+    [UICommand]
+    public UICommandResult ChoosePlan()
+    {
+        Dictionary<string, object?> parameters = AddressGroup.Parameters();
+
+        AddressGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.address-replace", ("query", Query(parameters))));
+
+        return UICommandResult.Ok([new ReplaceAddressEffect(parameters)]);
+    }
+
+    /// <summary>A step forward is an entry of its own, so Back undoes it.</summary>
+    [UICommand]
+    public UICommandResult NextStep()
+    {
+        AddressGroup.NextStep();
+
+        Dictionary<string, object?> parameters = AddressGroup.Parameters();
+
+        AddressGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.address-push", ("query", Query(parameters))));
+
+        return UICommandResult.Ok([new PushAddressEffect(parameters)]);
+    }
+
+    private static string Query(Dictionary<string, object?> parameters)
+        => parameters.Count == 0
+            ? "—"
+            : "?" + string.Join("&", parameters.Select(static parameter => string.Create(CultureInfo.InvariantCulture, $"{parameter.Key}={parameter.Value}")));
+
+    /// <summary>Waits two seconds and says nothing of it: the spinner is the view's own.</summary>
     [UICommand]
     public async Task DeployAsync(CancellationToken cancellationToken)
     {
-        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.heard"));
+        WaitGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.heard"));
 
         await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
-        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.finished"));
+        WaitGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.finished"));
     }
 
-    /// <summary>
-    /// The same two seconds, said by the controller through the bound <see cref="ButtonLatencyGroupContext.Busy"/>.
-    /// </summary>
+    /// <summary>The same two seconds, said by the controller through the bound <see cref="BusyGroupContext.Busy"/>.</summary>
     [UICommand]
     public async Task DeployBoundAsync(CancellationToken cancellationToken)
     {
-        LatencyGroup.Busy = true;
-        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.busy-on"));
+        BusyGroup.Busy = true;
+        BusyGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.busy-on"));
 
         await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
 
-        LatencyGroup.Busy = false;
-        LatencyGroup.LogEvent(UIPhrase.Of(Words + "log.busy-off"));
+        BusyGroup.Busy = false;
+        BusyGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.busy-off"));
     }
 
-    /// <summary>
-    /// Puts the button back on through its own <c>Enabled</c>, so a lost press leaves it off rather than repeatable.
-    /// </summary>
+    /// <summary>A second and a half of work; a press while it runs never reaches here.</summary>
+    [UICommand]
+    public async Task ChargeAsync(CancellationToken cancellationToken)
+    {
+        RepeatGroup.Add();
+        RepeatGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.charged"));
+
+        await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Puts the button back on through its own <c>Enabled</c>, so a lost press leaves it off rather than repeatable.</summary>
     [UICommand]
     public async Task ChargeGuardedAsync(CancellationToken cancellationToken)
     {
-        GuardGroup.CountGuarded();
-        GuardGroup.LogEvent(UIPhrase.Of(Words + "log.guarded"));
+        SelfOffGroup.Add();
+        SelfOffGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.guarded"));
 
         await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
 
-        GuardGroup.GuardedEnabled = true;
-    }
-
-    [UICommand]
-    public async Task ChargePlainAsync(CancellationToken cancellationToken)
-    {
-        GuardGroup.CountPlain();
-        GuardGroup.LogEvent(UIPhrase.Of(Words + "log.plain"));
-
-        await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
-    }
-
-    [UICommand]
-    public void ResetCounts()
-    {
-        GuardGroup.GuardedCount = "0";
-        GuardGroup.PlainCount = "0";
-        GuardGroup.GuardedEnabled = true;
-        GuardGroup.LogEvent(UIPhrase.Of(Words + "log.reset"));
+        SelfOffGroup.Enabled = true;
     }
 
     /// <summary>
@@ -248,11 +332,11 @@ internal sealed partial class CommandsController() : DemoController
         if (!DecisionGroup.Open)
             return;
 
-        DecisionGroup.LogEvent(UIPhrase.Of(Words + "log.approving"));
+        DecisionGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.approving"));
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
-        DecisionGroup.Decide(UIPhrase.Of(Words + "decision.approved"), UIBadgeType.Success);
+        DecisionGroup.Decide(UIPhrase.Of("demo.mechanisms.commands.decision.approved"), UIBadgeType.Success);
     }
 
     [UICommand]
@@ -261,18 +345,18 @@ internal sealed partial class CommandsController() : DemoController
         if (!DecisionGroup.Open)
             return;
 
-        DecisionGroup.LogEvent(UIPhrase.Of(Words + "log.rejecting"));
+        DecisionGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.rejecting"));
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
-        DecisionGroup.Decide(UIPhrase.Of(Words + "decision.rejected"), UIBadgeType.Danger);
+        DecisionGroup.Decide(UIPhrase.Of("demo.mechanisms.commands.decision.rejected"), UIBadgeType.Danger);
     }
 
     [UICommand]
     public void ReopenRequest()
     {
         DecisionGroup.Reopen();
-        DecisionGroup.LogEvent(UIPhrase.Of(Words + "log.reopened"));
+        DecisionGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.reopened"));
     }
 
     /// <summary>
@@ -292,12 +376,12 @@ internal sealed partial class CommandsController() : DemoController
                 await Task.Delay(800, cancellationToken).ConfigureAwait(false);
             }
 
-            ProgressGroup.Enter(UIPhrase.Of(Words + "progress.running"), UIBadgeType.Success);
+            ProgressGroup.Enter(UIPhrase.Of("demo.mechanisms.commands.progress.running"), UIBadgeType.Success);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // The tab that pressed it went away mid-way (a reload): the page that comes back finds it not started, not stuck half done.
-            ProgressGroup.Enter(UIPhrase.Of(Words + "progress.not-started"), UIBadgeType.Surface);
+            ProgressGroup.Enter(UIPhrase.Of("demo.mechanisms.commands.progress.not-started"), UIBadgeType.Surface);
             throw;
         }
         finally
@@ -315,17 +399,17 @@ internal sealed partial class CommandsController() : DemoController
     {
         using CancellationTokenSource running = BackgroundGroup.Begin(cancellationToken);
 
-        BackgroundGroup.LogEvent(UIPhrase.Of(Words + "log.backing-up"));
+        BackgroundGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.backing-up"));
 
         try
         {
             await Task.Delay(6000, running.Token).ConfigureAwait(false);
 
-            BackgroundGroup.LogEvent(UIPhrase.Of(Words + "log.backed-up"));
+            BackgroundGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.backed-up"));
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            BackgroundGroup.LogEvent(UIPhrase.Of(Words + "log.backup-cancelled"));
+            BackgroundGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.backup-cancelled"));
         }
         finally
         {
@@ -343,7 +427,7 @@ internal sealed partial class CommandsController() : DemoController
     [UICommand]
     public void FailUnhandled()
     {
-        ReportGroup.LogEvent(UIPhrase.Of(Words + "log.throwing"));
+        ThrowGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.throwing"));
 
         // The exception's text is the developer's: the page shows the framework's own words unless IncludeExceptionDetail is on.
         throw new InvalidOperationException("The release gate refused: staging has been unhealthy for 90 seconds.");
@@ -353,20 +437,29 @@ internal sealed partial class CommandsController() : DemoController
     [UICommand]
     public UICommandResult FailReported()
     {
-        ReportGroup.LogEvent(UIPhrase.Of(Words + "log.refused"));
+        RefuseGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.refused"));
 
         return UICommandResult.Ok(
         [
-            new ShowNotificationEffect(UIPhrase.Of(Words + "toast.refused"), UIColorStyle.Warning)
+            new ShowNotificationEffect(UIPhrase.Of("demo.mechanisms.commands.toast.refused"), UIColorStyle.Warning)
         ]);
     }
 
     [UICommand]
     public UICommandResult GoToButton()
     {
-        EffectGroup.LogEvent(UIPhrase.Of(Words + "log.navigate"));
+        NavigateGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.navigate"));
 
         return UICommandResult.Ok([new NavigateEffect(new UINavigationRequest { Route = "/actions/button" })]);
+    }
+
+    /// <summary>Says the save to a screen reader alone: a sighted reader is shown nothing but the log's line.</summary>
+    [UICommand]
+    public UICommandResult SaveQuietly()
+    {
+        AnnounceGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.announce"));
+
+        return UICommandResult.Ok([new AnnounceEffect(UIPhrase.Of("demo.mechanisms.commands.effect.announced"))]);
     }
 
     /// <summary>
@@ -375,7 +468,7 @@ internal sealed partial class CommandsController() : DemoController
     [UICommand]
     public async Task DownloadReportAsync(CancellationToken cancellationToken)
     {
-        EffectGroup.LogEvent(UIPhrase.Of(Words + "log.download"));
+        DownloadGroup.LogEvent(UIPhrase.Of("demo.mechanisms.commands.log.download"));
 
         var content = Encoding.UTF8.GetBytes("stage,seconds\nallocate,0.8\ninstall,0.8\ncheck,0.8\nfirewall,0.8\n");
 

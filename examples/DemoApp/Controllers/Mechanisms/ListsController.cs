@@ -43,8 +43,18 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
     /// <summary>The last query's matches: a scroll through a filtered list asks for window after window of the same query.</summary>
     private MatchedRows? _matched;
 
-    protected override Task<UIItemWindow<DemoRowItem>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
+    /// <summary>Told where each window read starts: the paged list writes its page into the address from it.</summary>
+    public Func<int, Task>? WindowRead { get; set; }
+
+    /// <summary>How late a read past the first window answers, as a database would: what the list's skeleton rows stand in for.</summary>
+    public TimeSpan Latency { get; init; }
+
+    protected override async Task<UIItemWindow<DemoRowItem>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
     {
+        // The first window is the render's own, and is read at once.
+        if (Latency > TimeSpan.Zero && request.Anchor.Kind != UIItemAnchorKind.Start)
+            await Task.Delay(Latency, cancellationToken).ConfigureAwait(false);
+
         // The rows the query leaves, or null for the whole hundred thousand, which is never materialized.
         var matches = Match(request.Query);
         var total = matches?.Length ?? TotalRows;
@@ -67,13 +77,16 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
             ? [.. Enumerable.Range(start, count).Select(static index => new DemoRowItem(index))]
             : [.. matches.Skip(start).Take(count).Select(static index => new DemoRowItem(index))];
 
-        return Task.FromResult(new UIItemWindow<DemoRowItem>(items)
+        if (WindowRead is { } read)
+            await read(start).ConfigureAwait(false);
+
+        return new UIItemWindow<DemoRowItem>(items)
         {
             Offset = start,
             TotalCount = total,
             HasMoreBefore = start > 0,
             HasMoreAfter = start + count < total
-        });
+        };
     }
 
     /// <summary>
@@ -248,11 +261,27 @@ internal sealed class DemoChecklistSource : UIItemSourceBase<DemoChecklist>
 
 /// <summary>
 /// Sources too large to send whole, read a window at a time — a list's and a table's —, a collection held whole and drawn in part,
-/// and a window of checklists whose rows write their drafts back through the source.
+/// a list that pages, its page in the address, and a window of checklists whose rows write their drafts back through the source.
 /// </summary>
 internal sealed partial class ListsController() : DemoController
 {
-    private const string Words = "demo.mechanisms.lists.";
+    /// <summary>The paged list's page size, which the address counts its pages in.</summary>
+    public const int PageSize = 20;
+
+    [RecursiveMember]
+    public partial DemoGroupContext LocalGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext RowsGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext ChecklistGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial DemoGroupContext PagedGroup { get; set; } = new();
+
+    [RecursiveMember(false)]
+    public DemoRowsSource Rows { get; } = new() { Latency = TimeSpan.FromMilliseconds(400) };
 
     /// <summary>
     /// What the filter box holds; on the controller because a windowed host's rules are resolved server-side.
@@ -260,24 +289,16 @@ internal sealed partial class ListsController() : DemoController
     [RecursiveMember]
     public partial string RowsFilter { get; set; } = string.Empty;
 
-    [RecursiveMember]
-    public partial DemoGroupContext RowsGroup { get; set; } = new();
-
-    [RecursiveMember]
-    public partial DemoGroupContext LocalGroup { get; set; } = new();
-
-    [RecursiveMember]
-    public partial DemoGroupContext ChecklistGroup { get; set; } = new();
-
+    /// <summary>The filtered list's own hundred thousand: a source feeds one host, whose window it holds.</summary>
     [RecursiveMember(false)]
-    public DemoRowsSource Rows { get; } = new();
+    public DemoRowsSource FilteredRows { get; } = new();
 
-    /// <summary>The table's own hundred thousand: a source feeds one host, whose window it holds.</summary>
+    /// <summary>The table's own hundred thousand.</summary>
     [RecursiveMember(false)]
     public DemoRowsSource TableRows { get; } = new();
 
     /// <summary>
-    /// An ordinary bound collection held whole by both sides: two thousand rows costing the layout of thirty.
+    /// An ordinary bound collection held whole by both sides: two thousand rows costing the layout of thirty. Two lists show it.
     /// </summary>
     [RecursiveMember(false)]
     public RecursiveCollection<DemoRowItem> LocalRows { get; } = [.. Enumerable.Range(0, 2_000).Select(static index => new DemoRowItem(index))];
@@ -285,18 +306,47 @@ internal sealed partial class ListsController() : DemoController
     [RecursiveMember(false)]
     public DemoChecklistSource Checklists { get; } = new();
 
+    /// <summary>The paged list's own hundred thousand.</summary>
+    [RecursiveMember(false)]
+    public DemoRowsSource PagedRows { get; } = new();
+
     /// <summary>
     /// Reads the first window here rather than leaving it to the client, so the page paints with rows in it.
     /// </summary>
     protected override async Task OnInitializeAsync(CancellationToken cancellationToken)
         => await Rows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 50), cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// The page the address names, read before the page draws — on arrival, on a reload, from a copied link; a page past the end reads
+    /// as the last. From then on each page the source reads is written back into the address, in place.
+    /// </summary>
+    protected override async Task OnNavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        var page = navigation.TryGetParameter("page", out int named) && named > 1 ? Math.Min(named, DemoRowsSource.TotalRows / PageSize) : 1;
+
+        PagedRows.WindowRead = null;
+        await PagedRows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.At((page - 1) * PageSize), PageSize), cancellationToken).ConfigureAwait(false);
+        PagedRows.WindowRead = WritePageAsync;
+    }
+
+    /// <summary>The page into the address, the first as the bare route; outside a command, so through the context's own channel.</summary>
+    private Task WritePageAsync(int offset)
+    {
+        var page = (offset / PageSize) + 1;
+
+        PagedGroup.LogEvent(UIPhrase.Of("demo.mechanisms.lists.log.page", ("page", page)));
+
+        return Context.SendEffectsAsync([new ReplaceAddressEffect(page == 1 ? null : new Dictionary<string, object?>(StringComparer.Ordinal) { ["page"] = page })]);
+    }
+
     [UICommand]
     public async Task JumpToMiddleAsync(CancellationToken cancellationToken)
     {
         await Rows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.At(50_000), 50), cancellationToken).ConfigureAwait(false);
 
-        RowsGroup.LogEvent(UIPhrase.Of(Words + "log.jumped", ("offset", Rows.Offset), ("total", Rows.TotalCount)));
+        RowsGroup.LogEvent(UIPhrase.Of("demo.mechanisms.lists.log.jumped", ("offset", Rows.Offset), ("total", Rows.TotalCount)));
     }
 
     [UICommand]
@@ -304,7 +354,7 @@ internal sealed partial class ListsController() : DemoController
     {
         await Rows.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 50), cancellationToken).ConfigureAwait(false);
 
-        RowsGroup.LogEvent(UIPhrase.Of(Words + "log.start", ("offset", Rows.Offset)));
+        RowsGroup.LogEvent(UIPhrase.Of("demo.mechanisms.lists.log.start", ("offset", Rows.Offset)));
     }
 
     [UICommand]
@@ -312,20 +362,20 @@ internal sealed partial class ListsController() : DemoController
     {
         LocalRows.Add(new DemoRowItem(LocalRows.Count));
 
-        LocalGroup.LogEvent(UIPhrase.Of(Words + "log.added", ("count", LocalRows.Count)));
+        LocalGroup.LogEvent(UIPhrase.Of("demo.mechanisms.lists.log.added", ("count", LocalRows.Count)));
     }
 
     [UICommand]
     public void AddChecklistLine(string id)
     {
         if (Checklists.AddLine(id) is string line)
-            ChecklistGroup.LogEvent(UIPhrase.Of(Words + "log.line", ("checklist", id), ("line", line)));
+            ChecklistGroup.LogEvent(UIPhrase.Of("demo.mechanisms.lists.log.line", ("checklist", id), ("line", line)));
     }
 
     [UICommand]
     public void AddChecklistComment(string id)
     {
         if (Checklists.AddComment(id) is string comment)
-            ChecklistGroup.LogEvent(UIPhrase.Of(Words + "log.comment", ("checklist", id), ("count", comment.Length)));
+            ChecklistGroup.LogEvent(UIPhrase.Of("demo.mechanisms.lists.log.comment", ("checklist", id), ("count", comment.Length)));
     }
 }

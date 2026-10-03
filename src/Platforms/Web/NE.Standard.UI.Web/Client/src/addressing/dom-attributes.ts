@@ -9,7 +9,7 @@ export const UnremovableAttribute = "data-ui-unremovable";
 export const UnrenamableAttribute = "data-ui-unrenamable";
 /** On a component, a row or an items host: the context menu inside is not opened. */
 export const NoContextMenuAttribute = "data-ui-no-context-menu";
-/** On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open. */
+/** On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open; nor is a control in it the row's. */
 export const NoRowOpenAttribute = "data-ui-no-row-open";
 /** On a part inside a row that is not the row's to lift (a grid's open detail): a press there never drags the row. */
 export const NoRowDragAttribute = "data-ui-no-row-drag";
@@ -60,6 +60,8 @@ export const RowFocusAttribute = "data-ui-row-focus";
 export const TooltipAttribute = "data-ui-tooltip";
 export const TooltipPlacementAttribute = "data-ui-tooltip-placement";
 export const TooltipMarkAttribute = "data-ui-tooltip-mark";
+/** On a validation mark speaking through the tooltip, its severity (`error`, `warning`, `info`), which the tooltip wears while it speaks. */
+export const TooltipSeverityAttribute = "data-ui-tooltip-severity";
 /** On a control whose tooltip is all it has to say (a caption's badge): a press shows the tooltip, and the next press hides it. */
 export const TooltipPressAttribute = "data-ui-tooltip-press";
 /** On a badge: its text shown, "compact" while it fits a circle; and its text given at all, blank included (a menu corner's dot). */
@@ -97,6 +99,12 @@ export const ItemsQueryAttribute = "data-ui-items-query";
 export const NumberCultureAttribute = "data-ui-number-culture";
 /** On an element whose number and temporal packs are the page's: a language switch writes them again (`page-culture.ts`). */
 export const PageCultureAttribute = "data-ui-page-culture";
+/** On a pager's root: the compiled id of the host whose pages it turns. */
+export const PagerTargetAttribute = "data-ui-pager-target";
+/** On a pager's button: the page it turns to — `first`, `previous`, `next`, `last`, or a page's number. */
+export const PagerPageAttribute = "data-ui-pager-page";
+/** On a pager's page-size choice: the rows a page holds with it. */
+export const PagerSizeAttribute = "data-ui-pager-size";
 /** On a number input's root: the author's display format (a .NET numeric format such as `N2`) the value is written in. */
 export const NumberFormatAttribute = "data-ui-number-format";
 /** The temporal culture pack as JSON — month and day names, the AM and PM words — read the same way. */
@@ -111,6 +119,12 @@ export const GroupAttribute = "data-ui-group";
 
 /** Marks the one element a component keeps its value on, where that is not the element the reader starts from. */
 export const ValueHolderAttribute = "data-ui-value-holder";
+
+/** On a field whose text is a draft, not its component's value — a free-text multi-select's entry: the value is read from the holder. */
+export const DraftAttribute = "data-ui-draft";
+
+/** On the field holding a period's end (`EndValue`), not its `Value`: a temporal input's second field, a range slider's end handle. */
+export const ValueEndAttribute = "data-ui-value-end";
 
 /** Names the reader that reads a written value off this element. */
 export const ValueKindAttribute = "data-ui-value-kind";
@@ -131,10 +145,13 @@ export const ScrollLinesAttribute = "data-ui-scroll-lines";
 /** On an element drawn from a source line: the line's number, from 1. */
 export const SourceLineAttribute = "data-ui-source-line";
 
-/** Marks a windowed or virtualized host's stand-in for the rows it is not drawing: "top" or "bottom". */
+/** Marks a windowed or virtualized host's stand-in for the rows it is not drawing: "top", "bottom", or "pending" for rows on their way. */
 export const WindowSpacerAttribute = "data-ui-window-spacer";
 
-/** On a windowed host whose window is a page: the scroll asks for nothing, and a package's pager asks for a window by offset. */
+/** On a windowed host while it reads a window, the edge it reads at (`before`, `after`, `offset`, `start`, `end`): a skeleton shimmers, an indicator stands at that edge (`ui-items-view.less`). */
+export const WindowPendingAttribute = "data-ui-window-pending";
+
+/** On a windowed host whose window is a page (`Paging`): the scroll asks for nothing, and a pager asks for a window by offset. */
 export const WindowPagedAttribute = "data-ui-window-paged";
 /** A windowed host's geometry, read back on every layout. */
 export const WindowSizeAttribute = "data-ui-window-size";
@@ -169,6 +186,8 @@ export const DrawerOpenAttribute = "data-ui-drawer-open";
 export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
 /** On a left side that is a rail alone: below the drawer breakpoint a bar along the page's bottom, its groups flying out upward. */
 export const BottomBarAttribute = "data-ui-bottom-bar";
+/** On the shell's link to the content region, which skip-link-engine.ts follows by moving the keyboard there. */
+export const SkipLinkAttribute = "data-ui-skip-link";
 /** On each band of the page, naming it: a side's drawer is found by it. */
 export const RegionAttribute = "data-ui-region";
 /** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
@@ -186,6 +205,10 @@ export const PassiveMenuEntrySelector = `[${MenuItemKindAttribute}="header"], [$
 export const MenuGroupEntrySelector = `[${MenuGroupAttribute}] > .${MenuItemClass}`;
 /** A menu entry with a mark of its own (a group's chevron, a check's tick), which a press also leaves the menu open on. */
 export const MarkedMenuEntrySelector = `${MenuGroupEntrySelector}, .${MenuItemClass}[${MenuItemKindAttribute}="check"]`;
+/** On a button or a menu entry: the key chord that presses it (`WebAttributes.Shortcut`), read by the page's one registry. */
+export const ShortcutAttribute = "data-ui-shortcut";
+/** On a range slider: the least distance between its two handles (`WebAttributes.SliderMinDistance`). */
+export const SliderMinDistanceAttribute = "data-ui-slider-min-distance";
 export const CollapseToggleAttribute = "data-ui-collapse-toggle";
 /** Client-only: on a collapsible while collapsible-engine.ts slides it, so the stylesheet holds the open layout until the slide ends. */
 export const FoldingAttribute = "data-ui-folding";
@@ -269,6 +292,8 @@ export const LanguageAttribute = "data-ui-language";
 export const SplittingAttribute = "data-ui-splitting";
 /** Client-only: on the document element while a phone's on-screen keyboard is up, which the page's bottom bar steps aside for. */
 export const KeyboardUpAttribute = "data-ui-keyboard-up";
+/** Client-only: on the document element, `reconnecting` once a dropped connection outlasts its grace, `lost` once it is given up. */
+export const ConnectionAttribute = "data-ui-connection";
 /** Client-only: on a container's child whose tracks a splitter took to nothing, so its squeezed words lend the row no height. */
 export const SplitFoldedAttribute = "data-ui-split-folded";
 /** Client-only: on a handle the pointer focused, so no keyboard focus is drawn for it; a key or a blur takes it off. */
@@ -329,6 +354,8 @@ export const SelectClass = "ui-select";
 export const ScrollYDisabledClass = "ui-scroll-y--disabled";
 const TextInputClass = "ui-text-input";
 export const InvalidClass = "ui-invalid";
+// A field's message, which the validation engine writes as a line or a mark; a package's cell may carry one to speak through.
+export const ValidationMessageAttribute = "data-ui-validation-message";
 
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {
@@ -361,6 +388,7 @@ export const pluginDomNames = {
     selectClass: SelectClass,
     textInputClass: TextInputClass,
     invalidClass: InvalidClass,
+    validationMessage: ValidationMessageAttribute,
     sourceLine: SourceLineAttribute,
     popupSelector: PopupRoleSelector,
     listTriggerSelector: ListTriggerSelector,

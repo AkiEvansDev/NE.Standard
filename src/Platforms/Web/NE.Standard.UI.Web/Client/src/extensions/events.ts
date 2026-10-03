@@ -1,4 +1,5 @@
 import { normalizeEventName } from "../metadata/metadata-index";
+import { RowPressEventName } from "../interactions/row-cursor";
 
 export type EventAttachContext = {
     readonly root: ParentNode;
@@ -53,7 +54,14 @@ function attachDetailsState(context: EventAttachContext, open: boolean): void {
 }
 
 export function registerBuiltInEvents(catalog: EventCatalog): void {
-    catalog.registerNative("click");
+    // A row pressed from the keyboard raises its click too (items-selection-engine.ts), by an event no pointer's engine reads as a click.
+    catalog.register({
+        name: "click",
+        attach: context => {
+            context.root.addEventListener("click", context.dispatch, true);
+            context.root.addEventListener(RowPressEventName, context.dispatch, true);
+        }
+    });
     catalog.registerNative("change");
     catalog.registerNative("focus");
     catalog.registerNative("blur");

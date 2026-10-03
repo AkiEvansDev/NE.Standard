@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
@@ -21,6 +22,14 @@ public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedR
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? Clickable { get; set; }
+
+    /// <summary>
+    /// What the surface is to a screen reader when it holds a message — a status, read when the reader is free, or an alert, read at
+    /// once — so its words are read as they change and as it is shown; unset, neither. A clickable surface is a button or a group
+    /// instead.
+    /// </summary>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
+    public UILiveRegion? LiveRegion { get; set; }
 
     /// <summary>
     /// Registers a command to invoke when the surface is clicked.

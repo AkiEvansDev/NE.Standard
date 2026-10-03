@@ -10,10 +10,11 @@ import type { WordsTable } from "../src/runtime/client-strings.ts";
 import type { PropertyPatchEngine, PropertyValueChange } from "../src/updates/property-patch-engine.ts";
 
 let presentation = "";
+let markerHost = "";
 
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, clearTimeout },
-    getComputedStyle: () => ({ getPropertyValue: (name: string) => name === "--ui-validation-presentation" ? presentation : "" }),
+    getComputedStyle: () => ({ getPropertyValue: (name: string) => name === "--ui-validation-presentation" ? presentation : name === "--ui-validation-marker-host" ? markerHost : "" }),
     MutationObserver: class {
         public observe(): void {
         }
@@ -62,7 +63,7 @@ test("an error wears the invalid class and colour, says aria-invalid on the inpu
     engine.mark(real(root), "error", { key: "form.pattern", args: { reason: "unclosed group" } });
 
     assert.ok(root.classes.has("ui-invalid"));
-    assert.equal(root.style["--ui-validation-color"], "var(--ui-color-danger)");
+    assert.equal(root.style["--ui-validation-color"], "var(--ui-color-danger-ink)");
     assert.equal(input.getAttribute("aria-invalid"), "true");
     assert.equal(line.textContent, "Not a pattern: unclosed group.");
 });
@@ -101,7 +102,7 @@ test("a warning wears its own class and leaves the value acceptable to a reader"
 
     assert.ok(root.classes.has("ui-validation--warning"));
     assert.ok(!root.classes.has("ui-invalid"));
-    assert.equal(root.style["--ui-validation-color"], "var(--ui-color-warning)");
+    assert.equal(root.style["--ui-validation-color"], "var(--ui-color-warning-ink)");
     assert.equal(input.getAttribute("aria-invalid"), null);
     engine.mark(real(root), null);
 });
@@ -115,13 +116,74 @@ test("a field standing in a cell speaks its words in its mark's tooltip", () => 
 
     assert.ok(line.classes.has("ui-validation-message--marker"));
     assert.equal(line.getAttribute("data-ui-tooltip"), "Bad");
+    assert.equal(line.getAttribute("data-ui-tooltip-severity"), "error");
     assert.ok(root.hasAttribute("data-ui-tooltip-mark"));
 
     engine.mark(real(root), null);
 
     assert.ok(!line.classes.has("ui-validation-message--marker"));
     assert.equal(line.getAttribute("data-ui-tooltip"), null);
+    assert.equal(line.getAttribute("data-ui-tooltip-severity"), null);
     assert.ok(!root.hasAttribute("data-ui-tooltip-mark"));
+});
+
+test("a closed row's copy of the mark speaks beside its dot, wearing the severity, and its whole value speaks through it", () => {
+    const input = new FakeInput();
+    const line = FakeElement.of("ui-validation-message", { "data-ui-validation-message": "" }, "span");
+    const root = FakeElement.of("ui-text-input", { "data-ui-id": String(ComponentId) }).append(input, line);
+    const value = FakeElement.of("ui-key-value-action__value");
+    const row = FakeElement.of("ui-key-value-action__row").append(value, FakeElement.of("ui-key-value-action__value-input").append(root));
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(row);
+
+    presentation = "marker";
+    markerHost = "ui-key-value-action__value";
+    engine.mark(real(root), "warning", { text: "Name a person" });
+    presentation = "";
+    markerHost = "";
+
+    const mirror = value.querySelector(".ui-validation-mark");
+
+    assert.ok(mirror !== null);
+    assert.equal(mirror.getAttribute("data-ui-tooltip"), "Name a person");
+    assert.equal(mirror.getAttribute("data-ui-tooltip-placement"), "right");
+    assert.equal(mirror.getAttribute("data-ui-tooltip-severity"), "warning");
+    assert.equal(line.getAttribute("data-ui-tooltip-placement"), "top-end");
+    // A hover anywhere on the value, and a press (a touch's one way to ask), show the dot's words.
+    assert.ok(value.hasAttribute("data-ui-tooltip-mark"));
+    assert.ok(mirror.hasAttribute("data-ui-tooltip-press"));
+
+    engine.mark(real(root), null);
+
+    assert.equal(value.querySelector(".ui-validation-mark"), null);
+    assert.ok(!value.hasAttribute("data-ui-tooltip-mark"));
+});
+
+test("an open row's field speaking in a line still leaves its dot in the value's cell; words sent elsewhere leave none", () => {
+    const input = new FakeInput();
+    const line = FakeElement.of("ui-validation-message", { "data-ui-validation-message": "" }, "span");
+    const root = FakeElement.of("ui-text-input", { "data-ui-id": String(ComponentId) }).append(input, line);
+    const value = FakeElement.of("ui-key-value-action__value");
+    const row = FakeElement.of("ui-key-value-action__row").append(value, FakeElement.of("ui-key-value-action__value-input").append(root));
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(row);
+
+    markerHost = "ui-key-value-action__value";
+    engine.mark(real(root), "error", { text: "Too large" });
+
+    assert.ok(!line.classes.has("ui-validation-message--marker"));
+    assert.equal(line.getAttribute("data-ui-tooltip"), null);
+    assert.equal(value.querySelector(".ui-validation-mark")?.getAttribute("data-ui-tooltip"), "Too large");
+
+    presentation = "elsewhere";
+    engine.mark(real(root), "error", { text: "Still too large" });
+    presentation = "";
+    markerHost = "";
+
+    assert.equal(value.querySelector(".ui-validation-mark"), null);
+    assert.ok(!value.hasAttribute("data-ui-tooltip-mark"));
 });
 
 test("the controller's error outranks a package's warning, which shows again once the error is gone", () => {

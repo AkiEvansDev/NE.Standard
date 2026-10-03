@@ -30,6 +30,11 @@ public interface IUIView
     IReadOnlyList<UIDialog> Dialogs { get; }
 
     /// <summary>
+    /// Gets the key chords the view answers on its own, with no control behind them.
+    /// </summary>
+    IReadOnlyList<UIShortcut> Shortcuts => [];
+
+    /// <summary>
     /// Gets the choices this view makes about its own shell.
     /// </summary>
     UIViewOptions Options => UIViewOptions.Default;

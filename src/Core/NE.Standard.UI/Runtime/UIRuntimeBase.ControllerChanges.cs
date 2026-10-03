@@ -73,12 +73,15 @@ internal abstract partial class UIRuntimeBase
             return;
         }
 
+        _wholeLists.Clear();
+
         for (var i = 0; i < changes.Length; i++)
         {
             ArgumentNullException.ThrowIfNull(changes[i]);
             AppendControllerChangeNoLock(changes[i]);
         }
 
+        _wholeLists.Clear();
         MarkHeldValuesNoLock();
     }
 
@@ -174,6 +177,9 @@ internal abstract partial class UIRuntimeBase
             RecursivePath bindingPath = View.Bindings.MaterializePath(binding, baseParameters);
             UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
 
+            // Always sent, not only the first time: a row drawn again later in the round withdraws what was queued under it.
+            _ = _wholeLists.Add(component);
+
             AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
             {
                 Action = CollectionUpdateAction.Reset,
@@ -181,7 +187,7 @@ internal abstract partial class UIRuntimeBase
                 Items = []
             });
 
-            if (!TryBuildCollectionItems(bindingPath, out ServerCollectionItemChange[] items) || items.Length == 0)
+            if (!TryBuildCollectionItems(bindingPath, binding, out ServerCollectionItemChange[] items) || items.Length == 0)
                 continue;
 
             AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
@@ -413,6 +419,8 @@ internal abstract partial class UIRuntimeBase
 
             UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
 
+            _ = _wholeLists.Add(component);
+
             AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
             {
                 Action = CollectionUpdateAction.Reset,
@@ -420,7 +428,7 @@ internal abstract partial class UIRuntimeBase
                 Items = []
             });
 
-            if (!TryBuildCollectionItems(path, out ServerCollectionItemChange[] items) || items.Length == 0)
+            if (!TryBuildCollectionItems(path, binding, out ServerCollectionItemChange[] items) || items.Length == 0)
                 continue;
 
             AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
@@ -463,9 +471,12 @@ internal abstract partial class UIRuntimeBase
 
         RecursiveChange[] changes = CompactControllerChangesNoLock();
 
+        _wholeLists.Clear();
+
         for (var i = 0; i < changes.Length; i++)
             AppendControllerChangeNoLock(changes[i]);
 
+        _wholeLists.Clear();
         MarkHeldValuesNoLock();
     }
 

@@ -85,6 +85,8 @@ export type WebRenderItemsTemplateMetadata = {
     readonly composite?: WebRenderItemsCompositeMetadata | null;
     // The decorator a row the client builds goes through after its template, by kind (`row-decorators.ts`).
     readonly rowDecorator?: string | null;
+    // What the host's rows carry, dotted; sent to a page in development alone, which warns of a read of anything else.
+    readonly itemPaths?: readonly string[] | null;
 };
 
 export type WebRenderItemsCompositeMetadata = {
@@ -195,7 +197,8 @@ export type WebInteractionOperatorName =
     | "Like"
     | "In"
     | "Regex"
-    | "LikeIgnoreCase";
+    | "LikeIgnoreCase"
+    | "RegexEach";
 export type WebInteractionOperator = WebInteractionOperatorName | number;
 
 type WebRenderValidationTargetMetadata = {
@@ -351,7 +354,10 @@ type UnknownServerUIUpdate = {
 };
 
 export type UICommandRequest = {
+    // Zero where the request runs an offered action in place of an event.
     readonly eventId: IdValue;
+    // The id of an action the server offered the page (a notification's), run once.
+    readonly action?: string;
     readonly dynamicParameters: readonly unknown[];
     // Echoed on a background command's pushed result; the dispatcher gives one to every request it sends.
     readonly requestId?: number;
@@ -383,6 +389,7 @@ export type ClientEffectKindName =
     | "OpenDialog"
     | "CloseDialog"
     | "ShowNotification"
+    | "Announce"
     | "DownloadFile"
     | "Scroll"
     | "SetTheme"
@@ -394,7 +401,9 @@ export type ClientEffectKindName =
     | "DiscardForm"
     | "OpenPicker"
     | "SetLanguage"
-    | "ConfirmLeave";
+    | "ConfirmLeave"
+    | "ReplaceAddress"
+    | "PushAddress";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
 export type ClientEffectKindValue = ClientEffectKindName | (string & {});
@@ -411,6 +420,7 @@ export const ClientEffectKinds = {
     OpenDialog: "OpenDialog",
     CloseDialog: "CloseDialog",
     ShowNotification: "ShowNotification",
+    Announce: "Announce",
     DownloadFile: "DownloadFile",
     Scroll: "Scroll",
     SetTheme: "SetTheme",
@@ -422,7 +432,9 @@ export const ClientEffectKinds = {
     DiscardForm: "DiscardForm",
     OpenPicker: "OpenPicker",
     SetLanguage: "SetLanguage",
-    ConfirmLeave: "ConfirmLeave"
+    ConfirmLeave: "ConfirmLeave",
+    ReplaceAddress: "ReplaceAddress",
+    PushAddress: "PushAddress"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
@@ -452,6 +464,11 @@ export type NavigateClientEffect = ClientEffect & {
         readonly route?: string;
         readonly parameters?: Record<string, unknown> | null;
     };
+};
+
+/** Writes the page's query from its parameters while the route stays: in place (`ReplaceAddress`) or as a new entry (`PushAddress`). */
+export type AddressClientEffect = ClientEffect & {
+    readonly parameters?: Record<string, unknown> | null;
 };
 
 /** Opens the inline rename field on one tab of a tabs view, named by its key. */
@@ -548,6 +565,24 @@ export type NotificationClientEffect = ClientEffect & {
     /** The words: a key with its arguments, or the author's text looked up by the plain rule. */
     readonly message?: Phrase | AuthorText;
     readonly severity?: string | number;
+    // How long it stands, which is its action's window; absent is the page's default.
+    readonly durationMs?: number;
+    readonly action?: NotificationActionModel;
+};
+
+/** A notification's one button: its words, and the id of the command the server offered for one press; no id, no button. */
+export type NotificationActionModel = {
+    readonly label?: Phrase | AuthorText;
+    readonly id?: string;
+};
+
+export type AnnouncePolitenessName = "Polite" | "Assertive";
+
+/** Words a screen reader speaks and the page shows nothing of. */
+export type AnnounceClientEffect = ClientEffect & {
+    /** The words: a key with its arguments, or the author's text looked up by the plain rule. */
+    readonly message?: Phrase | AuthorText;
+    readonly politeness?: AnnouncePolitenessName | number;
 };
 
 export type WebUIItemWindowRequest = {
@@ -569,6 +604,10 @@ export type WebUIAttachRequest = {
     readonly pageId: string | null;
     /** The compile the page was rendered from, for the server to refuse a page of another. */
     readonly view: string | null;
+    /** Where the prepared runtime stood when the render read it, on the page's first attach: only what moved past it is sent. */
+    readonly since: number | null;
+    /** The runtime the page's last attach was answered with, on any attach after its first; null on the first. */
+    readonly runtime: string | null;
     readonly parameters: Record<string, unknown> | null;
     /** The IANA zone the browser runs in, kept on the session; null where the browser names none. */
     readonly timeZone: string | null;
@@ -576,8 +615,12 @@ export type WebUIAttachRequest = {
 
 export type WebUIAttachResult = {
     readonly initialChanges?: ServerChangeSet;
-    /** The page was rendered from another compile of its view: reload rather than apply. */
+    /** The page was rendered from another compile of its view, or under a session the server no longer holds: reload rather than apply. */
     readonly reload?: boolean;
+    /** The runtime the page attached to, which its later attaches present. */
+    readonly runtime?: string;
+    /** The runtime the page held is gone (a restart, an eviction, a retention run out): what it shows belongs to nothing, so it reloads. */
+    readonly fresh?: boolean;
 };
 
 export type WebUIValueChangeRequest = {
@@ -848,7 +891,7 @@ export function getInteractionActionKind(value: WebInteractionActionKind | null 
 }
 
 export function getInteractionOperator(value: WebInteractionOperator | null | undefined): WebInteractionOperatorName | "Unknown" {
-    return resolveEnumName(value, ["Required", "Equal", "NotEqual", "Greater", "GreaterOrEqual", "Less", "LessOrEqual", "Like", "In", "Regex", "LikeIgnoreCase"] as const);
+    return resolveEnumName(value, ["Required", "Equal", "NotEqual", "Greater", "GreaterOrEqual", "Less", "LessOrEqual", "Like", "In", "Regex", "LikeIgnoreCase", "RegexEach"] as const);
 }
 
 export function getItemsSortDirection(value: WebItemsSortDirection | null | undefined): WebItemsSortDirectionName | "Unknown" {
@@ -916,6 +959,10 @@ export function getThemeMode(value: ThemeModeName | number | null | undefined): 
 
 export function getScrollAxis(value: ScrollAxisName | number | null | undefined): ScrollAxisName | "Unknown" {
     return resolveEnumName(value, ["Horizontal", "Vertical"] as const);
+}
+
+export function getAnnouncePoliteness(value: AnnouncePolitenessName | number | null | undefined): AnnouncePolitenessName | "Unknown" {
+    return resolveEnumName(value, ["Polite", "Assertive"] as const);
 }
 
 export function normalizeEventName(value: string | null | undefined): string {

@@ -35,10 +35,8 @@ export function commitWaiting(): void {
 export class DebouncedCommitEngine {
     private readonly root: ParentNode;
     // A map, not a weak one: a leave walks the fields still waiting; each leaves it as its timer fires or a native commit lands.
+    // A pause that changed nothing raises a change the commit gate stops (commit-gate.ts), as it stops the leave's after a pause.
     private readonly timers = new Map<DebouncedField, number>();
-
-    /** What each field last committed, so a pause that changed nothing sends nothing. */
-    private readonly committed = new WeakMap<DebouncedField, string>();
 
     public constructor(options: DebouncedCommitEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -88,17 +86,10 @@ export class DebouncedCommitEngine {
             window.clearTimeout(pending);
             this.timers.delete(input);
         }
-
-        this.committed.set(input, input.value);
     }
 
     private commit(input: DebouncedField): void {
         this.timers.delete(input);
-
-        if (this.committed.get(input) === input.value)
-            return;
-
-        this.committed.set(input, input.value);
         input.dispatchEvent(new Event("change", { bubbles: true }));
     }
 }

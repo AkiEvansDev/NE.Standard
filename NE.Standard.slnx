@@ -24,6 +24,7 @@
 
   <Folder Name="/src/Packages/">
     <Project Path="src/Packages/NE.Standard.UI.Extensions/NE.Standard.UI.Extensions.csproj" />
+    <Project Path="src/Packages/NE.Standard.UI.Testing/NE.Standard.UI.Testing.csproj" />
   </Folder>
 
   <Folder Name="/src/Platforms/" />

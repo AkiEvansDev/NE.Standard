@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/focus.less";
 @import "../mixins/popup.less";
 @import "../mixins/range.less";
 @import "../mixins/responsive.less";
@@ -83,7 +84,8 @@
     }
 
 // Sized by what it says, like the range labels: reserving room for the longest reading left an empty tail after shorter ones.
-.ui-slider__value {
+.ui-slider__value,
+.ui-slider__values {
     display: none;
     flex: 0 0 auto;
     text-align: start;
@@ -91,8 +93,17 @@
     font-variant-numeric: tabular-nums;
 }
 
+// A band's two readings on one line, "20 – 80"; each keeps the single reading's look.
+.ui-slider__values {
+    white-space: nowrap;
+}
+
+    .ui-slider__values > .ui-slider__value {
+        display: inline;
+    }
+
 // The readout sits beside the track only without range labels; with both it would print a second bare number, so it moves over the handle.
-.ui-slider--show-value:not(.ui-slider--show-range) > .ui-slider__row > .ui-slider__value {
+.ui-slider--show-value:not(.ui-slider--show-range) > .ui-slider__row > :is(.ui-slider__value, .ui-slider__values) {
     display: inline-block;
 }
 
@@ -115,6 +126,15 @@
         left: 0;
         width: auto;
         height: @ui-slider-thumb;
+    }
+
+    // A band's end handle stands at its own fraction.
+    .ui-slider__thumb-anchor--end {
+        left: calc(var(--ui-slider-end-fraction, 1) * (100% - @ui-slider-thumb));
+    }
+
+    .ui-slider.ui-orientation--vertical .ui-slider__thumb-anchor--end {
+        bottom: calc(var(--ui-slider-end-fraction, 1) * (100% - @ui-slider-thumb));
     }
 
 // Fixed and placed by RangeValueEngine: the panels a control sits in are overflow: hidden and would clip a bubble tied to its own track.
@@ -178,9 +198,92 @@
         transform: translate(-45%, -50%) rotate(45deg);
     }
 
-// Held down covers the pointer, the keyboard's focus the arrow keys; a sibling selector, not a client class, since the browser knows both states.
-.ui-slider--show-value.ui-slider--show-range .ui-slider__input:is(:active, @{ui-keyboard-focus}) ~ .ui-slider__bubble {
+// Held down covers the pointer, the keyboard's focus the arrow keys; a sibling selector, since the browser knows both states. A band's handles
+// take the pointer through their track, so the one held is marked (`--held`, range-value-engine.ts); each shows its own bubble alone.
+.ui-slider--show-value.ui-slider--show-range .ui-slider__input:not(.ui-slider__input--end):is(:active, .ui-slider__input--held, @{ui-keyboard-focus}) ~ .ui-slider__bubble:not(.ui-slider__bubble--end),
+.ui-slider--show-value.ui-slider--show-range .ui-slider__input--end:is(.ui-slider__input--held, @{ui-keyboard-focus}) ~ .ui-slider__bubble--end {
     opacity: 1;
+}
+
+// Where the keyboard stands: the framework's keyboard frame, around the handle — inside it, in place of the rim, it was lost on the light
+// palette, the ink being the handle's own colour there. A band has two handles, so the arrows' one must be told apart; one prefix per
+// rule, since a browser drops a rule naming a pseudo-element it lacks.
+.ui-slider__input@{ui-keyboard-focus}::-webkit-slider-thumb {
+    .ui-keyboard-frame();
+
+    @media (forced-colors: none) {
+        outline-offset: 2px;
+    }
+}
+
+.ui-slider__input@{ui-keyboard-focus}::-moz-range-thumb {
+    .ui-keyboard-frame();
+
+    @media (forced-colors: none) {
+        outline-offset: 2px;
+    }
+}
+
+// A band: two native ranges stacked on one track, the start's drawing the track and the band, the end's only its handle. Neither takes the
+// pointer itself — the track does and moves the nearer handle (range-value-engine.ts) — so the page still scrolls under a finger across it.
+.ui-slider--range .ui-slider__track {
+    cursor: pointer;
+    touch-action: pan-y;
+}
+
+    .ui-slider--range.ui-orientation--vertical .ui-slider__track {
+        touch-action: pan-x;
+    }
+
+    .ui-slider--range:is(.ui-readonly, .ui-disabled, .ui-loading) .ui-slider__track {
+        cursor: default;
+    }
+
+.ui-slider--range .ui-slider__input {
+    pointer-events: none;
+}
+
+.ui-slider--range .ui-slider__input--end {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+// The band between the handles' centres, as a range input places a handle: half a handle in from each end of the track.
+.ui-range-band() {
+    background-image: linear-gradient(
+        var(--ui-range-fill-angle, 90deg),
+        transparent 0 calc(@ui-slider-thumb / 2 + var(--ui-slider-fraction, 0) * (100% - @ui-slider-thumb)),
+        var(--ui-color-primary) 0 calc(@ui-slider-thumb / 2 + var(--ui-slider-end-fraction, 1) * (100% - @ui-slider-thumb)),
+        transparent 0
+    );
+}
+
+.ui-slider--range .ui-slider__input:not(.ui-slider__input--end)::-webkit-slider-runnable-track {
+    .ui-range-band();
+}
+
+.ui-slider--range .ui-slider__input:not(.ui-slider__input--end)::-moz-range-track {
+    .ui-range-band();
+}
+
+// Weighed above the invalid track's colour, which would otherwise paint the end's own track over the band.
+.ui-slider.ui-slider--range .ui-slider__input.ui-slider__input--end::-webkit-slider-runnable-track {
+    background: none;
+}
+
+.ui-slider.ui-slider--range .ui-slider__input.ui-slider__input--end::-moz-range-track {
+    background: none;
+}
+
+// The handle the pointer holds wears the ring a single slider's wears under the pointer.
+.ui-slider__input--held::-webkit-slider-thumb {
+    box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+}
+
+.ui-slider__input--held::-moz-range-thumb {
+    box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
 }
 
 .ui-slider__min,
@@ -199,11 +302,11 @@
 
 // The colour alone, not the shorthand: the fill is the track's background-image (range.less), and a shorthand wiped the value off it.
 .ui-slider.ui-invalid .ui-slider__input::-webkit-slider-runnable-track {
-    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
+    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger-ink)) 35%, var(--ui-surface-raised));
 }
 
 .ui-slider.ui-invalid .ui-slider__input::-moz-range-track {
-    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger)) 35%, var(--ui-surface-raised));
+    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger-ink)) 35%, var(--ui-surface-raised));
 }
 
 // A size steps the track, the handle and the text ui-input.less sizes; the handle stays centred on the track by its own margin.

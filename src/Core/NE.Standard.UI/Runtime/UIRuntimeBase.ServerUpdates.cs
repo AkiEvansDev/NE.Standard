@@ -49,6 +49,7 @@ internal abstract partial class UIRuntimeBase
     {
         ServerChangeSet changes = CopyPendingUpdatesNoLock();
 
+        KeepDrainedPastRenderNoLock();
         ClearPendingUpdatesNoLock();
 
         return changes;
@@ -236,6 +237,7 @@ internal abstract partial class UIRuntimeBase
     private void AppendFullResyncNoLock()
     {
         ClearPendingUpdatesNoLock();
+        ForgetRenderNoLock();
 
         // A resync sends every value to every instance; a write held back from one would be held from nothing.
         _heldValues.Clear();

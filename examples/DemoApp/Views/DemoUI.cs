@@ -16,7 +16,7 @@ internal static class DemoUI
     public static readonly (string Title, string Icon, (string Route, string Label)[] Links)[] NavSections =
     [
         // First, because these are the pages a reader judges the whole by: pieces of an application, not a component each.
-        ("demo.nav.section.screens", DemoIcons.Outline(DemoIcons.Home),
+        ("demo.nav.section.screens", DemoIcons.Outline(DemoIcons.Screens),
         [
             ("/screens/sign-up", "demo.nav.screens.sign-up"),
             ("/screens/checkout", "demo.nav.screens.checkout"),
@@ -39,6 +39,7 @@ internal static class DemoUI
             ("/mechanisms/commands", "demo.nav.mechanisms.commands"),
             ("/mechanisms/values", "demo.nav.mechanisms.values"),
             ("/mechanisms/lists", "demo.nav.mechanisms.lists"),
+            ("/mechanisms/pages", "demo.nav.mechanisms.pages"),
         ]),
         ("demo.nav.section.layouts", DemoIcons.Outline(DemoIcons.LayoutDashboard),
         [
@@ -62,6 +63,7 @@ internal static class DemoUI
             ("/contents/icon", "demo.nav.contents.icon"),
             ("/contents/image", "demo.nav.contents.image"),
             ("/contents/badge", "demo.nav.contents.badge"),
+            ("/contents/message", "demo.nav.contents.message"),
             ("/contents/separator", "demo.nav.contents.separator"),
         ]),
         ("demo.nav.section.actions", DemoIcons.Outline(DemoIcons.Press),
@@ -104,6 +106,7 @@ internal static class DemoUI
         [
             ("/items/items-view", "demo.nav.items.items-view"),
             ("/items/table", "demo.nav.items.table"),
+            ("/items/pager", "demo.nav.items.pager"),
             ("/items/tree", "demo.nav.items.tree"),
             ("/items/key-value-action", "demo.nav.items.key-value-action"),
         ]),
@@ -124,68 +127,12 @@ internal static class DemoUI
     /// language are the framework's state.
     /// </summary>
     public static ContainerComponent CreateHeader(string title, string description)
-        => PageHeader(title, description,
+        => UIPage.Header(title, description,
             new LanguageSwitcherComponent(),
             new ThemeSwitcherComponent()
                 .SetLightIcon(DemoIcons.Outline(DemoIcons.LightMode))
                 .SetDarkIcon(DemoIcons.Outline(DemoIcons.DarkMode))
         );
-
-    /// <summary>
-    /// The page band: the name with the switchers at the far end of its row at every width, and the muted line under them — on a phone
-    /// the name a title's size and the line one line, cut, so the band stays about a title's height and leaves the screen to the page;
-    /// from a medium screen the name in the display role and the line up to three lines.
-    /// </summary>
-    /// <remarks>
-    /// <c>UIPage.Header</c>'s band, kept on one row on a phone too: there the preset folds the far end under the line, which took a
-    /// third of a phone's height.
-    /// </remarks>
-    private static ContainerComponent PageHeader(string title, string description, params IVisualComponent[] trailing)
-        => new ContainerComponent()
-            // 10 on a phone puts the name's line on the drawer toggle's middle (the shell's, 12 down and 36 tall).
-            .SetPadding(UIResponsive<UIThickness>.Create(UIThickness.All(24, 10, 16, 4), md: UIThickness.All(24, 20, 24, 4)))
-            .SetColumn(24, UIGridUnit.Auto())
-            // On a phone a name too long for its row wraps under itself rather than losing its end, its first line level with the
-            // switchers, which stand at the row's top.
-            .AddChild(PageTitle(title, UIResponsive<UIVisibility>.Create(UIVisibility.Visible, md: UIVisibility.Collapsed))
-                .AsTitle()
-                .SetTitleWrap(true)
-                .SetVerticalAlignment(UIAlignment.Start)
-                .SetMargin(UIThickness.All(0, PhoneTitleInset, 0, 0))
-            )
-            .AddChild(PageTitle(title, UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)).AsDisplay())
-            .AddChild(PageDescription(description, 1, UIResponsive<UIVisibility>.Create(UIVisibility.Visible, md: UIVisibility.Collapsed)).SetPlacement(1, 2, 24, 1))
-            .AddChild(PageDescription(description, 3, UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)).SetPlacement(1, 2, 23, 1))
-            .AddChild(new StackPanelComponent()
-                .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(UIResponsive<double>.Create(8, md: 12))
-                .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(8, 0, 0, 0), md: UIThickness.All(12, 0, 0, 0)))
-                .SetHorizontalAlignment(UIAlignment.End)
-                .SetVerticalAlignment(UIAlignment.Start)
-                .AddChildren(trailing)
-                .SetPlacement(24, 1, 1, 1)
-            );
-
-    // Half the switchers' 40 px less the name's 28 px line: a one-line name stands in their middle, a wrapped one's first line too.
-    private const double PhoneTitleInset = 6;
-
-    /// <summary>The page's name, where <paramref name="visibility"/> shows it.</summary>
-    private static TextComponent PageTitle(string title, UIResponsive<UIVisibility> visibility)
-        => new TextComponent()
-            .SetTitle(title)
-            .SetTitleColor(UIThemeColor.OnBackground)
-            .SetVerticalAlignment(UIAlignment.Center)
-            .SetVisibility(visibility)
-            .SetPlacement(1, 1, 23, 1);
-
-    /// <summary>The muted line under the name, at most <paramref name="lines"/> lines, where <paramref name="visibility"/> shows it.</summary>
-    private static ParagraphComponent PageDescription(string description, int lines, UIResponsive<UIVisibility> visibility)
-        => new ParagraphComponent()
-            .SetDescription(description)
-            .SetMaxLines(lines)
-            .SetDescriptionType(UITextAppearance.Body)
-            .SetDescriptionColor(UIThemeColor.Muted)
-            .SetVisibility(visibility);
 
     /// <summary>
     /// The sidebar every route wears, built from <see cref="MenuComponent"/>.
@@ -392,9 +339,10 @@ internal static class DemoUI
     /// reserves nothing unless a caller needs a fixed box; <paramref name="note"/> is the line under the title. <paramref name="words"/>
     /// is for a page whose groups are words rather than samples (the overlay pages, the mechanism pages): nothing in it is content, so
     /// the unkeyed report, and with it <c>DemoWordsCoverageTests</c>, reads every static text of the group. <paramref name="context"/>
-    /// names the group's controller context, whose message stands under the group.
+    /// names the group's controller context, whose message stands under the group. <paramref name="controller"/> names the controller
+    /// code the sample runs, shown on a tab of its own beside <paramref name="code"/>.
     /// </remarks>
-    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null, string? code = null, bool controlsBelow = false, bool words = false)
+    public static ContainerComponent CreateGroup(string? context, string title, Action<ContainerComponent> initContent, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, int columns = 12, string? note = null, string? code = null, bool controlsBelow = false, bool words = false, IReadOnlyList<DemoCode>? controller = null)
     {
         var hasContext = !string.IsNullOrWhiteSpace(context);
         var hasNote = !string.IsNullOrWhiteSpace(note);
@@ -466,7 +414,7 @@ internal static class DemoUI
         if (code is not null)
         {
             _ = header.SetMargin(UIThickness.All(0, 0, 32, 0));
-            _ = group.AddChild(CreateCodeFlyout(code).SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, span, 1)));
+            _ = group.AddChild(CreateCodeFlyout(code, controller is null ? null : DemoSources.Read(controller)).SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, span, 1)));
         }
 
         // A note rather than a title: prose wraps, a title ends in an ellipsis.
@@ -538,12 +486,20 @@ internal static class DemoUI
             );
 
     /// <summary>
-    /// The <c>&lt;/&gt;</c> button in a group's corner and the popup it opens: the sample's source, read-only, with a copy button.
+    /// The <c>&lt;/&gt;</c> button in a group's corner and the popup it opens: the sample's source, read-only, with a copy button — and,
+    /// where the sample names the controller code it runs, that code on a second tab.
     /// </summary>
-    private static FlyoutComponent CreateCodeFlyout(string expression)
+    /// <remarks>Both tabs as tall as the longer text, so the popup keeps its size when the tab changes.</remarks>
+    private static FlyoutComponent CreateCodeFlyout(string expression, string? controller)
     {
-        var source = FormatSource(expression);
-        var lines = source.Count(static c => c == '\n') + 1;
+        var view = FormatSource(expression);
+        var rows = Math.Clamp(Math.Max(CountLines(view), controller is null ? 0 : CountLines(controller)) + 1, 3, 24);
+
+        IVisualComponent content = controller is null
+            ? CreateCodePane(view, rows)
+            : new TabsComponent()
+                .AddTab("view", "demo.code.view", CreateCodePane(view, rows))
+                .AddTab("controller", "demo.code.controller", CreateCodePane(controller, rows));
 
         return new FlyoutComponent()
             .SetFlyoutPlacement(UIPopupPlacement.BottomEnd)
@@ -560,30 +516,7 @@ internal static class DemoUI
             )
             .SetContent(new ContainerComponent()
                 .SetWidth(UILayoutLength.Absolute(640))
-                .AddChild(new CodeInputComponent()
-                    .SetLanguage(UICodeLanguages.CSharp)
-                    .SetValue(source)
-                    .SetIsReadOnly(true)
-                    .SetStatusBar(false)
-                    .SetSearch(false)
-                    .SetCompletions(false)
-                    // One row over the text's own: a long line brings a horizontal scrollbar, which would cover the last one.
-                    .SetRows(Math.Clamp(lines + 1, 3, 24))
-                    .SetPlacement(1, 1, 24, 1)
-                )
-                // A literal rather than the field's value: the text is fixed, and a literal needs no id unique across the page.
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
-                    .SetSize(UIButtonSize.Small)
-                    .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
-                    .SetTooltip("demo.copy")
-                    .SetHorizontalAlignment(UIAlignment.End)
-                    .SetVerticalAlignment(UIAlignment.Start)
-                    // Clear of the text's vertical scrollbar, which runs down the same edge once the source is longer than the box.
-                    .SetMargin(UIThickness.All(4, 4, 16, 4))
-                    .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal(source))
-                    .SetPlacement(1, 1, 24, 1)
-                )
+                .AddChild(content)
             );
     }
 
@@ -672,15 +605,48 @@ internal static class DemoUI
         return depth;
     }
 
+    private static int CountLines(string source)
+        => source.Count(static c => c == '\n') + 1;
+
+    /// <summary>One source in the framework's code field, read-only, with its own copy button.</summary>
+    private static ContainerComponent CreateCodePane(string source, int rows)
+        => new ContainerComponent()
+            .AddChild(new CodeInputComponent()
+                .SetLanguage(UICodeLanguages.CSharp)
+                .SetValue(source)
+                .SetIsReadOnly(true)
+                .SetStatusBar(false)
+                .SetSearch(false)
+                .SetCompletions(false)
+                // One row over the text's own: a long line brings a horizontal scrollbar, which would cover the last one.
+                .SetRows(rows)
+                .SetPlacement(1, 1, 24, 1)
+            )
+            // A literal rather than the field's value: the text is fixed, and a literal needs no id unique across the page.
+            .AddChild(new ButtonComponent()
+                .SetType(UIButtonType.Ghost)
+                .SetSize(UIButtonSize.Small)
+                .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                .SetTooltip("demo.copy")
+                .SetHorizontalAlignment(UIAlignment.End)
+                .SetVerticalAlignment(UIAlignment.Start)
+                // Clear of the text's vertical scrollbar, which runs down the same edge once the source is longer than the box.
+                .SetMargin(UIThickness.All(4, 4, 16, 4))
+                .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal(source))
+                .SetPlacement(1, 1, 24, 1)
+            )
+            .SetPlacement(1, 1, 24, 1);
+
     /// <summary>
     /// An Examples group around one sample, its source a press away in the title's corner.
     /// </summary>
     /// <remarks>
     /// The source is the argument's own text, captured by the compiler, so the popup cannot drift from what runs; the price is that a
-    /// sample is one expression, and the sample data it takes is named in it rather than shown.
+    /// sample is one expression, and the sample data it takes is named in it rather than shown. <paramref name="controller"/> names the
+    /// controller code it runs, read from the demo's own sources (<see cref="DemoSources"/>) onto a Controller tab.
     /// </remarks>
-    public static ContainerComponent CreateExample(string title, IVisualComponent example, string? note = null, int columns = 12, string? context = null, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, bool controlsBelow = false, bool words = false, [CallerArgumentExpression(nameof(example))] string code = "")
-        => CreateGroup(context, title, content => content.AddChild(CreateStack(0).AddChild(example)), initControls, contentMinHeight, columns, note, code, controlsBelow, words);
+    public static ContainerComponent CreateExample(string title, IVisualComponent example, string? note = null, int columns = 12, string? context = null, Action<StackPanelComponent>? initControls = null, double contentMinHeight = 0, bool controlsBelow = false, bool words = false, IReadOnlyList<DemoCode>? controller = null, [CallerArgumentExpression(nameof(example))] string code = "")
+        => CreateGroup(context, title, content => content.AddChild(CreateStack(0).AddChild(example)), initControls, contentMinHeight, columns, note, code, controlsBelow, words, controller);
 
     /// <summary>
     /// The preview half of a component's own page: the component under test, alone, inside a fixed frame.

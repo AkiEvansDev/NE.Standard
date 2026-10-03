@@ -255,6 +255,10 @@ public sealed class ItemContext(object? item)
     /// <summary>
     /// Attempts to read a property of any object by name: a dictionary entry, else a public instance property.
     /// </summary>
+    /// <remarks>
+    /// A dictionary is a record as the wire carries one, which leaves a null out: a key it does not hold reads as null, as the page
+    /// reads it. An object's type says what it has, so a property the type lacks is not read.
+    /// </remarks>
     public static bool TryReadProperty(object? item, string propertyName, out object? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyName);
@@ -270,15 +274,15 @@ public sealed class ItemContext(object? item)
             return true;
         }
 
-        if (item is IReadOnlyDictionary<string, object?> readOnlyDictionary && TryReadDictionary(readOnlyDictionary, propertyName, out var readOnlyValue))
+        if (item is IReadOnlyDictionary<string, object?> readOnlyDictionary)
         {
-            value = readOnlyValue;
+            _ = TryReadDictionary(readOnlyDictionary, propertyName, out value);
             return true;
         }
 
-        if (item is IDictionary<string, object?> dictionary && dictionary.TryGetValue(propertyName, out var dictionaryValue))
+        if (item is IDictionary<string, object?> dictionary)
         {
-            value = dictionaryValue;
+            _ = dictionary.TryGetValue(propertyName, out value);
             return true;
         }
 

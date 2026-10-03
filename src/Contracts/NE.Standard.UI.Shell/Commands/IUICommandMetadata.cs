@@ -20,6 +20,11 @@ public interface IUICommandMetadata
     UICommandConcurrencyMode ConcurrencyMode { get; }
 
     /// <summary>
+    /// Gets how many runs of a background command one runtime may have under way at once (<see cref="UICommandAttribute.MaxConcurrent"/>).
+    /// </summary>
+    int MaxConcurrent { get; }
+
+    /// <summary>
     /// Gets whether the command can run without authorization, or <see langword="null"/> to follow the route it is invoked on.
     /// </summary>
     bool? AllowAnonymous { get; }
@@ -28,4 +33,9 @@ public interface IUICommandMetadata
     /// Gets access rules required to execute the command.
     /// </summary>
     IReadOnlyList<UIAccessRule> AccessRules { get; }
+
+    /// <summary>
+    /// Gets the names of the arguments the command takes, in order, its cancellation token aside.
+    /// </summary>
+    IReadOnlyList<string> Parameters => [];
 }

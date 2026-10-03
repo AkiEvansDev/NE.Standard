@@ -133,6 +133,30 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         return mode;
     }
 
+    /// <summary>
+    /// Whether a press on a row raises a command of the host's — a click, an open or a remove on a template the rows wear — as against
+    /// rows that are only read: such a host is walked and pressed from the keyboard as a chosen one is.
+    /// </summary>
+    protected static bool RowsAct(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        CompiledView view = context.ViewResolution.View;
+
+        foreach (UIComponentSlot slot in context.Node.Slots)
+        {
+            if (slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant && RaisesRowCommand(view, slot.RootComponentId))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool RaisesRowCommand(CompiledView view, UIComponentId componentId)
+        => view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Click), out _)
+            || view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Open), out _)
+            || view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Remove), out _);
+
     /// <summary>Whether rows can be chosen, and so announce their selection; several at once also marks the host multi-selectable.</summary>
     protected static bool RenderSelectableRole(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -257,7 +281,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         }, [WebDomOperation.Attribute(WebAttributes.ScrollAnchor, $"[{WebAttributes.ItemsHost}]")]);
     }
 
-    /// <summary>Writes the window's size, offset and has-more flags onto a windowed host.</summary>
+    /// <summary>Writes the window's size, offset and has-more flags onto a windowed host, and whether its window is a page.</summary>
     protected static void ApplyWindowProperties(WebRenderContext context, IHtmlElementBuilder host, UIItemsHostMode hostMode)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -275,6 +299,13 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreBeforeProperty, WebAttributes.WindowMoreBefore);
         RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreAfterProperty, WebAttributes.WindowMoreAfter);
         RenderWindowValue(context, host, IItemsHostComponent.WindowGroupBeforeProperty, WebAttributes.WindowGroupBefore);
+
+        // A page: the scroll asks for nothing, and a pager or Page Up and Page Down ask by offset. Bindable, so it turns on and off live.
+        _ = RenderProperty<bool?>(context, host, IItemsHostComponent.PagingProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Attribute(WebAttributes.WindowPaged);
+        }, [WebDomOperation.ToggleAttribute(WebAttributes.WindowPaged, target: $"[{WebAttributes.ItemsHost}]", condition: WebValueCondition.IsTrue)]);
 
         // The totals as JSON, in the wire's conventions; a live patch writes the same text through the client's own stringify.
         _ = RenderProperty<IReadOnlyDictionary<string, object>?>(context, host, IItemsHostComponent.WindowAggregatesProperty, static (target, value) =>
@@ -582,11 +613,12 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             return;
 
         List<WebRenderItemValue> values = new(items.Count);
+        UIItemProjection projection = context.ViewResolution.View.ItemProjections.For(context.Node.ComponentId);
 
         for (var i = 0; i < items.Count; i++)
         {
             if (items[i] is IBindableItem bindableItem && !string.IsNullOrWhiteSpace(bindableItem.Id))
-                values.Add(new WebRenderItemValue { Key = bindableItem.Id, Item = items[i] });
+                values.Add(new WebRenderItemValue { Key = bindableItem.Id, Item = items[i], Projection = projection });
         }
 
         // Addressed by the rows the host stands in: a list inside every row of another is one host per row, each with its own values.

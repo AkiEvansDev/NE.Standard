@@ -124,6 +124,27 @@ public static class InputComponentExtensions
     }
 
     /// <summary>
+    /// Adds a rule every item of a list value must match — a multi-select's each key, and a tag typed into one with free text is
+    /// refused before it becomes a chip; its message is the author's text or a key.
+    /// </summary>
+    public static T RegexEach<T>(this T component, string pattern, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pattern);
+        return component.Validate(trigger, UIComparisonOperator.RegexEach, pattern, message, severity);
+    }
+
+    /// <summary>
+    /// Adds a rule every item of a list value must match, whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T RegexEach<T>(this T component, string pattern, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pattern);
+        return component.Validate(trigger, UIComparisonOperator.RegexEach, pattern, message, severity);
+    }
+
+    /// <summary>
     /// Adds a validation rule; its message is the author's text or a key, looked up as a plain value on a translatable property is.
     /// </summary>
     public static T Validate<T>(this T component, UIValidationTrigger trigger, UIComparisonOperator @operator, object? value, string message, UIValidationSeverity severity = UIValidationSeverity.Error)

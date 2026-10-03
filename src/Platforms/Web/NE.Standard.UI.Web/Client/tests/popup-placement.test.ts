@@ -1,6 +1,8 @@
 // A popup takes the side it asks for, flips to the opposite one where that has the room, and — in a window too short for either
 // side of its axis — stands beside its anchor across the axis rather than being clamped over the anchor it opened from. A boundary
-// (a list's box) is the room its side is chosen in.
+// (a list's box) is the room its side is chosen in. A popup opened from inside a popup or bar keeps the gap off that surface's edge,
+// on whichever side it ends up, and a submenu stands with its first entry level with the entry it opened from. A menu at the pointer
+// opens down and to the right of it, turning up or leftward where there is no room, as a native one does.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -9,6 +11,8 @@ import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 const viewport = { innerWidth: 1000, innerHeight: 300 };
 // The size observer's callback, called by hand: a popup's own size changing.
 let observed: ((entries: readonly { readonly target: unknown }[]) => void) | null = null;
+// An element's own padding and border, where a test gives it one.
+const boxStyles = new Map<unknown, Readonly<Record<string, string>>>();
 
 installFakeDom({
     window: Object.assign(viewport, { addEventListener: () => undefined }),
@@ -23,10 +27,10 @@ installFakeDom({
         public unobserve(): void {
         }
     },
-    getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none" })
+    getComputedStyle: (element: unknown) => ({ transform: "none", filter: "none", perspective: "none", ...boxStyles.get(element) })
 });
 
-const { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } = await import("../src/interactions/anchored-popup.ts");
+const { PopupGap, placeAnchoredPopup, placeAtPoint, releaseAnchoredPopup, repositionAnchoredPopup } = await import("../src/interactions/anchored-popup.ts");
 
 type Placed = { readonly side: string; readonly left: number; readonly top: number };
 
@@ -163,4 +167,116 @@ test("an open popup keeps its side while it fits there: a list narrowed above it
     assert.equal(popup.dataset.uiPlacement, "bottom-start");
 
     releaseAnchoredPopup(real(popup));
+});
+
+/** A menu at 100,100 (200 × 40) with an entry inside its 5 px of padding and border, and a submenu of 160 × 120 to open from it. */
+function submenuParts(menuLeft = 100): { readonly menu: FakeElement; readonly entry: FakeElement; readonly submenu: FakeElement } {
+    const menu = FakeElement.of("menu");
+    const entry = FakeElement.of("entry");
+    const submenu = FakeElement.of("submenu");
+
+    menu.rect = { left: menuLeft, top: 100, width: 200, height: 40 };
+    entry.rect = { left: menuLeft + 5, top: 105, width: 190, height: 30 };
+    submenu.rect = { left: 0, top: 0, width: 160, height: 120 };
+    boxStyles.set(submenu, { paddingTop: "4px", borderTopWidth: "1px", paddingBottom: "6px", borderBottomWidth: "1px" });
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(menu.append(entry), submenu);
+
+    return { menu, entry, submenu };
+}
+
+function placedAt(popup: FakeElement): { readonly side: string; readonly left: number; readonly top: number } {
+    return { side: popup.dataset.uiPlacement, left: Number.parseFloat(String(popup.style.left)), top: Number.parseFloat(String(popup.style.top)) };
+}
+
+test("a gap left unset is the framework's one popup gap", () => {
+    viewport.innerWidth = 1000;
+    viewport.innerHeight = 600;
+
+    const anchor = FakeElement.of("anchor");
+    const popup = FakeElement.of("popup");
+
+    anchor.rect = { left: 100, top: 100, width: 80, height: 30 };
+    popup.rect = { left: 0, top: 0, width: 200, height: 100 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(anchor, popup);
+
+    placeAnchoredPopup(real(anchor), real(popup), { placement: "bottom-start" });
+    releaseAnchoredPopup(real(popup));
+
+    assert.equal(PopupGap, 4);
+    assert.equal(placedAt(popup).top, 130 + PopupGap);
+});
+
+test("a popup from an entry of a popup keeps the gap off that popup's edge, on the side it asked for and on the side it flips to", () => {
+    viewport.innerWidth = 1000;
+    viewport.innerHeight = 600;
+
+    const right = submenuParts();
+
+    placeAnchoredPopup(real(right.entry), real(right.submenu), { placement: "right-start", surface: real(right.menu) });
+    releaseAnchoredPopup(real(right.submenu));
+    assert.deepEqual(placedAt(right.submenu), { side: "right-start", left: 300 + PopupGap, top: 105 });
+
+    // No room on the right: to the left, the same gap off the menu's left edge.
+    const left = submenuParts(700);
+
+    placeAnchoredPopup(real(left.entry), real(left.submenu), { placement: "right-start", surface: real(left.menu) });
+    releaseAnchoredPopup(real(left.submenu));
+    assert.deepEqual(placedAt(left.submenu), { side: "left-start", left: 700 - PopupGap - 160, top: 105 });
+});
+
+test("a submenu aligned by its entries stands with its first entry level with the entry, and run upward with its last", () => {
+    viewport.innerWidth = 1000;
+    viewport.innerHeight = 600;
+
+    const down = submenuParts();
+
+    placeAnchoredPopup(real(down.entry), real(down.submenu), { placement: "right-start", surface: real(down.menu), alignEntries: true });
+    releaseAnchoredPopup(real(down.submenu));
+    // Up by its top padding and border: its first entry's row starts where the entry's does.
+    assert.equal(placedAt(down.submenu).top, 105 - 5);
+
+    const up = submenuParts();
+
+    placeAnchoredPopup(real(up.entry), real(up.submenu), { placement: "right-end", surface: real(up.menu), alignEntries: true });
+    releaseAnchoredPopup(real(up.submenu));
+    // Its last entry's row ends where the entry's does: down by its bottom padding and border.
+    assert.equal(placedAt(up.submenu).top, 135 - 120 + 7);
+});
+
+/** A 200 × 150 menu placed at a point of a 1000 × 600 window. */
+function atPoint(x: number, y: number, size = { width: 200, height: 150 }): { readonly left: number; readonly top: number } {
+    viewport.innerWidth = 1000;
+    viewport.innerHeight = 600;
+
+    const menu = FakeElement.of("menu");
+
+    menu.rect = { left: 0, top: 0, ...size };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(menu);
+    placeAtPoint(real(menu), x, y);
+
+    return { left: Number.parseFloat(String(menu.style.left)), top: Number.parseFloat(String(menu.style.top)) };
+}
+
+test("a menu at the pointer opens down and to the right of it, its corner on the point", () => {
+    assert.deepEqual(atPoint(300, 200), { left: 300, top: 200 });
+});
+
+test("a menu at the pointer with no room below opens upward, its bottom edge on the point", () => {
+    assert.deepEqual(atPoint(300, 500), { left: 300, top: 350 });
+});
+
+test("a menu at the pointer with no room to the right opens leftward, its right edge on the point", () => {
+    assert.deepEqual(atPoint(900, 200), { left: 700, top: 200 });
+});
+
+test("a menu at the pointer in the window's far corner opens up and to the left, never over the point", () => {
+    assert.deepEqual(atPoint(900, 500), { left: 700, top: 350 });
+});
+
+test("a menu at the pointer that fits on neither side is clamped inside the window", () => {
+    // Taller than the room above and below the point alike: held 4 px off the window's foot.
+    assert.deepEqual(atPoint(300, 300, { width: 200, height: 400 }), { left: 300, top: 196 });
 });

@@ -184,7 +184,7 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("What it says about a value",
             UILayout.Row(24)
-                .AddChild(DemoUI.CreateLabelled("Both ends — the stepper stops, and so does the typing", new NumberInputComponent()
+                .AddChild(DemoUI.CreateLabelled("Both ends — the stepper stops at them, a number typed past one is refused", new NumberInputComponent()
                     .SetTitle("Replicas")
                     .SetValue(8)
                     .SetRange(1, 64)
@@ -212,7 +212,7 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
                     )
                 ),
             columns: 24,
-            note: "`Min` and `Max` are validated with the value rather than only guarding the stepper: a number pasted past the end is refused too. "
+            note: "`Min` and `Max` are validated with the value rather than only guarding the stepper: type 100 and the field keeps it and says \"At most 64.\" rather than pulling it back to 64; bound, it would not be sent. "
                 + "The spend carries two `Validate` rules on the `Change` trigger, so both are answered on every keystroke — type 5 and the error speaks, 50 and the warning does, 150 and neither."
         );
     }

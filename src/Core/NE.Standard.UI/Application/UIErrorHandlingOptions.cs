@@ -36,6 +36,11 @@ public sealed class UIErrorHandlingOptions
     public string CommandRefusedMessage { get; set; } = UIStrings.CommandRefused;
 
     /// <summary>
+    /// Gets or sets what a background command refused for having as many runs under way as its <c>MaxConcurrent</c> allows tells the user.
+    /// </summary>
+    public string CommandBusyMessage { get; set; } = UIStrings.CommandBusy;
+
+    /// <summary>
     /// Gets or sets what a command that failed for any other reason tells the user.
     /// </summary>
     public string CommandFailedMessage { get; set; } = UIStrings.CommandFailed;

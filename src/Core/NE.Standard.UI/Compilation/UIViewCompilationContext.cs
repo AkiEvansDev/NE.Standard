@@ -11,6 +11,7 @@ using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Items;
+using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -75,6 +76,10 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         ArgumentNullException.ThrowIfNull(region.Root);
 
         AddComponent(region.Root, null);
+
+        // The view's own chords are raised on its content (AddShortcutEvents).
+        if (string.Equals(region.Key, RegionNames.Content, StringComparison.Ordinal))
+            _content = region.Root;
 
         _regions.Add(new CompiledRegion
         {
@@ -151,6 +156,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
 
         ValidateItemCollections(componentContexts, rootPath);
         ValidateSelectionBindings();
+        ValidateShortcuts();
 
         CompiledUIInteraction[] interactions = BuildInteractions();
         CompiledUIEvent[] events = BuildEvents(templatesByKey, componentContexts, rootPath);

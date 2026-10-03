@@ -38,6 +38,7 @@ public static class UIComparisonEvaluator
             UIComparisonOperator.LikeIgnoreCase => text.Contains(AsText(right), StringComparison.OrdinalIgnoreCase),
             UIComparisonOperator.In => IsIn(text, right),
             UIComparisonOperator.Regex => IsRegexMatch(text, right),
+            UIComparisonOperator.RegexEach => IsEveryRegexMatch(left, right),
             _ => false
         };
     }
@@ -210,5 +211,23 @@ public static class UIComparisonEvaluator
             // An unusable pattern matches nothing, which is the client's answer too.
             return false;
         }
+    }
+
+    /// <summary>Whether every item of a list matches; text is one item, and nothing an empty list, which <c>Required</c> is for.</summary>
+    private static bool IsEveryRegexMatch(object? left, object? right)
+    {
+        if (left is null)
+            return true;
+
+        if (left is string || left is not IEnumerable items)
+            return IsRegexMatch(AsText(left), right);
+
+        foreach (var item in items)
+        {
+            if (!IsRegexMatch(AsText(item), right))
+                return false;
+        }
+
+        return true;
     }
 }

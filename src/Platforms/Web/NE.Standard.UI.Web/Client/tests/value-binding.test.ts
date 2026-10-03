@@ -23,7 +23,7 @@ type Hub = {
     drop(): void;
 };
 
-function createPage(componentClasses = ""): { readonly field: FakeInput; readonly flyout: FakeElement; readonly component: FakeElement; readonly hub: Hub; readonly engine: InstanceType<typeof ValueBindingEngine> } {
+function createPage(componentClasses = "", refuses?: (element: Element) => boolean): { readonly field: FakeInput; readonly flyout: FakeElement; readonly component: FakeElement; readonly hub: Hub; readonly engine: InstanceType<typeof ValueBindingEngine> } {
     const field = new FakeInput("text");
     const flyout = FakeElement.of("ui-flyout", { "data-ui-id": "2", "data-ui-bind-is-open": "12" });
     const component = FakeElement.of(componentClasses, { "data-ui-id": "1" }).append(field);
@@ -74,7 +74,8 @@ function createPage(componentClasses = ""): { readonly field: FakeInput; readonl
         dom: real(dom),
         dispatcher: new ValueChangeDispatcher(real(transport)),
         valueReaders: new ValueReaderRegistry(),
-        recordSent: () => { }
+        recordSent: () => { },
+        refuses
     });
 
     return { field, flyout, component, hub, engine };
@@ -105,6 +106,21 @@ test("a field's change is sent, while one in a read-only, disabled or loading co
 
         assert.deepEqual(page.hub.sent, [], `${refused} sent its value`);
     }
+});
+
+test("a value the page refuses for its bounds stays on the page; the next one inside them is sent", async () => {
+    const page = createPage("", element => Number((element as unknown as FakeInput).value) > 10);
+
+    edit(page.field, "15");
+    await settle();
+
+    assert.deepEqual(page.hub.sent, []);
+    assert.equal(page.field.value, "15");
+
+    edit(page.field, "5");
+    await settle();
+
+    assert.deepEqual(page.hub.sent, ["5"]);
 });
 
 test("a disabled flyout's toggle still goes: it closed because it turned disabled, and the server must hear it", async () => {

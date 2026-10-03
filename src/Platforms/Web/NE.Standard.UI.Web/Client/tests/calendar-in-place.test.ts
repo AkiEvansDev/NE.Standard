@@ -361,7 +361,7 @@ test("a date input refuses a typed day that is not marked where only marked days
     assert.deepEqual(changes, ["2026-09-10"]);
 });
 
-test("a date input sends a day typed past Max as Max, once, since the server refuses one outside the bounds as it stands", () => {
+test("a date input sends a day typed past Max as typed and shows it so: the page refuses it in words, never pulls it to the bound", () => {
     const field = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
     const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-03" });
     const root = FakeElement.of("ui-temporal-input ui-date-input", {
@@ -372,25 +372,27 @@ test("a date input sends a day typed past Max as Max, once, since the server ref
         "data-ui-temporal-max": "2026-09-30"
     }).append(FakeElement.of("ui-temporal-input__row").append(field), value);
     const changes: string[] = [];
+    const handlers: ((change: unknown) => void)[] = [];
 
     value.addEventListener("change", () => changes.push(value.value));
-    new TemporalPickerEngine({ root: real<ParentNode>(place(root)) });
+    new TemporalPickerEngine({
+        root: real<ParentNode>(place(root)),
+        propertyPatchEngine: real({ addValueChangeHandler: (added: (change: unknown) => void) => handlers.push(added) })
+    });
 
     field.value = "2026-10-04";
     field.dispatchEvent(new FakeEvent("change"));
 
-    assert.deepEqual(changes, ["2026-09-30"]);
-    assert.equal(field.value, "2026-09-30");
+    assert.deepEqual(changes, ["2026-10-04"]);
+    assert.equal(field.value, "2026-10-04");
 
-    // Where only marked days are on offer, the bound the day was pulled to is judged too: unmarked, nothing goes.
-    root.setAttribute("data-ui-temporal-marked-days", "2026-09-03 2026-09-10");
-    root.setAttribute("data-ui-temporal-marked-only", "");
-    field.value = "2026-10-04";
-    field.dispatchEvent(new FakeEvent("change"));
+    // A day the controller holds past Max is shown as it is, and nothing is written back.
+    value.value = "2026-11-01";
+    for (const handler of handlers)
+        handler({ propertyName: "Value", components: [root], dynamicParameters: [], value: value.value, local: false });
 
-    assert.deepEqual(changes, ["2026-09-30"]);
-    assert.equal(value.value, "2026-09-30");
-    assert.equal(field.value, "2026-09-30");
+    assert.deepEqual(changes, ["2026-10-04"]);
+    assert.equal(field.value, "2026-11-01");
 });
 
 test("a date input's popup draws the same grid, its marks and its disabled days, with the footer that finishes it", () => {

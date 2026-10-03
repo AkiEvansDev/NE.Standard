@@ -14,7 +14,7 @@ test("the same value parsed twice is the same value", () => {
 test("a value that moved is not equal", () => {
     assert.equal(areValuesEqual({ base: true, sm: null }, { base: false, sm: null }), false);
     assert.equal(areValuesEqual([1, 2, 3], [1, 2]), false);
-    assert.equal(areValuesEqual({ style: "Primary" }, { style: "Primary", light: null }), false);
+    assert.equal(areValuesEqual({ style: "Primary" }, { style: "Primary", light: "Lighter" }), false);
 });
 
 test("nested items compare all the way down", () => {
@@ -26,10 +26,18 @@ test("nested items compare all the way down", () => {
     assert.equal(areValuesEqual(left, { ...right, key: { title: "Region", color: { style: "Muted" } } }), false);
 });
 
-test("null, undefined and a missing key are told apart", () => {
+test("null and undefined are told apart as values", () => {
     assert.equal(areValuesEqual(null, undefined), false);
     assert.equal(areValuesEqual(null, null), true);
-    assert.equal(areValuesEqual({ a: null }, {}), false);
+});
+
+test("a key left out and a key holding null are one value, as the wire leaves an item's nulls out", () => {
+    assert.equal(areValuesEqual({ a: null }, {}), true);
+    assert.equal(areValuesEqual({}, { a: null, b: { c: null } }), false);
+    assert.equal(areValuesEqual({ b: {} }, { a: null, b: { c: null } }), true);
+    assert.equal(areValuesEqual({ style: "Primary" }, { style: "Primary", light: null }), true);
+    assert.equal(areValuesEqual({ a: false }, {}), false);
+    assert.equal(areValuesEqual({ a: [] }, {}), false);
 });
 
 test("dates compare by instant, not by identity", () => {

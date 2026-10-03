@@ -5,9 +5,11 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Inputs.Slider;
 
 /// <summary>
-/// One slider and every property that can be bound to it; then a value whose place in a range matters more than its digits, which is where it stops being a number input.
+/// One slider and every property that can be bound to it, as one value and as a band of two; then a value whose place in a range matters
+/// more than its digits, which is where it stops being a number input.
 /// </summary>
-/// <remarks>A slider has no field of its own; Min, Max and Step are validated with the value, so the rows bring it back inside.</remarks>
+/// <remarks>A slider has no field of its own; Min, Max and Step are validated with the value, so the rows bring it back inside.
+/// <c>IsRange</c> is read once at render and has no row; the band is a second pane.</remarks>
 internal sealed class SliderView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
@@ -24,7 +26,14 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     protected override (string Route, string Label)? ComposedIn => ("/screens/catalogue", "demo.nav.screens.catalogue");
 
     protected override ContainerComponent CreatePreview()
-        => DemoUI.CreatePreview(frame => frame.AddChild(new SliderComponent()
+        => DemoUI.CreatePreview(220,
+            ("One value", frame => frame.AddChild(Bind(new SliderComponent()))),
+            ("A band: Value is the start, EndValue the end", frame => frame.AddChild(Bind(new SliderComponent()).SetIsRange()))
+        );
+
+    /// <summary>The same rows on both panes: <c>IsRange</c> is authoring-only, so the band is a second instance.</summary>
+    private static SliderComponent Bind(SliderComponent slider)
+        => slider
             .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
             .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
             .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
@@ -35,6 +44,8 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
             .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindValue($"{ValueGroup}.{nameof(SliderValueGroupContext.Value)}")
+            .BindEndValue($"{ValueGroup}.{nameof(SliderValueGroupContext.EndValue)}")
+            .BindMinDistance($"{ValueGroup}.{nameof(SliderValueGroupContext.MinDistance)}")
             .BindMin($"{ValueGroup}.{nameof(SliderValueGroupContext.Min)}")
             .BindMax($"{ValueGroup}.{nameof(SliderValueGroupContext.Max)}")
             .BindStep($"{ValueGroup}.{nameof(SliderValueGroupContext.Step)}")
@@ -61,13 +72,12 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
             .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
             .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
             .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}")
-            .SetPlacement(1, 1, 24, 1)
-        ));
+            .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ValueGroup, "Value", nameof(SliderController.CycleValueOption)),
+            DemoUI.CreateOptionSection(ValueGroup, "Value", nameof(SliderController.CycleValueOption), note: "EndValue and MinDistance are the band's: moving one end past the other moves the other out of its way."),
             DemoUI.CreateOptionSection(TrackGroup, "Track", nameof(SliderController.CycleTrackOption)),
             DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(SliderController.CycleContentOption)),
             DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(SliderController.CycleBadgeOption))
@@ -75,7 +85,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
 
     protected override IVisualComponent[] CreateExamples()
         // The uses beside the readings and the steps stacked, as tall together: paired, the steps stood alone in a row of their own.
-        => [CreateUsesGroup(), DemoUI.CreateHalf(CreateReadoutGroup(), CreateStepGroup()), CreateAgainstNumberGroup()];
+        => [CreateUsesGroup(), DemoUI.CreateHalf(CreateReadoutGroup(), CreateStepGroup()), CreateBandGroup(), CreateAgainstNumberGroup()];
 
     /// <summary>The jobs it is given: a share, a threshold, a limit with a unit at the end of its label, and a pair of levels upright.</summary>
     private static ContainerComponent CreateUsesGroup()
@@ -130,6 +140,46 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
                     )
                 ),
             note: "Upright, a slider takes a height rather than a width, which is the shape a level is read in."
+        );
+    }
+
+    /// <summary>
+    /// A band of two on one track: a price filter, a window of hours with a least length, and a size range read over the handles.
+    /// </summary>
+    private static ContainerComponent CreateBandGroup()
+    {
+        return DemoUI.CreateExample("A band",
+            UILayout.Stack(16)
+                .AddChild(new SliderComponent()
+                    .SetTitle("Price, € a month")
+                    .SetIsRange()
+                    .SetRange(0, 300)
+                    .SetStep(10)
+                    .SetValue(20)
+                    .SetEndValue(80)
+                    .SetShowValue()
+                )
+                .AddChild(new SliderComponent()
+                    .SetTitle("Maintenance window, hours of the day — at least two")
+                    .SetIsRange()
+                    .SetRange(0, 24)
+                    .SetStep(1)
+                    .SetMinDistance(2)
+                    .SetValue(1)
+                    .SetEndValue(5)
+                    .SetShowValue()
+                    .SetShowRange()
+                )
+                .AddChild(new SliderComponent()
+                    .SetTitle("Servers")
+                    .SetIsRange()
+                    .SetRange(1, 16)
+                    .SetStep(1)
+                    .SetValue(2)
+                    .SetEndValue(8)
+                    .SetShowRange()
+                ),
+            note: "`SetIsRange()`: two handles on one track, `Value` the start and `EndValue` the end, both bound two-way. A press on the track takes the nearer handle; neither passes the other, and `SetMinDistance` keeps them that far apart. The arrows, Page Up/Down, Home and End move the focused handle, and the server refuses an end written below the start as it refuses one outside `Min`/`Max`."
         );
     }
 

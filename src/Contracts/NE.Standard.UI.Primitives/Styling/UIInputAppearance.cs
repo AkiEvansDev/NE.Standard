@@ -6,7 +6,8 @@ namespace NE.Standard.UI.Primitives.Styling;
 public enum UIInputAppearance
 {
     /// <summary>
-    /// One fill and no visible edge: the field reads as the surface one level above the page it sits on.
+    /// One fill and a line under it: the field reads as the surface one level above the page it sits on, and the line, in the
+    /// theme's mark, reads 3:1 against the page.
     /// </summary>
     Filled = 0,
 
@@ -25,4 +26,10 @@ public enum UIInputAppearance
     /// the others, for a field in a list row.
     /// </summary>
     Ghost = 3,
+
+    /// <summary>
+    /// The fill alone, no line: for a field something else already frames — a card's separators, a node on a canvas — where
+    /// the line would only add weight.
+    /// </summary>
+    Tonal = 4,
 }

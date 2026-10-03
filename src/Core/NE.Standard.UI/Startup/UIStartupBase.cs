@@ -8,6 +8,7 @@ using NE.Standard.UI.Security;
 using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Hosting;
+using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Sessions;
@@ -34,6 +35,8 @@ public abstract class UIStartupBase
         _ = services.AddSingleton<IUIHost, UIHost>();
         // The host holds the runtimes a session's end has to reach, so it is what ends one.
         _ = services.AddSingleton<IUISessions>(static provider => (UIHost)provider.GetRequiredService<IUIHost>());
+        // The host's too: its runtimes are what a topic and a user's pages are.
+        _ = services.AddSingleton<IUIBroadcast>(static provider => ((UIHost)provider.GetRequiredService<IUIHost>()).Broadcast);
     }
 
     internal void Configure(IServiceCollection services, UIApplicationBuilder application)

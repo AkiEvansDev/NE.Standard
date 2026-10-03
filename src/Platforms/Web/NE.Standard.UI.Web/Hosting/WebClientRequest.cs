@@ -19,12 +19,12 @@ internal static class WebClientRequest
     private const int MaxLanguages = 8;
 
     /// <summary>The id of the session the request's cookie opens — SHA-256 of the secret it carries — or null where it carries none.</summary>
-    public static string? ReadSessionId(HttpContext http, UISessionOptions options)
-        => UISessionSecret.TryToSessionId(ReadSessionSecret(http, options));
+    public static string? ReadSessionId(HttpContext http, WebSessionCookie cookie)
+        => UISessionSecret.TryToSessionId(ReadSessionSecret(http, cookie));
 
     /// <summary>The secret the request's cookie carries, as it is: only the edge ever holds it.</summary>
-    public static string? ReadSessionSecret(HttpContext http, UISessionOptions options)
-        => http.Request.Cookies.TryGetValue(options.ClientKey, out var secret) && !string.IsNullOrWhiteSpace(secret)
+    public static string? ReadSessionSecret(HttpContext http, WebSessionCookie cookie)
+        => http.Request.Cookies.TryGetValue(cookie.Name, out var secret) && !string.IsNullOrWhiteSpace(secret)
             ? secret
             : null;
 

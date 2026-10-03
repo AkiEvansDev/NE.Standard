@@ -360,6 +360,7 @@ public static class WebCssValues
             UIColorStyle.Border => "--ui-color-border",
             UIColorStyle.Shadow => "--ui-color-shadow",
             UIColorStyle.Overlay => "--ui-color-overlay",
+            UIColorStyle.Mark => "--ui-color-mark",
             _ => null
         };
 

@@ -1,9 +1,9 @@
 // What every temporal control reads off its own root: the wire contract the C# renderers write, so a name changed here changes there too.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { dateTimePattern, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
+import { dateTimePattern, formatTemporal, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
 import type { TemporalCulturePack, TemporalLanguage, TemporalPatterns } from "../rendering/temporal-format.ts";
-import { isInert, isReadOnly } from "./interactive-state.ts";
+import type { Phrase } from "../runtime/words.ts";
 
 export const RootClass = "ui-temporal-input";
 /** A calendar drawn in place (`CalendarComponent`): its root carries the attributes a temporal input's does, and its grid is the popup's. */
@@ -254,28 +254,28 @@ export function orderPeriod(root: HTMLElement): void {
     writeValueOf(root, start, true);
 }
 
-/** Pulls a value the controller pushed back inside Min/Max, and reports the clamp back through `writeValue`. */
-export function clampPushedValue(root: HTMLElement): void {
-    // A field the reader cannot change shows its value as it is: Min and Max bound what may be chosen, and none can be.
-    if (isReadOnly(root) || isInert(root))
-        return;
+/**
+ * The words a control's value past its Min or Max is refused in — its start's, then a period's end's — the bound written as the field
+ * shows a value; null for values inside them, or none. Never pulled back to the bound: the reader sees what they gave and why.
+ */
+export function temporalBoundRefusal(root: HTMLElement): Phrase | null {
+    const min = readBound(root, MinAttribute);
+    const max = readBound(root, MaxAttribute);
 
-    clampPushedValueOf(root, false);
+    if (min === null && max === null)
+        return null;
 
-    if (isRange(root))
-        clampPushedValueOf(root, true);
-}
+    for (const end of isRange(root) ? [false, true] : [false]) {
+        const value = readValueOf(root, end);
 
-function clampPushedValueOf(root: HTMLElement, end: boolean): void {
-    const value = readValueOf(root, end);
+        if (value !== null && min !== null && value.getTime() < min.getTime())
+            return { key: "ui.value.before", args: { min: formatTemporal(min, readFormat(root), readCulturePack(root)) } };
 
-    if (value === null)
-        return;
+        if (value !== null && max !== null && value.getTime() > max.getTime())
+            return { key: "ui.value.after", args: { max: formatTemporal(max, readFormat(root), readCulturePack(root)) } };
+    }
 
-    const clamped = clampToRange(root, value);
-
-    if (clamped.getTime() !== value.getTime())
-        writeValueOf(root, clamped, end);
+    return null;
 }
 
 export function defaultMoment(root: HTMLElement): Date {

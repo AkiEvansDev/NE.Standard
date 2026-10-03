@@ -1,13 +1,17 @@
 // A folded menu's group flies out beside its icon: opened from the keyboard its first entry takes the keyboard, opened by a press
-// the focus stays on the rail; and one group's flyout swapped for another's goes at once, not fading under the new one.
+// the focus stays on the rail; and one group's flyout swapped for another's goes at once, not fading under the new one. A submenu
+// opened from a popup's entry stands the popup gap off that popup and level with its entry.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
+// An element's own padding and border, where a test gives it one.
+const boxStyles = new Map<unknown, Readonly<Record<string, string>>>();
+
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900, localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined } },
-    getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr" }),
+    getComputedStyle: (element: unknown) => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr", ...boxStyles.get(element) }),
     MutationObserver: class {
         public observe(): void {
         }
@@ -81,4 +85,24 @@ test("one group's flyout swapped for another's goes at once, not fading under th
     assert.equal(layouts.parts.submenu.hasAttribute("data-ui-menu-flyout"), false);
     assert.equal(inputs.parts.submenu.hasAttribute("data-ui-menu-flyout"), true);
     assert.equal(inputs.element.hasAttribute("data-ui-menu-open"), true);
+});
+
+test("a submenu from a context menu's entry stands the popup gap off the menu, its first entry level with the entry", () => {
+    const color = group("color");
+    const menu = FakeElement.of("ui-context-menu").append(FakeElement.of("ui-menu").append(FakeElement.of("ui-menu__host").append(color.element)));
+
+    color.element.setAttribute("data-ui-menu-select", "");
+    menu.rect = { left: 100, top: 100, width: 200, height: 40 };
+    color.parts.entry.rect = { left: 105, top: 105, width: 190, height: 30 };
+    color.parts.submenu.rect = { left: 0, top: 0, width: 160, height: 120 };
+    boxStyles.set(color.parts.submenu, { paddingTop: "4px", borderTopWidth: "1px", paddingBottom: "4px", borderBottomWidth: "1px" });
+    fakeDocument.body.append(menu);
+
+    openByPress(color.parts);
+
+    // 4 px off the menu's edge, not the entry's, which stands inside the menu's padding; up by its own padding and border.
+    assert.equal(color.parts.submenu.style.left, "304px");
+    assert.equal(color.parts.submenu.style.top, "100px");
+
+    openByPress(color.parts);
 });

@@ -1,10 +1,12 @@
 @import "../core/tokens.less";
 @import "../mixins/elevation.less";
+@import "../mixins/interactive.less";
 
 .ui-notification-host {
     position: fixed;
     right: 0;
-    bottom: 0;
+    // Above a phone's bottom bar, whose height the engine writes as each toast comes (notification-engine.ts).
+    bottom: var(--ui-notification-lift, 0px);
     z-index: @ui-z-notification;
     display: flex;
     flex-direction: column;
@@ -20,6 +22,11 @@
     top: 0;
     bottom: auto;
     flex-direction: column-reverse;
+}
+
+// The live regions an AnnounceEffect is spoken through (live-announcer.ts): read, never seen.
+.ui-announcer {
+    .ui-visually-hidden();
 }
 
 // A bordered surface with an accent down its leading edge, not filled edge to edge with a saturated severity colour.

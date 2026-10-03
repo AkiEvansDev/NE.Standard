@@ -25,8 +25,8 @@ dotnet add package NE.Standard.UI.Web.Renderers
 ```
 
 The rest of the table arrives as a dependency of those two — the generators that write a controller's observable
-members included — except `NE.Standard.UI.Extensions`, the presets, a separate install for an application that
-wants them. Each package
+members included — except `NE.Standard.UI.Extensions`, the presets, and `NE.Standard.UI.Testing`, for an
+application's tests: separate installs for an application that wants them. Each package
 brings the namespaces an application writes against as global usings, so the code below needs no `using` line.
 
 | Package | |
@@ -44,7 +44,8 @@ brings the namespaces an application writes against as global usings, so the cod
 | [`NE.Standard.UI.Web.Abstractions`](https://www.nuget.org/packages/NE.Standard.UI.Web.Abstractions) | the render contracts an add-on implements to render a component of its own. |
 | [`NE.Standard.UI.Web.Renderers.Foundation`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers.Foundation) | the renderer base and the shared style, text and input helpers an add-on's own renderer builds on. |
 | [`NE.Standard.UI.Web.Renderers`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers) | the HTML renderers for the built-in components, over the foundation. |
-| [`NE.Standard.UI.Extensions`](https://www.nuget.org/packages/NE.Standard.UI.Extensions) | presets over the components: a text in a role, a page's header band and sections, a stack and a row, a button per type, a field with its hint, a read-only key-value list, and one interaction from another component's value. Server-only, nothing new to render. |
+| [`NE.Standard.UI.Extensions`](https://www.nuget.org/packages/NE.Standard.UI.Extensions) | presets over the components: a text in a role, a page's header band and sections, an inline message and a banner, a stack and a row, a button per type, a field with its hint, a read-only key-value list, and one interaction from another component's value. Server-only, nothing new to render. |
+| [`NE.Standard.UI.Testing`](https://www.nuget.org/packages/NE.Standard.UI.Testing) | an application's tests without a browser: its own startup booted with no platform under it, a page opened through the host's real path, its components found, written to and pressed, and what the page received read back. No test framework or assertion library. |
 
 **Icons ship separately**, from [`NE.Standard.UI.Icons`](https://github.com/AkiEvansDev/NE.Standard.UI.Icons)
 — Material Symbols, a name package and a web package, MIT, released together with the framework on the same

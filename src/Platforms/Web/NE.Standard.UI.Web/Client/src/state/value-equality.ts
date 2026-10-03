@@ -30,17 +30,25 @@ function areArraysEqual(left: readonly unknown[], right: readonly unknown[]): bo
     return true;
 }
 
+// A key left out and a key holding null are one value: the wire leaves an item's nulls out, and a value written on the page keeps them.
 function arePlainObjectsEqual(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
-    const leftKeys = Object.keys(left);
+    for (const key in left) {
+        // Own keys, not readable ones: a prototype member's name would otherwise compare equal.
+        if (!Object.hasOwn(left, key))
+            continue;
 
-    if (leftKeys.length !== Object.keys(right).length)
-        return false;
+        if (Object.hasOwn(right, key) ? !areValuesEqual(left[key], right[key]) : !isNothing(left[key]))
+            return false;
+    }
 
-    for (const key of leftKeys) {
-        // Own key, not just a readable one: a prototype member's name would otherwise compare equal.
-        if (!Object.hasOwn(right, key) || !areValuesEqual(left[key], right[key]))
+    for (const key in right) {
+        if (Object.hasOwn(right, key) && !Object.hasOwn(left, key) && !isNothing(right[key]))
             return false;
     }
 
     return true;
+}
+
+function isNothing(value: unknown): boolean {
+    return value === null || value === undefined;
 }

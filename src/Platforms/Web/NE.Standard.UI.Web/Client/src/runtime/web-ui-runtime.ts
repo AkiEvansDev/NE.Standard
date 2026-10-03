@@ -20,6 +20,7 @@ import { ImageFallbackEngine } from "../interactions/image-fallback-engine";
 import { RadioGroupSyncEngine } from "../interactions/radio-group-sync-engine";
 import { SelectInteractionEngine } from "../interactions/select-interaction-engine";
 import { SearchInputEngine } from "../interactions/search-input-engine";
+import { CommitGate } from "../interactions/commit-gate";
 import { commitWaiting, DebouncedCommitEngine, hasWaitingCommits } from "../interactions/debounced-commit-engine";
 import { sizesFieldsToContent, TextAreaGrowEngine } from "../interactions/text-area-grow-engine";
 import { RangeValueEngine } from "../interactions/range-value-engine";
@@ -31,10 +32,13 @@ import { LanguageSwitcherEngine } from "../interactions/language-switcher-engine
 import { ActionBarEngine } from "../interactions/action-bar-engine";
 import { ContextMenuEngine } from "../interactions/context-menu-engine";
 import { MenuEngine } from "../interactions/menu-engine";
+import { ShortcutEngine, viewShortcutsOf } from "../interactions/shortcut-engine";
+import { PagerEngine } from "../interactions/pager-engine";
 import { MenuGroupEngine } from "../interactions/menu-group-engine";
 import { MenuSearchEngine } from "../interactions/menu-search-engine";
 import { ScreenKeyboardEngine } from "../interactions/screen-keyboard";
 import { SideDrawerEngine } from "../interactions/side-drawer-engine";
+import { SkipLinkEngine } from "../interactions/skip-link-engine";
 import { CollapsibleEngine } from "../interactions/collapsible-engine";
 import { GridSplitterEngine } from "../interactions/grid-splitter-engine";
 import { SplitButtonEngine } from "../interactions/split-button-engine";
@@ -65,6 +69,7 @@ import { pluginFocus } from "../interactions/popup-focus";
 import { rovingFocus } from "../interactions/roving-focus";
 import { componentStates } from "../interactions/interactive-state";
 import { wheel } from "../interactions/wheel-notches";
+import { shortcutWords } from "../interactions/keyboard-shortcut";
 import { createItemRows, ItemRows } from "../items/item-rows";
 import { ItemsRuleWatcher } from "../items/items-rule-watcher";
 import { ItemsWindowEngine, ItemWindows } from "../items/items-window-engine";
@@ -81,6 +86,8 @@ import { readWebUIMetadata } from "../metadata/metadata-reader";
 import { paintsMoment, readHydration } from "./web-hydration";
 import { AttachOutcome, attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
 import { readTimeZone } from "../transport/reader-time-zone";
+import { decideReload, forgetReload, sessionMemory } from "./reload-guard";
+import { ConnectionWatch } from "./connection-watch";
 import { CommandDispatcher } from "../transport/command-dispatcher";
 import { PropertyStateStore } from "../state/property-state-store";
 import { SignalRTransport } from "../transport/signalr-transport";
@@ -92,12 +99,13 @@ import { EffectRegistration, EffectRegistry } from "../effects/effect-registry";
 import { DialogEngine } from "../interactions/dialog-engine";
 import { showLeaveDialog } from "../interactions/leave-dialog";
 import { LeaveGuard } from "../interactions/leave-guard";
+import { AddressHistory, readQueryParameters } from "../effects/address-history";
 import { observeComponents } from "../interactions/dom-mutations";
 import { NotificationEngine } from "../interactions/notification-engine";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { ReactiveSourceRegistry } from "../updates/reactive-source-registry";
 import { UpdateProcessor } from "../updates/update-processor";
-import { FieldValidation, ValidationEngine } from "../interactions/validation-engine";
+import { EntryValidation, FieldValidation, RuleJudging, ShownValueValidation, ValidationEngine } from "../interactions/validation-engine";
 import { ValueBindingEngine } from "../updates/value-binding-engine";
 import { ExtensionRegistry } from "../extensions/extension-registry";
 import { MenuRowDecorator } from "../items/menu-row-decorator";
@@ -131,7 +139,7 @@ type EngineContext = {
     readonly dom: DomRegistry;
     readonly propertyPatchEngine: PropertyPatchEngine;
     readonly effects: EffectRegistry;
-    readonly validation: FieldValidation;
+    readonly validation: FieldValidation & EntryValidation & ShownValueValidation;
     readonly dialogs: DialogEngine;
 };
 
@@ -177,8 +185,9 @@ export type PluginEngineContext = EngineContext & {
     readonly roving: typeof rovingFocus;
     readonly focus: typeof pluginFocus;
     readonly states: typeof componentStates;
-    readonly validation: FieldValidation;
+    readonly validation: FieldValidation & RuleJudging;
     readonly wheel: typeof wheel;
+    readonly shortcuts: typeof shortcutWords;
     readonly names: typeof pluginDomNames;
 };
 
@@ -194,15 +203,17 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["refusal", ({ root }) => startRefusals(root)],
     ["file input", ({ root, validation }) => new FileInputEngine({ root, validation })],
     ["image input", ({ root, validation, propertyPatchEngine, dialogs }) => new ImageInputEngine({ root, validation, propertyPatchEngine, dialogs })],
-    ["key value action", ({ root, dom, propertyPatchEngine }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine })],
+    ["key value action", ({ root, dom, propertyPatchEngine, validation }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine, validation })],
     // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
     ["field keys", ({ root }) => new FieldKeysEngine({ root })],
     ["field box press", ({ root }) => new FieldBoxPressEngine({ root })],
     ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],
     ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root })],
-    ["select interaction", ({ root }) => new SelectInteractionEngine({ root })],
+    ["select interaction", ({ root, validation }) => new SelectInteractionEngine({ root, validation })],
     ["search input", ({ root }) => new SearchInputEngine({ root })],
     ["debounced commit", ({ root }) => new DebouncedCommitEngine({ root })],
+    // On the window, ahead of every engine's listener on the root whatever its place here; behind the refusals and a free-text entry's own.
+    ["commit gate", ({ root, propertyPatchEngine }) => new CommitGate({ root, propertyPatchEngine })],
     // Only where the stylesheet cannot size a growing text area to its text on its own.
     ["text area grow", ({ root, propertyPatchEngine }) => sizesFieldsToContent() ? undefined : new TextAreaGrowEngine({ root, propertyPatchEngine })],
     ["items selection", ({ root }) => new ItemsSelectionEngine({ root })],
@@ -224,6 +235,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["menu group", ({ root }) => new MenuGroupEngine({ root })],
     ["menu search", ({ root }) => new MenuSearchEngine({ root })],
     ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
+    ["skip link", ({ root }) => new SkipLinkEngine({ root })],
     ["screen keyboard", () => new ScreenKeyboardEngine()],
     ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
     ["accordion", ({ root }) => new AccordionEngine({ root })],
@@ -249,6 +261,8 @@ export class WebUIRuntime {
     private culturesLanguage = document.documentElement.lang;
     private readonly metadata = new MetadataIndex(readWebUIMetadata());
     private readonly hydration = readHydration();
+    // The render's place in the runtime's updates, presented by the first attach alone: a later one starts from whatever the page holds.
+    private renderSequence = this.hydration?.sequence ?? null;
     // Writes again the page's words that hold a moment, which the page writes in the reader's zone.
     private readonly rewriteMoments: () => void;
     private readonly dom: DomRegistry;
@@ -276,6 +290,12 @@ export class WebUIRuntime {
     private reattachRequested = false;
 
     private connectionLost = false;
+
+    // Says a reconnect that outlasts its grace on the page, and that the connection is lost.
+    private readonly connection: ConnectionWatch;
+
+    // The runtime the last attach was answered with, which every later attach presents: an answer naming another says the page is stale.
+    private heldRuntime: string | null = null;
 
     // The change sets still waiting on a staged value, in order; null while every one has been applied.
     private inbound: Promise<void> | null = null;
@@ -315,13 +335,23 @@ export class WebUIRuntime {
         const operations = this.extensions.operations;
         const propertyState = new PropertyStateStore();
         const propertyPatchEngine = new PropertyPatchEngine(addressResolver, operations, this.extensions, propertyState);
-        this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine, { root: this.root, valueReaders: this.extensions.valueReaders });
+        this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine, { root: this.root, valueReaders: this.extensions.valueReaders, metadata: this.metadata });
         // Built before the interaction engine, whose own effects go through the same registry a command's do.
         this.dialogs = new DialogEngine({ root: this.root });
         this.notifications = new NotificationEngine({ root: this.root });
+        // Back or Forward to an entry of this route is told to the controller; to another route, it is a page load.
+        const address = new AddressHistory({
+            window,
+            revisit: parameters => void this.navigateInPlaceAsync(parameters),
+            load: () => window.location.reload()
+        });
         this.effects = new EffectRegistry({
+            address,
             dialogs: this.dialogs,
             notifications: this.notifications,
+            // The event pipeline is built further down: a toast's action is pressed long after the constructor ends.
+            runAction: id => void this.eventPipeline.dispatchCommandAsync({ eventId: 0, action: id, dynamicParameters: [] })
+                .catch(error => logWarn("running a notification's action failed.", error)),
             valueReaders: this.extensions.valueReaders,
             // Nothing waits on this: the theme is already on screen, and the session only has to catch up.
             reportTheme: theme => void this.transport.setThemeAsync(theme).catch(error => logWarn("reporting the theme to the session failed.", error)),
@@ -436,7 +466,9 @@ export class WebUIRuntime {
             dom: this.dom,
             dispatcher: valueChangeDispatcher,
             valueReaders: this.extensions.valueReaders,
-            recordSent: (reference, dynamicParameters, value) => propertyPatchEngine.recordValue(reference, dynamicParameters, value)
+            recordSent: (reference, dynamicParameters, value) => propertyPatchEngine.recordValue(reference, dynamicParameters, value),
+            // Built below; asked only on a change, which comes after both are.
+            refuses: element => validationEngine.refusesBounds(element)
         });
         propertyPatchEngine.setHeldTargets(target => valueBinding?.isHeld(target) === true);
 
@@ -489,7 +521,8 @@ export class WebUIRuntime {
             dom: this.dom,
             propertyPatchEngine,
             updateProcessor: this.updateProcessor,
-            valueReaders: this.extensions.valueReaders
+            valueReaders: this.extensions.valueReaders,
+            readValue: element => this.readPluginValue(element)
         });
 
         this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs };
@@ -541,6 +574,13 @@ export class WebUIRuntime {
         // A field's Enter waits for the value it committed, so the command reads what was typed.
         this.eventPipeline.addEvent(FieldEnterEvent.name, FieldEnterEvent.registration);
 
+        // After the pipeline, whose events the view's own chords are, and after every engine's keydown, so one that took the key wins.
+        startEngine("shortcuts", ({ root, dom }) => new ShortcutEngine({
+            root,
+            viewShortcuts: viewShortcutsOf(this.metadata.metadata),
+            componentOf: componentId => dom.findComponent(componentId, [])
+        }), this.engineContext);
+
         // Held by name, since a package's chooser reaches it through the engine context.
         this.tables = new TableColumnsEngine({ root: this.root });
 
@@ -549,6 +589,9 @@ export class WebUIRuntime {
             root: this.root,
             requestWindow: request => this.transport.requestItemWindowAsync(request)
         });
+
+        // After the window engine, which it asks for a page; its Page keys are heard on the window, ahead of the row cursor's.
+        startEngine("pager", ({ root, dom }) => new PagerEngine({ root, dom, windows: this.windows }), this.engineContext);
 
         // Once, for every package engine: the services are the engines and modules themselves, not a face built per start.
         this.pluginContext = {
@@ -598,6 +641,7 @@ export class WebUIRuntime {
             states: componentStates,
             validation: validationEngine,
             wheel,
+            shortcuts: shortcutWords,
             names: pluginDomNames
         };
 
@@ -636,6 +680,7 @@ export class WebUIRuntime {
         });
         // Once the automatic reconnect has given up, or the connection was stopped: either way it does not come back.
         this.transport.onClosed(error => this.loseConnection(error ?? new Error("the connection to the server closed.")));
+        this.connection = new ConnectionWatch({ root: document.documentElement, connection: this.transport, notifications: this.notifications });
     }
 
     /** Holds every change set until `ready` settles — the page's words — and lets them through once it has, failed or not. */
@@ -660,6 +705,19 @@ export class WebUIRuntime {
             return null;
 
         return this.numberInputs?.readValue(holder) ?? this.extensions.valueReaders.read(holder);
+    }
+
+    /** The answer to going back or forward within this route: its changes come in order, its effects run here. */
+    private async navigateInPlaceAsync(parameters: Record<string, unknown> | null): Promise<void> {
+        try {
+            const result = await this.transport.navigateInPlaceAsync(parameters);
+
+            this.effects.applyAll(result.command?.effects, this.dom);
+            this.windows.reconsider();
+        }
+        catch (error) {
+            logWarn("telling the page's controller about the history entry failed.", error);
+        }
     }
 
     /** Switches the page's language in place: the session told unless the server named the words, the table fetched, every word rewritten. */
@@ -792,6 +850,7 @@ export class WebUIRuntime {
 
         this.connectionLost = true;
         logError("the connection to the server is lost; the page offers a reload.", reason);
+        this.connection.lost();
 
         const lost = new Error("the connection to the server is lost; reload the page.", { cause: reason });
 
@@ -812,15 +871,40 @@ export class WebUIRuntime {
         });
     }
 
-    /** Reloads a page rendered from another compile of its view, once: refused again (two servers of two builds), it is left, logged. */
+    /**
+     * Reloads a page the server will not attach as it stands — rendered from another compile of its view, or under a session the server
+     * no longer holds, whose new key only a page load can write — once: asked again (two servers of two builds, a browser keeping no
+     * cookie), it is left, logged.
+     */
     private reloadForView(view: string): void {
-        if (readReloadedView() === view) {
-            logError("the page was rendered from another compile of its view, and a reload did not change that; giving up.", { view });
+        const verdict = decideReload(view, navigator.cookieEnabled, sessionMemory());
+
+        if (verdict === "no-cookie") {
+            logError("the server asked for a reload, and this browser keeps no cookie the reload could write; giving up.", { view });
             return;
         }
 
-        logWarn("the page was rendered from another compile of its view; reloading.", { view });
-        rememberReloadedView(view);
+        if (verdict === "asked-again") {
+            logError("the server asked for a reload again after one (another compile of the view, or a session cookie the browser does not keep); giving up.", { view });
+            return;
+        }
+
+        logWarn("the server asked for a reload (another compile of the view, or a session it no longer holds); reloading.", { view });
+        this.leaveGuard.release();
+        window.location.reload();
+    }
+
+    /**
+     * Reloads a page whose runtime is gone — a restart, an eviction, a retention run out — rather than apply a new one's snapshot over
+     * what it shows; once, through the same guard, and asked again it offers the reload instead.
+     */
+    private reloadForFreshRuntime(view: string): void {
+        if (decideReload(view, navigator.cookieEnabled, sessionMemory()) !== "reload") {
+            this.loseConnection(new Error("the server holds a new runtime for this page again after a reload for one."));
+            return;
+        }
+
+        logWarn("the page's runtime is gone and the server built a new one; reloading.", { view });
         this.leaveGuard.release();
         window.location.reload();
     }
@@ -1045,7 +1129,13 @@ export class WebUIRuntime {
                 return false;
             }
 
-            forgetReloadedView();
+            if (result.fresh === true) {
+                this.reloadForFreshRuntime(this.hydration?.view ?? "");
+                return false;
+            }
+
+            forgetReload(sessionMemory());
+            this.heldRuntime = result.runtime ?? null;
             this.dom.rebuild();
             this.updateProcessor.registerServerRenderedItems(result.initialChanges);
 
@@ -1115,9 +1205,15 @@ export class WebUIRuntime {
             // Presenting the runtime the render prepared claims it rather than building a second one.
             pageId: this.hydration?.pageId ?? null,
             view: this.hydration?.view ?? null,
+            // A retry presents it again; the server answers it once and sends the whole page to any attach after that.
+            since: this.renderSequence,
+            // None on the first attach, the render's own or a second tab's: only a page that held a runtime can find it gone.
+            runtime: this.heldRuntime,
             parameters: standIn !== null ? standIn.parameters : readQueryParameters(window.location.search),
             timeZone: readTimeZone()
         };
+
+        this.renderSequence = null;
 
         return await attachWithRetryAsync(() => this.transport.attachAsync(request), () => this.transport.isReconnecting, AttachRetryDelaysMilliseconds, delay);
     }
@@ -1211,57 +1307,5 @@ function readStandInNavigation(): { route: string; parameters: Record<string, un
     }
     catch {
         return null;
-    }
-}
-
-function readQueryParameters(search: string): Record<string, unknown> | null {
-    const parameters = new URLSearchParams(search);
-
-    if ([...parameters.keys()].length === 0)
-        return null;
-
-    const result: Record<string, unknown> = {};
-
-    parameters.forEach((value, key) => {
-        if (Object.hasOwn(result, key)) {
-            const existing = result[key];
-
-            result[key] = Array.isArray(existing) ? [...(existing as unknown[]), value] : [existing, value];
-            return;
-        }
-
-        result[key] = value;
-    });
-
-    return result;
-}
-
-// Which compile the page last reloaded for, kept across that reload and cleared by the attach that succeeds after it.
-const ReloadedViewKey = "ne-standard-ui:reloaded-view";
-
-function readReloadedView(): string | null {
-    try {
-        return sessionStorage.getItem(ReloadedViewKey);
-    }
-    catch {
-        return null;
-    }
-}
-
-function rememberReloadedView(view: string): void {
-    try {
-        sessionStorage.setItem(ReloadedViewKey, view);
-    }
-    catch {
-        // No session storage (a locked-down browser): the guard against a reload loop is lost, the reload itself is not.
-    }
-}
-
-function forgetReloadedView(): void {
-    try {
-        sessionStorage.removeItem(ReloadedViewKey);
-    }
-    catch {
-        // Nothing was remembered where nothing can be.
     }
 }

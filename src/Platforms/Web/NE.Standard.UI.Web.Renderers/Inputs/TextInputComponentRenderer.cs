@@ -81,6 +81,13 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute("autocomplete", value);
                 }, [WebDomOperation.Attribute("autocomplete")]);
 
+                // The keyboard a phone raises, apart from the type: a one-time code stays text and asks for digits.
+                _ = RenderProperty<UIInputMode?>(context, input, TextInputComponent.InputModeProperty, static (target, value) =>
+                {
+                    if (value is UIInputMode mode)
+                        _ = target.Attribute("inputmode", WebClassNames.InputMode(mode));
+                }, [WebDomOperation.Attribute("inputmode", converter: WebDomConverters.InputModeAttribute)]);
+
                 var namedByPlaceholder = !IsNamed(context);
 
                 if (namedByPlaceholder)

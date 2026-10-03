@@ -8,22 +8,9 @@
     gap: 2px;
 }
 
-// Above the item it was chosen over, placed by anchored-popup.ts as every popup is, so no scrolling box around the item clips it;
-// under the popups (a menu its "…" opens stands over it). Drawn only while it is wanted, so it fades in and is gone at once. Never
-// wider than the window: its icons wrap rather than run off a phone's edge.
+// Above the item it was chosen over, placed by anchored-popup.ts, so no scrolling box around the item clips it.
 .ui-action-bar:not(.ui-action-bar--strip) {
-    .ui-popup-surface(@ui-z-action-bar);
-    display: flex;
-    flex-wrap: wrap;
-    max-width: calc(100vw - 2 * @ui-space-1);
-    padding: 2px;
-    // Its buttons' corner widened by its own padding, as a popup's is by its list's.
-    border-radius: calc(var(--ui-radius-button) + 2px);
-    opacity: 1;
-
-    @starting-style {
-        opacity: 0;
-    }
+    .ui-icon-bar-surface();
 }
 
 // Its item wholly scrolled out of sight: still chosen, not seen floating against nothing until the item comes back.
@@ -34,13 +21,16 @@
 // An icon and no title is a square, as the framework's icon-only button is; a title stands for an entry with no icon. The row atop a
 // menu shares the menu's width instead.
 .ui-action-bar:not(.ui-action-bar--strip) > .ui-action-bar__button:is(:has(> .ui-icon), .ui-action-bar__more) {
-    aspect-ratio: 1;
-    padding: @ui-space-1;
+    .ui-icon-bar-button();
 }
 
-    .ui-action-bar > .ui-action-bar__button > .ui-icon {
-        font-size: 1.25em;
+// The buttons the square leaves out — a title's, the row atop a menu — wear its keyboard frame all the same.
+.ui-action-bar--strip > .ui-action-bar__button,
+.ui-action-bar > .ui-action-bar__button:not(:has(> .ui-icon), .ui-action-bar__more) {
+    &@{ui-keyboard-focus} {
+        .ui-keyboard-frame();
     }
+}
 
 .ui-action-bar__more {
     .ui-ellipsis-glyph();
@@ -59,3 +49,7 @@
         flex: 1 1 0;
         min-height: 2.75rem;
     }
+
+        .ui-action-bar--strip > .ui-action-bar__button > .ui-icon {
+            .ui-icon-bar-glyph();
+        }

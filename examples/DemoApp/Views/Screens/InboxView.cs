@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
 
@@ -19,6 +20,10 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
     protected override string ComponentRoute => "/screens/inbox";
     protected override string Header => "demo.screens.inbox.header";
     protected override string HeaderDescription => "demo.screens.inbox.description";
+
+    /// <summary>"/" puts the keyboard in the search, on the page with no round trip; typed into a field, it is the field's.</summary>
+    protected override IReadOnlyList<UIShortcut> CreateShortcuts()
+        => [new UIShortcut("/", new FocusEffect(SearchId))];
 
     protected override IVisualComponent CreateScreen()
         => UILayout.Sidebar(CreateList(), CreateReadingPane(), sideSpan: 9, spacing: 20)
@@ -80,20 +85,24 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
 
     /// <summary>The pane: an empty state until a row is clicked, then the message read as prose.</summary>
     private static ContainerComponent CreateReadingPane()
-        => new ContainerComponent()
+        => new ContainerComponent(InboxController.ReadingPaneId)
             // The page's own ground inside an edge: an empty pane is a region with nothing in it yet, not a callout in the brand's tint.
             .AddChild(new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Background)
                 .SetMinHeight(UILayoutLength.Absolute(320))
                 .BindVisibility(nameof(InboxController.EmptyVisibility))
+                // Dressed as the framework's empty state (`DefaultEmptyTemplate`, the list's beside it): the icon in the brand's colour
+                // beside a muted body title and a caption, the lines from their start, the block alone centred in the pane. Centred
+                // lines left the icon apart once the description wrapped on a phone.
                 .SetContent(new TextComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Mail))
-                    .SetIconColor(UIThemeColor.Muted)
+                    .SetIconColor(UIThemeColor.Primary)
                     .SetTitle("Pick a message")
+                    .SetTitleType(UITextAppearance.Body)
+                    .SetTitleColor(UIThemeColor.Muted)
                     .SetDescription("It opens here, and stays open while you narrow the list.")
+                    .SetDescriptionType(UITextAppearance.Caption)
                     .SetWrapMode(UITextWrapMode.Wrap)
-                    .Muted()
-                    .SetTextAlignment(UITextAlignment.Center)
                     .SetHorizontalAlignment(UIAlignment.Center)
                     .SetVerticalAlignment(UIAlignment.Center)
                 )

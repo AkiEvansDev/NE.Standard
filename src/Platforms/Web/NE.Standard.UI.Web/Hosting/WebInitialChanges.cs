@@ -11,26 +11,32 @@ namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
 /// Everything a freshly rendered page must be told: every bound value, plus one synthetic insert per bound collection. Applying
-/// it twice must be a no-op, since the render and the attach both send it.
+/// it twice must be a no-op, since an attach that does not start from the render sends it again.
 /// </summary>
 internal static class WebInitialChanges
 {
-    public static async Task<ServerChangeSet> BuildAsync(IUIRuntime? runtime, IReadOnlyList<int> initBindingIds, CancellationToken cancellationToken)
+    /// <summary>
+    /// The page's change set; for the runtime the render prepared (<paramref name="pageId"/>), read in one hold with the sequence it
+    /// stands at, which the page's first attach presents.
+    /// </summary>
+    public static async Task<UIRenderSnapshot> BuildAsync(IUIRuntime? runtime, string? pageId, IReadOnlyList<int> initBindingIds, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(initBindingIds);
 
         if (runtime is null)
-            return ServerChangeSet.Empty;
+            return new UIRenderSnapshot { Changes = ServerChangeSet.Empty };
 
-        ServerChangeSet valueChanges = await runtime.BuildInitialChangeSetAsync(
-            [.. initBindingIds.Select(static bindingId => new UIBindingId(bindingId))],
-            cancellationToken
-        ).ConfigureAwait(false);
+        UIBindingId[] bindingIds = [.. initBindingIds.Select(static bindingId => new UIBindingId(bindingId))];
 
+        if (pageId is not null)
+            return await runtime.BuildRenderSnapshotAsync(pageId, bindingIds, cancellationToken).ConfigureAwait(false);
+
+        ServerChangeSet valueChanges = await runtime.BuildInitialChangeSetAsync(bindingIds, cancellationToken).ConfigureAwait(false);
         IReadOnlyList<ServerCollectionChangeUIUpdate> collectionChanges = await runtime.BuildInitialCollectionChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return collectionChanges.Count == 0
-            ? valueChanges
-            : new ServerChangeSet { Updates = [.. valueChanges.Updates, .. collectionChanges] };
+        return new UIRenderSnapshot
+        {
+            Changes = collectionChanges.Count == 0 ? valueChanges : new ServerChangeSet { Updates = [.. valueChanges.Updates, .. collectionChanges] }
+        };
     }
 }

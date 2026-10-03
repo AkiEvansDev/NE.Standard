@@ -276,7 +276,7 @@ export class ItemsTemplateRenderer {
         if (!resolution.ok) {
             if (binding.optional !== true && !this.unresolved.has(bindingId)) {
                 this.unresolved.add(bindingId);
-                logWarn("item binding value could not be resolved; the item has no such property.", { binding, stack });
+                logWarn("item binding value could not be resolved; the item's path stops short of the property.", { binding, stack });
             }
 
             return;

@@ -96,7 +96,10 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
     container.appendChild(input);
 
     input.focus();
-    input.select();
+    // Selected from the end back to the start and scrolled to it, so a name wider than the title's box shows its start where the
+    // title did: the focus has already scrolled the field to the caret at the end.
+    input.setSelectionRange(0, input.value.length, "backward");
+    input.scrollLeft = 0;
 
     return true;
 }
@@ -106,13 +109,14 @@ function placeOver(element: HTMLElement, target: HTMLElement, container: HTMLEle
     const origin = container.getBoundingClientRect();
     const style = getComputedStyle(target);
     // A scaled container (a zoomed canvas's node) measures in scaled pixels, the field lays out in unscaled ones, as the computed style.
-    const scale = container.offsetWidth > 0 && origin.width > 0 ? origin.width / container.offsetWidth : 1;
+    const width = layoutWidth(container);
+    const scale = width > 0 && origin.width > 0 ? origin.width / width : 1;
 
     // From the padding edge, where an absolute child is placed: a bordered container would put the field a border's width off.
-    element.style.left = `${(bounds.left - origin.left) / scale - container.clientLeft}px`;
-    element.style.top = `${(bounds.top - origin.top) / scale - container.clientTop}px`;
-    element.style.width = `${bounds.width / scale}px`;
-    element.style.height = `${bounds.height / scale}px`;
+    element.style.left = layoutUnits((bounds.left - origin.left) / scale - container.clientLeft);
+    element.style.top = layoutUnits((bounds.top - origin.top) / scale - container.clientTop);
+    element.style.width = layoutUnits(bounds.width / scale);
+    element.style.height = layoutUnits(bounds.height / scale);
 
     // The shorthand reads back empty in Chrome, so the parts are copied one by one.
     element.style.fontFamily = style.fontFamily;
@@ -121,4 +125,25 @@ function placeOver(element: HTMLElement, target: HTMLElement, container: HTMLEle
     element.style.fontStyle = style.fontStyle;
     element.style.lineHeight = style.lineHeight;
     element.style.letterSpacing = style.letterSpacing;
+    // A centred title (a circle's name under it) keeps its words centred in the field.
+    element.style.textAlign = style.textAlign;
+}
+
+/** The border box's width in the element's own pixels: `offsetWidth` is rounded to a whole one, which put a scaled field off. */
+function layoutWidth(element: HTMLElement): number {
+    const style = getComputedStyle(element);
+    const width = parseFloat(style.width);
+
+    if (!Number.isFinite(width))
+        return element.offsetWidth;
+
+    return style.boxSizing === "border-box"
+        ? width
+        : width + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
+}
+
+// Rounded to the browser's layout unit (1/64 px): a height a float's error under the title's line height made Chrome drop the
+// field's line height to normal and centre its text, half a pixel lower than the title's line box sets it.
+function layoutUnits(value: number): string {
+    return `${Math.round(value * 64) / 64}px`;
 }

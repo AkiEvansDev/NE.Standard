@@ -2,7 +2,7 @@
 // the range to the anchor) — for the items view, the table and the tree, by click and key alike.
 
 import {
-    BindSelectedKeyAttribute, ComponentIdAttribute, ComponentKeyAttribute, HiddenClass, ItemsHostAttribute, NoRowSelectAttribute, SelectedAttribute, SelectedKeyAttribute,
+    BindSelectedKeyAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, HiddenClass, ItemsHostAttribute, NoRowSelectAttribute, SelectedAttribute, SelectedKeyAttribute,
     SelectedKeysAttribute, SelectionAttribute, TableRowClass, TreeRootClass, TreeRowClass, UnselectableAttribute
 } from "../addressing/dom-attributes.ts";
 import { isItemDisabled } from "./interactive-state.ts";
@@ -204,10 +204,15 @@ function readKeyList(host: HTMLElement | null): string[] {
     }
 }
 
-/** The host's own items host, wherever its box puts it — under a table's scroll box — and never a nested list's. */
+/**
+ * The host's own items host, wherever its box puts it — under a table's scroll box — and never a nested list's, nor one in its
+ * chrome: a grid's band holds a menu, whose host comes first in the document and is no selection root of its own.
+ */
 export function hostOf(root: HTMLElement): HTMLElement | null {
+    const owner = root.closest(ComponentSelector);
+
     for (const host of root.querySelectorAll<HTMLElement>(`[${ItemsHostAttribute}]`)) {
-        if (host.closest(SelectionRootSelector) === root)
+        if (host.closest(SelectionRootSelector) === root && host.closest(ComponentSelector) === owner)
             return host;
     }
 

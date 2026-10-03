@@ -50,6 +50,10 @@ internal sealed partial class FilesController : UIControllerBase
 
     private int _untitled;
 
+    // A tab closed a moment ago, by its id, for the toast's Undo to put back as it was — a new file's words included, which nothing
+    // else holds.
+    private readonly Dictionary<string, (DemoFileDocument Document, int Index)> _closed = new(StringComparer.Ordinal);
+
     /// <summary>The tree: every folder and file there is, open or not, each file keyed as its tab is.</summary>
     [RecursiveMember(false)]
     public RecursiveCollection<TreeNode> Tree { get; } = [.. CreateTree()];
@@ -168,21 +172,37 @@ internal sealed partial class FilesController : UIControllerBase
         => Documents.Count == 0 ? 1 : Documents.Max(static document => document.Order ?? 0) + 1;
 
     /// <summary>
-    /// Closes a file, or refuses to: whether a tab may go is the controller's answer, not the strip's.
+    /// Closes a file, or refuses to: whether a tab may go is the controller's answer, not the strip's. A closed tab can be had back
+    /// from the toast for as long as it stands.
     /// </summary>
     [UICommand]
-    public void CloseDocument(string id)
+    public UICommandResult CloseDocument(string id)
     {
-        if (Find(id) is not DemoFileDocument document)
-            return;
+        if (Find(id) is not DemoFileDocument document || !Close(document))
+            return UICommandResult.Ok();
 
+        return UICommandResult.Ok(
+        [
+            new ShowNotificationEffect(UIPhrase.Of("demo.screens.files.closed", ("title", document.Title?.Key ?? id)))
+            {
+                Action = new UINotificationAction(UIPhrase.Of("demo.screens.undo"), nameof(ReopenDocument), id)
+            }
+        ]);
+    }
+
+    /// <summary>Closes a tab unless it is pinned, keeping it for an Undo; answers whether it went.</summary>
+    private bool Close(DemoFileDocument document)
+    {
         if (document.Pinned == true)
         {
             Status = $"{document.Title} is pinned and stays open.";
-            return;
+            return false;
         }
 
+        var id = document.Id;
         var index = Documents.IndexOf(document);
+
+        _closed[id] = (document, index);
 
         Documents.RemoveAt(index);
         Status = $"Closed {document.Title}.";
@@ -190,6 +210,23 @@ internal sealed partial class FilesController : UIControllerBase
         // The strip would fall back to its first tab; an editor picks the neighbour instead.
         if (string.Equals(SelectedKey, id, StringComparison.Ordinal))
             Show(Documents.Count == 0 ? null : Documents[Math.Min(index, Documents.Count - 1)].Id);
+
+        return true;
+    }
+
+    /// <summary>The toast's Undo, on no button: the closed tab comes back where it stood, as it was, and in front.</summary>
+    [UICommand]
+    public void ReopenDocument(string id)
+    {
+        if (!_closed.Remove(id, out (DemoFileDocument Document, int Index) closed))
+            return;
+
+        // Opened again from the tree meanwhile: it is open already, and only comes forward.
+        if (Find(id) is null)
+            Documents.Insert(Math.Min(closed.Index, Documents.Count), closed.Document);
+
+        Status = $"Reopened {closed.Document.Title}.";
+        Show(id);
     }
 
     /// <summary>
@@ -236,7 +273,7 @@ internal sealed partial class FilesController : UIControllerBase
             return;
 
         foreach (DemoFileDocument document in Documents.Where(document => !string.Equals(document.Id, id, StringComparison.Ordinal)).ToArray())
-            CloseDocument(document.Id);
+            _ = Close(document);
 
         Show(id);
     }

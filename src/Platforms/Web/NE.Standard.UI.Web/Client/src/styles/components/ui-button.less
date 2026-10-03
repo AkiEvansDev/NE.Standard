@@ -71,9 +71,18 @@
         .ui-responsive-property(padding, --ui-padding, @ui-space-1);
     }
 
+        // A step of the icon scale by the button's size, where 1.25em of the label's type stood on half pixels (15, 17.5, 22.5);
         // :where() keeps an authored IconSize winning.
         :where(.ui-button[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
-            font-size: 1.25em;
+            font-size: @ui-glyph-md-lg;
+        }
+
+        :where(.ui-button--small[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
+            font-size: @ui-glyph-md;
+        }
+
+        :where(.ui-button--large[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
+            font-size: @ui-glyph-xl;
         }
 
     // Alignment lives on the button, not only its content: .ui-button's own text-align: center otherwise makes Justify look centred.

@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Items;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -70,6 +73,54 @@ internal sealed partial class UIViewCompilationContext
 
             return;
         }
+    }
+
+    /// <summary>
+    /// Refuses a pager aimed at nothing, at a component the view does not have, or at a host whose window is not a page — one holding
+    /// its rows whole, or a windowed one whose scroll reads the next window; and a page size of no rows.
+    /// </summary>
+    private void EnsurePagerTargetPages(IVisualComponent component)
+    {
+        UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
+        string? target = null;
+        var isPager = false;
+
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            UIPropertyDefinition definition = definitions[i];
+
+            if (definition.Property.Equals(PagerComponent.TargetProperty))
+            {
+                isPager = true;
+                target = definition.Getter(component) as string;
+            }
+            else if (definition.Property.Equals(PagerComponent.PageSizesProperty) && definition.Getter(component) is IReadOnlyList<int> sizes)
+            {
+                for (var j = 0; j < sizes.Count; j++)
+                {
+                    if (sizes[j] <= 0)
+                        throw new InvalidOperationException($"Pager '{component.Id}' offers a page size of {sizes[j]}; a page holds one row or more.");
+                }
+            }
+        }
+
+        if (!isPager)
+            return;
+
+        if (string.IsNullOrWhiteSpace(target))
+            throw new InvalidOperationException($"Pager '{component.Id}' names no Target; aim it at the items view or table it pages with SetTarget(id).");
+
+        if (!_components.TryGetValue(target, out IVisualComponent? host))
+            throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', which the view does not have.");
+
+        if (host is not IItemsHostComponent itemsHost)
+            throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', a '{host.TypeKey}', which has no window to page; aim it at an items view or a table.");
+
+        if (itemsHost.HostMode != UIItemsHostMode.Windowed)
+            throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', which holds its rows whole ({itemsHost.HostMode}); a pager turns the pages of a source: bind the host with BindSource(...) and SetPaging(true).");
+
+        if (itemsHost.Paging != true && FindBinding(host, IItemsHostComponent.PagingProperty) is null)
+            throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', whose window is not a page: its scroll reads the next window. Say SetPaging(true) on it, or bind Paging.");
     }
 
     /// <summary>Whether a component says <c>SubmitOnEnter</c>, set or bound.</summary>

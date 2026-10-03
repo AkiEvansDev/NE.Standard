@@ -70,6 +70,8 @@ export type ValueBindingEngineOptions = {
     readonly valueReaders: ValueReaderRegistry;
     /** Records a value this client sent as the property's latest, so a push of an older value is still a change. */
     readonly recordSent: (reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown) => void;
+    /** Whether the page refuses a field's value before it goes — one past its bounds stays the reader's, refused in words. */
+    readonly refuses?: (element: Element) => boolean;
 };
 
 export class ValueBindingEngine {
@@ -204,6 +206,10 @@ export class ValueBindingEngine {
         const writable = resolveWritableBinding(domEvent.target, this.options.metadata);
 
         if (writable === null)
+            return;
+
+        // Not sent, and an OnSubmit field's error stops its form's submit: the controller keeps the last value it took.
+        if (domEvent.type === "change" && this.options.refuses?.(domEvent.target) === true)
             return;
 
         if (writable.buffered) {

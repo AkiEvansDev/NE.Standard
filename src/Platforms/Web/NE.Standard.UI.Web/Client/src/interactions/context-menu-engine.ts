@@ -6,7 +6,7 @@
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
 import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentKeyAttribute, ContextMenuAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MarkedMenuEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { ActionBarMoreClass, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
-import { clampToViewport } from "./anchored-popup.ts";
+import { placeAtPoint } from "./anchored-popup.ts";
 import { isInert } from "./interactive-state.ts";
 import { isLongPressOpening, LongPress } from "./long-press.ts";
 import { ownDescendants } from "./own-descendants.ts";
@@ -25,7 +25,6 @@ const EntrySelector = `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`;
 const StripClass = `${ActionBarClass}--strip`;
 // "More" on a bar standing over its host, not in the row atop a menu.
 const MoreSelector = `.${ActionBarClass}:not(.${StripClass}) > .${ActionBarMoreClass}`;
-const MoreMenuPlacement: AnchoredPopupOptions = { placement: "bottom-start", gap: 4 };
 // A long press in a field is the field's: its caret, its selection, the system's own menu for its text.
 const TypingSelector = "input, textarea, select, [contenteditable=''], [contenteditable='true']";
 
@@ -98,34 +97,15 @@ export class ContextMenuEngine {
             return;
         }
 
-        const refusing = target.closest(`[${NoContextMenuAttribute}]`);
+        const opened = contextMenuAt(target);
 
-        for (let owner = target.closest<HTMLElement>(`[${OwnerAttribute}]`); owner !== null; owner = owner.parentElement?.closest<HTMLElement>(`[${OwnerAttribute}]`) ?? null) {
-            // A part of the owner that refuses a menu — a panel standing over a canvas — keeps the owner's menu off it, as a row does.
-            if (refusing !== null && owner.contains(refusing))
-                return;
-
-            const candidates = candidateMenus(owner, target);
-
-            // A strip with only its captions' named menu has nothing for its pages, nor has an inert owner: the owner around answers.
-            if (candidates.length === 0 || isInert(owner))
-                continue;
-
-            if (isRefused(owner))
-                return;
-
-            const menu = candidates.find(candidate => prepareMenu(candidate, target, false));
-
-            // Every menu the owner has kept itself shut for this press — a tab menu with nothing to offer a tab: the owner around it answers.
-            if (menu === undefined)
-                continue;
-
-            domEvent.preventDefault();
-
-            // A finger's long press: the bar's icons stand atop the menu, its frequent entries one press away.
-            this.open(owner, menu, domEvent.clientX, domEvent.clientY, isTouchOpening(domEvent) ? target : null, target.closest<HTMLElement>(MoreSelector));
+        if (opened === null)
             return;
-        }
+
+        domEvent.preventDefault();
+
+        // A finger's long press: the bar's icons stand atop the menu, its frequent entries one press away.
+        this.open(opened.owner, opened.menu, domEvent.clientX, domEvent.clientY, isTouchOpening(domEvent) ? target : null, target.closest<HTMLElement>(MoreSelector));
     }
 
     private open(owner: HTMLElement, menu: HTMLElement, x: number, y: number, touched: Element | null, more: HTMLElement | null): void {
@@ -152,20 +132,17 @@ export class ContextMenuEngine {
         const active = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
         const held = active ?? focusBeforePress();
 
-        // Under "more" as a menu button's list stands under the button, flipping where there is no room; else at the pointer.
-        const placed = more === null ? {} : { anchor: more, placement: MoreMenuPlacement };
+        // Under "more" as a menu button's list stands under the button, flipping where there is no room, and as far off the bar as a
+        // list is off its field; else at the pointer.
+        const placement: AnchoredPopupOptions = { placement: "bottom-start", surface: more?.closest(`.${ActionBarClass}`) ?? undefined };
+        const placed = more === null ? {} : { anchor: more, placement };
 
         // What held the focus, else the owner, else the component around it made focusable for the return: never the body.
         if (!this.menus.open({ owner, popup: menu, ...placed, returnFocus: () => (held === null ? null : liveFocusReturn(held)) ?? liveFocusReturn(owner) }))
             return;
 
-        if (more === null) {
-            // Measured once shown, or a display:none menu measures as zero and never flips.
-            const rect = menu.getBoundingClientRect();
-
-            menu.style.left = `${clampToViewport(x, rect.width, window.innerWidth)}px`;
-            menu.style.top = `${clampToViewport(y, rect.height, window.innerHeight)}px`;
-        }
+        if (more === null)
+            placeAtPoint(menu, x, y);
 
         focusOpening(menu);
     }
@@ -180,6 +157,40 @@ export class ContextMenuEngine {
         this.menus.close();
     }
 }
+
+/**
+ * The menu a right press on `target` opens and its owner, asked as an opening asks it — the nearest owner's, else the one around it —
+ * or null where none opens; a context menu's entry chord (`shortcut-engine.ts`) presses its entry in the menu this answers.
+ */
+export function contextMenuAt(target: Element): { readonly owner: HTMLElement; readonly menu: HTMLElement } | null {
+    const refusing = target.closest(`[${NoContextMenuAttribute}]`);
+
+    for (let owner = target.closest<HTMLElement>(`[${OwnerAttribute}]`); owner !== null; owner = owner.parentElement?.closest<HTMLElement>(`[${OwnerAttribute}]`) ?? null) {
+        // A part of the owner that refuses a menu — a panel standing over a canvas — keeps the owner's menu off it, as a row does.
+        if (refusing !== null && owner.contains(refusing))
+            return null;
+
+        const candidates = candidateMenus(owner, target);
+
+        // A strip with only its captions' named menu has nothing for its pages, nor has an inert owner: the owner around answers.
+        if (candidates.length === 0 || isInert(owner))
+            continue;
+
+        if (isRefused(owner))
+            return null;
+
+        const menu = candidates.find(candidate => prepareMenu(candidate, target, false));
+
+        // Every menu the owner has kept itself shut for this press — a tab menu with nothing to offer a tab: the owner around it answers.
+        if (menu !== undefined)
+            return { owner, menu };
+    }
+
+    return null;
+}
+
+/** Where a context menu's owner is: the attribute the renderer writes on it, for a part looking for its own. */
+export const ContextMenuOwnerSelector = `[${OwnerAttribute}]`;
 
 /**
  * The menus a press on `target` inside `owner` may open, in the order they are asked: the pressed part's named one, then the owner's

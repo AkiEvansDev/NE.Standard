@@ -1,8 +1,14 @@
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { toColorToken } from "../rendering/web-dom-converters.ts";
+import type { NotificationActionModel } from "../metadata/metadata-index.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
+import { logWarn } from "../runtime/logger.ts";
+import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import type { AuthorText, Phrase } from "../runtime/words.ts";
+import { LiveAnnouncer } from "./live-announcer.ts";
+import type { Politeness } from "./live-announcer.ts";
+import { bottomBarTop } from "./anchored-popup.ts";
 import { liveFocusReturn, restoreFocusTo } from "./popup-focus.ts";
 
 const HostClass = "ui-notification-host";
@@ -13,6 +19,12 @@ const ActionClass = "ui-notification__action";
 const CloseClass = "ui-notification__close";
 
 const DefaultDurationMs = 5000;
+
+// A toast carrying an action stands longer by default: the reader reads the message before they reach its button (an Undo).
+const DefaultActionDurationMs = 8000;
+
+// How far the host stands off the window's bottom: a phone's bottom bar's height, read by `liftAboveBottomBar`.
+const LiftProperty = "--ui-notification-lift";
 
 // The severities that carry an accent bar; anything else takes the default border colour.
 const AccentedSeverities = new Set(["info", "success", "warning", "danger", "primary", "accent"]);
@@ -29,12 +41,14 @@ export type NotificationRequest = {
     readonly severity?: unknown;
     // Stays until the reader closes it: for a state that is still true after a moment, not an event that happened.
     readonly sticky?: boolean;
+    // How long a toast that is not sticky stands, which is its action's window; absent is the engine's default, longer with an action.
+    readonly durationMs?: number;
     readonly action?: NotificationAction;
 };
 
-/** A button beside the message that does the one thing the notice asks for. */
+/** A button under the message that does the one thing the notice asks for, its words written as the message's are. */
 type NotificationAction = {
-    readonly label: string;
+    readonly label: string | Phrase | AuthorText;
     readonly run: () => void;
 };
 
@@ -42,6 +56,7 @@ export class NotificationEngine {
     private readonly root: ParentNode;
     private readonly durationMs: number;
     private host: HTMLElement | null = null;
+    private readonly announcer: LiveAnnouncer;
 
     // Where the keyboard stood before it came into each toast: a toast closed with the focus in it gives it back there.
     private readonly focusOrigins = new WeakMap<HTMLElement, HTMLElement>();
@@ -52,6 +67,12 @@ export class NotificationEngine {
 
         // Up before the first toast: the host is the live region, and one inserted along with its words is not reliably read.
         this.ensureHost();
+        this.announcer = new LiveAnnouncer(this.root instanceof Document ? this.root.body : this.root);
+    }
+
+    /** Speaks words to a screen reader and shows nothing (AnnounceEffect), through the hidden live regions beside the host. */
+    public announce(message: NotificationRequest["message"], politeness?: Politeness): HTMLElement {
+        return this.announcer.announce(message, politeness);
     }
 
     public show(request: NotificationRequest): HTMLElement {
@@ -88,9 +109,14 @@ export class NotificationEngine {
         element.append(close);
 
         // After the cross: the action is drawn on a line of its own under the message, and Tab reads the toast as it is drawn.
+        // A passing toast is done once its action ran; a sticky one is a state still true, and stays.
         if (request.action !== undefined)
-            element.append(createAction(request.action));
-        this.ensureHost().append(element);
+            element.append(createAction(request.action, request.sticky === true ? null : () => this.dismiss(element)));
+
+        const host = this.ensureHost();
+
+        liftAboveBottomBar(host);
+        host.append(element);
 
         element.addEventListener("focusin", domEvent => {
             const from = domEvent.relatedTarget;
@@ -103,9 +129,12 @@ export class NotificationEngine {
             return element;
 
         // Paused while hovered or holding the keyboard, so a toast neither vanishes under a reader nor takes the focus down with it.
+        const duration = request.durationMs !== undefined && request.durationMs > 0
+            ? request.durationMs
+            : request.action !== undefined ? DefaultActionDurationMs : this.durationMs;
         let hovered = false;
         let focused = false;
-        let timer = window.setTimeout(() => this.dismiss(element), this.durationMs);
+        let timer = window.setTimeout(() => this.dismiss(element), duration);
 
         const pause = (): void => window.clearTimeout(timer);
         const resume = (): void => {
@@ -113,7 +142,7 @@ export class NotificationEngine {
                 return;
 
             window.clearTimeout(timer);
-            timer = window.setTimeout(() => this.dismiss(element), this.durationMs);
+            timer = window.setTimeout(() => this.dismiss(element), duration);
         };
 
         element.addEventListener("mouseenter", () => {
@@ -189,6 +218,19 @@ export class NotificationEngine {
     }
 }
 
+/**
+ * Stands the stack above a phone's bottom bar, which a toast at the page's bottom covered, its Undo over the bar's entries; read as
+ * each toast comes, since the bar steps aside while the on-screen keyboard is up.
+ */
+function liftAboveBottomBar(host: HTMLElement): void {
+    const lift = window.innerHeight - bottomBarTop(window.innerHeight);
+
+    if (lift > 0)
+        host.style.setProperty(LiftProperty, `${Math.round(lift)}px`);
+    else
+        host.style.removeProperty(LiftProperty);
+}
+
 /** Slides a faded toast's height, padding, edge and gap to its neighbour down to nothing, then removes it. */
 function collapse(element: HTMLElement): void {
     if (!element.isConnected)
@@ -210,13 +252,51 @@ function collapse(element: HTMLElement): void {
     void animation.finished.then(remove, remove);
 }
 
-function createAction(action: NotificationAction): HTMLButtonElement {
+/**
+ * The action's button; with `done`, run once and then done — a second press while the toast fades would ask for what the first
+ * already did — and without it, pressed as often as the reader likes.
+ */
+function createAction(action: NotificationAction, done: (() => void) | null): HTMLButtonElement {
     const button = document.createElement("button");
+    let spent = false;
 
     button.type = "button";
     button.className = `${ActionClass} ui-button ui-button--primary ui-button--small`;
-    button.textContent = action.label;
-    button.addEventListener("click", () => action.run());
+
+    if (typeof action.label === "string")
+        button.textContent = action.label;
+    else
+        clientStrings.writeValue(button, null, action.label);
+
+    button.addEventListener("click", () => {
+        if (spent)
+            return;
+
+        action.run();
+
+        if (done !== null) {
+            spent = true;
+            done();
+        }
+    });
 
     return button;
+}
+
+/**
+ * The button a notification effect's action asks for, pressing it running what the server offered under its id; none where the
+ * server offered nothing — a command it could not offer is logged there, and the message still shows, without the button.
+ */
+export function offeredAction(model: NotificationActionModel | null | undefined, runAction: (id: string) => void): NotificationAction | undefined {
+    if (model === null || model === undefined || typeof model.id !== "string" || model.id.length === 0)
+        return undefined;
+
+    if (!isPhrase(model.label) && !isAuthorText(model.label)) {
+        logWarn("a notification's action carries no words.", model);
+        return undefined;
+    }
+
+    const id = model.id;
+
+    return { label: model.label, run: () => runAction(id) };
 }

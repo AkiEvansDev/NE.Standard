@@ -42,6 +42,8 @@ export function evaluateOperator(leftValue: unknown, operator: WebInteractionOpe
             return Array.isArray(right) && right.some(item => String(item ?? "") === String(left ?? ""));
         case "Regex":
             return evaluateRegex(left, right);
+        case "RegexEach":
+            return evaluateEveryRegex(left, right);
         default:
             return false;
     }
@@ -71,6 +73,14 @@ function isOrdered(left: unknown, right: unknown, asked: (order: number) => bool
         return false;
 
     return asked(left < right ? -1 : left > right ? 1 : 0);
+}
+
+/** Every item of a list matches; text is one item, and nothing an empty list, which `Required` is for. */
+function evaluateEveryRegex(left: unknown, right: unknown): boolean {
+    if (left === null || left === undefined)
+        return true;
+
+    return Array.isArray(left) ? left.every(item => evaluateRegex(comparable(item), right)) : evaluateRegex(left, right);
 }
 
 function evaluateRegex(left: unknown, right: unknown): boolean {

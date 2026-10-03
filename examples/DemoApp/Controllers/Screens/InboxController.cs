@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace DemoApp.Controllers.Screens;
 
 /// <summary>A message as the list draws it: the sender is the title, the subject the description, the day the group.</summary>
@@ -31,7 +36,8 @@ internal sealed partial class DemoMessageItem : TextItem, IBindableGroup
 
 /// <summary>
 /// The messages, whole, and the one open: the list is narrowed in the browser, and a click hands the key back so the
-/// reading pane can be filled and the row marked read.
+/// reading pane can be filled and the row marked read. The open message is in the address (<c>?message=</c>): opening one adds a
+/// history entry, so Back closes it — on a phone too — and a reload or a link opens it again.
 /// </summary>
 internal sealed partial class InboxController : UIControllerBase
 {
@@ -39,6 +45,11 @@ internal sealed partial class InboxController : UIControllerBase
     public const string Reviews = "Reviews";
     public const string Billing = "Billing";
     public const string People = "People";
+
+    /// <summary>The reading pane, brought into view as a message opens.</summary>
+    public const string ReadingPaneId = "inbox-reading";
+
+    private const string MessageParameter = "message";
 
     private DemoMessageItem? _open;
 
@@ -105,9 +116,21 @@ internal sealed partial class InboxController : UIControllerBase
     [RecursiveMember]
     public partial string? Reply { get; set; }
 
-    /// <summary>A row's click: the pane fills from the message, and the row stops being unread.</summary>
-    [UICommand]
-    public void OpenMessage(string id)
+    /// <summary>
+    /// The message the address names, on arrival and on Back or Forward alike; none, or one no longer here, closes the pane.
+    /// </summary>
+    protected override Task OnNavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        if (!navigation.TryGetParameter(MessageParameter, out var id) || !Open(id))
+            Close();
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>The pane fills from the message, and the row stops being unread.</summary>
+    private bool Open(string id)
     {
         foreach (DemoMessageItem message in Messages)
         {
@@ -134,8 +157,28 @@ internal sealed partial class InboxController : UIControllerBase
             AttachmentsVisibility = message.Attachments.Length == 0 ? UIVisibility.Collapsed : UIVisibility.Visible;
             EmptyVisibility = UIVisibility.Collapsed;
             ReadingVisibility = UIVisibility.Visible;
-            return;
+            return true;
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// A row's click opens the message as a history entry; another opened over it takes that entry's place, so one Back still closes
+    /// the pane rather than walking back through every message read. On a phone the pane stands under the list, so it is brought
+    /// into view; beside the list it already is, and nothing moves.
+    /// </summary>
+    [UICommand]
+    public UICommandResult OpenMessage(string id)
+    {
+        var replacing = _open is not null;
+
+        if (!Open(id))
+            return UICommandResult.Ok();
+
+        Dictionary<string, object?> address = new(StringComparer.Ordinal) { [MessageParameter] = id };
+
+        return UICommandResult.Ok([replacing ? new ReplaceAddressEffect(address) : new PushAddressEffect(address), new ScrollToEffect(ReadingPaneId)]);
     }
 
     [UICommand]
@@ -148,7 +191,7 @@ internal sealed partial class InboxController : UIControllerBase
         _ = Messages.Remove(_open);
         Close();
 
-        return Notify($"The message from {sender} is archived.", UIColorStyle.Success);
+        return UICommandResult.Ok([new ShowNotificationEffect($"The message from {sender} is archived.", UIColorStyle.Success), new ReplaceAddressEffect(null)]);
     }
 
     [UICommand]
@@ -161,7 +204,7 @@ internal sealed partial class InboxController : UIControllerBase
         _open.BadgeStyle = UIBadgeType.Primary;
         Close();
 
-        return UICommandResult.Ok();
+        return UICommandResult.Ok([new ReplaceAddressEffect(null)]);
     }
 
     [UICommand]

@@ -91,22 +91,32 @@ test("a select's option is lit by the list's mark alone, never by a hover of its
     assert.match(rule(".ui-select__option:not([aria-selected=\"true\"]):not([aria-disabled=\"true\"]):active") ?? "", /--ui-wash-active/);
 });
 
+// The keyboard's frame (`.ui-keyboard-frame()`): an outline in the brand's ink, under no forced colours, which draw their own mark.
+const KeyboardFrame = "\\{\\s*outline: 2px solid var\\(--ui-color-primary-ink\\);\\s*outline-offset: -2px;";
+
+test("a select's option the arrows made current wears the keyboard's frame; the pointer's current, its wash alone", () => {
+    assert.match(css, new RegExp(`@media \\(forced-colors: none\\) \\{\\s*\\.ui-select__option\\[data-ui-active\\]:not\\(\\[data-ui-pointer-focus\\]\\) ${KeyboardFrame}`));
+});
+
 test("a list's keyboard entry is lit only under a focus a key gave, and stays as it is while the pointer crosses it", () => {
     // @ui-button-live as it compiles: not disabled or loading, nor the owner of a popup the pointer is in.
     const live = ":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not(:has([role='menu']:hover, [role='listbox']:hover)))";
 
     for (const entry of [`.ui-menu-item${live}`, `.ui-tab-overflow__entry${live}`, ".ui-temporal-input__day"]) {
-        const keyboard = `${entry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:focus-visible:not\\(\\[data-ui-pointer-focus\\]\\)(?::not\\([^)]*\\))*`;
+        const focus = `${entry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:focus-visible:not\\(\\[data-ui-pointer-focus\\]\\)`;
+        const keyboard = `${focus}(?::not\\([^)]*\\))*`;
 
-        assert.match(css, new RegExp(`${keyboard} \\{\\s*outline: none;\\s*background-image: linear-gradient\\(var\\(--ui-wash-hover\\)`), `${entry} draws no keyboard entry`);
+        // The frame on the chosen entry too: where the keyboard is, whatever else the entry says.
+        assert.match(css, new RegExp(`${focus} ${KeyboardFrame}`), `${entry} wears no keyboard frame`);
+        assert.match(css, new RegExp(`${keyboard} \\{\\s*background-image: linear-gradient\\(var\\(--ui-wash-hover\\)`), `${entry} draws no keyboard wash`);
         assert.match(css, new RegExp(`${keyboard}:hover:not\\(:active\\) \\{\\s*background-color: transparent;`), `${entry} stacks the pointer's wash on the keyboard's`);
     }
 });
 
-test("a field lights its edge for no focus the pointer handed back, and an invalid field keeps its edge through any focus", () => {
+test("a field lights its edge for no focus the pointer handed back, and a field with a message keeps its edge through any focus", () => {
     const handedBack = ":focus-within:where(:not([data-ui-pointer-focus], :has([data-ui-pointer-focus]:focus)))";
 
     assert.doesNotMatch(css, /:focus-within \{\s*border-color: var\(--ui-color-primary\)/, "a field's edge lights on a bare :focus-within");
     assert.ok(css.includes(`${handedBack} {\n  border-color: var(--ui-color-primary);`), "a field's edge does not skip a focus the pointer handed back");
-    assert.match(css, /\n:is\(\.ui-invalid, \.ui-validation--warning\) > :is\([^)]*\) \{\s*border-color: var\(--ui-validation-color/, "an invalid field has no edge of its own");
+    assert.match(css, /\n:is\(\.ui-invalid, \.ui-validation--warning, \.ui-validation--info\) > :is\([^)]*\) \{\s*border-color: var\(--ui-validation-color/, "a field with a message has no edge of its own");
 });

@@ -97,4 +97,10 @@ public static class EventNames
 
     /// <summary>An entry an application put into a tabs view's tab menu, carrying the entry's key and the tab's.</summary>
     public const string TabMenuEntry = "tab-menu-entry";
+
+    /// <summary>
+    /// What a view's own key chord (<c>UIViewBase.CreateShortcuts</c>) is raised as on the view's content, its chord after it:
+    /// <c>shortcut:Ctrl+S</c>.
+    /// </summary>
+    public const string ShortcutPrefix = "shortcut:";
 }

@@ -45,6 +45,9 @@ public static class WebDomConverters
     public const string SearchFieldAppearanceClass = "searchFieldAppearanceClass";
     public const string InputSizeClass = "inputSizeClass";
     public const string TextInputTypeAttribute = "textInputTypeAttribute";
+
+    /// <summary>A field's on-screen keyboard as its <c>inputmode</c> token; nothing takes the attribute off.</summary>
+    public const string InputModeAttribute = "inputModeAttribute";
     public const string ColorTextFormatAttribute = "colorTextFormatAttribute";
     public const string ColorInputVariantAttribute = "colorInputVariantAttribute";
 

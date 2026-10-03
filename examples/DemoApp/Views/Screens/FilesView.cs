@@ -19,6 +19,11 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
     protected override string Header => "demo.screens.files.header";
     protected override string HeaderDescription => "demo.screens.files.description";
 
+    /// <summary>An editor's panes are the region's height from the medium width up, the text scrolling inside; on a phone they stack.</summary>
+    protected override UIResponsive<UILayoutLength>? ScreenHeight => PaneHeight;
+
+    private static readonly UIResponsive<UILayoutLength> PaneHeight = UIResponsive<UILayoutLength>.Create(UILayoutLength.Auto(), md: UILayoutLength.Fill());
+
     protected override IVisualComponent CreateScreen()
         => new ContainerComponent()
             .AddChild(CreateExplorer()
@@ -29,6 +34,7 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                 .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 2, 24, 1), md: UIGridPlacement.At(11, 1, 14, 1), xl: UIGridPlacement.At(7, 1, 18, 1)))
             )
             .SetPadding(UIThickness.All(0, 8, 0, 24))
+            .SetHeight(PaneHeight)
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>
@@ -39,9 +45,12 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Raised)
             .SetPadding(UIThickness.All(8, 8, 8, 12))
-            .SetVerticalAlignment(UIAlignment.Start)
-            .SetContent(UILayout.Stack(4,
-                new ContainerComponent()
+            // Rows, not a stack: the tree takes the pane's height under its caption and scrolls in it.
+            .SetContent(new ContainerComponent()
+                .SetRow(1, UIGridUnit.Auto())
+                .AddRow(UIGridUnit.Star())
+                .SetSpacing(4)
+                .AddChild(new ContainerComponent()
                     .SetColumn(24, UIGridUnit.Auto())
                     .SetPadding(UIThickness.All(8, 0, 0, 0))
                     .AddChild(UIText.Label("Explorer")
@@ -52,14 +61,19 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                         .OnClick(nameof(FilesController.NewFile))
                         .SetVerticalAlignment(UIAlignment.Center)
                         .SetPlacement(24, 1, 1, 1)
-                    ),
-                new TreeComponent()
+                    )
+                    .SetPlacement(1, 1, 24, 1)
+                )
+                .AddChild(new TreeComponent()
                     .BindItems(nameof(FilesController.Tree))
                     .SetSelectionMode(UISelectionMode.One)
                     .BindSelectedKey(nameof(FilesController.SelectedKey))
                     .AddNodeKind(FilesController.FolderKind, node => node.SetIconColor(DemoIcons.Warm))
                     .OnNodeClickWithItemKey(nameof(FilesController.OpenFile))
-            ));
+                    .VerticalScrollOnly()
+                    .SetPlacement(1, 2, 24, 1)
+                )
+            );
 
     /// <summary>
     /// The open files over their text, and the line under them: where the file lives and what the controller last did. The strip's
@@ -69,8 +83,12 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Raised)
             .SetPadding(UIThickness.Uniform(0))
-            .SetContent(UILayout.Stack(0,
-                new TabsViewComponent(TabsId)
+            // Rows, not a stack: the text takes what the strip and the status line leave, so the line never drops out of sight.
+            .SetContent(new ContainerComponent()
+                .SetRow(1, UIGridUnit.Star())
+                .AddRow(UIGridUnit.Auto())
+                .AddRow(UIGridUnit.Auto())
+                .AddChild(new TabsViewComponent(TabsId)
                     .BindItems(nameof(FilesController.Documents))
                     .BindSelectedKey(nameof(FilesController.SelectedKey))
                     .SetRenamable(true)
@@ -86,6 +104,7 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                         .BindLanguage(nameof(DemoFileDocument.Language), UIBindingScope.Relative)
                         .SetStatusBar(false)
                         .SetRows(18)
+                        .SetHeight(PaneHeight)
                     )
                     .SetEmptyTemplate(new DefaultEmptyTemplate()
                         .SetIcon(DemoIcons.Outline(DemoIcons.File))
@@ -94,9 +113,11 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
-                    .SetMargin(UIThickness.All(8, 4, 8, 0)),
-                new SeparatorComponent(),
-                new ContainerComponent()
+                    .SetMargin(UIThickness.All(8, 4, 8, 0))
+                    .SetPlacement(1, 1, 24, 1)
+                )
+                .AddChild(new SeparatorComponent().SetPlacement(1, 2, 24, 1))
+                .AddChild(new ContainerComponent()
                     .SetColumn(24, UIGridUnit.Auto())
                     .SetPadding(UIThickness.All(16, 6, 16, 6))
                     .AddChild(new TextComponent()
@@ -115,5 +136,7 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                         .SetMargin(UIThickness.All(12, 0, 0, 0))
                         .SetPlacement(24, 1, 1, 1)
                     )
-            ));
+                    .SetPlacement(1, 3, 24, 1)
+                )
+            );
 }

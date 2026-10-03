@@ -9,6 +9,8 @@ const HydrationSelector = "script[type='application/json'][data-ui-hydration]";
 export type WebHydrationPayload = {
     // The runtime the render prepared for the attach to claim; null where the render reused an existing one.
     readonly pageId: string | null;
+    // Where the prepared runtime's updates stood when the render read it: the attach that claims it is sent only what came after.
+    readonly sequence: number | null;
     // The compile the page was rendered from; presented at the attach, so a page of another compile is reloaded rather than fed updates.
     readonly view: string | null;
     readonly changes: ServerChangeSet | undefined;
@@ -44,6 +46,7 @@ export function readHydration(documentRoot: ParentNode = document): WebHydration
 
         return {
             pageId: parsed.pageId ?? null,
+            sequence: typeof parsed.sequence === "number" ? parsed.sequence : null,
             view: typeof parsed.view === "string" ? parsed.view : null,
             changes: parsed.changes,
             words: typeof words?.language === "string" && typeof words.href === "string" ? { language: words.language, href: words.href } : null,

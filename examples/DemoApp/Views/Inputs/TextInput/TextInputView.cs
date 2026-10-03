@@ -55,6 +55,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
             .BindAppearance($"{FieldGroup}.{nameof(TextInputFieldGroupContext.Appearance)}")
             .BindPlaceholder($"{FieldGroup}.{nameof(TextInputFieldGroupContext.Placeholder)}")
             .BindType($"{FieldGroup}.{nameof(TextInputFieldGroupContext.Type)}")
+            .BindInputMode($"{FieldGroup}.{nameof(TextInputFieldGroupContext.InputMode)}")
             .BindPrefixIcon($"{FieldGroup}.{nameof(TextInputFieldGroupContext.PrefixIcon)}")
             .BindSuffixIcon($"{FieldGroup}.{nameof(TextInputFieldGroupContext.SuffixIcon)}")
             .BindPrefixText($"{FieldGroup}.{nameof(TextInputFieldGroupContext.PrefixText)}")
@@ -96,7 +97,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
     // Each field wears the look its place would: a settings form outlined, a field with its own buttons and an entry form filled, a dense
     // panel underlined, a name edited where it is read ghosted. The read-in-place group goes across the page, its two lines side by side.
     protected override IVisualComponent[] CreateExamples()
-        => [.. DemoUI.CreateColumns([CreateFormGroup(), CreateActionsGroup()], [CreateSizesGroup(), CreateEnterGroup()]), CreateGhostGroup()];
+        => [.. DemoUI.CreateColumns([CreateFormGroup(), CreateActionsGroup()], [CreateSizesGroup(), CreateEnterGroup(), CreateCodeGroup()]), CreateGhostGroup()];
 
     /// <summary>
     /// The ordinary case: a label per field, a scheme or a unit beside the value, the native type a field asks the browser for, and a
@@ -344,6 +345,26 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     )
                 ),
             note: "Every input that takes a `Size` takes `TitlePlacement` too. With the caption inside, a help badge is no stop of its own: the box is one control."
+        );
+    }
+
+    /// <summary>
+    /// A one-time code: text, not a number, so its leading zeros stay; the phone raises its digit keyboard and may offer the code from a
+    /// message, and a rule takes six digits.
+    /// </summary>
+    private static ContainerComponent CreateCodeGroup()
+    {
+        return DemoUI.CreateExample("A one-time code",
+            new TextInputComponent()
+                .SetAppearance(UIInputAppearance.Tonal)
+                .SetTitle("Code from the email")
+                .SetPlaceholder("6 digits")
+                .SetAutocomplete(UIAutocomplete.OneTimeCode)
+                .SetInputMode(UIInputMode.Numeric)
+                .SetMaxLength(6)
+                .SetWidth(UILayoutLength.Absolute(220))
+                .Regex(@"^\d{6}$", "The code is six digits.", UIValidationTrigger.Blur),
+            note: "`SetInputMode(UIInputMode.Numeric)` asks a phone for its digit keyboard while the value stays text, its leading zeros kept; `SetAutocomplete(UIAutocomplete.OneTimeCode)` lets it offer the code from a message."
         );
     }
 

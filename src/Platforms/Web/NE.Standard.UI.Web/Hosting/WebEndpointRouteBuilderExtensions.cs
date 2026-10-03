@@ -243,6 +243,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         HttpContext http,
         [FromServices] UIApplication application,
         [FromServices] IUIHost host,
+        [FromServices] WebSessionCookie sessionCookie,
         [FromServices] IResolveExceptionViewHandler exceptionHandler,
         [FromServices] IWebAssetRegistry assets,
         [FromServices] IWebViewRenderer renderer,
@@ -267,12 +268,12 @@ public static partial class WebEndpointRouteBuilderExtensions
             Parameters = CreateParameters(http.Request.Query)
         };
 
-        UserSessionInitData session = CreateSession(http, application.Sessions);
+        UserSessionInitData session = CreateSession(http, sessionCookie);
 
         UIViewResolution resolution = await host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Open, cancellationToken).ConfigureAwait(false);
 
         // The shell render is the only half of a page load that can write a header, so a new session's secret is set here.
-        AppendSessionCookie(http, application.Sessions, resolution);
+        AppendSessionCookie(http, application.Sessions, sessionCookie, resolution);
 
         try
         {
@@ -310,7 +311,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
             // Nothing new to write unless the session was ended while the page rendered, and the error page issued another.
             if (errorResolution.IssuedSecret is not null)
-                AppendSessionCookie(http, application.Sessions, errorResolution);
+                AppendSessionCookie(http, application.Sessions, sessionCookie, errorResolution);
 
             return await RenderPageAsync(errorResolution, route, application, host, assets, renderer, renderCache, packageStrings, metrics, logger, http, cancellationToken).ConfigureAwait(false);
         }
@@ -461,10 +462,10 @@ public static partial class WebEndpointRouteBuilderExtensions
         return parameters;
     }
 
-    private static UserSessionInitData CreateSession(HttpContext http, UISessionOptions options)
+    private static UserSessionInitData CreateSession(HttpContext http, WebSessionCookie cookie)
         => new()
         {
-            SessionId = WebClientRequest.ReadSessionId(http, options),
+            SessionId = WebClientRequest.ReadSessionId(http, cookie),
             ConnectionId = http.Connection.Id,
             Credential = http.User.Identity?.IsAuthenticated == true ? http.User.Identity.Name : null,
             Principal = http.User,
@@ -481,15 +482,15 @@ public static partial class WebEndpointRouteBuilderExtensions
     /// id pending: a load that overlapped another's sign-in rotation holds the old id, and its key written after the other's would put
     /// back a key whose session has ended. That load is never handed the new key either — the fixation defence.
     /// </remarks>
-    private static void AppendSessionCookie(HttpContext http, UISessionOptions options, UIViewResolution resolution)
+    private static void AppendSessionCookie(HttpContext http, UISessionOptions options, WebSessionCookie cookie, UIViewResolution resolution)
     {
         if (resolution.IssuedSecret is { } issued)
         {
-            WriteSessionCookie(http, options, issued.Value);
+            WriteSessionCookie(http, options, cookie, issued.Value);
             return;
         }
 
-        if (options.ClientKeyLifetime is null || PresentedSecretOf(http, options, resolution.Session.SessionId) is not { } presented)
+        if (options.ClientKeyLifetime is null || PresentedSecretOf(http, cookie, resolution.Session.SessionId) is not { } presented)
             return;
 
         var sessionId = resolution.Session.SessionId;
@@ -499,12 +500,12 @@ public static partial class WebEndpointRouteBuilderExtensions
             IUserSessionStore store = http.RequestServices.GetRequiredService<IUserSessionStore>();
 
             if (await store.TryGetAsync(sessionId, http.RequestAborted).ConfigureAwait(false) is { PendingIdRotation: false })
-                WriteSessionCookie(http, options, presented);
+                WriteSessionCookie(http, options, cookie, presented);
         });
     }
 
-    private static void WriteSessionCookie(HttpContext http, UISessionOptions options, string secret)
-        => http.Response.Cookies.Append(options.ClientKey, secret, new CookieOptions
+    private static void WriteSessionCookie(HttpContext http, UISessionOptions options, WebSessionCookie cookie, string secret)
+        => http.Response.Cookies.Append(cookie.Name, secret, new CookieOptions
         {
             HttpOnly = true,
             IsEssential = true,
@@ -515,9 +516,9 @@ public static partial class WebEndpointRouteBuilderExtensions
         });
 
     /// <summary>The secret the request presented, where it is the key of <paramref name="sessionId"/>.</summary>
-    private static string? PresentedSecretOf(HttpContext http, UISessionOptions options, string sessionId)
+    private static string? PresentedSecretOf(HttpContext http, WebSessionCookie cookie, string sessionId)
     {
-        var presented = WebClientRequest.ReadSessionSecret(http, options);
+        var presented = WebClientRequest.ReadSessionSecret(http, cookie);
 
         return string.Equals(UISessionSecret.TryToSessionId(presented), sessionId, StringComparison.Ordinal) ? presented : null;
     }

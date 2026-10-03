@@ -106,7 +106,7 @@ installFakeDom({
     })
 });
 
-const { ActionBarButtonWords, readActionBarEntries } = await import("../src/interactions/action-bar.ts");
+const { readActionBarEntries } = await import("../src/interactions/action-bar.ts");
 const { ActionBarEngine } = await import("../src/interactions/action-bar-engine.ts");
 const { ContextMenuEngine } = await import("../src/interactions/context-menu-engine.ts");
 const { soleControlOf } = await import("../src/interactions/own-control.ts");
@@ -525,19 +525,17 @@ test("a drag beginning takes the bar away", () => {
     assert.equal(barOf(at.host), null);
 });
 
-test("an icon's tooltip is its entry's title as the entry shows it now", () => {
+test("an icon is named by its entry's title alone, with no tooltip: one would be a popup over the bar", () => {
     const at = scene();
 
     press(at.text);
 
-    const pin = buttonsOf(barOf(at.host))[0];
+    for (const button of buttonsOf(barOf(at.host))) {
+        assert.ok((button.getAttribute("aria-label") ?? "").length > 0);
+        assert.equal(button.hasAttribute("data-ui-tooltip"), false);
+    }
 
-    assert.equal(ActionBarButtonWords.anchor(real<Element>(pin.children[0])), pin);
-
-    // Read off the entry as the tooltip opens, a language switch included; the words are never read again as markup.
-    at.pin.children[0].children[1].textContent = "Épingler *vite*";
-
-    assert.equal(ActionBarButtonWords.words(real<Element>(pin)), String.raw`Épingler \*vite\*`);
+    assert.equal(buttonsOf(barOf(at.host))[0].getAttribute("aria-label"), "Pin");
 });
 
 test("the keyboard in a host draws its bar, and the keyboard leaving the host takes it away", () => {
@@ -809,6 +807,38 @@ test("a press on an icon is its entry's own press, after the opening the menu wo
     assert.deepEqual(openings[1], { target: pin, actionBar: false });
 });
 
+test("a finger's press on a bar that came up a double tap ago is held, so a double tap on a host presses nothing on its bar", t => {
+    t.mock.timers.enable({ apis: ["Date"], now: 1000 });
+
+    const at = scene();
+    let pressed = 0;
+
+    at.pin.addEventListener("click", () => pressed++);
+    tap(at.text);
+
+    const pin = buttonsOf(barOf(at.host))[0];
+
+    // The second tap, landing on the icon that came up where the host stood.
+    notePress(real(pin), "touch");
+    pin.click();
+
+    assert.equal(pressed, 0);
+
+    t.mock.timers.tick(500);
+    notePress(real(pin), "touch");
+    pin.click();
+
+    assert.equal(pressed, 1);
+
+    // A mouse's press is never held: its bar comes up beside the pointer, not under it.
+    press(at.outside);
+    press(at.text);
+    notePress(real(buttonsOf(barOf(at.host))[0]), "mouse");
+    buttonsOf(barOf(at.host))[0].click();
+
+    assert.equal(pressed, 2);
+});
+
 test("an entry the press's opening turned off, or an opening kept shut, presses nothing", () => {
     const at = scene();
     let pressed = 0;
@@ -886,13 +916,15 @@ test("more stands only while the menu holds an entry out of the bar, and opens t
     const more = buttonsOf(barOf(at.host))[3];
 
     more.rect = { left: 300, top: 20, width: 28, height: 28 };
+    // The bar around it: 2 px of padding and a 1 px border.
+    barOf(at.host)!.rect = { left: 207, top: 17, width: 124, height: 34 };
     press(more);
     more.click();
 
     assert.equal(at.menu.classes.has("ui-context-menu--open"), true);
-    // Under "more" as a menu button's list, a small gap below it.
+    // Under "more" as a menu button's list, the popup gap below the bar rather than the button inside it.
     assert.equal(at.menu.style.left, "300px");
-    assert.equal(at.menu.style.top, "52px");
+    assert.equal(at.menu.style.top, "55px");
     // Not a long press: no row of icons atop it.
     assert.equal(at.menu.children[0].classes.has("ui-action-bar"), false);
 
@@ -987,7 +1019,7 @@ test("the keyboard's more opens the menu over a bar that stays, said open, and E
     assert.equal(at.menu.classes.has("ui-context-menu--open"), true);
     assert.equal(at.menu.contains(fakeDocument.activeElement), true, "the menu takes the keyboard");
     assert.notEqual(barOf(at.host), null, "the bar stands under the menu its more opened");
-    assert.equal(buttonsOf(barOf(at.host))[3].getAttribute("aria-expanded"), "true", "so its tooltip stays away");
+    assert.equal(buttonsOf(barOf(at.host))[3].getAttribute("aria-expanded"), "true", "said open");
 
     key("Escape", fakeDocument.documentElement);
     assert.equal(at.menu.classes.has("ui-context-menu--open"), false);
@@ -1101,7 +1133,9 @@ test("a finger's long press takes away the bar standing, on its host or elsewher
     assert.equal(barOf(at.host), null);
 });
 
-test("a mouse's right press on the chosen host keeps its bar over the menu, and a finger's more opens the menu with no second row of icons", () => {
+test("a mouse's right press on the chosen host keeps its bar over the menu, and a finger's more opens the menu with no second row of icons", t => {
+    t.mock.timers.enable({ apis: ["Date"], now: 1000 });
+
     const at = scene();
 
     press(at.text);
@@ -1116,6 +1150,8 @@ test("a mouse's right press on the chosen host keeps its bar over the menu, and 
 
     const more = buttonsOf(barOf(at.host))[3];
 
+    // Pressed a while after the bar came up: sooner, a finger's press is a double tap's second and held.
+    t.mock.timers.tick(500);
     press(more, "touch");
     more.click();
 

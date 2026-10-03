@@ -8,6 +8,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -42,6 +43,14 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         SelectComponentRenderer.RenderAdornmentState(context, root);
         RenderMaxSelected(context, root);
 
+        var freeText = ReadRenderValue<bool?>(context, MultiSelectComponent.AllowFreeTextProperty, null) == true;
+
+        if (freeText)
+            _ = root.Attribute(WebAttributes.SelectFreeText);
+
+        if (freeText && ReadRenderValue<UITagEntry?>(context, MultiSelectComponent.TagEntryProperty, null) == UITagEntry.FirstSuggestion)
+            _ = root.Attribute(WebAttributes.SelectTagEntry, "first-suggestion");
+
         WebRenderValueKind valueKind = RenderChosenKeys(context, root, out IReadOnlyList<string> chosenKeys, out CompiledUIBinding? valueBinding);
 
         RenderTemplates(context, root);
@@ -50,7 +59,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        RenderTrigger(context, root, items, chosenKeys);
+        RenderTrigger(context, root, items, chosenKeys, freeText);
         RenderValueInput(context, root, valueKind, chosenKeys, valueBinding);
         SelectComponentRenderer.RenderPopup(context, root, items, isBound, new HashSet<string>(chosenKeys, StringComparer.Ordinal));
 
@@ -101,7 +110,11 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         return distinct;
     }
 
-    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, IReadOnlyList<string> chosenKeys)
+    /// <summary>
+    /// The field's box: the chips, then — taking free text — the entry the reader types in, which is then the combobox in the box's
+    /// place, so the same names, read-only mark and caption land on whichever control the reader reaches.
+    /// </summary>
+    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, IReadOnlyList<string> chosenKeys, bool freeText)
     {
         _ = root.Element("div", trigger =>
         {
@@ -111,14 +124,12 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
             BorderStyleRenderer.RenderBorderStyle(context, trigger);
 
             // A focusable box rather than the select's button: the chips' remove buttons stand inside it, and a button holds no control.
-            _ = trigger.Attribute("role", "combobox");
-            _ = trigger.Attribute("tabindex", "0");
-            RenderPopupTrigger(trigger, "listbox");
+            if (!freeText)
+            {
+                _ = trigger.Attribute("tabindex", "0");
+                RenderCombobox(context, root, trigger);
+            }
 
-            // Read-only keeps the field focusable and its chips readable; the engine offers no list and removes nothing.
-            NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, trigger);
-
-            TextContentRendererBase.RenderFieldLabel(context, trigger);
             TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: false));
@@ -137,9 +148,18 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
                         RenderChip(context, chips, chosenKeys[i], title, content);
                         drawn++;
                     }
+                    else if (freeText)
+                    {
+                        // A value the reader typed has no option: its key is its words, as written.
+                        RenderChip(context, chips, chosenKeys[i], UIPhrase.Text(chosenKeys[i]), content: true);
+                        drawn++;
+                    }
                 }
 
                 SelectComponentRenderer.RenderPlaceholder(context, chips, hidden: drawn > 0);
+
+                if (freeText)
+                    _ = chips.Element("input", entry => RenderEntry(context, root, entry));
             });
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: true));
@@ -147,6 +167,37 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
             SelectComponentRenderer.RenderClear(context, trigger);
             SelectComponentRenderer.RenderChevron(trigger);
         });
+    }
+
+    /// <summary>
+    /// The control the reader reaches: its role, the list it opens, read-only as <c>aria-readonly</c> (focusable and readable, the
+    /// engine refusing every change) and the caption as its name.
+    /// </summary>
+    private static void RenderCombobox(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder control)
+    {
+        _ = control.Attribute("role", "combobox");
+        RenderPopupTrigger(control, "listbox");
+        NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, control);
+        TextContentRendererBase.RenderFieldLabel(context, control);
+    }
+
+    /// <summary>
+    /// The entry after the chips, where Enter or a comma makes a chip of the text: an editable combobox over the suggestions, as a
+    /// search's field is. Its text is a draft, never the value — the engine keeps it from the value's listeners.
+    /// </summary>
+    private static void RenderEntry(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder entry)
+    {
+        _ = entry.Class("ui-multi-select__entry");
+        _ = entry.Attribute(WebAttributes.Draft);
+        _ = entry.Attribute("type", "text");
+        _ = entry.Attribute("autocomplete", "off");
+        _ = entry.Attribute("enterkeyhint", "enter");
+        _ = entry.Attribute("aria-autocomplete", "list");
+
+        // A blank one, so the stylesheet hides the field's placeholder once text is typed (:placeholder-shown).
+        _ = entry.Attribute("placeholder", " ");
+
+        RenderCombobox(context, root, entry);
     }
 
     /// <summary>

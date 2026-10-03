@@ -151,7 +151,8 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
     /// <summary>The button is disabled until the typed name matches — compared in the browser, so nothing is sent until it does.</summary>
     private static CardComponent CreateDangerZone()
         => UIPage.Card("Danger zone", "The one thing on this page that cannot be undone.", UILayout.Stack(16,
-            UIText.Paragraph($"Deleting **{WorkspaceSettingsController.AccountName}** removes every server, bucket and invoice in it. Type the account's name to unlock the button."),
+            UIMessage.Warning(null, $"Deleting **{WorkspaceSettingsController.AccountName}** removes every server, bucket and invoice in it, for good."),
+            UIText.Paragraph("Type the account's name to unlock the button."),
             UIForm.Row(
                 new TextInputComponent(DeleteConfirmationId)
                     .SetAppearance(UIInputAppearance.Outline)

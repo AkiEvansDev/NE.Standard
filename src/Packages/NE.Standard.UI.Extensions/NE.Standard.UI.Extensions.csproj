@@ -6,7 +6,7 @@
 
   <PropertyGroup>
     <PackageId>NE.Standard.UI.Extensions</PackageId>
-    <Description>Presets over the NE.Standard UI components: shorthands for the component arrangements an application writes again and again: text, pages, layouts, buttons, forms and details.</Description>
+    <Description>Presets over the NE.Standard UI components: shorthands for the component arrangements an application writes again and again: text, pages, inline messages, layouts, buttons, forms and details.</Description>
     <PackageTags>NE.Standard,UI,Extensions,Presets</PackageTags>
   </PropertyGroup>
 

@@ -42,7 +42,8 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
             UIText.Note(string.Empty).BindDescription(nameof(NoteEditorController.Status)),
             UIButtons.Pair(
                 UIButtons.Ghost("Revert").OnClick(nameof(NoteEditorController.Revert)),
-                UIButtons.Primary("Save").OnClick(nameof(NoteEditorController.Save))
+                // Ctrl+S from anywhere on the page, the fields included: the browser's own save of the page never opens.
+                UIButtons.Primary("Save").OnClick(nameof(NoteEditorController.Save)).SetShortcut("Ctrl+S")
             )
         ), DemoIcons.Outline(DemoIcons.FileText));
 

@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Items;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Recursive;
@@ -36,6 +38,10 @@ internal abstract partial class UIRuntimeBase
             if (!TryBuildDynamicParameters(binding, materializedParameters, out var ownerDynamicParameters))
                 continue;
 
+            // The list went whole this round, its rows' own lists with it: what is queued under it is what the page should get.
+            if (IsSentWholeNoLock(binding, ownerDynamicParameters))
+                continue;
+
             for (var itemOffset = 0; itemOffset < change.Count; itemOffset++)
             {
                 RemovePendingSubtreeUpdatesNoLock(
@@ -45,6 +51,10 @@ internal abstract partial class UIRuntimeBase
             }
         }
     }
+
+    /// <summary>Whether the host's list was sent whole earlier in this round, as the round left it (<c>_wholeLists</c>).</summary>
+    private bool IsSentWholeNoLock(CompiledUIBinding binding, object?[] dynamicParameters)
+        => _wholeLists.Count > 0 && _wholeLists.Contains(new UIComponentAddress(binding.Address.Component.Id, dynamicParameters));
 
     private static string GetOldCollectionItemParameter(RecursiveChange change, int offset)
         => GetItemKey(change, offset, old: true) ?? throw MissingItemKeyException();
@@ -138,7 +148,8 @@ internal abstract partial class UIRuntimeBase
                         Index = itemIndex,
                         Key = itemKey,
                         OldKey = itemKey,
-                        Item = item
+                        Item = item,
+                        Projection = View.ItemProjections.For(binding.Address.Component.Id)
                     }
                 ],
                 Moves = []
@@ -222,14 +233,20 @@ internal abstract partial class UIRuntimeBase
             if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
+            UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
+
+            // Already in the list this host was sent whole this round (a row inserted and then filled): sent again, it would draw twice.
+            if (_wholeLists.Count > 0 && _wholeLists.Contains(component))
+                continue;
+
             if (action == CollectionUpdateAction.Remove)
                 RemovePendingRemovedCollectionItemUpdatesNoLock(binding.Address.Component.Id, dynamicParameters, change);
 
             AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
             {
                 Action = action,
-                Component = new(binding.Address.Component.Id, dynamicParameters),
-                Items = BuildCollectionItemChanges(collectionPath, change, action),
+                Component = component,
+                Items = BuildCollectionItemChanges(collectionPath, change, action, View.ItemProjections.For(binding.Address.Component.Id)),
                 Moves = BuildCollectionMoveChanges(collectionPath, change, action)
             });
         }
@@ -246,7 +263,7 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
-    private ServerCollectionItemChange[] BuildCollectionItemChanges(RecursivePath collectionPath, RecursiveChange change, CollectionUpdateAction action)
+    private ServerCollectionItemChange[] BuildCollectionItemChanges(RecursivePath collectionPath, RecursiveChange change, CollectionUpdateAction action, UIItemProjection projection)
     {
         if (action is CollectionUpdateAction.Reset or CollectionUpdateAction.Move)
             return [];
@@ -276,7 +293,8 @@ internal abstract partial class UIRuntimeBase
                 {
                     Index = index,
                     Key = key ?? TryGetItemKey(item),
-                    Item = item
+                    Item = item,
+                    Projection = projection
                 },
 
                 CollectionUpdateAction.Remove => new ServerCollectionItemChange
@@ -290,7 +308,8 @@ internal abstract partial class UIRuntimeBase
                     Index = index,
                     Key = key ?? TryGetItemKey(item),
                     OldKey = GetItemKey(change, i, old: true),
-                    Item = item
+                    Item = item,
+                    Projection = projection
                 },
 
                 _ => throw new UnreachableException()

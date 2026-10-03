@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
@@ -74,6 +75,30 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Builds what an attaching client instance starts from, as <see cref="BuildAttachChangesAsync(string, IReadOnlyCollection{UIBindingId}, CancellationToken)"/>
+    /// does — but for the page whose render this runtime answered (<see cref="BuildRenderSnapshotAsync"/>), presenting the sequence
+    /// that render stood at, only what moved past it.
+    /// </summary>
+    /// <remarks>
+    /// The page already holds the rest. Any other attach — another page, a second one of the same page, a reconnect, a runtime that
+    /// fell too far behind its render — is sent the whole snapshot.
+    /// </remarks>
+    Task<ServerChangeSet> BuildAttachChangesAsync(string instanceId, IReadOnlyCollection<UIBindingId> bindingIds, long? since, CancellationToken cancellationToken = default)
+        => BuildAttachChangesAsync(instanceId, bindingIds, cancellationToken);
+
+    /// <summary>
+    /// Builds what the render of the page with <paramref name="pageId"/> is painted with: the given bindings' values and every bound
+    /// collection, read in one hold, and the sequence they stand at, which that page's attach presents.
+    /// </summary>
+    async Task<UIRenderSnapshot> BuildRenderSnapshotAsync(string pageId, IReadOnlyCollection<UIBindingId> bindingIds, CancellationToken cancellationToken = default)
+    {
+        ServerChangeSet values = await BuildInitialChangeSetAsync(bindingIds, cancellationToken).ConfigureAwait(false);
+        IReadOnlyList<ServerCollectionChangeUIUpdate> collections = await BuildInitialCollectionChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return new UIRenderSnapshot { Changes = new ServerChangeSet { Updates = [.. values.Updates, .. collections] } };
+    }
+
+    /// <summary>
     /// A change set as one attached client instance receives it: without what its attach snapshot already holds, without the values
     /// it wrote itself, and empty while it has no snapshot.
     /// </summary>
@@ -109,6 +134,13 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// </summary>
     /// <remarks>Runs in a command's turn; its effects come back in the answer, never pushed, whatever the runtime's update mode.</remarks>
     Task<UICommandExecutionResult> RequestLeaveAsync(UIHandle invoker, string target, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs the controller's <c>OnNavigatedAsync</c> with <paramref name="navigation"/> for a history entry of the page's own route the
+    /// reader went back or forward to — no reload, no new runtime.
+    /// </summary>
+    /// <remarks>Runs in a command's turn; what it writes comes back in the answer, as a leave's does.</remarks>
+    Task<UICommandExecutionResult> NavigateInPlaceAsync(UIHandle invoker, UINavigationRequest navigation, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Reads a window of items for a windowed host, and returns what that changed.

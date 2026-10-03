@@ -4,12 +4,15 @@ using DemoApp.Controllers.Base;
 namespace DemoApp.Controllers.Inputs.TextInput;
 
 /// <summary>
-/// The single-line field's own group: its prefix/suffix adornments and its native input type.
+/// The single-line field's own group: its prefix/suffix adornments, its native input type and the keyboard it asks a phone for.
 /// </summary>
 internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupContext
 {
     [RecursiveMember]
     public partial UITextInputType? Type { get; set; } = UITextInputType.Text;
+
+    [RecursiveMember]
+    public partial UIInputMode? InputMode { get; set; }
 
     [RecursiveMember]
     public partial string? PrefixText { get; set; }
@@ -22,6 +25,7 @@ internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupCont
         AddAppearanceOption();
         AddPlaceholderOption();
         AddOption(nameof(Type), CycleType, () => Type);
+        AddOption(nameof(InputMode), CycleInputMode, () => InputMode);
         AddOption(nameof(PrefixText), TogglePrefixText, () => PrefixText);
         AddOption(nameof(SuffixText), ToggleSuffixText, () => SuffixText);
         AddAffixIconOptions();
@@ -30,6 +34,9 @@ internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupCont
     // Each control cycles one property and records what it changed.
     public void CycleType()
         => SetLastChange(nameof(Type), Type = CycleEnum(Type));
+
+    public void CycleInputMode()
+        => SetLastChange(nameof(InputMode), InputMode = CycleEnum(InputMode));
 
     public void TogglePrefixText()
         => SetLastChange(nameof(PrefixText), PrefixText = CycleValue(PrefixText, null, "https://orvane.example"));

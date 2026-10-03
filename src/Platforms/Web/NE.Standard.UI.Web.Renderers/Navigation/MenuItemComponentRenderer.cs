@@ -25,7 +25,6 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Text(target: "." + ValueClass)];
     private static readonly WebDomOperation[] CheckedOperations = [WebDomOperation.ToggleClass(WebClassNames.MenuItemChecked, condition: WebValueCondition.IsTrue), WebDomOperation.Attribute("aria-checked")];
-    private static readonly WebDomOperation[] ShortcutOperations = [WebDomOperation.Attribute(WebAttributes.MenuShortcut, target: "root"), WebDomOperation.Text(target: "." + ShortcutClass)];
 
     public override string ComponentTypeKey => MenuItemComponent.ComponentTypeKey;
 
@@ -129,25 +128,15 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         }, CheckedOperations);
     }
 
-    /// <summary>Renders the shortcut combination, both as text and as the attribute <c>menu-engine.ts</c> matches on.</summary>
+    /// <summary>
+    /// The chord at the entry's end, as authored; its attribute is the chrome's, and the client writes the words from it in the reader's
+    /// platform's form and again as it changes (<c>shortcut-engine.ts</c>), so the span carries no operation of its own.
+    /// </summary>
     private static void RenderShortcut(WebRenderContext context, IHtmlElementBuilder root)
     {
-        // The span is emitted even when empty: a DOM operation patches text, never adds an element.
-        IHtmlElementBuilder? shortcut = null;
+        _ = ResolveRenderValue(context, MenuItemComponent.ShortcutProperty, out string? value, out _);
 
-        _ = root.Element("span", span =>
-        {
-            _ = span.Class(ShortcutClass);
-            shortcut = span;
-        });
-
-        // One registration carrying both operations: a property may be registered only once.
-        _ = RenderProperty<string?>(context, root, MenuItemComponent.ShortcutProperty, (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(WebAttributes.MenuShortcut, value);
-
-            _ = shortcut!.Text(value ?? string.Empty);
-        }, ShortcutOperations);
+        // Emitted even when empty: the client fills it, and never adds an element.
+        _ = root.Element("span", span => span.Class(ShortcutClass).Text(value ?? string.Empty));
     }
 }

@@ -110,7 +110,8 @@ const colorTokens = [
     "focus-ring",
     "border",
     "shadow",
-    "overlay"
+    "overlay",
+    "mark"
 ];
 
 export function toColorToken(value: unknown): string {
@@ -143,7 +144,8 @@ const styleVarNames = new Map<string, string>([
     ["focus-ring", "--ui-color-focus-ring"],
     ["border", "--ui-color-border"],
     ["shadow", "--ui-color-shadow"],
-    ["overlay", "--ui-color-overlay"]
+    ["overlay", "--ui-color-overlay"],
+    ["mark", "--ui-color-mark"]
 ]);
 
 // The roles with an ink of their own for words; the rest are grounds, edges or already text colours.
@@ -167,7 +169,7 @@ const onColorVarNames = new Map<string, string>([
 ]);
 
 const badgePlacementTokens = ["inline", "trailing"];
-const inputAppearanceTokens = ["filled", "outline", "underline", "ghost"];
+const inputAppearanceTokens = ["filled", "outline", "underline", "ghost", "tonal"];
 const buttonSizeTokens = ["small", "medium", "large"];
 const inputSizeTokens = ["small", "medium", "large"];
 const buttonTokens = ["primary", "accent", "danger", "outline", "ghost", "link", "surface"];
@@ -186,6 +188,7 @@ const dragHandlePlacementTokens = ["end", "start"];
 const scrollTokens = ["disabled", "auto", "always"];
 const scrollSnapTokens = ["disabled", "proximity", "mandatory"];
 const textInputTypeTokens = ["text", "email", "password", "search", "tel", "url"];
+const inputModeTokens = ["text", "numeric", "decimal", "tel", "email", "url", "search"];
 const colorTextFormatTokens = ["hex", "rgb"];
 const colorInputVariantTokens = ["field", "swatch"];
 const imageFitTokens = ["fill", "contain", "cover", "none"];
@@ -244,6 +247,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["buttonSizeClass", value => `ui-button--${toToken(value, buttonSizeTokens)}`],
     ["buttonGroupSizeClass", value => `ui-button-group--${toToken(value, buttonSizeTokens)}`],
     ["textInputTypeAttribute", value => toToken(value, textInputTypeTokens)],
+    ["inputModeAttribute", value => toToken(value, inputModeTokens)],
     ["colorTextFormatAttribute", value => toToken(value, colorTextFormatTokens)],
     ["colorInputVariantAttribute", value => toToken(value, colorInputVariantTokens)],
     ["themeNameCss", value => toToken(value, themeTokens)],

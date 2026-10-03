@@ -23,6 +23,7 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.OpenDialog] = typeof(OpenDialogEffect),
         [ClientEffectKinds.CloseDialog] = typeof(CloseDialogEffect),
         [ClientEffectKinds.ShowNotification] = typeof(ShowNotificationEffect),
+        [ClientEffectKinds.Announce] = typeof(AnnounceEffect),
         [ClientEffectKinds.DownloadFile] = typeof(DownloadFileEffect),
         [ClientEffectKinds.Scroll] = typeof(CompiledScrollEffect),
         [ClientEffectKinds.SetTheme] = typeof(SetThemeEffect),
@@ -34,7 +35,9 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.InsertText] = typeof(CompiledInsertTextEffect),
         [ClientEffectKinds.DiscardForm] = typeof(DiscardFormEffect),
         [ClientEffectKinds.OpenPicker] = typeof(CompiledOpenPickerEffect),
-        [ClientEffectKinds.ConfirmLeave] = typeof(ConfirmLeaveEffect)
+        [ClientEffectKinds.ConfirmLeave] = typeof(ConfirmLeaveEffect),
+        [ClientEffectKinds.ReplaceAddress] = typeof(ReplaceAddressEffect),
+        [ClientEffectKinds.PushAddress] = typeof(PushAddressEffect)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <inheritdoc />

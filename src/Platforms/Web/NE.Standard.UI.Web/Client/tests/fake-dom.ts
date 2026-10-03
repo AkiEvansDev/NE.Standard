@@ -129,6 +129,12 @@ export class FakeElement {
         return child;
     }
 
+    /** Puts the children first, in their order. */
+    public prepend(...children: FakeElement[]): void {
+        for (const [index, child] of children.entries())
+            this.insertBefore(child, this.children[index] ?? null);
+    }
+
     public get isConnected(): boolean {
         const top = this.top();
 
@@ -307,6 +313,32 @@ export class FakeElement {
         return this.laidOut ? [{}] : [];
     }
 
+    /** Whether it is drawn: it and everything above it laid out and visible. */
+    public checkVisibility(): boolean {
+        return this.laidOut && this.visible && (this.parent?.checkVisibility() ?? true);
+    }
+
+    public static readonly DOCUMENT_POSITION_PRECEDING = 2;
+    public static readonly DOCUMENT_POSITION_FOLLOWING = 4;
+    public static readonly DOCUMENT_POSITION_CONTAINS = 8;
+    public static readonly DOCUMENT_POSITION_CONTAINED_BY = 16;
+
+    /** Where another element of the same tree stands against this one, in document order, as the DOM's own bits say. */
+    public compareDocumentPosition(other: FakeElement): number {
+        if (other === this)
+            return 0;
+
+        if (this.contains(other))
+            return FakeElement.DOCUMENT_POSITION_FOLLOWING | FakeElement.DOCUMENT_POSITION_CONTAINED_BY;
+
+        if (other.contains(this))
+            return FakeElement.DOCUMENT_POSITION_PRECEDING | FakeElement.DOCUMENT_POSITION_CONTAINS;
+
+        const order = [this.top(), ...this.top().descendants()];
+
+        return order.indexOf(other) > order.indexOf(this) ? FakeElement.DOCUMENT_POSITION_FOLLOWING : FakeElement.DOCUMENT_POSITION_PRECEDING;
+    }
+
     public get isContentEditable(): boolean {
         return this.attributes.get("contenteditable") === "true";
     }
@@ -374,6 +406,8 @@ export class FakeInput extends FakeElement {
     public readOnly = false;
     /** Where the caret was last put, as `[start, end]`; null until something puts it. */
     public selection: [number, number] | null = null;
+    /** The end the selection was made from, as the browser keeps it. */
+    public selectionDirection: "forward" | "backward" | "none" = "none";
 
     public constructor(type = "text") {
         super("input");
@@ -388,12 +422,17 @@ export class FakeInput extends FakeElement {
         return SelectionInputTypes.has(this.type) ? this.selection?.[0] ?? this.value.length : null;
     }
 
+    public get selectionEnd(): number | null {
+        return SelectionInputTypes.has(this.type) ? this.selection?.[1] ?? this.value.length : null;
+    }
+
     /** Throws on a type that keeps no selection, as the browser does. */
-    public setSelectionRange(start: number, end: number): void {
+    public setSelectionRange(start: number, end: number, direction: "forward" | "backward" | "none" = "none"): void {
         if (!SelectionInputTypes.has(this.type))
             throw new DOMException(`The input element's type ('${this.type}') does not support selection.`, "InvalidStateError");
 
         this.selection = [start, end];
+        this.selectionDirection = direction;
     }
 }
 

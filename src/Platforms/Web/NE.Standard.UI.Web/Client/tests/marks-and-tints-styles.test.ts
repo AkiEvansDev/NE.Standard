@@ -1,7 +1,7 @@
 // Read back from the compiled stylesheet: a chosen row of a list on the page draws the brand's line on its leading edge while a
 // popup's list draws none, a current entry writes in the text's ink, a tint mixes over the mode's own ground at the mode's share,
 // the page has no brand glow, a disabled day still reads, a period with its caption inside reads from the trailing edge, and an
-// underlined picture row starts at the rule.
+// underlined picture row starts at the rule, and a validation mark's tooltip carries its severity down its leading edge in a straight bar.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -95,4 +95,31 @@ test("a period with its caption inside reads from the trailing edge, the spare w
 test("a small underlined picture row starts at the rule's start, as its neighbours do", () => {
     assert.doesNotMatch(declarations(".ui-image-input--inline.ui-input--small > .ui-image-input__surface") ?? "", /padding-left/);
     assert.match(declarations(".ui-image-input--inline.ui-input--small:not(.ui-input--underline) > .ui-image-input__surface") ?? "", /padding-left: 0\.375rem;/);
+});
+
+test("a validation mark's tooltip carries its severity's ink down its leading edge, a straight bar forced colours keep, on square corners", () => {
+    const accent = declarations(".ui-tooltip[data-ui-tooltip-severity]") ?? "";
+    const bar = declarations(".ui-tooltip[data-ui-tooltip-severity]::before") ?? "";
+    const border = "var\\(--ui-border-width, 1px\\)";
+
+    assert.match(accent, /--ui-tooltip-accent: var\(--ui-color-danger-ink\);/);
+    assert.doesNotMatch(accent, /border-left:/);
+    assert.match(accent, new RegExp(`padding-left: calc\\(0\\.5rem \\+ 3px - ${border}\\);`));
+    assert.match(accent, /border-top-left-radius: 0;/);
+    assert.match(accent, /border-bottom-left-radius: 0;/);
+    // A border of its own over the box's edge from its outer top to its outer bottom: no mitre slants its ends.
+    assert.match(bar, /position: absolute;/);
+    assert.match(bar, /border-left: 3px solid var\(--ui-tooltip-accent\);/);
+
+    for (const side of ["top", "bottom", "left"])
+        assert.match(bar, new RegExp(`${side}: calc\\(-1 \\* ${border}\\);`));
+
+    // Beside the control on the bar's side no tail cuts into it; every other side keeps its tail.
+    assert.match(declarations(".ui-tooltip[data-ui-tooltip-severity][data-ui-placement^=\"right\"]::after") ?? "", /content: none;/);
+    assert.match(declarations(".ui-tooltip[data-ui-tooltip-severity=\"warning\"]") ?? "", /--ui-tooltip-accent: var\(--ui-color-warning-ink\);/);
+    assert.match(declarations(".ui-tooltip[data-ui-tooltip-severity=\"info\"]") ?? "", /--ui-tooltip-accent: var\(--ui-color-info-ink\);/);
+});
+
+test("a tooltip with no link in it takes no press, so a control it stands over can still be pressed", () => {
+    assert.match(declarations(".ui-tooltip--visible:not(:has(a[href]))") ?? "", /pointer-events: none;/);
 });

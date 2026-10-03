@@ -73,7 +73,7 @@ export function toCollectionChange(
             key: item.key ?? null,
             oldKey: item.oldKey ?? null,
             index: item.index ?? null,
-            item: item.item
+            item: item.item ?? null
         })),
         moves: (update.moves ?? []).map(move => ({
             key: move.key ?? null,

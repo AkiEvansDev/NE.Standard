@@ -1,8 +1,9 @@
 import { CollectionSinkAttribute, ComponentKeyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
 import { DomRegistry, findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry";
-import { ItemStackEntry } from "../items/binding-template-evaluator";
+import { ItemStackEntry, onNotCarried } from "../items/binding-template-evaluator";
 import { findSlotRoots } from "../items/composite-slots";
 import { HeldCollections } from "../items/held-collections";
+import { ItemProjections, readItemProjections } from "../items/item-projections";
 import { getRealItemElements } from "../items/items-empty-renderer";
 import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
 import { planRowRemoval } from "../interactions/row-cursor";
@@ -32,6 +33,8 @@ import {
 import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
 import { PropertyStateStore } from "../state/property-state-store";
 import { areValuesEqual } from "../state/value-equality";
+import { readCollectionRefill } from "./collection-refill";
+import type { CollectionRefill } from "./collection-refill";
 import { CollectionSinkRegistry, toCollectionChange } from "./collection-sinks";
 import { PropertyPatchEngine } from "./property-patch-engine";
 
@@ -50,6 +53,9 @@ export class UpdateProcessor {
     // The collections of hosts declared inside an item template, for the rows built after they arrived.
     private readonly held = new HeldCollections();
 
+    // What each host's rows carry, on a page in development; empty elsewhere, and nothing is marked.
+    private readonly projections: ItemProjections;
+
     /** The rows the reader moved ahead of their commands, put where the server says once the answers are in. */
     public readonly moves = new PendingMoves({
         indexOf: (host, key) => this.indexOfRow(host, key),
@@ -67,6 +73,10 @@ export class UpdateProcessor {
         private readonly sinks: CollectionSinkRegistry
     ) {
         itemsRenderer.setRowFiller(row => this.fillHeldCollections(row));
+        this.projections = readItemProjections(metadata);
+
+        if (!this.projections.isEmpty)
+            onNotCarried((record, propertyName) => this.projections.check(record, propertyName));
     }
 
     /** Gives a row just built the collections its hosts share, as the server last sent them rather than as the template was rendered. */
@@ -126,7 +136,12 @@ export class UpdateProcessor {
             if (owner === null)
                 continue;
 
-            for (const value of this.metadata.getItemValues(owner.componentId, owner.dynamicParameters))
+            const values = this.metadata.getItemValues(owner.componentId, owner.dynamicParameters);
+
+            if (!this.projections.isEmpty)
+                this.projections.mark(owner.componentId, values);
+
+            for (const value of values)
                 this.registerItemValue(owner.componentId, rowsOf(host), value.key, value.item);
         }
 
@@ -219,16 +234,16 @@ export class UpdateProcessor {
 
             // One update that throws is logged and passed over, so the rest of the set still reaches the page.
             try {
-                const refill = readCollectionRefill(update, updates[index + 1]);
+                const refill = readCollectionRefill(updates, index);
 
-                // A component that takes its collection through a sink has no rows to reconcile: the reset and the insert go to the sink.
+                // A component that takes its collection through a sink has no rows to reconcile: the reset and the inserts go to the sink.
                 if (refill === null || this.namesSink(refill)) {
                     this.applyUpdate(update);
                     continue;
                 }
 
-                // Before the refill: a refill that throws has still taken its insert, which must not then be applied alone.
-                index++;
+                // Before the refill: a refill that throws has still taken its inserts, which must not then be applied alone.
+                index += refill.length - 1;
                 this.applyCollectionRefill(refill);
             }
             catch (error) {
@@ -397,8 +412,9 @@ export class UpdateProcessor {
             return;
         }
 
-        // The reference carries the mark on into the state, so a language switch shows the item's words as written as well.
-        this.propertyPatchEngine.applyPropertyValue(update.content === true ? { ...binding, content: true } : binding, dynamicParameters, update.value, false);
+        // The reference carries the mark on into the state, so a language switch shows the item's words as written as well. A null
+        // value is left out on the wire.
+        this.propertyPatchEngine.applyPropertyValue(update.content === true ? { ...binding, content: true } : binding, dynamicParameters, update.value ?? null, false);
     }
 
     /** A server-side refusal of a typed value, delivered into the field's own validation message. */
@@ -434,6 +450,9 @@ export class UpdateProcessor {
         const dynamicParameters = update.component?.dynamicParameters ?? [];
         const component = this.dom.findComponent(componentId, dynamicParameters);
         const sinkKind = component?.getAttribute(CollectionSinkAttribute) ?? null;
+
+        if (!this.projections.isEmpty)
+            this.projections.mark(componentId, update.items ?? []);
 
         // A component that names a sink takes its collection as values, not rows: the sink draws what it likes from them.
         if (component !== null && sinkKind !== null) {
@@ -730,35 +749,6 @@ function applyCollectionMove(host: Element, moves: readonly ServerCollectionMove
         // To the end: after the last row, not after the host's last child — a windowed host's spacer stands there.
         host.insertBefore(element, next ?? order[order.length - 2]?.nextSibling ?? null);
     }
-}
-
-type CollectionRefill = {
-    readonly componentId: number;
-    readonly dynamicParameters: readonly unknown[];
-    readonly items: readonly ServerCollectionItemChange[];
-};
-
-/** Reads a reset and the insert right after it on the same host as one "the collection is now exactly this". */
-function readCollectionRefill(update: ServerUIUpdate, next: ServerUIUpdate | undefined): CollectionRefill | null {
-    if (next === undefined || getUpdateKind(update) !== "CollectionChange" || getUpdateKind(next) !== "CollectionChange")
-        return null;
-
-    const reset = update as ServerCollectionChangeUIUpdate;
-    const insert = next as ServerCollectionChangeUIUpdate;
-
-    if (getCollectionUpdateAction(reset.action) !== "Reset" || getCollectionUpdateAction(insert.action) !== "Insert")
-        return null;
-
-    const componentId = getIdValue(reset.component?.id);
-    const dynamicParameters = reset.component?.dynamicParameters ?? [];
-
-    if (componentId <= 0 || componentId !== getIdValue(insert.component?.id))
-        return null;
-
-    if (!areValuesEqual(dynamicParameters, insert.component?.dynamicParameters ?? []))
-        return null;
-
-    return { componentId, dynamicParameters, items: insert.items ?? [] };
 }
 
 /** Puts the items in the order the server sent them, each placed against the item before it rather than a child index. */

@@ -24,7 +24,11 @@ internal sealed class UICommandInvoker
         _invoke = invoke;
         _parameters = parameters;
         _commandName = commandName;
+        ParameterNames = Array.ConvertAll(parameters, static parameter => parameter.Name);
     }
+
+    /// <summary>The names of the arguments the command takes, in order, its cancellation token aside.</summary>
+    public string[] ParameterNames { get; }
 
     public static UICommandInvoker Create(Type controllerType, MethodInfo method, string commandName)
     {

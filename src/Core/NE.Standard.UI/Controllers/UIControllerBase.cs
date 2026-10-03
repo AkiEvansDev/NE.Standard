@@ -430,7 +430,10 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
                     AllowAnonymous = ResolveAllowAnonymous(method),
                     AccessRules = BuildAccessRules(method),
                     Filters = ReadCommandFilters(controllerType, method),
-                    ConcurrencyMode = attribute.ConcurrencyMode
+                    ConcurrencyMode = attribute.ConcurrencyMode,
+                    MaxConcurrent = attribute.MaxConcurrent >= 1
+                        ? attribute.MaxConcurrent
+                        : throw new InvalidOperationException($"Command '{commandName}' on controller '{current.Name}' allows {attribute.MaxConcurrent} concurrent runs; at least one is needed.")
                 });
 
                 declaringTypes.Add(commandName, current);

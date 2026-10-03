@@ -309,6 +309,9 @@ internal sealed partial class TableController() : DemoStandardController
     public partial TableOpenGroupContext ChosenGroup { get; set; } = new();
 
     [RecursiveMember]
+    public partial TableOpenGroupContext PressedGroup { get; set; } = new();
+
+    [RecursiveMember]
     public partial TableRolloutGroupContext GripGroup { get; set; } = new();
 
     [UICommand]
@@ -334,6 +337,10 @@ internal sealed partial class TableController() : DemoStandardController
     [UICommand]
     public void OpenChosenRow(string id)
         => ChosenGroup.Open(id);
+
+    [UICommand]
+    public void OpenPressedRow(string id)
+        => PressedGroup.Open(id);
 
     [UICommand]
     public void MoveGripRow(string id, int index)

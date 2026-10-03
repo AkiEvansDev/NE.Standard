@@ -1,4 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { ValueEndAttribute } from "../addressing/dom-attributes.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import type { EffectRegistry } from "../effects/effect-registry.ts";
@@ -15,6 +16,7 @@ import { logWarn } from "../runtime/logger.ts";
 import { areValuesEqual } from "../state/value-equality.ts";
 import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
 import { ValueSyncEventNames, resolveWritableBinding } from "../updates/value-binding-engine.ts";
+import { focusedElement, handFocusOnIfHidden } from "./focus-handoff.ts";
 import type { InteractionEvaluator } from "./interaction-evaluator.ts";
 import type { InteractionIndex } from "./interaction-index.ts";
 
@@ -126,7 +128,7 @@ export class InteractionEngine {
         let interactions: readonly WebRenderInteractionMetadata[];
 
         if (writable === null)
-            interactions = this.index.getValueInteractions(resolved.componentId);
+            interactions = field.hasAttribute(ValueEndAttribute) ? this.index.getEndValueInteractions(resolved.componentId) : this.index.getValueInteractions(resolved.componentId);
         else if (writable.binding === undefined)
             return null;
         else
@@ -224,6 +226,9 @@ export class InteractionEngine {
     }
 
     private writeTarget(target: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, local: boolean): void {
+        // A write hiding what holds the focus (a message's × collapsing the message) hands the focus on rather than drop it to the body.
+        const focused = focusedElement();
+
         this.applyDepth++;
 
         try {
@@ -232,6 +237,9 @@ export class InteractionEngine {
         finally {
             this.applyDepth--;
         }
+
+        if (focused !== null)
+            handFocusOnIfHidden(focused);
     }
 
     /** Runs the client effect a command would have returned, without the round trip. */

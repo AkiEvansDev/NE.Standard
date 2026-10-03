@@ -112,6 +112,7 @@ public static class WebClassNames
             UIColorStyle.Border => "ui-color--border",
             UIColorStyle.Shadow => "ui-color--shadow",
             UIColorStyle.Overlay => "ui-color--overlay",
+            UIColorStyle.Mark => "ui-color--mark",
             _ => string.Empty
         };
 
@@ -318,6 +319,7 @@ public static class WebClassNames
             UIInputAppearance.Outline => "ui-search__field--outline",
             UIInputAppearance.Underline => "ui-search__field--underline",
             UIInputAppearance.Ghost => "ui-search__field--ghost",
+            UIInputAppearance.Tonal => "ui-search__field--tonal",
             _ => string.Empty
         };
 
@@ -328,6 +330,7 @@ public static class WebClassNames
             UIInputAppearance.Outline => "ui-input--outline",
             UIInputAppearance.Underline => "ui-input--underline",
             UIInputAppearance.Ghost => "ui-input--ghost",
+            UIInputAppearance.Tonal => "ui-input--tonal",
             _ => string.Empty
         };
 
@@ -349,6 +352,20 @@ public static class WebClassNames
             UITextInputType.Search => "search",
             UITextInputType.Tel => "tel",
             UITextInputType.Url => "url",
+            _ => string.Empty
+        };
+
+    /// <summary>A field's on-screen keyboard as its <c>inputmode</c> token.</summary>
+    public static string InputMode(UIInputMode value)
+        => value switch
+        {
+            UIInputMode.Text => "text",
+            UIInputMode.Numeric => "numeric",
+            UIInputMode.Decimal => "decimal",
+            UIInputMode.Tel => "tel",
+            UIInputMode.Email => "email",
+            UIInputMode.Url => "url",
+            UIInputMode.Search => "search",
             _ => string.Empty
         };
 

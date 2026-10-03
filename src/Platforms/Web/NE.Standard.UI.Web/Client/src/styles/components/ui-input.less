@@ -115,9 +115,18 @@
     color: var(--ui-text-muted);
 }
 
-    // A raster image icon has no x-height to match, so it keeps a larger step than the glyphs use.
+    // A raster image icon has no x-height to match, so it keeps a larger step than the glyphs use: the icon scale's next one up
+    // by the field's size, where 1.25em of its text stood on half pixels.
     .ui-input__affix-icon.ui-icon--image {
-        font-size: 1.25em;
+        font-size: @ui-glyph-md-lg;
+    }
+
+    .ui-input--small .ui-input__affix-icon.ui-icon--image {
+        font-size: @ui-glyph-md;
+    }
+
+    .ui-input--large .ui-input__affix-icon.ui-icon--image {
+        font-size: @ui-glyph-xl;
     }
 
 [data-ui-input-prefix-icon] .ui-input__affix-icon--prefix,
@@ -157,16 +166,35 @@
     outline-offset: calc(-1 * (var(--ui-input-focus-ring, 1px) + var(--ui-border-width, 1px)));
 }
 
-:is(.ui-invalid, .ui-validation--warning) > .ui-field-box {
-    --ui-field-ring: var(--ui-validation-color, var(--ui-color-danger));
+:is(@{ui-validation-marked}) > .ui-field-box {
+    --ui-field-ring: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 
-// No fill, a border all the way round, in the theme's own colour rather than the fill it replaces — the whole difference from Filled.
+// The ground alone is one step off the page (1.2:1), too faint to say a field is there: a line under it at the mark's 3:1 does, as
+// Material's filled field draws it, on square bottom corners so the line runs straight to the field's ends. Every later state
+// (hover, focus, an error) writes its own edge over it. Tonal is the ground alone, rounded all round, for a field something else
+// already frames.
+.ui-input--filled > :is(@{ui-input-field}),
+.ui-input--filled > .ui-field-box {
+    border-bottom-color: var(--ui-color-mark);
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+}
+
+// No fill, a border all the way round in the mark, which reads 3:1 on the ground — the whole difference from Filled.
 .ui-input--outline > :is(@{ui-input-field}),
 .ui-input--outline > .ui-field-box {
     --ui-field-fill: var(--ui-field-ground);
-    border-color: var(--ui-color-border);
+    border-color: var(--ui-color-mark);
     background: none;
+}
+
+// Where the field's text stands, its border and start padding: what its message line and an editor set back in place read.
+// Ghost, Underline and Small restate it below.
+.ui-input--filled,
+.ui-input--tonal,
+.ui-input--outline {
+    --ui-field-inset: calc(@ui-space-3 + var(--ui-border-width, 1px));
 }
 
 // A rule under the text, not a box: the variable zeroes the focus ring, the row's inset shadow and the box's outline alike.
@@ -181,7 +209,8 @@
     // Sides switched off by style, not width: an authored BorderThickness arrives as an inline border-width no stylesheet can outrank.
     border-style: none none solid none;
     border-width: 0 0 var(--ui-border-width, 1px) 0;
-    border-color: var(--ui-color-border);
+    // The rule is all that says a field is there, so it is the mark's, not a divider's.
+    border-color: var(--ui-color-mark);
     border-radius: 0;
     background: none;
     padding-left: 0;
@@ -219,8 +248,13 @@
 
 // Small and large move a field's height, its side padding and its text. After Ghost and Underline, whose own heights a size overrides.
 .ui-input--small {
+    --ui-field-inset: calc(0.375rem + var(--ui-border-width, 1px));
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
+}
+
+.ui-input--underline.ui-input--small {
+    --ui-field-inset: 0px;
 }
 
 .ui-input--small > :is(@{ui-input-field}) {
@@ -255,9 +289,15 @@
 
 // States are a ladder by source order, hover weightless so every later state outranks it; its edge alone, since a field is no button.
 @media @ui-can-hover {
+    :where(.ui-input--filled@{ui-field-live}, .ui-input--tonal@{ui-field-live}) > :is(@{ui-input-field}):hover,
+    :where(.ui-input--filled@{ui-field-live}, .ui-input--tonal@{ui-field-live}) > .ui-field-box:hover {
+        .ui-field-edge-hover();
+    }
+
+    // Filled keeps its line under the pointer.
     :where(.ui-input--filled@{ui-field-live}) > :is(@{ui-input-field}):hover,
     :where(.ui-input--filled@{ui-field-live}) > .ui-field-box:hover {
-        .ui-field-edge-hover();
+        border-bottom-color: var(--ui-color-mark);
     }
 }
 
@@ -308,9 +348,9 @@
     caret-color: var(--ui-color-on-surface);
 }
 
-// An error and a warning colour the field's edge; an info only speaks under it.
-:is(.ui-invalid, .ui-validation--warning) > :is(@{ui-input-field-state}) {
-    border-color: var(--ui-validation-color, var(--ui-color-danger));
+// Every message colours the field's edge, each in its own colour: an error, a warning and an info alike.
+:is(@{ui-validation-marked}) > :is(@{ui-input-field-state}) {
+    border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 
 // :focus-within covers a row and a directly focused field alike; a focus the pointer handed back lights nothing (@ui-field-focus).
@@ -318,8 +358,8 @@
     border-color: var(--ui-color-primary);
 }
 
-:is(.ui-invalid, .ui-validation--warning):not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus} {
-    border-color: var(--ui-validation-color, var(--ui-color-danger));
+:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus} {
+    border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 
 // Inset, since a panel's overflow: hidden clips an outer ring unevenly; a box uses the outline above, as its content covers a shadow.
@@ -327,8 +367,39 @@
     .ui-field-edge-active();
 }
 
-:is(.ui-invalid, .ui-validation--warning):not(.ui-disabled) > :is(@{ui-input-field})@{ui-field-focus} {
-    .ui-field-edge-active(var(--ui-validation-color, var(--ui-color-danger)));
+:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field})@{ui-field-focus} {
+    .ui-field-edge-active(var(--ui-validation-color, var(--ui-color-danger-ink)));
+}
+
+// Filled's edge is its line: a message, a focus and an open list colour the line alone, which a focus doubles inward. A ring round a
+// field squared at the bottom read as a frame fitted to the wrong shape. An inset shadow, so no height moves.
+.ui-input--filled:is(@{ui-validation-marked}) > :is(@{ui-input-field-state}) {
+    border-color: var(--ui-field-rest);
+    border-bottom-color: var(--ui-validation-color, var(--ui-color-danger-ink));
+}
+
+// A marked field answers the pointer as any other: the faint edge round it, its line kept.
+@media @ui-can-hover {
+    .ui-input--filled:is(@{ui-validation-marked})@{ui-field-live} > :is(@{ui-input-field-state}):hover {
+        border-color: var(--ui-field-hover);
+        border-bottom-color: var(--ui-validation-color, var(--ui-color-danger-ink));
+    }
+}
+
+// The sides keep the pointer's faint edge through the focus: dropping it as the focus came made the field change its frame twice.
+
+.ui-input--filled:not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus},
+.ui-input--filled:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+    --ui-field-line: var(--ui-color-primary);
+    border-color: var(--ui-field-hover);
+    border-bottom-color: var(--ui-field-line);
+    outline: none;
+    box-shadow: inset 0 calc(-1 * var(--ui-border-width, 1px)) 0 var(--ui-field-line);
+}
+
+.ui-input--filled:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus},
+.ui-input--filled:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+    --ui-field-line: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 
 // A ghost's focus is a ghost button's wash, since a ring would read as a smaller Outline; the same @ui-field-focus as the edges.
@@ -343,8 +414,8 @@
     border-color: transparent;
 }
 
-// Except an invalid or warning ghost's edge, which says the value is wrong and stays through focus and an open list.
-.ui-input--ghost:is(.ui-invalid, .ui-validation--warning):not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within,
-.ui-input--ghost:is(.ui-invalid, .ui-validation--warning):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
-    border-color: var(--ui-validation-color, var(--ui-color-danger));
+// Except the edge of a ghost with a message, which says something about the value and stays through focus and an open list.
+.ui-input--ghost:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within,
+.ui-input--ghost:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+    border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }

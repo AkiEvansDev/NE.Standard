@@ -5,8 +5,9 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Mechanisms;
 
 /// <summary>
-/// What a list does once it is too big to hold: a hundred thousand rows the server never sends whole, in a list and in a table,
-/// two thousand rows held whole but laid out thirty at a time, and a window of rows each carrying fields of its own.
+/// What a list does once it is too big to hold: two thousand rows held whole but drawn a few at a time and filtered in the page, a
+/// hundred thousand the server never sends whole — in a list, filtered on the server, in a table, a page at a time — and a window of
+/// rows each carrying fields of its own; one behaviour to a section.
 /// </summary>
 /// <remarks>
 /// What differs from the component pages is where the items come from, which is a story rather than a property. The page is words,
@@ -14,16 +15,16 @@ namespace DemoApp.Views.Mechanisms;
 /// </remarks>
 internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
 {
-    /// <summary>
-    /// Id of the filter field the list's rule names; the rule resolves server-side, so the value must be bound.
-    /// </summary>
-    private const string RowsFilterId = "items-view-rows-filter";
-
-    /// <summary>Id of the field the virtualized list's rule names; unbound, since the rule runs in the browser over the values it holds.</summary>
-    private const string LocalFilterId = "items-view-local-filter";
-
-    private const string ChecklistGroup = nameof(ListsController.ChecklistGroup);
     private const string Words = "demo.mechanisms.lists.";
+
+    /// <summary>Id of the field the page-side filter names; unbound, since the rule runs in the browser over the values it holds.</summary>
+    private const string LocalFilterId = "lists-local-filter";
+
+    /// <summary>Id of the field the server-side filter names; bound, since the rule resolves on the server.</summary>
+    private const string ServerFilterId = "lists-server-filter";
+
+    /// <summary>Id of the paged list, which its pager is aimed at.</summary>
+    private const string PagedListId = "lists-paged";
 
     public static string ViewKey => "demo.mechanisms.lists";
 
@@ -31,44 +32,41 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
     protected override string Header => "demo.mechanisms.lists.header";
     protected override string HeaderDescription => "demo.mechanisms.lists.description";
 
+    // Read across, two to a row: held whole, then read a window at a time, then a page at a time, then fields in rows.
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateRowsGroup(), CreateTableGroup()], [CreateLocalGroup(), CreateChecklistGroup()]));
+        => _ = container.AddChildren(
+            CreateLocalGroup(),
+            CreateLocalFilterGroup(),
+            CreateWindowGroup(),
+            CreateServerFilterGroup(),
+            CreateTableGroup(),
+            CreatePagedGroup(),
+            CreateChecklistGroup()
+        );
 
-    private static ContainerComponent CreateRowsGroup()
-    {
-        return DemoUI.CreateGroup(nameof(ListsController.RowsGroup), Words + "rows.title",
-            content => content
-                .AddChild(new TextInputComponent(RowsFilterId)
-                    .SetTitle(Words + "filter")
-                    .BindValue(nameof(ListsController.RowsFilter))
-                    .SetMargin(UIThickness.All(0, 0, 0, 8))
-                    .SetPlacement(1, 1, 24, 1)
-                )
-                .AddChild(new ItemsViewComponent()
-                    .BindSource(nameof(ListsController.Rows))
-                    .SetWindowSize(50)
-                    .FilterBy(RowsFilterId, IInputComponent.ValueProperty, nameof(DemoRowItem.Title))
-                    .VerticalScrollOnly()
-                    .SetHeight(UILayoutLength.Absolute(260))
-                    .SetTemplate(CreateRowTemplate())
-                    .SetPlacement(1, 2, 24, 1)
-                ),
-            controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+    private static ContainerComponent CreateLocalGroup()
+        => DemoUI.CreateExample(Words + "local.title",
+            new ItemsViewComponent()
+                .BindItems(nameof(ListsController.LocalRows))
+                .Virtualized()
+                .VerticalScrollOnly()
+                .SetHeight(UILayoutLength.Absolute(260))
+                .SetTemplate(CreateRowTemplate()),
+            note: Words + "local.note",
+            context: nameof(ListsController.LocalGroup),
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
-                [Words + "rows.jump"] = nameof(ListsController.JumpToMiddleAsync),
-                [Words + "rows.start"] = nameof(ListsController.BackToStartAsync),
+                [Words + "local.add"] = nameof(ListsController.AddLocalRow)
             }),
-            contentMinHeight: 300,
             // A row needs the group's width: beside a column of controls its detail is cut short.
             controlsBelow: true,
-            note: Words + "rows.note",
+            controller: [DemoCode.Of<DemoRowItem>(), DemoCode.Of<ListsController>(nameof(ListsController.LocalGroup), nameof(ListsController.LocalRows), nameof(ListsController.AddLocalRow))],
             words: true
         );
-    }
 
+    /// <summary>A row's name and its detail, the template every list on the page shares.</summary>
     private static StackPanelComponent CreateRowTemplate()
-    {
-        return new StackPanelComponent()
+        => new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
             .SetSpacing(12)
             // A row's name in the body role: a bare text is a heading, too loud for one line of a list.
@@ -84,20 +82,13 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                 .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                 .SetMargin(UIThickness.All(0, 4, 8, 4))
             );
-    }
 
-    /// <summary>
-    /// A collection the client holds whole as values, drawing only the rows in view; its rules run over the values.
-    /// </summary>
-    private static ContainerComponent CreateLocalGroup()
-    {
-        return DemoUI.CreateGroup(nameof(ListsController.LocalGroup), Words + "local.title",
-            content => content
+    private static ContainerComponent CreateLocalFilterGroup()
+        => DemoUI.CreateExample(Words + "local-filter.title",
+            UILayout.Stack(8)
                 .AddChild(new TextInputComponent(LocalFilterId)
-                    .SetTitle(Words + "filter")
+                    .SetTitle("demo.mechanisms.lists.filter")
                     .SetDebounceMilliseconds(150)
-                    .SetMargin(UIThickness.All(0, 0, 0, 8))
-                    .SetPlacement(1, 1, 24, 1)
                 )
                 .AddChild(new ItemsViewComponent()
                     .BindItems(nameof(ListsController.LocalRows))
@@ -106,27 +97,55 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                     .VerticalScrollOnly()
                     .SetHeight(UILayoutLength.Absolute(260))
                     .SetTemplate(CreateRowTemplate())
-                    .SetPlacement(1, 2, 24, 1)
                 ),
-            controls => DemoUI.InitControls(controls, new Dictionary<string, string>
-            {
-                [Words + "local.add"] = nameof(ListsController.AddLocalRow),
-            }),
-            contentMinHeight: 300,
-            // A row needs the group's width: beside a column of controls its detail is cut short.
-            controlsBelow: true,
-            note: Words + "local.note",
+            note: Words + "local-filter.note",
+            controller: [DemoCode.Of<ListsController>(nameof(ListsController.LocalRows))],
             words: true
         );
-    }
 
-    /// <summary>
-    /// A hundred thousand rows of which only the window is ever in the page; the columns may be dragged, and the widths stay.
-    /// </summary>
+    private static ContainerComponent CreateWindowGroup()
+        => DemoUI.CreateExample(Words + "window.title",
+            new ItemsViewComponent()
+                .BindSource(nameof(ListsController.Rows))
+                .SetWindowSize(50)
+                .VerticalScrollOnly()
+                .SetHeight(UILayoutLength.Absolute(260))
+                .SetTemplate(CreateRowTemplate()),
+            note: Words + "window.note",
+            context: nameof(ListsController.RowsGroup),
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+            {
+                [Words + "window.jump"] = nameof(ListsController.JumpToMiddleAsync),
+                [Words + "window.start"] = nameof(ListsController.BackToStartAsync)
+            }),
+            controlsBelow: true,
+            controller: [DemoCode.Of<DemoRowsSource>(nameof(DemoRowsSource.TotalRows), nameof(DemoRowsSource.Latency), "GetWindowAsync"), DemoCode.Of<ListsController>(nameof(ListsController.RowsGroup), nameof(ListsController.Rows), "OnInitializeAsync", nameof(ListsController.JumpToMiddleAsync), nameof(ListsController.BackToStartAsync))],
+            words: true
+        );
+
+    private static ContainerComponent CreateServerFilterGroup()
+        => DemoUI.CreateExample(Words + "server-filter.title",
+            UILayout.Stack(8)
+                .AddChild(new TextInputComponent(ServerFilterId)
+                    .SetTitle("demo.mechanisms.lists.filter")
+                    .BindValue(nameof(ListsController.RowsFilter))
+                )
+                .AddChild(new ItemsViewComponent()
+                    .BindSource(nameof(ListsController.FilteredRows))
+                    .SetWindowSize(50)
+                    .FilterBy(ServerFilterId, IInputComponent.ValueProperty, nameof(DemoRowItem.Title))
+                    .VerticalScrollOnly()
+                    .SetHeight(UILayoutLength.Absolute(260))
+                    .SetTemplate(CreateRowTemplate())
+                ),
+            note: Words + "server-filter.note",
+            controller: [DemoCode.Of<DemoRowsSource>("Match", "KeyOf", "Matches"), DemoCode.Of<ListsController>(nameof(ListsController.RowsFilter), nameof(ListsController.FilteredRows))],
+            words: true
+        );
+
     private static ContainerComponent CreateTableGroup()
-    {
-        return DemoUI.CreateExample(Words + "table.title",
-            new TableComponent("windowed-rows")
+        => DemoUI.CreateExample(Words + "table.title",
+            new TableComponent("lists-table")
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .BindSource(nameof(ListsController.TableRows))
                 .AddTextColumn("demo.mechanisms.lists.table.row", nameof(DemoRowItem.Title), UIGridUnit.Absolute(160))
@@ -135,18 +154,34 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                 .SetShowColumnSeparators(true)
                 .SetMaxHeight(UILayoutLength.Absolute(300)),
             note: Words + "table.note",
+            controller: [DemoCode.Of<ListsController>(nameof(ListsController.TableRows))],
             words: true
         );
-    }
 
-    /// <summary>
-    /// A field in every row: each checklist adds a line from its own field, by Enter or by the + at its end, and a comment from its own
-    /// text area, by Enter while Shift+Enter breaks the line; each command knows the row by its key.
-    /// </summary>
-    /// <remarks>The checklists are a source's window: the field writes its draft back through the source, and the row's Enter reads it there.</remarks>
+    private static ContainerComponent CreatePagedGroup()
+        => DemoUI.CreateExample(Words + "paged.title",
+            UILayout.Stack(8)
+                .AddChild(new ItemsViewComponent(PagedListId)
+                    .BindSource(nameof(ListsController.PagedRows))
+                    .SetWindowSize(ListsController.PageSize)
+                    .SetPaging(true)
+                    .VerticalScrollOnly()
+                    .SetHeight(UILayoutLength.Absolute(260))
+                    .SetTemplate(CreateRowTemplate())
+                )
+                .AddChild(new PagerComponent()
+                    .SetTarget(PagedListId)
+                    .SetHorizontalAlignment(UIAlignment.End)
+                ),
+            note: Words + "paged.note",
+            context: nameof(ListsController.PagedGroup),
+            controller: [DemoCode.Of<DemoRowsSource>(nameof(DemoRowsSource.WindowRead)), DemoCode.Of<ListsController>(nameof(ListsController.PageSize), nameof(ListsController.PagedGroup), nameof(ListsController.PagedRows), "OnNavigatedAsync", "WritePageAsync")],
+            words: true
+        );
+
+    /// <summary>The checklists are a source's window: the field writes its draft back through the source, and the row's Enter reads it there.</summary>
     private static ContainerComponent CreateChecklistGroup()
-    {
-        return DemoUI.CreateExample(Words + "checklist.title",
+        => DemoUI.CreateExample(Words + "checklist.title",
             new ItemsViewComponent()
                 .BindSource(nameof(ListsController.Checklists))
                 .SetSpacing(16)
@@ -202,8 +237,9 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                     )
                 ),
             note: Words + "checklist.note",
-            context: ChecklistGroup,
+            columns: 24,
+            context: nameof(ListsController.ChecklistGroup),
+            controller: [DemoCode.Of<DemoChecklist>(), DemoCode.Of<DemoChecklistSource>(), DemoCode.Of<ListsController>(nameof(ListsController.ChecklistGroup), nameof(ListsController.Checklists), nameof(ListsController.AddChecklistLine), nameof(ListsController.AddChecklistComment))],
             words: true
         );
-    }
 }

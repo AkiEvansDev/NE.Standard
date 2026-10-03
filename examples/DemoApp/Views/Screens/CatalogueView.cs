@@ -4,9 +4,10 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Screens;
 
 /// <summary>
-/// Server offers narrowed in the browser. The list is served whole; a search box, a role, a price ceiling and a region
-/// switch are four filter rules on it, a select carries three sort rules of which one is active, and only a press on a tile
-/// reaches the server.
+/// Server offers narrowed in the browser. The list is served whole; a search box, a role, a price band and a region switch are
+/// five filter rules on it — the band's two ends one each — and a select carries three sort rules of which one is active. Each
+/// control is bound, and its change rewrites the page's query (<c>ReplaceAddressEffect</c>), both ends of the band included, so the
+/// shelf can be reloaded, bookmarked and sent as a link.
 /// </summary>
 internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
 {
@@ -27,19 +28,24 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
             .SetPadding(UIThickness.All(0, 8, 0, 0))
             .SetPlacement(1, 1, 24, 1);
 
-    /// <summary>The controls the rules read, on one band; the order at its far end is the one thing bound to the server.</summary>
+    /// <summary>The controls the rules read, on one band, each written into the address as it changes; the order at its far end.</summary>
+    /// <remarks>Its fields are Tonal: the band frames them, a toolbar's lone controls, not a form whose fields stack.</remarks>
     private static SurfaceComponent CreateFilters()
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Tinted)
             .SetPadding(UIThickness.All(16, 12, 16, 12))
             .SetContent(UILayout.Row(16,
                 new TextInputComponent(SearchId)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetPlaceholder("Search the offers")
                     .SetPrefixIcon(DemoIcons.Search)
                     .SetShowClearButton()
                     .SetDebounceMilliseconds(150)
-                    .SetWidth(UILayoutLength.Absolute(240)),
+                    .BindValue(nameof(CatalogueController.Search))
+                    .OnChange(nameof(CatalogueController.WriteAddress))
+                    .SetWidth(UILayoutLength.Absolute(200)),
                 new SelectComponent(RoleId)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetPlaceholder("Any role")
                     .SetShowClearButton()
                     .SetOptions(
@@ -51,26 +57,35 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                         new OptionItem { Id = CatalogueController.Queue, Title = "Queue" },
                         new OptionItem { Id = CatalogueController.Storage, Title = "Storage" }
                     ])
+                    .BindValue(nameof(CatalogueController.Role))
+                    .OnChange(nameof(CatalogueController.WriteAddress))
                     .SetWidth(UILayoutLength.Absolute(180)),
                 new SliderComponent(PriceId)
-                    .SetTitle("Up to €/mo")
+                    .SetTitle("Price, €/mo")
+                    .SetIsRange()
                     .SetMin(0)
-                    .SetMax(290)
+                    .SetMax(CatalogueController.Ceiling)
                     .SetStep(10)
-                    .SetValue(290)
+                    .BindValue(nameof(CatalogueController.MinPrice))
+                    .BindEndValue(nameof(CatalogueController.MaxPrice))
+                    .OnChange(nameof(CatalogueController.WriteAddress))
                     .SetShowValue(true)
                     .SetWidth(UILayoutLength.Absolute(200)),
                 new SwitchComponent(AvailableId)
                     .SetTitle("In eu-north only")
+                    .BindValue(nameof(CatalogueController.InRegion))
+                    .OnChange(nameof(CatalogueController.WriteAddress))
                     .SetVerticalAlignment(UIAlignment.Center),
                 new SelectComponent(SortId)
-                    .SetValue("name")
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetOptions(
                     [
-                        new OptionItem { Id = "name", Title = "By name" },
-                        new OptionItem { Id = "price-asc", Title = "Cheapest first" },
-                        new OptionItem { Id = "price-desc", Title = "Dearest first" }
+                        new OptionItem { Id = CatalogueController.ByName, Title = "By name" },
+                        new OptionItem { Id = CatalogueController.Cheapest, Title = "Cheapest first" },
+                        new OptionItem { Id = CatalogueController.Dearest, Title = "Dearest first" }
                     ])
+                    .BindValue(nameof(CatalogueController.Sort))
+                    .OnChange(nameof(CatalogueController.WriteAddress))
                     .SetWidth(UILayoutLength.Absolute(160)),
                 new TextComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
@@ -83,19 +98,20 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
             );
 
     /// <summary>
-    /// Four filters and three sorts on one list. A filter is active while its control holds a value; the region rule while
-    /// the switch is on; each sort while the select says so. The price rule reads the slider as a ceiling.
+    /// Five filters and three sorts on one list. A filter is active while its control holds a value; the region rule while
+    /// the switch is on; each sort while the select says so. The price band is two rules: its start a floor, its end a ceiling.
     /// </summary>
     private static ItemsViewComponent CreateShelf()
         => new ItemsViewComponent()
             .BindItems(nameof(CatalogueController.Offers))
             .FilterBy(SearchId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Title))
             .FilterBy(RoleId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Role), UIComparisonOperator.Equal)
-            .FilterBy(PriceId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIComparisonOperator.LessOrEqual)
+            .FilterBy(PriceId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIComparisonOperator.GreaterOrEqual)
+            .FilterBy(PriceId, IPeriodInputComponent.EndValueProperty, nameof(DemoOfferItem.Price), UIComparisonOperator.LessOrEqual)
             .FilterBy(AvailableId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Available), UIComparisonOperator.Equal, UIComparisonOperator.Equal, true)
-            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Title), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, "name")
-            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, "price-asc")
-            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIItemsSortDirection.Descending, UIComparisonOperator.Equal, "price-desc")
+            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Title), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, CatalogueController.ByName)
+            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIItemsSortDirection.Ascending, UIComparisonOperator.Equal, CatalogueController.Cheapest)
+            .SortBy(SortId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIItemsSortDirection.Descending, UIComparisonOperator.Equal, CatalogueController.Dearest)
             .SetLayoutType(UIItemsLayoutType.Wrap)
             .SetSpacing(16)
             // The page scrolls, not the shelf: a host that scrolls by itself draws a bar beside its empty state.

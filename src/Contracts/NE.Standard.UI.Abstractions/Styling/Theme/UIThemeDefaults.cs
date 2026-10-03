@@ -45,11 +45,12 @@ public static class UIThemeDefaults
         OnDanger = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
 
         // A status ink is shaded until it reads 4.5:1 on its own 16 % tinted badge over the page and over a card; Info clears it
-        // as it is, Warning (1.09:1 raw) needs six tenths. The brand inks equal their fill: a tinted brand badge darkens its own words.
+        // as it is. Warning (1.09:1 raw) takes a golden brown of its own: the gold shaded that far read as olive. The brand inks equal
+        // their fill: a tinted brand badge darkens its own words.
         PrimaryInk = new(ColorName.AstralTeal),
         AccentInk = new(ColorName.NovaPurple),
         InfoInk = new(ColorName.QuantumBlue),
-        WarningInk = new(ColorName.NebulaGold, ColorAdjustment.Shade, 6),
+        WarningInk = ColorVariant.FromRgb(138, 90, 0),
         SuccessInk = new(ColorName.AuroraGreen, ColorAdjustment.Shade, 2),
         DangerInk = new(ColorName.StellarRed, ColorAdjustment.Shade, 1),
 

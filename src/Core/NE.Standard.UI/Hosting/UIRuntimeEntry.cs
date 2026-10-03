@@ -26,6 +26,12 @@ internal sealed class UIRuntimeEntry
     public UIFlushOptions Flush { get; }
 
     /// <summary>
+    /// Names this runtime among every one built, in this process or another, so a page can tell the runtime it held from one built
+    /// since; random rather than counted, since a restarted process counts again from the start.
+    /// </summary>
+    public string Id { get; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>
     /// Completes once the creating attach has initialized and started the runtime.
     /// </summary>
     public Task Initialization => _initialization.Task;

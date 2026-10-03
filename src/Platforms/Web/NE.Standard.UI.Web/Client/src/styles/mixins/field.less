@@ -197,8 +197,10 @@
     flex: 0 0 auto;
     flex-direction: column;
     align-self: stretch;
-    // Gives back most of the field's right padding: the stepper's ruled edge doesn't need the breathing room text does.
-    margin: @ui-space-1 -0.5em @ui-space-1 0;
+    // Gives back most of the field's right padding: the stepper's ruled edge doesn't need the breathing room text does. A step from
+    // the box's outer edge, its border inside the step, so each arrow's half is even and its glyph centres on whole pixels: a step
+    // inside the border left both glyphs half a pixel off, rounded the same way, and the pair stood a pixel off the field's middle.
+    margin: calc(@ui-space-1 - var(--ui-border-width, 1px)) -0.5em calc(@ui-space-1 - var(--ui-border-width, 1px)) 0;
     border-left: 1px solid var(--ui-color-border);
     padding-left: 0.4em;
 }
@@ -278,3 +280,19 @@
 // the invalid/focus border but not this sizing, which would distort them.
 @ui-input-field: ~".ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger";
 @ui-input-field-state: ~"@{ui-input-field}, .ui-field-box, .ui-image-input__surface";
+
+// A field standing where a value's text stood (a key-value row's editor, a grid cell's) is set back by `--ui-field-inset`, its own
+// border and start padding, so its first glyph lands on the value's: a fixed or capped set-back moved the text by the difference.
+// A host short of room narrows the inset with this, padding and variable together; Underline has no inset to narrow.
+.ui-field-narrow-inset(@inset) {
+    &:not(.ui-input--underline) {
+        --ui-field-inset: @inset;
+
+        > :is(@{ui-input-field}) {
+            padding-left: calc(@inset - var(--ui-border-width, 1px));
+        }
+    }
+}
+
+// A field showing any message, which colours its edge in the message's own colour (--ui-validation-color): an error, a warning, an info.
+@ui-validation-marked: ~".ui-invalid, .ui-validation--warning, .ui-validation--info";

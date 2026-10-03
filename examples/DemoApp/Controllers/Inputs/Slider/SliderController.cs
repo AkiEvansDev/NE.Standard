@@ -1,15 +1,23 @@
+using System;
 using DemoApp.Controllers.Base;
 
 namespace DemoApp.Controllers.Inputs.Slider;
 
 /// <summary>
-/// The number itself, and the range it is allowed to move in.
+/// The number itself — a band's start, with its end beside it — and the range they are allowed to move in.
 /// </summary>
-/// <remarks>Min, Max and Step are one section because the slider validates them together.</remarks>
+/// <remarks>Min, Max and Step are one section because the slider validates them together; the band's two ends and the least distance
+/// between them with them.</remarks>
 internal sealed partial class SliderValueGroupContext : InputValueGroupContext
 {
     [RecursiveMember]
     public partial decimal? Value { get; set; } = 40m;
+
+    [RecursiveMember]
+    public partial decimal? EndValue { get; set; } = 70m;
+
+    [RecursiveMember]
+    public partial decimal? MinDistance { get; set; }
 
     [RecursiveMember]
     public partial decimal? Min { get; set; } = 0m;
@@ -23,6 +31,8 @@ internal sealed partial class SliderValueGroupContext : InputValueGroupContext
     public SliderValueGroupContext()
     {
         AddOption(nameof(Value), CycleValue, () => Value);
+        AddOption(nameof(EndValue), CycleEndValue, () => EndValue);
+        AddOption(nameof(MinDistance), CycleMinDistance, () => MinDistance);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
         AddOption(nameof(Step), CycleStep, () => Step);
@@ -31,7 +41,36 @@ internal sealed partial class SliderValueGroupContext : InputValueGroupContext
     }
 
     public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value, 0m, 40m, 100m, null));
+    {
+        SetLastChange(nameof(Value), Value = CycleValue(Value, 0m, 40m, 100m, null));
+        KeepApart(endMoved: false);
+    }
+
+    public void CycleEndValue()
+    {
+        SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, 70m, 100m, 20m, null));
+        KeepApart(endMoved: true);
+    }
+
+    public void CycleMinDistance()
+    {
+        SetLastChange(nameof(MinDistance), MinDistance = CycleValue(MinDistance, null, 10m, 30m));
+        KeepApart(endMoved: true);
+    }
+
+    /// <summary>The band's other end moves out of the way of the one just set, as far as the bounds let it, so the band stays a band.</summary>
+    private void KeepApart(bool endMoved)
+    {
+        if (Value is not decimal start || EndValue is not decimal end || end - start >= (MinDistance ?? 0))
+            return;
+
+        var distance = MinDistance ?? 0;
+
+        if (endMoved)
+            Value = Math.Max(Min ?? 0, end - distance);
+        else
+            EndValue = Math.Min(Max ?? 100, start + distance);
+    }
 
     // The bounds bring the value back inside themselves: an out-of-range slider is refused, not a state.
     public void CycleMin()
@@ -54,13 +93,19 @@ internal sealed partial class SliderValueGroupContext : InputValueGroupContext
         if (Min is decimal min && Max is decimal max && min > max)
             (Min, Max) = (max, min);
 
-        if (Value is not decimal value)
-            return;
+        Value = Clamp(Value);
+        EndValue = Clamp(EndValue);
+    }
 
-        if (Min is decimal lower && value < lower)
-            Value = lower;
-        else if (Max is decimal upper && value > upper)
-            Value = upper;
+    private decimal? Clamp(decimal? value)
+    {
+        if (value is not decimal current)
+            return null;
+
+        if (Min is decimal lower && current < lower)
+            return lower;
+
+        return Max is decimal upper && current > upper ? upper : current;
     }
 }
 

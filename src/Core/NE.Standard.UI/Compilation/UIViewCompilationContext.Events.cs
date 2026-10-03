@@ -37,6 +37,8 @@ internal sealed partial class UIViewCompilationContext
             }
         }
 
+        AddShortcutEvents(events, templatesByKey, componentContexts, rootPath);
+
         return [.. events];
     }
 

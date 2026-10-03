@@ -557,6 +557,7 @@ public sealed class UIApplicationBuilder
             MaxQueuedChangeSets = source.MaxQueuedChangeSets,
             MaxRuntimesPerSession = source.MaxRuntimesPerSession,
             MaxUnclaimedRuntimesPerSession = source.MaxUnclaimedRuntimesPerSession,
+            MaxRuntimesTotal = source.MaxRuntimesTotal,
             CleanupInterval = source.CleanupInterval
         };
 
@@ -588,6 +589,7 @@ public sealed class UIApplicationBuilder
             NotifyOnCommandFailure = source.NotifyOnCommandFailure,
             IncludeExceptionDetail = source.IncludeExceptionDetail,
             CommandRefusedMessage = source.CommandRefusedMessage,
+            CommandBusyMessage = source.CommandBusyMessage,
             CommandFailedMessage = source.CommandFailedMessage,
             ErrorPageMessage = source.ErrorPageMessage
         };

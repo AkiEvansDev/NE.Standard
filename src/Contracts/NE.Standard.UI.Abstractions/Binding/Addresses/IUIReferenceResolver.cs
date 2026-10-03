@@ -1,3 +1,4 @@
+using System;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Items;
 
@@ -30,4 +31,12 @@ public interface IUIReferenceResolver
     /// </summary>
     object ResolveItemsView(UIItemsView itemsView)
         => itemsView;
+
+    /// <summary>
+    /// Offers the page one run of a controller's command with <paramref name="argument"/> for its one parameter (a notification's
+    /// action), answering the id the page runs it by; refuses a command the controller does not declare.
+    /// </summary>
+    /// <remarks>Only a runtime offers: a view's compilation has no page to offer to.</remarks>
+    string OfferCommand(string command, object? argument)
+        => throw new NotSupportedException($"Command '{command}' can be offered to a page only by a runtime, as an effect is sent.");
 }

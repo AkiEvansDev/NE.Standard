@@ -30,6 +30,8 @@ internal sealed partial class UIViewCompilationContext
             }
         }
 
+        AddShortcutInteractions(interactions);
+
         return [.. interactions];
     }
 

@@ -5,7 +5,7 @@ import { formatTemporal, matchTemporalToken, TemporalCulturePack } from "../rend
 import { clientStrings } from "../runtime/client-strings";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import {
-    clampPushedValue, clampToRange, defaultMoment, isEndPart, orderPeriod, PickerAttributes, readCulturePack, readFormat, readMode,
+    clampToRange, defaultMoment, isEndPart, orderPeriod, PickerAttributes, readCulturePack, readFormat, readMode,
     readStep, readValueOf, RootClass, stepFor, TimeUnit, writeValueOf
 } from "./temporal-dom";
 import { observeComponents } from "./dom-mutations";
@@ -61,7 +61,7 @@ export class TimeSegmentEngine {
             this.applyAll(componentParts(change.components, `.${RootClass}`));
         });
 
-        // Min/Max only re-clamp, but a patched format changes which segments exist at all.
+        // Min/Max change nothing drawn, but a patched format changes which segments exist at all.
         observeComponents(this.root, `.${RootClass}`, { attributeFilter: [...PickerAttributes] }, roots => this.applyAll(roots));
 
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
@@ -78,8 +78,6 @@ export class TimeSegmentEngine {
             if (readMode(root) !== "time")
                 continue;
 
-            // Before the segments are drawn, so they never show what stepping through them could not reach.
-            clampPushedValue(root);
             this.applySegments(root);
         }
     }
@@ -270,7 +268,8 @@ export class TimeSegmentEngine {
         const limit = clock === "hour" ? 24 : 60;
         const next = ((unitValue(base, clock) + increment) % limit + limit) % limit;
 
-        this.write(root, withUnit(base, clock, next), end);
+        // Held inside Min and Max as a number's step is: a step never goes past them, where typed digits may and are refused in words.
+        this.write(root, clampToRange(root, withUnit(base, clock, next)), end);
     }
 
     private applyDigit(root: HTMLElement, segment: HTMLElement, unit: SegmentUnit, digit: string, end: boolean): void {
@@ -314,7 +313,7 @@ export class TimeSegmentEngine {
     }
 
     private write(root: HTMLElement, value: Date, end: boolean): void {
-        writeValueOf(root, clampToRange(root, value), end);
+        writeValueOf(root, value, end);
         // A period's ends stepped past each other swap, so the row never reads as ending before it starts.
         orderPeriod(root);
         this.applySegments(root);

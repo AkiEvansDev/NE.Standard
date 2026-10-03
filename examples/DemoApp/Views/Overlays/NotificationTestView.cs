@@ -4,7 +4,8 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Overlays;
 
 /// <summary>
-/// A toast says how something went; the line on the page says what it left behind. Four things that push one.
+/// A toast says how something went; the line on the page says what it left behind. Five things that push one, one of them with the
+/// way back.
 /// </summary>
 /// <remarks>
 /// A notification has no component: a command returns an effect and the client builds the host on demand, in the corner the view asks
@@ -16,6 +17,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     private const string JobGroup = nameof(NotificationTestController.JobGroup);
     private const string StackGroup = nameof(NotificationTestController.StackGroup);
     private const string WrapGroup = nameof(NotificationTestController.WrapGroup);
+    private const string UndoGroup = nameof(NotificationTestController.UndoGroup);
     private const string Words = "demo.overlays.notification.";
 
     public static string ViewKey => "demo.overlays.notification.test";
@@ -28,7 +30,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     protected override string HeaderDescription => "demo.overlays.notification.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateDeployGroup(), CreateStackGroup()], [CreateJobGroup(), CreateWrapGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateDeployGroup(), CreateStackGroup()], [CreateJobGroup(), CreateUndoGroup(), CreateWrapGroup()]));
 
     /// <summary>Each target keeps the line its last deploy left; the toast is the moment, the line is the record.</summary>
     private static ContainerComponent CreateDeployGroup()
@@ -84,6 +86,21 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
                     .AddChild(CreateButton(Words + "stack.one-more", nameof(NotificationTestController.NotifyOneMore), UIButtonType.Outline))
                 )
             ),
+            words: true
+        );
+    }
+
+    /// <summary>Done at once, and the toast's one button takes it back while it stands: a command of the controller's own, on no button.</summary>
+    private static ContainerComponent CreateUndoGroup()
+    {
+        return DemoUI.CreateGroup(UndoGroup, Words + "undo.title",
+            content => content.AddChild(DemoUI.CreateStack(12)
+                .AddChild(new ParagraphComponent()
+                    .BindDescription(nameof(UndoGroupContext.Scheduled), UIBindingScope.Relative)
+                )
+                .AddChild(CreateButton(Words + "undo.cancel", nameof(NotificationTestController.CancelNextDeploy), UIButtonType.Outline))
+            ),
+            note: Words + "undo.note",
             words: true
         );
     }

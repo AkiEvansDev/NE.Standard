@@ -23,6 +23,8 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
     private readonly List<TItem> _items = [];
     private readonly List<UIItemsFilter> _filters = [];
     private readonly List<UIItemsSort> _sorts = [];
+    private readonly List<string> _itemReads = [];
+    private bool _readsWholeItems;
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IItemsComponent), DefaultValue = null, GenerateSetter = false)]
@@ -43,7 +45,38 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
     public UIItemsQuery? Query { get; set; }
 
     /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IItemsComponent), IsBindable = false, DefaultValue = null, GenerateSetter = false)]
+    public UIItemReads? ItemReads
+        => _readsWholeItems
+            ? UIItemReads.Whole
+            : _itemReads.Count == 0 ? null : new UIItemReads(_itemReads);
+
+    /// <inheritdoc/>
     public bool HasItems => _items.Count > 0;
+
+    /// <summary>
+    /// Names item paths the page reads off the rows beyond what the templates bind (a client engine reading <c>rows.itemOf</c>), so
+    /// each row carries them; dotted, as a binding's path.
+    /// </summary>
+    public TComponent AddItemReads(params string[] paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        for (var i = 0; i < paths.Length; i++)
+            ArgumentException.ThrowIfNullOrWhiteSpace(paths[i]);
+
+        _itemReads.AddRange(paths);
+        return Self;
+    }
+
+    /// <summary>
+    /// Sends every row's item whole: something on the page reads it raw, past what the compile can see.
+    /// </summary>
+    public TComponent ReadsWholeItems()
+    {
+        _readsWholeItems = true;
+        return Self;
+    }
 
     /// <summary>
     /// Adds an item to the component.

@@ -1,14 +1,14 @@
-// A field the reader cannot change raises no `change` of its own: a date pushed outside Min and Max is shown as it is rather than
-// clamped and reported, a slider's clamp only shows, a number's trailing zeros are only shown trimmed, never sent on a plain focus and blur, and
-// a read-only range moved by no key or pointer (a screen reader's increment) is put back. The editable field does each of them.
+// A field the reader cannot change raises no `change` of its own: a slider's clamp only shows, a number's trailing zeros are only
+// shown trimmed, never sent on a plain focus and blur, and a read-only range moved by no key or pointer (a screen reader's increment)
+// is put back. The editable field does each of them.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeInput, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
-installFakeDom({ window: { addEventListener: () => { } } });
+// A pointer event of its own type, which a plain one is not: the slider engine drags a band only on a real pointer's press.
+installFakeDom({ window: { addEventListener: () => { } }, PointerEvent: class extends FakeEvent { } });
 
-const { clampPushedValue } = await import("../src/interactions/temporal-dom.ts");
 const { NumberInputEngine } = await import("../src/interactions/number-input-engine.ts");
 const { RangeValueEngine } = await import("../src/interactions/range-value-engine.ts");
 
@@ -28,35 +28,6 @@ function place(component: FakeElement): FakeEvent[] {
 
     return changes;
 }
-
-function datePicker(state: string): { readonly value: FakeInput; readonly changes: FakeEvent[] } {
-    const value = new FakeInput("hidden");
-    const root = FakeElement.of(`ui-temporal-input ${state}`, { "data-ui-id": "1", "data-ui-temporal-mode": "date", "data-ui-temporal-min": "2026-09-30" });
-
-    value.classes.add("ui-temporal-input__value-input");
-    value.value = "2026-01-15";
-    root.append(value);
-
-    return { value, changes: place(root) };
-}
-
-test("a date pushed before Min is clamped and reported while the field is editable, and shown as it is while it is not", () => {
-    const editable = datePicker(Editable);
-
-    clampPushedValue(real(editable.value.parent));
-
-    assert.equal(editable.value.value, "2026-09-30");
-    assert.equal(editable.changes.length, 1);
-
-    for (const state of States) {
-        const fixed = datePicker(state);
-
-        clampPushedValue(real(fixed.value.parent));
-
-        assert.equal(fixed.value.value, "2026-01-15", `${state} clamped its value`);
-        assert.equal(fixed.changes.length, 0, `${state} reported a clamp`);
-    }
-});
 
 function numberField(state: string): { readonly field: FakeInput; readonly changes: FakeEvent[] } {
     const field = new FakeInput("text");

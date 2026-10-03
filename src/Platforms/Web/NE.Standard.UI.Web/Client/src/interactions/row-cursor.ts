@@ -2,6 +2,7 @@
 // to which row a key acts on. The host's root holds focus and names the row via aria-activedescendant.
 
 import { ComponentIdAttribute, RowFocusAttribute, SelectedAttribute, ensureElementId } from "../addressing/dom-attributes.ts";
+import { readHostScroll } from "../items/items-viewport.ts";
 import { isItemDisabled } from "./interactive-state.ts";
 import type { RovingAxis } from "./roving-focus.ts";
 import { isRovingKey, resolveRovingTarget } from "./roving-focus.ts";
@@ -72,13 +73,25 @@ export function setRowFocus(root: HTMLElement, rows: readonly HTMLElement[], row
     (rowBox(row) ?? row).scrollIntoView({ block: "nearest" });
 }
 
+/** Whether a key moves a host's row cursor: an arrow of the axis, Home or End, and Page Up or Page Down where the rows run down. */
+export function isRowKey(key: string, axis: RowAxis): boolean {
+    return isRovingKey(key, axis === "grid" ? "both" : axis) || (axis !== "horizontal" && isPageKey(key));
+}
+
+function isPageKey(key: string): boolean {
+    return key === "PageDown" || key === "PageUp";
+}
+
 /** The row a navigation key moves to from the current one, or null when the key is not one; the ends do not wrap. */
 export function resolveRowTarget(key: string, rows: readonly HTMLElement[], current: HTMLElement | null, axis: RowAxis): HTMLElement | null {
     // The key first: a row list of thousands is not measured for a key that moves nothing.
-    if (!isRovingKey(key, axis === "grid" ? "both" : axis))
+    if (!isRowKey(key, axis))
         return null;
 
     const candidates = rowCandidates(rows);
+
+    if (isPageKey(key))
+        return pageNeighbour(candidates, current, key === "PageDown");
 
     if (axis === "grid" && (key === "ArrowUp" || key === "ArrowDown"))
         return lineNeighbour(candidates, current, key === "ArrowDown");
@@ -88,6 +101,36 @@ export function resolveRowTarget(key: string, rows: readonly HTMLElement[], curr
     const target = resolveRovingTarget({ key, items: boxes, current: current === null ? null : rowBox(current), axis: axis === "grid" ? "horizontal" : axis, loop: false });
 
     return target === null ? null : candidates[boxes.indexOf(target)] ?? null;
+}
+
+/**
+ * Page Down and Page Up: the farthest row still within a viewport's height of the current one, or the next row where that one alone is
+ * taller; null at the end. The viewport is the host's scrolling box, or the window where the page scrolls the host.
+ */
+function pageNeighbour(rows: readonly HTMLElement[], current: HTMLElement | null, down: boolean): HTMLElement | null {
+    const index = current === null ? -1 : rows.indexOf(current);
+    const host = index < 0 ? null : rows[index].parentElement;
+
+    // An unknown current enters at the near end, as an arrow does.
+    if (host === null)
+        return (down ? rows[0] : rows[rows.length - 1]) ?? null;
+
+    const origin = (rowBox(rows[index]) ?? rows[index]).getBoundingClientRect();
+    const page = Math.min(readHostScroll(host).height, window.innerHeight);
+    const step = down ? 1 : -1;
+    let target: HTMLElement | null = null;
+
+    // Half a pixel either way, for boxes laid out on fractional edges.
+    for (let i = index + step; i >= 0 && i < rows.length; i += step) {
+        const rect = (rowBox(rows[i]) ?? rows[i]).getBoundingClientRect();
+
+        if (target !== null && (down ? rect.bottom > origin.top + page + 0.5 : rect.top < origin.bottom - page - 0.5))
+            break;
+
+        target = rows[i];
+    }
+
+    return target;
 }
 
 /** A wrap's Up and Down: the row on the next line whose middle stands nearest the current row's; null past the last line. */
@@ -118,6 +161,9 @@ function lineNeighbour(rows: readonly HTMLElement[], current: HTMLElement | null
 function centreOf(rect: DOMRect): number {
     return rect.left + rect.width / 2;
 }
+
+/** What a row pressed from the keyboard raises in place of a click: the event pipeline runs the row's click command for it. */
+export const RowPressEventName = "ui-row-press";
 
 /** Raises a row's own event on the component the row is — the wrapper when it is one, else the template's root inside it — carrying `detail` when given. */
 export function dispatchRowEvent(row: HTMLElement, name: string, detail?: unknown): void {

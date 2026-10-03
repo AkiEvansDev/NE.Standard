@@ -131,14 +131,22 @@
 }
 
 // The keyboard's row washes like the pointer's (not under a single choice, whose chosen row is the cursor); on a chosen row, as a
-// layer, so it still reads as chosen. `@via` the path from host to items host when not direct (a table's scroll box), ending in " > ".
+// layer, so it still reads as chosen. It also wears the keyboard's frame (`.ui-keyboard-frame()`), which the pointer's row never has.
+// `@via` the path from host to items host when not direct (a table's scroll box), ending in " > ".
 .ui-row-cursor(@host; @row; @via: ~"") {
     @{host}@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]:not([data-ui-selected]) {
         .ui-row-hover();
+        .ui-keyboard-frame();
     }
 
     @{host}@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
         .ui-row-cursor-layer();
+        .ui-keyboard-frame();
+    }
+
+    // A key moves the cursor at once, frame and wash together: the washes' fade trailed the frame, which has none.
+    @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row} {
+        transition: @ui-root-transition;
     }
 }
 

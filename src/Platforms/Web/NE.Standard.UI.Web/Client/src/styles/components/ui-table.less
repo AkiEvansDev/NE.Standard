@@ -81,6 +81,8 @@
 .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always) > .ui-table__scroll {
     grid-template-rows: none;
     overflow: auto;
+    // A row the keyboard brings into view stops clear of the header and a package's footer sticking over the rows (table-columns-engine.ts).
+    scroll-padding-block: var(--ui-table-sticky-top, 0px) var(--ui-table-sticky-bottom, 0px);
 }
 
 .ui-table.ui-scroll-x--always > .ui-table__scroll {
@@ -128,6 +130,12 @@
     // Inset, since the header's edges clip an outer ring: the box's top always, and the bottom while the header keeps a gutter.
     .ui-table__header-cell:focus-visible {
         outline-offset: calc(-1 * var(--ui-focus-ring-width, 0px));
+    }
+
+    // The header's keyboard stop (table-header-group.ts) wears the keyboard's wash, as the row cursor does: an inset shadow, over the
+    // opaque ground a pinned caption keeps.
+    .ui-table > .ui-table__scroll > .ui-table__header > .ui-table__header-cell@{ui-keyboard-focus} {
+        box-shadow: inset 0 0 0 100vmax var(--ui-wash-hover);
     }
 
     .ui-table__header-cell--center {
@@ -473,6 +481,21 @@
         inset: 0;
         z-index: 1;
         .ui-selected-mark(@ui-selected-mark-left);
+        pointer-events: none;
+    }
+
+// The keyboard's edge runs under pinned cells too: such a row draws it again on the same layer above them.
+.ui-table@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]:has(> .ui-table__cell--pinned) {
+    position: relative;
+}
+
+    .ui-table@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]:has(> .ui-table__cell--pinned)::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        outline: inherit;
+        outline-offset: inherit;
         pointer-events: none;
     }
 

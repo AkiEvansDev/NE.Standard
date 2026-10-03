@@ -78,17 +78,17 @@
     background-size: cover;
 }
 
-// The three fixed sizes land on whole pixels: a fractional box puts the masked stroke on a fractional pixel and reads grey and ragged.
+// The three fixed sizes are steps of the icon scale: a fractional box puts the masked stroke on a fractional pixel and reads grey and ragged.
 .ui-icon-size--small {
-    font-size: 0.875rem;
+    font-size: @ui-glyph-sm;
 }
 
 .ui-icon-size--medium {
-    font-size: 1.25rem;
+    font-size: @ui-glyph-lg;
 }
 
 .ui-icon-size--large {
-    font-size: 1.5rem;
+    font-size: @ui-glyph-xl;
 }
 
 // The core's face as an `ne-` icon pack, so `UIGlyphs` draw with no pack installed; fill follows the glyph's shape.
@@ -226,6 +226,11 @@
 .ui-glyph-rule(folder-zip; @ui-glyph-folder-zip);
 .ui-glyph-rule(audio-file; @ui-glyph-audio-file);
 .ui-glyph-rule(video-file; @ui-glyph-video-file);
+.ui-glyph-rule(bold; @ui-glyph-bold);
+.ui-glyph-rule(italic; @ui-glyph-italic);
+.ui-glyph-rule(strikethrough; @ui-glyph-strikethrough);
+.ui-glyph-rule(heading; @ui-glyph-heading);
+.ui-glyph-rule(list-bulleted; @ui-glyph-list-bulleted);
 
 // The chevron is one glyph, turned (glyphs.less): the three other ways are the same rule under a transform.
 .ui-icon-glyph--ne-chevron-up::before {

@@ -64,6 +64,12 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         [LoggerMessage(EventId = 26, Level = LogLevel.Debug, Message = "Switching connection '{InstanceId}' to its session's new language or theme failed; it follows at its next render.")]
         public static partial void SessionReachFailed(ILogger logger, Exception exception, string instanceId);
 
+        [LoggerMessage(EventId = 27, Level = LogLevel.Debug, Message = "An attach to route '{Route}' presented no session the store holds; none is issued, since the connection cannot hand the client its key.")]
+        public static partial void SessionNotPresented(ILogger logger, string route);
+
+        [LoggerMessage(EventId = 28, Level = LogLevel.Warning, Message = "The process holds {Limit} runtimes, every one with a page connected or a command running (UIPersistenceOptions.MaxRuntimesTotal); a new page's runtime is refused. Refusals in this burst are not logged again.")]
+        public static partial void RuntimesFull(ILogger logger, int limit);
+
         [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "UI view resolution failed for route '{Route}'.")]
         public static partial void ViewResolutionFailed(ILogger logger, Exception exception, string route);
 
@@ -128,6 +134,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// <summary>The store the flush pass walks; reachable so a benchmark can measure that walk without a host of its own.</summary>
     internal UIRuntimeStore RuntimeStore { get; } = new();
 
+    /// <summary>The topics the host's runtimes take and the posts to them and to a user's pages, registered as <see cref="IUIBroadcast"/>.</summary>
+    internal UIBroadcast Broadcast { get; }
+
     private readonly UIUpdateDispatcher _dispatcher;
     private readonly ConcurrentDictionary<string, IUIViewFilter[]> _filterChains = new(StringComparer.Ordinal);
     private readonly RuntimeScheduler _scheduler;
@@ -140,6 +149,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     private readonly IUIAuthorizationService _authorization;
     private readonly IResolveExceptionViewHandler _resolveViewExceptionHandler;
     private readonly UIMetrics _metrics;
+
+    // Set by the first refusal on MaxRuntimesTotal, cleared by the next runtime built: a burst of refusals is logged once.
+    private int _runtimesFullReported;
 
     public UIHost(UIApplication application, IServiceProvider services, ILogger<UIHost> logger)
     {
@@ -154,6 +166,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         _sessionResolver = services.GetRequiredService<IUserSessionResolver>();
         _authorization = services.GetRequiredService<IUIAuthorizationService>();
         _resolveViewExceptionHandler = services.GetRequiredService<IResolveExceptionViewHandler>();
+
+        Broadcast = new UIBroadcast(RuntimeStore, services);
 
         _scheduler = new RuntimeScheduler(logger);
 
@@ -194,7 +208,19 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         => second > TimeSpan.Zero && second < first ? second : first;
 
     /// <inheritdoc />
-    public async Task<UIViewResolution> ResolveViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase = UIViewRequestPhase.Attach, CancellationToken cancellationToken = default)
+    public Task<UIViewResolution> ResolveViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase = UIViewRequestPhase.Attach, CancellationToken cancellationToken = default)
+        // Never null here: only a resolution that asks for a presented session answers none.
+        => ResolveViewCoreAsync(request, sessionInit, phase, presentedOnly: false, cancellationToken)!;
+
+    /// <summary>
+    /// The view a live connection attaches to, or null where the session it presented is not one the store holds — none, an unknown
+    /// one, one gone idle — so that a new session would have to be issued: a connection cannot hand a client its secret, and a session
+    /// nobody can present again is only memory held for nothing.
+    /// </summary>
+    internal Task<UIViewResolution?> ResolvePresentedViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, CancellationToken cancellationToken = default)
+        => ResolveViewCoreAsync(request, sessionInit, UIViewRequestPhase.Attach, presentedOnly: true, cancellationToken);
+
+    private async Task<UIViewResolution?> ResolveViewCoreAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase, bool presentedOnly, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(sessionInit);
@@ -211,7 +237,16 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
             try
             {
-                resolved ??= await ResolveSessionAsync(sessionInit, phase, cancellationToken).ConfigureAwait(false);
+                if (resolved is null)
+                {
+                    resolved = await ResolveSessionAsync(sessionInit, phase, presentedOnly, cancellationToken).ConfigureAwait(false);
+
+                    if (resolved is null)
+                    {
+                        Log.SessionNotPresented(_logger, request.Route);
+                        return null;
+                    }
+                }
 
                 ResolvedSession session = resolved.Value;
 
@@ -359,25 +394,34 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     private readonly record struct ResolvedSession(IUserSessionContext Session, UISessionSecret? Issued);
 
     /// <summary>
-    /// Resolves the request's session through the resolver, writes it to the store and moves it to a new id where a sign-in asked.
+    /// Resolves the request's session through the resolver, writes it to the store and moves it to a new id where a sign-in asked;
+    /// null, with nothing written, where <paramref name="presentedOnly"/> and the request would go on under a session it issued.
     /// </summary>
-    private async Task<ResolvedSession> ResolveSessionAsync(UserSessionInitData sessionInit, UIViewRequestPhase phase, CancellationToken cancellationToken)
+    private async Task<ResolvedSession?> ResolveSessionAsync(UserSessionInitData sessionInit, UIViewRequestPhase phase, bool presentedOnly, CancellationToken cancellationToken)
     {
         IUserSessionContext session = await _sessionResolver.ResolveAsync(sessionInit, cancellationToken).ConfigureAwait(false);
 
         UserSessions.Validate(session);
 
-        // Issued by this request only where the resolver took the id it was offered: one it made up has no secret to hand out.
-        UISessionSecret? issued = sessionInit.IssuedSecret is { } secret && string.Equals(secret.SessionId, session.SessionId, StringComparison.Ordinal)
-            ? secret
-            : null;
+        UISessionSecret? issued = IssuedSecretOf(sessionInit, session);
 
-        ResolvedSession persisted = await PersistSessionAsync(new ResolvedSession(session, issued), sessionInit, phase, cancellationToken).ConfigureAwait(false);
+        if (presentedOnly && issued is not null)
+            return null;
+
+        ResolvedSession? persisted = await PersistSessionAsync(new ResolvedSession(session, issued), sessionInit, phase, presentedOnly, cancellationToken).ConfigureAwait(false);
+
+        if (persisted is not ResolvedSession written)
+            return null;
 
         // After the write, not before: an identity this very request brought (a host's principal) marks the rotation there, and
         // rotating first would leave the id held while anonymous carrying it for the whole page.
-        return await RotateSessionIdIfPendingAsync(persisted, phase, cancellationToken).ConfigureAwait(false);
+        return await RotateSessionIdIfPendingAsync(written, phase, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>The secret this request issued for the session it resolved, where it issued one.</summary>
+    /// <remarks>Only where the resolver took the id it was offered: one it made up has no secret to hand out.</remarks>
+    private static UISessionSecret? IssuedSecretOf(UserSessionInitData sessionInit, IUserSessionContext session)
+        => sessionInit.IssuedSecret is { } secret && string.Equals(secret.SessionId, session.SessionId, StringComparison.Ordinal) ? secret : null;
 
     /// <summary>Writes the resolved session to the store, which is the authority the live command check reads.</summary>
     /// <remarks>
@@ -385,9 +429,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// a page render has seen, anonymous, stays unclaimed — the short timeout — until a tab attaches: persisted rather than
     /// held back, since an id the store never saw is one the attach must not accept. A write that would move nothing but the
     /// last-seen time, by less than <see cref="UISessionOptions.TouchResolution"/>, is left out. Answers the session the request
-    /// goes on with, which is a new anonymous one when the resolved session was removed while this request read it.
+    /// goes on with, which is a new anonymous one when the resolved session was removed while this request read it — or none where
+    /// <paramref name="presentedOnly"/>, since that new one would be issued.
     /// </remarks>
-    private async ValueTask<ResolvedSession> PersistSessionAsync(ResolvedSession resolved, UserSessionInitData sessionInit, UIViewRequestPhase phase, CancellationToken cancellationToken)
+    private async ValueTask<ResolvedSession?> PersistSessionAsync(ResolvedSession resolved, UserSessionInitData sessionInit, UIViewRequestPhase phase, bool presentedOnly, CancellationToken cancellationToken)
     {
         IUserSessionStore store = _services.GetRequiredService<IUserSessionStore>();
         DateTime utcNow = DateTime.UtcNow;
@@ -413,6 +458,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         if (WasRemovedMeanwhile(session, sessionInit))
         {
+            if (presentedOnly)
+                return null;
+
             issued = UISessionSecret.New();
             session = UserSessionContext.AnonymousAs(session, issued.SessionId);
         }
@@ -716,19 +764,23 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         // A page render's own attach names its page as its window; anything else is a real tab presenting the runtime.
         var adopted = !string.Equals(handle.Instance.WindowId, handle.Instance.PageId, StringComparison.Ordinal);
 
-        UIRuntimeEntry? added = RuntimeStore.GetOrAdd(key, handle.Instance.Id, () => CreateRuntime(handle, resolution.Route, resolution.View), DateTime.UtcNow, ResolveFlushOptions(resolution.Route), _application.Persistence.MaxRuntimesPerSession, _application.Persistence.MaxUnclaimedRuntimesPerSession, adopted, out var created, out var attached, out var activeInstances, out IUIRuntime? evicted, out IUIRuntime? unused);
+        var maxTotal = _application.Persistence.MaxRuntimesTotal ?? 0;
+        UIRuntimeEntry? added = RuntimeStore.GetOrAdd(key, handle.Instance.Id, () => CreateRuntime(handle, resolution.Route, resolution.View), DateTime.UtcNow, ResolveFlushOptions(resolution.Route), _application.Persistence.MaxRuntimesPerSession, _application.Persistence.MaxUnclaimedRuntimesPerSession, maxTotal, adopted, out var created, out var attached, out var activeInstances, out IUIRuntime? evicted, out IUIRuntime? unused);
 
-        // Built for a key another attach filled first, or a session that filled meanwhile; never started, so disposing is all of it.
+        // Built for a key another attach filled first, or a session or the process that filled meanwhile; never started, so disposing is all of it.
         await DisposeIfAnyAsync(unused).ConfigureAwait(false);
         await DisposeIfAnyAsync(evicted).ConfigureAwait(false);
 
-        UIRuntimeEntry entry = added ?? throw UIRuntimeStore.SessionFull(_application.Persistence.MaxRuntimesPerSession);
+        UIRuntimeEntry entry = added ?? throw RefuseRuntime(maxTotal);
         IUIRuntime runtime = entry.Runtime;
 
         try
         {
             if (created)
             {
+                if (Volatile.Read(ref _runtimesFullReported) != 0)
+                    Volatile.Write(ref _runtimesFullReported, 0);
+
                 _metrics.RuntimeCreated();
 
                 Log.CreatedRuntime(_logger, resolution.Route.Route, handle.Instance.WindowId, handle.Instance.Id, activeInstances);
@@ -791,7 +843,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         {
             ViewResolution = resolution,
             Handle = handle,
-            Runtime = runtime
+            Runtime = runtime,
+            RuntimeId = entry.Id
         };
 
         runtimeResolution.Validate();
@@ -801,6 +854,21 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         Log.RuntimeAttached(_logger, resolution.Route.Route, handle.Instance.WindowId, elapsed.TotalMilliseconds);
 
         return runtimeResolution;
+    }
+
+    /// <summary>
+    /// The refusal of a runtime the store found no room for: the process's where its limit is reached — reported once a burst — else
+    /// the session's.
+    /// </summary>
+    private InvalidOperationException RefuseRuntime(int maxTotal)
+    {
+        if (!RuntimeStore.IsProcessFull(maxTotal))
+            return UIRuntimeStore.SessionFull(_application.Persistence.MaxRuntimesPerSession);
+
+        if (Interlocked.Exchange(ref _runtimesFullReported, 1) == 0)
+            Log.RuntimesFull(_logger, maxTotal);
+
+        return UIRuntimeStore.ProcessFull(maxTotal);
     }
 
     private ValueTask DisposeIfAnyAsync(IUIRuntime? runtime)
@@ -980,6 +1048,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
                 : new UIBatchRuntime(handle, view, controller, clientServices, _application);
 
             runtime.OwnServices(scope);
+            runtime.JoinBroadcast(Broadcast);
 
             UIContext context = new(_logger, scope.ServiceProvider, _application.Translator, _application.ContentOrNull, route, handle, clientServices.Dialogs, clientServices.Downloads, clientServices.Uploads);
 
@@ -1148,6 +1217,15 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     {
         ArgumentNullException.ThrowIfNull(handle);
 
+        return CreateRuntimeKey(handle, handle.Instance.Navigation);
+    }
+
+    /// <summary>The key of the runtime <paramref name="navigation"/> names on the handle's route, from the handle's session and tab.</summary>
+    private UIRuntimeKey CreateRuntimeKey(UIHandle handle, UINavigationRequest navigation)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(navigation);
+
         handle.Instance.Validate();
 
         // Uses the definition, not the route string, so a route that has gone missing still yields the same key as at attach.
@@ -1155,7 +1233,19 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             ? entry.Definition
             : new UIRouteDefinition { Route = UIRoutePath.Normalize(handle.Instance.Navigation.Route), ViewKey = handle.Instance.Navigation.Route };
 
-        return CreateRuntimeKey(_application.Persistence, route, handle.Session.SessionId, handle.Instance.Navigation, handle.Instance.WindowId);
+        return CreateRuntimeKey(_application.Persistence, route, handle.Session.SessionId, navigation, handle.Instance.WindowId);
+    }
+
+    /// <summary>Whether an attach from <paramref name="clientWindowId"/> resolved to the very runtime <paramref name="handle"/> is attached to.</summary>
+    internal bool NamesRuntimeOf(UIHandle handle, UIViewResolution resolution, string clientWindowId)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(resolution);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientWindowId);
+
+        return string.Equals(handle.Instance.WindowId, clientWindowId, StringComparison.Ordinal)
+            && resolution.Route.ControllerType is not null
+            && CreateRuntimeKey(handle).Equals(CreateRuntimeKey(_application.Persistence, resolution.Route, resolution.Session.SessionId, resolution.Navigation, clientWindowId));
     }
 
     /// <inheritdoc />
@@ -1239,7 +1329,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         _ = activity?.SetTag("ne.ui.route", route);
 
         // The name is looked up only for the debug line; the metric is tagged with the route alone.
-        var command = _logger.IsEnabled(LogLevel.Debug) && entry.Runtime.View.Events.TryGet(request.EventId, out CompiledUIEvent? compiledEvent)
+        // An offered action names no event: its command is the runtime's to know, and the line goes without it.
+        var command = _logger.IsEnabled(LogLevel.Debug) && request.Action is null && entry.Runtime.View.Events.TryGet(request.EventId, out CompiledUIEvent? compiledEvent)
             ? compiledEvent.Command
             : null;
 
@@ -1287,6 +1378,40 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             return SessionEndedResult();
 
         return await entry.Runtime.RequestLeaveAsync(handle, target, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Not a navigation: the route's access was checked when the page arrived, so the view filters are not run again. An entry whose
+    /// parameters name another runtime (the route's identity) is that runtime's page, and is answered with a navigation to it.
+    /// </remarks>
+    public async Task<UICommandExecutionResult> NavigateInPlaceAsync(UIHandle handle, IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        UINavigationRequest navigation = new()
+        {
+            Route = handle.Instance.Navigation.Route,
+            Parameters = parameters
+        };
+
+        navigation.Validate();
+
+        UIRuntimeEntry entry = GetRequiredRuntimeEntry(handle);
+
+        if (!await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false))
+            return SessionEndedResult();
+
+        if (!CreateRuntimeKey(handle, navigation).Equals(CreateRuntimeKey(handle)))
+        {
+            return new UICommandExecutionResult
+            {
+                Command = UICommandResult.Ok([new NavigateEffect(UINavigationAddress.Format(navigation))]),
+                Changes = ServerChangeSet.Empty
+            };
+        }
+
+        return await entry.Runtime.NavigateInPlaceAsync(handle, navigation, cancellationToken).ConfigureAwait(false);
     }
 
     private void CompleteCommand(Activity? activity, string route, string? command, bool succeeded, long started)

@@ -38,11 +38,12 @@
     }
 }
 
+// The ring is the mark: unchecked, it is all that says a box is there.
 .ui-toggle-box(@height) {
     position: relative;
     flex: 0 0 auto;
     height: @height;
-    border: var(--ui-border-width, 1px) solid var(--ui-color-border);
+    border: var(--ui-border-width, 1px) solid var(--ui-color-mark);
     background: var(--ui-surface-raised);
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
 }

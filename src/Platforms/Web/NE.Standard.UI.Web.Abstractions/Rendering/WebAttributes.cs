@@ -196,6 +196,15 @@ public static class WebAttributes
     /// </summary>
     public const string PageCulture = "data-ui-page-culture";
 
+    /// <summary>On a pager's root: the compiled id of the host whose pages it turns (<c>PagerComponent.Target</c>).</summary>
+    public const string PagerTarget = "data-ui-pager-target";
+
+    /// <summary>On a pager's button: the page it turns to — <c>first</c>, <c>previous</c>, <c>next</c>, <c>last</c>, or a page's number.</summary>
+    public const string PagerPage = "data-ui-pager-page";
+
+    /// <summary>On a pager's page-size choice: the rows a page holds with it.</summary>
+    public const string PagerSize = "data-ui-pager-size";
+
     /// <summary>On a number input's root: the author's display format (a .NET numeric format such as <c>N2</c>) the client writes the value in.</summary>
     public const string NumberFormat = "data-ui-number-format";
 
@@ -210,7 +219,10 @@ public static class WebAttributes
     /// <summary>On a component, an item's row or a host with rows: the context menu inside is not opened (<c>ShowContextMenu</c>, <c>CanShowContextMenu</c>).</summary>
     public const string NoContextMenu = "data-ui-no-context-menu";
 
-    /// <summary>On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open.</summary>
+    /// <summary>
+    /// On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open, and a
+    /// control in it (a grid's chevron) never stands for the row the keyboard presses.
+    /// </summary>
     public const string NoRowOpen = "data-ui-no-row-open";
 
     /// <summary>On a host with rows whose choosing is something of its own — a grid's checkboxes: a click on a row chooses nothing, the keyboard still does.</summary>
@@ -237,7 +249,13 @@ public static class WebAttributes
 
     public const string MenuOpen = "data-ui-menu-open";
 
-    public const string MenuShortcut = "data-ui-menu-shortcut";
+    /// <summary>
+    /// On a button or a menu entry: the key chord that presses it, read by the page's shortcut registry (<c>shortcut-engine.ts</c>).
+    /// </summary>
+    public const string Shortcut = "data-ui-shortcut";
+
+    /// <summary>On a range slider: the least distance between its two handles, which neither passes (range-value-engine.ts).</summary>
+    public const string SliderMinDistance = "data-ui-slider-min-distance";
 
     /// <summary>On a group wrapper whose entry is a select: its choices fly out beside it whatever the menu's fold (menu-group-engine.ts).</summary>
     public const string MenuSelect = "data-ui-menu-select";
@@ -260,6 +278,9 @@ public static class WebAttributes
     /// bottom rather than a drawer, and its groups fly out upward (menu-group-engine.ts).
     /// </summary>
     public const string BottomBar = "data-ui-bottom-bar";
+
+    /// <summary>On the shell's link to the content region, which skip-link-engine.ts moves the keyboard to without touching the address.</summary>
+    public const string SkipLink = "data-ui-skip-link";
 
     public const string Name = "data-ui-name";
 
@@ -315,6 +336,12 @@ public static class WebAttributes
 
     /// <summary>On a multi-select's root: how many options it takes at most.</summary>
     public const string SelectMax = "data-ui-select-max";
+
+    /// <summary>On a multi-select's root that takes the reader's own text as chips: its entry is the control the reader types in.</summary>
+    public const string SelectFreeText = "data-ui-select-free-text";
+
+    /// <summary>On a free-text multi-select whose first suggestion Enter takes: <c>first-suggestion</c>; absent, the typed text.</summary>
+    public const string SelectTagEntry = "data-ui-select-tag-entry";
 
     public const string SelectContent = "data-ui-select-content";
 
@@ -508,6 +535,12 @@ public static class WebAttributes
     /// <summary>Marks the one element a component keeps its value on, where that is not the element the reader starts from.</summary>
     public const string ValueHolder = "data-ui-value-holder";
 
+    /// <summary>On a field whose text is a draft, not its component's value — a free-text multi-select's entry.</summary>
+    public const string Draft = "data-ui-draft";
+
+    /// <summary>On the field holding a period's end (<c>EndValue</c>), not its <c>Value</c>: a temporal input's second field, a range slider's end handle.</summary>
+    public const string ValueEnd = "data-ui-value-end";
+
     /// <summary>Names the reader that reads a written value off this element; the names are <see cref="WebValueKinds"/>.</summary>
     public const string ValueKind = "data-ui-value-kind";
 
@@ -535,7 +568,7 @@ public static class WebAttributes
     /// <summary>On a windowed host: what the source computed over every item the query leaves, by property, as JSON.</summary>
     public const string WindowAggregates = "data-ui-window-aggregates";
 
-    /// <summary>On a windowed host whose window is a page: the scroll asks for nothing, and a package's pager asks for a window by offset.</summary>
+    /// <summary>On a windowed host whose window is a page (<c>Paging</c>): the scroll asks for nothing, and a pager asks for a window by offset.</summary>
     public const string WindowPaged = "data-ui-window-paged";
 
     public const string WindowTotal = "data-ui-window-total";

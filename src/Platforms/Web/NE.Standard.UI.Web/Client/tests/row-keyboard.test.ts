@@ -294,3 +294,16 @@ test("by key, a refusing row is left as it was and a key with no row drawn is ta
     itemSelection.setSelectedKeys(real(root), ["a", "z"], true);
     assert.deepEqual(JSON.parse(host.getAttribute("data-ui-selected-keys") ?? "[]"), ["b", "a", "z"]);
 });
+
+test("a grid's chosen keys are its rows' host's, not the menu's in its band, which comes first in the document", () => {
+    const { root, host, rows } = list("ui-table", ["a", "b"]);
+    const band = new FakeElement().with("data-ui-id", "chooser").append(new FakeElement().with("data-ui-items-host"));
+
+    root.with("data-ui-id", "grid").with("data-ui-selection", "many");
+    root.children.unshift(band);
+    band.parent = root;
+
+    itemSelection.setSelected(real(root), [real(rows[1])], true);
+
+    assert.deepEqual(JSON.parse(host.getAttribute("data-ui-selected-keys") ?? "[]"), ["b"]);
+});

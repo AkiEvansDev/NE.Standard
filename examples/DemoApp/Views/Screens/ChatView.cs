@@ -43,7 +43,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.chat.description";
 
     /// <summary>A messenger's panes are the region's height at every width, each scrolling inside itself, the composer always in sight.</summary>
-    protected override bool FillsHeight => true;
+    protected override UIResponsive<UILayoutLength>? ScreenHeight => UILayoutLength.Fill();
 
     /// <summary>The rail in a padded box and nothing else, so on a phone the side is the bar rather than a drawer.</summary>
     protected override IVisualComponent? CreateLeftSide()
@@ -164,7 +164,9 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                 )
                 .SetPlacement(1, 1, 24, 1)
             )
+            // Tonal: a lone search over the list, nothing stacked under it.
             .AddChild(new TextInputComponent(SearchId)
+                .SetAppearance(UIInputAppearance.Tonal)
                 .SetPlaceholder("Search chats")
                 .SetPrefixIcon(DemoIcons.Search)
                 .SetShowClearButton()
@@ -340,6 +342,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .SetGroupTemplate(CreateDayHeader())
             .VerticalScrollOnly()
             .AnchorToEnd()
+            // Messages differ in height and side: rows of grey bars where older ones will land would read as messages of their own.
+            .SetLoadingLook(UIItemsLoadingLook.Indicator)
             .SetSpacing(6)
             .SetMargin(UIThickness.All(16, 8, 16, 8));
 

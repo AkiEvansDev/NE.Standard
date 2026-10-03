@@ -84,13 +84,16 @@ internal sealed class WebHydration
 
     private static async Task<WebHydration> ReadAsync(IUIRuntime? runtime, string? pageId, string view, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
     {
-        ServerChangeSet changes = await WebInitialChanges
-            .BuildAsync(runtime, render.InitBindingIds ?? [], cancellationToken)
+        UIRenderSnapshot snapshot = await WebInitialChanges
+            .BuildAsync(runtime, pageId, render.InitBindingIds ?? [], cancellationToken)
             .ConfigureAwait(false);
 
+        ServerChangeSet changes = snapshot.Changes;
+
         // `view` is the compile's fingerprint: the attach presents it, and a page of another compile is reloaded rather than attached.
+        // `sequence` is where the runtime the render prepared stood: the page's first attach presents it and is sent only what came after.
         return new WebHydration(
-            JsonSerializer.Serialize(new { pageId, view, changes, words = words.Table, title = words.Title }, JsonOptions),
+            JsonSerializer.Serialize(new { pageId, view, sequence = snapshot.Sequence, changes, words = words.Table, title = words.Title }, JsonOptions),
             WebRenderValues.Create(changes)
         );
     }

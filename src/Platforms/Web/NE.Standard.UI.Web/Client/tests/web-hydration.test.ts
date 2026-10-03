@@ -20,6 +20,12 @@ test("the values the render put in the page are read back", () => {
     assert.deepEqual(payload?.changes, { updates: [] });
 });
 
+test("where the prepared runtime stood is read back, and a render that prepared none says nothing", () => {
+    assert.equal(readHydration(pageWith("{\"pageId\":\"abc\",\"sequence\":42,\"changes\":{\"updates\":[]}}"))?.sequence, 42);
+    assert.equal(readHydration(pageWith("{\"pageId\":null,\"sequence\":null,\"changes\":{\"updates\":[]}}"))?.sequence, null);
+    assert.equal(readHydration(pageWith("{\"pageId\":\"abc\",\"sequence\":\"42\"}"))?.sequence, null);
+});
+
 test("the compile the page was rendered from is read back, and a page without one presents none", () => {
     assert.equal(readHydration(pageWith("{\"pageId\":\"abc\",\"view\":\"0123456789abcdef\",\"changes\":{\"updates\":[]}}"))?.view, "0123456789abcdef");
     assert.equal(readHydration(pageWith("{\"pageId\":\"abc\",\"changes\":{\"updates\":[]}}"))?.view, null);

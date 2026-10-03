@@ -31,6 +31,7 @@
 }
 
 // Whole pixels at the root size, centred by auto margins: translate(-50%) leaves a half pixel the grid does not snap, a soft edge.
+// Off, the knob is the mark as the ring is: where it stands says which way the switch is.
 .ui-switch__box::after {
     content: "";
     position: absolute;
@@ -41,7 +42,7 @@
     height: 0.75rem;
     margin: auto 0;
     border-radius: 999px;
-    background: var(--ui-color-border);
+    background: var(--ui-color-mark);
     transition: left @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
@@ -87,5 +88,5 @@
 }
 
 .ui-switch.ui-invalid > .ui-switch__box {
-    border-color: var(--ui-validation-color, var(--ui-color-danger));
+    border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }

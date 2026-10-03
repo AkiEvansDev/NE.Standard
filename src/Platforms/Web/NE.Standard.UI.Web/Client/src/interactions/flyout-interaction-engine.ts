@@ -10,8 +10,6 @@ const AnchorClass = "ui-flyout__anchor";
 const NoBackdropCloseAttribute = "data-ui-flyout-no-backdrop-close";
 const NoEscapeCloseAttribute = "data-ui-flyout-no-escape-close";
 
-const ContentGap = 4;
-
 const PlacementClassPrefix = `${FlyoutClass}--`;
 const DefaultPlacement: AnchoredPopupPlacement = "bottom-start";
 
@@ -68,7 +66,7 @@ export class FlyoutInteractionEngine {
             owner: flyout,
             popup: content,
             anchor: resolveAnchorBox(anchor) ?? flyout,
-            placement: { placement: readPlacement(flyout), gap: ContentGap },
+            placement: { placement: readPlacement(flyout) },
             openers: opener === null ? [] : [opener],
             focus: true
         });

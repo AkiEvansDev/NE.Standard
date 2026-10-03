@@ -21,6 +21,9 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UIOverflow? Overflow { get; set; }
 
+    [RecursiveMember]
+    public partial string? Shortcut { get; set; }
+
     public ButtonGroupContext()
     {
         AddOption(nameof(Type), CycleType, () => Type);
@@ -28,6 +31,7 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddOption(nameof(Background), CycleBackground, () => Background);
         AddOption(nameof(Overflow), CycleOverflow, () => Overflow);
+        AddOption(nameof(Shortcut), ToggleShortcut, () => Shortcut);
     }
 
     public void CycleType()
@@ -45,6 +49,10 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
 
     public void CycleOverflow()
         => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
+
+    // A chord the page may take: the browser hands Ctrl+K over, where it keeps Ctrl+T and Ctrl+W.
+    public void ToggleShortcut()
+        => SetLastChange(nameof(Shortcut), Shortcut = CycleValue(Shortcut, "Ctrl+K", null));
 }
 
 /// <summary>

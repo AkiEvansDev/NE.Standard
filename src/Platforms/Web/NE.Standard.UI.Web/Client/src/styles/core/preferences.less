@@ -3,10 +3,11 @@
 @import "../mixins/range.less";
 @import "../mixins/selected.less";
 
-// What the reader asked of the system: less motion, and a high-contrast mode's forced palette. Imported last, so these win ties.
+// What the reader asked of the system: less motion, more contrast, and a high-contrast mode's forced palette. Imported last, so these
+// win ties.
 
 // Every loading ring on the page, by its wearer: the one thing both answers below keep.
-@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before";
+@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, @{ui-window-indicator}";
 
 // The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
 @ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item:has(> [data-ui-action-bar] > .ui-action-bar), .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:has(> .ui-action-bar, > [data-ui-action-bar] > .ui-action-bar), .ui-tree > [data-ui-items-host] > .ui-tree__row:has(> .ui-tree__node > [data-ui-action-bar] > .ui-action-bar)";
@@ -36,9 +37,24 @@
     }
 }
 
+// More contrast: every border reads 3:1 on its ground as a control's own edge does — a card's edge, a divider, a table's rule. Written
+// on each palette's element, where its mark resolves: the same weight as the theme's stylesheet, which the page links before this one.
+@media (prefers-contrast: more) {
+    [data-ui-theme] {
+        --ui-color-border: var(--ui-color-mark);
+        --ui-border-subtle: var(--ui-color-mark);
+    }
+}
+
 // Forced colours drop box-shadows and force grounds to Canvas, so a state drawn as a wash, an inset mark or a filled pseudo-element
 // vanishes: each is redrawn in system colours.
 @media (forced-colors: active) {
+    // A windowed list's rows not yet fetched, its skeleton's bars: in the system's grey, as the mask cuts them.
+    @{ui-skeleton-host} > [data-ui-window-spacer] {
+        forced-color-adjust: none;
+        background: GrayText;
+    }
+
     // The keyboard's place is all this reader has to go by: the ring gets a width whatever the theme says.
     :root {
         --ui-focus-ring-width: 2px;
@@ -52,6 +68,8 @@
     .ui-select__option[aria-selected="true"],
     .ui-menu-item--selected,
     .ui-language-switcher__choice[aria-checked="true"],
+    .ui-pager__size-choice[aria-checked="true"],
+    .ui-pager__button[aria-current="page"],
     .ui-button-group__item[data-ui-selected] > .ui-button,
     .ui-button[data-ui-value-kind="pressed"][aria-pressed="true"] {
         outline: 2px solid Highlight;
@@ -65,7 +83,8 @@
     .ui-table@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
     .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus],
     @{ui-bar-rows},
-    .ui-select__option@{ui-list-current} {
+    .ui-select__option@{ui-list-current},
+    .ui-multi-select__chip:has(> .ui-multi-select__chip-remove:focus-visible) {
         outline: 2px dashed CanvasText;
         outline-offset: -2px;
     }
@@ -98,6 +117,7 @@
     .ui-menu-item@{ui-button-live}@{ui-keyboard-focus}:not(.ui-menu-item--selected),
     .ui-tab-overflow__entry@{ui-button-live}@{ui-keyboard-focus},
     .ui-language-switcher__choice@{ui-keyboard-focus}:not([aria-checked='true']),
+    .ui-pager__size-choice@{ui-keyboard-focus}:not([aria-checked='true']),
     .ui-temporal-input__day@{ui-keyboard-focus}:not(.ui-temporal-input__day--selected),
     .ui-temporal-input__month@{ui-keyboard-focus}:not(.ui-temporal-input__month--selected),
     .ui-temporal-input__time-cell@{ui-keyboard-focus}:not(.ui-temporal-input__time-cell--selected),
@@ -308,6 +328,25 @@
         .ui-forced-range-track();
     }
 
+    // A band: the start's track carries the band between the handles, the end's draws nothing under its handle.
+    .ui-slider--range .ui-slider__input:not(.ui-slider__input--end)::-webkit-slider-runnable-track {
+        background-image: linear-gradient(var(--ui-range-fill-angle, 90deg), transparent 0 calc(var(--ui-slider-fraction, 0) * 100%), Highlight 0 calc(var(--ui-slider-end-fraction, 1) * 100%), transparent 0);
+    }
+
+    .ui-slider--range .ui-slider__input:not(.ui-slider__input--end)::-moz-range-track {
+        background-image: linear-gradient(var(--ui-range-fill-angle, 90deg), transparent 0 calc(var(--ui-slider-fraction, 0) * 100%), Highlight 0 calc(var(--ui-slider-end-fraction, 1) * 100%), transparent 0);
+    }
+
+    .ui-slider.ui-slider--range .ui-slider__input.ui-slider__input--end::-webkit-slider-runnable-track {
+        background: none;
+        box-shadow: none;
+    }
+
+    .ui-slider.ui-slider--range .ui-slider__input.ui-slider__input--end::-moz-range-track {
+        background: none;
+        box-shadow: none;
+    }
+
     .ui-slider__input::-webkit-slider-thumb {
         .ui-forced-range-thumb();
     }
@@ -343,6 +382,12 @@
 
     // The quote line is a pseudo-element's ground, which the mode forces to Canvas and so hides.
     .ui-paragraph--quote:not(.ui-loading)::before {
+        forced-color-adjust: none;
+        background-color: CanvasText;
+    }
+
+    // A closed row's validation dot is a filled ground, forced to Canvas and so gone: the text's colour fills it.
+    .ui-validation-mark {
         forced-color-adjust: none;
         background-color: CanvasText;
     }

@@ -150,6 +150,16 @@
     background: var(--ui-wash-hover);
 }
 
+// Where the arrows put the current option — the chosen one too — it wears the keyboard's frame; the pointer's current, its wash alone.
+.ui-select__option@{ui-list-keyboard} {
+    .ui-keyboard-frame();
+}
+
+// A key moves the mark at once, frame and wash together: the wash's fade trailed the frame, which has none. The pointer's keeps it.
+.ui-select__list:has(> .ui-select__option@{ui-list-keyboard}) > .ui-select__option {
+    transition: none;
+}
+
 // A press is stronger than the pointer's rest, on any option but the chosen one.
 .ui-select__option:not([aria-selected="true"]):not([aria-disabled="true"]):active {
     background: var(--ui-wash-active);

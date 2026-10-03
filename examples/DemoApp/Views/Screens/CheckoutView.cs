@@ -181,13 +181,20 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
         => UIPage.Card("Your subscription", "Billed monthly, VAT added below.", UILayout.Stack(12,
             UIDetails.List().BindItems(nameof(CheckoutController.Lines)),
             new SeparatorComponent(),
+            // Tonal: the separators above and below already frame it, and a line under it would only add weight to the card.
             new TextInputComponent()
                 .SetPlaceholder("Promo code")
+                .SetAppearance(UIInputAppearance.Tonal)
                 .SetTrimInput()
                 .SetTrailingAction(UIButtons.Ghost("Apply").SetSize(UIButtonSize.Small).OnClick(nameof(CheckoutController.ApplyPromo)))
                 .BindValue(nameof(CheckoutController.Promo))
                 .BindValidation(nameof(CheckoutController.PromoNotice))
                 .OnChange(nameof(CheckoutController.PromoChanged)),
+            // The server's verdict on the code, kept in the summary until the code changes; shown later, each is read out.
+            UIMessage.Create(UIMessageSeverity.Success, null, new ParagraphComponent().BindDescription(nameof(CheckoutController.PromoVerdict)))
+                .BindVisibility(nameof(CheckoutController.PromoAppliedVisibility)),
+            UIMessage.Create(UIMessageSeverity.Danger, null, new ParagraphComponent().BindDescription(nameof(CheckoutController.PromoVerdict)))
+                .BindVisibility(nameof(CheckoutController.PromoRefusedVisibility)),
             new SeparatorComponent(),
             CreateSumRow("Subtotal", nameof(CheckoutController.SubtotalLine)),
             CreateSumRow("Discount", nameof(CheckoutController.DiscountLine)).BindVisibility(nameof(CheckoutController.DiscountVisibility)),

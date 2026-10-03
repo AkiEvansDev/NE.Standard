@@ -13,9 +13,10 @@ namespace NE.Standard.UI.Extensions;
 public static class UIPage
 {
     /// <summary>
-    /// The band a page is headed by: the name in the display role, a muted line under it, and whatever stands at the far
-    /// end (a theme switcher, a signed-in person, the page's buttons). On a phone the name and the line run the band's full
-    /// width, and the far end folds under them rather than leaving the name a few letters and an ellipsis.
+    /// The band a page is headed by: the name, a muted line under it, and whatever stands at the far end (a theme switcher, a
+    /// signed-in person, the page's buttons) on the name's row at every width. On a phone the name is a title's size and wraps
+    /// under itself when long, and the line is one line, cut, so the band stays about a title's height and leaves the screen to
+    /// the page; from the medium breakpoint the name is in the display role and the line runs to three lines.
     /// </summary>
     public static ContainerComponent Header(string title, string? description = null, params IVisualComponent[] trailing)
     {
@@ -23,51 +24,88 @@ public static class UIPage
 
         var span = trailing.Length == 0 ? 24 : 23;
 
-        // The name is an interface heading, one line; from the small breakpoint up it stands level with the far end, centred on
-        // the same row.
-        ContainerComponent header = new ContainerComponent()
-            .SetPadding(UIThickness.All(24, 20, 24, 4))
-            .AddChild(new TextComponent()
-                .SetTitle(title)
-                .AsDisplay()
-                .SetTitleColor(UIThemeColor.OnBackground)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), sm: UIGridPlacement.At(1, 1, span, 1)))
-            );
+        // The name and the line twice, one of each pair shown on either side of the medium breakpoint: a text's role and a
+        // paragraph's cap on its lines do not change with the width.
+        UIResponsive<UIVisibility> phone = UIResponsive<UIVisibility>.Create(UIVisibility.Visible, md: UIVisibility.Collapsed);
+        UIResponsive<UIVisibility> wide = UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
 
-        // A paragraph rather than a text, which has no cap on its lines: the description stops at three at any width, so on a phone
-        // it does not push the page's content off the screen.
+        ContainerComponent header = new ContainerComponent()
+            // 10 on a phone puts the name's line on the shell's drawer toggle's middle (12 down and 36 tall).
+            .SetPadding(UIResponsive<UIThickness>.Create(UIThickness.All(24, 10, 16, 4), md: UIThickness.All(24, 20, 24, 4)))
+            // On a phone a name too long for its row wraps under itself rather than losing its end, its first line level with the
+            // far end, which stands at the row's top. A wrapped display name would push the page down, so it wraps at a title's size.
+            .AddChild(HeaderTitle(title, span, phone)
+                .AsTitle()
+                .SetTitleWrap(true)
+                .SetVerticalAlignment(UIAlignment.Start)
+                .SetMargin(UIThickness.All(0, PhoneTitleInset, 0, 0))
+            )
+            .AddChild(HeaderTitle(title, span, wide).AsDisplay());
+
+        // A paragraph rather than a text, which has no cap on its lines. On a phone it runs under the far end too.
         if (description is not null)
         {
-            _ = header.AddChild(new ParagraphComponent()
-                .SetDescription(description)
-                .SetMaxLines(3)
-                .SetDescriptionType(UITextAppearance.Body)
-                .SetDescriptionColor(UIThemeColor.Muted)
-                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 2, 24, 1), md: UIGridPlacement.At(1, 2, span, 1)))
-            );
+            _ = header
+                .AddChild(HeaderLine(description, 1, phone).SetPlacement(1, 2, 24, 1))
+                .AddChild(HeaderLine(description, 3, wide).SetPlacement(1, 2, span, 1));
         }
 
         if (trailing.Length == 0)
             return header;
 
-        // The last column as wide as what stands in it, so the title keeps the rest — a third of the band given to one switch
-        // left the title a few letters and an ellipsis. On a phone even the rest is too little beside two switchers, so there the
-        // far end takes a row of its own after the name and its line, still at the far edge; the Auto column, spanned by nothing
-        // alone, then takes no width.
-        var foldedRow = description is null ? 2 : 3;
-
+        // The last column as wide as what stands in it, so the name keeps the rest — a third of the band given to one switch
+        // left the name a few letters and an ellipsis. The far end stays on the name's row on a phone as well: folded under the
+        // line it took a third of a phone's height.
         return header
             .SetColumn(24, UIGridUnit.Auto())
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
-                .SetSpacing(12)
-                .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 12, 0, 0), sm: UIThickness.All(12, 0, 0, 0)))
+                .SetSpacing(UIResponsive<double>.Create(8, md: 12))
+                .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(8, 0, 0, 0), md: UIThickness.All(12, 0, 0, 0)))
                 .SetHorizontalAlignment(UIAlignment.End)
-                .SetVerticalAlignment(UIAlignment.Center)
+                .SetVerticalAlignment(UIAlignment.Start)
                 .AddChildren(trailing)
-                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, foldedRow, 24, 1), sm: UIGridPlacement.At(24, 1, 1, 1)))
+                .SetPlacement(24, 1, 1, 1)
             );
+    }
+
+    // Half a control's 40 px less the name's 28 px line: a one-line name stands in the far end's middle, a wrapped one's first line too.
+    private const double PhoneTitleInset = 6;
+
+    /// <summary>The page's name, where <paramref name="visibility"/> shows it.</summary>
+    private static TextComponent HeaderTitle(string title, int span, UIResponsive<UIVisibility> visibility)
+        => new TextComponent()
+            .SetTitle(title)
+            .SetTitleColor(UIThemeColor.OnBackground)
+            .SetVerticalAlignment(UIAlignment.Center)
+            .SetVisibility(visibility)
+            .SetPlacement(1, 1, span, 1);
+
+    /// <summary>The muted line under the name, at most <paramref name="lines"/> lines, where <paramref name="visibility"/> shows it.</summary>
+    private static ParagraphComponent HeaderLine(string description, int lines, UIResponsive<UIVisibility> visibility)
+        => new ParagraphComponent()
+            .SetDescription(description)
+            .SetMaxLines(lines)
+            .SetDescriptionType(UITextAppearance.Body)
+            .SetDescriptionColor(UIThemeColor.Muted)
+            .SetVisibility(visibility);
+
+    /// <summary>
+    /// A message laid across the top of the page's content (<see cref="UIMessage"/>): edge to edge, square, a rule under it, its
+    /// mark in line with the header's name. The content's first child, outside any padding of its own, it scrolls with the page; in
+    /// the header region of a view whose header is sticky it stays, beside the drawer toggle on a phone.
+    /// </summary>
+    public static SurfaceComponent Banner(SurfaceComponent message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        UIThickness padding = message.Padding?.Base ?? UIThickness.Uniform(12);
+
+        return message
+            .SetBorderRadius(UICornerRadius.Uniform(0))
+            .SetBorderThickness(UIThickness.All(0, 0, 0, 1))
+            .SetHorizontalAlignment(UIAlignment.Stretch)
+            .SetPadding(UIThickness.All(24, padding.Top, Math.Max(padding.Right, 16), padding.Bottom));
     }
 
     /// <summary>

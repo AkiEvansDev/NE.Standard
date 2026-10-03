@@ -5,6 +5,7 @@ using System.Linq;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Items;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Interaction;
@@ -213,6 +214,22 @@ public sealed class WebRenderMetadata
         metadata.Validate();
 
         _itemsTemplates.Add(metadata);
+    }
+
+    /// <summary>
+    /// Tells each items template what its host's rows carry (<see cref="WebRenderItemsTemplateMetadata.ItemPaths"/>), for a page in
+    /// development to check its reads against.
+    /// </summary>
+    public void DescribeItemPaths(UIItemProjectionIndex projections)
+    {
+        ArgumentNullException.ThrowIfNull(projections);
+
+        foreach (WebRenderItemsTemplateMetadata itemsTemplate in _itemsTemplates)
+        {
+            UIItemProjection projection = projections.For(itemsTemplate.ComponentId);
+
+            itemsTemplate.ItemPaths = projection.IsWhole ? null : projection.Paths;
+        }
     }
 
     /// <summary>

@@ -32,7 +32,7 @@ public interface IMenuItemModel : ITextModel
 
     /// <summary>
     /// Gets the key combination that fires this entry, written as <c>Ctrl+Shift+P</c> and matched by physical
-    /// key so it keeps working on a non-Latin layout.
+    /// key so it keeps working on a non-Latin layout; a context menu's entry fires for the row under the keyboard's cursor.
     /// </summary>
     string? Shortcut { get; }
 

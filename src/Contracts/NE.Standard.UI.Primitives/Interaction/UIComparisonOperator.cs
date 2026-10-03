@@ -59,4 +59,10 @@ public enum UIComparisonOperator
     /// The value must contain the comparison value as a substring, ignoring case.
     /// </summary>
     LikeIgnoreCase = 10,
+
+    /// <summary>
+    /// Every item of a list value must match the comparison value as a regular expression — a multi-select's each key; a value that
+    /// is no list is one item, and nothing is an empty list.
+    /// </summary>
+    RegexEach = 11,
 }

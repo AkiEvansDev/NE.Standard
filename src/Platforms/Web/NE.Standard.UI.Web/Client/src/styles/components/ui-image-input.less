@@ -6,8 +6,9 @@
 @import "../mixins/range.less";
 @import "../mixins/responsive.less";
 
-// A colour of its own, not the field's edge: under Filled the edge is the fill, so a dashed edge in that colour would vanish.
-@ui-image-input-drop-edge: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent);
+// The mark, not the field's edge: under Filled the edge is the fill, so a dashed edge in that colour would vanish; the dashed edge is
+// all that says a picture may be dropped here, so it reads 3:1 as a control's edge does.
+@ui-image-input-drop-edge: var(--ui-color-mark);
 
 // A picture the viewer replaces: one button is the whole surface (picture, placeholder, pencil), in one of three shapes.
 .ui-image-input {
@@ -216,9 +217,16 @@
     }
 
 // Not through `@ui-input-field`, whose sizing would distort the picture and avatar; the sizes' weight, so a size overrides Ghost's height.
+// The edges in the mark, as a text field's (ui-input.less).
+.ui-input--filled.ui-image-input--inline > .ui-image-input__surface {
+    border-bottom-color: var(--ui-color-mark);
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+}
+
 .ui-input--outline.ui-image-input--inline > .ui-image-input__surface {
     --ui-field-fill: var(--ui-field-ground);
-    border-color: var(--ui-color-border);
+    border-color: var(--ui-color-mark);
     background: none;
 }
 
@@ -226,7 +234,7 @@
     --ui-field-fill: var(--ui-field-ground);
     border-style: none none solid none;
     border-width: 0 0 var(--ui-border-width, 1px) 0;
-    border-color: var(--ui-color-border);
+    border-color: var(--ui-color-mark);
     border-radius: 0;
     background: none;
     min-height: 1.75rem;
@@ -277,12 +285,17 @@
 
 // States after the appearances. The hover must outweigh the surface's resting edges, so it steps aside for the invalid and
 // focus edges rather than standing below them by weight as ui-input.less's does.
-@ui-image-edge-hover: ~":not(.ui-invalid, .ui-validation--warning) > .ui-image-input__surface@{ui-image-surface-live}:not(@{ui-field-focus}):hover";
+@ui-image-edge-hover: ~":not(@{ui-validation-marked}) > .ui-image-input__surface@{ui-image-surface-live}:not(@{ui-field-focus}):hover";
 
 @media @ui-can-hover {
     .ui-image-input@{ui-field-live}:not(.ui-image-input--inline, [data-ui-image-dragging])@{ui-image-edge-hover},
-    .ui-image-input--inline.ui-input--filled@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
+    .ui-image-input--inline:is(.ui-input--filled, .ui-input--tonal)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
         border-color: var(--ui-field-hover);
+    }
+
+    // Filled keeps its line under the pointer.
+    .ui-image-input--inline.ui-input--filled@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
+        border-bottom-color: var(--ui-color-mark);
     }
 }
 
@@ -550,7 +563,7 @@
 
     // The root too, and with it its margin, its gap and a caption: an empty shelf is nothing at all, but for a validation line it has
     // to show — a file refused for its size lands on an empty shelf.
-    .ui-image-input--shelf:not(:has(.ui-image-input__tile)):not(.ui-invalid, .ui-validation--warning, .ui-validation--info) {
+    .ui-image-input--shelf:not(:has(.ui-image-input__tile)):not(@{ui-validation-marked}) {
         display: none;
     }
 

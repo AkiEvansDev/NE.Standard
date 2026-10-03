@@ -4,6 +4,8 @@ import type { MetadataIndex, WebRenderInteractionMetadata } from "../metadata/me
 
 /** The property an input's value is: the one `data-ui-bind-value` names when it is bound. */
 const ValuePropertyName = "Value";
+/** The property a period's end field holds (`data-ui-value-end`). */
+const EndValuePropertyName = "EndValue";
 
 export class InteractionIndex {
     private readonly eventInteractions = new Map<string, WebRenderInteractionMetadata[]>();
@@ -11,6 +13,7 @@ export class InteractionIndex {
     private readonly eventComponentIdsByName = new Map<string, Set<number>>();
     private readonly propertyInteractions = new Map<string, WebRenderInteractionMetadata[]>();
     private readonly valueInteractions = new Map<number, WebRenderInteractionMetadata[]>();
+    private readonly endValueInteractions = new Map<number, WebRenderInteractionMetadata[]>();
     private readonly metadata: MetadataIndex;
     private copiesValues = false;
 
@@ -56,6 +59,11 @@ export class InteractionIndex {
     /** The interactions reading a component's value: what an edit of an unbound field, which names no property, changes. */
     public getValueInteractions(componentId: number): readonly WebRenderInteractionMetadata[] {
         return this.valueInteractions.get(componentId) ?? [];
+    }
+
+    /** The interactions reading a period's end: what an edit of its unbound end field changes. */
+    public getEndValueInteractions(componentId: number): readonly WebRenderInteractionMetadata[] {
+        return this.endValueInteractions.get(componentId) ?? [];
     }
 
     private addInteraction(interaction: WebRenderInteractionMetadata): void {
@@ -104,11 +112,14 @@ export class InteractionIndex {
                 if (getInteractionActionKind(interaction.actionKind) === "CopyValue")
                     this.copiesValues = true;
 
-                if (this.metadata.getPropertyDefinition(propertyId)?.propertyName === ValuePropertyName) {
-                    const values = this.valueInteractions.get(componentId) ?? [];
+                const propertyName = this.metadata.getPropertyDefinition(propertyId)?.propertyName;
+                const byField = propertyName === ValuePropertyName ? this.valueInteractions : propertyName === EndValuePropertyName ? this.endValueInteractions : null;
+
+                if (byField !== null) {
+                    const values = byField.get(componentId) ?? [];
 
                     values.push(interaction);
-                    this.valueInteractions.set(componentId, values);
+                    byField.set(componentId, values);
                 }
             }
         }

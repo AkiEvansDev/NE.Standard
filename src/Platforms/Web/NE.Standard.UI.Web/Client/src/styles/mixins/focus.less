@@ -23,3 +23,17 @@
 
 // A row host holds the keyboard: `:focus`, since `:focus-within` lights a stale row and `:focus-visible` outlives a click.
 @ui-row-cursor-focus: ~":focus:not([data-ui-pointer-focus])";
+
+// A list's current option put there by the keyboard: `@ui-list-current` less the pointer's.
+@ui-list-keyboard: ~"[data-ui-active]:not([data-ui-pointer-focus])";
+
+// Where the keyboard stands in a list — a host's row, a menu's or a popup list's entry, a select's option: one look everywhere, a frame
+// inside the entry in the brand's ink, which reads 3:1 on either page (the focus ring's colour is a theme's own), and which the
+// pointer's mark never wears. The washes alone were lost against a stripe or a chosen ground. An outline, not a box-shadow, so a
+// row's separator and a chosen entry's mark stay. Forced colours draw their own dashed mark (core/preferences.less).
+.ui-keyboard-frame() {
+    @media (forced-colors: none) {
+        outline: 2px solid var(--ui-color-primary-ink);
+        outline-offset: -2px;
+    }
+}

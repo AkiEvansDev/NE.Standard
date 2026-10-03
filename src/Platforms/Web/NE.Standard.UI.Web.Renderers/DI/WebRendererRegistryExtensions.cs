@@ -67,6 +67,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ProgressComponentRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ItemsViewComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, PagerComponentRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TextInputComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ColorInputComponentRenderer>());

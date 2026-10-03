@@ -31,6 +31,17 @@ public interface IButtonComponent : ITextComponent
     UIButtonSize? Size { get; }
 
     /// <summary>
+    /// Gets the registered property key for <see cref="Shortcut"/>.
+    /// </summary>
+    static UIProperty ShortcutProperty { get; } = new UIProperty(nameof(Shortcut));
+
+    /// <summary>
+    /// Gets the key chord that presses the control from anywhere on the page, written as <c>Ctrl+Shift+P</c>; a context menu's entry
+    /// presses it for the row under the keyboard.
+    /// </summary>
+    string? Shortcut { get; }
+
+    /// <summary>
     /// Adds a click handler that invokes the specified command.
     /// </summary>
     IButtonComponent OnClick(string command);

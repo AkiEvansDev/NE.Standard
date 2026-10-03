@@ -1,20 +1,13 @@
-// Walking a menu from the keyboard, and firing an entry from its shortcut.
+// Walking a menu from the keyboard; an entry's shortcut is the page's registry's (shortcut-engine.ts).
 
-import { isCaretField } from "./caret-fields.ts";
-import { findOpenModalDialog } from "./open-dialogs.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { focusByPointer } from "./popup-focus.ts";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
-import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
-import { matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
 import type { TooltipWordsProvider } from "./tooltip-engine.ts";
 import { isBottomBar, towardContent } from "./menu-group-engine.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
-import { logWarn } from "../runtime/logger.ts";
 import { CollapsedAttribute, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuRailClass, MenuRootClass as RootClass, MenuUnmatchedAttribute, PassiveMenuEntrySelector, TooltipAttribute } from "../addressing/dom-attributes.ts";
-
-const ContextMenuClass = "ui-context-menu";
 
 const HorizontalClass = "ui-orientation--horizontal";
 
@@ -24,15 +17,8 @@ const CollapsedEntrySelector = `.ui-menu[${CollapsedAttribute}] > .ui-menu__host
 const TitledEntrySelector = `${RailEntrySelector}, ${CollapsedEntrySelector}`;
 const TitleSelector = ":scope > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title";
 
-const ShortcutAttribute = "data-ui-menu-shortcut";
-
 // A popup menu's entries, the only ones rendered as menu items (a check among them as a checkbox of the menu).
 const PopupEntrySelector = "[role='menuitem'], [role='menuitemcheckbox']";
-
-type ShortcutEntry = {
-    readonly shortcut: KeyboardShortcut;
-    readonly element: HTMLElement;
-};
 
 export type MenuEngineOptions = {
     readonly root?: ParentNode;
@@ -40,16 +26,13 @@ export type MenuEngineOptions = {
 
 export class MenuEngine {
     private readonly root: ParentNode;
-    private readonly shortcuts = new Map<string, ShortcutEntry | null>();
-    private shortcutsStale = true;
     private tabStopsScheduled = false;
 
     public constructor(options: MenuEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        // The arrows are taken first; a shortcut waits for the bubble, so a field that takes the chord itself has prevented it.
+        // The arrows are taken first, before the page's shortcuts, which wait for the bubble.
         this.root.addEventListener("keydown", domEvent => this.handleEntryKeydown(domEvent), true);
-        this.root.addEventListener("keydown", domEvent => this.handleShortcutKeydown(domEvent));
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
         this.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), true);
 
@@ -59,17 +42,14 @@ export class MenuEngine {
         this.applyTabStops();
 
         if (this.root instanceof Node) {
-            // Not observeComponents: any change stales the shortcuts (rebuilt on the next press); tab stops, which can't wait for a
-            // press, rebuild only for a change that touched a menu, not every row a table draws.
+            // Not observeComponents: tab stops rebuild only for a change that touched a menu, not every row a table draws.
             const observer = new MutationObserver(mutations => {
-                this.shortcutsStale = true;
-
                 if (mutations.some(touchesMenu))
                     this.scheduleTabStops();
             });
 
             // The search's mark too: an entry it hides can't stay the one Tab lands on.
-            observer.observe(this.root, { childList: true, subtree: true, attributeFilter: [ShortcutAttribute, MenuUnmatchedAttribute] });
+            observer.observe(this.root, { childList: true, subtree: true, attributeFilter: [MenuUnmatchedAttribute] });
         }
     }
 
@@ -191,73 +171,6 @@ export class MenuEngine {
             focusByPointer(item);
     }
 
-    /** Fires an entry from its shortcut anywhere on the page, a field included, unless the field took the chord itself. */
-    private handleShortcutKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing)
-            return;
-
-        if (this.shortcutsStale)
-            this.rebuildShortcuts();
-
-        // An unmodified key belongs to the caret's text.
-        if (this.shortcuts.size === 0 || isTypingTarget(domEvent))
-            return;
-
-        const modal = findOpenModalDialog(this.root);
-
-        for (const entry of this.shortcuts.values()) {
-            // A null entry is a claimed-twice combination: it fires nothing, on purpose.
-            if (entry === null || !matchesShortcut(entry.shortcut, domEvent))
-                continue;
-
-            // An open modal keeps outside entries out of reach, as it does the pointer.
-            if (!isRovingCandidate(entry.element) || (modal !== null && !modal.contains(entry.element)))
-                return;
-
-            domEvent.preventDefault();
-            entry.element.click();
-
-            return;
-        }
-    }
-
-    /** Rebuilds the shortcut registry; a combination claimed by two entries fires neither. */
-    private rebuildShortcuts(): void {
-        this.shortcuts.clear();
-        this.shortcutsStale = false;
-
-        for (const element of this.root.querySelectorAll<HTMLElement>(`[${ShortcutAttribute}]`)) {
-            // A context menu's entry acts on what the menu was opened on, which a shortcut has none of: its text only labels a key bound elsewhere.
-            if (element.closest(`.${ContextMenuClass}`) !== null)
-                continue;
-
-            const shortcut = parseShortcut(element.getAttribute(ShortcutAttribute));
-
-            if (shortcut === null) {
-                logWarn("menu shortcut could not be parsed.", { element, value: element.getAttribute(ShortcutAttribute) });
-                continue;
-            }
-
-            const key = shortcutKey(shortcut);
-
-            if (!this.shortcuts.has(key)) {
-                this.shortcuts.set(key, { shortcut, element });
-                continue;
-            }
-
-            const existing = this.shortcuts.get(key);
-
-            if (existing !== null) {
-                logWarn("menu shortcut is claimed twice and will fire nothing.", {
-                    shortcut: element.getAttribute(ShortcutAttribute),
-                    elements: [existing?.element, element]
-                });
-            }
-
-            this.shortcuts.set(key, null);
-        }
-    }
-
     /** This menu's own entries, excluding a nested menu's and the kinds that are not controls. */
     private ownItems(menu: HTMLElement): HTMLElement[] {
         return ownDescendants(menu, `.${ItemClass}:not(${PassiveMenuEntrySelector})`, `.${RootClass}`);
@@ -319,14 +232,4 @@ function touchesMenu(mutation: MutationRecord): boolean {
     }
 
     return false;
-}
-
-/** Whether an unmodified press belongs to text the user is editing: a caret field or an editable region, not a checkbox or a slider. */
-function isTypingTarget(domEvent: KeyboardEvent): boolean {
-    if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey)
-        return false;
-
-    const target = domEvent.target;
-
-    return isCaretField(target) || (target instanceof HTMLElement && target.isContentEditable);
 }

@@ -1,15 +1,17 @@
+// With its extensions, and the types as types: the node test runner loads this module as it is.
 import {
-    ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowPagedAttribute, WindowSizeAttribute, WindowTotalAttribute
-} from "../addressing/dom-attributes";
-import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
-import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
-import { findOwningComponentId } from "../addressing/dom-registry";
-import { ItemAnchorName, WebUIItemWindowRequest } from "../metadata/metadata-index";
-import { isEndAnchored } from "../interactions/scroll-anchor-engine";
-import { keepHeldRow } from "./item-reveal";
-import { logWarn } from "../runtime/logger";
-import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
-import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport";
+    ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowPagedAttribute, WindowPendingAttribute, WindowSizeAttribute, WindowTotalAttribute
+} from "../addressing/dom-attributes.ts";
+import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
+import { DefaultItemSize, resolveHostMode } from "./items-host-mode.ts";
+import { findOwningComponentId } from "../addressing/dom-registry.ts";
+import type { ItemAnchorName, WebUIItemWindowRequest } from "../metadata/metadata-index.ts";
+import { isEndAnchored } from "../interactions/scroll-anchor-engine.ts";
+import { keepHeldRow } from "./item-reveal.ts";
+import { logWarn } from "../runtime/logger.ts";
+import { BottomSpacer, PendingSpacer, TopSpacer, ensureSpacer } from "./items-spacers.ts";
+import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport.ts";
+import { stampRowIndices } from "./table-row-indices.ts";
 
 const DefaultWindowSize = 50;
 
@@ -21,6 +23,15 @@ const WindowLeadFraction = 0.5;
 
 // Milliseconds between two decisions about the same host.
 const DecisionInterval = 60;
+
+// What the stylesheet says a host shows of the rows it has not fetched — "skeleton" or "indicator" — and the size of a row and a
+// tile a skeleton draws them at.
+const LookProperty = "--ui-window-look";
+const RowSizeProperty = "--ui-window-row";
+const TileSizeProperty = "--ui-window-tile";
+
+// How many skeleton rows stand after the rows of a host that cannot count while its next ones are read: enough to be seen at its end.
+const PendingRows = 3;
 
 export type ItemsWindowEngineOptions = {
     readonly root?: ParentNode;
@@ -80,6 +91,10 @@ export class ItemsWindowEngine {
 
     /** Puts the viewport where the realized window is, since a window read on the server can start anywhere. */
     private revealWindow(host: Element): void {
+        // A page stands on its own, with no spacer for the rows before it: it shows from its first row, wherever it starts.
+        if (host.hasAttribute(WindowPagedAttribute))
+            return;
+
         const offset = readOptionalNumber(host, WindowOffsetAttribute);
 
         // An end-anchored feed opened on an older window puts that window's last row at the bottom edge, as the newest one would be.
@@ -268,6 +283,13 @@ export class ItemsWindowEngine {
         const state = this.getState(host);
 
         state.pending = true;
+        // Which edge the rows come in at, where an indicator stands; busy, as a loading component says it is.
+        host.setAttribute(WindowPendingAttribute, anchor.toLowerCase());
+        host.setAttribute("aria-busy", "true");
+
+        // A host that cannot count has no spacer to stand for the rows on their way, so a few skeleton rows follow its last one.
+        if (anchor === "After" && readOptionalNumber(host, WindowTotalAttribute) === null && drawsSkeleton(host))
+            ensureSpacer(host, PendingSpacer, PendingRows * this.rowSize(host));
 
         try {
             await this.options.requestWindow({
@@ -285,6 +307,9 @@ export class ItemsWindowEngine {
         }
         finally {
             state.pending = false;
+            host.removeAttribute(WindowPendingAttribute);
+            host.removeAttribute("aria-busy");
+            ensureSpacer(host, PendingSpacer, 0);
             this.layout(host);
 
             // The viewer kept scrolling during the read, so decide again from where they are now.
@@ -302,6 +327,10 @@ export class ItemsWindowEngine {
     private layout(host: Element): void {
         const state = this.getState(host);
         const items = itemElements(host);
+        const total = readOptionalNumber(host, WindowTotalAttribute);
+        const offset = readOptionalNumber(host, WindowOffsetAttribute);
+
+        stampRowIndices(host, items.map((item, i) => [item, (offset ?? 0) + i] as const), total);
 
         // A page stands on its own; a spacer standing for the rows before it would only push it down.
         if (host.hasAttribute(WindowPagedAttribute)) {
@@ -314,12 +343,20 @@ export class ItemsWindowEngine {
         if (items.length > 0) {
             const measured = boxOf(items[items.length - 1]).bottom - boxOf(items[0]).top;
 
-            if (measured > 0)
-                state.itemSize = Math.max(1, Math.round(measured / rowSpan(items)));
-        }
+            if (measured > 0) {
+                // Counted by rows: a wrapping host's row height averaged over every tile would read each item as a fraction of its
+                // size. Rounded up: a wrapping window's last row is usually a partial one, and it is still a whole row tall.
+                const across = perRow(items);
+                const rows = Math.ceil(items.length / across);
 
-        const total = readOptionalNumber(host, WindowTotalAttribute);
-        const offset = readOptionalNumber(host, WindowOffsetAttribute);
+                state.itemSize = Math.max(1, Math.round(measured / (rows * across)));
+
+                // A skeleton row's step is from one row's top to the next, the gap between them in it.
+                const step = rows > 1 ? (boxOf(items[items.length - 1]).top - boxOf(items[0]).top) / (rows - 1) : measured;
+
+                writeSkeletonSizes(host, step, across > 1 ? boxOf(items[1]).left - boxOf(items[0]).left : null);
+            }
+        }
 
         const before = total === null || offset === null ? 0 : offset * state.itemSize;
         const after = total === null || offset === null ? 0 : Math.max(0, total - offset - items.length) * state.itemSize;
@@ -329,6 +366,13 @@ export class ItemsWindowEngine {
 
         // The spacers stand for rows at an estimated height, so a row a jump brought into view is put back where it was shown.
         keepHeldRow(host);
+    }
+
+    /** How tall a row stands, as the skeleton draws one; an item's size until a row was measured. */
+    private rowSize(host: Element): number {
+        const written = Number.parseFloat((host as HTMLElement).style.getPropertyValue(RowSizeProperty));
+
+        return Number.isFinite(written) && written > 0 ? written : this.getState(host).itemSize;
     }
 
     private windowSize(host: Element): number {
@@ -353,17 +397,37 @@ function isTrue(value: string | null): boolean {
     return value !== null && value.toLowerCase() === "true";
 }
 
-/** How many items tall a window stands: its rows times the items one row holds. */
-function rowSpan(items: Element[]): number {
-    // Counted by rows: a wrapping host's row height averaged over every tile would read each item as a fraction of its size.
+/** How many items stand on a row: one in a list, several in a wrapping host's. */
+function perRow(items: Element[]): number {
     const top = boxOf(items[0]).top;
-    let perRow = 1;
+    let across = 1;
 
-    while (perRow < items.length && boxOf(items[perRow]).top === top)
-        perRow++;
+    while (across < items.length && boxOf(items[across]).top === top)
+        across++;
 
-    // Rounded up: a wrapping window's last row is usually a partial one, and it is still a whole row tall.
-    return Math.ceil(items.length / perRow) * perRow;
+    return across;
+}
+
+/** Whether the stylesheet draws this host's unfetched rows as a skeleton — an items view's, by default. */
+function drawsSkeleton(host: Element): boolean {
+    return getComputedStyle(host).getPropertyValue(LookProperty).trim() === "skeleton";
+}
+
+/** The row's height, and a tile's step across where a row holds several, as the stylesheet draws the skeleton's bars by them. */
+function writeSkeletonSizes(host: Element, row: number, tile: number | null): void {
+    const style = (host as HTMLElement).style;
+    const rowText = `${Math.round(row * 100) / 100}px`;
+    const tileText = tile !== null && tile > 0 ? `${Math.round(tile * 100) / 100}px` : "";
+
+    if (style.getPropertyValue(RowSizeProperty) !== rowText)
+        style.setProperty(RowSizeProperty, rowText);
+
+    if (style.getPropertyValue(TileSizeProperty) !== tileText) {
+        if (tileText.length === 0)
+            style.removeProperty(TileSizeProperty);
+        else
+            style.setProperty(TileSizeProperty, tileText);
+    }
 }
 
 /** The box an item occupies. */

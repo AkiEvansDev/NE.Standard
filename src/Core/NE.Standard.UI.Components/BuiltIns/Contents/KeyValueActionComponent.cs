@@ -161,9 +161,10 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     {
         ArgumentNullException.ThrowIfNull(template);
 
-        // Fields default to filled, like the settings editor, with padding set back so the text aligns with the value's.
+        // Fields default to tonal, with padding set back so the text aligns with the value's: the row frames the editor, and a
+        // Filled field's line would only add weight to it.
         if (template is IFieldInputComponent { Appearance: null } field)
-            field.Appearance = UIInputAppearance.Filled;
+            field.Appearance = UIInputAppearance.Tonal;
 
         // Spelled out rather than left to the input's own default: a draft that never came back would be no draft.
         return template.Bind(IInputComponent.ValueProperty, nameof(IKeyValueActionModel.EditValue), UIBindingScope.Relative, UIBindingMode.TwoWay);

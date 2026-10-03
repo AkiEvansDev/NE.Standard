@@ -31,6 +31,11 @@ export type PointerDragOptions<TContext> = {
      */
     readonly cancel?: (handle: HTMLElement, context: TContext) => void;
     /**
+     * The browser took the pointer back (`pointercancel`: a finger that went on to scroll the page): put back what `begin` found, as a
+     * native range does. Left out, the gesture ends as a release would.
+     */
+    readonly takenBack?: (handle: HTMLElement, context: TContext) => void;
+    /**
      * A second pointer pressed on the handle mid-drag, step by step; left out, a second pointer is passed over. Once either lifts,
      * the one left drags on, `move` measured afresh from where it stands.
      */
@@ -192,7 +197,10 @@ export class PointerDrag<TContext> {
         this.drag = null;
         handle.removeAttribute(SplittingAttribute);
 
-        this.options.end(handle, context);
+        if (domEvent.type === "pointercancel" && this.options.takenBack !== undefined)
+            this.options.takenBack(handle, context);
+        else
+            this.options.end(handle, context);
     }
 
     /** Escape cancels the gesture in progress: the engine's own cancel, else back to the delta the drag began at and an end. */

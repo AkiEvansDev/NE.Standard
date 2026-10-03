@@ -1,5 +1,5 @@
 // A host an action bar stands over says nothing of its own while the bar stands: the bar takes the place above it the words would
-// take (a graph's card, whose hover words and bar both stand over it). The bar's own buttons still speak.
+// take (a graph's card, whose hover words and bar both stand over it).
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -40,16 +40,5 @@ test("a host its action bar stands over shows no words, and shows them once the 
     tooltips.show(real(card), "Components");
 
     assert.equal(shownText(), "Components");
-    tooltips.hide();
-});
-
-test("a button on the bar still shows its words", () => {
-    const button = FakeElement.of("ui-action-bar__button");
-    const card = FakeElement.of("ui-graph__node", { "data-ui-action-bar": "center" }).append(FakeElement.of("ui-action-bar").append(button));
-
-    fakeDocument.body.append(card);
-    tooltips.show(real(button), "Rename");
-
-    assert.equal(shownText(), "Rename");
     tooltips.hide();
 });

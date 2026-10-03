@@ -66,6 +66,76 @@ export function matchesShortcut(shortcut: KeyboardShortcut, domEvent: KeyboardEv
     return domEvent.ctrlKey === shortcut.ctrl && domEvent.metaKey === shortcut.meta;
 }
 
+/**
+ * The chord in the reader's platform's words, as a menu entry's end and a control's tooltip write it: `Ctrl+Shift+S`, and on macOS
+ * `⇧⌘S` — an authored Ctrl is ⌘ there, as `matchesShortcut` reads it, and the modifiers stand in Apple's order with no separator.
+ */
+export function formatShortcut(shortcut: KeyboardShortcut, isMac: boolean = isMacPlatform()): string {
+    const key = keyLabel(shortcut.code, isMac);
+
+    if (!isMac) {
+        return [
+            shortcut.ctrl ? "Ctrl" : "",
+            shortcut.alt ? "Alt" : "",
+            shortcut.shift ? "Shift" : "",
+            shortcut.meta ? "Meta" : "",
+            key
+        ].filter(part => part.length > 0).join("+");
+    }
+
+    // Ctrl alone is ⌘; written beside Meta it is the Control key itself.
+    const control = shortcut.ctrl && shortcut.meta;
+    const command = shortcut.meta || shortcut.ctrl;
+
+    return `${control ? "⌃" : ""}${shortcut.alt ? "⌥" : ""}${shortcut.shift ? "⇧" : ""}${command ? "⌘" : ""}${key}`;
+}
+
+/** A physical key as a reader names it: the letter or the sign it carries, else its name, or the Mac's own glyph for it. */
+function keyLabel(code: string, isMac: boolean): string {
+    if (/^Key[A-Z]$/.test(code))
+        return code.slice(3);
+
+    if (/^Digit[0-9]$/.test(code))
+        return code.slice(5);
+
+    return (isMac ? MacKeyLabels[code] : undefined) ?? KeyLabels[code] ?? code;
+}
+
+const KeyLabels: Record<string, string> = {
+    Comma: ",",
+    Period: ".",
+    Slash: "/",
+    Backslash: "\\",
+    Semicolon: ";",
+    Quote: "'",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Minus: "-",
+    Equal: "=",
+    Backquote: "`",
+    Escape: "Esc",
+    ArrowUp: "Up",
+    ArrowDown: "Down",
+    ArrowLeft: "Left",
+    ArrowRight: "Right"
+};
+
+const MacKeyLabels: Record<string, string> = {
+    Delete: "⌦",
+    Backspace: "⌫",
+    Enter: "↩",
+    Escape: "⎋",
+    Tab: "⇥",
+    Home: "↖",
+    End: "↘",
+    PageUp: "⇞",
+    PageDown: "⇟",
+    ArrowUp: "↑",
+    ArrowDown: "↓",
+    ArrowLeft: "←",
+    ArrowRight: "→"
+};
+
 let macPlatform: boolean | null = null;
 
 /** Detected once per page from `userAgentData` where it exists, else `navigator.platform`. */
@@ -84,6 +154,15 @@ function detectMacPlatform(): boolean {
 
     return /mac/i.test(uaDataPlatform ?? navigator.platform ?? "");
 }
+
+/** An authored chord in the reader's platform's words, for a package that keys its own control and names the chord in its tooltip. */
+export const shortcutWords = {
+    words(chord: string): string | null {
+        const shortcut = parseShortcut(chord);
+
+        return shortcut === null ? null : formatShortcut(shortcut);
+    }
+};
 
 /** The canonical form two authored strings are compared by, so "ctrl+s" and "Ctrl+S" collide. */
 export function shortcutKey(shortcut: KeyboardShortcut): string {

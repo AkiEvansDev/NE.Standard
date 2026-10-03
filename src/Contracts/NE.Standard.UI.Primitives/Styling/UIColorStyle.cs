@@ -119,4 +119,9 @@ public enum UIColorStyle
     /// The color used for modal/scrim overlay backgrounds.
     /// </summary>
     Overlay = 22,
+
+    /// <summary>
+    /// The edge that says a control is there (a field's border, an unchecked box's ring), reading 3:1 on its ground.
+    /// </summary>
+    Mark = 23,
 }

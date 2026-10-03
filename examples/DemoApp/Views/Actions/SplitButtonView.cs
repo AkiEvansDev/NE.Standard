@@ -135,7 +135,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                         .SetIcon(DemoIcons.Outline(DemoIcons.File))
                         .SetTitle("New")
                         .SetItems([
-                            new MenuItem { Id = "new-server", Title = "Server", Shortcut = "Ctrl+N" },
+                            new MenuItem { Id = "new-server", Title = "Server", Shortcut = "Alt+N" },
                             new MenuItem { Id = "new-subscription", Title = "Subscription" },
                             new MenuItem { Id = "new-certificate", Title = "Certificate…" }
                         ])

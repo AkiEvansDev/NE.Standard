@@ -4,7 +4,7 @@ import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FlyoutContentClass, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
 import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
 import { ClientStore } from "../state/client-store.ts";
@@ -16,6 +16,8 @@ const SubmenuClass = "ui-menu__submenu";
 const GroupAttribute = MenuGroupAttribute;
 const OpenAttribute = MenuOpenAttribute;
 const FlyoutAttribute = "data-ui-menu-flyout";
+// The popups a menu's entry can stand in: a submenu, a context menu, a flyout's content (a menu button's list).
+const PopupMenuSelector = `[${FlyoutAttribute}], .ui-context-menu, .${FlyoutContentClass}`;
 // On a menu once the reader has unfolded a section of it by hand: only then does a section slide open, never as the page arrives.
 const UnfoldedAttribute = "data-ui-menu-unfolded";
 const SelectAttribute = MenuSelectAttribute;
@@ -244,7 +246,10 @@ export class MenuGroupEngine {
 
         this.closeGroups(menu);
 
-        if (!this.flyouts.open({ owner: group, popup: submenu, anchor, placement: { placement: `${towardContent(menu)}-start`, gap: 4 } }))
+        // Level with its entry, and as far off the popup that entry stands in as a popup is off a control; a page's menu has no such box.
+        const surface = anchor.closest(PopupMenuSelector) ?? undefined;
+
+        if (!this.flyouts.open({ owner: group, popup: submenu, anchor, placement: { placement: `${towardContent(menu)}-start`, surface, alignEntries: true } }))
             return;
 
         // From the keyboard, into its first entry, as a submenu opened by a key is; a press leaves the focus on the rail.

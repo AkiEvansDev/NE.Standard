@@ -17,8 +17,13 @@ public sealed class ServerValueUIUpdate : ServerUIUpdate
     public required UIPropertyAddress Address { get; init; }
 
     /// <summary>
-    /// Gets the updated value.
+    /// Gets the updated value; left out on the wire when it is null, which the page reads as null.
     /// </summary>
+    /// <remarks>
+    /// Written whole otherwise, nulls inside it included: a package's operation reads a component's value as it is handed it (a
+    /// graph's document, a chart's window), where an item is read through the page's one rule for a property it does not carry.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Value { get; init; }
 
     /// <summary>

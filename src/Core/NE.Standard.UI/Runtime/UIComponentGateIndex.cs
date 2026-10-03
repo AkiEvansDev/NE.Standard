@@ -50,10 +50,16 @@ internal readonly record struct UIGateValue(object? Static, UIComponentGate? Bou
 
 /// <summary>
 /// What an input's written value — and a period's end — is held to, in the value's own <see cref="ValueType"/>: its <c>Min</c> and
-/// <c>Max</c>, and a day input's marked days while <see cref="MarkedOnly"/> closes. One unset, or bound to what the server cannot
-/// read, holds nothing.
+/// <c>Max</c>, a day input's marked days while <see cref="MarkedOnly"/> closes, a range slider's other end (<see cref="Ends"/>), and a
+/// slider's <see cref="Step"/> counted from its <c>Min</c>. One unset, or bound to what the server cannot read, holds nothing.
 /// </summary>
-internal sealed record UIValueChecks(Type ValueType, UIGateValue? Min, UIGateValue? Max, UIComponentGate? MarkedOnly, UIGateValue? MarkedDays);
+internal sealed record UIValueChecks(Type ValueType, UIGateValue? Min, UIGateValue? Max, UIComponentGate? MarkedOnly, UIGateValue? MarkedDays, UIPeriodEnds? Ends, UIGateValue? Step);
+
+/// <summary>
+/// A range slider's two ends as the controller holds them, and the least distance between them: a start written past the end, or an
+/// end below the start, is refused. An end not bound to the controller holds the other to nothing.
+/// </summary>
+internal sealed record UIPeriodEnds(UIComponentGate? Start, UIComponentGate? End, UIGateValue? MinDistance);
 
 /// <summary>An items host's rows: the template root a row is drawn from, and how many keys address one row.</summary>
 internal readonly record struct UIRowGates(UIComponentId TemplateRootId, int RowParameterCount);
@@ -71,6 +77,9 @@ internal readonly record struct UIRowGates(UIComponentId TemplateRootId, int Row
 internal sealed class UIComponentGateIndex
 {
     private static readonly ConditionalWeakTable<CompiledView, UIComponentGateIndex> Indexes = [];
+
+    // By name, as the bounds are: a slider's own key, which no contract declares, equals it.
+    private static readonly UIProperty StepProperty = new("Step");
 
     private readonly FrozenDictionary<UIComponentId, UIComponentGates> _components;
     private readonly FrozenDictionary<UIComponentId, UIRowGates> _rows;
@@ -198,8 +207,39 @@ internal sealed class UIComponentGateIndex
         UIGateValue? max = CreateGateValue(view, componentId, IBoundedInputComponent.MaxProperty, valueType, unset: null);
         UIComponentGate? markedOnly = CreateGate(view, componentId, IMarkedDaysComponent.MarkedDaysOnlyProperty, UIComponentGateKind.MarkedDaysOnly);
         UIGateValue? markedDays = markedOnly is null ? null : CreateGateValue(view, componentId, IMarkedDaysComponent.MarkedDaysProperty, valueType: null, unset: Array.Empty<DateOnly>());
+        UIPeriodEnds? ends = CreatePeriodEnds(view, componentId, valueType);
+        UIGateValue? step = CreateStep(view, componentId, valueType);
 
-        return min is null && max is null && markedDays is null ? null : new UIValueChecks(valueType, min, max, markedOnly, markedDays);
+        return min is null && max is null && markedDays is null && ends is null && step is null ? null : new UIValueChecks(valueType, min, max, markedOnly, markedDays, ends, step);
+    }
+
+    /// <summary>
+    /// The step a slider's value — one handle or two — lands on, counted from <c>Min</c>; only an input offering a least distance
+    /// (the slider family), since a number input's step is a hint the reader may type past.
+    /// </summary>
+    private static UIGateValue? CreateStep(CompiledView view, UIComponentId componentId, Type valueType)
+        => view.State.TryGetValue(componentId, IPeriodInputComponent.MinDistanceProperty, out _)
+            ? CreateGateValue(view, componentId, StepProperty, valueType, unset: null)
+            : null;
+
+    /// <summary>
+    /// A range's two ends, where the input offers a least distance between them (a slider under <c>IsRange</c>), whose ends move one
+    /// at a time; a temporal period has none, since choosing one writes its ends in either order.
+    /// </summary>
+    private static UIPeriodEnds? CreatePeriodEnds(CompiledView view, UIComponentId componentId, Type valueType)
+    {
+        if (!view.State.TryGetValue(componentId, IPeriodInputComponent.MinDistanceProperty, out _)
+            || !view.State.TryGetValue(componentId, IPeriodInputComponent.IsRangeProperty, out CompiledUIPropertyValue? isRange)
+            || isRange.IsBind
+            || isRange.Value is not true)
+        {
+            return null;
+        }
+
+        UIComponentGate? start = CreateBoundGate(view, componentId, IInputComponent.ValueProperty, UIComponentGateKind.Read);
+        UIComponentGate? end = CreateBoundGate(view, componentId, IPeriodInputComponent.EndValueProperty, UIComponentGateKind.Read);
+
+        return start is null && end is null ? null : new UIPeriodEnds(start, end, CreateGateValue(view, componentId, IPeriodInputComponent.MinDistanceProperty, valueType, unset: null));
     }
 
     /// <summary>The type the page's writes to an input's value — or a period's end, the same type — are read in; none where neither is bound.</summary>

@@ -122,6 +122,9 @@
     flex: 1 1 auto;
     align-items: center;
     min-width: 0;
+    // A segment's side padding is its fill's, not the text's: given back, the clock's first digit stands at the field's inset, where
+    // every field's text does, and an editor set back in place by that inset lands it on the value's.
+    margin-inline: -2px;
     font-variant-numeric: tabular-nums;
 }
 

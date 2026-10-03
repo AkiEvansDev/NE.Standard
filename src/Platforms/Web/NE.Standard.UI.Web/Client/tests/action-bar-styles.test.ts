@@ -1,6 +1,7 @@
 // The action bar read back from the compiled stylesheet: a floating layer placed as a popup is, above the item it was chosen over and
 // never clipped by a box around it, under the popups, its icons wrapping rather than running past the window; atop a menu it is a
-// row of the menu's. A menu's owner, where a long press opens the menu, shows no callout and on a screen with no hover starts no selection.
+// row of the menu's. Its buttons wear the keyboard's frame and a glyph on whole pixels. A menu's owner, where a long press opens the
+// menu, shows no callout and on a screen with no hover starts no selection.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -72,4 +73,37 @@ test("in forced colours the row a bar stands over is outlined as the keyboard's 
     const forced = css.slice(css.indexOf("@media (forced-colors: active)"));
 
     assert.match(forced, /\.ui-items-view__item:has\(> \[data-ui-action-bar\] > \.ui-action-bar\)[^{]*\{\s*outline: 2px dashed CanvasText;/);
+});
+
+/** The declarations of the rule `selector` heads, wherever it stands — inside a media query too. */
+function nestedRule(selector: string): string {
+    const start = css.indexOf(`${selector} {`);
+
+    assert.ok(start >= 0, `No rule for ${selector}.`);
+
+    return css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
+}
+
+const IconButton = ".ui-action-bar:not(.ui-action-bar--strip) > .ui-action-bar__button:is(:has(> .ui-icon), .ui-action-bar__more)";
+const KeyboardFocus = ":focus-visible:not([data-ui-pointer-focus])";
+
+test("every button of a bar wears the keyboard's frame where the keyboard stands, never after a pointer, whatever the theme's ring", () => {
+    for (const selector of [
+        `${IconButton}${KeyboardFocus}`,
+        `.ui-action-bar--strip > .ui-action-bar__button${KeyboardFocus},\n  .ui-action-bar > .ui-action-bar__button:not(:has(> .ui-icon), .ui-action-bar__more)${KeyboardFocus}`
+    ]) {
+        const frame = nestedRule(selector);
+
+        assert.match(frame, /outline: 2px solid var\(--ui-color-primary-ink\);/);
+        assert.match(frame, /outline-offset: -2px;/);
+    }
+});
+
+test("a bar's glyph stands on whole pixels, which centres the icon font's glyph in its square: 1.25em of 14px stood it 0.75px high", () => {
+    assert.match(rule(IconButton), /aspect-ratio: 1;/);
+
+    for (const glyph of [`${IconButton} > .ui-icon`, ".ui-action-bar--strip > .ui-action-bar__button > .ui-icon"])
+        assert.match(rule(glyph), /font-size: 1\.125rem;/);
+
+    assert.equal(css.includes(".ui-action-bar > .ui-action-bar__button > .ui-icon {"), false, "no glyph size in em, the body's 14px a fraction of it");
 });

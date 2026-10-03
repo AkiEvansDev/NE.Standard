@@ -23,6 +23,40 @@
     .ui-popup-open();
 }
 
+// Words with no link in them take no press: a tooltip standing over a control (a row's pencil beside its value's words) let the
+// press land on the words, and the control under them could not be pressed while they showed.
+.ui-tooltip--visible:not(:has(a[href])) {
+    pointer-events: none;
+}
+
+// A validation mark's words carry its severity down their leading edge in the severity's ink, as a notification carries its own, on
+// square corners, or the corner's curve bent the line into a brace. The words keep their distance from the bar, less the border it covers.
+.ui-tooltip[data-ui-tooltip-severity] {
+    --ui-tooltip-accent: var(--ui-color-danger-ink);
+    padding-left: calc(@ui-space-2 + 3px - var(--ui-border-width, 1px));
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+// The bar lies over the edge from the box's top to its bottom, cut square: as the edge itself it met the top and bottom on a mitre,
+// which slanted its ends. A border, not a filled bar, so forced colours keep it.
+.ui-tooltip[data-ui-tooltip-severity]::before {
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--ui-border-width, 1px));
+    bottom: calc(-1 * var(--ui-border-width, 1px));
+    left: calc(-1 * var(--ui-border-width, 1px));
+    border-left: 3px solid var(--ui-tooltip-accent);
+}
+
+.ui-tooltip[data-ui-tooltip-severity="warning"] {
+    --ui-tooltip-accent: var(--ui-color-warning-ink);
+}
+
+.ui-tooltip[data-ui-tooltip-severity="info"] {
+    --ui-tooltip-accent: var(--ui-color-info-ink);
+}
+
 // The tail is the tooltip's corner rotated onto its edge; --ui-popup-arrow is the anchor's centre, so a shifted tooltip still aims at it.
 .ui-tooltip::after {
     content: "";
@@ -66,4 +100,9 @@
         border-top: none;
         border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
         transform: translate(55%, -50%) rotate(45deg);
+    }
+
+    // Beside the control on its leading side the bar faces the control and is the pointer: a tail there cut a notch into the bar.
+    .ui-tooltip[data-ui-tooltip-severity][data-ui-placement^="right"]::after {
+        content: none;
     }

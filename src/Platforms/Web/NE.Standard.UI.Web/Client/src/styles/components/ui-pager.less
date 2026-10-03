@@ -1,0 +1,144 @@
+@import "../core/tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
+@import "../mixins/popup.less";
+@import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+@import "../mixins/text.less";
+
+// A row of the framework's small ghost buttons, the pages by number between the ends, or the rows the page holds between previous
+// and next; pager-engine.ts draws the numbers, the line and the size from the host's window.
+.ui-pager {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: @ui-space-1;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+    font-variant-numeric: tabular-nums;
+}
+
+// The host it pages is gone, or its window is not a page right now (a bound Paging turned off): nothing to show.
+.ui-pager[hidden] {
+    display: none;
+}
+
+    // The ends and the chevrons are the framework's own marks; a page's number is as wide as the button is tall, or wider.
+    .ui-pager__button {
+        flex: 0 0 auto;
+        justify-content: center;
+        min-width: @ui-button-height-sm;
+    }
+
+        .ui-pager__button > .ui-icon {
+            font-size: @ui-glyph-md;
+        }
+
+    .ui-pager__pages {
+        display: flex;
+        align-items: center;
+        gap: @ui-space-1;
+    }
+
+        .ui-pager__button[aria-current="page"] {
+            .ui-selected-ground();
+            .ui-selected-ink(@weight: 600);
+        }
+
+        .ui-pager__gap {
+            min-width: @ui-button-height-sm;
+            color: @ui-text-muted;
+            text-align: center;
+        }
+
+    .ui-pager__range {
+        margin-inline: @ui-space-2;
+        font-size: var(--ui-text-caption-font-size);
+        line-height: var(--ui-text-caption-line-height);
+        color: @ui-text-muted;
+        .ui-text-nowrap();
+    }
+
+    // The full look: the numbers between the ends, no line; the compact look, the line between previous and next.
+    .ui-pager[data-ui-pager-mode="Full"] > .ui-pager__range,
+    .ui-pager[data-ui-pager-mode="Compact"] > .ui-pager__pages,
+    .ui-pager[data-ui-pager-mode="Compact"] > [data-ui-pager-page="first"],
+    .ui-pager[data-ui-pager-mode="Compact"] > [data-ui-pager-page="last"] {
+        display: none;
+    }
+
+    // A phone is compact whatever the author said: seven numbers and four ends do not fit beside a thumb.
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        .ui-pager[data-ui-pager-mode="Full"] > .ui-pager__range {
+            display: inline;
+        }
+
+        .ui-pager > .ui-pager__pages,
+        .ui-pager > [data-ui-pager-page="first"],
+        .ui-pager > [data-ui-pager-page="last"] {
+            display: none;
+        }
+    }
+
+    // The page size: its button, then the list it opens, placed by pager-engine.ts.
+    .ui-pager__size {
+        display: inline-flex;
+        margin-inline-start: @ui-space-2;
+    }
+
+        .ui-pager__size-trigger {
+            gap: @ui-space-1;
+            .ui-text-nowrap();
+        }
+
+            .ui-pager__size-chevron {
+                .ui-glyph-host();
+            }
+
+                .ui-pager__size-chevron::before {
+                    .ui-chevron(@ui-glyph-sm);
+                    .ui-chevron-down();
+                }
+
+                .ui-pager__size--open .ui-pager__size-chevron::before {
+                    .ui-chevron-up();
+                }
+
+        .ui-pager__sizes {
+            .ui-popup-surface(@ui-z-list);
+            .ui-popup-scroll();
+            .ui-popup-closed();
+            .ui-entry-list();
+            min-width: 5rem;
+            padding: @ui-space-1;
+            text-align: start;
+            cursor: default;
+            // The pointer moves the current size (pager-engine.ts), so it stays quiet while a key holds another.
+            .ui-entry-quiet(~"> .ui-pager__size-choice"; ~""; ~"[aria-checked='true']");
+        }
+
+        .ui-pager__size--open > .ui-pager__sizes {
+            .ui-popup-open(flex);
+        }
+
+            .ui-pager__size-choice {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                min-height: @ui-list-row-height;
+                padding: @ui-space-1 @ui-space-2;
+                border: 0;
+                border-radius: @ui-list-entry-radius;
+                background: none;
+                color: inherit;
+                font: inherit;
+                white-space: nowrap;
+                cursor: pointer;
+                .ui-interactive-base();
+                .ui-entry-hover(~"[aria-checked='true']");
+                .ui-entry-keyboard(~"[aria-checked='true']");
+            }
+
+            .ui-pager__size-choice[aria-checked="true"] {
+                .ui-selected-ground();
+                .ui-selected-ink();
+            }

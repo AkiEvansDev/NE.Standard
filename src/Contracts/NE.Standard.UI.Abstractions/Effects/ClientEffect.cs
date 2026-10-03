@@ -20,6 +20,7 @@ public static class ClientEffectKinds
     public const string OpenDialog = "OpenDialog";
     public const string CloseDialog = "CloseDialog";
     public const string ShowNotification = "ShowNotification";
+    public const string Announce = "Announce";
     public const string DownloadFile = "DownloadFile";
     public const string Scroll = "Scroll";
     public const string SetTheme = "SetTheme";
@@ -32,6 +33,8 @@ public static class ClientEffectKinds
     public const string DiscardForm = "DiscardForm";
     public const string OpenPicker = "OpenPicker";
     public const string ConfirmLeave = "ConfirmLeave";
+    public const string ReplaceAddress = "ReplaceAddress";
+    public const string PushAddress = "PushAddress";
 }
 
 /// <summary>
