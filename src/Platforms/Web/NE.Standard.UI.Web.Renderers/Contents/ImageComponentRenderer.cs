@@ -22,7 +22,7 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
 
     protected override string ElementName => "img";
 
-    protected override string ClassName => "ui-image";
+    protected override string ClassName => WebClassNames.Image;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

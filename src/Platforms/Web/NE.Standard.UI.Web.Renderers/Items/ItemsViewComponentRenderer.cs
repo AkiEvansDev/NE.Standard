@@ -42,6 +42,8 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         RenderLayout(context, root, ItemsViewComponent.LayoutTypeProperty, ItemsViewComponent.OrientationProperty, ItemsViewComponent.SpacingProperty);
+        // Not `--ui-padding`, which every root reads as its own: the host, the scroll box, reads this one (ui-items-view.less).
+        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ItemsViewComponent.PaddingProperty, "--ui-items-view-padding");
         RenderSelection(context, root);
 
         // An option may hold no control of its own, so rows with buttons or fields are a list's items whatever the selection; rows that
@@ -60,6 +62,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         if (ReadRenderValue<UIItemsLoadingLook?>(context, ItemsViewComponent.LoadingLookProperty, null) == UIItemsLoadingLook.Indicator)
             _ = root.Class("ui-items-view--indicator");
         RenderDraggableRows(context, root);
+        RenderDragSource(context, root);
         RenderTemplates(context, root);
 
         var grip = DrawsRowGrip(context);

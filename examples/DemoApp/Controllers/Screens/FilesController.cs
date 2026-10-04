@@ -88,13 +88,13 @@ internal sealed partial class FilesController : UIControllerBase
                 var id = parent is null ? segment : $"{parent}/{segment}";
 
                 if (!nodes.Any(node => node.Id == id))
-                    nodes.Add(new TreeNode { Id = id, Title = segment, ParentId = parent, Kind = FolderKind, IsFolder = true, Icon = DemoIcons.Outline(DemoIcons.Folder), Expanded = true, CanSelect = false, IsContent = true });
+                    nodes.Add(new TreeNode { Id = id, Title = segment, ParentId = parent, Kind = FolderKind, IsFolder = true, Expanded = true, CanSelect = false, IsContent = true });
 
                 parent = id;
             }
 
             foreach ((var key, (var title, _, _, _)) in OperatorFiles.Where(entry => entry.Value.Folder == folder))
-                nodes.Add(new TreeNode { Id = key, Title = title, ParentId = folder, Icon = DemoIcons.Outline(DemoIcons.FileText), IsContent = true });
+                nodes.Add(new TreeNode { Id = key, Title = title, ParentId = folder, IsFolder = false, IsContent = true });
         }
 
         return nodes;

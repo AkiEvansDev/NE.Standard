@@ -377,6 +377,10 @@ public static partial class WebEndpointRouteBuilderExtensions
             StandInNavigation = string.Equals(UIRoutePath.Normalize(resolution.Navigation.Route), requestedRoute, StringComparison.Ordinal) ? null : resolution.Navigation
         };
 
+        // The not-found page standing in for an address the application has not is that address's answer: a 404, not a page found.
+        if (shell.StandInNavigation is not null && string.Equals(UIRoutePath.Normalize(resolution.Route.Route), application.ErrorHandling.NotFoundRoute, StringComparison.OrdinalIgnoreCase))
+            http.Response.StatusCode = StatusCodes.Status404NotFound;
+
         return new ShellDocumentResult(shell, resolution, metrics, logger, started, shaped, hydrated, painted);
     }
 

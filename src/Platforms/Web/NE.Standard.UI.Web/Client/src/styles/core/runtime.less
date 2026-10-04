@@ -263,15 +263,22 @@
     cursor: progress !important;
 }
 
-// A component a file or image input takes files on (its DropTarget), while a file is over it: a dashed edge inside it, as a drop
-// area's, since the component is no field and has no edge of its own to turn; in the refusal's colour for a file it will not take.
-[data-ui-file-drop-over] {
-    outline: 2px dashed var(--ui-color-primary);
-    outline-offset: -2px;
+// A component a file or image input takes files on (its DropTarget) while a file is over it, or one taking a dragged item of its
+// kind (`OnDrop`, item-drag-engine.ts) while one is over it: the drop edge, as a drop area's, in the refusal's ink for a file it will
+// not take. A field draws it on its box instead (ui-input.less), which would paint over the root's inset outline. A list or a table
+// marks the place among its rows, its whole edge when there is no place to mark; a tree its folder.
+[data-ui-file-drop-over],
+[data-ui-item-drop-over] {
+    .ui-drop-edge();
 }
 
 [data-ui-file-drop-over="refused"] {
-    outline-color: var(--ui-color-danger);
+    .ui-drop-edge(var(--ui-color-danger-ink));
+}
+
+// Rows a Ctrl+X took, until they are pasted or let go of: faint, as a dragged row is.
+.ui-row--cut {
+    opacity: @ui-drag-ghost-opacity;
 }
 
 // Text selection, the one rule set (STYLING.md): the page is pressed, not read, so nothing selects but reading words — a Text's or a

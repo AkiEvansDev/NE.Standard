@@ -298,9 +298,16 @@
     font-variant-numeric: tabular-nums;
 }
 
+// The families' chart over the bright ones, a step apart (ColorInputComponentRenderer): eight columns, a family to each.
+.ui-color-input__palette {
+    display: flex;
+    flex-direction: column;
+    gap: @ui-space-2;
+}
+
 .ui-color-input__grid {
     display: grid;
-    grid-template-columns: repeat(10, 1fr);
+    grid-template-columns: repeat(8, 1fr);
     gap: 3px;
 }
 

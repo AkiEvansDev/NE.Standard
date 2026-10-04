@@ -68,7 +68,6 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                     .BindItems(nameof(FilesController.Tree))
                     .SetSelectionMode(UISelectionMode.One)
                     .BindSelectedKey(nameof(FilesController.SelectedKey))
-                    .AddNodeKind(FilesController.FolderKind, node => node.SetIconColor(DemoIcons.Warm))
                     .OnNodeClickWithItemKey(nameof(FilesController.OpenFile))
                     .VerticalScrollOnly()
                     .SetPlacement(1, 2, 24, 1)

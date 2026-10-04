@@ -15,6 +15,8 @@ import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine"
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
 import { PendingMoves } from "../items/pending-moves";
+import type { TakenRow } from "../items/pending-transfers";
+import { PendingTransfers } from "../items/pending-transfers";
 import {
     MetadataIndex,
     ServerChangeSet,
@@ -60,6 +62,16 @@ export class UpdateProcessor {
     public readonly moves = new PendingMoves({
         indexOf: (host, key) => this.indexOfRow(host, key),
         move: (host, key, index) => this.moveRow(host, key, index)
+    });
+
+    /** The rows the reader dragged into another list of their kind ahead of the command, put back unless the answer keeps them there. */
+    public readonly transfers = new PendingTransfers({
+        take: (host, key) => this.takeRow(host, key),
+        restore: (host, row) => this.restoreRow(host, row),
+        place: (host, key, item, index) => this.placeRow(host, key, item, index),
+        remove: (host, element) => this.removeRow(host, element),
+        holds: (host, key) => findItemElement(getRealItemElements(host), key) !== null,
+        itemOf: element => this.readItemValue(element)
     });
 
     public constructor(
@@ -286,7 +298,7 @@ export class UpdateProcessor {
 
     /** A refill lands on the order the server holds, as any change does: the rows moved ahead stand again on top of it. */
     private refillHost(host: Element, refill: CollectionRefill): void {
-        this.moves.around(host, NoKeys, () => this.refillHostRows(host, refill));
+        this.transfers.around(host, () => this.moves.around(host, NoKeys, () => this.refillHostRows(host, refill)));
     }
 
     private refillHostRows(host: Element, refill: CollectionRefill): void {
@@ -485,15 +497,14 @@ export class UpdateProcessor {
 
         for (const host of hosts) {
             if (!(holds && this.held.isWaiting(host)))
-                this.moves.around(host, movedKeys, () => this.applyCollectionChangeToHost(host, componentId, update));
+                this.transfers.around(host, () => this.moves.around(host, movedKeys, () => this.applyCollectionChangeToHost(host, componentId, update)));
         }
     }
 
     private applyCollectionChangeToHost(host: Element, componentId: number, update: ServerCollectionChangeUIUpdate): void {
         if (resolveHostMode(host) === "virtualized") {
             this.applyVirtualizedCollectionChange(host, update);
-            this.syncItemsHost(host, componentId);
-            this.dom.invalidate();
+            this.afterRowsChanged(host, componentId);
             return;
         }
 
@@ -519,7 +530,13 @@ export class UpdateProcessor {
                 return;
         }
 
-        this.syncItemsHost(host, componentId);
+        this.afterRowsChanged(host, componentId);
+    }
+
+    /** A host's rows changed: its empty state, groups and rules again, and the registry told. */
+    private afterRowsChanged(host: Element, componentId: number | null = findOwningComponentId(host)): void {
+        if (componentId !== null)
+            this.syncItemsHost(host, componentId);
 
         // Marked rather than rebuilt: the registry rebuilds on its next lookup, which is what lets the rest of this set address these rows.
         this.dom.invalidate();
@@ -549,8 +566,52 @@ export class UpdateProcessor {
         else
             applyCollectionMove(host, [{ key, newIndex }]);
 
-        this.syncItemsHost(host, componentId);
-        this.dom.invalidate();
+        this.afterRowsChanged(host, componentId);
+    }
+
+    /** A row taken out of a host holding its rows whole, on the page alone: where it stood among the host's items, to be put back there. */
+    private takeRow(host: Element, key: string): TakenRow | null {
+        const present = getRealItemElements(host);
+        const element = findItemElement(present, key);
+
+        if (element === null)
+            return null;
+
+        const order = getSourceOrder(host, present);
+        const index = order.indexOf(element);
+
+        removeSourceItem(order, element);
+        element.remove();
+        this.afterRowsChanged(host);
+
+        return { element, index };
+    }
+
+    private restoreRow(host: Element, row: TakenRow): void {
+        const order = getSourceOrder(host, getRealItemElements(host));
+
+        host.insertBefore(row.element, insertSourceItem(order, row.element, row.index));
+        this.afterRowsChanged(host);
+    }
+
+    /** An item drawn as a row of a host holding its rows whole, at its index there, on the page alone. */
+    private placeRow(host: Element, key: string, item: unknown, index: number): Element | null {
+        const componentId = findOwningComponentId(host);
+        const element = componentId === null ? null : this.renderItemElement(componentId, item, key, this.itemsRenderer.getAncestorStack(host));
+
+        if (element === null)
+            return null;
+
+        host.insertBefore(element, insertSourceItem(getSourceOrder(host, getRealItemElements(host)), element, index));
+        this.afterRowsChanged(host);
+
+        return element;
+    }
+
+    private removeRow(host: Element, element: Element): void {
+        removeSourceItem(getSourceOrder(host, getRealItemElements(host)), element);
+        element.remove();
+        this.afterRowsChanged(host);
     }
 
     /** The rows a change takes away take their recorded values with them; a replaced row is drawn afresh and starts afresh too. */
@@ -780,6 +841,11 @@ function resolveScopeComponentId(element: Element): number {
 }
 
 /** The host's rows by key, read once: a lookup per key by selector walks the host's subtree, which is quadratic over a list. */
+/** The row of the key among a host's rows, or null. */
+function findItemElement(present: readonly Element[], key: string): Element | null {
+    return present.find(row => row.getAttribute(ComponentKeyAttribute) === key) ?? null;
+}
+
 function indexItemElements(host: Element, present: readonly Element[] = getRealItemElements(host)): Map<string, Element> {
     const rows = new Map<string, Element>();
 

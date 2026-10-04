@@ -35,7 +35,7 @@ public static class UIThemeDefaults
         OnSurface = new(ColorName.IronFog, ColorAdjustment.Shade, 7),
 
         Info = new(ColorName.QuantumBlue),
-        Warning = new(ColorName.NebulaGold),
+        Warning = new(ColorName.SolarGold),
         Success = new(ColorName.AuroraGreen),
         Danger = new(ColorName.StellarRed),
 
@@ -45,12 +45,12 @@ public static class UIThemeDefaults
         OnDanger = new(ColorName.IronFog, ColorAdjustment.Tint, 10),
 
         // A status ink is shaded until it reads 4.5:1 on its own 16 % tinted badge over the page and over a card; Info clears it
-        // as it is. Warning (1.09:1 raw) takes a golden brown of its own: the gold shaded that far read as olive. The brand inks equal
-        // their fill: a tinted brand badge darkens its own words.
+        // as it is. Warning is SolarGold, the palette's gold that stays golden shaded that far, where a lemon turned olive. The brand
+        // inks equal their fill: a tinted brand badge darkens its own words.
         PrimaryInk = new(ColorName.AstralTeal),
         AccentInk = new(ColorName.NovaPurple),
         InfoInk = new(ColorName.QuantumBlue),
-        WarningInk = ColorVariant.FromRgb(138, 90, 0),
+        WarningInk = new(ColorName.SolarGold, ColorAdjustment.Shade, 5),
         SuccessInk = new(ColorName.AuroraGreen, ColorAdjustment.Shade, 2),
         DangerInk = new(ColorName.StellarRed, ColorAdjustment.Shade, 1),
 

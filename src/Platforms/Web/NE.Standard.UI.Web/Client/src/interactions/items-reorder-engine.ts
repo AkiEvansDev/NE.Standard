@@ -4,13 +4,15 @@
 // does not carry puts it back (`PendingMoves`). The tree's drag is the model: the same marks, the same event, the same refusals.
 // A grouped view's row moves within its own group: the group is read off the row, so a move across one would regroup it.
 // A host dragged by grips (`DragHandle`) lifts a row only by its grip, and the rest of the row keeps its text and presses.
+// A host offering its rows as a kind (`DragKind`) lifts them too, sorted or not, for another host to take (item-drag-engine.ts).
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass, RowsDraggableAttribute,
-    RowsDragHandleAttribute, UndraggableAttribute
+    DragKindAttribute, GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass,
+    RowsDraggableAttribute, RowsDragHandleAttribute
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
+import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { getRealItemElements } from "../items/items-empty-renderer.ts";
 import { getActiveSorts, readItemsQuery } from "../items/items-filter-sort.ts";
@@ -19,13 +21,13 @@ import { getSourceOrder } from "../items/items-source-order.ts";
 import type { PendingMove, PendingMoves } from "../items/pending-moves.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
-import { clearDragMarks, markDragStart } from "./drag-marks.ts";
-import { isInert, isItemDisabled } from "./interactive-state.ts";
+import { clearDragMarks, leftAltogether, markDragStart } from "./drag-marks.ts";
+import { isInert } from "./interactive-state.ts";
+import { allowedEffect, beginItemsDrag, carriedRows, isLiftable, offeredItems } from "./item-drags.ts";
 import { ownControlOf } from "./own-control.ts";
 import { dispatchRowEvent, focusedRow, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
-import { hostOf, rowBox, rowKey, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
+import { hostOf, KeyboardRowsRootSelector, rowBox, rowKey, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
-const RootSelector = ".ui-items-view, .ui-table";
 const RowSelector = ".ui-items-view__item, .ui-table__row";
 const DraggingClass = "ui-row--dragging";
 // Written on the marked row's box: how far out from its edge the drop line's middle stands (ui-items-view.less).
@@ -36,13 +38,13 @@ const MoveEventName = "move";
 export type DropSide = "before" | "after";
 
 /** A place between rows: the side of the row it is marked on. */
-type Place = {
+export type Place = {
     readonly anchor: HTMLElement;
     readonly side: DropSide;
 };
 
 /** How a host's rows run: across (a horizontal list, a wrap's lines) or down, and across from the right in a right-to-left one. */
-type Flow = {
+export type Flow = {
     readonly across: boolean;
     readonly rightToLeft: boolean;
 };
@@ -61,8 +63,6 @@ export type MovesAhead = Pick<PendingMoves, "ahead" | "settle">;
  * row waits for the server.
  */
 export function itemMoveEvent(moves?: MovesAhead): { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } {
-    const pending = new WeakMap<Event, PendingMove>();
-
     return {
         name: MoveEventName,
         registration: {
@@ -72,26 +72,7 @@ export function itemMoveEvent(moves?: MovesAhead): { readonly name: string; read
 
                 return index === null ? null : [...context.dynamicParameters, index];
             },
-            // Not at the drop: a move no command or interaction takes would stand with no answer to put it back.
-            started: context => {
-                const index = moveIndexOf(context.domEvent);
-                const row = index === null || !(context.domEvent.target instanceof Element) ? null : context.domEvent.target.closest<HTMLElement>(RowSelector);
-                const host = row?.parentElement ?? null;
-
-                if (moves === undefined || index === null || row === null || host === null || !host.hasAttribute(ItemsHostAttribute))
-                    return;
-
-                const move = moves.ahead(host, rowKey(row), index);
-
-                if (move !== null)
-                    pending.set(context.domEvent, move);
-            },
-            completed: context => {
-                const move = pending.get(context.domEvent);
-
-                if (move !== undefined)
-                    moves?.settle(move);
-            }
+            ...aheadOfAnswer<PendingMove>(domEvent => moves === undefined ? null : moveAhead(moves, domEvent), move => moves?.settle(move))
         }
     };
 }
@@ -101,6 +82,15 @@ function moveIndexOf(domEvent: Event): number | null {
     const index = domEvent instanceof CustomEvent ? (domEvent.detail as Partial<ItemMoveDetail> | null)?.index : undefined;
 
     return typeof index === "number" ? index : null;
+}
+
+/** Puts the row a `move` was raised on at the index it carries; null for a tree's move, or a row standing in no items host. */
+function moveAhead(moves: MovesAhead, domEvent: Event): PendingMove | null {
+    const index = moveIndexOf(domEvent);
+    const row = index === null || !(domEvent.target instanceof Element) ? null : domEvent.target.closest<HTMLElement>(RowSelector);
+    const host = row?.parentElement ?? null;
+
+    return index === null || row === null || host === null || !host.hasAttribute(ItemsHostAttribute) ? null : moves.ahead(host, rowKey(row), index);
 }
 
 /** The rules and the values the engine reads: whether a sort orders a host, and a virtualized host's whole collection. */
@@ -116,11 +106,16 @@ export type ItemsReorderEngineOptions = {
     readonly services?: ItemsReorderServices;
 };
 
-/** The row in the air, the host it belongs to and the root that lets it move. */
-type Drag = {
+/** A row that may be lifted, the root that lets it, and whether it moves among its own host's rows now; else it is only offered. */
+type Lift = {
     readonly root: HTMLElement;
-    readonly host: HTMLElement;
     readonly row: HTMLElement;
+    readonly moves: boolean;
+};
+
+/** The row in the air, the root that let it go and the host it belongs to. */
+type Drag = Lift & {
+    readonly host: HTMLElement;
 };
 
 export class ItemsReorderEngine {
@@ -148,14 +143,14 @@ export class ItemsReorderEngine {
         this.root.addEventListener("dragend", () => this.endDrag(), true);
     }
 
-    /** A press that lifts a row of a host whose rows move makes the row's box draggable until the gesture ends. */
+    /** A press that lifts a row of a host whose rows move, or leave it for another, makes the row's box draggable until the gesture ends. */
     private handlePointerDown(domEvent: Event): void {
         this.release();
 
         if (!(domEvent instanceof PointerEvent) || domEvent.button !== 0 || !(domEvent.target instanceof Element))
             return;
 
-        const found = this.movableRow(domEvent.target);
+        const found = this.liftableRow(domEvent.target);
         const box = found === null ? null : rowBox(found.row);
 
         if (found === null || box === null)
@@ -192,20 +187,25 @@ export class ItemsReorderEngine {
         }
     }
 
-    /** The nearest row an element stands in, where its host's rows may move now and the row allows it; null otherwise. */
-    private movableRow(target: Element): { readonly root: HTMLElement; readonly row: HTMLElement } | null {
+    /**
+     * The nearest row an element stands in, where its host's rows may be lifted and the row allows it: moved among them while no sort
+     * orders them, or offered to another host whenever the host names a kind, sorted or not.
+     */
+    private liftableRow(target: Element): Lift | null {
         // The nearest row of any host, a tree's included: a press in a nested list's row is that list's, not the row around it.
         const row = target.closest<HTMLElement>(SelectionRowSelector);
         const host = row?.parentElement ?? null;
         const root = host?.closest<HTMLElement>(SelectionRootSelector) ?? null;
 
-        if (row === null || host === null || root === null || !row.matches(RowSelector) || !host.hasAttribute(ItemsHostAttribute) || !root.hasAttribute(RowsDraggableAttribute))
+        if (row === null || host === null || root === null || !row.matches(RowSelector) || !host.hasAttribute(ItemsHostAttribute))
             return null;
 
-        if (isInert(root) || row.hasAttribute(UndraggableAttribute) || isItemDisabled(row) || this.isSorted(root, host))
+        if (isInert(root) || !isLiftable(row))
             return null;
 
-        return { root, row };
+        const moves = root.hasAttribute(RowsDraggableAttribute) && !this.isSorted(root, host);
+
+        return moves || root.hasAttribute(DragKindAttribute) ? { root, row, moves } : null;
     }
 
     /** Whether a sort orders the host's rows now: a drop would be put back by it, so no row moves. */
@@ -222,7 +222,7 @@ export class ItemsReorderEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const found = this.movableRow(domEvent.target);
+        const found = this.liftableRow(domEvent.target);
         const host = found?.row.parentElement ?? null;
         const box = found === null ? null : rowBox(found.row);
 
@@ -230,21 +230,28 @@ export class ItemsReorderEngine {
         if (found === null || host === null || box === null || domEvent.target !== box)
             return;
 
-        this.drag = { root: found.root, host, row: found.row };
+        // Held for a drag that only offers the rows too: its marks come off and its lift is given back as it ends.
+        this.drag = { ...found, host };
+
+        // The chosen rows a drag to another host carries fade with the dragged one; among its own rows only the dragged one moves.
+        const items = offeredItems(found.root, host, carriedRows(found.row, shownRows(host)));
+        const companions = (items?.rows ?? []).filter(row => row !== found.row).map(row => rowBox(row) ?? row);
+
         // On the box: a wrap's row has none of its own for the ghost's fade to show on.
-        markDragStart(domEvent, found.root, box, DraggingClass, rowKey(found.row));
+        markDragStart(domEvent, found.root, box, DraggingClass, rowKey(found.row), companions, allowedEffect(items, found.moves));
+        beginItemsDrag(domEvent, items);
     }
 
     /** Over a row of the dragged row's host, or its empty room past the last: the drop is taken and the side it lands on marked. */
     private handleDragOver(domEvent: Event): void {
-        const drag = this.drag;
+        const drag = this.ownDrag(domEvent);
 
-        if (drag === null || !(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element) || !drag.host.contains(domEvent.target))
+        if (drag === null || !(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
             return;
 
-        const flow = flowOf(drag);
+        const flow = flowOf(drag.root, drag.host);
         const rows = shownRows(drag.host);
-        const place = this.placeOf(drag, domEvent.target, domEvent, flow, rows);
+        const place = placeAmong(drag.host, domEvent.target, domEvent, flow, rows);
 
         domEvent.preventDefault();
 
@@ -252,86 +259,45 @@ export class ItemsReorderEngine {
             domEvent.dataTransfer.dropEffect = "move";
 
         if (place === null || this.indexOf(drag, place.anchor, place.side) === null)
-            markDrop(drag.root, null);
+            markRowDrop(drag.root, null);
         else
-            markDrop(drag.root, place, lineOffset(rows, place, flow));
+            markRowDrop(drag.root, place, lineOffset(rows, place, flow));
     }
 
-    /**
-     * The row a pointer is over, or the nearest one off the rows, and the side of it the dragged row lands on — one place between two
-     * rows of a line, whichever of them the pointer is over or the gap between them.
-     */
-    private placeOf(drag: Drag, target: Element, point: { readonly clientX: number; readonly clientY: number }, flow: Flow, rows: readonly HTMLElement[]): Place | null {
-        // The host's own group header is no row to land beside, nor the room past the last.
-        if (target.closest(`[${GroupHeaderAttribute}]`)?.parentElement === drag.host)
-            return null;
+    /** The drag in the air where it moves among its own host's rows and the event stands over them; null otherwise. */
+    private ownDrag(domEvent: Event): Drag | null {
+        const drag = this.drag;
 
-        let over = target.closest<HTMLElement>(SelectionRowSelector);
-
-        // A row of a list nested in one of the host's rows stands for that row.
-        while (over !== null && over.parentElement !== drag.host)
-            over = over.parentElement?.closest<HTMLElement>(SelectionRowSelector) ?? null;
-
-        // Off the rows — in the gap a spacing leaves between two as much as in the room past the last — the nearest row: read as past
-        // the last row, the gap beside the dragged row flashed the line at the list's end.
-        over ??= nearestRow(rows, point);
-
-        if (over === null)
-            return null;
-
-        const rect = (rowBox(over) ?? over).getBoundingClientRect();
-        const beforeMiddle = flow.across ? point.clientX < rect.left + rect.width / 2 : point.clientY < rect.top + rect.height / 2;
-
-        // Along a row that reads right to left, the start is the right-hand side.
-        if (beforeMiddle === flow.rightToLeft)
-            return { anchor: over, side: "after" };
-
-        // Before a row is after the one drawn ahead of it, where that one stands in its group and on its line: one place, one line.
-        const previous = rows[rows.indexOf(over) - 1];
-
-        return previous !== undefined && sameRun(previous, over, flow) ? { anchor: previous, side: "after" } : { anchor: over, side: "before" };
+        return drag !== null && drag.moves && domEvent.target instanceof Element && drag.host.contains(domEvent.target) ? drag : null;
     }
 
     /** The index the dragged row takes beside the anchor, or null where it would not move or the anchor is another group's. */
-    private indexOf(drag: Drag, anchor: HTMLElement, side: DropSide): number | null {
+    private indexOf(drag: Pick<Drag, "host" | "row">, anchor: HTMLElement, side: DropSide): number | null {
         if (groupOf(anchor) !== groupOf(drag.row))
             return null;
 
-        const index = movedIndex(this.orderOf(drag.host), rowKey(drag.row), rowKey(anchor), side);
+        const index = movedIndex(rowOrder(drag.host, this.services?.keysOf), rowKey(drag.row), rowKey(anchor), side);
 
         return index === null ? null : index + windowOffset(drag.host);
-    }
-
-    /** Every item's key in the collection's order: the values a virtualized host holds, the source order of a host holding its rows. */
-    private orderOf(host: HTMLElement): string[] {
-        switch (resolveHostMode(host)) {
-            case "virtualized":
-                return [...(this.services?.keysOf(host) ?? getRealItemElements(host).map(rowKey))];
-            case "windowed":
-                // The window's rows stand in the query's order; the offset places them in the whole.
-                return getRealItemElements(host).map(rowKey);
-            default:
-                return getSourceOrder(host, getRealItemElements(host)).map(rowKey);
-        }
     }
 
     /** Leaving the host altogether clears the mark; a move between its rows is followed by a dragover that marks the next place. */
     private handleDragLeave(domEvent: Event): void {
         const drag = this.drag;
 
-        if (drag !== null && domEvent instanceof DragEvent && !(domEvent.relatedTarget instanceof Node && drag.host.contains(domEvent.relatedTarget)))
-            markDrop(drag.root, null);
+        if (drag !== null && domEvent instanceof DragEvent && leftAltogether(domEvent, drag.host))
+            markRowDrop(drag.root, null);
     }
 
     private handleDrop(domEvent: Event): void {
-        const drag = this.drag;
+        const drag = this.ownDrag(domEvent);
 
-        if (drag === null || !(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element) || !drag.host.contains(domEvent.target))
+        if (drag === null || !(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
             return;
 
         domEvent.preventDefault();
 
-        const place = this.placeOf(drag, domEvent.target, domEvent, flowOf(drag), shownRows(drag.host));
+        const place = placeAmong(drag.host, domEvent.target, domEvent, flowOf(drag.root, drag.host), shownRows(drag.host));
         const index = place === null ? null : this.indexOf(drag, place.anchor, place.side);
 
         this.endDrag();
@@ -350,7 +316,7 @@ export class ItemsReorderEngine {
             return;
 
         clearDragMarks(drag.root, DraggingClass);
-        markDrop(drag.root, null);
+        markRowDrop(drag.root, null);
     }
 
     /** Alt+Up and Alt+Down move the keyboard's row one place past the row drawn beside it, as a drop there would. */
@@ -363,14 +329,14 @@ export class ItemsReorderEngine {
 
         const found = rowKeyTarget(domEvent.target);
 
-        if (found === null || !found.root.matches(RootSelector) || (found.row !== null && ownControlOf(domEvent.target, found.row) !== null))
+        if (found === null || !found.root.matches(KeyboardRowsRootSelector) || (found.row !== null && ownControlOf(domEvent.target, found.row) !== null))
             return;
 
         const host = hostOf(found.root);
         const rows = host === null ? [] : shownRows(host);
         const current = focusedRow(rows);
 
-        if (host === null || current === null || this.movableRow(current) === null)
+        if (host === null || current === null || this.liftableRow(current)?.moves !== true)
             return;
 
         // Taken whether or not the row moves: at an end the keys do nothing rather than walk the cursor or leave the page.
@@ -379,7 +345,7 @@ export class ItemsReorderEngine {
         const at = rows.indexOf(current);
         const up = domEvent.key === "ArrowUp";
         const anchor = rows[up ? at - 1 : at + 1];
-        const index = anchor === undefined ? null : this.indexOf({ root: found.root, host, row: current }, anchor, up ? "before" : "after");
+        const index = anchor === undefined ? null : this.indexOf({ host, row: current }, anchor, up ? "before" : "after");
 
         if (index !== null)
             dispatchRowEvent(current, MoveEventName, { index } satisfies ItemMoveDetail);
@@ -396,15 +362,64 @@ export function movedIndex(order: readonly string[], key: string, anchor: string
     if (from < 0 || key === anchor)
         return null;
 
-    const rest = order.filter(candidate => candidate !== key);
-    const at = rest.indexOf(anchor);
-
-    if (at < 0)
-        return null;
-
-    const index = side === "before" ? at : at + 1;
+    const index = insertIndex(order.filter(candidate => candidate !== key), anchor, side);
 
     return index === from ? null : index;
+}
+
+/** The index a row put on `side` of the row keyed `anchor` takes in `order`, which does not hold it; null where the anchor is not there. */
+export function insertIndex(order: readonly string[], anchor: string, side: DropSide): number | null {
+    const at = order.indexOf(anchor);
+
+    return at < 0 ? null : side === "before" ? at : at + 1;
+}
+
+/**
+ * The row a pointer is over among a host's rows, or the nearest one off them, and the side of it a dragged row lands on — one place
+ * between two rows of a line, whichever of them the pointer is over or the gap between them.
+ */
+export function placeAmong(host: Element, target: Element, point: { readonly clientX: number; readonly clientY: number }, flow: Flow, rows: readonly HTMLElement[]): Place | null {
+    // The host's own group header is no row to land beside, nor the room past the last.
+    if (target.closest(`[${GroupHeaderAttribute}]`)?.parentElement === host)
+        return null;
+
+    let over = target.closest<HTMLElement>(SelectionRowSelector);
+
+    // A row of a list nested in one of the host's rows stands for that row.
+    while (over !== null && over.parentElement !== host)
+        over = over.parentElement?.closest<HTMLElement>(SelectionRowSelector) ?? null;
+
+    // Off the rows — in the gap a spacing leaves between two as much as in the room past the last — the nearest row: read as past
+    // the last row, the gap beside the dragged row flashed the line at the list's end.
+    over ??= nearestRow(rows, point);
+
+    if (over === null)
+        return null;
+
+    const rect = (rowBox(over) ?? over).getBoundingClientRect();
+    const beforeMiddle = flow.across ? point.clientX < rect.left + rect.width / 2 : point.clientY < rect.top + rect.height / 2;
+
+    // Along a row that reads right to left, the start is the right-hand side.
+    if (beforeMiddle === flow.rightToLeft)
+        return { anchor: over, side: "after" };
+
+    // Before a row is after the one drawn ahead of it, where that one stands in its group and on its line: one place, one line.
+    const previous = rows[rows.indexOf(over) - 1];
+
+    return previous !== undefined && sameRun(previous, over, flow) ? { anchor: previous, side: "after" } : { anchor: over, side: "before" };
+}
+
+/** Every item's key in the collection's order: the values a virtualized host holds, the source order of a host holding its rows. */
+export function rowOrder(host: Element, keysOf?: (host: Element) => readonly string[] | null): string[] {
+    switch (resolveHostMode(host)) {
+        case "virtualized":
+            return [...(keysOf?.(host) ?? getRealItemElements(host).map(rowKey))];
+        case "windowed":
+            // The window's rows stand in the query's order; the offset places them in the whole.
+            return getRealItemElements(host).map(rowKey);
+        default:
+            return getSourceOrder(host, getRealItemElements(host)).map(rowKey);
+    }
 }
 
 /** The grip a row is lifted by alone, where its host drags by grips and shows it; null where the whole row lifts (a wrapped tile's). */
@@ -425,10 +440,10 @@ function groupOf(row: Element): string {
 }
 
 /** How the host's rows run, read off its root and its direction. */
-function flowOf(drag: Drag): Flow {
-    const across = drag.root.matches(".ui-orientation--horizontal, .ui-items-view--wrap");
+export function flowOf(root: Element, host: Element): Flow {
+    const across = root.matches(".ui-orientation--horizontal, .ui-items-view--wrap");
 
-    return { across, rightToLeft: across && getComputedStyle(drag.host).direction === "rtl" };
+    return { across, rightToLeft: across && getComputedStyle(host).direction === "rtl" };
 }
 
 /** Whether two rows drawn one after the other share a place between them: in one group and, across, on one line. */
@@ -449,7 +464,7 @@ function sameRun(first: HTMLElement, second: HTMLElement, flow: Flow): boolean {
  * How far out from the marked edge the line's middle stands: half the gap to the row beyond it, so the line sits in the middle of a
  * spacing and on the edge with none; with no row beyond (the list's ends, a group's), a pixel in, so the line stays inside the row.
  */
-function lineOffset(rows: readonly HTMLElement[], place: Place, flow: Flow): number {
+export function lineOffset(rows: readonly HTMLElement[], place: Place, flow: Flow): number {
     const next = place.side === "after" ? rows[rows.indexOf(place.anchor) + 1] : undefined;
 
     if (next === undefined || !sameRun(place.anchor, next, flow))
@@ -483,12 +498,12 @@ function nearestRow(rows: readonly HTMLElement[], point: { readonly clientX: num
 }
 
 /** The host's rows a reader sees, in the order they are drawn: a row a filter hid or a fold took is no place to land beside. */
-function shownRows(host: Element): HTMLElement[] {
+export function shownRows(host: Element): HTMLElement[] {
     return getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement && row.matches(RowSelector) && rowBox(row) !== null);
 }
 
 /** Marks the side of the row the dragged one lands on, on the row's box, and takes the mark off every other row of the root. */
-function markDrop(root: HTMLElement, place: Place | null, offset = 0): void {
+export function markRowDrop(root: HTMLElement, place: Place | null, offset = 0): void {
     const box = place === null ? null : rowBox(place.anchor);
 
     for (const marked of root.querySelectorAll<HTMLElement>(`[${RowDropAttribute}]`)) {

@@ -43,6 +43,9 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
     public partial UIResponsive<double>? Spacing { get; set; }
 
     [RecursiveMember]
+    public partial UIResponsive<UIThickness>? Padding { get; set; }
+
+    [RecursiveMember]
     public partial UIScrollMode? HorizontalScroll { get; set; }
 
     [RecursiveMember]
@@ -83,6 +86,7 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
         AddOption(nameof(LayoutType), CycleLayoutType, () => LayoutType);
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
+        AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddOption(nameof(HorizontalScroll), CycleHorizontalScroll, () => HorizontalScroll);
         AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
         AddOption(nameof(ScrollSnap), CycleScrollSnap, () => ScrollSnap);
@@ -108,6 +112,10 @@ internal sealed partial class ItemsViewGroupContext : DemoGroupContext
 
     public void CycleSpacing()
         => SetLastChange(nameof(Spacing), Spacing = CycleValue(Spacing, null, 4d, 12d, 24d));
+
+    // Inside the scroll: the rows run on through it, so the last one ends that far above the view's foot.
+    public void CyclePadding()
+        => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(8), UIThickness.All(0, 0, 0, 48), null));
 
     public void CycleHorizontalScroll()
         => SetLastChange(nameof(HorizontalScroll), HorizontalScroll = CycleEnum(HorizontalScroll));

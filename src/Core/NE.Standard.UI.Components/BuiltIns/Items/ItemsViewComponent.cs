@@ -25,7 +25,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
-public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IEmptyStateComponent
+[UIComponentPropertyBlock(typeof(IDragSourceComponent))]
+public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
@@ -170,6 +171,14 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
     public UIResponsive<double>? Spacing { get; set; }
+
+    /// <summary>
+    /// Gets or sets the room inside the view's scroll around its rows, optionally overridden per breakpoint: the rows scroll through it,
+    /// so a list ending under something laid over its foot (a composer) shows its last row clear of it. A list held at its end stays there
+    /// as the padding changes.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIResponsive<UIThickness>? Padding { get; set; }
 
     /// <summary>
     /// Initializes a new items view with the built-in text, empty and group templates.

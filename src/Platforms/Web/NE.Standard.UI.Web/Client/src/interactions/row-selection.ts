@@ -14,7 +14,7 @@ const SelectedKeysBindingAttribute = "data-ui-bind-selected-keys";
 export const SelectionRootSelector = `.ui-items-view, .ui-table, .${TreeRootClass}`;
 export const SelectionRowSelector = `.ui-items-view__item, .${TableRowClass}, .${TreeRowClass}`;
 
-// The hosts whose rows' keyboard is items-selection-engine.ts's; the tree walks its own.
+// The hosts whose rows' keyboard is items-selection-engine.ts's and whose rows items-reorder-engine.ts moves; the tree walks its own.
 export const KeyboardRowsRootSelector = ".ui-items-view, .ui-table";
 
 /** The modifier keys a choosing gesture carried. */

@@ -71,11 +71,17 @@ public static class WebClassNames
     /// <summary>The handle on a column's edge a resizable table's column is widened by.</summary>
     public const string TableResizer = "ui-table__resizer";
 
+    /// <summary>An image component's picture, which the client gives the framework's stand-in when its source fails.</summary>
+    public const string Image = "ui-image";
+
     /// <summary>A tree's root.</summary>
     public const string Tree = "ui-tree";
 
     /// <summary>A tree's node row.</summary>
     public const string TreeRow = "ui-tree__row";
+
+    /// <summary>A tree node's face inside its row, which carries the node's facts.</summary>
+    public const string TreeNode = "ui-tree-node";
 
     /// <summary>The grip a row of a draggable items view or table is dragged by (<c>DragHandle</c>).</summary>
     public const string RowGrip = "ui-row__grip";

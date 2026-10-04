@@ -15,6 +15,7 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -440,6 +441,37 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             if (value is UIDragHandlePlacement placement)
                 _ = target.Class(WebClassNames.DragHandlePlacement(placement));
         }, DragHandlePlacementOperations);
+    }
+
+    /// <summary>
+    /// What an <see cref="IDragSourceComponent"/>'s root says of its rows leaving it: the kind they are offered as, what a drop may do
+    /// with them, and the id a drop names it by.
+    /// </summary>
+    protected static void RenderDragSource(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        var kind = ReadRenderValue<string?>(context, IDragSourceComponent.DragKindProperty, null);
+
+        if (string.IsNullOrEmpty(kind))
+            return;
+
+        UIDragEffects effects = ReadRenderValue<UIDragEffects?>(context, IDragSourceComponent.DragEffectsProperty, null) ?? UIDragEffects.All;
+
+        if (effects == UIDragEffects.None)
+            return;
+
+        _ = root.Attribute(WebAttributes.DragKind, kind);
+        _ = root.Attribute(WebAttributes.DragEffects, effects switch
+        {
+            UIDragEffects.Move => "move",
+            UIDragEffects.Copy => "copy",
+            _ => "move copy"
+        });
+
+        if (context.Node.HasAuthoredId)
+            _ = root.Attribute(WebAttributes.DragSource, context.Node.AuthoringId);
     }
 
     /// <summary>

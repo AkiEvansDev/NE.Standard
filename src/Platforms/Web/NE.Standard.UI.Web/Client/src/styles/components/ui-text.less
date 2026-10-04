@@ -15,8 +15,9 @@
     .ui-responsive-property(max-width, --ui-max-width, 100%);
 }
 
-// data-ui-text-* sits on the component root: `.ui-text` itself or its parent part, never past another component's root.
-@ui-text-with-icon: ~":is([data-ui-text-icon] > .ui-text, [data-ui-text-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-icon].ui-text)";
+// data-ui-text-* sits on the component root: `.ui-text` itself or its parent part, never past another component's root. A tree node that
+// says whether it is a folder draws an icon whatever it names: the file dress's when none (ui-tree.less).
+@ui-text-with-icon: ~":is([data-ui-text-icon] > .ui-text, [data-ui-text-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-icon].ui-text, [data-ui-tree-folder] > .ui-text)";
 @ui-text-with-title: ~":is([data-ui-text-title] > .ui-text, [data-ui-text-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-title].ui-text)";
 @ui-text-with-description: ~":is([data-ui-text-description] > .ui-text, [data-ui-text-description] > :not([data-ui-id]) > .ui-text, [data-ui-text-description].ui-text)";
 @ui-text-with-both: ~":is([data-ui-text-title][data-ui-text-description] > .ui-text, [data-ui-text-title][data-ui-text-description] > :not([data-ui-id]) > .ui-text, [data-ui-text-title][data-ui-text-description].ui-text)";

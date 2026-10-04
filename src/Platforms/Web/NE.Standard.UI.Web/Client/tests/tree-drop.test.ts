@@ -6,7 +6,7 @@ import { FakeElement, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom();
 
-const { keyMovePlace, keyMoveTarget, placeMoves, takesDrop } = await import("../src/interactions/tree-drop.ts");
+const { dropFolderOf, keyMovePlace, keyMoveTarget, placeMoves, takesDrop } = await import("../src/interactions/tree-drop.ts");
 
 /** A tree row and its node, the row folding (`aria-expanded`, as the walk writes it) where it holds children. */
 function row(holdsChildren: boolean, folder: string | null = null): { readonly row: FakeElement; readonly node: FakeElement } {
@@ -48,6 +48,27 @@ const nodes = [
     { key: "pictures", parent: "", takesDrop: true },
     { key: "c", parent: "", takesDrop: false }
 ];
+
+test("a drop onto a folder goes into it, onto a file into the file's folder, and nowhere where that folder is disabled", () => {
+    const folder = row(false, "true");
+    const file = row(false);
+    const top = row(false);
+
+    folder.row.setAttribute("data-ui-key", "docs");
+    file.node.setAttribute("data-ui-tree-parent", "docs");
+    top.node.setAttribute("data-ui-tree-parent", "");
+
+    const rowOf = (key: string): Element | null => key === "docs" ? real<Element>(folder.row) : null;
+
+    assert.equal(dropFolderOf(real(folder.row), rowOf), "docs");
+    assert.equal(dropFolderOf(real(file.row), rowOf), "docs");
+    assert.equal(dropFolderOf(real(top.row), rowOf), "");
+
+    folder.row.classes.add("ui-disabled");
+
+    assert.equal(dropFolderOf(real(file.row), rowOf), null);
+    assert.equal(dropFolderOf(real(folder.row), rowOf), "");
+});
 
 test("Alt+Right puts a node into the folder just above it at its level, past that folder's own nodes", () => {
     assert.equal(keyMoveTarget(nodes, "c", true), "pictures");

@@ -8,6 +8,7 @@
 // Flex column: a block parent's definite height doesn't constrain a self-sizing child, so the scroller couldn't be bounded.
 .ui-items-view {
     .ui-responsive-reset(--ui-items-view-spacing);
+    .ui-responsive-reset(--ui-items-view-padding);
     .ui-selected-scope();
 
     display: flex;
@@ -29,6 +30,8 @@
     display: block;
     min-width: 0;
     min-height: 0;
+    // The view's Padding, inside the scroll box the host is: the rows scroll through it.
+    .ui-responsive-property(padding, --ui-items-view-padding, 0);
 }
 
 .ui-items-view--stack > .ui-items-view__host,
@@ -114,10 +117,12 @@
     flex-basis: 100%;
 }
 
-// A pixel of room under the empty state's clipped description, or a scroller ending there counts that pixel as scrollable.
+// The empty state stands off the list's edge, as a tree's and a table's do, so a drop's dashed edge around an empty list does not
+// touch its words; the room under it also holds the empty state's clipped description, or a scroller ending there counts a pixel
+// as scrollable.
 .ui-items-view > .ui-items-view__host > [data-ui-empty-placeholder],
 .ui-items-view > [data-ui-items-host] > [data-ui-empty-placeholder] {
-    padding-bottom: 1px;
+    padding: @ui-space-1 @ui-space-2;
 }
 
 // ShowEmptyTemplate off: an empty host says nothing. Hidden rather than left out, so a bound flag turned on shows it again.
@@ -126,8 +131,8 @@
 }
 
 // A list held at its end ends a step past its newest row: the scroller clips at its edge, so a raised row's shadow and the fraction of
-// a pixel a row's height rounds away would otherwise read as the list stopping short.
-.ui-items-view > [data-ui-scroll-anchor="End"] {
+// a pixel a row's height rounds away would otherwise read as the list stopping short. A Padding of the view's own says its end instead.
+.ui-items-view:not([style*="--ui-items-view-padding"]) > [data-ui-scroll-anchor="End"] {
     padding-block-end: @ui-space-1;
 }
 

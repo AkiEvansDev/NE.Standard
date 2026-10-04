@@ -166,6 +166,22 @@
     outline-offset: calc(-1 * (var(--ui-input-focus-ring, 1px) + var(--ui-border-width, 1px)));
 }
 
+// A file over a field another input takes it for (its DropTarget), or an item of a kind the field takes (`OnDrop`): the mark on the
+// field's box, which covers the root's own edge.
+[data-ui-file-drop-over]:has(> :is(@{ui-input-field-state})),
+[data-ui-item-drop-over]:has(> :is(@{ui-input-field-state})) {
+    outline: none;
+}
+
+[data-ui-file-drop-over] > :is(@{ui-input-field-state}),
+[data-ui-item-drop-over] > :is(@{ui-input-field-state}) {
+    .ui-drop-edge();
+}
+
+[data-ui-file-drop-over="refused"] > :is(@{ui-input-field-state}) {
+    .ui-drop-edge(var(--ui-color-danger-ink));
+}
+
 :is(@{ui-validation-marked}) > .ui-field-box {
     --ui-field-ring: var(--ui-validation-color, var(--ui-color-danger-ink));
 }

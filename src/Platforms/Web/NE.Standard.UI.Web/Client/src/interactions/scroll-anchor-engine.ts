@@ -46,6 +46,8 @@ export class ScrollAnchorEngine {
 
     // The rows watched in each container, and each row's height when last seen.
     private readonly watched = new WeakMap<Element, Set<Element>>();
+    // The containers whose own box is watched: a padding grown inside the scroll (what stands over the end) moves the end too.
+    private readonly watchedContainers = new WeakSet<Element>();
     private readonly heights = new WeakMap<Element, number>();
 
     public constructor(options: ScrollAnchorEngineOptions = {}) {
@@ -109,6 +111,11 @@ export class ScrollAnchorEngine {
         if (this.resizes === null)
             return;
 
+        if (!this.watchedContainers.has(container)) {
+            this.watchedContainers.add(container);
+            this.resizes.observe(container);
+        }
+
         const previous = this.watched.get(container);
         const current = new Set<Element>();
 
@@ -136,6 +143,12 @@ export class ScrollAnchorEngine {
 
         for (const entry of entries) {
             const row = entry.target;
+
+            if (this.watchedContainers.has(row)) {
+                this.followOwnBox(row);
+                continue;
+            }
+
             const container = row.parentElement;
 
             if (!row.isConnected || container === null || !isEndAnchored(container)) {
@@ -159,7 +172,7 @@ export class ScrollAnchorEngine {
         }
 
         for (const [container, above] of grown) {
-            if (heldAtEnd.has(container) || (this.pinned.get(container) !== false && !holdsOlderWindow(container))) {
+            if (this.followsEnd(container)) {
                 scrollToEnd(container);
             }
             // Where the browser anchors the scroll itself it has already kept the row in place, and a virtualized host holds its top row
@@ -168,6 +181,23 @@ export class ScrollAnchorEngine {
                 container.scrollTop += above;
             }
         }
+    }
+
+    /** A container's own box changed — its padding, its size — which moves its end without a row changing. */
+    private followOwnBox(container: Element): void {
+        if (!container.isConnected || !isEndAnchored(container)) {
+            this.watchedContainers.delete(container);
+            this.resizes?.unobserve(container);
+            return;
+        }
+
+        if (this.followsEnd(container))
+            scrollToEnd(container);
+    }
+
+    /** Whether a change in the container keeps it at its end: held there, or standing there and showing the source's newest window. */
+    private followsEnd(container: Element): boolean {
+        return heldAtEnd.has(container) || (this.pinned.get(container) !== false && !holdsOlderWindow(container));
     }
 
     private forget(row: Element): void {

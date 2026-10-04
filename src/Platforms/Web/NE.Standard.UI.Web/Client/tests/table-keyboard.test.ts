@@ -19,7 +19,7 @@ installFakeDom({
         public disconnect(): void {
         }
     },
-    window: { innerHeight: 1000 }
+    window: { innerHeight: 1000, addEventListener: () => undefined }
 });
 
 const { ItemsSelectionEngine } = await import("../src/interactions/items-selection-engine.ts");

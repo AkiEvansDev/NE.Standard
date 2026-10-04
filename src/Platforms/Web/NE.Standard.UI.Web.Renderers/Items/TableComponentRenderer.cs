@@ -124,6 +124,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderFlagClass(context, root, TableComponent.ResizableColumnsProperty, "ui-table--resizable");
         RenderFlagClass(context, root, TableComponent.ReorderableColumnsProperty, "ui-table--reorderable");
         RenderDraggableRows(context, root);
+        RenderDragSource(context, root);
     }
 
     /// <summary>

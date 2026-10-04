@@ -568,6 +568,42 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     }
 
     /// <summary>
+    /// Takes the items a host offers as <paramref name="kind"/> (<c>DragKind</c>), dragged onto this component or pasted on it: the
+    /// command receives them as a <c>UIDrop</c> in its argument named <c>drop</c>.
+    /// </summary>
+    /// <remarks>A kind no component of the view offers is refused when the view compiles.</remarks>
+    public TComponent OnDrop(string kind, string command)
+        => OnDrop(kind, command, []);
+
+    /// <summary>
+    /// Takes the items a host offers as <paramref name="kind"/>, the command receiving the drop as <c>drop</c> beside the arguments
+    /// given — which of several alike targets it was, say.
+    /// </summary>
+    public TComponent OnDrop(string kind, string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(arguments);
+
+        return On(EventNames.DropPrefix + kind, command, [UIAction.ArgEventValue("drop"), .. arguments]);
+    }
+
+    /// <summary>
+    /// Takes the items a host offers as <paramref name="kind"/>, the command receiving the drop as <c>drop</c> beside the literal
+    /// arguments given.
+    /// </summary>
+    public TComponent OnDropLiteral(string kind, string command, params KeyValuePair<string, object?>[] arguments)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+
+        KeyValuePair<string, UIActionArgument>[] mapped = new KeyValuePair<string, UIActionArgument>[arguments.Length];
+
+        for (var i = 0; i < arguments.Length; i++)
+            mapped[i] = new(arguments[i].Key, UIActionArgument.Literal(arguments[i].Value));
+
+        return OnDrop(kind, command, mapped);
+    }
+
+    /// <summary>
     /// Registers or replaces an event command with literal action arguments.
     /// </summary>
     public TComponent OnLiteral(string eventName, string command, params KeyValuePair<string, object?>[] arguments)

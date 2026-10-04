@@ -420,6 +420,15 @@ public static class WebAttributes
     /// <summary>On an items view's or a table's root: a row is dragged only by its grip (<c>DragHandle</c>), at whichever edge it stands.</summary>
     public const string RowsDragHandle = "data-ui-rows-drag-handle";
 
+    /// <summary>On a drag source's root (<c>DragKind</c>): the kind its rows are offered as, dragged or cut out of it.</summary>
+    public const string DragKind = "data-ui-drag-kind";
+
+    /// <summary>On a drag source's root: what a drop may do with its rows, <c>move</c>, <c>copy</c> or both, space-separated.</summary>
+    public const string DragEffects = "data-ui-drag-effects";
+
+    /// <summary>On a drag source's root: the id the view gave it, which a drop names as its source; absent for a host given none.</summary>
+    public const string DragSource = "data-ui-drag-source";
+
     /// <summary>On a part inside a row that is not the row's to lift — a grid's open detail: a press there never drags the row.</summary>
     public const string NoRowDrag = "data-ui-no-row-drag";
 

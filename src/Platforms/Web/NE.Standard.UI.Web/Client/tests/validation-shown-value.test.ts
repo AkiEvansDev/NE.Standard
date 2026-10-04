@@ -2,6 +2,7 @@
 // rules said of a draft goes with the draft; an empty value is judged as any other. A submit refused for a rule that failed on a pushed value
 // before the reader came by says why on the field, rather than refusing in silence. A message judged before the page took its words
 // table is written again in the table's words, and a message the server rendered is weighed with the rules rather than written over.
+// A discarded form forgets what was said of its fields.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -144,4 +145,28 @@ test("a submit refused for a rule that failed unseen shows the error", () => {
 
     assert.equal(engine.runSubmitValidation("row"), false);
     assert.equal(field.classList.contains("ui-invalid"), true);
+});
+
+test("a discarded form forgets what its rules said of the attempt, on a field whose value it did not change too", () => {
+    const { field, input } = createRow();
+
+    input.dispatchEvent(new FakeEvent("focus"));
+    input.value = "0";
+    input.dispatchEvent(new FakeEvent("input"));
+    assert.equal(field.classList.contains("ui-invalid"), true);
+
+    engine.discardForm("row");
+
+    assert.equal(field.classList.contains("ui-invalid"), false);
+});
+
+test("a discarded form stands as untouched: a value pushed after it is judged unseen", () => {
+    const { field, input } = createRow();
+
+    // Visited through the engine itself: a focus event would reach the other engine an earlier test left listening on the page.
+    engine.judgeShown(real(input), "100");
+    engine.discardForm("row");
+    push(0);
+
+    assert.equal(field.classList.contains("ui-invalid"), false);
 });

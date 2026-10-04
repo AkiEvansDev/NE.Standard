@@ -114,6 +114,7 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     /// </summary>
     public T OnClick(string command)
         => On(EventNames.Click, command);
+
     /// <summary>
     /// Registers a click handler that invokes the specified command with UI action arguments.
     /// </summary>

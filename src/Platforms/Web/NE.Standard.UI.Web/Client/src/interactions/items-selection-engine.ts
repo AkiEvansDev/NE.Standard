@@ -8,6 +8,7 @@ import {
 import { observeComponents } from "./dom-mutations.ts";
 import { ownControlOf, ownPressControlsOf, soleControlOf } from "./own-control.ts";
 import { ownDescendants } from "./own-descendants.ts";
+import { markPointerFocus } from "./popup-focus.ts";
 import { isInert, isItemDisabled } from "./interactive-state.ts";
 import type { RowAxis } from "./row-cursor.ts";
 import { dispatchRowEvent, focusedRow, isRowKey, litRow, resolveRowTarget, RowPressEventName, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
@@ -32,6 +33,9 @@ export type ItemsSelectionEngineOptions = {
 export class ItemsSelectionEngine {
     private readonly root: ParentNode;
 
+    // The host boxes the press under way took out of the focus's way (handlePointerDown).
+    private pressedBoxes: HTMLElement[] = [];
+
     public constructor(options: ItemsSelectionEngineOptions = {}) {
         this.root = options.root ?? document;
 
@@ -41,6 +45,12 @@ export class ItemsSelectionEngine {
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
+        this.root.addEventListener("pointerdown", domEvent => this.handlePointerDown(domEvent), true);
+        // A press's focus lands at its mousedown, which a finger's tap raises after its pointerup; a drag or a scroll cancels the pointer,
+        // and a finger held for the context menu raises no mouse events at all.
+        this.root.addEventListener("mouseup", () => this.restoreBoxes(), true);
+        this.root.addEventListener("pointercancel", () => this.restoreBoxes(), true);
+        this.root.addEventListener("contextmenu", () => this.restoreBoxes(), true);
 
         // A pushed key, a re-rendered row and a switched mode all land as mutations with the same answer.
         observeComponents(
@@ -96,6 +106,11 @@ export class ItemsSelectionEngine {
 
         const { root, item } = resolved;
         const rows = this.ownItems(root);
+
+        // The pointer's mark before the cursor's row: a host already focused under the keyboard's last word would draw the keyboard's
+        // wash on the pressed row for the one style read between the two, which then fades out. A click the keyboard made has no detail.
+        if (domEvent.detail > 0)
+            markPointerFocus(root, true);
 
         // The cursor follows the pointer so the arrows carry on from the clicked row; the host takes the focus, as a file manager's list does.
         setRowFocus(root, rows, item);
@@ -243,13 +258,43 @@ export class ItemsSelectionEngine {
             chooseRow(table, rows, row, PlainGesture);
     }
 
-    /** A press on a host's own box, past its rows, focuses the box: the keyboard goes to the root, where the rows' keys are read. */
+    /** A host's own box focused all the same (by a script, or a browser focusing a scrolling box by itself) hands the keyboard to the root. */
     private handleFocusIn(domEvent: Event): void {
         const box = domEvent.target instanceof HTMLElement && domEvent.target.matches(`[${ItemsHostAttribute}], .${TableScrollClass}`) ? domEvent.target : null;
         const root = box?.closest<HTMLElement>(RootSelector) ?? null;
 
         if (box !== null && root !== null && [...root.querySelectorAll(HostBoxSelector)].includes(box))
             root.focus({ preventScroll: true });
+    }
+
+    /**
+     * A press in a host's own boxes focuses the root, not them: a box is focusable (`tabindex="-1"`, see `apply`) only to stay out of
+     * the Tab order, and focused by the press it handed the focus back to the root mid-press, which cancelled the browser's drag of a
+     * row and flashed the keyboard's wash on the cursor's row. The boxes are focusable again once the press's focus has landed.
+     */
+    private handlePointerDown(domEvent: Event): void {
+        this.restoreBoxes();
+
+        const target = domEvent.target instanceof Element ? domEvent.target : null;
+        const root = target?.closest<HTMLElement>(RootSelector) ?? null;
+
+        if (target === null || root === null)
+            return;
+
+        for (const box of root.querySelectorAll<HTMLElement>(HostBoxSelector)) {
+            if (box.contains(target) && box.getAttribute("tabindex") === "-1") {
+                box.removeAttribute("tabindex");
+                this.pressedBoxes.push(box);
+            }
+        }
+    }
+
+    /** Puts the boxes a press took out of the focus's way back where `apply` keeps them. */
+    private restoreBoxes(): void {
+        for (const box of this.pressedBoxes)
+            leaveTabOrder(box);
+
+        this.pressedBoxes = [];
     }
 
     private ownItems(root: HTMLElement): HTMLElement[] {

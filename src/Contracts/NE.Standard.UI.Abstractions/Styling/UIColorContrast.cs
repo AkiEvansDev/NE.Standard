@@ -2,30 +2,24 @@ using NE.Colors;
 
 namespace NE.Standard.UI.Abstractions.Styling;
 
-/// <summary>Whether a colour reads as light, and therefore which of a theme's two text colours belongs on top of it.</summary>
-/// <remarks>Relative luminance as WCAG defines it, not a plain channel average, which gets mid-tones wrong.</remarks>
+/// <summary>How two colours read against each other, by relative luminance as WCAG defines it.</summary>
+/// <remarks>Whether a colour itself reads as light is NE.Colors' own <c>ColorVariant.IsLight()</c>.</remarks>
 public static class UIColorContrast
 {
-    private const double Threshold = 0.1791;
-
-    /// <summary>Whether dark text reads better on this colour than light text does.</summary>
-    public static bool IsLight(this ColorVariant variant)
-    {
-        System.Drawing.Color color = variant.ToColor();
-
-        return RelativeLuminance(color.R, color.G, color.B) > Threshold;
-    }
-
     /// <summary>
-    /// The same question for a colour drawn over a pale ground (e.g. a transparency checkerboard); opacity alone can flip the answer.
+    /// Whether dark text reads better on a colour drawn over a pale ground (e.g. a transparency checkerboard), whose opacity alone can
+    /// flip the answer <c>ColorVariant.IsLight()</c> gives, since that one weighs no opacity.
     /// </summary>
     public static bool IsLightOverWhite(this ColorVariant variant)
     {
         System.Drawing.Color color = variant.ToColor();
         var alpha = color.A / 255d;
 
-        return RelativeLuminance(Over(color.R, alpha), Over(color.G, alpha), Over(color.B, alpha)) > Threshold;
+        return ColorVariant.FromRgb(Over(color.R, alpha), Over(color.G, alpha), Over(color.B, alpha)).IsLight();
     }
+
+    private static byte Over(byte channel, double alpha)
+        => (byte)System.Math.Round((channel * alpha) + (255 * (1 - alpha)));
 
     /// <summary>The WCAG contrast ratio of two colours, from 1 (the same) to 21 (black on white); opacity is not weighed.</summary>
     public static double Ratio(ColorVariant first, ColorVariant second)
@@ -36,19 +30,14 @@ public static class UIColorContrast
         return (System.Math.Max(a, b) + 0.05) / (System.Math.Min(a, b) + 0.05);
     }
 
+    // NE.Colors keeps its own luminance internal.
     private static double RelativeLuminance(System.Drawing.Color color)
-        => RelativeLuminance(color.R, color.G, color.B);
+        => (0.2126 * Linear(color.R)) + (0.7152 * Linear(color.G)) + (0.0722 * Linear(color.B));
 
-    private static double Over(byte channel, double alpha)
-        => (channel * alpha) + (255 * (1 - alpha));
-
-    private static double RelativeLuminance(double red, double green, double blue)
-        => (0.2126 * Linear(red)) + (0.7152 * Linear(green)) + (0.0722 * Linear(blue));
-
-    private static double Linear(double channel)
+    private static double Linear(byte channel)
     {
         var value = channel / 255d;
 
-        return value <= 0.03928 ? value / 12.92 : System.Math.Pow((value + 0.055) / 1.055, 2.4);
+        return value <= 0.04045 ? value / 12.92 : System.Math.Pow((value + 0.055) / 1.055, 2.4);
     }
 }

@@ -50,8 +50,9 @@ export class PressRippleEngine {
         root.addEventListener("pointerdown", domEvent => this.handlePointerDown(domEvent), true);
         root.addEventListener("pointerup", domEvent => this.release(domEvent, false), true);
         root.addEventListener("pointercancel", domEvent => this.release(domEvent, true), true);
-        // A press that became a drag is no longer a press; a mouse's drag raises no cancel.
-        root.addEventListener("dragstart", () => this.cancelAll(), true);
+        // A press that became a drag is no longer a press, and its wave goes at once rather than fading: the browser draws the dragged
+        // row's picture as `dragstart` ends, and a fading wave was drawn into it as a blot behind the row's words.
+        root.addEventListener("dragstart", () => this.finishAll(), true);
     }
 
     private handlePointerDown(domEvent: Event): void {
@@ -138,9 +139,9 @@ export class PressRippleEngine {
             this.end(domEvent.pointerId, cancelled);
     }
 
-    private cancelAll(): void {
-        for (const pointerId of [...this.presses.keys()])
-            this.end(pointerId, true);
+    private finishAll(): void {
+        for (const [pointerId, press] of [...this.presses])
+            this.finish(pointerId, press);
     }
 
     /**

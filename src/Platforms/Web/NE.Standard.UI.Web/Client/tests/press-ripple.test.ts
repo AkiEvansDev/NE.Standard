@@ -189,14 +189,17 @@ test("a cancel — a touch turning into a scroll — fades the wave where it sta
     assert.equal(row.classes.has("ui-press-held"), false);
 });
 
-test("a drag starting from the press ends it, as a mouse's drag raises no cancel", () => {
+test("a drag starting from the press takes its wave away at once, before the browser draws the dragged row's picture", () => {
     const row = placed(FakeElement.of("ui-tree__row", { "data-ui-unselectable": "" }), 0, 0, 300, 28);
 
     page(FakeElement.of("ui-tree").append(row));
     down(row);
     row.dispatchEvent(new FakeEvent("dragstart"));
 
-    assert.equal(fade(row)!.options.delay, 0);
+    assert.equal(rippling(row), false);
+    assert.equal(row.classes.has("ui-press-held"), false);
+    assert.equal(grow(row).cancelled, true);
+    assert.equal(fade(row), undefined);
 });
 
 test("nothing plays under reduced motion, an icon's shrink included", () => {

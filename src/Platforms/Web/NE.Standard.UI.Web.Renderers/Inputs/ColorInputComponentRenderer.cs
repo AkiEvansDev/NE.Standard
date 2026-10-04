@@ -23,6 +23,21 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
     // Read by the stylesheet alone, so it is this renderer's own rather than a WebAttributes constant.
     private const string NoOpacityAttribute = "data-ui-color-no-opacity";
 
+    // The palette as a colour chart: a column per family around the hue wheel, the neutrals last, and a row per step the palette's
+    // names give — the deep one, Nebula, Lunar. In the enum's order, ten to a row, every family broke across two rows.
+    private static readonly ColorName[] FamilyChips =
+    [
+        ColorName.StellarRed, ColorName.SolarAmber, ColorName.EclipseOlive, ColorName.AuroraGreen, ColorName.AstralTeal, ColorName.QuantumBlue, ColorName.NovaPurple, ColorName.IronFog,
+        ColorName.NebulaRose, ColorName.NebulaLemon, ColorName.NebulaLime, ColorName.NebulaMint, ColorName.NebulaCyan, ColorName.NebulaAqua, ColorName.NebulaViolet, ColorName.SilverNight,
+        ColorName.LunarPink, ColorName.LunarYellow, ColorName.LunarSage, ColorName.LunarFern, ColorName.LunarMoss, ColorName.LunarAzure, ColorName.LunarLavender, ColorName.BronzeDusk
+    ];
+
+    // Under the chart, the bright ones that belong to no step, in hue order.
+    private static readonly ColorName[] BrightChips =
+    [
+        ColorName.Flare, ColorName.Ember, ColorName.SolarGold, ColorName.Photon, ColorName.Comet, ColorName.Halo, ColorName.Vortex, ColorName.PulsarMagenta
+    ];
+
     // One operation per toggle: an operation's selector lands on the first part it matches.
     private static readonly WebDomOperation[] ReadOnlyOperations =
     [
@@ -227,7 +242,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         });
     }
 
-    /// <summary>The palette: every named colour, a signed shade-to-tint slider, and one for opacity.</summary>
+    /// <summary>The palette: every named colour as a chart of families and steps, a signed shade-to-tint slider, and one for opacity.</summary>
     private static void RenderPalettePane(WebRenderContext context, IHtmlElementBuilder popup)
     {
         _ = popup.Element("div", pane =>
@@ -235,12 +250,12 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
             _ = pane.Class("ui-color-input__pane");
             _ = pane.Attribute(WebAttributes.ColorPane, PalettePane);
 
-            _ = pane.Element("div", grid =>
+            _ = pane.Element("div", palette =>
             {
-                _ = grid.Class("ui-color-input__grid");
+                _ = palette.Class("ui-color-input__palette");
 
-                foreach (ColorName name in Enum.GetValues<ColorName>())
-                    RenderChip(context, grid, name);
+                RenderChips(context, palette, FamilyChips);
+                RenderChips(context, palette, BrightChips);
             });
 
             RenderSlider(context, pane, UIStrings.ColorFactor, WebAttributes.ColorFactor, -ColorVariant.MaxFactor, ColorVariant.MaxFactor, 0);
@@ -248,6 +263,15 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
             RenderOpacitySlider(context, pane);
         });
     }
+
+    private static void RenderChips(WebRenderContext context, IHtmlElementBuilder palette, ColorName[] names)
+        => palette.Element("div", grid =>
+        {
+            _ = grid.Class("ui-color-input__grid");
+
+            foreach (ColorName name in names)
+                RenderChip(context, grid, name);
+        });
 
     private static void RenderChip(WebRenderContext context, IHtmlElementBuilder grid, ColorName name)
     {

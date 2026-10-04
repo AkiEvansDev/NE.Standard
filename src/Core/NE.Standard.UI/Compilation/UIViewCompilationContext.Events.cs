@@ -7,6 +7,7 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Controllers;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Compilation;
@@ -16,6 +17,8 @@ internal sealed partial class UIViewCompilationContext
     private CompiledUIEvent[] BuildEvents(Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
         List<CompiledUIEvent> events = [];
+
+        EnsureDropKindsAreOffered();
 
         for (var i = 0; i < _componentOrder.Count; i++)
         {
@@ -40,6 +43,51 @@ internal sealed partial class UIViewCompilationContext
         AddShortcutEvents(events, templatesByKey, componentContexts, rootPath);
 
         return [.. events];
+    }
+
+    /// <summary>
+    /// Refuses a component taking a kind of item no component of the view offers (<c>OnDrop</c> without a <c>DragKind</c>), which no
+    /// drag could ever reach — a drag never crosses views, and a source letting no effect through offers nothing — and a kind that is
+    /// not lower-case letters, digits and hyphens.
+    /// </summary>
+    private void EnsureDropKindsAreOffered()
+    {
+        HashSet<string> offered = new(StringComparer.Ordinal);
+
+        for (var i = 0; i < _componentOrder.Count; i++)
+        {
+            if (_componentOrder[i] is IDragSourceComponent { DragKind: string kind, DragEffects: not UIDragEffects.None })
+                _ = offered.Add(EnsureDragKind(_componentOrder[i], kind));
+        }
+
+        for (var i = 0; i < _componentOrder.Count; i++)
+        {
+            IVisualComponent component = _componentOrder[i];
+
+            for (var j = 0; j < component.Events.Count; j++)
+            {
+                var name = component.Events[j].Name;
+
+                if (!name.StartsWith(EventNames.DropPrefix, StringComparison.Ordinal))
+                    continue;
+
+                var kind = EnsureDragKind(component, name[EventNames.DropPrefix.Length..]);
+
+                if (!offered.Contains(kind))
+                    throw new InvalidOperationException($"Component '{component.Id}' takes '{kind}' dropped on it (OnDrop), but no component of the view offers that kind; give the list the items come from SetDragKind(\"{kind}\").");
+            }
+        }
+    }
+
+    private static string EnsureDragKind(IVisualComponent component, string kind)
+    {
+        foreach (var letter in kind)
+        {
+            if (letter is not ((>= 'a' and <= 'z') or (>= '0' and <= '9') or '-'))
+                throw new InvalidOperationException($"Component '{component.Id}' names the drag kind '{kind}'; a kind is lower-case letters, digits and hyphens.");
+        }
+
+        return kind.Length > 0 ? kind : throw new InvalidOperationException($"Component '{component.Id}' names an empty drag kind.");
     }
 
     private static void EnsureServerEventAllowed(string eventName)

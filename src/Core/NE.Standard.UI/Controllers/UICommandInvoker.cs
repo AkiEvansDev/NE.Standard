@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Commands;
@@ -220,6 +222,19 @@ internal sealed class UICommandInvoker
 
         if (targetType.IsAssignableFrom(valueType))
             return value;
+
+        // A drop travels as one text among the event's keys, which carry nothing but text and numbers.
+        if (targetType == typeof(UIDrop) && value is string drop)
+        {
+            try
+            {
+                return UIDrop.Read(drop);
+            }
+            catch (Exception exception) when (exception is FormatException or JsonException)
+            {
+                throw new InvalidOperationException($"Command '{commandName}' argument '{parameterName}' is no drop.", exception);
+            }
+        }
 
         Type conversionType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 

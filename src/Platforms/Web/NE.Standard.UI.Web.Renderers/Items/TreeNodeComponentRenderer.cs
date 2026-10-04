@@ -4,6 +4,7 @@ using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Items;
@@ -23,7 +24,7 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
 
     public override string ComponentTypeKey => TreeNodeComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-tree-node";
+    protected override string ClassName => WebClassNames.TreeNode;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

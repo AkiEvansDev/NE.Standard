@@ -97,7 +97,7 @@ public sealed record UIColorPalette
     /// <summary>
     /// The warning status color.
     /// </summary>
-    public ColorVariant Warning { get; init; } = new(ColorName.NebulaGold);
+    public ColorVariant Warning { get; init; } = new(ColorName.SolarGold);
 
     /// <summary>
     /// The success status color.
@@ -148,7 +148,7 @@ public sealed record UIColorPalette
     /// <summary>
     /// <see cref="Warning"/> as ink — see <see cref="PrimaryInk"/>.
     /// </summary>
-    public ColorVariant WarningInk { get; init; } = new(ColorName.NebulaGold);
+    public ColorVariant WarningInk { get; init; } = new(ColorName.SolarGold);
 
     /// <summary>
     /// <see cref="Success"/> as ink — see <see cref="PrimaryInk"/>.
@@ -269,7 +269,7 @@ public sealed record UIColorPalette
         // The page's ground and its text are the palette's one light and one dark, whichever theme it is.
         ColorVariant end = UIColorContrast.Ratio(Background, ground) >= UIColorContrast.Ratio(OnBackground, ground) ? Background : OnBackground;
 
-        return FirstReadable(end, UIColorContrast.IsLight(end) ? ColorAdjustment.Tint : ColorAdjustment.Shade, ground);
+        return FirstReadable(end, end.IsLight() ? ColorAdjustment.Tint : ColorAdjustment.Shade, ground);
     }
 
     /// <summary>
@@ -299,7 +299,7 @@ public sealed record UIColorPalette
     /// <summary>The default hues, each moved toward the page's text by the fewest tenths that read 3:1 on both grounds.</summary>
     private static ColorVariant[] DefaultSeriesOn(ColorVariant background, ColorVariant surface)
     {
-        ColorAdjustment toText = UIColorContrast.IsLight(background) ? ColorAdjustment.Shade : ColorAdjustment.Tint;
+        ColorAdjustment toText = background.IsLight() ? ColorAdjustment.Shade : ColorAdjustment.Tint;
         ColorVariant[] series = new ColorVariant[DefaultSeries.Length];
 
         for (var i = 0; i < series.Length; i++)
@@ -348,7 +348,7 @@ public sealed record UIColorPalette
 
     /// <summary>The colour as words on the page: moved toward the page's text a tenth at a time until it reads there.</summary>
     private ColorVariant InkOnPage(ColorVariant color)
-        => FirstReadable(color, UIColorContrast.IsLight(Background) ? ColorAdjustment.Shade : ColorAdjustment.Tint, Background);
+        => FirstReadable(color, Background.IsLight() ? ColorAdjustment.Shade : ColorAdjustment.Tint, Background);
 
     /// <summary>A colour with an adjustment of its own: by name where it is a plain named one, else from what it draws.</summary>
     private static ColorVariant Adjusted(ColorVariant color, ColorAdjustment adjustment, int factor, byte opacity)

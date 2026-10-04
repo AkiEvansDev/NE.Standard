@@ -65,6 +65,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         RenderFlagAttribute(context, root, TreeComponent.RenamableProperty, WebAttributes.TreeRenamable);
         RenderFlagAttribute(context, root, TreeComponent.RenameOnDoubleClickProperty, WebAttributes.TreeRenameOnDoubleClick);
         RenderFlagAttribute(context, root, TreeComponent.DraggableProperty, WebAttributes.TreeDraggable);
+        RenderDragSource(context, root);
         RenderFlagAttribute(context, root, TreeComponent.RemovableProperty, WebAttributes.TreeUnremovable, WebValueCondition.IsFalse);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-tree--row-hover");
         RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-tree--no-empty", WebValueCondition.IsFalse);

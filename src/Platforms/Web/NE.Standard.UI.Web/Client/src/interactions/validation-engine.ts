@@ -3,7 +3,7 @@
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
 import { cssAttributeValue, DraftAttribute, FormIdAttribute, InvalidClass as ErrorClass, ListTriggerClass, PopupRoleSelector, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute, TooltipSeverityAttribute, ValidationMessageAttribute as MessageAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
-import type { DomRegistry } from "../addressing/dom-registry.ts";
+import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { getIdValue, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
@@ -190,13 +190,9 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
             return;
 
         const { componentId, element } = resolved;
-        const judged = this.failingRulesByElement.delete(element);
-        const refused = this.refusalByElement.delete(element);
-        const bounded = this.boundRefusalByElement.has(element);
+        const said = this.forgetJudgement(element);
         const rules = this.options.metadata.getValidationsForComponent(componentId);
         const value = text ?? (holdsOwnValue(field) ? this.options.valueReaders.readBound(field) : this.options.valueReaders.readHeld(element));
-
-        this.forgetBoundRefusal(element);
 
         // An empty value is judged too, as `judge` judges a grid's cell: it is what the row holds, and `Required` says it may not be.
         if (rules.length > 0) {
@@ -205,8 +201,19 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
             return;
         }
 
-        if (judged || refused || bounded)
+        if (said)
             this.applyCurrentState(componentId, element);
+    }
+
+    /** Forgets what the rules, the bounds and the runtime said of a field; answers whether any of them had said anything. */
+    private forgetJudgement(element: Element): boolean {
+        const judged = this.failingRulesByElement.delete(element);
+        const refused = this.refusalByElement.delete(element);
+        const bounded = this.boundRefusalByElement.has(element);
+
+        this.forgetBoundRefusal(element);
+
+        return judged || refused || bounded;
     }
 
     private applyRenderedMessages(elements: Iterable<HTMLElement>): void {
@@ -584,21 +591,15 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
     /** Evaluates every rule in a form up front, so submit reports all failures rather than the first; only an error stops it. */
     public runSubmitValidation(formId: string): boolean {
-        const elements = this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`);
         let allValid = true;
 
-        for (const element of elements) {
-            const resolved = this.options.dom.resolveNearestComponent(element, () => true);
-
-            if (resolved === null)
-                continue;
-
+        for (const { field, component: resolved } of this.formFields(formId)) {
             const rules = this.options.metadata.getValidationsForComponent(resolved.componentId)
                 .filter(rule => getValidationTrigger(rule.trigger) === "Submit");
 
             if (rules.length > 0) {
                 this.touchedElements.add(resolved.element);
-                this.evaluateAndApply(resolved.componentId, resolved.element, rules, this.options.valueReaders.readBound(element));
+                this.evaluateAndApply(resolved.componentId, resolved.element, rules, this.options.valueReaders.readBound(field));
             }
 
             if (this.hasError(resolved.componentId, resolved.element)) {
@@ -615,15 +616,35 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         return allValid;
     }
 
+    /** A form's fields, each with the component it stands in. */
+    private *formFields(formId: string): Generator<{ readonly field: Element; readonly component: ComponentResolveResult }> {
+        for (const field of this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`)) {
+            const component = this.options.dom.resolveNearestComponent(field, () => true);
+
+            if (component !== null)
+                yield { field, component };
+        }
+    }
+
+    /**
+     * Forgets what was said of a discarded form's fields — the rules', the bounds' and the runtime's words, and that they were visited —
+     * so the form stands as untouched; the controller's bound message and a package's mark are their authors' to take off.
+     */
+    public discardForm(formId: string): void {
+        for (const { component: { componentId, element } } of this.formFields(formId)) {
+            this.forgetJudgement(element);
+            this.touchedElements.delete(element);
+            this.applyCurrentState(componentId, element);
+        }
+    }
+
     /**
      * Takes the reader to the first field of a form still showing an error after a submit failed — refused by its own rules or by the
      * server's answer — focused and brought into view; answers whether there was one. Never on a message alone: only a submit asks.
      */
     public focusFirstInvalid(formId: string): boolean {
-        for (const element of this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`)) {
-            const resolved = this.options.dom.resolveNearestComponent(element, () => true);
-
-            if (resolved === null || !resolved.element.classList.contains(ErrorClass))
+        for (const { component: resolved } of this.formFields(formId)) {
+            if (!resolved.element.classList.contains(ErrorClass))
                 continue;
 
             // The field's own control the reader types into, not a hidden value input or a popup's.

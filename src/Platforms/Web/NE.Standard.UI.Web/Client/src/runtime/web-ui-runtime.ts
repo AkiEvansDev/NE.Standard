@@ -25,6 +25,7 @@ import { commitWaiting, DebouncedCommitEngine, hasWaitingCommits } from "../inte
 import { sizesFieldsToContent, TextAreaGrowEngine } from "../interactions/text-area-grow-engine";
 import { RangeValueEngine } from "../interactions/range-value-engine";
 import { NumberInputEngine } from "../interactions/number-input-engine";
+import { DropEventPrefix, ItemDragEngine, itemDropEvent } from "../interactions/item-drag-engine";
 import { ItemsReorderEngine, itemMoveEvent } from "../interactions/items-reorder-engine";
 import { TemporalPickerEngine } from "../interactions/temporal-picker-engine";
 import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
@@ -481,6 +482,9 @@ export class WebUIRuntime {
 
             for (const element of valueBinding?.releaseForm(formId) ?? [])
                 propertyPatchEngine.restoreBoundValue(element, context.dom.resolveNearestComponent(element, () => true)?.dynamicParameters ?? []);
+
+            // After the values: a restore judges a field again, and what was said of the discarded attempt goes with it, changed or not.
+            validationEngine.discardForm(formId);
         });
 
         // Asked behind every value given before the leave, so the controller answers on what the reader typed last.
@@ -571,6 +575,13 @@ export class WebUIRuntime {
         // A row's move carries the index it takes after its keys, the row standing there until the answer; a tree's carries none.
         const itemMove = itemMoveEvent(this.updateProcessor.moves);
         this.eventPipeline.addEvent(itemMove.name, itemMove.registration);
+        // Items of a kind dropped or pasted on a component taking it carry the drop after its keys; rows moved ahead wait for the answer.
+        const itemDrop = itemDropEvent(this.updateProcessor.transfers);
+
+        for (const eventName of this.metadata.getEventNames()) {
+            if (eventName.startsWith(DropEventPrefix))
+                this.eventPipeline.addEvent(eventName, itemDrop);
+        }
         // A field's Enter waits for the value it committed, so the command reads what was typed.
         this.eventPipeline.addEvent(FieldEnterEvent.name, FieldEnterEvent.registration);
 
@@ -579,6 +590,16 @@ export class WebUIRuntime {
             root,
             viewShortcuts: viewShortcutsOf(this.metadata.metadata),
             componentOf: componentId => dom.findComponent(componentId, [])
+        }), this.engineContext);
+        // After the chords, so a view's own Ctrl+C or Ctrl+V is heard first; a drag between hosts lands where the view takes its kind.
+        startEngine("item drag", ({ root, dom }) => new ItemDragEngine({
+            root,
+            targetOf: (element, kind) => {
+                const target = dom.resolveNearestComponent(element, componentId => this.metadata.hasServerEventForComponent(DropEventPrefix + kind, componentId))?.element ?? null;
+
+                return target instanceof HTMLElement ? target : null;
+            },
+            keysOf: host => this.virtualization.keysOf(host)
         }), this.engineContext);
 
         // Held by name, since a package's chooser reaches it through the engine context.

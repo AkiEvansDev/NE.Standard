@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Reflection;
-using NE.Colors;
 
 namespace DemoApp;
 
@@ -77,12 +76,6 @@ public static class DemoIcons
     public const string Admin = MaterialIcons.AdminPanelSettings;
     public const string Mechanism = MaterialIcons.Science;
     public const string MoreVertical = MaterialIcons.MoreVert;
-
-    /// <summary>
-    /// The warm light yellow of a folder in a file list (near <c>#FFDD96</c>): the palette's Photon, a light tint on the dark page and
-    /// a shade on the light one, since the light yellow itself reads 1.2:1 there and an outlined mark in it vanishes.
-    /// </summary>
-    public static readonly UIThemeColor Warm = UIThemeColor.Create(new ColorVariant(ColorName.Photon, ColorAdjustment.Shade, 4), new ColorVariant(ColorName.Photon, ColorAdjustment.Tint, 2));
 
     /// <summary>
     /// The outlined drawing of a glyph, which is what a control wears; the filled one is for content.

@@ -276,8 +276,143 @@ internal sealed partial class DeployQueueGroupContext : DemoGroupContext
 }
 
 /// <summary>
+/// A board of three lists whose cards move between them: each list offers its cards as one kind and takes that kind back, so a card
+/// dragged (or cut and pasted) from one list into another moves there, and the notes beside them take a copy of a card's title.
+/// </summary>
+/// <remarks>The page moves a card between two lists at once; the controller's moves are the answer it keeps, or goes back from.</remarks>
+internal sealed partial class BoardGroupContext : DemoGroupContext
+{
+    /// <summary>The kind every list offers its cards as and takes back, and the notes take a copy of.</summary>
+    public const string CardKind = "card";
+    public const string Todo = "board-todo";
+    public const string Doing = "board-doing";
+    public const string Done = "board-done";
+    public const string TodoTitle = "To do";
+    public const string DoingTitle = "In progress";
+    public const string DoneTitle = "Done";
+
+    private int _copies;
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> TodoCards { get; } =
+    [
+        new() { Id = "rotate-keys", IsContent = true, Title = "Rotate the API keys", Description = "Before the audit" },
+        new() { Id = "status-copy", IsContent = true, Title = "Rewrite the status page copy", Description = "Shorter, plainer" },
+        new() { Id = "alert-noise", IsContent = true, Title = "Quiet the disk alerts", Description = "Three a night, none real" }
+    ];
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> DoingCards { get; } =
+    [
+        new() { Id = "dns-audit", IsContent = true, Title = "Audit the DNS zone", Description = "Half the records checked" }
+    ];
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> DoneCards { get; } =
+    [
+        new() { Id = "backup-test", IsContent = true, Title = "Restore last night's backup", Description = "It worked" }
+    ];
+
+    [RecursiveMember]
+    public partial string? Notes { get; set; }
+
+    /// <summary>Moves a card within its own list, as a drag between two of its rows asked.</summary>
+    public void Move(string list, string id, int index)
+    {
+        if (CardsOf(list) is not RecursiveCollection<TextItem> cards)
+            return;
+
+        var from = IndexOf(cards, id);
+
+        if (from < 0)
+            return;
+
+        cards.Move(from, index);
+        LogEvent($"{id} -> place {index + 1} in {TitleOf(list)}");
+    }
+
+    /// <summary>The cards of the list a key names; null for any other, whose drop then moves nothing.</summary>
+    private RecursiveCollection<TextItem>? CardsOf(string? list)
+        => list switch
+        {
+            Todo => TodoCards,
+            Doing => DoingCards,
+            Done => DoneCards,
+            _ => null
+        };
+
+    private static int IndexOf(RecursiveCollection<TextItem> cards, string id)
+    {
+        for (var i = 0; i < cards.Count; i++)
+        {
+            if (cards[i].Id == id)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static string TitleOf(string list)
+        => list switch
+        {
+            Todo => TodoTitle,
+            Doing => DoingTitle,
+            _ => DoneTitle
+        };
+
+    /// <summary>Takes the cards a drop carried into the list, from the index it asked for: moved out of their list, or copied.</summary>
+    public void Drop(UIDrop drop, string list)
+    {
+        if (CardsOf(list) is not RecursiveCollection<TextItem> target || CardsOf(drop.Source) is not RecursiveCollection<TextItem> source)
+            return;
+
+        var at = Math.Clamp(drop.Index ?? target.Count, 0, target.Count);
+
+        foreach (var key in drop.Keys)
+        {
+            var from = IndexOf(source, key);
+
+            // The page's word is checked against the board: a key no longer in its list moves nothing.
+            if (from < 0)
+                continue;
+
+            TextItem card = source[from];
+
+            if (drop.Effect == UIDropEffect.Move)
+            {
+                source.RemoveAt(from);
+                target.Insert(at++, card);
+            }
+            else
+            {
+                target.Insert(at++, new TextItem { Id = string.Create(CultureInfo.InvariantCulture, $"{card.Id}-copy-{++_copies}"), IsContent = true, Title = card.Title, Description = card.Description });
+            }
+        }
+
+        LogEvent($"{string.Join(", ", drop.Keys)} {(drop.Effect == UIDropEffect.Move ? "moved" : "copied")} to {TitleOf(list)}");
+    }
+
+    /// <summary>Writes the cards a drop carried into the notes, a line each: the notes take a copy and the cards stay where they are.</summary>
+    public void Note(UIDrop drop)
+    {
+        if (CardsOf(drop.Source) is not RecursiveCollection<TextItem> source)
+            return;
+
+        foreach (var key in drop.Keys)
+        {
+            var from = IndexOf(source, key);
+
+            if (from >= 0)
+                Notes = string.IsNullOrEmpty(Notes) ? $"• {source[from].Title}" : $"{Notes}\n• {source[from].Title}";
+        }
+
+        LogEvent($"{string.Join(", ", drop.Keys)} noted");
+    }
+}
+
+/// <summary>
 /// One list and every property that can be bound to the host around it, and the examples with state: rows put in order, a queue
-/// whose order the controller keeps, and rows whose menus are their own.
+/// whose order the controller keeps, a board whose lists trade cards, and rows whose menus are their own.
 /// </summary>
 internal sealed partial class ItemsViewController() : DemoStandardController
 {
@@ -292,6 +427,9 @@ internal sealed partial class ItemsViewController() : DemoStandardController
 
     [RecursiveMember]
     public partial DeployQueueGroupContext QueueGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial BoardGroupContext BoardGroup { get; set; } = new();
 
     [UICommand]
     public void CycleItemsGroupOption(string id)
@@ -321,6 +459,18 @@ internal sealed partial class ItemsViewController() : DemoStandardController
     [UICommand]
     public void MoveDeploy(string id, int index)
         => QueueGroup.Move(id, index);
+
+    [UICommand]
+    public void MoveCard(string list, string id, int index)
+        => BoardGroup.Move(list, id, index);
+
+    [UICommand]
+    public void DropCards(UIDrop drop, string list)
+        => BoardGroup.Drop(drop, list);
+
+    [UICommand]
+    public void NoteCards(UIDrop drop)
+        => BoardGroup.Note(drop);
 
     [UICommand]
     public void PostNote()

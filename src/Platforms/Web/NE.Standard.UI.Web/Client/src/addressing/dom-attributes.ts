@@ -15,6 +15,14 @@ export const NoRowOpenAttribute = "data-ui-no-row-open";
 export const NoRowDragAttribute = "data-ui-no-row-drag";
 /** On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt+Up and Alt+Down. */
 export const RowsDraggableAttribute = "data-ui-rows-draggable";
+/** On a drag source's root (`DragKind`): the kind its rows are offered as, dragged or cut out of it (`WebAttributes.DragKind`). */
+export const DragKindAttribute = "data-ui-drag-kind";
+/** On a drag source's root: what a drop may do with its rows, `move`, `copy` or both, space-separated. */
+export const DragEffectsAttribute = "data-ui-drag-effects";
+/** On a drag source's root: the id the view gave it, which a drop names as its source. */
+export const DragSourceAttribute = "data-ui-drag-source";
+/** On a component a dragged or pasted item of a kind it takes would land on (not a list, whose rows mark the place); the stylesheet reads it. */
+export const ItemDropOverAttribute = "data-ui-item-drop-over";
 /** On an items view's or a table's root: a row is dragged only by the grip at its end (`DragHandle`). */
 export const RowsDragHandleAttribute = "data-ui-rows-drag-handle";
 /** On an items view's or a table's root: its rows' grip stands at their start (`UIDragHandlePlacement.Start`). */
@@ -86,6 +94,13 @@ export const ImageCaptionAttribute = "data-ui-image-caption";
 export const ImageCropAttribute = "data-ui-image-crop";
 /** Beside it: the side, in pixels, the cropped picture is written at. */
 export const ImageCropSizeAttribute = "data-ui-image-crop-size";
+/** A picture (`WebClassNames.Image`), and one drawn round, which shows a person's stand-in when it fails. */
+export const ImageClass = "ui-image";
+export const ImageCircleClass = "ui-image--circle";
+/** On a picture: the author's stand-in, shown when its own source is missing or fails (`WebAttributes.FallbackSrc`). */
+export const FallbackSrcAttribute = "data-ui-fallback-src";
+/** Client-only: on a picture showing the framework's own stand-in; the stylesheet lays it on the wash (ui-image.less). */
+export const ImageFailedAttribute = "data-ui-image-failed";
 /** On a surface whose background picture is blurred: it draws the blur's layer and isolates its stacking (mixins/surface-image.less). */
 export const SurfaceImageBlurAttribute = "data-ui-surface-image-blur";
 /** A split button's mode: "split" (the end part opens the menu) or "menu" (the whole button does). */
@@ -235,6 +250,11 @@ export const TableResizerClass = "ui-table__resizer";
 /** A tree's root and its row, and a row its rules leave out. */
 export const TreeRootClass = "ui-tree";
 export const TreeRowClass = "ui-tree__row";
+/** A tree node's face inside its row. */
+export const TreeNodeClass = "ui-tree-node";
+/** Client-only: on the place a drag would drop at in a tree — empty on a folder it goes into or on the tree's ground, `before` or
+ * `after` on the row the line stands beside. */
+export const TreeDropMarkAttribute = "data-ui-tree-drop";
 export const TreeRowFilteredClass = "ui-tree__row--filtered";
 /** Client-only: on a table's root, the index of the row's last column, the one with no edge of its own to drag. */
 export const TableLastAttribute = "data-ui-table-last";

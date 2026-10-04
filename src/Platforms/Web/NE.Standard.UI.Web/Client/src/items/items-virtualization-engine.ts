@@ -67,19 +67,36 @@ type VirtualHostState = {
     // Every height measured so far: an estimate from the rows in view alone swings, and every unmeasured row above with it.
     itemHeights: RunningMean;
     headerHeights: RunningMean;
-    // The last pass's rows and pitches, so a scroll pass can hold the row at the viewport's top where it was.
+    // The last pass's rows and the pitches of its lines — a row each down a column, several tiles each in a wrapping host — and how
+    // many tiles a line held, so a scroll pass can hold the line at the viewport's top where it was.
     laidOut: readonly ProjectedRow[] | null;
     pitches: readonly number[];
+    laidAcross: number;
+    firstLine: number;
+    lastLine: number;
+    // How many tiles a wrapping host's line holds, and the widest tile the last pass drew, which says it: a tile sized as a share of
+    // the host narrows with it, so an older, wider one would count too few.
+    across: number;
+    tileWidth: number | null;
     scheduled: number;
     // The first laid-out row, so a pass that changed nothing about the range can leave the document alone.
     first: number;
     last: number;
 };
 
+/** A wrapping host's rows by the lines they stand on: the row each line starts at, and the line's pitch. */
+type WrapLines = {
+    readonly starts: readonly number[];
+    readonly pitches: readonly number[];
+};
+
 export class ItemsVirtualizationEngine {
     private readonly options: ItemsVirtualizationEngineOptions;
     private readonly root: ParentNode;
     private readonly states = new WeakMap<Element, VirtualHostState>();
+
+    // A host that changed size without a scroll — a flyout opened over it, a window widened past another tile a line — shows other rows.
+    private readonly resizes = typeof ResizeObserver === "function" ? new ResizeObserver(entries => this.handleResize(entries)) : null;
 
     public constructor(options: ItemsVirtualizationEngineOptions) {
         this.options = options;
@@ -339,9 +356,23 @@ export class ItemsVirtualizationEngine {
     private handleScroll(domEvent: Event): void {
         const host = hostOfScrollTarget(domEvent.target);
 
-        if (host === null || resolveHostMode(host) !== "virtualized")
-            return;
+        if (host !== null && resolveHostMode(host) === "virtualized")
+            this.relayout(host);
+    }
 
+    private handleResize(entries: readonly ResizeObserverEntry[]): void {
+        for (const entry of entries) {
+            const host = entry.target;
+
+            // The next frame, not here: rows drawn inside the observer's callback grow a host it watches, which the browser reports as a loop.
+            if (host.isConnected && resolveHostMode(host) === "virtualized")
+                window.requestAnimationFrame(() => this.relayout(host));
+            else
+                this.resizes?.unobserve(host);
+        }
+    }
+
+    private relayout(host: Element): void {
         const state = this.getState(host);
 
         if (state === null || state.scheduled !== 0)
@@ -358,42 +389,53 @@ export class ItemsVirtualizationEngine {
 
     private layout(host: Element, state: VirtualHostState): void {
         const rows = state.projected;
-        const gap = readGap(host);
+        const style = getComputedStyle(host);
+        const gap = readGap(style);
         const pitches = rows.map(row => this.pitchOf(state, row) + gap);
         const total = rows.length;
+        const across = state.across;
+        const lines = isWrap(host) ? wrapLines(rows, pitches, across) : null;
+        const linePitches = lines?.pitches ?? pitches;
+        const count = linePitches.length;
 
-        let first = 0;
-        let last = total;
+        let firstLine = 0;
+        let lastLine = count;
 
-        // A horizontal or wrapping host is not laid out in a column, so every row is drawn; the values still drive it.
-        if (isColumn(host) && total > 0) {
+        // A horizontal host is not laid out down the page, so every row is drawn; the values still drive it.
+        if ((lines !== null || isColumn(host)) && count > 0) {
+            // In the rows' own coordinates: the view's Padding stands above the first of them inside the scroll.
+            const inset = readPixels(style.paddingTop);
             const scroll = readHostScroll(host);
-            const top = holdTopRow(host, state, rows, pitches, scroll.top);
+            const top = holdTopLine(host, state, rows, linePitches, across, scroll.top - inset, inset);
             const bottom = top + scroll.height;
             let offset = 0;
 
-            first = total;
+            firstLine = count;
 
-            for (let i = 0; i < total; i++) {
-                const next = offset + pitches[i];
+            for (let i = 0; i < count; i++) {
+                const next = offset + linePitches[i];
 
-                if (first === total && next > top)
-                    first = i;
+                if (firstLine === count && next > top)
+                    firstLine = i;
 
                 if (offset >= bottom) {
-                    last = i;
+                    lastLine = i;
                     break;
                 }
 
                 offset = next;
             }
 
-            if (first === total)
-                first = Math.max(0, total - 1);
+            if (firstLine === count)
+                firstLine = Math.max(0, count - 1);
 
-            first = Math.max(0, first - Overscan);
-            last = Math.min(total, last + Overscan);
+            firstLine = Math.max(0, firstLine - Overscan);
+            lastLine = Math.min(count, lastLine + Overscan);
         }
+
+        const first = lines === null ? firstLine : lines.starts[firstLine] ?? total;
+        // The lines' range in rows: from the first line's first row to the row the line past the last starts at.
+        const last = lines === null ? lastLine : lastLine < count ? lines.starts[lastLine] : total;
 
         const ancestors = this.options.renderer.getAncestorStack(host);
         const drawn: Element[] = [];
@@ -469,8 +511,8 @@ export class ItemsVirtualizationEngine {
                 slot.element = null;
         }
 
-        const before = sum(pitches, 0, first);
-        const after = sum(pitches, last, total);
+        const before = sum(linePitches, 0, firstLine);
+        const after = sum(linePitches, lastLine, count);
 
         // The rows first, the spacers to their ends after: each spacer puts itself back at its own end of the host.
         placeInOrder(host, [...drawn, ...toNodes(findEmptyPlaceholder(host))]);
@@ -486,10 +528,21 @@ export class ItemsVirtualizationEngine {
         }
 
         state.laidOut = rows;
-        state.pitches = pitches;
+        state.pitches = linePitches;
+        state.laidAcross = across;
+        state.firstLine = firstLine;
+        state.lastLine = lastLine;
 
         // Measured after every write of the pass, so the pass forces one layout, not one per row.
         this.measure(state, rows, first, last);
+
+        // A line holds as many tiles as fit it, known once one is drawn: a pass that learned another count lays the lines out again.
+        if (lines !== null) {
+            state.across = tilesAcross(host, style, state.tileWidth) ?? state.across;
+
+            if (state.across !== across)
+                this.layout(host, state);
+        }
     }
 
     private renderRow(state: VirtualHostState, entry: VirtualEntry, ancestors: readonly ItemStackEntry[]): Element | null {
@@ -511,6 +564,8 @@ export class ItemsVirtualizationEngine {
     }
 
     private measure(state: VirtualHostState, rows: readonly ProjectedRow[], first: number, last: number): void {
+        let widest = 0;
+
         for (let i = first; i < last && i < rows.length; i++) {
             const row = rows[i];
             const slot = row.header ? state.headers.get(groupOf(row.entry)) : row.entry;
@@ -519,14 +574,20 @@ export class ItemsVirtualizationEngine {
             if (slot === undefined || slot === null || element === null || element === undefined)
                 continue;
 
-            const height = element.getBoundingClientRect().height;
+            const box = cellBox(element);
 
-            if (height <= 0)
+            if (box.height <= 0)
                 continue;
 
-            addHeight(row.header ? state.headerHeights : state.itemHeights, slot.height, height);
-            slot.height = height;
+            addHeight(row.header ? state.headerHeights : state.itemHeights, slot.height, box.height);
+            slot.height = box.height;
+
+            if (!row.header)
+                widest = Math.max(widest, box.width);
         }
+
+        if (widest > 0)
+            state.tileWidth = widest;
 
         if (state.itemHeights.count > 0)
             state.itemEstimate = state.itemHeights.sum / state.itemHeights.count;
@@ -592,12 +653,18 @@ export class ItemsVirtualizationEngine {
             headerHeights: { sum: 0, count: 0 },
             laidOut: null,
             pitches: [],
+            laidAcross: 1,
+            firstLine: -1,
+            lastLine: -1,
+            across: 1,
+            tileWidth: null,
             scheduled: 0,
             first: -1,
             last: -1
         };
 
         this.states.set(host, state);
+        this.resizes?.observe(host);
 
         return state;
     }
@@ -614,18 +681,21 @@ function addHeight(mean: RunningMean, previous: number | null, height: number): 
     }
 }
 
-/** Where the viewport's top goes for the row the reader saw there to stay put after a scroll pass re-measured the rows above. */
-function holdTopRow(host: Element, state: VirtualHostState, rows: readonly ProjectedRow[], pitches: readonly number[], top: number): number {
-    // A pass after the rules ran has other rows, and is left where the reader is.
-    if (state.laidOut !== rows || state.pitches.length !== pitches.length || top <= 0)
+/**
+ * Where the viewport's top goes, in the rows' coordinates, for the line the reader saw there to stay put after a scroll pass re-measured
+ * the lines above; `inset` is the padding above the first row, which a scroll adds back.
+ */
+function holdTopLine(host: Element, state: VirtualHostState, rows: readonly ProjectedRow[], pitches: readonly number[], across: number, top: number, inset: number): number {
+    // A pass after the rules ran has other rows, and one with another count of tiles a line other lines: left where the reader is.
+    if (state.laidOut !== rows || state.laidAcross !== across || state.pitches.length !== pitches.length || top <= 0)
         return top;
 
     let shown = 0;
     let moved = 0;
 
     for (let i = 0; i < pitches.length; i++) {
-        // On the page now: the drawn rows at their own height, every other row as the spacer the last pass sized.
-        const pitch = i >= state.first && i < state.last ? pitches[i] : state.pitches[i];
+        // On the page now: the drawn lines at their own height, every other line as the spacer the last pass sized.
+        const pitch = i >= state.firstLine && i < state.lastLine ? pitches[i] : state.pitches[i];
 
         if (shown + pitch > top)
             break;
@@ -640,7 +710,7 @@ function holdTopRow(host: Element, state: VirtualHostState, rows: readonly Proje
     if (Math.abs(shift) < 0.5)
         return top;
 
-    scrollHostTo(host, top + shift);
+    scrollHostTo(host, top + shift + inset);
 
     return top + shift;
 }
@@ -672,10 +742,64 @@ function isColumn(host: Element): boolean {
     return view !== null && view.classList.contains("ui-items-view--stack") && view.classList.contains("ui-orientation--vertical");
 }
 
-function readGap(host: Element): number {
-    const gap = Number.parseFloat(getComputedStyle(host).rowGap);
+function isWrap(host: Element): boolean {
+    return host.parentElement?.classList.contains("ui-items-view--wrap") === true;
+}
 
-    return Number.isFinite(gap) ? gap : 0;
+/** Packs a wrapping host's rows into lines of `across` tiles: a group's header is a line of its own, and a group's last line may be short. */
+function wrapLines(rows: readonly ProjectedRow[], pitches: readonly number[], across: number): WrapLines {
+    const starts: number[] = [];
+    const linePitches: number[] = [];
+    let i = 0;
+
+    while (i < rows.length) {
+        starts.push(i);
+
+        if (rows[i].header) {
+            linePitches.push(pitches[i]);
+            i++;
+            continue;
+        }
+
+        let pitch = 0;
+
+        for (let n = 0; n < across && i < rows.length && !rows[i].header; n++, i++)
+            pitch = Math.max(pitch, pitches[i]);
+
+        linePitches.push(pitch);
+    }
+
+    return { starts, pitches: linePitches };
+}
+
+/** How many tiles of the measured width a wrapping host's line fits, gaps between; null before a tile was measured or while unlaid out. */
+function tilesAcross(host: Element, style: CSSStyleDeclaration, tileWidth: number | null): number | null {
+    const room = host.clientWidth - readPixels(style.paddingLeft) - readPixels(style.paddingRight);
+
+    if (tileWidth === null || tileWidth <= 0 || room <= 0)
+        return null;
+
+    const gap = readPixels(style.columnGap);
+
+    // Half a pixel of slack: a line the tiles fill exactly measures a fraction short of it.
+    return Math.max(1, Math.floor((room + gap + 0.5) / (tileWidth + gap)));
+}
+
+/** The box a row stands in; a wrapping host's row is `display: contents` and measures as nothing, so its template's root is measured. */
+function cellBox(element: Element): DOMRect {
+    const box = element.getBoundingClientRect();
+
+    return box.height > 0 || element.firstElementChild === null ? box : element.firstElementChild.getBoundingClientRect();
+}
+
+function readGap(style: CSSStyleDeclaration): number {
+    return readPixels(style.rowGap);
+}
+
+function readPixels(value: string): number {
+    const pixels = Number.parseFloat(value);
+
+    return Number.isFinite(pixels) ? pixels : 0;
 }
 
 function sum(values: readonly number[], from: number, to: number): number {

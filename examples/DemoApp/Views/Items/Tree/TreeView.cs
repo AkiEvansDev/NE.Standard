@@ -7,8 +7,8 @@ namespace DemoApp.Views.Items.Tree;
 
 /// <summary>
 /// One tree over a bound collection of nodes and every property that can be bound to it; then what a tree is used for: a bucket's
-/// objects with a menu per kind, notes opened on a press, a settings tree whose chosen node is the page's state, and folders filled
-/// in as they open.
+/// objects with a menu per kind, two buckets and a list trading files, notes opened on a press, a settings tree whose chosen node is
+/// the page's state, and folders filled in as they open.
 /// </summary>
 /// <remarks>
 /// The tree is capped at a height it does not fill, so <c>VerticalScroll</c> has something to do. A menu whose entries come with each
@@ -23,6 +23,7 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     private const string FilesFilterId = "tree-examples-filter";
     private const string FilesGroup = nameof(TreeController.FilesGroup);
     private const string LazyGroup = nameof(TreeController.LazyGroup);
+    private const string TransferGroup = nameof(TreeController.TransferGroup);
     private const string SettingsGroup = nameof(TreeController.SettingsGroup);
     private const string NotesGroup = nameof(TreeController.NotesGroup);
 
@@ -37,8 +38,6 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TreeComponent("bucket-objects")
             .BindItems($"{NodesGroup}.{nameof(TreeNodesGroupContext.Items)}")
-            // A folder's glyph in the warm yellow of a file list; a file keeps the primary ink.
-            .AddNodeKind(DemoStorageTree.FolderKind, node => node.SetIconColor(DemoIcons.Warm))
             .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
             .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
             .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
@@ -77,7 +76,7 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
 
     protected override IVisualComponent[] CreateExamples()
         // The bucket beside the two short trees stacked, as tall together; the notes across the page, beside their actions.
-        => [CreateFilesGroup(), DemoUI.CreateHalf(CreateSettingsGroup(), CreateLazyGroup()), CreateNotesGroup()];
+        => [CreateFilesGroup(), CreateTransferGroup(), DemoUI.CreateHalf(CreateSettingsGroup(), CreateLazyGroup()), CreateNotesGroup()];
 
     /// <summary>
     /// A folder and a file open different menus: the kind names the node template, and the template carries the menu. Enter
@@ -107,8 +106,9 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                     .SetRenamable(true)
                     .SetRenameOnDoubleClick(true)
                     .SetDraggable(true)
+                    // Offered to the attachments below as well, which take a copy of what is dropped on them.
+                    .SetDragKind(TreeFilesGroupContext.ObjectKind)
                     .AddNodeKind(DemoStorageTree.FolderKind, node => node
-                        .SetIconColor(DemoIcons.Warm)
                         // The menu's entry names the action; the node the menu was opened on is the entry's parent scope.
                         .SetContextMenu(new MenuComponent()
                             .SetItems(
@@ -134,11 +134,68 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                     .OnNodeRenameWithItemKey(nameof(TreeController.RenameNode))
                     .OnNodeMoveWithItemKey(nameof(TreeController.MoveNode))
                     .OnNodeRemoveWithItemKey(nameof(TreeController.DeleteNode))
+                )
+                .AddChild(new TextAreaComponent()
+                    .SetTitle("Attachments")
+                    .SetPlaceholder("Drag objects here to attach them")
+                    .BindValue($"{FilesGroup}.{nameof(TreeFilesGroupContext.Attachments)}")
+                    .OnDrop(TreeFilesGroupContext.ObjectKind, nameof(TreeController.AttachObjects))
+                    .SetMargin(UIThickness.All(0, 12, 0, 0))
                 ),
-            note: "Type in the box and only the matching objects stay, under the folders that hold them. Right-click or long-press a folder or an object for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. incident-report.md is pinned: it is neither dragged nor removed. Folders sort first and names alphabetically, whatever was dragged where.",
+            note: "Type in the box and only the matching objects stay, under the folders that hold them. Right-click or long-press a folder or an object for its menu; Enter opens; a double click or F2 renames; Delete removes; drag a node onto a folder to move it there (the folder opens under the drag), or onto the empty ground below to move it to the root. Shift and Ctrl choose several, and they drag and delete together. incident-report.md is pinned: it is neither dragged nor removed. Folders sort first and names alphabetically, whatever was dragged where. Drag objects onto the attachments below and their names are written there — a copy, the tree keeps them.",
             context: FilesGroup
         );
     }
+
+    /// <summary>
+    /// Two trees and a list offering their items as one kind: a node dragged from one tree into a folder of the other goes there with
+    /// everything under it; a file dragged into the list becomes a row of it, drawn by the list's own template; a row dragged back
+    /// into a folder is a file of that tree again. Where it lands and what it becomes is the controller's: the drop names the kind,
+    /// the source, the keys, the folder or the place, and whether it moves or copies.
+    /// </summary>
+    private static ContainerComponent CreateTransferGroup()
+    {
+        return DemoUI.CreateExample("Between trees and a list",
+            UILayout.Columns(24,
+                DemoUI.CreateLabelled("eu-west", CreateTransferTree(TreeTransferGroupContext.EuWest, nameof(TreeTransferGroupContext.EuWestNodes))),
+                DemoUI.CreateLabelled("us-east", CreateTransferTree(TreeTransferGroupContext.UsEast, nameof(TreeTransferGroupContext.UsEastNodes))),
+                DemoUI.CreateLabelled("To review", new ItemsViewComponent(TreeTransferGroupContext.Review)
+                    .BindItems(nameof(TreeTransferGroupContext.ReviewFiles), UIBindingScope.Relative)
+                    .SetDragKind(TreeTransferGroupContext.DragKind)
+                    .SetDraggable(true)
+                    .SetSelectionMode(UISelectionMode.Many)
+                    .OnItemMoveWithItemKey(nameof(TreeController.MoveReviewFile))
+                    .OnDrop(TreeTransferGroupContext.DragKind, nameof(TreeController.DropForReview))
+                    .SetSpacing(4)
+                    .SetMinHeight(UILayoutLength.Absolute(160))
+                    .SetTemplate(new TextComponent()
+                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .SetIconColor(UIThemeColor.Muted)
+                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .AsBody()
+                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+            ),
+            columns: 24,
+            note: "Drag a node from one bucket onto a folder of the other, or onto the ground below its nodes for the top: it goes there with everything under it. Drag a file into the list and it becomes a row of the list, saying where it came from; drag a row back onto a folder of either bucket and it is a file there again. A folder is not reviewed: the list refuses it. Hold Ctrl (⌥ on a Mac) as you let go to copy instead. Within one bucket a drag onto a folder moves the node there.",
+            context: TransferGroup
+        );
+    }
+
+    /// <summary>One bucket of the pair: it offers its nodes as files, takes them back from the other bucket and the list, and moves its own among its folders.</summary>
+    private static TreeComponent CreateTransferTree(string id, string items)
+        => new TreeComponent(id)
+            .BindItems(items, UIBindingScope.Relative)
+            .SortBy(nameof(TreeNode.Kind), UIItemsSortDirection.Descending)
+            .SortBy(nameof(TreeNode.Title), UIItemsSortDirection.Ascending, priority: 1)
+            .SetSelectionMode(UISelectionMode.Many)
+            .SetDraggable(true)
+            .SetDragKind(TreeTransferGroupContext.DragKind)
+            .OnNodeMove(nameof(TreeController.MoveTransferNode), UIAction.Arg("tree", id), UIAction.ArgCurrentItemKey("id"), UIAction.ArgEventValue("index"))
+            .OnDrop(TreeTransferGroupContext.DragKind, nameof(TreeController.DropIntoTree), UIAction.Arg("tree", id))
+            .SetMinHeight(UILayoutLength.Absolute(160));
 
     /// <summary>
     /// A press on a note runs a command, which opens the note beside the tree and answers with an effect; the selection follows the
@@ -153,7 +210,6 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                     .BindItems($"{NotesGroup}.{nameof(TreeNotesGroupContext.Items)}")
                     .SetSelectionMode(UISelectionMode.One)
                     .BindSelectedKey($"{NotesGroup}.{nameof(TreeNotesGroupContext.SelectedKey)}")
-                    .AddNodeKind(DemoStorageTree.FolderKind, node => node.SetIconColor(DemoIcons.Warm))
                     .ConfigureDefaultEmptyTemplate(empty => empty
                         .SetIcon(DemoIcons.Outline(DemoIcons.FileText))
                         .SetTitle("No notes")
@@ -212,7 +268,6 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Filled in as it opens",
             new TreeComponent()
                 .BindItems($"{LazyGroup}.{nameof(TreeLazyGroupContext.Items)}")
-                .ConfigureDefaultNode(node => node.SetIconColor(DemoIcons.Warm))
                 .OnNodeUnfoldWithItemKey(nameof(TreeController.LoadChildren)),
             note: "Every folder here starts empty and claims children; the first unfold asks the controller, which adds them, and the next folder down does the same.",
             context: LazyGroup

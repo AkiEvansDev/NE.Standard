@@ -75,7 +75,7 @@ video {
     outline: none;
 }
 
-// Selected text follows the theme instead of the UA's own blue; translucent, so the covered text keeps its own colour and stays readable.
+// Selected text follows the theme instead of the UA's own blue.
 ::selection {
-    background: color-mix(in srgb, var(--ui-color-primary) 32%, transparent);
+    background: @ui-text-selection;
 }

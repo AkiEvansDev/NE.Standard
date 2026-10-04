@@ -37,3 +37,10 @@
         outline-offset: -2px;
     }
 }
+
+// What a drop target wears while something it takes is over it (runtime.less, a field's box in ui-input.less): a dashed edge inside
+// it, in an ink, not a fill, so it reads 3:1 on the ground it stands on, a field's fill included; `@ink` the refusal's for a refused one.
+.ui-drop-edge(@ink: var(--ui-color-primary-ink)) {
+    outline: 2px dashed @ink;
+    outline-offset: -2px;
+}

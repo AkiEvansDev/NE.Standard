@@ -89,7 +89,7 @@ public static class BadgeRenderer
             {
                 if (value is UIThemeColor color && WebCssValues.ThemeColor(color) is { Length: > 0 } css)
                 {
-                    // A semantic colour spent on words is its ink: the raw warning on its own 16 % ground is about 1.1:1.
+                    // A semantic colour spent on words is its ink: the raw warning on its own 16 % ground is about 1.6:1.
                     _ = target.Style("color", WebCssValues.ThemeInk(color));
                     _ = target.Style(TintVariable, css);
                     _ = target.Class("ui-badge--tinted");

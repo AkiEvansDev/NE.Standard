@@ -139,7 +139,7 @@ const MacKeyLabels: Record<string, string> = {
 let macPlatform: boolean | null = null;
 
 /** Detected once per page from `userAgentData` where it exists, else `navigator.platform`. */
-function isMacPlatform(): boolean {
+export function isMacPlatform(): boolean {
     if (macPlatform === null)
         macPlatform = detectMacPlatform();
 

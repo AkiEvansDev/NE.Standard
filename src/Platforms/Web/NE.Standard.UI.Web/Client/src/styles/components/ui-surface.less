@@ -91,8 +91,9 @@
     background-color: var(--ui-surface-fill);
     --ui-faint-base: initial;
     --ui-ground: var(--ui-surface-fill);
-    // A popup opened from a lifted panel is lifted once more, as the panel is off the page.
-    .ui-popup-ground-lifted(var(--ui-surface-fill));
+    // A popup opened from a lifted panel is lifted once more, as the panel is off the page — from the neutral step, not a colour
+    // of the panel's own: the popup's entries keep the page's ink, which reads on no colour but a neutral one.
+    .ui-popup-ground-lifted(var(--ui-surface-raised));
     .ui-elevation-1();
 }
 

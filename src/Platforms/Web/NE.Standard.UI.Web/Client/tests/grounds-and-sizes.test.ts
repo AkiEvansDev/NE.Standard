@@ -25,7 +25,7 @@ const Fills: Readonly<Record<string, readonly [string, string]>> = {
     accent: ["#503CB4", "#FFFFFF"],
     info: ["#2850A0", "#FFFFFF"],
     success: ["#287828", "#FFFFFF"],
-    warning: ["#F0F050", "#0C0C0C"],
+    warning: ["#E6B41E", "#0C0C0C"],
     danger: ["#B42828", "#FFFFFF"]
 };
 

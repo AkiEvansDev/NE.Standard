@@ -103,4 +103,10 @@ public static class EventNames
     /// <c>shortcut:Ctrl+S</c>.
     /// </summary>
     public const string ShortcutPrefix = "shortcut:";
+
+    /// <summary>
+    /// What items of a kind dropped on a component taking it (<c>OnDrop</c>) are raised as on that component, the kind after it:
+    /// <c>drop:card</c>.
+    /// </summary>
+    public const string DropPrefix = "drop:";
 }

@@ -13,11 +13,12 @@ internal static class DemoStorageTree
     public const string FolderKind = "folder";
     public const string FileKind = "file";
 
+    // No icon of their own: a node that says whether it is a folder wears the tree's file dress, a folder open while unfolded.
     public static TreeNode Folder(string id, string title, string? parentId, bool expanded = true)
-        => new() { Id = id, Title = title, ParentId = parentId, Kind = FolderKind, IsFolder = true, Icon = DemoIcons.Outline(DemoIcons.Folder), Expanded = expanded };
+        => new() { Id = id, Title = title, ParentId = parentId, Kind = FolderKind, IsFolder = true, Expanded = expanded };
 
     public static TreeNode File(string id, string title, string? parentId)
-        => new() { Id = id, Title = title, ParentId = parentId, Kind = FileKind, Icon = DemoIcons.Outline(DemoIcons.FileText) };
+        => new() { Id = id, Title = title, ParentId = parentId, Kind = FileKind, IsFolder = false };
 
     public static List<TreeNode> Create()
         =>
@@ -33,8 +34,39 @@ internal static class DemoStorageTree
             Folder("status", "status-page", null, expanded: false),
             File("status-html", "status.html", "status"),
             // Pinned: neither dragged nor removed, whatever the tree allows; a heading elsewhere refuses the choice the same way.
-            new() { Id = "incident-report", Title = "incident-report.md", Kind = FileKind, Icon = DemoIcons.Outline(DemoIcons.FileText), CanDrag = false, CanRemove = false },
+            new() { Id = "incident-report", Title = "incident-report.md", Kind = FileKind, IsFolder = false, CanDrag = false, CanRemove = false },
         ];
+
+    /// <summary>
+    /// Moves a node into the folder its <c>DropTarget</c> names — a file stands for its folder — as the <paramref name="index"/>th node
+    /// there, and says what it did; a node never goes under itself. Null when no node has the key.
+    /// </summary>
+    public static string? Move(RecursiveCollection<TreeNode> items, string id, int index)
+    {
+        TreeNode? node = Find(items, id);
+
+        if (node is null)
+            return null;
+
+        TreeNode? folder = FolderOf(items, node.DropTarget);
+
+        node.DropTarget = null;
+
+        if (folder is not null && (folder == node || IsUnder(items, folder, id)))
+            return $"Refused: {folder.Title} is inside {node.Title}";
+
+        MoveSubtree(items, node, folder, index);
+
+        return $"Moved {node.Title} into {folder?.Title ?? "the root"}";
+    }
+
+    /// <summary>The folder a drop names, or the folder of the file it names; null for the top level.</summary>
+    public static TreeNode? FolderOf(RecursiveCollection<TreeNode> items, string? id)
+    {
+        TreeNode? node = string.IsNullOrEmpty(id) ? null : Find(items, id);
+
+        return node is null || node.Kind == FolderKind ? node : node.ParentId is null ? null : Find(items, node.ParentId);
+    }
 
     /// <summary>
     /// Lifts a node and everything under it out of the flat list and puts it back as the <paramref name="index"/>th node of the folder
@@ -42,13 +74,7 @@ internal static class DemoStorageTree
     /// </summary>
     public static void MoveSubtree(RecursiveCollection<TreeNode> items, TreeNode node, TreeNode? folder, int index)
     {
-        List<TreeNode> subtree = [];
-
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (items[i] == node || IsUnder(items, items[i], node.Id))
-                subtree.Add(items[i]);
-        }
+        List<TreeNode> subtree = Subtree(items, node);
 
         for (var i = subtree.Count - 1; i >= 0; i--)
             _ = items.Remove(subtree[i]);
@@ -74,8 +100,22 @@ internal static class DemoStorageTree
             items.Insert(position + i, subtree[i]);
     }
 
+    /// <summary>A node and everything under it, in walking order.</summary>
+    public static List<TreeNode> Subtree(RecursiveCollection<TreeNode> items, TreeNode node)
+    {
+        List<TreeNode> subtree = [];
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i] == node || IsUnder(items, items[i], node.Id))
+                subtree.Add(items[i]);
+        }
+
+        return subtree;
+    }
+
     /// <summary>The index past a folder's last descendant in the flat list; the list's end for the top level.</summary>
-    private static int AfterLastDescendant(RecursiveCollection<TreeNode> items, TreeNode? folder)
+    public static int AfterLastDescendant(RecursiveCollection<TreeNode> items, TreeNode? folder)
     {
         if (folder is null)
             return items.Count;
@@ -239,32 +279,11 @@ internal sealed partial class TreeNodesGroupContext : DemoGroupContext
 
         for (var i = 0; i < Items.Count; i++)
         {
-            if (Items[i].Id == "backups" || IsUnder(Items[i], "backups"))
+            if (Items[i].Id == "backups" || DemoStorageTree.IsUnder(Items, Items[i], "backups"))
                 index = i + 1;
         }
 
         Items.Insert(index, DemoStorageTree.File(id, string.Create(CultureInfo.InvariantCulture, $"snapshot-{_added}.tar.gz"), "backups"));
-    }
-
-    private bool IsUnder(TreeNode node, string ancestorId)
-    {
-        for (var parentId = node.ParentId; parentId is not null;)
-        {
-            if (parentId == ancestorId)
-                return true;
-
-            TreeNode? parent = null;
-
-            for (var i = 0; i < Items.Count; i++)
-            {
-                if (Items[i].Id == parentId)
-                    parent = Items[i];
-            }
-
-            parentId = parent?.ParentId;
-        }
-
-        return false;
     }
 
     public void RemoveLast()
@@ -294,6 +313,8 @@ internal sealed partial class TreeNodesGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class TreeFilesGroupContext : DemoGroupContext
 {
+    /// <summary>The kind the tree offers its nodes as, which the attachments take a copy of.</summary>
+    public const string ObjectKind = "object";
     public const string RenameAction = "rename";
     public const string DeleteAction = "delete";
     public const string NewFileAction = "new-file";
@@ -303,19 +324,37 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<TreeNode> Items { get; } = [.. DemoStorageTree.Create()];
 
+    [RecursiveMember]
+    public partial string? Attachments { get; set; }
+
     public TreeFilesGroupContext()
     {
         // One folder switched off: it is not chosen, dragged, dropped into or deleted, and does not open under a drag.
-        Find("status")!.Enabled = false;
+        DemoStorageTree.Find(Items, "status")!.Enabled = false;
     }
 
     public void Open(string id)
         => LogEvent($"Opened {TitleOf(id)}");
 
+    private string TitleOf(string id)
+        => DemoStorageTree.Find(Items, id)?.Title?.ToString() ?? id;
+
+    /// <summary>The objects a drop carried, a line each in the attachments: they are no list of objects, so they take a copy and the tree keeps its nodes.</summary>
+    public void Attach(UIDrop drop)
+    {
+        foreach (var key in drop.Keys)
+        {
+            if (DemoStorageTree.Find(Items, key) is not null)
+                Attachments = string.IsNullOrEmpty(Attachments) ? TitleOf(key) : $"{Attachments}\n{TitleOf(key)}";
+        }
+
+        LogEvent($"Attached {string.Join(", ", drop.Keys)}");
+    }
+
     /// <summary>The rename already wrote the node's <c>Title</c> through its two-way binding; the controller only says so — or puts it back.</summary>
     public void Rename(string id)
     {
-        TreeNode? node = Find(id);
+        TreeNode? node = DemoStorageTree.Find(Items, id);
 
         if (node is not null)
             LogEvent($"Renamed to {node.Title}");
@@ -324,7 +363,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     /// <summary>A node goes with everything under it; a pinned one stays, and the refusal is said.</summary>
     public void Delete(string id)
     {
-        TreeNode? node = Find(id);
+        TreeNode? node = DemoStorageTree.Find(Items, id);
 
         if (node is null)
             return;
@@ -337,7 +376,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
 
         for (var i = Items.Count - 1; i >= 0; i--)
         {
-            if (Items[i] == node || IsUnder(Items[i], id))
+            if (Items[i] == node || DemoStorageTree.IsUnder(Items, Items[i], id))
                 Items.RemoveAt(i);
         }
 
@@ -347,7 +386,7 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     /// <summary>A new object goes in right after its folder; its key comes back so the caller can open it for a rename.</summary>
     public string? AddFile(string folderId)
     {
-        TreeNode? folder = Find(folderId);
+        TreeNode? folder = DemoStorageTree.Find(Items, folderId);
 
         if (folder is null)
             return null;
@@ -367,54 +406,230 @@ internal sealed partial class TreeFilesGroupContext : DemoGroupContext
     /// </summary>
     public void Move(string id, int index)
     {
-        TreeNode? node = Find(id);
+        if (DemoStorageTree.Move(Items, id, index) is string said)
+            LogEvent(said);
+    }
+}
 
-        if (node is null)
+/// <summary>
+/// Two buckets' trees and a list of files to review, all offering their items as one kind: a node dragged into the other tree goes there
+/// with everything under it, a file dragged into the list becomes one of its rows, drawn as a list draws it, and a row dragged into a
+/// folder of either tree is a file there again. Ctrl (⌥ on a Mac) copies instead.
+/// </summary>
+/// <remarks>Nothing beside a tree moves ahead of the answer: the page waits for these moves.</remarks>
+internal sealed partial class TreeTransferGroupContext : DemoGroupContext
+{
+    public const string DragKind = "file";
+    public const string EuWest = "transfer-eu-west";
+    public const string UsEast = "transfer-us-east";
+    public const string Review = "transfer-review";
+
+    private int _copies;
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TreeNode> EuWestNodes { get; } =
+    [
+        DemoStorageTree.Folder("eu-db", "db", null),
+        DemoStorageTree.File("eu-db-0921", "snapshot-0921.tar.gz", "eu-db"),
+        DemoStorageTree.File("eu-db-0922", "snapshot-0922.tar.gz", "eu-db"),
+        DemoStorageTree.Folder("eu-logs", "logs", null),
+        DemoStorageTree.File("eu-logs-api", "api-0922.log", "eu-logs"),
+        DemoStorageTree.File("eu-manifest", "manifest.json", null),
+    ];
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TreeNode> UsEastNodes { get; } =
+    [
+        DemoStorageTree.Folder("us-db", "db", null),
+        DemoStorageTree.File("us-db-0920", "snapshot-0920.tar.gz", "us-db"),
+        DemoStorageTree.Folder("us-logs", "logs", null),
+        DemoStorageTree.File("us-logs-web", "web-0922.log", "us-logs"),
+    ];
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> ReviewFiles { get; } = [];
+
+    /// <summary>Moves a node within its own tree, into the folder its <c>DropTarget</c> names; never under itself.</summary>
+    public void Move(string tree, string id, int index)
+    {
+        if (NodesOf(tree) is RecursiveCollection<TreeNode> nodes && DemoStorageTree.Move(nodes, id, index) is string said)
+            LogEvent($"{said} in {Name(tree)}");
+    }
+
+    /// <summary>The nodes of the tree a key names; null for any other, whose drop then moves nothing.</summary>
+    private RecursiveCollection<TreeNode>? NodesOf(string? tree)
+        => tree switch
+        {
+            EuWest => EuWestNodes,
+            UsEast => UsEastNodes,
+            _ => null
+        };
+
+    private static string Name(string? tree)
+        => tree == UsEast ? "us-east" : "eu-west";
+
+    /// <summary>Takes what a drop carried into a folder of the tree: nodes of the other tree with everything under them, or rows of the list as files.</summary>
+    public void DropIntoTree(UIDrop drop, string tree)
+    {
+        if (NodesOf(tree) is not RecursiveCollection<TreeNode> target)
             return;
 
-        var target = node.DropTarget;
+        TreeNode? folder = DemoStorageTree.FolderOf(target, drop.Folder);
+        var copy = drop.Effect == UIDropEffect.Copy;
 
-        node.DropTarget = null;
-
-        TreeNode? folder = string.IsNullOrEmpty(target) ? null : Find(target);
-
-        if (folder is not null && folder.Kind != DemoStorageTree.FolderKind)
-            folder = folder.ParentId is null ? null : Find(folder.ParentId);
-
-        if (folder is not null && (folder == node || IsUnder(folder, id)))
+        if (drop.Source == Review)
         {
-            LogEvent($"Refused: {folder.Title} is inside {node.Title}");
+            foreach (var key in drop.Keys)
+            {
+                TextItem? row = RowOf(key);
+
+                // The page's word is checked against the list: a key no longer in it moves nothing.
+                if (row is null)
+                    continue;
+
+                if (!copy)
+                    _ = ReviewFiles.Remove(row);
+
+                target.Insert(DemoStorageTree.AfterLastDescendant(target, folder), DemoStorageTree.File(copy ? CopyId(key) : key, row.Title?.ToString() ?? key, folder?.Id));
+            }
+        }
+        else if (drop.Source != tree && NodesOf(drop.Source) is RecursiveCollection<TreeNode> source)
+        {
+            foreach (TreeNode node in TopNodes(source, drop.Keys))
+            {
+                List<TreeNode> subtree = DemoStorageTree.Subtree(source, node);
+
+                if (!copy)
+                {
+                    foreach (TreeNode moved in subtree)
+                        _ = source.Remove(moved);
+                }
+                else
+                {
+                    subtree = Copied(subtree);
+                }
+
+                subtree[0].ParentId = folder?.Id;
+
+                var at = DemoStorageTree.AfterLastDescendant(target, folder);
+
+                for (var i = 0; i < subtree.Count; i++)
+                    target.Insert(at + i, subtree[i]);
+            }
+        }
+        else
+        {
             return;
         }
 
-        DemoStorageTree.MoveSubtree(Items, node, folder, index);
-
-        LogEvent($"Moved {node.Title} into {folder?.Title ?? "the root"}");
+        LogEvent($"{string.Join(", ", drop.Keys)} {(copy ? "copied" : "moved")} into {Name(tree)}{(folder is null ? "" : $" / {folder.Title}")}");
     }
 
-    public TreeNode? Find(string id)
+    private TextItem? RowOf(string id)
     {
-        for (var i = 0; i < Items.Count; i++)
+        foreach (TextItem row in ReviewFiles)
         {
-            if (Items[i].Id == id)
-                return Items[i];
+            if (row.Id == id)
+                return row;
         }
 
         return null;
     }
 
-    private string TitleOf(string id)
-        => Find(id)?.Title?.ToString() ?? id;
+    private string CopyId(string id)
+        => string.Create(CultureInfo.InvariantCulture, $"{id}-copy-{++_copies}");
 
-    private bool IsUnder(TreeNode node, string ancestorId)
+    /// <summary>The dragged nodes, less those already carried by a dragged folder above them.</summary>
+    private static List<TreeNode> TopNodes(RecursiveCollection<TreeNode> nodes, IReadOnlyList<string> keys)
     {
-        for (var parentId = node.ParentId; parentId is not null; parentId = Find(parentId)?.ParentId)
+        List<TreeNode> top = [];
+
+        foreach (var key in keys)
         {
-            if (parentId == ancestorId)
-                return true;
+            TreeNode? node = DemoStorageTree.Find(nodes, key);
+            var carried = false;
+
+            foreach (var other in keys)
+                carried |= other != key && node is not null && DemoStorageTree.IsUnder(nodes, node, other);
+
+            if (node is not null && !carried)
+                top.Add(node);
         }
 
-        return false;
+        return top;
+    }
+
+    /// <summary>A copy of a subtree under keys of its own, each node under its copied parent.</summary>
+    private List<TreeNode> Copied(List<TreeNode> subtree)
+    {
+        Dictionary<string, string> ids = [];
+        List<TreeNode> copies = [];
+
+        foreach (TreeNode node in subtree)
+        {
+            ids[node.Id] = CopyId(node.Id);
+
+            TreeNode copy = node.Kind == DemoStorageTree.FolderKind
+                ? DemoStorageTree.Folder(ids[node.Id], node.Title?.ToString() ?? node.Id, null)
+                : DemoStorageTree.File(ids[node.Id], node.Title?.ToString() ?? node.Id, null);
+
+            copy.ParentId = node.ParentId is not null && ids.TryGetValue(node.ParentId, out var parentId) ? parentId : null;
+            copies.Add(copy);
+        }
+
+        return copies;
+    }
+
+    /// <summary>Takes the files a drop carried from a tree into the list, from the place it asked for, each saying where it came from; a folder stays in its tree.</summary>
+    public void DropForReview(UIDrop drop)
+    {
+        if (NodesOf(drop.Source) is not RecursiveCollection<TreeNode> source)
+            return;
+
+        var copy = drop.Effect == UIDropEffect.Copy;
+        var at = Math.Clamp(drop.Index ?? ReviewFiles.Count, 0, ReviewFiles.Count);
+
+        foreach (var key in drop.Keys)
+        {
+            TreeNode? node = DemoStorageTree.Find(source, key);
+
+            if (node is null)
+                continue;
+
+            if (node.Kind == DemoStorageTree.FolderKind)
+            {
+                LogEvent($"Refused: {node.Title} is a folder, and only files are reviewed");
+                continue;
+            }
+
+            TreeNode? parent = node.ParentId is null ? null : DemoStorageTree.Find(source, node.ParentId);
+
+            ReviewFiles.Insert(at++, new TextItem
+            {
+                Id = copy ? CopyId(key) : key,
+                IsContent = true,
+                Icon = DemoIcons.Outline(DemoIcons.File),
+                Title = node.Title,
+                Description = $"From {Name(drop.Source)}{(parent is null ? "" : $" / {parent.Title}")}"
+            });
+
+            if (!copy)
+                _ = source.Remove(node);
+        }
+
+        LogEvent($"{string.Join(", ", drop.Keys)} {(copy ? "copied" : "moved")} to review");
+    }
+
+    /// <summary>Moves a row within the list, as a drag between two of its rows asked.</summary>
+    public void MoveReview(string id, int index)
+    {
+        TextItem? row = RowOf(id);
+
+        if (row is null)
+            return;
+
+        ReviewFiles.Move(ReviewFiles.IndexOf(row), index);
+        LogEvent($"{row.Title} -> place {index + 1} to review");
     }
 }
 
@@ -434,7 +649,7 @@ internal sealed partial class TreeLazyGroupContext : DemoGroupContext
     ];
 
     private static TreeNode Lazy(string id, string title, string? parentId = null)
-        => new() { Id = id, Title = title, ParentId = parentId, Kind = DemoStorageTree.FolderKind, Icon = DemoIcons.Outline(DemoIcons.Folder), HasChildren = true };
+        => new() { Id = id, Title = title, ParentId = parentId, Kind = DemoStorageTree.FolderKind, IsFolder = true, HasChildren = true };
 
     /// <summary>Three objects and one more folder to open, put right after the folder that asked.</summary>
     public void Load(string id)
@@ -613,8 +828,8 @@ internal sealed partial class TreeSettingsGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// One tree and every property that can be bound to it, and the examples' trees that answer: a bucket's objects, notes opened on a
-/// press, a settings tree and folders filled in as they open.
+/// One tree and every property that can be bound to it, and the examples' trees that answer: a bucket's objects, two buckets and a
+/// list trading files, notes opened on a press, a settings tree and folders filled in as they open.
 /// </summary>
 internal sealed partial class TreeController() : DemoStandardController
 {
@@ -631,6 +846,9 @@ internal sealed partial class TreeController() : DemoStandardController
 
     [RecursiveMember]
     public partial TreeFilesGroupContext FilesGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial TreeTransferGroupContext TransferGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial TreeLazyGroupContext LazyGroup { get; set; } = new();
@@ -681,8 +899,28 @@ internal sealed partial class TreeController() : DemoStandardController
     }
 
     [UICommand]
+    public void AttachObjects(UIDrop drop)
+        => FilesGroup.Attach(drop);
+
+    [UICommand]
     public void MoveNode(string id, int index)
         => FilesGroup.Move(id, index);
+
+    [UICommand]
+    public void MoveTransferNode(string tree, string id, int index)
+        => TransferGroup.Move(tree, id, index);
+
+    [UICommand]
+    public void DropIntoTree(UIDrop drop, string tree)
+        => TransferGroup.DropIntoTree(drop, tree);
+
+    [UICommand]
+    public void DropForReview(UIDrop drop)
+        => TransferGroup.DropForReview(drop);
+
+    [UICommand]
+    public void MoveReviewFile(string id, int index)
+        => TransferGroup.MoveReview(id, index);
 
     [UICommand]
     public void MoveNote(string id, int index)

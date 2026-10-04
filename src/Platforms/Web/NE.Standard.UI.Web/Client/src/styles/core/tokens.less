@@ -121,6 +121,10 @@
 @ui-link-ink: var(--ui-faint-base, var(--ui-color-primary-ink));
 @ui-link-rest-underline: var(--ui-faint-base, transparent);
 
+// Selected text (reset.less, a package's editor drawing selections of its own): translucent, so the covered text keeps its colour.
+// The brand's ink, not its fill: on a dark page the fill is as dark as the page, and a third of it was all but unseen.
+@ui-text-selection: color-mix(in srgb, var(--ui-color-primary-ink) 48%, transparent);
+
 // A thing being dragged stays in its place as a ghost (a column's caption, a tab, a tree row), so the gap it will leave is what moves.
 @ui-drag-ghost-opacity: 0.45;
 // A label a loading ring stands beside rather than replacing (a button with no icon to turn into the ring) fades under it.

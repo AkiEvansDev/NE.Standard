@@ -38,3 +38,12 @@
     .ui-responsive-property(height, --ui-height, auto);
     object-fit: none;
 }
+
+// A picture whose source is missing or failed, with no stand-in of its author's (or one that failed too): the framework's own glyph
+// (image-fallback-engine.ts) on the wash, shrunk into a box smaller than it and never grown — never the browser's broken mark. After
+// the fits, which it outranks.
+.ui-image[data-ui-image-failed] {
+    object-fit: scale-down;
+    object-position: center;
+    background-color: var(--ui-wash-hover);
+}

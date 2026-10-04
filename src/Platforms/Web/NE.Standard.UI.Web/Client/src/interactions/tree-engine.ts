@@ -1,9 +1,9 @@
 // A tree's rows as a flat list in walking order: depth, fold (kept in the browser), keys, lazy children, rename and drag/drop.
 
 import {
-    ComponentKeyAttribute, cssAttributeValue, ItemsHostAttribute, SelectedAttribute, SelectionAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
+    ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemsHostAttribute, SelectionAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
     TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute,
-    TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UndraggableAttribute, UnrenamableAttribute,
+    TreeDropMarkAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UndraggableAttribute, UnrenamableAttribute,
     UnselectableAttribute
 } from "../addressing/dom-attributes";
 import { findOwningComponentId } from "../addressing/dom-registry";
@@ -18,7 +18,8 @@ import { logWarn } from "../runtime/logger";
 import { ClientBootPatch, ClientStore } from "../state/client-store";
 import type { PropertyStateStore } from "../state/property-state-store";
 import { observeComponents } from "./dom-mutations";
-import { clearDragMarks, markDragStart } from "./drag-marks";
+import { clearDragMarks, giveDragPayload, leftAltogether, markDragStart } from "./drag-marks";
+import { allowedEffect, beginItemsDrag, carriedRows, offeredItems } from "./item-drags";
 import { openInlineRename } from "./inline-rename";
 import { enterRow, pressRow, removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
@@ -26,9 +27,9 @@ import { isInert, isItemDisabled } from "./interactive-state";
 import { focusedRow, litRow, nameRowBy, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
-import { chooseRow, ensureAnchor, keyGestureOf, PlainGesture, rowKey, selectedRows } from "./row-selection";
+import { chooseRow, ensureAnchor, keyGestureOf, PlainGesture, rowKey } from "./row-selection";
 import type { TreeKeyMove, TreeMovePlace, TreeNodePlace } from "./tree-drop";
-import { keyMovePlace, placeMoves, siblingAfter, takesDrop } from "./tree-drop";
+import { folderTakesDrop, keyMovePlace, markTreeDrop, nodeOf, placeMoves, siblingAfter, takesDrop } from "./tree-drop";
 
 const FoldedClass = "ui-tree__row--folded";
 const BootHiddenSlot = "fold-hidden";
@@ -36,15 +37,12 @@ const BootShownSlot = "fold-shown";
 const DraggingClass = "ui-tree__row--dragging";
 const LoadingClass = "ui-tree__loading";
 const LoadingRingClass = "ui-tree__loading-ring";
-const NodeClass = "ui-tree-node";
 const TextClass = "ui-tree-node__text";
 const ToggleClass = "ui-tree-node__toggle";
 const RenameClass = "ui-tree-node__rename";
 const TitleSelector = ".ui-text__title";
-// On the place a drag would drop at: empty on a folder it goes into or on the tree's ground, `before` or `after` on the row the
-// line between two nodes stands beside, which carries the depth the line starts at.
-const DropAttribute = "data-ui-tree-drop";
-const DropDepthVariable = "--ui-tree-drop-depth";
+// On the place a drag would drop at (`markTreeDrop`).
+const DropAttribute = TreeDropMarkAttribute;
 const DepthVariable = "--ui-tree-depth";
 const ExpandedSlot = "expanded";
 // A folder a drag hovers over for this long opens, so a node can be dropped deeper without letting go.
@@ -175,7 +173,8 @@ export class TreeEngine {
         const stored = this.foldOf(tree);
         const rules = this.resolveRules(tree);
         const rows = rules === null ? this.rowsOf(tree) : this.orderRows(tree, rules);
-        const draggable = tree.hasAttribute(TreeDraggableAttribute);
+        // Lifted to move among the nodes, or to be offered to another host as a kind (`DragKind`).
+        const draggable = tree.hasAttribute(TreeDraggableAttribute) || tree.hasAttribute(DragKindAttribute);
         const children = new Set<string>();
 
         for (const row of rows) {
@@ -575,8 +574,10 @@ export class TreeEngine {
     private handleDragStart(domEvent: Event): void {
         const row = draggedRow(domEvent);
         const tree = row?.closest<HTMLElement>(`.${TreeRootClass}`) ?? null;
+        const moves = tree?.hasAttribute(TreeDraggableAttribute) === true;
+        const host = tree === null ? null : this.hostOf(tree);
 
-        if (row === null || tree === null || !tree.hasAttribute(TreeDraggableAttribute))
+        if (row === null || tree === null || host === null || (!moves && !tree.hasAttribute(DragKindAttribute)))
             return;
 
         // Disabled since the rows were last laid out: refused here rather than left to a lift that carries nothing.
@@ -586,11 +587,16 @@ export class TreeEngine {
         }
 
         // A chosen node takes the other chosen ones; one folded away stays, as moving it would be a move nobody saw.
-        const companions = row.hasAttribute(SelectedAttribute)
-            ? selectedRows(this.rowsOf(tree)).filter(other => other !== row && other.draggable && !isItemDisabled(other) && other.getClientRects().length > 0)
-            : [];
+        const carried = carriedRows(row, this.rowsOf(tree));
+        const items = offeredItems(tree, host, carried);
 
-        markDragStart(domEvent, tree, row, DraggingClass, rowKey(row), companions);
+        // Marked as this tree's own drag only where its nodes move among themselves; a tree that only offers them drops nothing on itself.
+        if (moves)
+            markDragStart(domEvent, tree, row, DraggingClass, rowKey(row), carried.filter(other => other !== row), allowedEffect(items, true));
+        else
+            giveDragPayload(domEvent, rowKey(row), allowedEffect(items, false));
+
+        beginItemsDrag(domEvent, items);
     }
 
     /** The rows in the air, in walking order. */
@@ -664,9 +670,8 @@ export class TreeEngine {
         const place = firstChild !== undefined
             ? { parent: key, before: firstChild.key }
             : { parent, before: side === "before" ? key : siblingAfter(nodes, parent, key, false, skip) };
-        const holder = place.parent.length === 0 ? null : rows.find(row => rowKey(row) === place.parent) ?? null;
 
-        if (holder !== null && (!takesDrop(holder, nodeOf(holder)) || inside(place.parent)))
+        if (!folderTakesDrop(place.parent, folder => rows.find(row => rowKey(row) === folder) ?? null) || inside(place.parent))
             return null;
 
         return { mark: side, place, depth: firstChild !== undefined ? depth + 1 : depth };
@@ -693,7 +698,7 @@ export class TreeEngine {
 
         const tree = domEvent.target.closest<HTMLElement>(`.${TreeRootClass}`);
 
-        if (tree !== null && !(domEvent.relatedTarget instanceof Node && tree.contains(domEvent.relatedTarget))) {
+        if (tree !== null && leftAltogether(domEvent, tree)) {
             this.markDrop(tree, null);
             this.springOpen(tree, null);
         }
@@ -759,25 +764,12 @@ export class TreeEngine {
         this.springOpen(tree, null);
     }
 
+    /** Marks the place a drag would drop at, or with none takes every mark and the place it stood for away. */
     private markDrop(tree: HTMLElement, target: HTMLElement | null, mark = "", depth?: number): void {
-        for (const marked of tree.querySelectorAll<HTMLElement>(`[${DropAttribute}]`)) {
-            if (marked !== target) {
-                marked.removeAttribute(DropAttribute);
-                marked.style.removeProperty(DropDepthVariable);
-            }
-        }
+        markTreeDrop(tree, target, mark, depth);
 
-        if (target === null) {
+        if (target === null)
             this.dropPlace = null;
-            return;
-        }
-
-        target.setAttribute(DropAttribute, mark);
-
-        if (depth === undefined)
-            target.style.removeProperty(DropDepthVariable);
-        else
-            target.style.setProperty(DropDepthVariable, String(depth));
     }
 
     /** Each row's parent key by its own, read once per drag event rather than once per ancestor of every dragged row. */
@@ -963,6 +955,3 @@ function nodePlaces(rows: readonly HTMLElement[]): TreeNodePlace[] {
     }));
 }
 
-function nodeOf(row: Element): HTMLElement | null {
-    return row.querySelector<HTMLElement>(`.${NodeClass}`);
-}

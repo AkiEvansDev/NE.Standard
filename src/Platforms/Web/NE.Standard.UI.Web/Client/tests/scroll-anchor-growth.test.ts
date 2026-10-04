@@ -1,6 +1,6 @@
 // An end-anchored list that stood at its end stays there while a row grows after its first paint (a picture loading), until the reader
 // scrolls away; one the reader scrolled up keeps the row being read in place while rows above it grow. Rows are watched by their boxes,
-// since growing touches no node and no text. The end is the whole way down, with a step of room the stylesheet keeps past the last row.
+// since growing touches no node and no text, and so is the list's own box, whose padding (what stands over its end) moves the end. The end is the whole way down, with a step of room the stylesheet keeps past the last row.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -89,6 +89,19 @@ test("a list standing at its end follows a row that grows after its first paint"
     assert.equal(host.scrollTop, 1334);
 });
 
+test("a list standing at its end stays there as its own box changes: a padding grown inside the scroll moves the end", () => {
+    const host = feed(700, rowAt("m1", 0, 100));
+
+    new ScrollAnchorEngine({ root: real<ParentNode>(fakeDocument.body) });
+
+    assert.equal(observed.has(host), true);
+
+    Object.assign(host, { scrollHeight: 1152 });
+    resized(host);
+
+    assert.equal(host.scrollTop, 1152);
+});
+
 test("a list stopped inside the end's slack is taken the whole way, so its last row is not a few pixels short", () => {
     const host = feed(698, rowAt("m1", 0, 100));
 
@@ -113,7 +126,8 @@ test("an end-anchored list keeps a step of room past its last row, where a raise
     const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
     const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
-    assert.match(css, /\n\.ui-items-view > \[data-ui-scroll-anchor="End"\] \{\s*padding-block-end: 0\.25rem;\s*\}/);
+    // Unless the view has a Padding of its own, which says where its end stands.
+    assert.match(css, /\n\.ui-items-view:not\(\[style\*="--ui-items-view-padding"\]\) > \[data-ui-scroll-anchor="End"\] \{\s*padding-block-end: 0\.25rem;\s*\}/);
 });
 
 test("a list the reader scrolled up keeps the row they read in place while a row above it grows, and one below moves nothing", () => {

@@ -2,8 +2,17 @@
 // unmarked, one that holds children; a file takes nothing, so a drag over it shows the drop as impossible.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { TreeFolderAttribute } from "../addressing/dom-attributes.ts";
+import { TreeDropMarkAttribute, TreeFolderAttribute, TreeNodeClass, TreeParentAttribute } from "../addressing/dom-attributes.ts";
 import { isItemDisabled } from "./interactive-state.ts";
+import { rowKey } from "./row-selection.ts";
+
+// On the row a line between two nodes stands beside: the depth the line starts at (ui-tree.less).
+const DropDepthVariable = "--ui-tree-drop-depth";
+
+/** A tree row's node face, which carries the node's facts. */
+export function nodeOf(row: Element): HTMLElement | null {
+    return row.querySelector<HTMLElement>(`.${TreeNodeClass}`);
+}
 
 /** Whether a row takes a drop: a folder, marked or holding children (`aria-expanded`, the walk's word), that is not disabled. */
 export function takesDrop(row: Element, node: Element | null): boolean {
@@ -14,6 +23,48 @@ export function takesDrop(row: Element, node: Element | null): boolean {
     const folder = node?.getAttribute(TreeFolderAttribute);
 
     return folder === "true" || (folder !== "false" && row.hasAttribute("aria-expanded"));
+}
+
+/** Whether a drop may land in the folder keyed `folder`: the top level always, a drawn folder only where its row takes a drop. */
+export function folderTakesDrop(folder: string, rowOf: (key: string) => Element | null): boolean {
+    const row = folder.length === 0 ? null : rowOf(folder);
+
+    return row === null || takesDrop(row, nodeOf(row));
+}
+
+/** The folder a drop onto the row lands in: the row where it takes a drop, else the folder holding it; null where that one takes none. */
+export function dropFolderOf(row: Element, rowOf: (key: string) => Element | null): string | null {
+    const node = nodeOf(row);
+
+    if (takesDrop(row, node))
+        return rowKey(row);
+
+    const parent = node?.getAttribute(TreeParentAttribute) ?? "";
+
+    return folderTakesDrop(parent, rowOf) ? parent : null;
+}
+
+/**
+ * Marks the place a drag would drop at in a tree — empty on a folder it goes into or on the tree's ground, `before` or `after` on the
+ * row a line stands beside, from the depth given — and takes the mark off every other place; with no place, off every one.
+ */
+export function markTreeDrop(tree: Element, target: HTMLElement | null, mark = "", depth?: number): void {
+    for (const marked of tree.querySelectorAll<HTMLElement>(`[${TreeDropMarkAttribute}]`)) {
+        if (marked !== target) {
+            marked.removeAttribute(TreeDropMarkAttribute);
+            marked.style.removeProperty(DropDepthVariable);
+        }
+    }
+
+    if (target === null)
+        return;
+
+    target.setAttribute(TreeDropMarkAttribute, mark);
+
+    if (depth === undefined)
+        target.style.removeProperty(DropDepthVariable);
+    else
+        target.style.setProperty(DropDepthVariable, String(depth));
 }
 
 /** A node as a move reads it: its key, its folder's (empty at the top level), whether it takes a drop, and whether it is shown. */

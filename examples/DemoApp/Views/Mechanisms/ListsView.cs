@@ -5,9 +5,9 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Mechanisms;
 
 /// <summary>
-/// What a list does once it is too big to hold: two thousand rows held whole but drawn a few at a time and filtered in the page, a
-/// hundred thousand the server never sends whole — in a list, filtered on the server, in a table, a page at a time — and a window of
-/// rows each carrying fields of its own; one behaviour to a section.
+/// What a list does once it is too big to hold: two thousand rows held whole but drawn a few at a time, as rows and as tiles, and
+/// filtered in the page, a hundred thousand the server never sends whole — in a list, filtered on the server, in a table, a page at
+/// a time — and a window of rows each carrying fields of its own; one behaviour to a section.
 /// </summary>
 /// <remarks>
 /// What differs from the component pages is where the items come from, which is a story rather than a property. The page is words,
@@ -32,11 +32,13 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
     protected override string Header => "demo.mechanisms.lists.header";
     protected override string HeaderDescription => "demo.mechanisms.lists.description";
 
-    // Read across, two to a row: held whole, then read a window at a time, then a page at a time, then fields in rows.
+    // Read across, two to a row: held whole, its tiles alone across the page for the width they fill, then read a window at a time,
+    // then a page at a time, then fields in rows.
     protected override void DrawContent(WrapPanelComponent container)
         => _ = container.AddChildren(
             CreateLocalGroup(),
             CreateLocalFilterGroup(),
+            CreateLocalTilesGroup(),
             CreateWindowGroup(),
             CreateServerFilterGroup(),
             CreateTableGroup(),
@@ -99,6 +101,32 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                     .SetTemplate(CreateRowTemplate())
                 ),
             note: Words + "local-filter.note",
+            controller: [DemoCode.Of<ListsController>(nameof(ListsController.LocalRows))],
+            words: true
+        );
+
+    /// <summary>The same rows as tiles: a wrapping host keeps only the lines in view, as many tiles to a line as fit it.</summary>
+    private static ContainerComponent CreateLocalTilesGroup()
+        => DemoUI.CreateExample(Words + "tiles.title",
+            new ItemsViewComponent()
+                .BindItems(nameof(ListsController.LocalRows))
+                .Virtualized()
+                .SetLayoutType(UIItemsLayoutType.Wrap)
+                .SetSpacing(8)
+                .VerticalScrollOnly()
+                .SetHeight(UILayoutLength.Absolute(260))
+                .SetTemplate(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Tinted)
+                    .SetPadding(UIThickness.Uniform(8))
+                    .SetWidth(UILayoutLength.Absolute(96))
+                    .SetHeight(UILayoutLength.Absolute(56))
+                    .SetContent(new TextComponent()
+                        .BindTitle(nameof(DemoRowItem.Title), UIBindingScope.Relative)
+                        .SetTitleType(UITextAppearance.Caption)
+                    )
+                ),
+            columns: 24,
+            note: Words + "tiles.note",
             controller: [DemoCode.Of<ListsController>(nameof(ListsController.LocalRows))],
             words: true
         );

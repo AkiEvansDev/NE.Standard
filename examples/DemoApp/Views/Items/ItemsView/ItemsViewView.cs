@@ -21,6 +21,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     private const string RowMenusGroup = nameof(ItemsViewController.RowMenusGroup);
     private const string OrderGroup = nameof(ItemsViewController.OrderGroup);
     private const string QueueGroup = nameof(ItemsViewController.QueueGroup);
+    private const string BoardGroup = nameof(ItemsViewController.BoardGroup);
 
     /// <summary>Ids of the controls the narrowed list's rules name; a rule reads a component, not a value.</summary>
     private const string FilterId = "items-examples-filter";
@@ -60,6 +61,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
             .BindLayoutType($"{ItemsGroup}.{nameof(ItemsViewGroupContext.LayoutType)}")
             .BindOrientation($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Orientation)}")
             .BindSpacing($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Spacing)}")
+            .BindPadding($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Padding)}")
             .BindHorizontalScroll($"{ItemsGroup}.{nameof(ItemsViewGroupContext.HorizontalScroll)}")
             .BindVerticalScroll($"{ItemsGroup}.{nameof(ItemsViewGroupContext.VerticalScroll)}")
             .BindScrollSnap($"{ItemsGroup}.{nameof(ItemsViewGroupContext.ScrollSnap)}")
@@ -86,7 +88,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => [CreateStripGroup(), .. DemoUI.CreateColumns([CreateFilterGroup(), CreateTilesGroup()], [CreateGroupedGroup(), CreateQueueGroup()]), CreateOrderGroup(), CreateRowMenusGroup()];
+        => [CreateStripGroup(), .. DemoUI.CreateColumns([CreateFilterGroup(), CreateTilesGroup()], [CreateGroupedGroup(), CreateQueueGroup()]), CreateOrderGroup(), CreateBoardGroup(), CreateRowMenusGroup()];
 
     /// <summary>
     /// A row of cards that scrolls sideways and stops on a card; the host is the scroller.
@@ -332,6 +334,51 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
             context: OrderGroup
         );
     }
+
+    /// <summary>
+    /// Three lists of one kind of card: a card dragged from one into another moves there, several chosen ones together; Ctrl (⌥ on a Mac)
+    /// copies instead, and the notes, which are no list of cards, always take a copy of the titles.
+    /// </summary>
+    private static ContainerComponent CreateBoardGroup()
+    {
+        return DemoUI.CreateExample("Between lists",
+            UILayout.Stack(16)
+                .AddChild(UILayout.Columns(24,
+                        CreateBoardList(BoardGroupContext.Todo, BoardGroupContext.TodoTitle, nameof(BoardGroupContext.TodoCards)),
+                        CreateBoardList(BoardGroupContext.Doing, BoardGroupContext.DoingTitle, nameof(BoardGroupContext.DoingCards)),
+                        CreateBoardList(BoardGroupContext.Done, BoardGroupContext.DoneTitle, nameof(BoardGroupContext.DoneCards))
+                    )
+                )
+                .AddChild(new TextAreaComponent()
+                    .SetTitle("Notes")
+                    .SetPlaceholder("Drop a card here to note it")
+                    .BindValue(nameof(BoardGroupContext.Notes), UIBindingScope.Relative)
+                    .OnDrop(BoardGroupContext.CardKind, nameof(ItemsViewController.NoteCards))
+                ),
+            columns: 24,
+            note: "Drag a card from one list into another: it moves there at once, and stays if the controller moves it too. Ctrl+click chooses several, and they go together. Hold Ctrl (⌥ on a Mac) as you let go to copy instead. Drop a card on the notes and its title is written there: the notes are no list of cards, so they take a copy. From the keyboard: Ctrl+X or Ctrl+C on a card, then Ctrl+V in another list, after its keyboard's card.",
+            context: BoardGroup
+        );
+    }
+
+    /// <summary>One list of the board: it offers its cards as the kind it takes back, and moves its own among themselves.</summary>
+    private static StackPanelComponent CreateBoardList(string id, string title, string items)
+        => DemoUI.CreateLabelled(title, new ItemsViewComponent(id)
+            .BindItems(items, UIBindingScope.Relative)
+            .SetDragKind(BoardGroupContext.CardKind)
+            .SetDraggable(true)
+            .SetSelectionMode(UISelectionMode.Many)
+            .OnItemMove(nameof(ItemsViewController.MoveCard), UIAction.Arg("list", id), UIAction.ArgCurrentItemKey("id"), UIAction.ArgEventValue("index"))
+            .OnDrop(BoardGroupContext.CardKind, nameof(ItemsViewController.DropCards), UIAction.Arg("list", id))
+            .SetSpacing(4)
+            .SetMinHeight(UILayoutLength.Absolute(160))
+            .SetTemplate(new TextComponent()
+                .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                .AsBody()
+                .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                .SetDescriptionColor(UIThemeColor.Muted)
+            )
+        );
 
     /// <summary>
     /// A row's own menu, two ways. A file's frequent actions stand in a bar above its row's end, the rest behind the bar's "…" (which

@@ -242,6 +242,36 @@
         opacity: 0.35;
     }
 
+// A file tree's dress, as an editor's explorer draws one: a node that says whether it is a folder (IsFolder) and names no icon of its own
+// shows a folder, open while unfolded, in a golden yellow, or a page in the title's ink. The node's IconColor where it is still the
+// default (Primary) gives way to the dress; one the author wrote otherwise is kept.
+@ui-tree-dress: ~".ui-tree-node[data-ui-tree-folder]:not([data-ui-text-icon]) > .ui-tree-node__text > .ui-text__icon";
+@ui-tree-dress-folder: ~".ui-tree-node[data-ui-tree-folder='true']:not([data-ui-text-icon]) > .ui-tree-node__text > .ui-text__icon";
+
+@{ui-tree-dress} {
+    --ui-icon-font: @ui-glyph-font;
+    --ui-icon-glyph: @ui-glyph-description;
+    --ui-icon-fill: 0;
+}
+
+    @{ui-tree-dress}:is(.ui-color--primary, :not([class*="ui-color--"])) {
+        color: inherit;
+    }
+
+@{ui-tree-dress-folder} {
+    --ui-icon-glyph: @ui-glyph-folder;
+    --ui-icon-fill: 1;
+}
+
+    // NE.Colors' SolarGold, a shade of 3 on the light page and a tint of 2 on the dark: 3:1 on either.
+    @{ui-tree-dress-folder}:is(.ui-color--primary, :not([class*="ui-color--"])) {
+        color: light-dark(#a17e15, #ebc34b);
+    }
+
+    .ui-tree__row[aria-expanded="true"] @{ui-tree-dress-folder} {
+        --ui-icon-glyph: @ui-glyph-folder-open;
+    }
+
 .ui-tree-node__rename {
     .ui-inline-rename-field();
     z-index: 1;
