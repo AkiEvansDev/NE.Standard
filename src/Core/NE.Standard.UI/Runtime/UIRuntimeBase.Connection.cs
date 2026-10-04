@@ -235,8 +235,8 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Runs a controller's lifecycle hook as a command runs: held, under the state lock, its writes queued like a command's, and the
-    /// given connection its handle. The hook's failure is the controller's to report; the attach or the switch still stands.
+    /// Runs a controller's lifecycle hook held, under the state lock but not in a command's turn, its writes queued like a command's, and
+    /// the given connection its handle. The hook's failure is the controller's to report; the attach or the switch still stands.
     /// </summary>
     private async Task RunLifecycleHookAsync(UIHandle handle, string operation, Func<CancellationToken, Task> hook, CancellationToken cancellationToken)
     {

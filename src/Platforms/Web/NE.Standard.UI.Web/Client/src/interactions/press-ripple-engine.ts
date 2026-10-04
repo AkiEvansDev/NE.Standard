@@ -6,7 +6,7 @@
 
 import { ButtonClass, ComponentIdAttribute, MenuItemClass, NoRowSelectAttribute, PopupRoleSelector, RowEditingAttribute, SelectionAttribute, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
-import { isInert, isItemDisabled } from "./interactive-state.ts";
+import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import { ownControlOf } from "./own-control.ts";
 import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
@@ -112,7 +112,7 @@ export class PressRippleEngine {
         const root = row.closest(SelectionRootSelector);
         const chooses = root !== null && !row.classList.contains(KeyValueRowClass) && !root.hasAttribute(NoRowSelectAttribute)
             && (root.getAttribute(SelectionAttribute) === "one" || root.getAttribute(SelectionAttribute) === "many");
-        const folds = row.classList.contains(TreeRowClass) && row.hasAttribute(UnselectableAttribute);
+        const folds = row.classList.contains(TreeRowClass) && isItemRefused(row, UnselectableAttribute);
 
         if (!chooses && !folds && !this.raisesClick(row, target))
             return null;

@@ -65,7 +65,7 @@ test("a circle is its modifier, by name or by number, and the default is no clas
     assert.equal(convert("imageShapeClass", "Default"), "");
 });
 
-// The attach writes every bound value once (its snapshot, or a row drawn from its template), so a change finds the circle it wrote.
+// A change after a written circle takes it off; a circle the server painted is its converter's family, cleared on the first write.
 test("a live change after the attach's write takes the circle off, and puts it back", () => {
     const registry = new DomOperationRegistry();
 

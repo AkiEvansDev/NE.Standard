@@ -52,6 +52,8 @@ internal sealed partial class UIViewCompilationContext
                     ? BuildItemsBindingPath(component, sourceBinding.Value, componentContexts, rootPath)
                     : BuildBindingPath(component, sourceBinding.Value, componentContexts, rootPath);
 
+                EnsureNoFixedControllerSegment(component, $"binds '{definition.Property.Name}' to", fullPath);
+
                 // An optional binding expects items without the path: a default template binds a whole model contract.
                 if (!sourceBinding.Value.Optional)
                     WarnOnUnresolvableControllerPath(component, definition.Property.Name, fullPath);

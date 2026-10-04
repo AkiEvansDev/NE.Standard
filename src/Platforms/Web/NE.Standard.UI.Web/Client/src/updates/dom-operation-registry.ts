@@ -3,8 +3,9 @@ import type { ResolvedPropertyAddress } from "../addressing/address-resolver.ts"
 import { isNullishValue, toDomString } from "../extensions/value-readers.ts";
 import { getDomOperationKind, getValueCondition } from "../metadata/metadata-index.ts";
 import type { WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index.ts";
-import { isIconClassName, toIconClassName } from "../rendering/icon-value.ts";
+import { toIconClassName } from "../rendering/icon-value.ts";
 import { applyInlineMarkup } from "../rendering/inline-markup.ts";
+import { getClassFamily } from "../rendering/web-dom-converters.ts";
 import { forgetWords } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { FormOwnerOperationKind, writeFormOwner } from "./form-owner.ts";
@@ -26,11 +27,9 @@ export type DomOperationRegistration = {
     readonly handler: DomOperationHandler;
 };
 
+// What each class operation last wrote. A class the server painted is not here, so a first write clears its converter's family
+// (getClassFamily) instead: the old class would stand beside the new one, and whichever the stylesheet ranks later would win.
 const classOperationState = new WeakMap<Element, Map<string, string>>();
-
-// Class families whose first client write clears the member the server rendered, which the state above does not know: an icon
-// turned from a picture into a glyph would keep the picture's class, and the glyph would never show.
-const classFamilies = new Map<string, (className: string) => boolean>([["iconClass", isIconClassName]]);
 const attributeOperationState = new WeakMap<Element, Map<string, Set<string>>>();
 
 export class DomOperationRegistry {
@@ -109,7 +108,7 @@ export class DomOperationRegistry {
             const enabled = !isNullishValue(context.value) && evaluateCondition(context.value, context.operation.condition ?? "None");
             const className = enabled ? toDomString(context.convertedValue).trim() : "";
 
-            replaceTrackedClass(context.target, createClassOperationKey(context), className, classFamilies.get(context.operation.converter ?? ""));
+            replaceTrackedClass(context.target, createClassOperationKey(context), className, getClassFamily(context.operation.converter ?? ""));
         });
 
         this.register("ToggleClass", context => {
@@ -121,7 +120,7 @@ export class DomOperationRegistry {
             if (context.operation.converter !== null && context.operation.converter !== undefined && context.operation.converter.trim().length > 0) {
                 const convertedClassName = enabled ? toDomString(context.convertedValue).trim() : "";
 
-                replaceTrackedClass(context.target, createClassOperationKey(context), convertedClassName);
+                replaceTrackedClass(context.target, createClassOperationKey(context), convertedClassName, getClassFamily(context.operation.converter));
             }
         });
 

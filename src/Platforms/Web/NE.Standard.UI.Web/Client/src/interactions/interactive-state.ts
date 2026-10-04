@@ -5,8 +5,15 @@ import { ComponentIdAttribute, DisabledClass, LoadingClass, ReadOnlyClass } from
 /** What takes the reader's press away from everything inside it: a disabled or loading component, or anything inert. */
 const BlockedSelector = `.${DisabledClass}, .${LoadingClass}, [inert]`;
 
-/** A row's component, where the row is not one itself: the template's root one or two levels down. */
-const ItemComponentSelector = `:scope > [${ComponentIdAttribute}]:is(${BlockedSelector}), :scope > :not([${ComponentIdAttribute}]) > [${ComponentIdAttribute}]:is(${BlockedSelector})`;
+/** A row's component matching the selector, where the row is not one itself: the template's root one or two levels down. */
+function itemComponentSelector(matching: string): string {
+    return `:scope > [${ComponentIdAttribute}]:is(${matching}), :scope > :not([${ComponentIdAttribute}]) > [${ComponentIdAttribute}]:is(${matching})`;
+}
+
+const ItemComponentSelector = itemComponentSelector(BlockedSelector);
+
+// Built once per mark: a gesture reads the refusal of every row it walks.
+const RefusalSelectors = new Map<string, string>();
 
 /** Whether an element takes no press, key or caret: itself disabled, or inside a component that is disabled, loading or inert. */
 export function isInert(element: Element): boolean {
@@ -16,6 +23,24 @@ export function isInert(element: Element): boolean {
 /** Whether an item's row is disabled: the wrapper itself, or the component it wraps. */
 export function isItemDisabled(wrapper: Element): boolean {
     return wrapper.matches(BlockedSelector) || wrapper.querySelector(ItemComponentSelector) !== null;
+}
+
+/**
+ * Whether an item's row refuses a gesture by its mark (`Undraggable`, `Unselectable`, `Unremovable`, `Unrenamable`): on the wrapper,
+ * the item's word, or on the component it wraps, the template's — either refusing wins.
+ */
+export function isItemRefused(wrapper: Element, attribute: string): boolean {
+    if (wrapper.hasAttribute(attribute))
+        return true;
+
+    let selector = RefusalSelectors.get(attribute);
+
+    if (selector === undefined) {
+        selector = itemComponentSelector(`[${attribute}]`);
+        RefusalSelectors.set(attribute, selector);
+    }
+
+    return wrapper.querySelector(selector) !== null;
 }
 
 /** Whether the keyboard can stand on an element: laid out, not natively disabled, not inside anything inert. */

@@ -5,7 +5,7 @@ import {
     BindSelectedKeyAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, HiddenClass, ItemsHostAttribute, NoRowSelectAttribute, SelectedAttribute, SelectedKeyAttribute,
     SelectedKeysAttribute, SelectionAttribute, TableRowClass, TreeRootClass, TreeRowClass, UnselectableAttribute
 } from "../addressing/dom-attributes.ts";
-import { isItemDisabled } from "./interactive-state.ts";
+import { isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import { writeSelectedKey } from "./selected-key.ts";
 
 const SelectedKeysBindingAttribute = "data-ui-bind-selected-keys";
@@ -175,7 +175,7 @@ function writeSelectedKeys(root: HTMLElement, rows: readonly HTMLElement[], keys
 
 /** Whether a row takes a choice at all: it has a key, and is neither disabled nor refusing to be chosen. */
 function isChoosable(row: Element): boolean {
-    return rowKey(row).length > 0 && !row.hasAttribute(UnselectableAttribute) && !isItemDisabled(row);
+    return rowKey(row).length > 0 && !isItemRefused(row, UnselectableAttribute) && !isItemDisabled(row);
 }
 
 /** The rows from one to the other, in the host's order, that can be chosen: drawn, enabled, not refusing. */

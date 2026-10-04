@@ -6,6 +6,7 @@ import { HeldCollections } from "../items/held-collections";
 import { ItemProjections, readItemProjections } from "../items/item-projections";
 import { getRealItemElements } from "../items/items-empty-renderer";
 import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
+import { unmarkDraggedRow } from "../interactions/items-reorder-engine";
 import { planRowRemoval } from "../interactions/row-cursor";
 import { SelectionRootSelector } from "../interactions/row-selection";
 import { resolveHostMode, windowOffset } from "../items/items-host-mode";
@@ -590,6 +591,8 @@ export class UpdateProcessor {
     private restoreRow(host: Element, row: TakenRow): void {
         const order = getSourceOrder(host, getRealItemElements(host));
 
+        // Never back faded: a row taken off the page mid-drag keeps the mark its dragend could not reach to take off.
+        unmarkDraggedRow(row.element);
         host.insertBefore(row.element, insertSourceItem(order, row.element, row.index));
         this.afterRowsChanged(host);
     }

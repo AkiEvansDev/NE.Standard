@@ -4,7 +4,7 @@
 import { BadgeSetAttribute, BadgeTextAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
 import { resolveResponsiveTier, toResponsiveTier } from "./responsive-tier.ts";
-import { toIconClassName, toIconSourceCss } from "./icon-value.ts";
+import { isIconClassName, toIconClassName, toIconSourceCss } from "./icon-value.ts";
 import { clampByte, onColorToken, toHexByte } from "./color-bytes.ts";
 import { toSafeImageSource, toSafeLink } from "./url-safety.ts";
 import { inlineMarkupToPlainText } from "./inline-markup.ts";
@@ -206,28 +206,62 @@ const popupPlacementTokens = [
 
 const colorAdjustmentTokens = ["None", "Shade", "Tint"];
 
+/** Whether a class is one a class converter can write. */
+export type ClassFamily = (className: string) => boolean;
+
+// Every class each class converter can write, declared with it below: the class operation's first write clears the member the server
+// painted, which it never wrote itself.
+const classFamilies = new Map<string, ClassFamily>();
+
+/** The family of classes a converter writes, for the class operation's first write; none for a converter that writes no class. */
+export function getClassFamily(converterName: string): ClassFamily | undefined {
+    return classFamilies.get(converterName);
+}
+
+/** A class converter writing `prefix` and a token of `tokens`, whose family is exactly those classes. */
+function tokenClass(name: string, prefix: string, tokens: readonly string[]): [string, WebDomConverter] {
+    return familyClass(name, toTokenClassFamily(prefix, tokens), value => `${prefix}${toToken(value, tokens)}`);
+}
+
+function toTokenClassFamily(prefix: string, tokens: readonly string[]): ClassFamily {
+    return toClassFamily(tokens.map(token => `${prefix}${token}`));
+}
+
+// An exact set, never a prefix: `ui-button--` is shared by a button's kind and its size, which are two properties on one element.
+function toClassFamily(classNames: readonly string[]): ClassFamily {
+    const members = new Set(classNames);
+
+    return className => members.has(className);
+}
+
+function familyClass(name: string, family: ClassFamily, convert: WebDomConverter): [string, WebDomConverter] {
+    classFamilies.set(name, family);
+
+    return [name, convert];
+}
+
 export const webDomConverters = new Map<string, WebDomConverter>([
-    ["colorClass", value => `ui-color--${toToken(value, colorTokens)}`],
-    ["themeColorClass", value => toThemeColorClass(value)],
-    ["iconClass", value => toIconClassName(value)],
+    tokenClass("colorClass", "ui-color--", colorTokens),
+    familyClass("themeColorClass", toTokenClassFamily("ui-color--", colorTokens), value => toThemeColorClass(value)),
+    familyClass("iconClass", isIconClassName, value => toIconClassName(value)),
     ["iconUrlCss", value => toIconSourceCss(value)],
     ["safeUrl", value => toSafeLink(value)],
     ["safeImageSource", value => toSafeImageSource(value)],
     // Nothing stays nothing, so the attribute it writes is removed rather than emptied.
     ["inlineMarkupPlainText", value => value === null || value === undefined ? undefined : inlineMarkupToPlainText(String(value))],
-    ["iconSizeClass", value => `ui-icon-size--${toToken(value, iconSizeTokens)}`],
-    ["iconShapeClass", value => toToken(value, iconShapeTokens) === "circle" ? "ui-icon--circle" : ""],
-    ["textTypeClass", value => `ui-text-type--${toToken(value, textTypeTokens)}`],
-    ["textAppearanceClass", value => toTextAppearanceClass(value)],
-    ["textAlignmentClass", value => `ui-text--align-${toToken(value, textAlignmentTokens)}`],
-    ["textWrapClass", value => `ui-text--${toToken(value, textWrapTokens)}`],
-    ["textBadgePlacementClass", value => `ui-text__badge--${toToken(value, badgePlacementTokens)}`],
-    ["badgeStyleClass", value => `ui-badge-style--${toToken(value, badgeTypeTokens)}`],
+    tokenClass("iconSizeClass", "ui-icon-size--", iconSizeTokens),
+    familyClass("iconShapeClass", toClassFamily(["ui-icon--circle"]), value => toToken(value, iconShapeTokens) === "circle" ? "ui-icon--circle" : ""),
+    tokenClass("textTypeClass", "ui-text-type--", textTypeTokens),
+    familyClass("textAppearanceClass", toTokenClassFamily("ui-text-type--", textTypeTokens), value => toTextAppearanceClass(value)),
+    tokenClass("textAlignmentClass", "ui-text--align-", textAlignmentTokens),
+    tokenClass("textWrapClass", "ui-text--", textWrapTokens),
+    tokenClass("textBadgePlacementClass", "ui-text__badge--", badgePlacementTokens),
+    tokenClass("badgeStyleClass", "ui-badge-style--", badgeTypeTokens),
     ["badgeTextFit", value => toBadgeTextFit(value)],
-    ["buttonClass", value => `ui-button--${toToken(value, buttonTokens)}`],
-    ["surfaceStyleClass", value => `ui-surface--${toToken(value, surfaceStyleTokens)}`],
-    ["orientationClass", value => `ui-orientation--${toToken(value, orientationTokens)}`],
-    ["groupSeparatorClass", value => `ui-command-bar--separator-${toToken(value, groupSeparatorTokens)}`],
+    tokenClass("buttonClass", "ui-button--", buttonTokens),
+    tokenClass("surfaceStyleClass", "ui-surface--", surfaceStyleTokens),
+    tokenClass("orientationClass", "ui-orientation--", orientationTokens),
+    tokenClass("groupSeparatorClass", "ui-command-bar--separator-", groupSeparatorTokens),
     ["selectionModeAttribute", value => toToken(value, selectionModeTokens)],
     ["selectionBackgroundCss", value => toThemeColor(toSelectionStylePart(value, "background"))],
     ["selectionForegroundCss", value => toThemeColor(toSelectionStylePart(value, "foreground"))],
@@ -235,17 +269,17 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["selectionMarkCss", value => toSelectionMark(toSelectionStylePart(value, "mark"))],
     ["selectionFontWeightCss", value => toSelectionFontWeight(toSelectionStylePart(value, "bold"))],
     ["selectionActionBarBackgroundCss", value => toThemeColor(toSelectionStylePart(value, "actionBarBackground"))],
-    ["itemsViewLayoutClass", value => `ui-items-view--${toToken(value, itemsViewLayoutTokens)}`],
-    ["dragHandlePlacementClass", value => `ui-drag-handle--${toToken(value, dragHandlePlacementTokens)}`],
-    ["scrollXClass", value => `ui-scroll-x--${toToken(value, scrollTokens)}`],
-    ["scrollYClass", value => `ui-scroll-y--${toToken(value, scrollTokens)}`],
+    tokenClass("itemsViewLayoutClass", "ui-items-view--", itemsViewLayoutTokens),
+    tokenClass("dragHandlePlacementClass", "ui-drag-handle--", dragHandlePlacementTokens),
+    tokenClass("scrollXClass", "ui-scroll-x--", scrollTokens),
+    tokenClass("scrollYClass", "ui-scroll-y--", scrollTokens),
     ["hostViewport", value => toHostViewport(value)],
-    ["scrollSnapClass", value => `ui-scroll-snap--${toToken(value, scrollSnapTokens)}`],
-    ["inputAppearanceClass", value => `ui-input--${toToken(value, inputAppearanceTokens)}`],
-    ["searchFieldAppearanceClass", value => `ui-search__field--${toToken(value, inputAppearanceTokens)}`],
-    ["inputSizeClass", value => `ui-input--${toToken(value, inputSizeTokens)}`],
-    ["buttonSizeClass", value => `ui-button--${toToken(value, buttonSizeTokens)}`],
-    ["buttonGroupSizeClass", value => `ui-button-group--${toToken(value, buttonSizeTokens)}`],
+    tokenClass("scrollSnapClass", "ui-scroll-snap--", scrollSnapTokens),
+    tokenClass("inputAppearanceClass", "ui-input--", inputAppearanceTokens),
+    tokenClass("searchFieldAppearanceClass", "ui-search__field--", inputAppearanceTokens),
+    tokenClass("inputSizeClass", "ui-input--", inputSizeTokens),
+    tokenClass("buttonSizeClass", "ui-button--", buttonSizeTokens),
+    tokenClass("buttonGroupSizeClass", "ui-button-group--", buttonSizeTokens),
     ["textInputTypeAttribute", value => toToken(value, textInputTypeTokens)],
     ["inputModeAttribute", value => toToken(value, inputModeTokens)],
     ["colorTextFormatAttribute", value => toToken(value, colorTextFormatTokens)],
@@ -256,7 +290,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["overflowCss", value => toToken(value, overflowTokens)],
     ["layoutLengthCss", value => toLayoutLength(value)],
     ["thicknessCss", value => toThickness(value)],
-    ["borderNoneClass", value => toBorderNoneClass(value)],
+    familyClass("borderNoneClass", toClassFamily(["ui-border--none"]), value => toBorderNoneClass(value)),
     ["radiusCss", value => toRadius(value)],
     ["gridUnitCss", value => toGridUnit(value)],
     ["pixelsCss", value => toPixels(value)],
@@ -332,8 +366,8 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["gridPlacementXxlRowCss", value => toResponsiveGridPlacementPart(value, "xxl", "row")],
     ["gridPlacementXxlColumnSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "columnSpan")],
     ["gridPlacementXxlRowSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "rowSpan")],
-    ["imageFitClass", value => `ui-image-fit--${toToken(value, imageFitTokens)}`],
-    ["imageShapeClass", value => toToken(value, imageShapeTokens) === "circle" ? "ui-image--circle" : ""],
+    tokenClass("imageFitClass", "ui-image-fit--", imageFitTokens),
+    familyClass("imageShapeClass", toClassFamily(["ui-image--circle"]), value => toToken(value, imageShapeTokens) === "circle" ? "ui-image--circle" : ""),
     ["backgroundImageCss", value => toBackgroundImageCss(value)],
     ["backgroundImageAttribute", value => toBackgroundImageCss(value).length === 0 ? undefined : ""],
     ["imageFitSizeCss", value => toToken(value, imageFitSizeTokens)],
@@ -343,11 +377,11 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["backgroundImageBlurAttribute", value => isBackgroundImageBlurred(value) ? "" : undefined],
     ["positiveCount", value => toPositiveCount(value)?.toString()],
     ["positiveFlagAttribute", value => toPositiveCount(value) === undefined ? undefined : ""],
-    ["maxLinesClass", value => toPositiveCount(value) === undefined ? "" : "ui-text--max-lines"],
-    ["progressVariantClass", value => `ui-progress--${toToken(value, progressVariantTokens)}`],
+    familyClass("maxLinesClass", toClassFamily(["ui-text--max-lines"]), value => toPositiveCount(value) === undefined ? "" : "ui-text--max-lines"),
+    tokenClass("progressVariantClass", "ui-progress--", progressVariantTokens),
     ["progressValueText", value => toProgressValue(value)],
     ["textAreaResizeCss", value => toToken(value, textAreaResizeTokens)],
-    ["flyoutPlacementClass", value => `ui-flyout--${toToken(value, popupPlacementTokens)}`],
+    tokenClass("flyoutPlacementClass", "ui-flyout--", popupPlacementTokens),
     ["popupPlacementAttribute", value => toToken(value, popupPlacementTokens)],
     ["tabMenuEntriesAttribute", value => toTabMenuTokens(value)],
     ["markedDaysAttribute", value => toDayTokens(value)]

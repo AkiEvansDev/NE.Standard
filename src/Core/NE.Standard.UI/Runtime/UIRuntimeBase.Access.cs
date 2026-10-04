@@ -63,7 +63,10 @@ internal abstract partial class UIRuntimeBase
         PostCore("Post", action);
     }
 
-    /// <summary>Queues work to run on the thread pool as <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/> runs it, in the order it was posted.</summary>
+    /// <summary>
+    /// Queues work to run on the thread pool in a command's turn, then as <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/>
+    /// runs it, in the order it was posted.
+    /// </summary>
     /// <remarks>
     /// Counted as a command from the moment it is queued, so a runtime asked to go waits for the work rather than disposing under
     /// it; work still queued when the runtime is asked to go is dropped. One drain runs at a time, so a message posted and then
@@ -105,11 +108,20 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
-    /// <summary>Runs queued work and lets go of its hold; never faults, since nothing awaits it: a failure goes to the controller.</summary>
+    /// <summary>
+    /// Runs queued work between exclusive commands and lets go of its hold; never faults, since nothing awaits it: a failure goes to
+    /// the controller.
+    /// </summary>
     private async Task RunPostedAsync(string operation, Func<CancellationToken, Task> action)
     {
+        var inTurn = false;
+
         try
         {
+            // A command's body holds no state lock, so without its turn a posted redraw would write the controller beside the command's own.
+            await _exclusiveCommandLock.WaitAsync().ConfigureAwait(false);
+            inTurn = true;
+
             if (Volatile.Read(ref _disposeRequested) == 0)
                 _ = await InvokeAsync(action, CancellationToken.None).ConfigureAwait(false);
         }
@@ -126,6 +138,10 @@ internal abstract partial class UIRuntimeBase
         }
         finally
         {
+            // Released before the hold: the last hold out may dispose the runtime, and its lock with it.
+            if (inTurn)
+                _ = _exclusiveCommandLock.Release();
+
             try
             {
                 await LeaveCommandAsync().ConfigureAwait(false);

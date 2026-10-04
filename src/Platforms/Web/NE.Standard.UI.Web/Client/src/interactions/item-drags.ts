@@ -4,7 +4,7 @@
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { DragEffectsAttribute, DragKindAttribute, DragSourceAttribute, UndraggableAttribute } from "../addressing/dom-attributes.ts";
-import { isItemDisabled } from "./interactive-state.ts";
+import { isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import { rowBox, rowKey, selectedRows } from "./row-selection.ts";
 
 // The type a drag of offered items carries beside its text: a drag without it — a file from the desktop, or one whose end never
@@ -27,6 +27,8 @@ export type ItemDrag = {
 };
 
 let current: ItemDrag | null = null;
+// What the engine that started the drag does as it ends — its marks off, its lift given back — run once, whoever ends it.
+let ending: (() => void) | null = null;
 
 /** The items a host offers from the given rows, or null where it offers none (no kind, or neither effect allowed). */
 export function offeredItems(root: HTMLElement, host: HTMLElement, rows: readonly HTMLElement[]): ItemDrag | null {
@@ -46,9 +48,9 @@ export function carriedRows(row: HTMLElement, shown: readonly HTMLElement[]): HT
     return chosen.includes(row) ? chosen.filter(other => other === row || isLiftable(other)) : [row];
 }
 
-/** Whether a row may be lifted: not refused (`Undraggable`), not disabled, and drawn — one folded away would move unseen. */
+/** Whether a row may be lifted: not refused (`Undraggable`, by its item or its template), not disabled, and drawn — one folded away would move unseen. */
 export function isLiftable(row: HTMLElement): boolean {
-    return !row.hasAttribute(UndraggableAttribute) && !isItemDisabled(row) && rowBox(row) !== null;
+    return !isItemRefused(row, UndraggableAttribute) && !isItemDisabled(row) && rowBox(row) !== null;
 }
 
 /** What a drag of a host's rows allows: the effects it offers them for, and a move wherever its rows also move among themselves. */
@@ -59,9 +61,10 @@ export function allowedEffect(drag: ItemDrag | null, movesOwn: boolean): DataTra
     return copy && move ? "copyMove" : copy ? "copy" : "move";
 }
 
-/** Starts a drag of the given items, or of none, which clears what an earlier drag left. */
-export function beginItemsDrag(domEvent: Event, drag: ItemDrag | null): void {
+/** Starts a drag of the given items, or of none, which clears what an earlier drag left; `end` is the starting engine's own end. */
+export function beginItemsDrag(domEvent: Event, drag: ItemDrag | null, end: (() => void) | null = null): void {
     current = drag;
+    ending = drag === null ? null : end;
 
     if (drag !== null && domEvent instanceof DragEvent && domEvent.dataTransfer !== null)
         domEvent.dataTransfer.setData(ItemDragType, drag.kind);
@@ -72,6 +75,14 @@ export function currentItemDrag(domEvent: DragEvent): ItemDrag | null {
     return current !== null && domEvent.dataTransfer?.types.includes(ItemDragType) === true ? current : null;
 }
 
+/**
+ * Ends the drag in the air and runs the starting engine's end: at dragend, or at the drop, before a transfer takes the source's rows
+ * off the page — a dragend fired at a row no longer on it never reaches a listener, and the row would come back still faded.
+ */
 export function endItemDrag(): void {
+    const end = ending;
+
     current = null;
+    ending = null;
+    end?.();
 }

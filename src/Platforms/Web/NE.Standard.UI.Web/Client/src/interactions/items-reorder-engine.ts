@@ -8,7 +8,7 @@
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    DragKindAttribute, GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass,
+    ComponentIdAttribute, DragKindAttribute, GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass,
     RowsDraggableAttribute, RowsDragHandleAttribute
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
@@ -239,7 +239,7 @@ export class ItemsReorderEngine {
 
         // On the box: a wrap's row has none of its own for the ghost's fade to show on.
         markDragStart(domEvent, found.root, box, DraggingClass, rowKey(found.row), companions, allowedEffect(items, found.moves));
-        beginItemsDrag(domEvent, items);
+        beginItemsDrag(domEvent, items, () => this.endDrag());
     }
 
     /** Over a row of the dragged row's host, or its empty room past the last: the drop is taken and the side it lands on marked. */
@@ -523,4 +523,10 @@ export function markRowDrop(root: HTMLElement, place: Place | null, offset = 0):
 
     if (box.style.getPropertyValue(RowDropOffsetVariable) !== value)
         box.style.setProperty(RowDropOffsetVariable, value);
+}
+
+/** Takes the dragged mark off a row and off the box a wrap draws it by: read off the row, as a detached row has no box to find. */
+export function unmarkDraggedRow(row: Element): void {
+    row.classList.remove(DraggingClass);
+    row.querySelector(`:scope > [${ComponentIdAttribute}]`)?.classList.remove(DraggingClass);
 }

@@ -10,8 +10,9 @@ namespace NE.Standard.UI.Shell.Runtime;
 /// service, a timer, a webhook.
 /// </summary>
 /// <remarks>
-/// Each runtime reached runs the work as <see cref="IUIRuntimeAccess.Post"/> runs it: queued and returned from at once, under the
-/// runtime's lock, one at a time in the order it was posted — every runtime of a topic in the same order — and a failure goes to that
+/// Each runtime reached runs the work as <see cref="IUIRuntimeAccess.Post"/> runs it: queued and returned from at once, between the
+/// runtime's exclusive commands and under its lock, one at a time in the order it was posted — every runtime of a topic in the same
+/// order — and a failure goes to that
 /// controller's exception handler. A runtime no page looks at now (<see cref="IUIRuntimeAccess.HasViewers"/>) is passed over unless
 /// <c>viewersOnly</c> is <see langword="false"/>, and catches up when a page next attaches to it. Reaches the runtimes of this process
 /// only; answers how many it posted to.

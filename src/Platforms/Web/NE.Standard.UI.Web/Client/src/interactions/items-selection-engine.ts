@@ -9,7 +9,7 @@ import { observeComponents } from "./dom-mutations.ts";
 import { ownControlOf, ownPressControlsOf, soleControlOf } from "./own-control.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { markPointerFocus } from "./popup-focus.ts";
-import { isInert, isItemDisabled } from "./interactive-state.ts";
+import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import type { RowAxis } from "./row-cursor.ts";
 import { dispatchRowEvent, focusedRow, isRowKey, litRow, resolveRowTarget, RowPressEventName, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
 import {
@@ -348,5 +348,5 @@ export function removableRows(rows: readonly HTMLElement[], current: HTMLElement
     const group = chosen.includes(current) ? chosen : [current];
 
     // A row chosen before it was disabled stays chosen, but a disabled row is never acted on.
-    return group.filter(row => !row.hasAttribute(UnremovableAttribute) && !isItemDisabled(row));
+    return group.filter(row => !isItemRefused(row, UnremovableAttribute) && !isItemDisabled(row));
 }

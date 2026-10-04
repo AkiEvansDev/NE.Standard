@@ -113,15 +113,16 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// paints; and for every attach, before <see cref="OnAttachedAsync"/> and in the same turn, so the attach is answered with what
     /// both wrote. The attach of the tab whose own render built the runtime skips it, the render having run it with that navigation —
     /// unless another page's navigation ran since. A render that paints a runtime already running (a kept one) does not run it: that
-    /// runtime may be another tab's; the attach that follows does. Runs as a command does, under the runtime's lock;
-    /// <see cref="UIContext.Handle"/> is the page's connection, the render's own in a render.
+    /// runtime may be another tab's; the attach that follows does. Runs under the runtime's lock, as a value does, not in a command's
+    /// turn; going back or forward within the page, in a command's turn, as an exclusive command does. <see cref="UIContext.Handle"/> is
+    /// the page's connection, the render's own in a render.
     /// </remarks>
     protected virtual Task OnNavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
         => Task.CompletedTask;
 
     /// <summary>Runs each time a connection attaches — a new tab, a reload, a navigation that finds the runtime again.</summary>
     /// <remarks>
-    /// Given the navigation it arrived with. Runs as a command does, under the runtime's lock, after the first attach's
+    /// Given the navigation it arrived with. Runs under the runtime's lock, as a value does, not in a command's turn, after the first attach's
     /// <see cref="OnInitializeAsync"/> and after <see cref="OnNavigatedAsync"/>; what it writes is in the page the attach is answered
     /// with, but not in the page the render painted — a parameter that shapes the first paint belongs in <see cref="OnNavigatedAsync"/>.
     /// <see cref="UIContext.Handle"/> is the attaching connection.
@@ -134,8 +135,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// it gone.
     /// </summary>
     /// <remarks>
-    /// Queued and run as a command does, since a closing connection waits for nobody; what it writes flushes to the pages still
-    /// attached.
+    /// Queued and run as posted work is, between exclusive commands and under the runtime's lock, since a closing connection waits for
+    /// nobody; what it writes flushes to the pages still attached.
     /// </remarks>
     protected virtual Task OnDetachedAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
@@ -187,8 +188,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// that asked, as a command's do — the page's own dialog (Save / Don't save / Cancel), say, whose commands clear
     /// <see cref="HoldsUnsavedWork"/> and answer <c>new NavigateEffect(target)</c>; a <c>NavigateEffect</c> this answers itself is
     /// followed without asking again. Unless overridden, the framework's own dialog asks "Leave without saving?"
-    /// (<see cref="ConfirmLeaveEffect"/>). Runs as a command does, under the runtime's lock; <see cref="UIContext.Handle"/> is the asking
-    /// page's connection.
+    /// (<see cref="ConfirmLeaveEffect"/>). Runs in a command's turn, as an exclusive command does; <see cref="UIContext.Handle"/> is the
+    /// asking page's connection.
     /// </remarks>
     protected virtual Task<UICommandResult> OnLeaveRequestedAsync(string target, CancellationToken cancellationToken)
         => Task.FromResult(UICommandResult.Ok([new ConfirmLeaveEffect(target)]));

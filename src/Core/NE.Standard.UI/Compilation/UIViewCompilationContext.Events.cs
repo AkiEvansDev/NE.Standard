@@ -187,7 +187,9 @@ internal sealed partial class UIViewCompilationContext
 
     private CompiledUIActionArgument BuildBindingActionArgument(IVisualComponent component, string name, UIBindingPath binding, CompiledUIActionArgumentKind kind, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
+        // An argument is read once as the command runs, where a fixed index or key resolves; only a binding kept live is refused it.
         CompiledPath fullPath = BuildBindingPath(component, binding, componentContexts, rootPath);
+
         CompiledUIBindingTemplate template = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
 
         return new CompiledUIActionArgument

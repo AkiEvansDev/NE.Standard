@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
+using System.Text;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
@@ -106,6 +108,41 @@ internal sealed partial class UIViewCompilationContext
     {
         if (IsWindowedItemsHost(component))
             throw new InvalidOperationException($"Component '{component.Id}' is windowed but binds no source.");
+    }
+
+    /// <summary>
+    /// Refuses a controller path that reads one element of a collection by a fixed index or key before any row: the first paint
+    /// sends it no value, a keyed collection's change never matches it, and a row's walk, which starts on the row's item, stops at it.
+    /// </summary>
+    private static void EnsureNoFixedControllerSegment(IVisualComponent component, string reads, CompiledPath path)
+    {
+        // A row reached first: a fixed segment after it is read off the row's own item, which the row carries.
+        if (path.Source.Kind != CompiledUIBindingSourceKind.Controller || path.Parameters.Length == 0 || path.Parameters[0].Kind != CompiledUIBindingParameterKind.Fixed)
+            return;
+
+        throw new InvalidOperationException(
+            $"Component '{component.Id}' {reads} '{DescribePath(path)}', which reads one element of a collection by a fixed index or key " +
+            "from the controller. Address one element per row through an item template; a fixed [0] or [\"key\"] is read inside a row's item.");
+    }
+
+    /// <summary>A compiled controller path as written: its fixed segments filled in, a row's left as "[]".</summary>
+    private static string DescribePath(CompiledPath path)
+    {
+        var parts = path.Template.Template.Split("[]");
+        StringBuilder builder = new(parts[0]);
+
+        for (var i = 1; i < parts.Length; i++)
+        {
+            _ = builder.Append(path.Parameters[i - 1].Value switch
+            {
+                int index => string.Create(CultureInfo.InvariantCulture, $"[{index}]"),
+                string key => $"[\"{key}\"]",
+                _ => "[]"
+            });
+            _ = builder.Append(parts[i]);
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>

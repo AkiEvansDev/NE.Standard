@@ -250,6 +250,8 @@ export class ItemDragEngine {
 
         domEvent.preventDefault();
         this.unmark();
+        // Ended before the drop is raised: a transfer takes the source's rows off the page, where their dragend no longer reaches.
+        endItemDrag();
         this.drop(drop.drag, drop.target, drop.effect, drop.landing);
     }
 

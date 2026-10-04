@@ -23,7 +23,7 @@ import { allowedEffect, beginItemsDrag, carriedRows, offeredItems } from "./item
 import { openInlineRename } from "./inline-rename";
 import { enterRow, pressRow, removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
-import { isInert, isItemDisabled } from "./interactive-state";
+import { isInert, isItemDisabled, isItemRefused } from "./interactive-state";
 import { focusedRow, litRow, nameRowBy, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
@@ -210,7 +210,7 @@ export class TreeEngine {
             row.classList.toggle(TreeRowFilteredClass, filtered);
             row.removeAttribute(TreeBootAttribute);
             // A disabled node is not lifted: its own component is inert, but the row around it would still start a drag.
-            row.draggable = draggable && !row.hasAttribute(UndraggableAttribute) && !isItemDisabled(row);
+            row.draggable = draggable && !isItemRefused(row, UndraggableAttribute) && !isItemDisabled(row);
 
             if (hasChildren)
                 row.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -410,7 +410,7 @@ export class TreeEngine {
         const { tree, row, target } = found;
         const toggle = target.closest<HTMLElement>(`.${ToggleClass}`);
 
-        if (toggle === null && (!row.hasAttribute(UnselectableAttribute) || ownControlOf(target, row) !== null))
+        if (toggle === null && (!isItemRefused(row, UnselectableAttribute) || ownControlOf(target, row) !== null))
             return;
 
         domEvent.preventDefault();
@@ -568,7 +568,7 @@ export class TreeEngine {
 
     /** The tree renames, and this node has not refused it. */
     private canRename(tree: HTMLElement, row: HTMLElement): boolean {
-        return tree.hasAttribute(TreeRenamableAttribute) && !row.hasAttribute(UnrenamableAttribute);
+        return tree.hasAttribute(TreeRenamableAttribute) && !isItemRefused(row, UnrenamableAttribute);
     }
 
     private handleDragStart(domEvent: Event): void {
@@ -854,7 +854,7 @@ export class TreeEngine {
         const title = node?.querySelector<HTMLElement>(TitleSelector) ?? null;
 
         // A node that refuses the rename refuses it from a menu's effect too; the tree's own switch gates only the viewer's keys.
-        if (tree === null || node === null || title === null || row.hasAttribute(UnrenamableAttribute))
+        if (tree === null || node === null || title === null || isItemRefused(row, UnrenamableAttribute))
             return;
 
         this.setFocus(tree, row, null);

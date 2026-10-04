@@ -160,6 +160,9 @@ internal sealed partial class UIViewCompilationContext
 
         // The component's base context is registered already, so a Relative scope reads it and a Parent scope the one above it.
         CompiledPath fullPath = BuildBindingPath(component, binding, componentContexts, rootPath);
+
+        EnsureNoFixedControllerSegment(component, "binds its context to", fullPath);
+
         CompiledUIBindingTemplate compiledTemplate = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
         CompiledUIContext context = GetOrAddContext(contextsByTemplateId, compiledTemplate);
 

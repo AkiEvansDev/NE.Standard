@@ -54,6 +54,9 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     private static readonly UICommandResult AcceptedCommand = UICommandResult.Ok();
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
+
+    // A command's turn: an exclusive command, a leave, a back or forward, and posted work, one at a time. Taken before the send order
+    // and the state lock, never inside them; an exclusive command's body holds it but not the state lock.
     private readonly SemaphoreSlim _exclusiveCommandLock = new(1, 1);
     private readonly SemaphoreSlim _initializeLock = new(1, 1);
 

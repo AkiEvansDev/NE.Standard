@@ -45,7 +45,7 @@ class FakeCustomEvent extends FakeEvent {
 installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent });
 
 const { ItemDragEngine } = await import("../src/interactions/item-drag-engine.ts");
-const { ItemsReorderEngine } = await import("../src/interactions/items-reorder-engine.ts");
+const { ItemsReorderEngine, unmarkDraggedRow } = await import("../src/interactions/items-reorder-engine.ts");
 const { allowedEffect, carriedRows, offeredItems } = await import("../src/interactions/item-drags.ts");
 
 type List = { readonly root: FakeElement; readonly host: FakeElement; readonly rows: FakeElement[] };
@@ -270,4 +270,55 @@ test("a drag that carries none of the page's items, a file from the desktop, is 
 
     assert.equal(drag("dragover", target.rows[0], file).defaultPrevented, false);
     assert.equal(drag("dragover", target.rows[0], dataTransfer).defaultPrevented, true);
+});
+
+test("a move dropped on another list takes the marks off before its row leaves the page, so the row put back is not faded and lifts again", () => {
+    const source = list("1", ["a", "b"], Cards);
+    const target = list("2", ["x"], Cards);
+    const { page: root, drops } = page(source.root, target.root);
+    const dataTransfer = new FakeDataTransfer();
+    const [first] = source.rows;
+    let fadedAsTaken: boolean | null = null;
+
+    // The transfer ahead of the answer, as the pipeline makes it: the dragged row taken off the page as the drop is raised.
+    root.addEventListener("drop:card", () => {
+        fadedAsTaken = first.classList.contains("ui-row--dragging");
+        first.remove();
+    });
+
+    first.dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", first, dataTransfer);
+    drag("drop", target.rows[0], dataTransfer, 7);
+    // Fired at a row no longer on the page, it reaches no engine.
+    drag("dragend", first, dataTransfer);
+
+    assert.equal(drops.length, 1);
+    assert.equal(fadedAsTaken, false);
+    assert.equal(real<{ draggable: boolean }>(first).draggable, false);
+
+    // Refused: the row stands where it stood, and the next drag lifts and marks it as the first did.
+    source.host.insertBefore(first, source.rows[1]);
+    first.dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", first, dataTransfer);
+
+    assert.equal(first.classList.contains("ui-row--dragging"), true);
+
+    drag("dragend", first, dataTransfer);
+
+    assert.equal(first.classList.contains("ui-row--dragging"), false);
+    assert.equal(real<{ draggable: boolean }>(first).draggable, false);
+});
+
+test("a row put back off the page wears no drag mark, nor the tile a wrap draws it by", () => {
+    const { rows } = list("1", ["a"], Cards, true);
+    const [row] = rows;
+    const [tile] = row.children;
+
+    row.classList.add("ui-row--dragging");
+    tile.classList.add("ui-row--dragging");
+    row.remove();
+    unmarkDraggedRow(real(row));
+
+    assert.equal(row.classList.contains("ui-row--dragging"), false);
+    assert.equal(tile.classList.contains("ui-row--dragging"), false);
 });
