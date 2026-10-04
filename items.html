@@ -1,0 +1,698 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Items — NE.Standard</title>
+    <meta name="description" content="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">
+    <link rel="stylesheet" href="site.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <script src="site.js" defer></script>
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <button class="pages-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Pages</button>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <input class="nav-filter" type="search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" hidden>
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="extensions.html" title="One-call shorthands over the built-in components for the page parts, inline messages, form rows, button pairs, text roles and show-when rules a screen writes again and again.">Presets</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, validation on inputs, and forms.">Binding</a></li>
+                <li><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li class="current"><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation keys and content, UIPhrase and plurals, switching the page&#39;s language in place, the framework&#39;s own words, and missing translations.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command or page is reported.">Dialogs and notifications</a></li>
+                <li><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="testing.html" title="Test a view and its controller together without a browser — boot the application&#39;s startup, open a page, act on its components and read what it shows.">Testing an application</a></li>
+                <li><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums and value types</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line unless it is told to wrap.">Text</a></li>
+                <li><a href="components/timestamp.html" title="A moment shown in the reader&#39;s own time zone and language, formatted by the page.">Timestamp</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/language-switcher.html" title="A button that switches the page to another language in place, and tells the session.">Language switcher</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/calendar.html" title="A month&#39;s calendar drawn in place, whose press on a day chooses it.">Calendar</a></li>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/multi-select.html" title="A dropdown input that holds several options out of a bound list.">Multi select</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A select whose open list carries a search field pinned over its options.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value, or a band of two, by dragging handles along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/pager.html" title="The pages of a paged items view or table.">Pager</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Items</h1>
+<p>An items host is any component that renders a keyed collection through a template: <code>ItemsViewComponent</code>,
+<code>TableComponent</code> and <code>TreeComponent</code> are the general-purpose ones, and <code>MenuComponent</code>, <code>TabsViewComponent</code>
+and the <code>SelectComponent</code>/<code>MultiSelectComponent</code>/<code>RadioGroupComponent</code>/<code>SearchComponent</code> inputs are all items hosts too — they add a
+menu, a tab strip driven by a collection, or options on top of the same collection machinery.</p>
+<h2 id="static-vs-bound-items">Static vs bound items</h2>
+<p><code>SetItems</code>/<code>AddItem</code>/<code>AddItems</code> hold a plain, author-declared list — data that never changes per session and
+renders fully on the server, cached alongside the view itself:</p>
+<pre><code class="language-csharp">new TableComponent()
+    .SetItems(DemoDeploymentRow.CreateDeployments())
+    .AddTextColumn(&quot;Service&quot;, nameof(DemoDeploymentRow.Service));
+</code></pre>
+<p><code>BindItems(path, scope)</code> points the collection at a <code>RecursiveCollection</code> on the controller instead. It is
+generated for every items host from the <code>Items</code> property, so its scope defaults follow the same rule as any
+other binding — <code>Root</code> unless you pass <code>Relative</code>.</p>
+<pre><code class="language-csharp">new ItemsViewComponent()
+    .BindItems(nameof(SomeController.Rows))
+    .SetTemplate(rowTemplate);
+</code></pre>
+<p>A closed list of options shown by several selects is a static list given to <code>SetOptions</code> (<code>AddOptions</code>, a menu's <code>SetItems</code>):
+the component keeps its own references and nothing takes the items over, so one <code>static readonly</code> list is shared freely by
+every select, radio group, menu and page. A list the controller holds is a recursive tree with one owner per node: putting one
+node in a second place is refused, and the refusal names both places — each path from its root, and the root's type.</p>
+<h2 id="every-item-is-keyed">Every item is keyed</h2>
+<p>An item collection — static or bound — must hold <code>IBindableItem</code>s, each with a stable string <code>Id</code>; the
+compiler refuses anything else. Wrap a plain value with <code>UIValueItem&lt;T&gt;</code>, whose <code>Id</code> is derived from the
+value itself (so the same value cannot appear twice), or <code>UIOptionValue&lt;T&gt;</code>, which also fills <code>Title</code> so
+<code>Select</code>/<code>MultiSelect</code>/<code>Search</code>/<code>RadioGroup</code> render options with no template of their own. <code>Id</code> is declared
+<code>[RecursiveMember(false)]</code> — it registers a path segment but generates no setter, because a notifying <code>Id</code>
+would let an item be re-keyed after insertion and orphan every path built from the old key.</p>
+<p>The built-in row shapes: <code>TextItem</code>,
+<code>OptionItem</code>, <code>MenuItem</code>, <code>TabItem</code>, <code>BadgeItem</code>, <code>ButtonItem</code>, <code>TreeNode</code>, <code>KeyValueActionItem</code>,
+<code>BreadcrumbItem</code>. Every styling property on them starts <code>null</code>, so an item says only what its author gave it
+and falls back to the template drawing it; <code>Visibility</code> and <code>Enabled</code> are the exception and default to
+<code>Visible</code>/<code>true</code>. What an item leaves <code>null</code>, and an empty collection, does not travel at all — at every depth of the
+item, in the page and over the hub alike — and the page reads a property an item does not carry as <code>null</code>; a <code>false</code>,
+a zero or any other value set travels as it is.</p>
+<h2 id="item-templates">Item templates</h2>
+<p><code>SetTemplate</code>/<code>AddTemplateVariant</code> (declared on <code>ItemsComponentBase&lt;TComponent, TItem, TTemplate&gt;</code>) set the
+default template and named variants; <code>TemplateKeyProperty</code> (on <code>TemplatedComponentBase</code>) names the item
+property whose value picks a variant by name — <code>MenuItem.Kind</code> choosing between the header, separator, check, select and
+plain entry templates is the built-in example. <code>FallbackTemplateKey</code> names the variant used when the value
+names none. Patching the property named by <code>TemplateKeyProperty</code> re-renders that one item through a
+collection <code>Replace</code>, so any client-side state the row held is gone — that is the mechanism, not a bug.</p>
+<p>Inside a template, bindings default to <code>Root</code> like everywhere else — <code>.BindTitle(path, UIBindingScope.Relative)</code>
+is what reaches the item's own properties, and it is almost always what you want inside a row:</p>
+<pre><code class="language-csharp">new StackPanelComponent()
+    .AddChild(new TextComponent()
+        .BindTitle(nameof(DemoRowItem.Title), UIBindingScope.Relative)
+    );
+</code></pre>
+<p>There is no &quot;current item index&quot; argument — an item is addressed by key. <code>UIAction.ArgCurrentItemKey(name)</code>
+and <code>UIAction.ArgCurrentItem(name)</code> pass the row's key or the row itself as a command argument:</p>
+<pre><code class="language-csharp">.OnRowClickWithItemKey(nameof(Controller.OpenRow))
+</code></pre>
+<p><code>RowItemsComponentBase&lt;TComponent, TItem, TRow&gt;</code> (the base of <code>TableComponent</code>, <code>TreeComponent</code> and
+<code>KeyValueActionComponent</code>) wraps the whole row in a <code>TRow</code> — <code>DefaultRowTemplate</code> for all three — and exposes
+<code>OnRowClick</code>/<code>OnRowClickWithItem</code>/<code>OnRowClickWithItemKey</code> (a press, or Enter or Space on the keyboard's row),
+<code>OnRowOpen</code>/<code>OnRowOpenWithItemKey</code> (Enter after the click, or a double click) and <code>OnRowRemove</code>/<code>OnRowRemoveWithItemKey</code>
+(Delete on a removable row). <code>ItemsViewComponent</code> carries the parallel vocabulary directly —
+<code>OnItemClick</code>/<code>OnItemClickWithItem</code>/<code>OnItemClickWithItemKey</code>, <code>OnItemOpen</code>/<code>OnItemOpenWithItemKey</code> and
+<code>OnItemRemove</code>/<code>OnItemRemoveWithItemKey</code> — so a plain list, a table and a tree all raise a row's click, open and
+remove the same way. An item event is kept by its host and written on the template in its slot and on every one set there
+later, so <code>OnItemClick</code> and <code>SetTemplate</code> (or <code>OnRowClick</code> and <code>SetRowTemplate</code>) may come in either order; the same event
+registered twice, the later wins. It reaches its own slot only: <code>OnItemClick</code> never reaches a variant <code>AddTemplateVariant</code>
+sets, except a menu's, which names its check entry too.</p>
+<h3 id="what-a-row-carries">What a row carries</h3>
+<p>The page is sent each row's item kept to what its host reads off it: the properties its templates bind (a nested row's
+<code>Parent</code>-scoped bindings included), its filter and sort rules, its template key, the key, <code>Group</code>, <code>IsContent</code> and the abilities.
+A nested list nothing of the row reads is not in it — a list bound inside the row's template gets it as its own rows — and a value
+that reads the same as an absent one (<code>false</code> under a binding that falls back to <code>false</code>, an ability's <code>true</code>) is left out. A
+chat list's row whose model holds every message of the conversation is sent its name, its last line and its time.</p>
+<p>Code of your own in the browser that reads a row's item past its templates (<code>rows.itemOf</code> in a package's engine) names what it
+reads, or takes the item whole:</p>
+<pre><code class="language-csharp">new ItemsViewComponent()
+    .BindItems(nameof(Controller.Rows))
+    .AddItemReads(&quot;Owner.Email&quot;, &quot;Score&quot;)
+    .SetTemplate(new TextComponent().BindTitle(nameof(Row.Title), UIBindingScope.Relative));
+
+new ItemsViewComponent()
+    .BindItems(nameof(Controller.Rows))
+    .ReadsWholeItems();
+</code></pre>
+<p>In development the page warns, naming the host and the path, where it reads a property a row was not sent. A chart, a layered
+graph, the DataGrid and any host that draws no rows of its own are sent their items whole.</p>
+<h2 id="grouping-filtering-and-sorting">Grouping, filtering and sorting</h2>
+<p><code>GroupedItemsComponentBase</code> adds <code>SetGroupTemplate</code> for a header drawn above each group of items that share
+<code>IBindableGroup.Group</code>. The header is drawn from the first shown row of its group — its bindings read that row, and a group all
+of whose rows a filter hides has no header. A command on the header learns which group it heads with
+<code>UIAction.ArgGroupKey(name)</code>, resolved on the server; <code>ArgCurrentItemKey</code> there is the key of the row the header stands in. A
+windowed host groups too, by neighbours rather than buckets: a row whose group differs from the row before it gets a header, so a
+chat feed read backwards shows a day's header over the first message of each day. A header stands where its own
+<code>HorizontalAlignment</code> puts it, as a row does: a day's pill set to <code>Center</code> sits in the middle. <code>ScrollToItemEffect(listId, key)</code>
+from a command shows a row at the top of the list, its header over it — the first message of a day the command read the window
+at. <code>FilterBy</code> and <code>SortBy</code> (on
+<code>ItemsComponentBase</code>) add rules evaluated against an item property:</p>
+<pre><code class="language-csharp">.FilterBy(filterBoxId, IInputComponent.ValueProperty, nameof(DemoDeploymentRow.Service))
+.SortBy(nameof(ITabItemModel.Order))
+</code></pre>
+<ul>
+<li><code>FilterBy(source, itemProperty, operator, activeOperator, activeValue)</code> ties a filter to another
+component's property (or, with no source, to a constant); the default operator is
+<code>UIComparisonOperator.LikeIgnoreCase</code>.</li>
+<li><code>SortBy(source, itemProperty, direction, activeOperator, activeValue, priority)</code> — several sorts combine by
+ascending <code>priority</code>.</li>
+<li>With no source, both are unconditionally active.</li>
+</ul>
+<p>They compile onto <code>UIItemsView</code> (<code>_filters</code>/<code>_sorts</code>) and run <strong>client-side</strong> on a plain or virtualized host —
+filtering hides rows via a class rather than removing them, and fails open: an item whose value never reached
+the client stays visible rather than silently disappearing. A <strong>windowed</strong> host resolves rules on the server
+instead (see below), because the client only ever holds one window of a source that may hold thousands.</p>
+<h2 id="selection">Selection</h2>
+<p><code>ISelectableItemsComponent</code> (implemented by <code>ItemsViewComponent</code>, <code>TableComponent</code>, <code>TreeComponent</code>) adds:</p>
+<ul>
+<li><code>SelectionMode</code> — <code>None</code> (default), <code>One</code>, <code>Many</code>.</li>
+<li><code>SelectedKey</code> — two-way, the chosen key under <code>One</code>.</li>
+<li><code>SelectedKeys</code> — two-way, the chosen keys in choice order under <code>Many</code>.</li>
+<li><code>ISelectionStyleComponent.SelectionStyle</code> — what a chosen row looks like; unset parts fall back to the
+control's own default.</li>
+</ul>
+<p><strong>From the keyboard</strong> an items view and a table are one stop of the Tab order: the host keeps the focus and names the keyboard's
+row (<code>aria-activedescendant</code>), lit only while the keyboard holds it. The arrows walk the rows (a horizontal list Left and Right,
+a wrap by its lines), Home and End go to the ends, Page Up and Page Down a viewport's height. Enter runs the row's click and then its
+open; Space chooses where the host chooses and otherwise runs the click. A single choice follows the arrows, Shift with an arrow
+takes a range, Delete raises the remove. A row that is one button is pressed by them, and a control in a part of the row that
+answers its own press (<code>data-ui-no-row-open</code>: a grid's chevron, its checkbox) is no stop of its own either. A table's header is a
+group reached by Up from the first row: Left and Right walk its captions as the columns stand, Ctrl with an arrow moves a column,
+Shift with an arrow sizes it, and Down goes back. A host whose rows are chosen or pressed is a <code>listbox</code> (rows holding no control of
+their own) or a <code>grid</code> to a screen reader; a table only read stays a <code>table</code>.</p>
+<p>A bound <code>SelectedKey</code> under <code>Many</code> (or <code>SelectedKeys</code> under <code>One</code>/<code>None</code>) compiles with a warning
+(<code>CompiledView.Warnings</code>), logged rather than refused. Nothing prunes <code>SelectedKey</code>/<code>SelectedKeys</code> when the
+item they name leaves the collection — a controller that removes a chosen item clears the key itself.</p>
+<h2 id="item-abilities-and-whole-control-switches">Item abilities and whole-control switches</h2>
+<p><code>IItemAbilitiesModel</code> — <code>CanSelect</code>, <code>CanDrag</code>, <code>CanRemove</code>, <code>CanRename</code>, <code>CanShowContextMenu</code>, all
+<code>bool?</code> and unset meaning &quot;may&quot; — lets one item opt out of what its host otherwise allows. The built-in row
+templates bind each to the matching property of <code>IItemAbilitiesComponent</code> on the row, so a flag flipped on a
+live item reaches its row like any other bound property.</p>
+<p>The host-wide switches sit beside these per-item flags and gate the mechanism itself:</p>
+<ul>
+<li><code>TreeComponent</code>: <code>Draggable</code>, <code>Renamable</code>, <code>RenameOnDoubleClick</code>, <code>Removable</code>, <code>ShowFoldChevron</code>.</li>
+<li><code>ItemsViewComponent</code> and <code>TableComponent</code>: <code>Draggable</code> (moving a row among the rows, below), <code>DragHandle</code> and
+<code>DragHandlePlacement</code> (dragging it by a grip).</li>
+<li><code>ItemsViewComponent</code>, <code>TableComponent</code> and <code>TreeComponent</code>: <code>DragKind</code> and <code>DragEffects</code> (offering the rows to another
+host, below).</li>
+<li><code>TabsViewComponent</code>: <code>Draggable</code> (reordering by dragging captions), <code>Renamable</code> (the double click and F2),
+<code>Removable</code>, <code>ShowOverflow</code>, and <code>TabMenuEntries</code> (the tab menu's built-in entries, below).</li>
+<li><code>IRowHoverableComponent.RowHoverable</code> — whether rows highlight under the pointer, on <code>ItemsViewComponent</code>,
+<code>TableComponent</code> and <code>TreeComponent</code> alike.</li>
+</ul>
+<p>Off, the control keeps no chrome for the mechanic at all — <code>Removable = false</code> on a tab strip means no
+caption shows a close and no room is kept for one, not merely that closing fails.</p>
+<h2 id="moving-rows">Moving rows</h2>
+<p>With <code>Draggable</code> on, a list's or a table's row whose item does not refuse it (<code>CanDrag</code>) is dragged and dropped between two
+others, or moved one place by Alt+Up and Alt+Down, whichever way the rows run. The row raises <code>move</code> with its key and the
+index it now takes, and the controller moves it — the index is what <code>RecursiveCollection.Move</code> takes, and in a windowed host
+its place in the source's whole query:</p>
+<pre><code class="language-csharp">new TableComponent()
+    .SetDraggable(true)
+    .BindItems(nameof(Controller.Steps))
+    .OnRowMoveWithItemKey(nameof(Controller.MoveStep));   // ItemsViewComponent: OnItemMoveWithItemKey
+
+[UICommand]
+public void MoveStep(string id, int index)
+    =&gt; Steps.Move(Steps.IndexOf(Steps.First(step =&gt; step.Id == id)), index);
+</code></pre>
+<p>The row stands in its new place as soon as it is dropped, without waiting for the server; the command's answer says where it
+stays. The collection's <code>Move</code> of it leaves it there, or puts it where the controller did; a controller that refuses — by doing
+nothing, or by failing — puts it back, and so does a lost connection. A controller that orders the rows some other way (a
+remove and an insert, a reload) wins the same way: the page shows what the server sent.</p>
+<p><code>OnRowMove</code>/<code>OnItemMove(command, arguments…)</code> take the arguments by hand; <code>UIAction.ArgEventValue(name)</code> reads the index the
+event carries. A drag is refused while a sort orders the rows, which would put the row straight back, and it moves the one
+row dragged — a chosen group moves one row at a time. A row of a list nested in another moves within its own list, and a row
+of a grouped list or table within its own group: over another group's rows or a group's header no drop line shows and nothing
+is sent, and Alt+Up/Down at a group's first or last row does nothing. The index sent is still the collection's. The line
+between two rows has one place, whichever of them the pointer is over: in the middle of the gap a spacing leaves.</p>
+<p>A row's words are not selected by default — it is pressed, not read; <code>SetTextSelectable(true)</code> on the list, the table or the
+row's template lets the reader select and copy them (see <a href="views.html#text-selection">text selection</a>). A row that drags by itself
+never selects, whatever the switch says — a press on it is the drag's. Where a row's words are the reader's to select and copy,
+or its presses to use, drag it by a grip instead:</p>
+<pre><code class="language-csharp">new ItemsViewComponent()
+    .SetDraggable(true)
+    .SetDragHandle(UIDragHandlePlacement.Start)   // SetDragHandle(true): at the row's end
+    .OnItemMoveWithItemKey(nameof(Controller.MoveStep));
+</code></pre>
+<p><code>DragHandle</code> lifts a row only by the grip, at its end or, with <code>DragHandlePlacement = Start</code>, its start; the rest of the row
+keeps its presses, and its words what <code>TextSelectable</code> gives them. The grip is no tab stop — a press on it gives the list the keyboard on that row, and
+Alt+Up/Down moves the row as before. A table's grip stands in a narrow track of its own past the last column or before the first,
+never one of its columns, and a start grip stays pinned with a pinned first column. A wrapped items view draws no grip: its tiles
+drag whole.</p>
+<h3 id="dragging-items-to-another-host">Dragging items to another host</h3>
+<p><code>SetDragKind(kind)</code> offers a list's, a table's or a tree's rows to the other components of the view as a kind — lower-case
+letters, digits and hyphens, <code>&quot;card&quot;</code> — and <code>SetDragEffects</code> says what a drop may do with them: <code>UIDragEffects.Move</code>, <code>Copy</code>, or
+<code>All</code>, the default; <code>None</code> offers nothing. A row whose item refuses it (<code>CanDrag</code>) stays; a sort, which keeps a row from moving
+among its own host's rows, does not keep it from leaving for another. Any component takes a kind with <code>OnDrop(kind, command, arguments…)</code> (<code>OnDropLiteral</code> for literal arguments): its command
+receives a <code>UIDrop</code> in its argument named <code>drop</code>, beside the arguments given — <code>Kind</code>, <code>Source</code> (the id the source was given in
+the view), <code>Keys</code> (the dragged row's, or the chosen rows' where the dragged one is chosen, in the source's order), <code>Index</code> (the
+place the first takes in a list or a table), <code>Folder</code> (a tree's folder, empty for its top level) and <code>Effect</code>. A drop between two
+hosts offering the same kind is a move, into anything else a copy; Ctrl (⌥ on a Mac) as it lands asks for a copy, within what the
+source's <code>DragEffects</code> allow. The keys are the page's word, not a fact: the command checks them against its own collections.</p>
+<pre><code class="language-csharp">new ItemsViewComponent(&quot;todo&quot;)
+    .BindItems(nameof(BoardController.Todo))
+    .SetDragKind(&quot;card&quot;)
+    .SetSelectionMode(UISelectionMode.Many)
+    .OnDrop(&quot;card&quot;, nameof(BoardController.DropCards), UIAction.Arg(&quot;list&quot;, &quot;todo&quot;));
+
+[UICommand]
+public void DropCards(UIDrop drop, string list)
+{
+    RecursiveCollection&lt;Card&gt; source = CardsOf(drop.Source);
+    RecursiveCollection&lt;Card&gt; target = CardsOf(list);
+    var at = drop.Index ?? target.Count;
+
+    foreach (var key in drop.Keys)
+    {
+        Card? card = source.FirstOrDefault(item =&gt; item.Id == key);
+
+        if (card is null)
+            continue;
+
+        if (drop.Effect == UIDropEffect.Move)
+            source.Remove(card);
+
+        target.Insert(at++, drop.Effect == UIDropEffect.Move ? card : card.Copy());
+    }
+}
+</code></pre>
+<p>A list or a table marks the place among its rows, a tree the folder under the pointer, anything else its edge, dashed. Between two
+lists or tables of the kind, neither virtualized nor windowed, a move stands in the target at once and goes back unless the
+command's answer keeps it there; anything else waits for the server. From the keyboard, Ctrl+X (a move) or Ctrl+C (a copy) on a
+row — ⌘ on a Mac — takes it, or the chosen rows, and Ctrl+V on a target drops them there, after its keyboard's row in a list. The
+target decides as a drag's drop does, so a cut pasted into a component of another kind is a copy; Ctrl+V inside a text field is the
+field's own paste. A kind spelt otherwise, or one no component of the view offers, is refused when the view compiles: a drag
+never leaves its view.</p>
+<h2 id="hosting-modes">Hosting modes</h2>
+<p><code>IItemsHostComponent.HostMode</code> (<code>ItemsViewComponent</code>, <code>TableComponent</code>) is one of <code>Plain</code>, <code>Virtualized</code>,
+<code>Windowed</code> — never set directly:</p>
+<ul>
+<li><strong>Plain</strong> (default) — every item is real DOM, rules run over the children.</li>
+<li><code>Virtualized()</code> — the client holds every item's value and keeps only the rows in view (plus overscan) in
+the document — on a <code>Wrap</code> layout the lines in view, as many tiles to a line as fit it; rules run over the values and
+produce the projected order. Calling it on a host already bound to a source throws.</li>
+<li><code>BindSource(path, scope)</code> — binds to a windowed source (below) and puts the host in <code>Windowed</code> mode;
+calling it on an already-virtualized host throws, and vice versa.</li>
+<li><code>WindowSize</code> sets how many items one window holds (default 50); not bindable, read once by the client.</li>
+</ul>
+<pre><code class="language-csharp">new ItemsViewComponent()
+    .BindSource(nameof(Controller.Rows))
+    .SetWindowSize(50)
+    .FilterBy(filterBoxId, IInputComponent.ValueProperty, nameof(DemoRowItem.Title));
+</code></pre>
+<p>An items view's <code>Padding</code> (responsive, bindable) is room inside its scroll: the rows scroll through it, so a list ending under
+something laid over its foot — a composer — shows its last row clear of it, and a list held at its end stays there as the padding
+changes.</p>
+<h2 id="windowed-sources">Windowed sources</h2>
+<p>A windowed host's items come from <code>UIItemSourceBase&lt;TItem&gt;</code>, for a collection too large to hold whole — a
+hundred thousand rows, a conversation read backwards. Subclass it and implement one member, <code>GetWindowAsync</code>,
+which answers a request for a window with the items in it.</p>
+<ul>
+<li><code>UIItemWindowRequest</code> carries <code>Anchor</code> (<code>UIItemAnchor.Start</code>/<code>.End</code>/<code>.At(offset)</code>/<code>.Before(key)</code>/<code>.After(key)</code>,
+told apart by <code>Anchor.Kind</code>), <code>Count</code>, <code>Mode</code> (<code>Replace</code> or <code>Extend</code>, joining the read to the existing window
+and trimming the far side), and <code>Query</code>.</li>
+<li><code>UIItemsQuery</code> (<code>Filters</code>/<code>Sorts</code>, as <code>UIItemFilterTerm</code>/<code>UIItemSortTerm</code>) is what the host's filter/sort
+rules resolved to, evaluated against the <strong>controller</strong> value behind each rule's <code>Source</code> — a rule source
+must be bound on a windowed host, refused at compile time otherwise, because an unbound control lives only
+in the browser and the server could never see it. An inactive rule contributes no term, so an empty filter
+box means &quot;everything.&quot;</li>
+<li><code>UIItemWindow&lt;TItem&gt;</code> is the answer: <code>Items</code> through its constructor, and the init properties <code>Offset</code> (where
+the window starts, <code>null</code> for a source that counts in cursors), <code>TotalCount</code> (under the query, <code>null</code> when
+unknown), <code>HasMoreBefore</code>, <code>HasMoreAfter</code>, optionally <code>Aggregates</code> over the whole query, and <code>GroupBefore</code> — the group
+of the item just before the window, which only the source knows, so a grouped host heads the window's first row only when its
+group differs (left <code>null</code>, the first grouped row is always headed). It is checked
+against the request: no more items than asked for,
+no id twice, and <code>Offset</code> plus the items within <code>TotalCount</code>.</li>
+<li><code>UIComparisonEvaluator.Evaluate(left, operator, right)</code> compares one value the way a filter term means it, for
+a source with nothing better than an in-memory scan — a source over a database translates the terms into its
+own query instead.</li>
+</ul>
+<p>While the next window is read, an items view draws the rows it does not have yet as grey bars in the rows' shape, measured from
+the rows it shows, and the bars shimmer until the rows land (they stand still for a reader who asked for less motion). A source
+that cannot count has no room below its last row, so three such rows stand there meanwhile. For rows unlike each other — a
+conversation's messages, of different heights on both sides — bars would read as messages of their own:
+<code>SetLoadingLook(UIItemsLoadingLook.Indicator)</code> shows a small ring at the edge the rows come in at instead (the top while older
+messages load), over the rows in view, moving none of them.</p>
+<p>A source over a database reads the count and one page of rows per request. Here <code>OrderStore</code> stands for the
+application's own data access, with <code>CountAsync</code>, <code>PositionOfAsync</code> (where a key sits under a search) and
+<code>ReadAsync(search, skip, take)</code>:</p>
+<pre><code class="language-csharp">internal sealed partial class OrderRow(Order order) : RecursiveObservable, IBindableItem
+{
+    [RecursiveMember(false)]
+    public string Id { get; } = order.Id;
+
+    [RecursiveMember]
+    public partial string Customer { get; set; } = order.Customer;
+}
+
+internal sealed class OrdersSource(OrderStore store) : UIItemSourceBase&lt;OrderRow&gt;
+{
+    protected override async Task&lt;UIItemWindow&lt;OrderRow&gt;&gt; GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
+    {
+        // The host's one filter rule, resolved on the server; an empty filter box sends no term at all.
+        var search = request.Query.Filters.Length &gt; 0 ? request.Query.Filters[0].Value as string : null;
+
+        var total = await store.CountAsync(search, cancellationToken).ConfigureAwait(false);
+
+        var start = request.Anchor.Kind switch
+        {
+            UIItemAnchorKind.End =&gt; total - request.Count,
+            UIItemAnchorKind.Offset =&gt; request.Anchor.Offset,
+            UIItemAnchorKind.Before =&gt; await store.PositionOfAsync(search, request.Anchor.Key!, cancellationToken).ConfigureAwait(false) - request.Count,
+            UIItemAnchorKind.After =&gt; await store.PositionOfAsync(search, request.Anchor.Key!, cancellationToken).ConfigureAwait(false) + 1,
+            _ =&gt; 0
+        };
+
+        start = Math.Clamp(start, 0, Math.Max(0, total - 1));
+
+        IReadOnlyList&lt;Order&gt; orders = await store.ReadAsync(search, start, request.Count, cancellationToken).ConfigureAwait(false);
+
+        return new UIItemWindow&lt;OrderRow&gt;([.. orders.Select(static order =&gt; new OrderRow(order))])
+        {
+            Offset = start,
+            TotalCount = total,
+            HasMoreBefore = start &gt; 0,
+            HasMoreAfter = start + orders.Count &lt; total
+        };
+    }
+}
+</code></pre>
+<p><code>request.Query.Sorts</code> is the host's <code>SortBy</code> rules in the same way, for the query's <code>ORDER BY</code>.</p>
+<p>The <code>UIItemSourceBase&lt;TItem&gt;</code> protected helpers — <code>Append</code>, <code>Prepend</code>, <code>Remove</code>, <code>Invalidate</code> — mutate the
+realized window and its <code>TotalCount</code>/<code>HasMoreBefore</code>/<code>HasMoreAfter</code> bookkeeping directly; there is no event to
+raise, changing <code>Items</code> is the change notification. A source is itself <code>RecursiveObservable</code> and typically
+lives as a <code>[RecursiveMember(false)]</code> property on the controller, which reads the first window in
+<code>OnInitializeAsync</code> so the page paints with rows already in it — the client reads further windows itself as the
+user scrolls, but nothing paints before the first read completes:</p>
+<pre><code class="language-csharp">internal sealed partial class OrdersController(OrderStore store) : UIControllerBase
+{
+    [RecursiveMember(false)]
+    public OrdersSource Orders { get; } = new(store);
+
+    protected override Task OnInitializeAsync(CancellationToken cancellationToken)
+        =&gt; Orders.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 50), cancellationToken);
+}
+</code></pre>
+<p>A command jumps the same way — <code>Orders.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.At(5_000), 50), ...)</code>
+replaces the window, and <code>Orders.Offset</code>/<code>Orders.TotalCount</code> say where it landed.</p>
+<h3 id="a-page-at-a-time">A page at a time</h3>
+<p>A windowed host that says <code>SetPaging(true)</code> (<code>Paging</code>, bindable) shows its window as a page of <code>WindowSize</code> rows: its scroll
+asks for nothing, and a <code>PagerComponent</code> aimed at it by id turns the page — through the same window request the scroll makes,
+by offset. The pager shows the pages by number (<code>UIPagerMode.Full</code>: first, previous, the ends and the pages around the current
+one with an ellipsis for the rest, next, last) or the rows on show (<code>Compact</code>: &quot;21–40 of 812&quot; between previous and next); on a
+phone it is compact whatever its mode. <code>SetPageSizes([20, 50, 100])</code> offers the viewer a size, kept in the browser under the list's
+id, as a table keeps its columns' widths, so a reload lands on it; a size no longer offered is ignored. Page Up and Page Down in
+the list turn its page too.</p>
+<pre><code class="language-csharp">new ItemsViewComponent(&quot;results&quot;)
+    .BindSource(nameof(SearchController.Results))
+    .SetWindowSize(20)
+    .SetPaging(true)
+
+new PagerComponent()
+    .SetTarget(&quot;results&quot;)
+    .SetPageSizes([20, 50, 100])
+</code></pre>
+<p>A pager aimed at nothing, at a component the view does not have, at a host that holds its rows whole or at a window that
+scrolls is refused when the view compiles. The page lives in the source (<code>Offset</code>); an application that wants it in the
+address writes it from there — <code>Context.SendEffectsAsync([new ReplaceAddressEffect(...)])</code> as the source reads a page — and reads
+it back in <code>OnNavigatedAsync</code>, loading that page's window before the page draws.</p>
+<h2 id="the-tables-columns">The table's columns</h2>
+<p><code>TableComponent.AddColumn(caption, template, width, alignment, key, pinned, icon, hidden)</code> registers a <code>UITableColumn</code> and a
+template variant keyed <code>column:{key}</code> (<code>key</code> defaults to a 1-based ordinal). <code>AddTextColumn(caption, propertyPath, width, alignment, key, pinned, icon, hidden)</code> is the shorthand for a text cell, binding a <code>DefaultTextTemplate</code>
+relatively to the row. A <code>pinned</code> column stays fixed while the table scrolls sideways, and pinned columns must lead. An
+<code>icon</code> (<code>UITableColumn.Icon</code>, and <code>IconColor</code> through <code>SetColumnIcon(key, icon, color)</code>) stands before the caption, in the
+header and beside a sort mark, while the column's accessible name stays the caption. A <code>hidden</code> column (<code>UITableColumn.Hidden</code>,
+<code>HideColumn(key)</code>) starts hidden at every width; a viewer's own choice in a column chooser, kept in the browser, wins over it.
+A plain table draws no chooser, so only a host with one — the data grid — can show such a column again.
+<code>HideColumnBelow(key, tier)</code> hides a column below a viewport tier:</p>
+<pre><code class="language-csharp">new TableComponent()
+    .SetItems(rows)
+    .AddTextColumn(&quot;Service&quot;, nameof(DemoDeploymentRow.Service))
+    .AddTextColumn(&quot;Replicas&quot;, nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
+    .AddColumn(&quot;Status&quot;, badgeTemplate, UIGridUnit.Absolute(120));
+</code></pre>
+<p><code>Columns</code> is read-only and render-time only (<code>IsBindable = false</code>) — the columns are how the table is built,
+not state. <code>ShowHeader</code>, <code>Striped</code>, <code>ShowColumnSeparators</code>, <code>ShowRowSeparators</code>, <code>ResizableColumns</code> (client-side
+only; widths are never sent back; from the keyboard, Shift with an arrow on a caption) and <code>ReorderableColumns</code> (a column dragged by its caption; the order stays client-side
+too, and pinned columns keep their place) round out the table's own switches. Sorting by header and editing
+are not built in; a page at a time is the pager's (<em>A page at a time</em>, above).</p>
+<p>A column's template may hold a list of its own — an items view bound relatively to a collection on the row — and each row
+shows its own row's items.</p>
+<h2 id="the-tree">The tree</h2>
+<p><code>TreeComponent</code> renders <code>ITreeNodeModel</code> rows — a text item plus <code>ParentId</code>, <code>Kind</code>, <code>HasChildren</code>, <code>IsFolder</code>,
+<code>Expanded</code>, <code>DropTarget</code> — as a <strong>flat, keyed list in walking order</strong>, not a nested structure. <code>TreeNode</code>
+(the built-in model) and <code>TreeNode.Flatten(roots, children, toNode)</code> turn a nested source into that list,
+stamping <code>ParentId</code> on the way down.</p>
+<ul>
+<li><code>Kind</code> picks a node template variant added with <code>AddNodeKind(kind, template)</code>; <code>ConfigureDefaultNode</code>/
+<code>SetNodeTemplate</code> shape the one used when no variant matches.</li>
+<li><code>OnNodeClick</code>/<code>OnNodeClickWithItemKey</code>/<code>OnNodeClickWithItem</code>/<code>OnNodeClickWith</code> run a command on a press on a node — the row's
+click, as <code>OnItemClick</code> is a list's — after the selection has followed the press, so a notes tree opens a note on one press (a
+phone has no double click) and answers with effects like any command. A press on the chevron only folds, and a press inside an
+open rename field is the field's. From the keyboard, Enter on a node runs its click and then its open (<code>OnNodeOpen…</code>), as on an
+items view's or a table's row, and Space chooses — or, in a tree that chooses nothing, runs the click; Right and Left fold.</li>
+<li>An empty tree — or one whose every node a filter leaves out — draws its empty template (<code>SetEmptyTemplate</code>, or
+<code>ConfigureDefaultEmptyTemplate</code> to word the built-in one, which a table has too), and takes it out when a node comes back.
+<code>SetShowEmptyTemplate(false)</code> (bindable; on the items view and the table too) shows nothing instead — a short list under every
+row of a feed need not say &quot;nothing&quot; under each; the template is hidden, not left out.</li>
+</ul>
+<pre><code class="language-csharp">new TreeComponent(&quot;notes-tree&quot;)
+    .BindItems(nameof(NotesController.Nodes))
+    .SetSelectionMode(UISelectionMode.One)
+    .BindSelectedKey(nameof(NotesController.SelectedNodeKey))
+    .ConfigureDefaultEmptyTemplate(empty =&gt; empty.SetTitle(&quot;No notes yet.&quot;))
+    .OnNodeClickWithItemKey(nameof(NotesController.OpenNodeAsync))
+</code></pre>
+<ul>
+<li><code>HasChildren</code> lets a node claim children before any are in the list; <code>OnNodeUnfold</code>/<code>OnNodeUnfoldWithItemKey</code>
+fire the first time it is unfolded, and the controller answers by adding the children or clearing the flag.</li>
+<li><code>Renamable</code>/<code>RenameOnDoubleClick</code> plus a node's own <code>CanRename</code> gate F2/double-click renaming; a rename
+writes the new title back through the node's own two-way <code>Title</code> binding, and <code>OnNodeRename</code>/
+<code>OnNodeRenameWithItemKey</code> fire afterward for refusing or normalizing it.</li>
+<li><code>Draggable</code> plus a node's <code>CanDrag</code> gate dragging a node onto a folder, between two nodes or onto the tree's own
+ground, or moving it with Alt and an arrow; the move writes <code>DropTarget</code> and raises <code>OnNodeMove</code>/<code>OnNodeMoveWithItemKey</code>
+with the index it takes among that folder's nodes, and the controller moves the node or leaves it — nothing moves on
+the client on its own. A folder is a node with <code>IsFolder = true</code> — even while empty, without asking for
+its children — or, unmarked, one holding children; <code>IsFolder = false</code> takes no drop whatever it holds. Over a file,
+the dragged node, a node under it or a disabled folder, the cursor says no drop and a release sends nothing. A tree
+with a <code>DragKind</code> offers its nodes to another host even without <code>Draggable</code>, a folder going with what it holds.</li>
+<li>A node that says whether it is a folder (<code>IsFolder</code> true or false) and names no <code>Icon</code> of its own is dressed as a file
+tree's: a folder, open while unfolded, in a golden yellow, or a page in the title's ink; its own <code>Icon</code>, or an <code>IconColor</code>
+other than the default, wins.</li>
+<li><code>Indent</code> sets how far each level steps in, in pixels; <code>ShowFoldChevron</code> toggles the chevron for a node that
+can unfold — off, the arrows still fold, and a press folds only a node that cannot be chosen.</li>
+</ul>
+<h2 id="items-hosts-beyond-lists">Items hosts beyond lists</h2>
+<p><code>MenuComponent</code> renders <code>IMenuItemModel</code> entries with <code>Kind</code> selecting header/separator/check/select/plain variants (a check
+shows <code>Checked</code> as a mark at its end, a select shows <code>Value</code> and opens its <code>Items</code> beside it), an entry's <code>Items</code> as a nested
+menu one level deep, and
+folds to icons alone via <code>ICollapsibleComponent</code>. <code>SetToggleContent</code> puts content beside its switch, seen only while it is
+open, and <code>SetSearch</code> a search there that narrows the entries in the browser by the words they show, nested ones included; a search that leaves nothing shows the menu's empty template, &quot;Nothing to show.&quot; unless the menu has its own. A <code>MenuItem</code> is a
+<code>TextItem</code>, so an entry carries a <code>Description</code> — one muted line under its title, cut with an ellipsis, the icon centred across
+both — as a contact list's last message; an entry's <code>Icon</code> may be a picture's address, and <code>IconShape = UIIconShape.Circle</code>
+draws it round, as a person's avatar is (a glyph keeps its own shape; every item model and text body carries <code>IconShape</code>, and
+<code>ImageComponent.SetShape(UIImageShape.Circle)</code> is a standing picture's). Folded, a menu keeps its entries' badges on their icons' corners and its entries' names:
+a direct entry's title is its tooltip, on hover and on the keyboard's focus, unless it has a tooltip of its own.
+<code>SetDisplay(UIMenuDisplay.Rail)</code> draws the menu as a navigation rail instead — a narrow column, each entry its icon over a
+one-line label, its badge on the icon's corner (an empty <code>BadgeText</code> a dot), the current entry marked by a bar on the rail's edge
+and its icon filled, the ground the menu's <code>Surface</code>; a label cut short shows whole as its tooltip. A rail never folds and draws
+no toggle, its groups fly out beside it as a folded menu's do, and it takes no search, since a match inside a group would not
+show; its entries stand edge to edge. <code>SetSize</code> picks its measures, Medium unless set: Large a 72 px column of 24 px glyphs over
+caption-size labels, Medium 60 px of 20 px glyphs over smaller labels, Small 48 px squares whose labels are only their tooltips
+(and still the entries' names to a screen reader). Laid out horizontally, it is a bottom navigation bar, its entries sharing its
+length down to a press's width each — 64, 56 or 48 px by the size — and then scrolling sideways, a caption or a rule between
+them an upright line. A rail that is the whole of a view's left side is the navigation rail
+on a wide screen and that bottom bar on a phone: where the sides become drawers (<code>UIViewOptions.SideDrawers</code>, below the medium
+breakpoint), a left side holding the rail and nothing else — the rail itself, or containers, stack or wrap panels, surfaces and
+scroll containers each holding only the next one down to it — is no drawer and gets no button; the rail lies along the page's
+bottom, the current entry marked on its top edge over the bar's hairline, its groups flying out upward, Left and Right walking it, and the content and
+footer end above it. A side holding anything more, a list menu, a rail whose <code>Display</code> is bound, and a right side stay drawers.</p>
+<pre><code class="language-csharp">protected override IVisualComponent? CreateLeftSide()
+    =&gt; new ContainerComponent()
+        .SetPadding(UIThickness.All(8, 0, 4, 16))
+        .AddChild(new MenuComponent(&quot;sidebar&quot;)
+            .SetDisplay(UIMenuDisplay.Rail)
+            .BindItems(nameof(ShellController.Navigation)));
+</code></pre>
+<p>A group's flyout, and a hidden or cut title's tooltip, open toward
+the content — to the right of a menu on the left, to the left of one on the right, above a bottom bar. A group's own entry, in any menu, only opens
+and closes its group: it raises no item click, so a command belongs on the entries inside it. <code>TabsViewComponent</code> renders <code>ITabItemModel</code> entries sorted
+by <code>Order</code>, with a two-way <code>SelectedKey</code> for the open page — its pages come from the collection, unlike
+<code>TabsComponent</code>, whose captions are fixed regions the view authors directly and which is not an items host at
+all.</p>
+<p>A right press on a tabs view's caption — or the context-menu key on a focused one — opens the strip's own tab menu. Its
+built-in entries are the ones <code>TabMenuEntries</code> chose (<code>UITabMenuEntries</code>, flags, bindable; <code>None</code> by default, so a strip
+offers none unless asked):</p>
+<ul>
+<li><strong>Rename</strong> — the same field a double click opens, whether or not the strip is <code>Renamable</code> (that switch governs the double
+click and F2); an item's <code>CanRename = false</code> still refuses it.</li>
+<li><strong>Pin</strong> — shown as Pin or Unpin by the tab's state: the tab's two-way <code>Pinned</code>, the tab moved to the end of the pinned ones
+and its new <code>Order</code> written back as a drop writes it.</li>
+<li><strong>Close</strong> or <strong>Delete</strong> — the two forms of the one remove entry, chosen one or the other (<code>SetTabMenuEntries</code> refuses
+both): Close is neutral, with the cross; Delete wears the trash glyph in the danger colour. Either does exactly what the
+cross does, so it shows only where <code>OnItemRemove</code> hangs a command and the tab may go — never on a pinned tab.</li>
+</ul>
+<p>An application's own entries go in with <code>AddTabMenuEntries</code>, and <code>OnTabMenuEntry</code> hears them with the entry's key and the
+tab's. The order is fixed — Rename, Pin or Unpin, a rule, the application's entries and a rule, the remove entry last — and
+a rule shows only where entries show on both sides of it; a menu with nothing to offer a tab stays shut.</p>
+<pre><code class="language-csharp">new TabsViewComponent()
+    .BindItems(nameof(EditorController.Documents))
+    .SetTabMenuEntries(UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Close)
+    .AddTabMenuEntries(new MenuItem { Id = &quot;close-others&quot;, Title = &quot;Close others&quot; })
+    .OnTabMenuEntry(nameof(EditorController.TabAction))      // TabAction(string entry, string id)
+    .OnItemRemove(nameof(EditorController.CloseDocument))
+</code></pre>
+<p>A tab template given a context menu of its own (<code>SetContextMenu</code>) keeps full control: its menu replaces the strip's, and
+the strip draws none.</p>
+<p><code>SelectComponent</code>, <code>SearchComponent</code> and <code>RadioGroupComponent</code> extend <code>OptionsInputComponentBase&lt;TComponent, TItem&gt;</code>, whose value is one option's key, and <code>MultiSelectComponent</code> its sibling over a value of its own,
+<code>OptionsInputComponentBase&lt;TComponent, TItem, TValue&gt;</code> — an <code>IReadOnlyList&lt;string&gt;</code> of the chosen keys in the order they were
+chosen, each once. <code>AddOption</code>/<code>AddOptions</code>/<code>SetOptions</code>/<code>BindOptions</code> are the option-flavoured names for
+<code>AddItem</code>/<code>AddItems</code>/<code>SetItems</code>/<code>BindItems</code>, over <code>IOptionModel</code> items. The select and the multi-select share their field —
+clear button, chevron, placeholder, where the list opens, appearance, size, caption and affixes — through
+<code>SelectComponentBase&lt;T, TItem, TValue&gt;</code>; the multi-select draws each chosen option as a chip with its own remove button,
+checks the chosen ones in a list that stays open while they are toggled, and caps the value with <code>MaxSelected</code>. Its chips are
+reached from the keyboard: ArrowLeft from the field walks onto them, and Delete or Backspace takes one out.</p>
+<p><code>SetAllowFreeText()</code> lets the reader type values of their own — labels, recipients, keywords. An entry stands after the chips:
+Enter or a comma makes a chip of its text, a pasted &quot;a, b, c&quot; makes three, and Backspace on an empty entry takes the last chip.
+The options become suggestions, narrowed as the reader types; an arrow picks one, and Enter otherwise takes the text —
+or, with <code>SetTagEntry(UITagEntry.FirstSuggestion)</code>, the first suggestion is marked as the reader types and Enter takes it, the
+text only where none matches (Escape takes the mark off). A typed tag
+naming an option is that option's key, any other is its own text, and the value is the same list of strings. A rule every tag
+must match is <code>RegexEach</code>; a tag it refuses, or one past <code>MaxSelected</code>, stays in the entry and is said on the field's line:</p>
+<pre><code class="language-csharp">new MultiSelectComponent()
+    .SetTitle(&quot;Labels&quot;)
+    .SetAllowFreeText()
+    .SetOptions(KnownLabels)
+    .SetMaxSelected(5)
+    .RegexEach(@&quot;^[^\s,]{2,24}$&quot;, &quot;A label is 2 to 24 characters, with no spaces.&quot;)
+    .BindValue(nameof(TicketController.Labels))
+</code></pre>
+<p>A <code>SearchComponent</code> over its own options narrows them in the browser as the menu's search does — every typed word, in any
+order, case and accents aside, must appear in an option's name — and a group's header goes with the last of its options. A
+search with an <code>OnSearch</code> answer narrows nothing itself: its list stands until the answer and then shows exactly what the
+server sent. Closed, a search is a select's field and shows the chosen option; open, its text field stands pinned at
+the top of the list. The term stays between openings, selected as the list opens, and a pick closes the list with the keyboard
+back on the field, which shows the value.</p>
+<p>See <a href="components/items-view.html">items-view</a>, <a href="components/table.html">table</a>, <a href="components/tree.html">tree</a>
+and <a href="components/models.html">models</a> for the full property and model reference.</p>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <span class="version">Documents 1.6.0</span> ·
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>
