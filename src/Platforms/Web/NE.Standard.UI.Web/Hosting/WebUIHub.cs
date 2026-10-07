@@ -59,6 +59,23 @@ internal sealed partial class WebUIHub : Hub
 
         /// <summary>The time zone the browser reports it is in (<c>Intl.DateTimeFormat().resolvedOptions().timeZone</c>).</summary>
         public string? TimeZone { get; init; }
+
+        /// <summary>What the page reports of itself as it attaches; none from a page that does not report.</summary>
+        public WebUIClientStateRequest? ClientState { get; init; }
+    }
+
+    internal sealed class WebUIClientStateRequest
+    {
+        /// <summary>Whether the page is on screen now: <c>document.visibilityState</c> is <c>visible</c>.</summary>
+        public bool Visible { get; init; } = true;
+
+        /// <summary>What the browser lets the page show: <c>Notification.permission</c>, or unsupported where it has none.</summary>
+        public UINotificationPermission NotificationPermission { get; init; }
+
+        public UIClientState ToClientState()
+            => Enum.IsDefined(NotificationPermission)
+                ? new UIClientState(Visible, NotificationPermission)
+                : throw new InvalidOperationException($"Notification permission '{NotificationPermission}' is not one a page reports.");
     }
 
     internal sealed class WebUIAttachResult
@@ -343,7 +360,8 @@ internal sealed partial class WebUIHub : Hub
                 WindowId = request.ClientWindowId,
                 Navigation = view.Navigation,
                 PageId = request.PageId,
-                StartsFromSnapshot = true
+                StartsFromSnapshot = true,
+                ClientState = request.ClientState?.ToClientState() ?? UIClientState.Unreported
             },
             Context.ConnectionAborted
         ).ConfigureAwait(false);
@@ -382,7 +400,7 @@ internal sealed partial class WebUIHub : Hub
 
         return new WebUIAttachResult
         {
-            InitialChanges = _outgoing.Stage(initialChanges, runtime.Handle.Session.SessionId, 1),
+            InitialChanges = _outgoing.StageAttach(initialChanges, runtime.Handle.Session.SessionId, Context.ConnectionId),
             Runtime = runtime.RuntimeId
         };
     }
@@ -428,6 +446,19 @@ internal sealed partial class WebUIHub : Hub
         WebCachedViewRender render = await WebEndpointRouteBuilderExtensions.GetOrRenderViewAsync(view, _renderer, _renderCache, Context.ConnectionAborted).ConfigureAwait(false);
 
         return render.InitBindingIds ?? [];
+    }
+
+    /// <summary>Records what the page reports of itself — on screen or not, its notification permission — on its connection.</summary>
+    /// <remarks>What the client says: it steers whether a notification shows on the screen or the system's, never what is allowed.</remarks>
+    public async Task ReportClientStateAsync(WebUIClientStateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        UIClientState state = request.ToClientState();
+
+        // A page with no controller holds no handle, and nothing reads what it reports.
+        if (_host is UIHost host && Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle)
+            await host.ReportClientStateAsync(handle, state, Context.ConnectionAborted).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -619,7 +650,7 @@ internal sealed partial class WebUIHub : Hub
             .ProcessEventAsync(handle, request, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
-        return _outgoing.Stage(result, handle.Session.SessionId, 1);
+        return _outgoing.Stage(result, handle.Session.SessionId, [Context.ConnectionId]);
     }
 
     /// <summary>A page holding unsaved work asks before it leaves: answered with what its controller does about it, never pushed.</summary>
@@ -633,7 +664,7 @@ internal sealed partial class WebUIHub : Hub
             .RequestLeaveAsync(handle, request.Target, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
-        return _outgoing.Stage(result, handle.Session.SessionId, 1);
+        return _outgoing.Stage(result, handle.Session.SessionId, [Context.ConnectionId]);
     }
 
     /// <summary>
@@ -650,7 +681,7 @@ internal sealed partial class WebUIHub : Hub
             .NavigateInPlaceAsync(handle, request.Parameters, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
-        return _outgoing.Stage(result, handle.Session.SessionId, 1);
+        return _outgoing.Stage(result, handle.Session.SessionId, [Context.ConnectionId]);
     }
 
     /// <summary>The handle the attach left on this connection; a connection that never attached has none to act on.</summary>
@@ -682,7 +713,7 @@ internal sealed partial class WebUIHub : Hub
             .ProcessChangeSetAsync(handle, new ClientChangeSet { Updates = updates }, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
-        return _outgoing.Stage(changes, handle.Session.SessionId, 1);
+        return _outgoing.Stage(changes, handle.Session.SessionId, [Context.ConnectionId]);
     }
 
     /// <summary>The field an update names, once its staged value, if it has one, is known to be there for the taking.</summary>
@@ -723,7 +754,7 @@ internal sealed partial class WebUIHub : Hub
             .RequestItemWindowAsync(handle, CreateItemWindowRequest(request), Context.ConnectionAborted)
             .ConfigureAwait(false);
 
-        return _outgoing.Stage(changes, handle.Session.SessionId, 1);
+        return _outgoing.Stage(changes, handle.Session.SessionId, [Context.ConnectionId]);
     }
 
     /// <summary>
@@ -764,6 +795,8 @@ internal sealed partial class WebUIHub : Hub
 
         if (exception is not null)
             Log.ConnectionClosedWithException(_logger, exception, Context.ConnectionId);
+
+        _stagedValues.ReleaseAttach(Context.ConnectionId);
 
         var detached = _host.DetachRuntime(Context.ConnectionId);
 

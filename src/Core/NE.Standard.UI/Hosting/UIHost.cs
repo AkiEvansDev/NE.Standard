@@ -67,6 +67,12 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         [LoggerMessage(EventId = 27, Level = LogLevel.Debug, Message = "An attach to route '{Route}' presented no session the store holds; none is issued, since the connection cannot hand the client its key.")]
         public static partial void SessionNotPresented(ILogger logger, string route);
 
+        [LoggerMessage(EventId = 29, Level = LogLevel.Debug, Message = "An in-place navigation of route '{Route}' was refused by its view filters ({Reason}); the page loads the address instead.")]
+        public static partial void InPlaceNavigationRefused(ILogger logger, string route, string reason);
+
+        [LoggerMessage(EventId = 30, Level = LogLevel.Debug, Message = "The page of route '{Route}' no longer passes its rules for the session as stored; its runtime ends.")]
+        public static partial void RouteNoLongerPasses(ILogger logger, string route);
+
         [LoggerMessage(EventId = 28, Level = LogLevel.Warning, Message = "The process holds {Limit} runtimes, every one with a page connected or a command running (UIPersistenceOptions.MaxRuntimesTotal); a new page's runtime is refused. Refusals in this burst are not logged again.")]
         public static partial void RuntimesFull(ILogger logger, int limit);
 
@@ -177,7 +183,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         _scheduler.Add(new UIFlushTask(RuntimeStore, _dispatcher, _logger, interval: application.Persistence.FlushSchedulerInterval, maxParallelFlushes: application.Persistence.MaxParallelFlushes, metrics: _metrics));
         // As often as the unclaimed timeout at least, or a crawler's sessions would wait out the long interval anyway.
-        _scheduler.Add(new UISessionCleanupTask(() => _services.GetRequiredService<IUserSessionStore>(), (sessionId, cancellationToken) => EndRemovedSessionAsync(sessionId, except: null, cancellationToken), _logger, interval: Min(application.Sessions.CleanupInterval, application.Sessions.UnclaimedIdleTimeout), application.Sessions));
+        _scheduler.Add(new UISessionCleanupTask(() => _services.GetRequiredService<IUserSessionStore>(), (sessionId, _) => EndRemovedSessionAsync(sessionId, except: null), _logger, interval: Min(application.Sessions.CleanupInterval, application.Sessions.UnclaimedIdleTimeout), application.Sessions));
         _scheduler.Add(new UIFileCleanupTask(() => _services.GetRequiredService<IUIFileStore>(), _logger, interval: application.Files.CleanupInterval, uploadRetention: application.Files.UploadRetention, downloadRetention: application.Files.DownloadRetention));
 
         // The sweep runs as often as the shorter of the two retentions, or an unclaimed render would wait out the long interval
@@ -254,33 +260,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
                 route = entry.Definition;
 
-                IUIViewFilter[] filters = GetFilterChain(route);
-                UIViewResolution? resolution = null;
-                UINavigationRequest? redirected;
-
-                // A scope of the request's own, so a filter's scoped services are not the root's shared ones and its disposable
-                // transients go with the request; the built-in check alone reads no services and is spared the scope.
-                AsyncServiceScope? requestServices = filters.Length > 1 ? _services.CreateAsyncScope() : null;
-
-                try
-                {
-                    UIViewFilterContext filterContext = new(current, route, session.Session, requestServices?.ServiceProvider ?? _services, phase, sessionInit.Connection);
-
-                    await RunViewFilterPipelineAsync(filters, filterContext, () =>
-                    {
-                        resolution = CreateViewResolution(entry, filterContext, session);
-                        filterContext.Resolution = resolution;
-
-                        return Task.CompletedTask;
-                    }).ConfigureAwait(false);
-
-                    redirected = filterContext.RedirectNavigation;
-                }
-                finally
-                {
-                    if (requestServices is AsyncServiceScope scope)
-                        await scope.DisposeAsync().ConfigureAwait(false);
-                }
+                (UIViewResolution? resolution, UINavigationRequest? redirected) = await RunViewFiltersAsync(entry, current, session, phase, sessionInit.Connection).ConfigureAwait(false);
 
                 // A redirect re-enters the loop from the top, resolving its own authorization and filters, within the same attempt count.
                 if (redirected is UINavigationRequest redirect)
@@ -322,6 +302,37 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         }
 
         throw new InvalidOperationException($"View resolution exceeded {MaxResolveViewAttempts} attempts for route '{request.Route}'.");
+    }
+
+    /// <summary>Runs the route's view filter chain around the view's resolution: answers the resolution, or where a filter redirected.</summary>
+    private async Task<(UIViewResolution? Resolution, UINavigationRequest? Redirected)> RunViewFiltersAsync(UIRouteEntry entry, UINavigationRequest navigation, ResolvedSession session, UIViewRequestPhase phase, UIConnectionInfo connection)
+    {
+        IUIViewFilter[] filters = GetFilterChain(entry.Definition);
+        UIViewResolution? resolution = null;
+
+        // A scope of the request's own, so a filter's scoped services are not the root's shared ones and its disposable
+        // transients go with the request; the built-in check alone reads no services and is spared the scope.
+        AsyncServiceScope? requestServices = filters.Length > 1 ? _services.CreateAsyncScope() : null;
+
+        try
+        {
+            UIViewFilterContext filterContext = new(navigation, entry.Definition, session.Session, requestServices?.ServiceProvider ?? _services, phase, connection);
+
+            await RunViewFilterPipelineAsync(filters, filterContext, () =>
+            {
+                resolution = CreateViewResolution(entry, filterContext, session);
+                filterContext.Resolution = resolution;
+
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
+
+            return (resolution, filterContext.RedirectNavigation);
+        }
+        finally
+        {
+            if (requestServices is AsyncServiceScope scope)
+                await scope.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     private IUIViewFilter[] GetFilterChain(UIRouteDefinition route)
@@ -1289,7 +1300,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// uploads to a 401. Only the time is touched, and never on a session that is gone: the handle's session is the one the tab
     /// attached with, and saving it would bring back a session signed out since, or roles revoked since. A session the touch
     /// finds gone — ended from another process, purged — ends here as <see cref="EndSessionAsync"/> ends one, and the call is
-    /// answered with nothing: false.
+    /// answered with nothing: false. Under <see cref="UISecurityOptions.RecheckRouteOnActivity"/> the same turn reads the session
+    /// as stored and ends the runtime of a page whose route it no longer passes, as a changed session's event does.
     /// </remarks>
     private async Task<bool> RefreshSessionActivityAsync(UIHandle handle, UIRuntimeEntry entry, CancellationToken cancellationToken)
     {
@@ -1299,10 +1311,35 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         if (!entry.ShouldPersistSessionActivity(DateTime.UtcNow, throttle))
             return true;
 
-        if (await _services.GetRequiredService<IUserSessionStore>().TouchAsync(handle.Session.SessionId, DateTime.UtcNow, cancellationToken).ConfigureAwait(false))
+        IUserSessionStore store = _services.GetRequiredService<IUserSessionStore>();
+
+        if (_application.Security.RecheckRouteOnActivity && !await StillPassesRouteAsync(handle, store, cancellationToken).ConfigureAwait(false))
+            return false;
+
+        if (await store.TouchAsync(handle.Session.SessionId, DateTime.UtcNow, cancellationToken).ConfigureAwait(false))
             return true;
 
         await EndSessionAsync(handle.Session.SessionId, except: null, cancellationToken).ConfigureAwait(false);
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether the session as stored still passes the page's route; where it does not, the session's runtimes it no longer passes end,
+    /// their pages sent back to their own addresses, whose loads refuse them. A session gone from the store is left to the touch.
+    /// </summary>
+    private async Task<bool> StillPassesRouteAsync(UIHandle handle, IUserSessionStore store, CancellationToken cancellationToken)
+    {
+        if (await store.TryGetAsync(handle.Session.SessionId, cancellationToken).ConfigureAwait(false) is not UserSessionState stored
+            || !_application.Routes.TryGetEntry(handle.Instance.Navigation.Route, out UIRouteEntry? route)
+            || Passes(route.Definition, stored))
+        {
+            return true;
+        }
+
+        Log.RouteNoLongerPasses(_logger, route.Definition.Route);
+
+        await EndRefusedRuntimesAsync(stored).ConfigureAwait(false);
 
         return false;
     }
@@ -1382,8 +1419,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
     /// <inheritdoc />
     /// <remarks>
-    /// Not a navigation: the route's access was checked when the page arrived, so the view filters are not run again. An entry whose
-    /// parameters name another runtime (the route's identity) is that runtime's page, and is answered with a navigation to it.
+    /// The route's view filters run again with the entry's parameters, on the session as the store holds it now, as the attach of a
+    /// load of that address would run them: an entry they refuse or redirect is answered with a navigation to it, whose load then
+    /// refuses it the way any request is refused. An entry whose parameters name another runtime (the route's identity) is that
+    /// runtime's page, and is answered with a navigation to it.
     /// </remarks>
     public async Task<UICommandExecutionResult> NavigateInPlaceAsync(UIHandle handle, IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken = default)
     {
@@ -1402,7 +1441,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         if (!await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false))
             return SessionEndedResult();
 
-        if (!CreateRuntimeKey(handle, navigation).Equals(CreateRuntimeKey(handle)))
+        if (!CreateRuntimeKey(handle, navigation).Equals(CreateRuntimeKey(handle)) || !await PassesViewFiltersAsync(handle, navigation, cancellationToken).ConfigureAwait(false))
         {
             return new UICommandExecutionResult
             {
@@ -1412,6 +1451,34 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         }
 
         return await entry.Runtime.NavigateInPlaceAsync(handle, navigation, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Whether the route's view filters let an in-place entry through untouched. In the attach phase: a filter's side effect belongs to
+    /// a page load's render, not to every Back and Forward. A refusal of any kind is the load's to answer.
+    /// </summary>
+    private async Task<bool> PassesViewFiltersAsync(UIHandle handle, UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        if (!_application.Routes.TryGetEntry(navigation.Route, out UIRouteEntry? entry))
+            return false;
+
+        UserSessionState? stored = await _services.GetRequiredService<IUserSessionStore>().TryGetAsync(handle.Session.SessionId, cancellationToken).ConfigureAwait(false);
+
+        if (stored is null)
+            return false;
+
+        try
+        {
+            (UIViewResolution? resolution, UINavigationRequest? redirected) = await RunViewFiltersAsync(entry, navigation, new ResolvedSession(AsStoredNow(handle.Session, stored), Issued: null), UIViewRequestPhase.Attach, handle.Connection).ConfigureAwait(false);
+
+            return resolution is not null && redirected is null;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Log.InPlaceNavigationRefused(_logger, navigation.Route, exception.Message);
+
+            return false;
+        }
     }
 
     private void CompleteCommand(Activity? activity, string route, string? command, bool succeeded, long started)
@@ -1468,6 +1535,24 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         ArgumentNullException.ThrowIfNull(handle);
 
         return GetRequiredRuntimeEntry(handle).Runtime.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Makes what a connection's page reports of itself — on screen or not, its notification permission — its handle's, and its
+    /// runtime's, whose controller hears a changed permission as a command runs.
+    /// </summary>
+    internal Task ReportClientStateAsync(UIHandle handle, UIClientState state, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(state);
+
+        if (RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry) && entry!.Runtime is IUIRuntimeConnectionUpdater updater)
+            return updater.UpdateClientStateAsync(handle, state, cancellationToken);
+
+        // A page with no controller has no runtime to count it: its handle is all there is.
+        _ = handle.RefreshClientState(state);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -1578,7 +1663,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         await _services.GetRequiredService<IUserSessionStore>().RemoveAsync(sessionId, cancellationToken).ConfigureAwait(false);
 
-        var count = await EndRemovedSessionAsync(sessionId, except, cancellationToken).ConfigureAwait(false);
+        var count = await EndRemovedSessionAsync(sessionId, except).ConfigureAwait(false);
 
         Log.SessionEnded(_logger, new UISessionFingerprint(sessionId), count);
     }
@@ -1588,11 +1673,17 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// go, since they are reachable only through it, and so do its pages, which would otherwise go on being pushed to and written
     /// from as nobody. Answers how many runtimes ended.
     /// </summary>
-    private async Task<int> EndRemovedSessionAsync(string sessionId, UIHandle? except, CancellationToken cancellationToken)
+    /// <remarks>
+    /// Owed whole once the store let the session go, so no caller's token stops it halfway — a tab closed right after its sign-out
+    /// cancels that one — and the pages go first, so a file store that throws cannot leave them open as nobody.
+    /// </remarks>
+    private async Task<int> EndRemovedSessionAsync(string sessionId, UIHandle? except)
     {
-        await _services.GetRequiredService<IUIFileStore>().RemoveSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var count = await EndSessionRuntimesAsync(sessionId, except).ConfigureAwait(false);
 
-        return await EndSessionRuntimesAsync(sessionId, except).ConfigureAwait(false);
+        await _services.GetRequiredService<IUIFileStore>().RemoveSessionAsync(sessionId, CancellationToken.None).ConfigureAwait(false);
+
+        return count;
     }
 
     /// <summary>

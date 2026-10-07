@@ -23,7 +23,10 @@ public enum UIWebAssetKind
     /// <summary>
     /// A classic script loaded in <c>&lt;head&gt;</c> before the body parses, unlike a module, which is always deferred.
     /// </summary>
-    HeadScript = 5
+    HeadScript = 5,
+
+    /// <summary>A service worker's script: served at its own address and never linked, since the client registers it by that address.</summary>
+    ServiceWorker = 6
 }
 
 public enum UIWebAssetSourceKind

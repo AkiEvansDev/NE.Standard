@@ -51,7 +51,8 @@ import { BreadcrumbsEngine } from "../interactions/breadcrumbs-engine";
 import { ColorInputEngine } from "../interactions/color-input-engine";
 import { TableColumns, TableColumnsEngine } from "../interactions/table-columns-engine";
 import { TreeEngine } from "../interactions/tree-engine";
-import { TabMenuEntryEvent, TabsViewEngine } from "../interactions/tabs-view-engine";
+import { browserNotifications } from "../interactions/system-notifications";
+import { TabMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions/tabs-view-engine";
 import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { TimestampEngine } from "../interactions/timestamp-engine";
@@ -87,9 +88,12 @@ import { readWebUIMetadata } from "../metadata/metadata-reader";
 import { paintsMoment, readHydration } from "./web-hydration";
 import { AttachOutcome, attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
 import { readTimeZone } from "../transport/reader-time-zone";
+import { ClientStateReporter } from "./client-state";
+import { startServiceWorker } from "./service-worker";
 import { decideReload, forgetReload, sessionMemory } from "./reload-guard";
 import { ConnectionWatch } from "./connection-watch";
 import { CommandDispatcher } from "../transport/command-dispatcher";
+import { afterAppliedAsync } from "../transport/inbound-order";
 import { PropertyStateStore } from "../state/property-state-store";
 import { SignalRTransport } from "../transport/signalr-transport";
 import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
@@ -281,6 +285,7 @@ export class WebUIRuntime {
     private readonly notifications: NotificationEngine;
     private readonly effects: EffectRegistry;
     private readonly leaveGuard: LeaveGuard;
+    private readonly clientState: ClientStateReporter;
 
     /** Public so a plugin's own Source-driven config can reuse this dispatch. */
     public readonly reactiveSources: ReactiveSourceRegistry;
@@ -346,18 +351,28 @@ export class WebUIRuntime {
             revisit: parameters => void this.navigateInPlaceAsync(parameters),
             load: () => window.location.reload()
         });
+        // The event pipeline is built further down: a toast's action is pressed long after the constructor ends.
+        const runAction = (id: string): Promise<boolean> => this.eventPipeline.dispatchCommandAsync({ eventId: 0, action: id, dynamicParameters: [] })
+            .catch((error: unknown) => {
+                logWarn("running a notification's action failed.", error);
+                return false;
+            });
+        // A system notification's click reaches the page through the worker where one shows them, and runs as a toast's press does.
+        const worker = startServiceWorker(document.documentElement, this.windowId, id => void runAction(id));
+
         this.effects = new EffectRegistry({
             address,
             dialogs: this.dialogs,
             notifications: this.notifications,
-            // The event pipeline is built further down: a toast's action is pressed long after the constructor ends.
-            runAction: id => void this.eventPipeline.dispatchCommandAsync({ eventId: 0, action: id, dynamicParameters: [] })
-                .catch(error => logWarn("running a notification's action failed.", error)),
+            runAction,
             valueReaders: this.extensions.valueReaders,
             // Nothing waits on this: the theme is already on screen, and the session only has to catch up.
             reportTheme: theme => void this.transport.setThemeAsync(theme).catch(error => logWarn("reporting the theme to the session failed.", error)),
             // The leave guard is built once the value engine is: no effect runs before the constructor ends.
-            navigate: url => this.leaveGuard.navigate(url)
+            navigate: url => this.leaveGuard.navigate(url),
+            clientStateChanged: () => this.clientState.changed(),
+            windowId: this.windowId,
+            systemNotifications: browserNotifications(worker)
         });
 
         const interactionIndex = new InteractionIndex(this.metadata);
@@ -420,6 +435,7 @@ export class WebUIRuntime {
 
         // Every answer's changes come through here in the order the messages arrived, pushes' too (inbound-order.ts).
         this.transport = new SignalRTransport(this.windowId, (changes, before) => this.applyChanges(changes, before), options.signalR);
+        this.clientState = new ClientStateReporter({ report: state => this.transport.reportClientStateAsync(state) });
         this.dispatcher = new CommandDispatcher(this.transport);
 
         // A key the table lacks is asked about once per language — a translator that cannot list every word, or a missing word reported.
@@ -572,9 +588,13 @@ export class WebUIRuntime {
 
         // After them, since each is added bare: the tab menu's entry names its own keys, the entry and the tab, as a package's event does.
         this.eventPipeline.addEvent(TabMenuEntryEvent.name, TabMenuEntryEvent.registration);
-        // A row's move carries the index it takes after its keys, the row standing there until the answer; a tree's carries none.
-        const itemMove = itemMoveEvent(this.updateProcessor.moves);
+        // A row's move carries the index it takes after its keys, the row standing there until the answer; a tab's strip, which
+        // the drag already reordered, and a tab pinned take the order their data holds once answered.
+        const resort = (host: Element): void => this.updateProcessor.resortHost(host);
+        const itemMove = itemMoveEvent({ ahead: (host, key, index) => this.updateProcessor.moves.ahead(host, key, index), settle: move => this.updateProcessor.moves.settle(move), resort });
         this.eventPipeline.addEvent(itemMove.name, itemMove.registration);
+        const tabPin = tabPinEvent(resort);
+        this.eventPipeline.addEvent(tabPin.name, tabPin.registration);
         // Items of a kind dropped or pasted on a component taking it carry the drop after its keys; rows moved ahead wait for the answer.
         const itemDrop = itemDropEvent(this.updateProcessor.transfers);
 
@@ -674,7 +694,7 @@ export class WebUIRuntime {
             const { changes, ...rest } = result;
 
             // The effects after the changes, a staged value among them: an effect acts on the page those changes produced.
-            void Promise.resolve(this.applyChanges(changes)).then(() => {
+            void afterAppliedAsync(() => this.applyChanges(changes), () => {
                 if (this.dispatcher.settle(rest))
                     return;
 
@@ -682,7 +702,7 @@ export class WebUIRuntime {
 
                 // After the effects: a scroll effect can move a windowed viewport without raising a scroll event.
                 this.windows.reconsider();
-            });
+            }).catch(error => logError("a pushed command result could not be applied.", error));
         });
         // A controller-asked rebuild takes the same route a dropped connection does.
         this.updateProcessor.addFullResyncHandler(() => {
@@ -881,6 +901,7 @@ export class WebUIRuntime {
             message: clientStrings.text("ui.connection.lost"),
             severity: "danger",
             sticky: true,
+            connection: true,
             // Unasked: the page can save nothing now, and what reached its runtime is still there after the reload while the runtime lives.
             action: {
                 label: clientStrings.text("ui.connection.reload"),
@@ -895,18 +916,19 @@ export class WebUIRuntime {
     /**
      * Reloads a page the server will not attach as it stands — rendered from another compile of its view, or under a session the server
      * no longer holds, whose new key only a page load can write — once: asked again (two servers of two builds, a browser keeping no
-     * cookie), it is left, logged.
+     * cookie), it offers the reload instead, as a lost connection does.
      */
     private reloadForView(view: string): void {
         const verdict = decideReload(view, navigator.cookieEnabled, sessionMemory());
 
+        // Given up, the page says so and offers the reload by hand: left as it is, it looks live and every call is refused unseen.
         if (verdict === "no-cookie") {
-            logError("the server asked for a reload, and this browser keeps no cookie the reload could write; giving up.", { view });
+            this.loseConnection(new Error(`the server asked for a reload of view '${view}', and this browser keeps no cookie the reload could write.`));
             return;
         }
 
         if (verdict === "asked-again") {
-            logError("the server asked for a reload again after one (another compile of the view, or a session cookie the browser does not keep); giving up.", { view });
+            this.loseConnection(new Error(`the server asked for a reload of view '${view}' again after one (another compile of the view, or a session cookie the browser does not keep).`));
             return;
         }
 
@@ -949,6 +971,8 @@ export class WebUIRuntime {
         // Before the attach: the markup is already the finished page, and this takes the client's copy of it.
         await this.hydrateAsync();
         this.startEnginesAwaitingHydration();
+        // Before the attach, which carries the state read then: a change meanwhile is reported once it is answered.
+        this.clientState.start();
 
         if (!await connected)
             return;
@@ -1064,11 +1088,13 @@ export class WebUIRuntime {
             return;
         }
 
+        // The connection the set arrived on is the reader the server named, whatever a reconnect has made of it by the fetch.
+        const instanceId = this.transport.instanceId;
         const applied = (this.inbound ?? Promise.resolve())
             .then(() => {
                 before?.();
 
-                return fetchStagedValuesAsync(changes);
+                return fetchStagedValuesAsync(changes, instanceId);
             })
             .then(resolved => this.applyNow(resolved))
             .catch(error => {
@@ -1205,7 +1231,7 @@ export class WebUIRuntime {
     /** The snapshot's changes, a staged value among them fetched first; one that cannot be fetched asks for another attach. */
     private async applyAttachChangesAsync(changes: ServerChangeSet | undefined): Promise<void> {
         try {
-            this.applyNow(hasStagedValues(changes) ? await fetchStagedValuesAsync(changes) : changes);
+            this.applyNow(hasStagedValues(changes) ? await fetchStagedValuesAsync(changes, this.transport.instanceId) : changes);
         }
         catch (error) {
             logError("a staged value of the attach could not be fetched; the page attaches again.", error);
@@ -1231,7 +1257,8 @@ export class WebUIRuntime {
             // None on the first attach, the render's own or a second tab's: only a page that held a runtime can find it gone.
             runtime: this.heldRuntime,
             parameters: standIn !== null ? standIn.parameters : readQueryParameters(window.location.search),
-            timeZone: readTimeZone()
+            timeZone: readTimeZone(),
+            clientState: this.clientState.forAttach()
         };
 
         this.renderSequence = null;

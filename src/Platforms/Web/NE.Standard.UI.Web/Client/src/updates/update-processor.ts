@@ -224,6 +224,14 @@ export class UpdateProcessor {
         }
     }
 
+    /** Brings a host's rows back to the order and filters its data holds, after a gesture put a row where the answer did not keep it. */
+    public resortHost(host: Element): void {
+        const componentId = findOwningComponentId(host);
+
+        if (componentId !== null)
+            this.syncItemsHost(host, componentId);
+    }
+
     private syncItemsHost(host: Element, componentId: number): void {
         syncItemsHost(host, componentId, {
             metadata: this.metadata,

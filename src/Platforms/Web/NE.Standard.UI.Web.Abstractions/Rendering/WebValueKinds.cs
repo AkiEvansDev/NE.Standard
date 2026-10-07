@@ -12,9 +12,6 @@ public static class WebValueKinds
     /// <summary>A tab strip's selected key, read off its root.</summary>
     public const string TabsSelected = "tabs-selected";
 
-    /// <summary>A tab's order, read off the tab's root.</summary>
-    public const string TabOrder = "tab-order";
-
     /// <summary>A tab's caption as renamed, read off its label.</summary>
     public const string TabCaption = "tab-caption";
 

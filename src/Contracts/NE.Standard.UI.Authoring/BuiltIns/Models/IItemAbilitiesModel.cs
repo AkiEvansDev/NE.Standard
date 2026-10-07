@@ -3,6 +3,12 @@ namespace NE.Standard.UI.Authoring.BuiltIns.Models;
 /// <summary>
 /// What an item lets a host do with it, each unset by default: be chosen, be dragged, be removed, be renamed, or have its menu opened.
 /// </summary>
+/// <remarks>
+/// The server refuses what a false one refuses — a choice of the row, its move or a tree node's new folder, its removal, its rename —
+/// as it refuses what a closed component sends: a guard against a stale or forged page, not the permission itself, which belongs in
+/// the command. It reads the item by the row's key, so a windowed source's item (<c>BindSource</c>) is held only to what the
+/// template itself says.
+/// </remarks>
 public interface IItemAbilitiesModel
 {
     /// <summary>

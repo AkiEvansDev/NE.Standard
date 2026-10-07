@@ -32,6 +32,12 @@ public sealed class WebShellContext
     /// <summary>Gets the <c>href</c> of the page's icon (<see cref="WebEndpointOptions.Icon"/>), or none for an empty one.</summary>
     public string? Icon { get; init; }
 
+    /// <summary>Gets how the page reaches the framework's service worker (<see cref="WebEndpointOptions.ServiceWorker"/>).</summary>
+    public WebServiceWorkerMode ServiceWorker { get; init; }
+
+    /// <summary>Gets whether the shell links the application's manifest (<see cref="WebEndpointOptions.Manifest"/>).</summary>
+    public bool HasManifest { get; init; }
+
     public string RootElementId { get; init; } = "ui-root";
 
     /// <summary>

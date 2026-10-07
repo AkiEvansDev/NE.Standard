@@ -1,14 +1,19 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
+using NE.Standard.UI.Components.BuiltIns.Items;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.Foundation.Inputs;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -20,9 +25,13 @@ internal abstract partial class UIRuntimeBase
 
     /// <summary>
     /// Refuses a command raised on a component the server knows is disabled, loading or hidden — by a static value or the
-    /// controller, itself or an ancestor; a host's row event answers to the row it names as well.
+    /// controller, itself or an ancestor; a host's row event answers to the row it names as well. A row's move, removal or rename
+    /// is refused where the row's template or its own item says it may not be dragged, removed or renamed.
     /// </summary>
-    /// <remarks>Refused as an unauthorised command is, so the reader is told the same way; what only the client knows is not read.</remarks>
+    /// <remarks>
+    /// Refused as an unauthorised command is, so the reader is told the same way; what only the client knows is not read. A drop
+    /// (<c>OnDrop</c>) is the command's to judge, as <c>UIDrop</c> says.
+    /// </remarks>
     private void EnsureEventTargetOpenNoLock(CompiledUIEvent compiledEvent, object?[] dynamicParameters)
     {
         UIComponentGateIndex gates = Gates;
@@ -34,25 +43,111 @@ internal abstract partial class UIRuntimeBase
 
         // The row's template root stands under the host, so its chain answers for the host too. A row is named by its key, a
         // text; a number past the host's own keys is a value the event carries (a list's row dropped at an index), not a row.
-        if (gates.TryGetRows(componentId, out UIRowGates rows) && dynamicParameters.Length >= rows.RowParameterCount && dynamicParameters[rows.RowParameterCount - 1] is string)
-            componentId = rows.TemplateRootId;
+        if (gates.TryGetRows(componentId, out UIRowGates rows)
+            && rows.TemplateRootId is UIComponentId rootId
+            && dynamicParameters.Length >= rows.Abilities.RowParameterCount
+            && dynamicParameters[rows.Abilities.RowParameterCount - 1] is string)
+        {
+            componentId = rootId;
+        }
 
         if (gates.TryGet(componentId, out UIComponentGates? target) && IsClosedNoLock(target!.Chain, dynamicParameters))
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a component that is disabled, loading or hidden.");
+
+        if (EventAbility(compiledEvent.Address.EventName) is UIComponentGateKind ability
+            && gates.TryGetRowRoot(compiledEvent.Address.ComponentId, out UIRowAbilities? row)
+            && IsRowRefusedNoLock(row!, ability, dynamicParameters))
+        {
+            throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a row whose {ability} is false.");
+        }
+    }
+
+    /// <summary>The ability a row's own event needs: a move its <c>CanDrag</c>, a removal its <c>CanRemove</c>, a rename its <c>CanRename</c>.</summary>
+    private static UIComponentGateKind? EventAbility(string eventName)
+        => eventName switch
+        {
+            EventNames.Move => UIComponentGateKind.CanDrag,
+            EventNames.Remove => UIComponentGateKind.CanRemove,
+            EventNames.Rename => UIComponentGateKind.CanRename,
+            _ => null
+        };
+
+    /// <summary>
+    /// Whether the row the keys name may not do what <paramref name="ability"/> asks: its template's ability closes, or its own item
+    /// says false. A row not named by a key, or not there, refuses nothing — as a gate the server cannot read closes nothing.
+    /// </summary>
+    /// <remarks>The item is read only here, on a row's own event or write, never on a render or an ordinary value.</remarks>
+    private bool IsRowRefusedNoLock(UIRowAbilities row, UIComponentGateKind ability, object?[] dynamicParameters)
+    {
+        var count = row.RowParameterCount;
+
+        if (dynamicParameters.Length < count || dynamicParameters[count - 1] is not string key)
+            return false;
+
+        var rowParameters = TakeDynamicParameters(dynamicParameters, count);
+
+        if (row.For(ability) is { } gate && IsClosedNoLock(gate, rowParameters))
+            return true;
+
+        return row.Items is { } items && ReadRowItemNoLock(items, rowParameters, key) is IItemAbilitiesModel item && UIComponentGateIndex.Closes(ability, UIRowAbilities.Read(item, ability));
+    }
+
+    /// <summary>The row's own item by its key: a declared row, or the controller's; null where no such row is held.</summary>
+    private object? ReadRowItemNoLock(UIRowItems items, object?[] rowParameters, string key)
+    {
+        if (items.Declared is { } declared)
+        {
+            foreach (var row in declared)
+            {
+                if (row is IBindableItem item && string.Equals(item.Id, key, StringComparison.Ordinal))
+                    return row;
+            }
+
+            return null;
+        }
+
+        return items.Bound is { } bound && TryResolveGatePath(bound, rowParameters, out RecursivePath path) && Controller.TryGetRecursiveValue(path.AppendKey(key), out var found)
+            ? found
+            : null;
+    }
+
+    /// <summary>The controller path a bound gate reads for the row keys given; false for a binding with more keys than the call names.</summary>
+    private bool TryResolveGatePath(UIComponentGate gate, object?[] dynamicParameters, out RecursivePath path)
+    {
+        if (gate.FixedPath is RecursivePath fixedPath)
+        {
+            path = fixedPath;
+            return true;
+        }
+
+        if (gate.Binding is not CompiledUIBinding binding || dynamicParameters.Length < gate.DynamicCount)
+        {
+            path = RecursivePath.Empty;
+            return false;
+        }
+
+        // An ancestor reads the outer keys alone, outermost first.
+        path = View.Bindings.Resolve(binding, TakeDynamicParameters(dynamicParameters, gate.DynamicCount)).Path;
+        return true;
     }
 
     /// <summary>
     /// Whether a client write lands on a component the server knows the reader may not write: closed by itself or an ancestor,
-    /// read-only, a value outside its bounds or a day not on offer, or — for a choice of rows — a newly chosen row that may not be
-    /// chosen or is disabled.
+    /// read-only, a value outside its bounds, a day not on offer or a text past its length; for a choice of rows, a newly chosen
+    /// row that may not be chosen or is disabled; or a row's rename or tree move its abilities refuse.
     /// </summary>
     private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read)
     {
         UIComponentGateIndex gates = Gates;
+        UIProperty property = update.Address.Property;
+
+        // A tab's order is the server's to write, from a drag's or a pin's place; the page's own write of one is never taken.
+        if (property == TabItemComponent.OrderProperty)
+            return true;
 
         // Any component's IsOpen, a package's popup included, not the flyout's alone: a popup's close arrives from an outside click or
         // Escape, which nothing on the client refuses, so it is never answered with a reopening.
-        if (gates.IsEmpty || (update.Address.Property == IOpenableComponent.IsOpenProperty && update.Value is false))
+        if (gates.IsEmpty || (property == IOpenableComponent.IsOpenProperty && update.Value is false))
             return false;
 
         UIComponentId componentId = update.Address.Component.Id;
@@ -66,7 +161,10 @@ internal abstract partial class UIRuntimeBase
             return true;
         }
 
-        return IsChoice(update.Address.Property) && gates.TryGetRows(componentId, out UIRowGates rows) && IsChoiceRefusedNoLock(gates, rows, update, resolution);
+        if (IsChoice(property))
+            return gates.TryGetRows(componentId, out UIRowGates rows) && IsChoiceRefusedNoLock(gates, rows, update, resolution);
+
+        return WriteAbility(property) is UIComponentGateKind ability && gates.TryGetRowRoot(componentId, out UIRowAbilities? row) && IsRowRefusedNoLock(row!, ability, dynamicParameters);
     }
 
     /// <summary>
@@ -104,7 +202,8 @@ internal abstract partial class UIRuntimeBase
                 && IsClosedNoLock(only, dynamicParameters)
                 && !IsMarkedNoLock(days, day, dynamicParameters))
             || (checks.Ends is { } ends && IsPastOtherEndNoLock(ends, property == IPeriodInputComponent.EndValueProperty, value, dynamicParameters))
-            || (checks.Step is { } step && IsOffStepNoLock(step, checks.Min, value, dynamicParameters));
+            || (checks.Step is { } step && IsOffStepNoLock(step, checks.Min, value, dynamicParameters))
+            || (checks.MaxLength is { } maxLength && value is string text && IsTooLongNoLock(maxLength, text, resolution, dynamicParameters));
     }
 
     /// <summary>
@@ -201,6 +300,19 @@ internal abstract partial class UIRuntimeBase
         return (written - origin) % size != 0;
     }
 
+    /// <summary>
+    /// Whether a text runs past its field's <c>MaxLength</c>, in UTF-16 units as the browser's <c>maxlength</c> counts them; a length
+    /// unset, unread or not a number holds nothing.
+    /// </summary>
+    private bool IsTooLongNoLock(UIGateValue maxLength, string text, CompiledUIBindingResolution resolution, object?[] dynamicParameters)
+    {
+        if (ReadDecimalNoLock(maxLength, dynamicParameters) is not decimal limit || text.Length <= limit)
+            return false;
+
+        // A value the controller set past the length is shortened a character at a time, as the browser lets the reader do.
+        return resolution.Source.Kind != CompiledUIBindingSourceKind.Controller || TryGetControllerValue(resolution.Path) is not string held || text.Length > held.Length;
+    }
+
     private static bool IsChoice(UIProperty property)
         => property == ISelectableItemsComponent.SelectedKeyProperty || property == ISelectableItemsComponent.SelectedKeysProperty;
 
@@ -210,9 +322,11 @@ internal abstract partial class UIRuntimeBase
     /// </summary>
     private bool IsChoiceRefusedNoLock(UIComponentGateIndex gates, UIRowGates rows, ClientValueUIUpdate update, CompiledUIBindingResolution resolution)
     {
-        if (!gates.TryGet(rows.TemplateRootId, out UIComponentGates? row) || update.DynamicParameters.Length != rows.RowParameterCount - 1)
+        if (update.DynamicParameters.Length != rows.Abilities.RowParameterCount - 1)
             return false;
 
+        // Rows wearing a template by the item's kind have no one template whose chain answers for every row.
+        UIComponentGates? template = rows.TemplateRootId is UIComponentId rootId && gates.TryGet(rootId, out UIComponentGates? found) ? found : null;
         var current = resolution.Source.Kind == CompiledUIBindingSourceKind.Controller ? TryGetControllerValue(resolution.Path) : null;
 
         foreach (var key in ReadChosenKeys(update.Value))
@@ -222,7 +336,7 @@ internal abstract partial class UIRuntimeBase
 
             var rowParameters = AppendDynamicParameter(update.DynamicParameters, key);
 
-            if (IsClosedNoLock(row!.Chain, rowParameters) || (row.CanSelect is { } canSelect && IsClosedNoLock(canSelect, rowParameters)))
+            if ((template is not null && IsClosedNoLock(template.Chain, rowParameters)) || IsRowRefusedNoLock(rows.Abilities, UIComponentGateKind.CanSelect, rowParameters))
                 return true;
         }
 
@@ -253,6 +367,16 @@ internal abstract partial class UIRuntimeBase
         }
 
         return false;
+    }
+
+    /// <summary>The ability a row's own write needs: a rename's title its <c>CanRename</c>, a tree node's new folder its <c>CanDrag</c>.</summary>
+    private static UIComponentGateKind? WriteAbility(UIProperty property)
+    {
+        // A tree node's RenamedTitle is the same key, by name.
+        if (property == TabItemComponent.RenamedTitleProperty)
+            return UIComponentGateKind.CanRename;
+
+        return property == TreeNodeComponent.DropTargetProperty ? UIComponentGateKind.CanDrag : null;
     }
 
     /// <summary>
@@ -295,27 +419,7 @@ internal abstract partial class UIRuntimeBase
     {
         value = null;
 
-        if (gate.Binding is not CompiledUIBinding binding)
-            return false;
-
-        RecursivePath path;
-
-        if (gate.FixedPath is RecursivePath fixedPath)
-        {
-            path = fixedPath;
-        }
-        else
-        {
-            if (dynamicParameters.Length < gate.DynamicCount)
-                return false;
-
-            // An ancestor reads the outer keys alone, outermost first.
-            var parameters = dynamicParameters.Length == gate.DynamicCount ? dynamicParameters : dynamicParameters[..gate.DynamicCount];
-
-            path = View.Bindings.Resolve(binding, parameters).Path;
-        }
-
-        if (!Controller.TryGetRecursiveValue(path, out var read))
+        if (gate.Binding is not CompiledUIBinding binding || !TryResolveGatePath(gate, dynamicParameters, out RecursivePath path) || !Controller.TryGetRecursiveValue(path, out var read))
             return false;
 
         value = UIBoundValueConverter.Convert(read, binding.TargetValueType);

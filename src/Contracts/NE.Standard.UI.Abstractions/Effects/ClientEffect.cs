@@ -35,6 +35,8 @@ public static class ClientEffectKinds
     public const string ConfirmLeave = "ConfirmLeave";
     public const string ReplaceAddress = "ReplaceAddress";
     public const string PushAddress = "PushAddress";
+    public const string RequestNotificationPermission = "RequestNotificationPermission";
+    public const string ShowSystemNotification = "ShowSystemNotification";
 }
 
 /// <summary>

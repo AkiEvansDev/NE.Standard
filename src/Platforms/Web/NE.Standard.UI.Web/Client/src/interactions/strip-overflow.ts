@@ -67,10 +67,16 @@ export class StripFitter {
     // A strip is fitted again whenever its room's width changes (a trailing strip's, a caption's too); observed on first sight, and
     // fitted once however many of its boxes changed together.
     private readonly resizes = typeof ResizeObserver === "function"
-        ? new ResizeObserver(entries => {
+        ? new ResizeObserver((entries, observer) => {
             const roots = new Set<HTMLElement>();
 
             for (const entry of entries) {
+                // A strip gone from the page is let go: observed, its whole subtree would stay alive as long as the page.
+                if (!entry.target.isConnected) {
+                    observer.unobserve(entry.target);
+                    continue;
+                }
+
                 const root = entry.target.closest<HTMLElement>(`.${this.options.rootClass}`);
 
                 if (root === null || this.fittedWidths.get(entry.target) === entry.contentRect.width)

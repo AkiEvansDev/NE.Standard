@@ -113,7 +113,8 @@ internal sealed partial class UIViewCompilationContext
         if (_controllerType is null || !typeof(UIControllerBase).IsAssignableFrom(_controllerType))
             return;
 
-        if (UIControllerBase.DeclaresCommand(_controllerType, sourceEvent.Action.Command))
+        // The framework's own command runs in the runtime, not on the controller.
+        if (UIBuiltInCommands.IsBuiltIn(sourceEvent.Action.Command) || UIControllerBase.DeclaresCommand(_controllerType, sourceEvent.Action.Command))
             return;
 
         throw new InvalidOperationException(

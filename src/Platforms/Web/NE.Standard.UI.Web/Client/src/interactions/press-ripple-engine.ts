@@ -10,7 +10,10 @@ import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import { ownControlOf } from "./own-control.ts";
 import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
-const EntrySelector = `.${ButtonClass}, .ui-action, .${MenuItemClass}, .ui-select__option, .ui-language-switcher__choice, .ui-pager__size-choice`;
+// A press inside one of these is its own, ahead of the button around it: a tabs view's whole caption (its label a button only for its
+// focus), and either part of a split button, washed alone as its hover is. A menu split button is one press, and the pill takes it.
+const OwnPressSelector = ".ui-tab-item__caption, .ui-split-button:not([data-ui-split-mode='menu']) > :is(.ui-split-button__main, .ui-split-button__toggle)";
+const EntrySelector = `.${ButtonClass}, .ui-action, .${MenuItemClass}, .ui-select__option, .ui-language-switcher__choice, .ui-pager__size-choice, ${OwnPressSelector}`;
 const KeyValueRowClass = "ui-key-value-action__row";
 const RowSelector = `${SelectionRowSelector}, .${KeyValueRowClass}`;
 const TargetSelector = `${EntrySelector}, ${RowSelector}`;
@@ -90,7 +93,11 @@ export class PressRippleEngine {
 
     /** The element a press lands on that answers it with the wave, or null: the nearest one, and only if it takes the press. */
     private pressedElement(target: Element): HTMLElement | null {
-        const element = target.closest<HTMLElement>(TargetSelector);
+        // A tab's close and rename field are presses of their own, with no wave.
+        if (target.closest(".ui-tab-item__close, .ui-tab-item__rename") !== null)
+            return null;
+
+        const element = target.closest<HTMLElement>(OwnPressSelector) ?? target.closest<HTMLElement>(TargetSelector);
 
         if (element === null || isInert(element))
             return null;

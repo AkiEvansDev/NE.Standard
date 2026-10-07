@@ -1,11 +1,12 @@
 // What the server sends is applied in the order its messages arrived, whether a push or an invoke's answer: SignalR settles an
 // answer through a promise and calls a push's handler at once, so one frame carrying both would otherwise apply the push first.
+// A pushed command result settles its command once its changes are applied, also when applying them threw before any promise existed.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ServerChangeSet } from "../src/metadata/metadata-index.ts";
-import { InboundOrder } from "../src/transport/inbound-order.ts";
+import { InboundOrder, afterAppliedAsync } from "../src/transport/inbound-order.ts";
 
 type Answer = { readonly name: string; readonly changes?: ServerChangeSet };
 
@@ -116,4 +117,26 @@ test("what must precede an answer's changes runs in their turn, not as the answe
     await answered;
 
     assert.deepEqual(steps, ["snapshot", "before", "apply:answer"]);
+});
+
+test("a pushed result whose changes throw at once still settles its command, and the failure is not swallowed", async () => {
+    const settled: string[] = [];
+
+    await assert.rejects(afterAppliedAsync(() => {
+        throw new Error("a change could not be applied");
+    }, () => settled.push("settled")), /could not be applied/);
+
+    assert.deepEqual(settled, ["settled"]);
+});
+
+test("a pushed result settles its command after its changes, whether applied at once or in their turn", async () => {
+    const order: string[] = [];
+
+    await afterAppliedAsync(() => void order.push("applied at once"), () => order.push("settled"));
+    await afterAppliedAsync(async () => {
+        await Promise.resolve();
+        order.push("applied in turn");
+    }, () => order.push("settled"));
+
+    assert.deepEqual(order, ["applied at once", "settled", "applied in turn", "settled"]);
 });

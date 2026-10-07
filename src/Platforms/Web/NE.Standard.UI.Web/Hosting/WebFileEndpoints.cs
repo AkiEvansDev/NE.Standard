@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Files;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Sessions;
 
@@ -134,6 +135,10 @@ internal static partial class WebFileEndpoints
 
                 if (string.IsNullOrWhiteSpace(fileName))
                     continue;
+
+                // Claimed before the file is created: an empty file with a long name is an entry in memory and one on disk all the same.
+                if (!claim.TryReserve(UIAllowanceCharge.Overhead(fileName)))
+                    return Full(claim.TotalRefused, limits, uploads, loggerFactory);
 
                 using WebRequestGuards.LimitedStream limited = new(section.Body, limits.MaxFileSize, claim);
 

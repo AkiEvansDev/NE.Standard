@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint && knip --no-config-hints",
     "test": "node --test tests/*.test.ts",
-    "build": "npm run typecheck && npm run lint && node scripts/build-plugin-less.mjs && vite build --clearScreen false --logLevel error && vite build -c vite.boot.config.ts --clearScreen false --logLevel error"
+    "build": "npm run typecheck && npm run lint && node scripts/build-plugin-less.mjs && vite build --clearScreen false --logLevel error && vite build -c vite.boot.config.ts --clearScreen false --logLevel error && vite build -c vite.worker.config.ts --clearScreen false --logLevel error"
   },
   "dependencies": {
     "@microsoft/signalr": "10.0.11"

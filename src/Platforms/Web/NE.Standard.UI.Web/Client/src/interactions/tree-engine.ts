@@ -3,7 +3,7 @@
 import {
     ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemsHostAttribute, SelectionAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
     TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute,
-    TreeDropMarkAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UndraggableAttribute, UnrenamableAttribute,
+    TreeDropMarkAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UnrenamableAttribute,
     UnselectableAttribute
 } from "../addressing/dom-attributes";
 import { findOwningComponentId } from "../addressing/dom-registry";
@@ -19,11 +19,12 @@ import { ClientBootPatch, ClientStore } from "../state/client-store";
 import type { PropertyStateStore } from "../state/property-state-store";
 import { observeComponents } from "./dom-mutations";
 import { clearDragMarks, giveDragPayload, leftAltogether, markDragStart } from "./drag-marks";
-import { allowedEffect, beginItemsDrag, carriedRows, offeredItems } from "./item-drags";
+import { allowedEffect, beginItemsDrag, carriedRows, isDraggableRow, offeredItems } from "./item-drags";
 import { openInlineRename } from "./inline-rename";
 import { enterRow, pressRow, removableRows } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state";
+import { raiseItemMove } from "./items-reorder-engine";
 import { focusedRow, litRow, nameRowBy, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
 import { isRovingKey } from "./roving-focus";
 import type { SelectionGesture } from "./row-selection";
@@ -210,7 +211,7 @@ export class TreeEngine {
             row.classList.toggle(TreeRowFilteredClass, filtered);
             row.removeAttribute(TreeBootAttribute);
             // A disabled node is not lifted: its own component is inert, but the row around it would still start a drag.
-            row.draggable = draggable && !isItemRefused(row, UndraggableAttribute) && !isItemDisabled(row);
+            row.draggable = draggable && isDraggableRow(row);
 
             if (hasChildren)
                 row.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -749,7 +750,7 @@ export class TreeEngine {
             text.setAttribute(TreeDropTargetAttribute, place.parent);
             // Two events: `change` carries the folder back through the node's two-way binding, `move` is what a command hangs on.
             text.dispatchEvent(new Event("change", { bubbles: true }));
-            row.dispatchEvent(new CustomEvent("move", { bubbles: true, detail: { index: indexes[position] } }));
+            raiseItemMove(row, indexes[position]);
         });
     }
 

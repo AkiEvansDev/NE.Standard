@@ -24,6 +24,16 @@
     flex-direction: column-reverse;
 }
 
+// A connection notice on a phone stands at the bottom under a top placement too, out of the host's flow: a state of the whole page,
+// where the thumb reaches its Reload, rather than over the page's header.
+@media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+    [data-ui-notifications="top"] .ui-notification--connection {
+        position: fixed;
+        right: @ui-space-4;
+        bottom: calc(var(--ui-notification-lift, 0px) + @ui-space-4);
+    }
+}
+
 // The live regions an AnnounceEffect is spoken through (live-announcer.ts): read, never seen.
 .ui-announcer {
     .ui-visually-hidden();
@@ -66,6 +76,19 @@
 .ui-notification--leaving {
     animation: ui-notification-out @ui-motion-fast @ui-motion-exit forwards;
 }
+
+// Over the message, in the first column: the close stands beside the title, and the message runs on under it.
+.ui-notification__title {
+    grid-column: 1;
+    font-weight: var(--ui-text-subtitle-font-weight);
+    overflow-wrap: anywhere;
+}
+
+    .ui-notification__title + .ui-notification__message {
+        grid-column: 1;
+        // The two read as one block of text: no gap between the lines.
+        margin-top: calc(-1 * @ui-space-2);
+    }
 
 .ui-notification__message {
     // A toast carries whatever a controller passed, including an unbroken URL or identifier.

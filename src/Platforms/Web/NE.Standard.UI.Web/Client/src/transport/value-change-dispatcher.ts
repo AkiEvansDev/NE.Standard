@@ -2,7 +2,7 @@
 import type { WebUIValueChangeRequest } from "../metadata/metadata-index";
 import { ConnectionDropped } from "./attach-gate.ts";
 import type { SignalRTransport } from "./signalr-transport";
-import { largeValueBody, stageValueAsync } from "./value-staging.ts";
+import { HubMessageBytes, largeValueBody, stageValueAsync } from "./value-staging.ts";
 
 /** The calls the dispatcher makes: a change set onto the hub, and a wait for the page to be attached again after a drop. */
 export type ChangeSetSender = Pick<SignalRTransport, "processChangeSetAsync" | "whenAttached">;
@@ -10,6 +10,15 @@ export type ChangeSetSender = Pick<SignalRTransport, "processChangeSetAsync" | "
 const Sent: Promise<void> = Promise.resolve();
 
 const Ignore = (): void => { };
+
+/**
+ * Bytes of values one change set carries at most: three quarters of the hub's cap, the rest room for the envelope. A value alone is
+ * never larger: past `LargeValueBytes` it is staged, and travels as a token.
+ */
+const ChangeSetBudgetBytes = HubMessageBytes * 3 / 4;
+
+// What a staged value's update weighs beyond its address: the token in place of the value, and its name.
+const StagedTokenBytes = 128;
 
 type Settle = {
     readonly resolve: () => void;
@@ -19,12 +28,18 @@ type Settle = {
 /** A value waiting for its turn, with every caller whose value it stands for — its own and the ones it replaced. */
 type Pending = {
     readonly field: string;
+    // The number of the earliest value it stands for: a command given after that one waits until this has been handed to the hub.
+    readonly sequence: number;
     readonly update: WebUIValueChangeRequest;
+    // Its share of a change set's message, the update as it travels.
+    readonly bytes: number;
     // Kept beside its token: the server takes a token once, and one sent under a dropped connection may be spent.
     readonly body: Uint8Array | null;
     readonly staged: Promise<string> | null;
     readonly before: (() => void) | undefined;
     readonly settles: readonly Settle[];
+    // The server closed the connection over an error under it once: a second time it is taken for the cause and dropped, not resent for ever.
+    readonly suspect: boolean;
 };
 
 type SentWaiter = {
@@ -77,8 +92,7 @@ export class ValueChangeDispatcher {
 
     /** Sends one value, a large one staged beside the hub, settling once the answer's changes are applied; `before` runs just ahead of them. */
     public dispatchAsync(update: WebUIValueChangeRequest, before?: () => void): Promise<void> {
-        this.given++;
-
+        const sequence = ++this.given;
         const body = largeValueBody(update.value);
         // Posted at once rather than in turn: only the order the values reach the hub in matters, not the order of the posts.
         const staged = body === null ? null : stageValueAsync(body);
@@ -90,15 +104,20 @@ export class ValueChangeDispatcher {
             const field = fieldOf(update);
             const replaced = this.queue.findIndex(pending => pending.field === field);
             let settles: readonly Settle[] = [{ resolve, reject }];
+            let earliest = sequence;
 
             // One trip per answer, not per move (a dragged slider): the replaced value's callers settle with this one, its `before`
-            // dropped since it was never the server's to answer, and it moves to the end, given last.
+            // dropped since it was never the server's to answer, and it moves to the end, given last — still holding back a command
+            // given after the value it replaced.
             if (replaced >= 0) {
                 settles = [...this.queue[replaced].settles, ...settles];
+                earliest = this.queue[replaced].sequence;
                 this.queue.splice(replaced, 1);
             }
 
-            this.queue.push({ field, update, body, staged, before, settles });
+            const bytes = body === null ? jsonBytes(update) : jsonBytes({ ...update, value: undefined }) + StagedTokenBytes;
+
+            this.queue.push({ field, sequence: earliest, update, bytes, body, staged, before, settles, suspect: false });
             this.pump();
         });
     }
@@ -121,8 +140,9 @@ export class ValueChangeDispatcher {
     }
 
     private async sendBatchAsync(): Promise<void> {
-        const batch = this.queue.splice(0);
-        const through = this.given;
+        const batch = this.takeBatch();
+        // Handed once this change set is: everything numbered before the earliest value left waiting.
+        const through = this.queue.length === 0 ? this.given : Math.min(...this.queue.map(pending => pending.sequence)) - 1;
         const updates: WebUIValueChangeRequest[] = [];
         const sent: Pending[] = [];
 
@@ -163,7 +183,7 @@ export class ValueChangeDispatcher {
         }
         catch (error) {
             if (error instanceof ConnectionDropped) {
-                this.requeue(sent);
+                this.requeue(sent, error);
                 return;
             }
 
@@ -174,15 +194,36 @@ export class ValueChangeDispatcher {
         }
     }
 
+    /** The values at the head of the queue while their change set stays within its budget; at least one, whatever its size. */
+    private takeBatch(): Pending[] {
+        let count = 0;
+        let bytes = 0;
+
+        while (count < this.queue.length && (count === 0 || bytes + this.queue[count].bytes <= ChangeSetBudgetBytes)) {
+            bytes += this.queue[count].bytes;
+            count++;
+        }
+
+        return this.queue.splice(0, count);
+    }
+
     /**
      * Gives back the values a dropped connection took, ahead of those given since, to go once the page is attached again: the server
      * may or may not have taken them, and each is a plain set of the latest value, so sending it again is harmless. A field given
-     * again meanwhile goes once, with that newer value, which settles both callers.
+     * again meanwhile goes once, with that newer value, which settles both callers. A value the server closed the connection over
+     * twice is dropped instead: it is what the server chokes on, and sending it again would only close the next connection too.
      */
-    private requeue(sent: readonly Pending[]): void {
+    private requeue(sent: readonly Pending[], dropped: ConnectionDropped): void {
         const again: Pending[] = [];
 
         for (const pending of sent) {
+            if (dropped.byServerError && pending.suspect) {
+                for (const settle of pending.settles)
+                    settle.reject(dropped.cause);
+
+                continue;
+            }
+
             const newer = this.queue.findIndex(waiting => waiting.field === pending.field);
 
             if (newer >= 0) {
@@ -192,7 +233,7 @@ export class ValueChangeDispatcher {
                 continue;
             }
 
-            again.push({ ...pending, staged: this.restage(pending.body) });
+            again.push({ ...pending, staged: this.restage(pending.body), suspect: pending.suspect || dropped.byServerError });
         }
 
         if (again.length === 0)
@@ -228,6 +269,11 @@ export class ValueChangeDispatcher {
             }
         }
     }
+}
+
+/** The update's JSON in UTF-8 bytes, as the hub's message carries it. */
+function jsonBytes(update: WebUIValueChangeRequest): number {
+    return new TextEncoder().encode(JSON.stringify(update)).byteLength;
 }
 
 /** One field of one rendered component: two values with the same answer are the same field's, the later one standing for both. */

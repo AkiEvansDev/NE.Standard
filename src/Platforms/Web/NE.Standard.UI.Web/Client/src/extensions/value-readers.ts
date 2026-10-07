@@ -6,7 +6,6 @@ import {
     TabCaptionAttribute,
     TreeDropTargetAttribute,
     TreeTitleAttribute,
-    TabOrderAttribute,
     TabPinnedAttribute,
     TabsSelectedAttribute,
     ValueHolderAttribute,
@@ -133,10 +132,6 @@ export function resolveValueHolder(element: Element): Element | null {
     return element.querySelector(`[${ValueHolderAttribute}]`) ?? element.querySelector(`[${ValueKindAttribute}], ${NativeValueSelector}`);
 }
 
-function numberOrNull(text: string | null): number | null {
-    return text === null ? null : Number(text);
-}
-
 // The kind names are WebValueKinds on the server; the attributes each reads are written by the engine named.
 const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     // flyout-interaction-engine.ts
@@ -144,7 +139,6 @@ const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     // tabs-engine.ts and tabs-view-engine.ts
     { kind: "tabs-selected", read: element => element.getAttribute(TabsSelectedAttribute) },
     // tabs-view-engine.ts: the order on the tab's root, the caption on its label
-    { kind: "tab-order", read: element => numberOrNull(element.getAttribute(TabOrderAttribute)) },
     { kind: "tab-caption", read: element => element.getAttribute(TabCaptionAttribute) },
     // tabs-view-engine.ts: the tab menu's pin, on the tab's pin
     { kind: "tab-pinned", read: element => element.hasAttribute(TabPinnedAttribute) },

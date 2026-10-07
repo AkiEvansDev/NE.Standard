@@ -38,6 +38,47 @@
     }
 }
 
+// A toggle answers a pointer on its box alone, nothing drawn past the box's edge, which a container at the toggle's side would cut:
+// off, the ring takes the ink and the box a shade of it; on, the fill leans toward the ink; a press goes twice as far as a hover.
+// Not in forced colours, where the box keeps the system's. @root is what the pointer is over, carrying the guard; @on draws the on box.
+@ui-toggle-live: ~":not(.ui-disabled, .ui-readonly, .ui-loading)";
+@ui-toggle-can-hover: ~"(hover: hover) and (forced-colors: none)";
+
+.ui-toggle-answers(@root, @input, @box, @on) {
+    @media @ui-toggle-can-hover {
+        @{root}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
+            background: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-raised));
+        }
+
+        // An invalid box keeps its message's edge.
+        @{root}@{ui-toggle-live}:not(.ui-invalid):hover > @{input}:not(:checked) ~ @{box} {
+            border-color: var(--ui-color-on-surface);
+        }
+
+        @{root}@{ui-toggle-live}:hover > @{input}:checked ~ @{box} {
+            @on();
+        }
+    }
+
+    @media (forced-colors: none) {
+        @{root}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
+            background: color-mix(in srgb, var(--ui-color-on-surface) 20%, var(--ui-surface-raised));
+        }
+
+        @{root}@{ui-toggle-live}:not(.ui-invalid):active > @{input}:not(:checked) ~ @{box} {
+            border-color: var(--ui-color-on-surface);
+        }
+
+        @{root}@{ui-toggle-live}:active > @{input}:checked ~ @{box} {
+            @on();
+            --ui-toggle-lean: 68%;
+        }
+    }
+}
+
+// The primary leaning toward the ink by the answer's share: 82% under a hover, 68% under a press.
+@ui-toggle-leaned: ~"color-mix(in srgb, var(--ui-color-primary) var(--ui-toggle-lean, 82%), var(--ui-color-on-surface))";
+
 // The ring is the mark: unchecked, it is all that says a box is there.
 .ui-toggle-box(@height) {
     position: relative;

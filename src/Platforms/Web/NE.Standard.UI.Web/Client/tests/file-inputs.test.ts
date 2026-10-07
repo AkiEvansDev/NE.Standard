@@ -1,7 +1,7 @@
 // The image and file inputs as their engines keep them: a single picture the controller clears by emptying its handle, a file over
 // the size limit refused on the field's validation line in the page's words, the chooser opened from a control elsewhere, and the
-// files dropped or pasted on the component an input names as its drop target. Over the stand-in DOM, an upload the test lands by
-// hand, and a mutation observer it drives itself.
+// files dropped or pasted on the component an input names as its drop target; a picture's object URL let go of once its input is
+// gone from the page. Over the stand-in DOM, an upload the test lands by hand, and a mutation observer it drives itself.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -388,4 +388,43 @@ test("a multi-file input names the files it left out for their size", async () =
 
     assert.equal(uploads.length, 1);
     assert.deepEqual(marks.at(-1)?.words, { key: "ui.file.leftout", args: { limit: "1 MB", names: "scan.pdf" } });
+});
+
+test("a picture's preview and a shelf's squares let their object URLs go once their input is gone from the page", async () => {
+    const revoked: string[] = [];
+    const revoke = URL.revokeObjectURL;
+
+    URL.revokeObjectURL = url => void revoked.push(url);
+
+    try {
+        const single = inlinePicture();
+
+        pick(single.native, fileOf("kept.png", 10));
+        await settle();
+
+        const preview = single.picture.getAttribute("src") ?? "";
+
+        assert.ok(preview.startsWith("blob:"));
+
+        single.input.remove();
+
+        // The next pick, in any input, sweeps the inputs gone meanwhile.
+        const shelf = shelfWithComposer();
+
+        pick(shelf.native, fileOf("cat.png", 10), fileOf("dog.png", 10));
+        await settle();
+
+        assert.deepEqual(revoked, [preview]);
+
+        const squares = shelf.tiles.children.map(tile => real<HTMLImageElement>(tile.children[0]).src);
+
+        shelf.input.remove();
+        pick(inlinePicture().native, fileOf("next.png", 10));
+        await settle();
+
+        assert.deepEqual(revoked, [preview, ...squares]);
+    }
+    finally {
+        URL.revokeObjectURL = revoke;
+    }
 });

@@ -38,6 +38,21 @@ internal static class StandardWebAssetDescriptors
     };
 
     /// <summary>
+    /// The framework's service worker, which shows a page's system notification where its browser shows none the page raised itself and
+    /// takes its click; served at <c>/_ne/</c>, the scope it takes, and only where <c>AddSystemNotifications</c> turned it on.
+    /// </summary>
+    public static WebAssetDescriptor Worker { get; } = new()
+    {
+        Key = "ui-worker.js",
+        Kind = UIWebAssetKind.ServiceWorker,
+        SourceKind = UIWebAssetSourceKind.EmbeddedResource,
+        Source = "NE.Standard.UI.Web.Client.dist.ui-worker.js",
+        ResourceAssemblyName = "NE.Standard.UI.Web",
+        PublicPath = "/_ne/sw.js",
+        Order = 0
+    };
+
+    /// <summary>
     /// Inter, the theme's default face, shipped for machines without it: the variable weight file, upright only, cached for a
     /// year. OFL 1.1 license in <c>Client/fonts/LICENSE.txt</c>.
     /// </summary>

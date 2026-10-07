@@ -30,6 +30,11 @@
     border-color: var(--ui-color-primary);
 }
 
+.ui-toggle-answers(~".ui-switch:not(:has(> .ui-switch__input:disabled))", ~".ui-switch__input", ~".ui-switch__box", {
+    background: @ui-toggle-leaned;
+    border-color: @ui-toggle-leaned;
+});
+
 // Whole pixels at the root size, centred by auto margins: translate(-50%) leaves a half pixel the grid does not snap, a soft edge.
 // Off, the knob is the mark as the ring is: where it stands says which way the switch is.
 .ui-switch__box::after {

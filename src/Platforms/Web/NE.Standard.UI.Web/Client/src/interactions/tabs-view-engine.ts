@@ -2,10 +2,11 @@
 
 import {
     BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, PassiveMenuEntrySelector,
-    TabCaptionAttribute, TabOrderAttribute, TabPinnedAttribute, TabsMenuAttribute, TabsRemovesAttribute, TabsRenamableAttribute, TabsSelectedAttribute,
+    TabCaptionAttribute, TabPinnedAttribute, TabsMenuAttribute, TabsRemovesAttribute, TabsRenamableAttribute, TabsSelectedAttribute,
     UndraggableAttribute, TabsDraggableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
 } from "../addressing/dom-attributes";
 import { EffectRegistry } from "../effects/effect-registry";
+import { aheadOfAnswer } from "../events/ahead-of-answer";
 import { EventRegistration } from "../events/event-descriptor";
 import { getIdValue, RenameTabClientEffect } from "../metadata/metadata-index";
 import { logWarn } from "../runtime/logger";
@@ -24,10 +25,11 @@ import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch"
 import {
     MenuRow, PinEntry, RemoveSeparatorEntry, RenameEntry, SeparatorEntry, TabMenuName, TabMenuPrefix, UnpinEntry, readTabMenuChoice, shownRules, tabMenuEntries
 } from "./tab-menu";
-import { StripTab, ordersAfterMove, pinnedBoundary } from "./tab-order";
+import { raiseItemMove } from "./items-reorder-engine";
+import { StripTab, pinnedBoundary } from "./tab-order";
+import { isTabRefused, rowOf, stripHostOf, TabItemClass as ItemClass } from "./tab-rows";
 
 const RootClass = "ui-tabs-view";
-const ItemClass = "ui-tab-item";
 const LabelClass = "ui-tab-item__label";
 const CloseClass = "ui-tab-item__close";
 const RenameClass = "ui-tab-item__rename";
@@ -55,6 +57,20 @@ export const TabMenuEntryEvent: { readonly name: string; readonly registration: 
     name: TabMenuEntryEventName,
     registration: { dynamicParameters: context => context.domEvent.detail?.keys ?? null }
 };
+
+/** A tab pinned or unpinned from its menu, raised on the tab once its pin is written: EventNames.TabPin. */
+const TabPinEventName = "tab-pin";
+
+/**
+ * How the pipeline reads a tab's pin: the tab already stands at the pinned head, and once answered its strip takes the order its data
+ * holds — the server's orders, or the old ones where it refused. A drop raises the row's own `move` (items-reorder-engine.ts).
+ */
+export function tabPinEvent(resort: (host: Element) => void): { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } {
+    return {
+        name: TabPinEventName,
+        registration: aheadOfAnswer<Element>(domEvent => stripHostOf(domEvent.target), resort)
+    };
+}
 
 /** Written on the host: what the caption strip took of it, so the page below can fill the rest. */
 const StripHeightVariable = "--ui-tabs-view-strip";
@@ -348,7 +364,7 @@ export class TabsViewEngine {
         return true;
     }
 
-    /** Pins or unpins a tab and moves it to the pinned head, both written back through the tab's own values as a drag does. */
+    /** Pins or unpins a tab, its pin written back through the tab's own value, and moves it to the pinned head the server keeps. */
     private setPinned(root: HTMLElement, item: HTMLElement, pinned: boolean): void {
         if (item.hasAttribute(TabPinnedAttribute) === pinned)
             return;
@@ -377,7 +393,8 @@ export class TabsViewEngine {
         else
             rowOf(others[others.length - 1]).after(rowOf(item));
 
-        writeOrders([...others.slice(0, index), item, ...others.slice(index)], index);
+        // Stands there now; the server, which judges the pin, writes the orders that keep it there.
+        item.dispatchEvent(new Event(TabPinEventName, { bubbles: true }));
     }
 
     private handleClick(domEvent: Event): void {
@@ -461,7 +478,7 @@ export class TabsViewEngine {
         const title = label.querySelector<HTMLElement>(TitleSelector) ?? label;
         const item = label.closest<HTMLElement>(`.${ItemClass}`);
 
-        if (caption === null || item === null || rowOf(item).hasAttribute(UnrenamableAttribute))
+        if (caption === null || item === null || isTabRefused(item, UnrenamableAttribute))
             return;
 
         openInlineRename({
@@ -472,7 +489,7 @@ export class TabsViewEngine {
             commit: value => {
                 label.setAttribute(TabCaptionAttribute, value);
 
-                // Two events: `change` carries the value back, `rename` is what a command hangs on — a reorder raises `change` too.
+                // Two events: `change` carries the value back, `rename` is what a command hangs on.
                 label.dispatchEvent(new Event("change", { bubbles: true }));
                 label.dispatchEvent(new Event("rename", { bubbles: true }));
             },
@@ -527,8 +544,8 @@ export class TabsViewEngine {
         if (item === null)
             return;
 
-        // Unmovable or pinned tabs stay; only their own drag is refused, since this listener sees every drag on the page.
-        if (rowOf(item).hasAttribute(UndraggableAttribute) || item.hasAttribute(TabPinnedAttribute)) {
+        // Unmovable, disabled or pinned tabs stay; only their own drag is refused, since this listener sees every drag on the page.
+        if (isTabRefused(item, UndraggableAttribute) || isInert(item) || item.hasAttribute(TabPinnedAttribute)) {
             domEvent.preventDefault();
             return;
         }
@@ -628,9 +645,8 @@ export class TabsViewEngine {
         if (root === null)
             return;
 
-        const items = this.ownItems(root);
-
-        writeOrders(items, items.indexOf(item));
+        // The place, not the orders: written by the page, an order is no move the server can tell from a forged one.
+        raiseItemMove(item, this.ownItems(root).indexOf(item));
     }
 
     private select(root: HTMLElement, key: string): void {
@@ -658,7 +674,7 @@ function lastPinnedRow(root: HTMLElement, draggingRow: HTMLElement): HTMLElement
 
 /** Whether a tab may be closed: neither the strip nor the tab's item refuses it. */
 function isRemovable(root: HTMLElement, item: HTMLElement): boolean {
-    return !root.hasAttribute(TabsUnremovableAttribute) && !rowOf(item).hasAttribute(UnremovableAttribute) && !item.hasAttribute(UnremovableAttribute);
+    return !root.hasAttribute(TabsUnremovableAttribute) && !isTabRefused(item, UnremovableAttribute);
 }
 
 /** The built-in tab-menu entries a tab is offered: what the strip chose, as the tab allows. */
@@ -666,7 +682,7 @@ function offeredEntries(root: HTMLElement, item: HTMLElement): ReadonlyMap<strin
     return tabMenuEntries(readTabMenuChoice(root.getAttribute(TabsMenuAttribute)), {
         pinned: item.hasAttribute(TabPinnedAttribute),
         // The item's CanRename alone: the strip's Renamable governs the double click and F2.
-        renamable: !rowOf(item).hasAttribute(UnrenamableAttribute),
+        renamable: !isTabRefused(item, UnrenamableAttribute),
         removable: root.hasAttribute(TabsRemovesAttribute) && isRemovable(root, item)
     });
 }
@@ -683,15 +699,6 @@ function menuRows(menu: HTMLElement): HTMLElement[] {
     const host = menu.querySelector<HTMLElement>(`[${ItemsHostAttribute}]`);
 
     return host === null ? [] : Array.from(host.children).filter((row): row is HTMLElement => row instanceof HTMLElement && row.hasAttribute(ComponentKeyAttribute));
-}
-
-/** The items host's child that holds a tab: the tab itself when nothing wraps it, else its wrapper. */
-function rowOf(item: HTMLElement): HTMLElement {
-    const parent = item.parentElement;
-
-    return parent !== null && !parent.hasAttribute(ItemsHostAttribute) && parent.closest(`[${ItemsHostAttribute}]`) === parent.parentElement
-        ? parent
-        : item;
 }
 
 /** The label of the caption a press landed on — anywhere but its close or an open rename field. */
@@ -712,28 +719,8 @@ function draggedItem(domEvent: Event): HTMLElement | null {
     return caption?.closest<HTMLElement>(`.${ItemClass}`) ?? null;
 }
 
-/** Writes the orders a move leaves, through each tab's two-way `Order`, renumbering no other tab where the moved one fits between. */
-function writeOrders(items: readonly HTMLElement[], index: number): void {
-    for (const [place, order] of ordersAfterMove(items.map(stripTab), index)) {
-        items[place].setAttribute(TabOrderAttribute, String(order));
-        items[place].dispatchEvent(new Event("change", { bubbles: true }));
-    }
-}
-
 function stripTab(item: HTMLElement): StripTab {
-    return { order: readOrder(item), pinned: item.hasAttribute(TabPinnedAttribute) };
-}
-
-/** The order a row was last written with, or null for a row that carries none or one that does not parse. */
-function readOrder(item: Element): number | null {
-    const value = item.getAttribute(TabOrderAttribute);
-
-    if (value === null)
-        return null;
-
-    const order = Number(value);
-
-    return Number.isFinite(order) ? order : null;
+    return { pinned: item.hasAttribute(TabPinnedAttribute) };
 }
 
 /** A tab is keyed by its item, so the key sits on the wrapper the items host renders, not on the tab. */

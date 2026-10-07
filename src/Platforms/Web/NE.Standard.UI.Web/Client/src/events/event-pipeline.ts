@@ -80,11 +80,12 @@ export class EventPipeline {
 
     /**
      * Sends a command no element raised — a notification's action — in turn behind the commands and values before it, and applies
-     * its answer's effects as an event's are; refused while the same one is pending.
+     * its answer's effects as an event's are; refused while the same one is pending. Answers whether the server took it — ran it,
+     * failed or not: false for a refusal here or the server's (a busy command among them), which spent nothing.
      */
-    public async dispatchCommandAsync(request: UICommandRequest): Promise<void> {
+    public async dispatchCommandAsync(request: UICommandRequest): Promise<boolean> {
         if (this.options.dispatcher.isPending(request))
-            return;
+            return false;
 
         const turn = this.turns.take();
 
@@ -100,6 +101,8 @@ export class EventPipeline {
 
             this.options.effects.applyAll(result.command?.effects, this.options.dom);
             this.options.afterEffects?.();
+
+            return result.refused !== true;
         }
         finally {
             turn.done();

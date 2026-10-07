@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
@@ -92,6 +96,9 @@ internal sealed partial class TabsViewGroupContext : DemoGroupContext
     public const string HealthKey = "health";
     public const string ServerKey = "server";
 
+    private readonly RecursiveCollection<DemoDocumentItem> _documents;
+    private readonly List<DemoDocumentItem> _closed = [];
+
     [RecursiveMember]
     public partial string? SelectedKey { get; set; } = IncidentKey;
 
@@ -110,14 +117,17 @@ internal sealed partial class TabsViewGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial bool ShowOverflow { get; set; } = true;
 
-    public TabsViewGroupContext()
+    public TabsViewGroupContext(RecursiveCollection<DemoDocumentItem> documents)
     {
+        _documents = documents;
+
         AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
         AddOption(nameof(Renamable), ToggleRenamable, () => Renamable);
         AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
         AddOption(nameof(TabMenuEntries), CycleTabMenuEntries, () => TabMenuEntries);
         AddOption(nameof(Removable), ToggleRemovable, () => Removable);
         AddOption(nameof(ShowOverflow), ToggleShowOverflow, () => ShowOverflow);
+        AddOption("Closed", Reopen, () => _closed.Count);
     }
 
     public void CycleSelectedKey()
@@ -133,9 +143,31 @@ internal sealed partial class TabsViewGroupContext : DemoGroupContext
     public void CycleTabMenuEntries()
         => SetLastChange(nameof(TabMenuEntries), TabMenuEntries = CycleValue(TabMenuEntries, UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Close, UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Delete, UITabMenuEntries.Rename, UITabMenuEntries.Delete, UITabMenuEntries.None));
 
-    /// <summary>A tab's close or the menu's remove entry, heard and answered by keeping the tab: the page's documents stay three.</summary>
-    public void ReportRemove(string title)
-        => LogEvent($"asked to remove {title}; kept");
+    /// <summary>A tab's close or the menu's remove entry: the document leaves the collection, and the strip loses its tab.</summary>
+    public void Close(string id)
+    {
+        DemoDocumentItem? document = _documents.FirstOrDefault(document => string.Equals(document.Id, id, StringComparison.Ordinal));
+
+        if (document is null)
+            return;
+
+        _ = _documents.Remove(document);
+        _closed.Add(document);
+        LogEvent($"{document.Title} closed");
+        RefreshOptions();
+    }
+
+    // The last one closed comes back where it stood: its Order is kept, so the strip sorts it into its old place.
+    public void Reopen()
+    {
+        if (_closed.Count == 0)
+            return;
+
+        DemoDocumentItem document = _closed[^1];
+
+        _closed.RemoveAt(_closed.Count - 1);
+        _documents.Add(document);
+    }
 
     // Off, no tab shows a close and the strip keeps no room for one.
     public void ToggleRemovable()

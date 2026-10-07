@@ -64,8 +64,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Queues work to run on the thread pool in a command's turn, then as <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/>
-    /// runs it, in the order it was posted.
+    /// Queues work to run on the thread pool in a command's turn, as a command's body runs, in the order it was posted.
     /// </summary>
     /// <remarks>
     /// Counted as a command from the moment it is queued, so a runtime asked to go waits for the work rather than disposing under
@@ -118,12 +117,17 @@ internal abstract partial class UIRuntimeBase
 
         try
         {
+            // Read before the wait: the hold is counted already, so a runtime not yet asked to go stays until this work leaves, while one
+            // asked to go may have disposed its lock — a failed initialization disposes at once.
+            if (Volatile.Read(ref _disposeRequested) != 0)
+                return;
+
             // A command's body holds no state lock, so without its turn a posted redraw would write the controller beside the command's own.
             await _exclusiveCommandLock.WaitAsync().ConfigureAwait(false);
             inTurn = true;
 
             if (Volatile.Read(ref _disposeRequested) == 0)
-                _ = await InvokeAsync(action, CancellationToken.None).ConfigureAwait(false);
+                await RunInTurnAsync(action, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -153,6 +157,21 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
+    /// <summary>
+    /// Runs work that holds a command's turn as a command's body runs — outside the state lock — then drains and publishes what it
+    /// wrote, as <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/> would.
+    /// </summary>
+    /// <remarks>
+    /// Outside the lock so the work may await <c>InvokeAsync</c> on its own runtime, as a command may: under it, that call waited for
+    /// the lock its own caller held, and the runtime with every flush behind it stopped for good.
+    /// </remarks>
+    private async Task RunInTurnAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken)
+    {
+        await action(cancellationToken).ConfigureAwait(false);
+
+        _ = await InSendOrderAsync(() => FlushCoreAsync(DrainTarget.Leave, publish: true, cancellationToken), cancellationToken).ConfigureAwait(false);
+    }
+
     /// <inheritdoc />
     public async Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, UIHandle? except = null, CancellationToken cancellationToken = default)
     {
@@ -173,14 +192,22 @@ internal abstract partial class UIRuntimeBase
         IUIUpdateSink updates = Connection.ClientServices.Updates;
         ExceptionDispatchInfo? failure = null;
 
+        // While a page is on screen, the reader is told there: a page off screen leaves out what it would show only off screen.
+        UICommandExecutionResult? offScreen = HasVisibleViewers ? WithoutHiddenOnly(result) : result;
+
         foreach (UIHandle viewer in ViewerHandles)
         {
             if (except is not null && StringComparer.Ordinal.Equals(viewer.Instance.Id, except.Instance.Id))
                 continue;
 
+            UICommandExecutionResult? sent = viewer.ClientState.IsVisible ? result : offScreen;
+
+            if (sent is null)
+                continue;
+
             try
             {
-                await updates.SendCommandResultAsync(viewer, result, cancellationToken).ConfigureAwait(false);
+                await updates.SendCommandResultAsync(viewer, sent, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
@@ -190,6 +217,24 @@ internal abstract partial class UIRuntimeBase
         }
 
         failure?.Throw();
+    }
+
+    /// <summary>The result without the system notifications shown only off screen; null where nothing else is left in it.</summary>
+    private static UICommandExecutionResult? WithoutHiddenOnly(UICommandExecutionResult result)
+    {
+        ClientEffect[] effects = result.Command.Effects;
+        List<ClientEffect> kept = new(effects.Length);
+
+        for (var i = 0; i < effects.Length; i++)
+        {
+            if (effects[i] is not ShowSystemNotificationEffect { When: UINotificationWhen.WhenHidden })
+                kept.Add(effects[i]);
+        }
+
+        if (kept.Count == effects.Length)
+            return result;
+
+        return kept.Count == 0 ? null : result with { Command = UICommandResult.Ok(kept) };
     }
 
     /// <inheritdoc />

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
+using NE.Standard.UI.Files;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -74,6 +75,10 @@ internal static partial class WebValueEndpoint
 
         if (http.Request.ContentLength > claim.Remaining || claim.Remaining <= 0)
             return Full(claim.TotalIsTighter, store, options.Value, loggerFactory);
+
+        // The entry before its bytes: a one-byte value holds a token, a slot and an array all the same.
+        if (!claim.TryReserve(UIAllowanceCharge.EntryBytes))
+            return Full(claim.TotalRefused, store, options.Value, loggerFactory);
 
         byte[] json;
         using WebRequestGuards.LimitedStream body = new(http.Request.Body, limit, claim);
@@ -154,7 +159,8 @@ internal static partial class WebValueEndpoint
         }
     }
 
-    private static async Task<IResult> ReadAsync(HttpContext http, string token, [FromServices] WebValueStagingStore store, CancellationToken cancellationToken)
+    /// <summary>Serves a staged server value; <paramref name="instance"/> names the tab reading it, so its read is its own.</summary>
+    private static async Task<IResult> ReadAsync(HttpContext http, string token, [FromQuery] string? instance, [FromServices] WebValueStagingStore store, CancellationToken cancellationToken)
     {
         UserSessionState? session = await http.GetAuthorizedUISessionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -162,7 +168,7 @@ internal static partial class WebValueEndpoint
             return Results.Unauthorized();
 
         // Not found rather than forbidden: telling a caller a token exists but isn't theirs is telling them it exists.
-        if (!store.TryRead(session.SessionId, token, out var json))
+        if (!store.TryRead(session.SessionId, token, instance, out var json))
             return Results.NotFound();
 
         http.Response.Headers.CacheControl = "no-store";

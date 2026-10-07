@@ -258,6 +258,48 @@ test("a disabled button, a secondary button and a press in a popup the button ho
     assert.equal(rippling(option), true, "the entry pressed in the list is the one that answers");
 });
 
+test("a tabs view's caption takes the wave as a whole, from its label too; its close raises none", () => {
+    const label = FakeElement.of("ui-tab-item__label ui-button ui-button--ghost", {}, "button");
+    const close = FakeElement.of("ui-tab-item__close", {}, "button");
+    const caption = placed(FakeElement.of("ui-tab-item__caption"), 0, 0, 160, 36).append(label, close);
+
+    page(FakeElement.of("ui-tab-item").append(caption));
+    down(label);
+
+    assert.equal(rippling(caption), true);
+    assert.equal(rippling(label), false, "a wave on the label alone stops short of the caption's edges");
+
+    up(label);
+    page(FakeElement.of("ui-tab-item").append(caption));
+    caption.classes.delete("ui-pressing");
+    down(close);
+
+    assert.equal(rippling(caption), false);
+});
+
+test("a split button's part takes the wave alone; a menu split button's pill takes it whole", () => {
+    const main = FakeElement.of("ui-split-button__main", {}, "button");
+    const toggle = FakeElement.of("ui-split-button__toggle", {}, "button");
+    const split = placed(FakeElement.of("ui-split-button ui-button", {}), 0, 0, 120, 32).append(main, toggle);
+    const menuMain = FakeElement.of("ui-split-button__main", {}, "button");
+    const menu = placed(FakeElement.of("ui-split-button ui-button", { "data-ui-split-mode": "menu" }), 0, 40, 120, 32).append(menuMain);
+
+    page(split, menu);
+    down(main);
+
+    assert.equal(rippling(main), true);
+    assert.equal(rippling(split), false, "the pill's wave covered the toggle beside the part washed");
+
+    down(toggle, 10, 10, 2);
+
+    assert.equal(rippling(toggle), true);
+
+    down(menuMain, 10, 50, 3);
+
+    assert.equal(rippling(menu), true);
+    assert.equal(rippling(menuMain), false);
+});
+
 test("a row answers a press where it does something: chooses itself, folds a tree's folder, or raises its click", () => {
     const chosen = placed(FakeElement.of("ui-items-view__item"), 0, 0, 300, 40);
     const inert = placed(FakeElement.of("ui-items-view__item"), 0, 0, 300, 40);

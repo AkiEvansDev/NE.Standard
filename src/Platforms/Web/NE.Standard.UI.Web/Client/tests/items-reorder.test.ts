@@ -397,7 +397,7 @@ function pipeline(view: List): { readonly answer: (serverMove: { readonly key: s
     };
     const host = real<Element>(view.host);
     const moves = new PendingMoves(mover);
-    const registration = itemMoveEvent(moves).registration;
+    const registration = itemMoveEvent({ ahead: (target, key, index) => moves.ahead(target, key, index), settle: move => moves.settle(move), resort: () => undefined }).registration;
     const taken: Event[] = [];
 
     view.root.addEventListener("move", domEvent => {
@@ -500,11 +500,32 @@ test("a second Alt+Down before the first is answered moves on from where the fir
 test("a tree's move, which carries no index, moves nothing ahead", () => {
     const view = list();
     const ahead: unknown[] = [];
-    const registration = itemMoveEvent(real({ ahead: (...args: unknown[]) => ahead.push(args), settle: () => undefined })).registration;
+    const registration = itemMoveEvent(real({ ahead: (...args: unknown[]) => ahead.push(args), settle: () => undefined, resort: () => undefined })).registration;
     const domEvent = new FakeEvent("move");
 
     domEvent.target = view.rows[0].children[0];
     registration.started?.({ domEvent: real<Event>(domEvent), component: real<Element>(view.root), componentId: 6, dynamicParameters: [] });
 
     assert.deepEqual(ahead, []);
+});
+
+test("a tab's move, which its strip already shows, takes the strip back to the order its data holds once answered, refused or not", () => {
+    const strip = new FakeElement("div");
+    const tab = new FakeElement("div");
+    const resorted: unknown[] = [];
+    const registration = itemMoveEvent(real({ ahead: () => assert.fail("a tab is no list's row to move ahead"), settle: () => undefined, resort: (host: unknown) => resorted.push(host) })).registration;
+    const domEvent = new CustomEvent("move", { detail: { index: 0 } });
+
+    tab.classList.add("ui-tab-item");
+    strip.setAttribute("data-ui-items-host", "");
+    strip.append(tab);
+    Object.defineProperty(domEvent, "target", { value: tab });
+
+    const context = { domEvent: real<Event>(domEvent), component: real<Element>(tab), componentId: 6, dynamicParameters: ["a"] };
+
+    registration.started?.(context);
+    assert.deepEqual(resorted, []);
+
+    registration.completed?.({ ...context, dispatched: true, success: false });
+    assert.deepEqual(resorted, [strip]);
 });

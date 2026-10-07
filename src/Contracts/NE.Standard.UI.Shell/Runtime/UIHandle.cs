@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Shell.Runtime;
@@ -21,6 +22,7 @@ public sealed class UIHandle
         Instance = instance;
         Connection = connection ?? UIConnectionInfo.Unknown;
         _session = session;
+        _clientState = instance.ClientState;
     }
 
     /// <summary>
@@ -38,6 +40,20 @@ public sealed class UIHandle
 
     // Swapped whole by the command that changed the session, so a reader never sees half of two sessions.
     private volatile IUserSessionContext _session;
+
+    /// <summary>Gets what the connection's page last reported of itself: whether it is on screen, what the browser lets it show.</summary>
+    public UIClientState ClientState => Volatile.Read(ref _clientState);
+
+    // Swapped whole as the page reports, so a reader never sees half of two reports.
+    private UIClientState _clientState;
+
+    /// <summary>Makes <paramref name="state"/> what this connection's page reports, and answers what it reported before.</summary>
+    internal UIClientState RefreshClientState(UIClientState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        return Interlocked.Exchange(ref _clientState, state);
+    }
 
     /// <summary>
     /// Makes <paramref name="session"/> this connection's session — the one its command just stored.

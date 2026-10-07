@@ -76,6 +76,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         WebFileEndpoints.Map(group);
         WebValueEndpoint.Map(group);
+        WebManifestEndpoint.Map(group);
         WebContentEndpoint.Map(group);
         WebWordsEndpoint.Map(group);
 
@@ -232,6 +233,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             UIWebAssetKind.Css => "text/css",
             UIWebAssetKind.JavaScript => "application/javascript",
             UIWebAssetKind.HeadScript => "application/javascript",
+            UIWebAssetKind.ServiceWorker => "application/javascript",
             UIWebAssetKind.TypeScript => "application/javascript",
             UIWebAssetKind.Less => "text/css",
             UIWebAssetKind.Font => "font/woff2",
@@ -355,6 +357,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         var painted = Stopwatch.GetTimestamp();
 
+        WebEndpointOptions endpointOptions = http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
         WebShellContext shell = new()
         {
             ThemeMode = resolution.Session.ThemeMode,
@@ -363,7 +366,9 @@ public static partial class WebEndpointRouteBuilderExtensions
             Assets = assets.Assets,
             Language = resolution.Session.Language,
             Title = TranslateTitle(application.Translator, resolution),
-            Icon = http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value.Icon,
+            Icon = endpointOptions.Icon,
+            ServiceWorker = endpointOptions.ServiceWorker,
+            HasManifest = endpointOptions.Manifest is not null,
             Content = content,
             FormIds = WebPageForms.Of(resolution.View),
             NotificationPlacement = resolution.View.Options.NotificationPlacement,

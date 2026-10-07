@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
@@ -30,8 +31,27 @@ internal sealed class WebOutgoingValues
         _options = hubProtocol.Value.PayloadSerializerOptions;
     }
 
-    /// <summary>The change set with its large values staged for a session's <paramref name="readers"/> tabs; the same instance when none is large.</summary>
-    public ServerChangeSet Stage(ServerChangeSet changes, string sessionId, int readers)
+    /// <summary>
+    /// The change set with its large values staged for the session's <paramref name="readers"/>, the instances it goes to; the same
+    /// instance when none is large. A value the session's outgoing allowance has no room for goes inline.
+    /// </summary>
+    public ServerChangeSet Stage(ServerChangeSet changes, string sessionId, IReadOnlyCollection<string> readers)
+        => Stage(changes, sessionId, readers, attachOf: null);
+
+    /// <summary>
+    /// An attach's initial changes staged for its connection alone; whatever the connection's previous attach staged goes first, since
+    /// this snapshot replaces it.
+    /// </summary>
+    public ServerChangeSet StageAttach(ServerChangeSet changes, string sessionId, string connectionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
+
+        _store.ReleaseAttach(connectionId);
+
+        return Stage(changes, sessionId, [connectionId], connectionId);
+    }
+
+    private ServerChangeSet Stage(ServerChangeSet changes, string sessionId, IReadOnlyCollection<string> readers, string? attachOf)
     {
         ArgumentNullException.ThrowIfNull(changes);
 
@@ -43,8 +63,8 @@ internal sealed class WebOutgoingValues
                 continue;
 
             staged ??= [.. changes.Updates];
-            staged[i] = json.Length > LargeValueBytes
-                ? new ServerValueUIUpdate { Address = update.Address, ValueToken = _store.StageOutgoing(sessionId, json, readers), Content = update.Content, ExceptInstanceId = update.ExceptInstanceId }
+            staged[i] = json.Length > LargeValueBytes && _store.TryStageOutgoing(sessionId, json, readers, attachOf, out var token)
+                ? new ServerValueUIUpdate { Address = update.Address, ValueToken = token, Content = update.Content, ExceptInstanceId = update.ExceptInstanceId }
                 : new ServerValueUIUpdate { Address = update.Address, Value = new WebRawJsonValue(json), Content = update.Content, ExceptInstanceId = update.ExceptInstanceId };
         }
 
@@ -68,12 +88,12 @@ internal sealed class WebOutgoingValues
     }
 
     /// <summary>A command's result with its changes staged.</summary>
-    public UICommandExecutionResult Stage(UICommandExecutionResult result, string sessionId, int readers)
+    public UICommandExecutionResult Stage(UICommandExecutionResult result, string sessionId, IReadOnlyCollection<string> readers)
     {
         ArgumentNullException.ThrowIfNull(result);
 
         ServerChangeSet changes = Stage(result.Changes, sessionId, readers);
 
-        return ReferenceEquals(changes, result.Changes) ? result : new UICommandExecutionResult { Command = result.Command, Changes = changes, Accepted = result.Accepted, RequestId = result.RequestId };
+        return ReferenceEquals(changes, result.Changes) ? result : result with { Changes = changes };
     }
 }

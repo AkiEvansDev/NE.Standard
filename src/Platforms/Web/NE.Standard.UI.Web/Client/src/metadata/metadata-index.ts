@@ -1,3 +1,4 @@
+import type { ClientState } from "../runtime/client-state.ts";
 import type { AuthorText, Phrase } from "../runtime/words.ts";
 
 /** A compiled id, a bare number on the wire. */
@@ -368,6 +369,8 @@ export type UICommandExecutionResult = {
     readonly changes?: ServerChangeSet;
     // A background command answers only that it was accepted, and pushes its result carrying the request's id.
     readonly accepted?: boolean;
+    // The server turned the command away before it ran (busy, not allowed, no longer offered), rather than running it and failing.
+    readonly refused?: boolean;
     readonly requestId?: number;
 };
 
@@ -403,7 +406,9 @@ export type ClientEffectKindName =
     | "SetLanguage"
     | "ConfirmLeave"
     | "ReplaceAddress"
-    | "PushAddress";
+    | "PushAddress"
+    | "RequestNotificationPermission"
+    | "ShowSystemNotification";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
 export type ClientEffectKindValue = ClientEffectKindName | (string & {});
@@ -434,7 +439,9 @@ export const ClientEffectKinds = {
     SetLanguage: "SetLanguage",
     ConfirmLeave: "ConfirmLeave",
     ReplaceAddress: "ReplaceAddress",
-    PushAddress: "PushAddress"
+    PushAddress: "PushAddress",
+    RequestNotificationPermission: "RequestNotificationPermission",
+    ShowSystemNotification: "ShowSystemNotification"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
@@ -570,6 +577,21 @@ export type NotificationClientEffect = ClientEffect & {
     readonly action?: NotificationActionModel;
 };
 
+/** A notification of the system's: ShowSystemNotificationEffect. */
+export type SystemNotificationClientEffect = ClientEffect & {
+    readonly title?: Phrase | AuthorText;
+    readonly body?: Phrase | AuthorText;
+    readonly tag?: string;
+    readonly icon?: string;
+    readonly address?: string;
+    readonly silent?: boolean;
+    readonly requireInteraction?: boolean;
+    // The command a click runs, offered for one press; its words are the fallback toast's button.
+    readonly action?: NotificationActionModel;
+    readonly when?: "WhenHidden" | "Always";
+    readonly fallback?: "Toast" | "None";
+};
+
 /** A notification's one button: its words, and the id of the command the server offered for one press; no id, no button. */
 export type NotificationActionModel = {
     readonly label?: Phrase | AuthorText;
@@ -611,6 +633,8 @@ export type WebUIAttachRequest = {
     readonly parameters: Record<string, unknown> | null;
     /** The IANA zone the browser runs in, kept on the session; null where the browser names none. */
     readonly timeZone: string | null;
+    /** What the page is now: on screen or not, and what the browser lets it show. */
+    readonly clientState: ClientState;
 };
 
 export type WebUIAttachResult = {

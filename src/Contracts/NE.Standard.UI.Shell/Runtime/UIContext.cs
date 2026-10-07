@@ -120,6 +120,16 @@ public sealed class UIContext
     /// <summary>Gets what the platform knows about the connection a command is running for — <see cref="Handle"/>'s.</summary>
     public UIConnectionInfo Connection => Handle.Connection;
 
+    /// <summary>
+    /// Gets whether the browser of the page a command is running for lets it show system notifications, as the page last reported —
+    /// <see cref="Handle"/>'s.
+    /// </summary>
+    /// <remarks>
+    /// The browser's, not the reader's: whether the reader wants notifications, and of which kinds, is the application's to keep.
+    /// <see cref="UINotificationPermission.Denied"/> is for the page to say, since asking again shows nothing.
+    /// </remarks>
+    public UINotificationPermission NotificationPermission => Handle.ClientState.NotificationPermission;
+
     /// <summary>Gets the reader's time zone: the one the session's client reported, or UTC while it has reported none this host knows.</summary>
     public TimeZoneInfo TimeZone => UITimeZones.Find(Handle.Session.TimeZone);
 

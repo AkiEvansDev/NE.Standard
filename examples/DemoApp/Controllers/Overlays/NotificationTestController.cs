@@ -98,6 +98,32 @@ internal sealed partial class UndoGroupContext : DemoGroupContext
     }
 }
 
+/// <summary>
+/// What this browser lets the page show off it, and the button that asks, shown only while there is something to ask.
+/// </summary>
+internal sealed partial class SystemGroupContext : DemoGroupContext
+{
+    private const string Words = "demo.overlays.notification.system.";
+
+    private int _release = 600;
+
+    [RecursiveMember]
+    public partial UIPhrase? Permission { get; set; } = UIPhrase.Of(Words + "permission.Unsupported");
+
+    [RecursiveMember]
+    public partial UIVisibility AskVisibility { get; set; } = UIVisibility.Collapsed;
+
+    /// <summary>Says what the browser answered, and offers the question only while it is still to be asked.</summary>
+    public void Read(UINotificationPermission permission)
+    {
+        Permission = UIPhrase.Of(Words + "permission." + permission);
+        AskVisibility = permission == UINotificationPermission.Default ? UIVisibility.Visible : UIVisibility.Collapsed;
+    }
+
+    public int NextRelease()
+        => ++_release;
+}
+
 internal sealed partial class NotificationTestController() : DemoController
 {
     private const string Words = "demo.overlays.notification.";
@@ -116,6 +142,73 @@ internal sealed partial class NotificationTestController() : DemoController
 
     [RecursiveMember]
     public partial UndoGroupContext UndoGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial SystemGroupContext SystemGroup { get; set; } = new();
+
+    /// <summary>The permission a page attaches with is read here; a change after it reaches the hook below.</summary>
+    protected override Task OnAttachedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        SystemGroup.Read(Context.NotificationPermission);
+
+        return Task.CompletedTask;
+    }
+
+    protected override Task OnNotificationPermissionChangedAsync(UINotificationPermission previous, CancellationToken cancellationToken)
+    {
+        SystemGroup.Read(Context.NotificationPermission);
+        SystemGroup.LogEvent(UIPhrase.Of(Words + "system.log.permission." + Context.NotificationPermission));
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Five seconds to switch to another tab, then the release goes live: the system's notification where the page is off screen, the
+    /// toast where it is on screen; a click on either opens the release.
+    /// </summary>
+    /// <remarks>In the background, so the page goes on answering while it waits.</remarks>
+    [UICommand(ConcurrencyMode = UICommandConcurrencyMode.Background)]
+    public async Task<UICommandResult> NotifyLaterAsync(CancellationToken cancellationToken)
+    {
+        var release = SystemGroup.NextRelease();
+
+        await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+
+        SystemGroup.LogEvent(UIPhrase.Of(Words + (HasVisibleViewers ? "system.log.sent-shown" : "system.log.sent-hidden"), ("release", release)));
+
+        return UICommandResult.Ok(
+        [
+            new ShowSystemNotificationEffect(UIPhrase.Of(Words + "system.live", ("release", release)), UIPhrase.Of(Words + "system.live.body"))
+            {
+                Tag = "release",
+                Action = new UINotificationAction(UIPhrase.Of(Words + "system.open"), nameof(OpenRelease), release)
+            }
+        ]);
+    }
+
+    /// <summary>The same notification at once, as the system's whether or not the page is on screen (<c>When = Always</c>).</summary>
+    [UICommand]
+    public UICommandResult NotifyNow()
+    {
+        var release = SystemGroup.NextRelease();
+
+        SystemGroup.LogEvent(UIPhrase.Of(Words + "system.log.sent-always", ("release", release)));
+
+        return UICommandResult.Ok(
+        [
+            new ShowSystemNotificationEffect(UIPhrase.Of(Words + "system.live", ("release", release)), UIPhrase.Of(Words + "system.live.body"))
+            {
+                Tag = "release",
+                When = UINotificationWhen.Always,
+                Action = new UINotificationAction(UIPhrase.Of(Words + "system.open"), nameof(OpenRelease), release)
+            }
+        ]);
+    }
+
+    /// <summary>A click on the notification, or on its toast's button: the release it was offered for, through the filters a press takes.</summary>
+    [UICommand]
+    public void OpenRelease(int release)
+        => SystemGroup.LogEvent(UIPhrase.Of(Words + "system.log.opened", ("release", release)));
 
     [UICommand]
     public UICommandResult DeployStaging()

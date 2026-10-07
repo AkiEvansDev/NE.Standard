@@ -99,13 +99,13 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
     }
 
     /// <inheritdoc />
-    public ValueTask<int> PostAsync(string topic, Func<IUIController, Task> action, bool viewersOnly = true, CancellationToken cancellationToken = default)
-        => PostAsync(topic, null, action, viewersOnly, cancellationToken);
+    public ValueTask<int> PostAsync(string topic, Func<IUIController, Task> action, UIViewers viewers = UIViewers.Connected, CancellationToken cancellationToken = default)
+        => PostAsync(topic, null, action, viewers, cancellationToken);
 
-    ValueTask<int> IUIControllerTypeBroadcast.PostAsync(string topic, Type controllerType, Func<IUIController, Task> action, bool viewersOnly, CancellationToken cancellationToken)
-        => PostAsync(topic, controllerType, action, viewersOnly, cancellationToken);
+    ValueTask<int> IUIControllerTypeBroadcast.PostAsync(string topic, Type controllerType, Func<IUIController, Task> action, UIViewers viewers, CancellationToken cancellationToken)
+        => PostAsync(topic, controllerType, action, viewers, cancellationToken);
 
-    private ValueTask<int> PostAsync(string topic, Type? controllerType, Func<IUIController, Task> action, bool viewersOnly, CancellationToken cancellationToken)
+    private ValueTask<int> PostAsync(string topic, Type? controllerType, Func<IUIController, Task> action, UIViewers viewers, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(topic);
         ArgumentNullException.ThrowIfNull(action);
@@ -119,7 +119,7 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
             {
                 foreach (IUIRuntime runtime in runtimes)
                 {
-                    if (TryPost(runtime, controllerType, action, viewersOnly))
+                    if (TryPost(runtime, controllerType, action, viewers))
                         posted++;
                 }
             }
@@ -130,12 +130,12 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
 
     /// <summary>
     /// Queues the work on a runtime that takes it now: a started one — one still starting reads its state as it starts — whose controller
-    /// is a <paramref name="controllerType"/> where one is named, and, where <paramref name="viewersOnly"/>, one a page looks at, since a
-    /// kept one catches up at its next attach.
+    /// is a <paramref name="controllerType"/> where one is named, and one looked at as <paramref name="viewers"/> asks, since a kept one
+    /// catches up at its next attach.
     /// </summary>
-    private static bool TryPost(IUIRuntime runtime, Type? controllerType, Func<IUIController, Task> action, bool viewersOnly)
+    private static bool TryPost(IUIRuntime runtime, Type? controllerType, Func<IUIController, Task> action, UIViewers viewers)
     {
-        if (!runtime.IsStarted || (viewersOnly && !runtime.HasViewers))
+        if (!runtime.IsStarted || !IsLookedAt(runtime, viewers))
             return false;
 
         IUIController controller = runtime.Controller;
@@ -148,14 +148,23 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
         return true;
     }
 
+    private static bool IsLookedAt(IUIRuntime runtime, UIViewers viewers)
+        => viewers switch
+        {
+            UIViewers.All => true,
+            UIViewers.Connected => runtime.HasViewers,
+            UIViewers.Visible => runtime.HasVisibleViewers,
+            _ => throw new ArgumentOutOfRangeException(nameof(viewers), viewers, "Not a UIViewers value.")
+        };
+
     /// <inheritdoc />
-    public ValueTask<int> PostToUserAsync(string userId, Func<IUIController, Task> action, bool viewersOnly = true, CancellationToken cancellationToken = default)
-        => PostToUserAsync(userId, null, action, viewersOnly, cancellationToken);
+    public ValueTask<int> PostToUserAsync(string userId, Func<IUIController, Task> action, UIViewers viewers = UIViewers.Connected, CancellationToken cancellationToken = default)
+        => PostToUserAsync(userId, null, action, viewers, cancellationToken);
 
-    ValueTask<int> IUIControllerTypeBroadcast.PostToUserAsync(string userId, Type controllerType, Func<IUIController, Task> action, bool viewersOnly, CancellationToken cancellationToken)
-        => PostToUserAsync(userId, controllerType, action, viewersOnly, cancellationToken);
+    ValueTask<int> IUIControllerTypeBroadcast.PostToUserAsync(string userId, Type controllerType, Func<IUIController, Task> action, UIViewers viewers, CancellationToken cancellationToken)
+        => PostToUserAsync(userId, controllerType, action, viewers, cancellationToken);
 
-    private async ValueTask<int> PostToUserAsync(string userId, Type? controllerType, Func<IUIController, Task> action, bool viewersOnly, CancellationToken cancellationToken)
+    private async ValueTask<int> PostToUserAsync(string userId, Type? controllerType, Func<IUIController, Task> action, UIViewers viewers, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentNullException.ThrowIfNull(action);
@@ -181,7 +190,7 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
         {
             for (var i = 0; i < runtimes.Count; i++)
             {
-                if (TryPost(runtimes[i], controllerType, action, viewersOnly))
+                if (TryPost(runtimes[i], controllerType, action, viewers))
                     posted++;
             }
         }

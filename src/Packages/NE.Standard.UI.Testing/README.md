@@ -52,8 +52,8 @@ runtime and starts the page from the snapshot a connecting page is sent. An addr
 
 The session is the application's own: `session.SignIn(userId, roles, permissions)`, `InLanguage("ru")` and
 `InTimeZone(...)` are stored in its session store before the page opens and presented as a cookie would present them,
-so the resolver, authorization and filters read them as they read a real session. `page.OpenAsync(address)` opens
-another page in the same session.
+so the resolver, authorization and filters read them as they read a real session. `WithNotificationPermission(...)` is
+what its pages' browser reports. `page.OpenAsync(address)` opens another page in the same session.
 
 ## Finding a component
 
@@ -90,6 +90,8 @@ filters and authorization all run:
 - `DispatchAsync(eventName, eventKeys)` raises any event a component declares.
 - `row.ClickAsync()` and `row.ChooseAsync()` press or choose a row.
 - `page.PressNotificationActionAsync(toast)` presses a notification's action — its Undo.
+- `page.HideAsync()` / `ShowAsync()` take the page off screen and back (`HasVisibleViewers`), and
+  `ReportNotificationPermissionAsync(...)` reports the browser's answer to the prompt.
 
 Every act answers with a `UITestCommandResult`: whether a command reached the server, whether it succeeded, its error,
 and the effects the page received while it ran.

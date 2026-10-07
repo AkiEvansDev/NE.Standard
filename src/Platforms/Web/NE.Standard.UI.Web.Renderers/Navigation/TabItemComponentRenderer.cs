@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Models;
@@ -37,13 +36,8 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        // The order rides on the root as an attribute, so a drag writes it there and the ordinary two-way path carries it.
-        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.TabOrder);
-        _ = RenderProperty<double?>(context, root, TabItemComponent.OrderProperty, static (target, value) =>
-        {
-            if (value is double order)
-                _ = target.Attribute(WebAttributes.TabOrder, order.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.TabOrder, target: "root")]);
+        // Tracked, not drawn: the strip sorts on the item's order, and the page never writes it back — a drag names a place instead.
+        _ = RenderValue<double?>(context, root, TabItemComponent.OrderProperty);
 
         // Null where the render cannot know which tab is open: then every mark waits for the engine.
         var own = IsSelectedTab(context, root);
@@ -54,8 +48,8 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
         // The tab is its own row: the marks the strip reads — no close for an unremovable tab, no drag for an undraggable one — are its.
         ItemAbilitiesRenderer.RenderItemAbilities(context, root);
 
-        // A pinned tab is one more mark of the same kind, read by the stylesheet and the strip's engine alike. The binding sits on
-        // the pin below, since the root's one writable value is already the order.
+        // A pinned tab is one more mark of the same kind, read by the stylesheet and the strip's engine alike; the pin below carries
+        // the binding back.
         if (ReadRenderValue<bool?>(context, TabItemComponent.PinnedProperty, false) == true)
             _ = root.Attribute(WebAttributes.TabPinned);
 

@@ -12,7 +12,7 @@ public static class UIBroadcastExtensions
     /// Posts <paramref name="action"/> to every runtime subscribed to <paramref name="topic"/> whose controller is a
     /// <typeparamref name="TController"/>; answers how many it posted to.
     /// </summary>
-    public static ValueTask<int> PostAsync<TController>(this IUIBroadcast broadcast, string topic, Func<TController, Task> action, bool viewersOnly = true, CancellationToken cancellationToken = default)
+    public static ValueTask<int> PostAsync<TController>(this IUIBroadcast broadcast, string topic, Func<TController, Task> action, UIViewers viewers = UIViewers.Connected, CancellationToken cancellationToken = default)
         where TController : class, IUIController
     {
         ArgumentNullException.ThrowIfNull(broadcast);
@@ -21,8 +21,8 @@ public static class UIBroadcastExtensions
         Func<IUIController, Task> typed = Typed(action);
 
         return broadcast is IUIControllerTypeBroadcast host
-            ? host.PostAsync(topic, typeof(TController), typed, viewersOnly, cancellationToken)
-            : broadcast.PostAsync(topic, typed, viewersOnly, cancellationToken);
+            ? host.PostAsync(topic, typeof(TController), typed, viewers, cancellationToken)
+            : broadcast.PostAsync(topic, typed, viewers, cancellationToken);
     }
 
     /// <summary>
@@ -37,7 +37,7 @@ public static class UIBroadcastExtensions
     /// Posts <paramref name="action"/> to every runtime of every session signed in as <paramref name="userId"/> whose controller is a
     /// <typeparamref name="TController"/>; answers how many it posted to.
     /// </summary>
-    public static ValueTask<int> PostToUserAsync<TController>(this IUIBroadcast broadcast, string userId, Func<TController, Task> action, bool viewersOnly = true, CancellationToken cancellationToken = default)
+    public static ValueTask<int> PostToUserAsync<TController>(this IUIBroadcast broadcast, string userId, Func<TController, Task> action, UIViewers viewers = UIViewers.Connected, CancellationToken cancellationToken = default)
         where TController : class, IUIController
     {
         ArgumentNullException.ThrowIfNull(broadcast);
@@ -46,7 +46,7 @@ public static class UIBroadcastExtensions
         Func<IUIController, Task> typed = Typed(action);
 
         return broadcast is IUIControllerTypeBroadcast host
-            ? host.PostToUserAsync(userId, typeof(TController), typed, viewersOnly, cancellationToken)
-            : broadcast.PostToUserAsync(userId, typed, viewersOnly, cancellationToken);
+            ? host.PostToUserAsync(userId, typeof(TController), typed, viewers, cancellationToken)
+            : broadcast.PostToUserAsync(userId, typed, viewers, cancellationToken);
     }
 }

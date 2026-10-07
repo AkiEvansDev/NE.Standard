@@ -98,6 +98,11 @@ export class ImageInputEngine {
     // The root's list as last read: the observer wakes for unrelated changes too, and pruning by an unchanged list drops new squares.
     private readonly seenKeys = new WeakMap<HTMLElement, string | null>();
 
+    // The roots that made an object URL, a preview's or a square's: the WeakMaps let go of a removed input, but only a revoke frees the
+    // picture's bytes, so one seen gone from the page — at the next pick, or the next mutation that touches an image input — has its
+    // URLs revoked.
+    private readonly holding = new Set<HTMLElement>();
+
     public constructor(options: ImageInputEngineOptions = {}) {
         this.root = options.root ?? document;
         this.validation = options.validation;
@@ -107,7 +112,10 @@ export class ImageInputEngine {
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         // The picture follows the root's source (a Value patch), outranked by a preview until it changes; a shelf follows its handles.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => this.applyAll(roots));
+        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => {
+            this.applyAll(roots);
+            this.releaseDetached();
+        });
 
         // The handle lives on a hidden input's value, which no mutation reports: the controller emptying it is heard as a value change.
         options.propertyPatchEngine?.addValueChangeHandler(change => {
@@ -240,6 +248,20 @@ export class ImageInputEngine {
         }
     }
 
+    /** Revokes the object URLs of every input gone from the page — a row removed, a dialog closed — and forgets it. */
+    private releaseDetached(): void {
+        for (const root of this.holding) {
+            if (root.isConnected)
+                continue;
+
+            this.holding.delete(root);
+            this.dropPreview(root);
+
+            for (const tile of [...this.shelves.get(root) ?? []])
+                this.dropTile(root, tile);
+        }
+    }
+
     /**
      * The controller emptied a single picture's handle: the chosen picture, its name and its handle go, and the controller's own
      * picture shows again. A preview still on its way is a later pick the controller has not seen, and stands.
@@ -332,6 +354,8 @@ export class ImageInputEngine {
      * frame the reader crops it first, and a cancel leaves the input as it was.
      */
     private async takeFileAsync(root: HTMLElement, chosen: File): Promise<void> {
+        this.releaseDetached();
+
         const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
         const picture = root.querySelector<HTMLImageElement>(`.${PictureClass}`);
         const selection = root.querySelector<HTMLInputElement>(`.${SelectionClass}`);
@@ -353,6 +377,7 @@ export class ImageInputEngine {
         const preview: Preview = { url: URL.createObjectURL(file), landed: false };
 
         this.previews.set(root, preview);
+        this.holding.add(root);
         root.dataset.previewFor = root.getAttribute(ImageSourceAttribute) ?? "";
         root.setAttribute(PreviewAttribute, "");
         picture.setAttribute("src", preview.url);
@@ -418,6 +443,8 @@ export class ImageInputEngine {
 
     /** Puts a square per file on the shelf, each sent on its own so one can leave without the others; the list goes out as each lands. */
     private async takeManyAsync(root: HTMLElement, files: readonly File[]): Promise<void> {
+        this.releaseDetached();
+
         const host = root.querySelector<HTMLElement>(`.${TilesClass}`);
         const accepted = takeWithinSizeLimit(root, files, true, this.validation);
 
@@ -427,6 +454,7 @@ export class ImageInputEngine {
         const tiles = this.shelves.get(root) ?? [];
 
         this.shelves.set(root, tiles);
+        this.holding.add(root);
 
         const uploads = accepted.map(async file => {
             const tile = createTile(file);

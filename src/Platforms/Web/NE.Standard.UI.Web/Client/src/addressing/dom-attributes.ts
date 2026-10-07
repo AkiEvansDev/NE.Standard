@@ -298,6 +298,10 @@ export const FilePickAttribute = "data-ui-file-pick";
 export const FileDropTargetIdAttribute = "data-ui-file-drop-target-id";
 /** On `<html>`: the theme opts every button, action and menu item into the press ripple. */
 export const PressRippleAttribute = "data-ui-press-ripple";
+/** On `<html>`: the framework's service worker's address, where the application turned system notifications on. */
+export const ServiceWorkerAttribute = "data-ui-service-worker";
+/** On `<html>`: the application's own worker imports the framework's, so the page waits for it instead of registering. */
+export const ServiceWorkerImportedAttribute = "data-ui-service-worker-imported";
 /** On `<html>`, or on an element whose subtree keeps a theme of its own: `light`, `dark` or `auto`. */
 export const ThemeAttribute = "data-ui-theme";
 /** On the head's `style` holding the reader's own colours, after the theme's (`WebAttributes.ThemeColors`). */
@@ -327,9 +331,8 @@ export const SelectedKeysAttribute = "data-ui-selected-keys";
 /** The generic binding attribute `RenderProperty` emits for a two-way `SelectedKey`, on strips and on the items view alike. */
 export const BindSelectedKeyAttribute = "data-ui-bind-selected-key";
 
-/** A tab strip's selected key on its root; a tab's order on its root and its renamed caption on its label. */
+/** A tab strip's selected key on its root; a tab's renamed caption on its label. */
 export const TabsSelectedAttribute = "data-ui-tabs-selected";
-export const TabOrderAttribute = "data-ui-tab-order";
 export const TabCaptionAttribute = "data-ui-tab-caption";
 /** On a pinned tab's root: the strip draws its pin, hides its close and refuses to drag it. */
 export const TabPinnedAttribute = "data-ui-tab-pinned";

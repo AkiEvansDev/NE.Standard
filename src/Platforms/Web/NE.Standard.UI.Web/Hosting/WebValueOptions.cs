@@ -14,7 +14,7 @@ public sealed class WebValueOptions
 
     /// <summary>
     /// Gets or sets how many bytes of values one session may have staged at once, counting those still arriving; a value
-    /// that would cross it is refused while it arrives.
+    /// that would cross it is refused while it arrives. Each value counts a fixed kilobyte beyond its JSON.
     /// </summary>
     public long MaxStagedBytesPerSession { get; set; } = 64 * 1024 * 1024;
 
@@ -27,6 +27,22 @@ public sealed class WebValueOptions
     /// answered <c>503</c>, since it is the server that is full, not the request that is too large.
     /// </remarks>
     public long? MaxStagedBytesTotal { get; set; } = 512L * 1024 * 1024;
+
+    /// <summary>
+    /// Gets or sets how many bytes of the server's own large values one session may have staged for its tabs at once; a value
+    /// that would cross it travels inline in its message instead.
+    /// </summary>
+    /// <remarks>
+    /// Apart from the client's allowance, so a page's own values never crowd out what the reader sends. Inline is the fallback, not a
+    /// refusal: the client takes a value of any size off the hub, at the cost of holding the connection while it arrives.
+    /// </remarks>
+    public long MaxOutgoingStagedBytesPerSession { get; set; } = 32 * 1024 * 1024;
+
+    /// <summary>
+    /// Gets or sets how many bytes of the server's own large values every session together may have staged at once; zero or
+    /// <see langword="null"/> is no such limit. A value that would cross it travels inline.
+    /// </summary>
+    public long? MaxOutgoingStagedBytesTotal { get; set; } = 256L * 1024 * 1024;
 
     /// <summary>
     /// Gets or sets how long a staged value waits for the hub update that names it.
@@ -47,6 +63,12 @@ public sealed class WebValueOptions
 
         if (MaxStagedBytesTotal < 0)
             throw new InvalidOperationException("Maximum staged bytes in total must not be negative.");
+
+        if (MaxOutgoingStagedBytesPerSession <= 0)
+            throw new InvalidOperationException("Maximum outgoing staged bytes per session must be greater than zero.");
+
+        if (MaxOutgoingStagedBytesTotal < 0)
+            throw new InvalidOperationException("Maximum outgoing staged bytes in total must not be negative.");
 
         if (StagingRetention <= TimeSpan.Zero)
             throw new InvalidOperationException("Staging retention must be greater than zero.");

@@ -605,7 +605,8 @@ public sealed class UIApplicationBuilder
             SignInRoute = source.SignInRoute,
             ForbiddenRoute = source.ForbiddenRoute,
             IdentitySource = source.IdentitySource,
-            PermissionClaimType = source.PermissionClaimType
+            PermissionClaimType = source.PermissionClaimType,
+            RecheckRouteOnActivity = source.RecheckRouteOnActivity
         };
 
     private static UISessionOptions CloneSessionOptions(UISessionOptions source)

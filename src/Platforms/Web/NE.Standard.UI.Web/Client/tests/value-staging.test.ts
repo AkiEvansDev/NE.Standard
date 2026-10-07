@@ -60,6 +60,25 @@ test("a staged value is fetched into its update, and the token is gone", async (
     }
 });
 
+test("a staged value is fetched as the connection it was sent to, so the read is that tab's own", async () => {
+    const original = globalThis.fetch;
+    const asked: string[] = [];
+
+    globalThis.fetch = (async (url: string) => {
+        asked.push(url);
+        return new Response(JSON.stringify("a large text"), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch;
+
+    try {
+        await fetchStagedValuesAsync({ updates: [{ kind: "Value", address: {}, valueToken: "abc" }] } as never, "connection 1");
+
+        assert.deepEqual(asked, ["/_ne/values/abc?instance=connection%201"]);
+    }
+    finally {
+        globalThis.fetch = original;
+    }
+});
+
 test("a staged value that never arrives fails once its time is up, rather than holding every change set behind it", async () => {
     const original = globalThis.fetch;
 
@@ -74,7 +93,7 @@ test("a staged value that never arrives fails once its time is up, rather than h
     try {
         const changes = { updates: [{ kind: "Value", address: {}, valueToken: "abc" }] };
 
-        await assert.rejects(fetchStagedValuesAsync(changes as never, 10));
+        await assert.rejects(fetchStagedValuesAsync(changes as never, null, 10));
     }
     finally {
         clearTimeout(alive);

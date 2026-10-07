@@ -18,6 +18,7 @@ internal abstract partial class UIRuntimeBase
     private const string LanguageChangedOperation = "LanguageChanged";
     private const string ThemeChangedOperation = "ThemeChanged";
     private const string SessionChangedOperation = "SessionChanged";
+    private const string NotificationPermissionChangedOperation = "NotificationPermissionChanged";
 
     private readonly Lock _connectionsLock = new();
     // Each attached instance's handle, so the connection outside a command can pass to a tab still attached when its own leaves.
@@ -28,6 +29,9 @@ internal abstract partial class UIRuntimeBase
 
     // The attached instances that are a page someone looks at, leaving out a page render's own; read without the lock.
     private int _viewers;
+
+    // Of those, the ones whose page last reported itself on screen; read without the lock.
+    private int _visibleViewers;
 
     // The last queued update each instance's attach snapshot holds; an instance with none is sent every change set whole, unless it
     // starts from a snapshot it has not taken yet, and then it is sent nothing.
@@ -47,6 +51,9 @@ internal abstract partial class UIRuntimeBase
 
     /// <inheritdoc />
     public bool HasViewers => Volatile.Read(ref _viewers) > 0;
+
+    /// <inheritdoc />
+    public bool HasVisibleViewers => Volatile.Read(ref _visibleViewers) > 0;
 
     /// <inheritdoc />
     public IReadOnlyList<UIHandle> ViewerHandles
@@ -135,7 +142,12 @@ internal abstract partial class UIRuntimeBase
             _attachedInstanceIdsSnapshot = [.. _attachedHandles.Keys];
 
             if (IsViewer(instance))
+            {
                 Volatile.Write(ref _viewers, _viewers + 1);
+
+                if (handle.ClientState.IsVisible)
+                    Volatile.Write(ref _visibleViewers, _visibleViewers + 1);
+            }
         }
 
         if (instance.StartsFromSnapshot && !_watermarks.ContainsKey(instance.Id))
@@ -160,7 +172,12 @@ internal abstract partial class UIRuntimeBase
             _attachedInstanceIdsSnapshot = [.. _attachedHandles.Keys];
 
             if (IsViewer(removed.Instance))
+            {
                 Volatile.Write(ref _viewers, _viewers - 1);
+
+                if (removed.ClientState.IsVisible)
+                    Volatile.Write(ref _visibleViewers, _visibleViewers - 1);
+            }
 
             // Under PerClient another tab may still be attached: what the runtime raises outside a command goes to it, not to
             // the connection that just left.
@@ -177,6 +194,27 @@ internal abstract partial class UIRuntimeBase
         // Queued, not awaited: a detach comes from a closing connection, which waits for nobody's code.
         if (IsViewer(removed.Instance) && Controller is IUIControllerLifecycle lifecycle)
             PostCore("Detached", lifecycle.DetachedAsync);
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateClientStateAsync(UIHandle handle, UIClientState state, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(state);
+
+        UIClientState previous;
+
+        lock (_connectionsLock)
+        {
+            previous = handle.RefreshClientState(state);
+
+            // Counted only while attached: one that left, or a render's own, is no viewer to count.
+            if (previous.IsVisible != state.IsVisible && IsViewer(handle.Instance) && _attachedHandles.TryGetValue(handle.Instance.Id, out UIHandle? attached) && ReferenceEquals(attached, handle))
+                Volatile.Write(ref _visibleViewers, _visibleViewers + (state.IsVisible ? 1 : -1));
+        }
+
+        if (previous.NotificationPermission != state.NotificationPermission && Controller is IUIControllerLifecycle lifecycle)
+            await RunLifecycleHookAsync(handle, NotificationPermissionChangedOperation, cancellation => lifecycle.NotificationPermissionChangedAsync(previous.NotificationPermission, cancellation), cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -235,9 +273,14 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Runs a controller's lifecycle hook held, under the state lock but not in a command's turn, its writes queued like a command's, and
+    /// Runs a controller's lifecycle hook held, in a command's turn and outside the state lock, its writes queued like a command's, and
     /// the given connection its handle. The hook's failure is the controller's to report; the attach or the switch still stands.
     /// </summary>
+    /// <remarks>
+    /// Its callers — an attach, a render of a kept runtime, a session the page stored — come from outside every command, so the turn
+    /// is never held here already; a back or forward, which runs in a command's turn, calls the hook itself. Waiting for the turn ends
+    /// with <paramref name="cancellationToken"/> — the attaching connection's — and nothing else.
+    /// </remarks>
     private async Task RunLifecycleHookAsync(UIHandle handle, string operation, Func<CancellationToken, Task> hook, CancellationToken cancellationToken)
     {
         await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
@@ -245,9 +288,11 @@ internal abstract partial class UIRuntimeBase
 
         using IDisposable invocation = BeginInvocation(handle);
 
+        // A reload's hooks redraw the page while the old connection's command may still be writing it.
+        await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _ = await InvokeAsync(hook, cancellationToken).ConfigureAwait(false);
+            await RunInTurnAsync(hook, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -256,6 +301,10 @@ internal abstract partial class UIRuntimeBase
         catch (Exception exception)
         {
             _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _exclusiveCommandLock.Release();
         }
     }
 

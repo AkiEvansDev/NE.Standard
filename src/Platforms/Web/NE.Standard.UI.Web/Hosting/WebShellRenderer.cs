@@ -68,6 +68,15 @@ public static class WebShellRenderer
         if (context.Theme.PressRipple)
             _ = document.Attribute(WebAttributes.PressRipple);
 
+        // The address the page registers the framework's worker by, or, where the application's own worker imports it, waits for.
+        if (context.ServiceWorker != WebServiceWorkerMode.Off)
+        {
+            _ = document.Attribute(WebAttributes.ServiceWorker, StandardWebAssetDescriptors.Worker.ResolveVersionedPublicPath());
+
+            if (context.ServiceWorker == WebServiceWorkerMode.Imported)
+                _ = document.Attribute(WebAttributes.ServiceWorkerImported);
+        }
+
         _ = document.Element("head", head => RenderHead(head, context));
         _ = document.Element("body", body => RenderBody(body, context));
     }
@@ -91,6 +100,15 @@ public static class WebShellRenderer
             _ = link.Attribute("rel", "icon");
             _ = link.Attribute("href", string.IsNullOrWhiteSpace(context.Icon) ? EmptyIcon : context.Icon);
         });
+
+        if (context.HasManifest)
+        {
+            _ = head.Element("link", link =>
+            {
+                _ = link.Attribute("rel", "manifest");
+                _ = link.Attribute("href", WebManifestEndpoint.Path);
+            });
+        }
 
         _ = head.Element("style", style => style.Raw(ThemeCss.GetValue(context.Theme, WebThemeCssBuilder.Build)));
 

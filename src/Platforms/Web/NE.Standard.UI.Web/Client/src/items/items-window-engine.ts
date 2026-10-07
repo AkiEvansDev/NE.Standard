@@ -78,7 +78,10 @@ export class ItemsWindowEngine {
             this.layout(host);
 
             if (countItems(host) === 0) {
-                void this.requestAsync(host, "Start", 0, null, false);
+                // A read asked before the connection dropped still waits to go: a second would clear `pending` under the other.
+                if (!this.getState(host).pending)
+                    void this.requestAsync(host, "Start", 0, null, false);
+
                 continue;
             }
 

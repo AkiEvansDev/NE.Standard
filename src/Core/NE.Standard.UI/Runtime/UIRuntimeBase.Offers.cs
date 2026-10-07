@@ -45,24 +45,30 @@ internal abstract partial class UIRuntimeBase
             while (_offerOrder.Count >= MaxOffers)
                 _ = _offers.Remove(_offerOrder.Dequeue());
 
-            _offers.Add(id, new OfferedCommand(metadata.Name, arguments));
+            _offers.Add(id, new OfferedCommand(id, metadata.Name, arguments));
             _offerOrder.Enqueue(id);
         }
 
         return id;
     }
 
-    /// <summary>Takes an offered action for its one run, refusing as unauthorised an id never offered here or spent already.</summary>
-    private OfferedCommand TakeOffer(string id)
+    /// <summary>Finds an offered action without spending it, refusing as unauthorised an id never offered here or spent already.</summary>
+    private OfferedCommand PeekOffer(string id)
     {
         lock (_offersSync)
-        {
-            return _offers.Remove(id, out OfferedCommand? offered)
-                ? offered
-                : throw new UnauthorizedAccessException("The action was not offered to this page, or has run already.");
-        }
+            return _offers.TryGetValue(id, out OfferedCommand? offered) ? offered : throw NotOffered();
     }
 
-    /// <summary>A command offered to the page, with the arguments its run takes.</summary>
-    private sealed record OfferedCommand(string Command, IReadOnlyDictionary<string, object?> Arguments);
+    /// <summary>Spends an offered action for its one run; false where another press spent it first.</summary>
+    private bool TryTakeOffer(OfferedCommand offered)
+    {
+        lock (_offersSync)
+            return _offers.Remove(offered.Id);
+    }
+
+    private static UnauthorizedAccessException NotOffered()
+        => new("The action was not offered to this page, or has run already.");
+
+    /// <summary>A command offered to the page under its id, with the arguments its run takes.</summary>
+    private sealed record OfferedCommand(string Id, string Command, IReadOnlyDictionary<string, object?> Arguments);
 }

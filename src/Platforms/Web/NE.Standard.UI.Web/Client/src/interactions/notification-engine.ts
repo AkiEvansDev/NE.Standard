@@ -15,6 +15,7 @@ const HostClass = "ui-notification-host";
 const NotificationClass = "ui-notification";
 const LeavingClass = "ui-notification--leaving";
 const MessageClass = "ui-notification__message";
+const TitleClass = "ui-notification__title";
 const ActionClass = "ui-notification__action";
 const CloseClass = "ui-notification__close";
 
@@ -22,6 +23,8 @@ const DefaultDurationMs = 5000;
 
 // A toast carrying an action stands longer by default: the reader reads the message before they reach its button (an Undo).
 const DefaultActionDurationMs = 8000;
+
+const ConnectionClass = "ui-notification--connection";
 
 // How far the host stands off the window's bottom: a phone's bottom bar's height, read by `liftAboveBottomBar`.
 const LiftProperty = "--ui-notification-lift";
@@ -38,18 +41,25 @@ export type NotificationRequest = {
     // A phrase or an author's text is written through the words, marked, so a language switch rewrites an open toast; a plain
     // string is the page's own words already and is shown as written.
     readonly message: string | Phrase | AuthorText;
+    // A line over the message, written as it is: a system notification's title, shown here as its fallback.
+    readonly title?: Phrase | AuthorText;
     readonly severity?: unknown;
     // Stays until the reader closes it: for a state that is still true after a moment, not an event that happened.
     readonly sticky?: boolean;
     // How long a toast that is not sticky stands, which is its action's window; absent is the engine's default, longer with an action.
     readonly durationMs?: number;
     readonly action?: NotificationAction;
+    // The page's own connection notice: on a phone it stands at the bottom, where the thumb is, whatever corner the view asked for.
+    readonly connection?: boolean;
 };
 
-/** A button under the message that does the one thing the notice asks for, its words written as the message's are. */
+/**
+ * A button under the message that does the one thing the notice asks for, its words written as the message's are; `run` may answer
+ * whether the server took it, and one answered false (refused, a busy command among them) is left to press again.
+ */
 type NotificationAction = {
     readonly label: string | Phrase | AuthorText;
-    readonly run: () => void;
+    readonly run: () => void | Promise<boolean>;
 };
 
 export class NotificationEngine {
@@ -82,6 +92,7 @@ export class NotificationEngine {
         element.className = AccentedSeverities.has(severity)
             ? `${NotificationClass} ${NotificationClass}--${severity}`
             : NotificationClass;
+        element.classList.toggle(ConnectionClass, request.connection === true);
 
         // Only Danger interrupts a screen reader, as an alert; the rest is spoken politely by the host's live region.
         if (severity === "danger")
@@ -90,6 +101,14 @@ export class NotificationEngine {
         const message = document.createElement("span");
 
         message.className = MessageClass;
+
+        if (request.title !== undefined) {
+            const title = document.createElement("span");
+
+            title.className = TitleClass;
+            clientStrings.writeValue(title, null, request.title);
+            element.append(title);
+        }
 
         if (typeof request.message === "string")
             message.textContent = request.message;
@@ -109,7 +128,7 @@ export class NotificationEngine {
         element.append(close);
 
         // After the cross: the action is drawn on a line of its own under the message, and Tab reads the toast as it is drawn.
-        // A passing toast is done once its action ran; a sticky one is a state still true, and stays.
+        // A passing toast is done once its action went through; a sticky one is a state still true, and stays.
         if (request.action !== undefined)
             element.append(createAction(request.action, request.sticky === true ? null : () => this.dismiss(element)));
 
@@ -254,7 +273,8 @@ function collapse(element: HTMLElement): void {
 
 /**
  * The action's button; with `done`, run once and then done — a second press while the toast fades would ask for what the first
- * already did — and without it, pressed as often as the reader likes.
+ * already did — and without it, pressed as often as the reader likes. An action that answers is done once the server took it, run
+ * or failed: refused (a busy command), it can be pressed again while the toast stands, its window the undo's.
  */
 function createAction(action: NotificationAction, done: (() => void) | null): HTMLButtonElement {
     const button = document.createElement("button");
@@ -272,12 +292,27 @@ function createAction(action: NotificationAction, done: (() => void) | null): HT
         if (spent)
             return;
 
-        action.run();
+        const ran = action.run();
 
-        if (done !== null) {
-            spent = true;
+        if (done === null)
+            return;
+
+        spent = true;
+
+        if (ran === undefined) {
             done();
+            return;
         }
+
+        void ran.then(took => {
+            if (took)
+                done();
+            else
+                spent = false;
+        }, (error: unknown) => {
+            spent = false;
+            logWarn("a notification's action failed.", error);
+        });
     });
 
     return button;
@@ -287,7 +322,7 @@ function createAction(action: NotificationAction, done: (() => void) | null): HT
  * The button a notification effect's action asks for, pressing it running what the server offered under its id; none where the
  * server offered nothing — a command it could not offer is logged there, and the message still shows, without the button.
  */
-export function offeredAction(model: NotificationActionModel | null | undefined, runAction: (id: string) => void): NotificationAction | undefined {
+export function offeredAction(model: NotificationActionModel | null | undefined, runAction: (id: string) => Promise<boolean>): NotificationAction | undefined {
     if (model === null || model === undefined || typeof model.id !== "string" || model.id.length === 0)
         return undefined;
 

@@ -13,6 +13,9 @@ internal sealed partial class UISessionCleanupTask : RuntimeScheduledTask
     {
         [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Removed {Count} idle user session(s).")]
         public static partial void SessionsRemoved(ILogger logger, int count);
+
+        [LoggerMessage(EventId = 2, Level = LogLevel.Error, Message = "Ending a removed idle user session failed.")]
+        public static partial void SessionEndFailed(ILogger logger, Exception exception);
     }
 
     private readonly Func<IUserSessionStore> _storeFactory;
@@ -47,8 +50,22 @@ internal sealed partial class UISessionCleanupTask : RuntimeScheduledTask
             return;
 
         // Its files rather than waiting out their own retention, and a page still open under one — idle, its connection alive.
+        // Each on its own: they are out of the store already, so one that fails is not tried again, and must not cost the rest.
         for (var i = 0; i < removed.Count; i++)
-            _ = await _endRemoved(removed[i], cancellationToken).ConfigureAwait(false);
+        {
+            try
+            {
+                _ = await _endRemoved(removed[i], cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                Log.SessionEndFailed(_logger, exception);
+            }
+        }
 
         Log.SessionsRemoved(_logger, removed.Count);
     }

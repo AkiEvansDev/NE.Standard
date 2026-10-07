@@ -21,20 +21,21 @@ public interface IUIRuntimeAccess
     /// Executes an asynchronous action on the runtime and returns produced server changes.
     /// </summary>
     /// <remarks>
-    /// Runs under the runtime's lock, which values and posted work take too, but not in a command's turn: called from outside, it runs
-    /// beside an exclusive command's body; called from inside a command, it is how the command writes what a value also writes.
+    /// Runs under the runtime's lock, which values and a flush take too, but not in a command's turn: called from outside, it runs
+    /// beside an exclusive command's body; called from a command, posted work or a lifecycle hook, which all run outside that lock,
+    /// it is how that code writes what a value also writes.
     /// </remarks>
     Task<ServerChangeSet> InvokeAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Queues an action to run on the thread pool between the runtime's exclusive commands, as
-    /// <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/> runs it, and returns at once.
+    /// Queues an action to run on the thread pool between the runtime's exclusive commands, as a command's body runs, and returns at
+    /// once.
     /// </summary>
     /// <remarks>
     /// For work one runtime hands another — an event every subscriber reacts to — which must not run inline in the sender's command.
     /// It waits for an exclusive command under way, so a page may redraw both from posts and inside its own commands; a
     /// <c>Background</c> command, a value and an <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/> from
-    /// outside still run beside it. A failure goes to the controller's exception handler. The runtime is kept until the action
+    /// outside still run beside it, so a write they share goes through <c>InvokeAsync</c>, as in a command. A failure goes to the controller's exception handler. The runtime is kept until the action
     /// finishes; one queued after the runtime was asked to go is dropped.
     /// </remarks>
     void Post(Func<CancellationToken, Task> action);
@@ -43,6 +44,12 @@ public interface IUIRuntimeAccess
     /// Gets whether a page is attached to the runtime now — a connection someone looks at, not a page render reading it.
     /// </summary>
     bool HasViewers { get; }
+
+    /// <summary>
+    /// Gets whether a page attached to the runtime is on screen now, as its page last reported — a hidden tab or a minimised window is
+    /// not; where it is not, a system notification reaches the reader and a toast would not.
+    /// </summary>
+    bool HasVisibleViewers { get; }
 
     /// <summary>Resolves the references client effects carry against this runtime's view, as a command's own answer is resolved.</summary>
     /// <remarks>

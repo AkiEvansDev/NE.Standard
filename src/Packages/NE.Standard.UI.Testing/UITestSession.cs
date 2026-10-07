@@ -2,6 +2,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Security.Claims;
+using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Testing;
@@ -34,6 +35,16 @@ public sealed class UITestSession
 
     /// <summary>Gets the time zone the client reports, an IANA id, or <see langword="null"/> for none.</summary>
     public string? TimeZone { get; private set; }
+
+    /// <summary>Gets the notification permission the session's pages report, as one browser would for all of them.</summary>
+    public UINotificationPermission NotificationPermission { get; private set; } = UINotificationPermission.Unsupported;
+
+    /// <summary>Opens the session's pages with their browser reporting <paramref name="permission"/>.</summary>
+    public UITestSession WithNotificationPermission(UINotificationPermission permission)
+    {
+        NotificationPermission = permission;
+        return this;
+    }
 
     /// <summary>Signs the session in as <paramref name="userId"/> with the given roles and permissions.</summary>
     public UITestSession SignIn(string userId, IEnumerable<string>? roles = null, IEnumerable<string>? permissions = null)

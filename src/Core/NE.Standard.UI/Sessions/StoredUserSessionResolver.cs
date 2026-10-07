@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Primitives.Security;
 using NE.Standard.UI.Shell.Localization;
+using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Sessions;
@@ -50,7 +51,7 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
             LastSeenAtUtc = utcNow
         };
 
-        session = ApplyClaims(session, initData.Principal);
+        session = ApplyClaims(session, initData.Principal, _application.Security, _claims);
 
         return UserSessionContext.WithSessionId(session, session.SessionId);
     }
@@ -112,16 +113,17 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
     /// <summary>Overlays the host's principal onto the session when the application has made claims the authority.</summary>
     /// <remarks>
     /// Authoritative in both directions: an authenticated principal refreshes roles on every request and its absence signs
-    /// the user out; does nothing under <see cref="UIIdentitySource.Session"/>.
+    /// the user out; does nothing under <see cref="UIIdentitySource.Session"/>. Shared with the web's side endpoints, which apply
+    /// it to the session they read without saving it.
     /// </remarks>
-    private UserSessionState ApplyClaims(UserSessionState session, ClaimsPrincipal? principal)
+    internal static UserSessionState ApplyClaims(UserSessionState session, ClaimsPrincipal? principal, UISecurityOptions security, IUserClaimsMapper claims)
     {
-        if (_application.Security.IdentitySource != UIIdentitySource.Claims)
+        if (security.IdentitySource != UIIdentitySource.Claims)
             return session;
 
         UserClaimsIdentity identity = principal is null
             ? UserClaimsIdentity.Anonymous
-            : _claims.Map(principal);
+            : claims.Map(principal);
 
         if (!identity.IsAuthenticated)
         {

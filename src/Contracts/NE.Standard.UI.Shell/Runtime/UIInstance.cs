@@ -39,6 +39,9 @@ public sealed class UIInstance
     /// </summary>
     public bool StartsFromSnapshot { get; init; }
 
+    /// <summary>Gets what the page reported of itself as it attached; <see cref="UIClientState.Unreported"/> where it reported nothing.</summary>
+    public UIClientState ClientState { get; init; } = UIClientState.Unreported;
+
     /// <summary>
     /// Validates the UI instance.
     /// </summary>

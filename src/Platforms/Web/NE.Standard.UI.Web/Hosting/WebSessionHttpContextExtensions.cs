@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Primitives.Security;
+using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Sessions;
 
@@ -20,6 +21,10 @@ public static class WebSessionHttpContextExtensions
     /// Reads the stored session behind the request's cookie, or <see langword="null"/> when it presents none the
     /// store knows or one idle past its timeout (<see cref="UserSessionState.IsIdle"/>).
     /// </summary>
+    /// <remarks>
+    /// Under <see cref="UIIdentitySource.Claims"/> the identity is the request's principal, as a page render's is, but nothing is
+    /// saved: the store is corrected by the next render or attach, and a host's sign-out holds here at once.
+    /// </remarks>
     public static async ValueTask<UserSessionState?> GetUISessionAsync(this HttpContext http, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(http);
@@ -36,7 +41,9 @@ public static class WebSessionHttpContextExtensions
         if (stored is null || stored.IsIdle(application.Sessions, DateTime.UtcNow))
             return null;
 
-        return stored;
+        return application.Security.IdentitySource == UIIdentitySource.Claims
+            ? StoredUserSessionResolver.ApplyClaims(stored, http.User, application.Security, http.RequestServices.GetRequiredService<IUserClaimsMapper>())
+            : stored;
     }
 
     /// <summary>

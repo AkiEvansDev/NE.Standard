@@ -145,6 +145,10 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
         await _moves.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
+            // Removed meanwhile — a session end between the sign-out's write and this move — stays removed, as on the way in.
+            if (await _signedIn.TryGetAsync(leaving.SessionId, CancellationToken.None).ConfigureAwait(false) is null)
+                return;
+
             _ = Anonymous.TryAdd(leaving);
             await _signedIn.RemoveAsync(leaving.SessionId, CancellationToken.None).ConfigureAwait(false);
         }

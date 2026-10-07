@@ -214,6 +214,27 @@ public sealed partial class UITestPage
         return await SendCommandAsync(new UICommandRequest { Action = action }, source: null, eventName: null, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Gets what the page last reported of itself: whether it is on screen, and its notification permission.</summary>
+    public UIClientState ClientState => _resolution.Handle.ClientState;
+
+    /// <summary>Takes the page off screen — another tab chosen, the window minimised — as the page reports it.</summary>
+    public Task HideAsync(CancellationToken cancellationToken = default)
+        => ReportAsync(ClientState with { IsVisible = false }, cancellationToken);
+
+    /// <summary>Brings the page back on screen, as the page reports it.</summary>
+    public Task ShowAsync(CancellationToken cancellationToken = default)
+        => ReportAsync(ClientState with { IsVisible = true }, cancellationToken);
+
+    /// <summary>Reports the browser's answer to a notification permission prompt, or a change made in its settings.</summary>
+    public Task ReportNotificationPermissionAsync(UINotificationPermission permission, CancellationToken cancellationToken = default)
+        => ReportAsync(ClientState with { NotificationPermission = permission }, cancellationToken);
+
+    private async Task ReportAsync(UIClientState state, CancellationToken cancellationToken)
+    {
+        await _app.Host.ReportClientStateAsync(_resolution.Handle, state, cancellationToken).ConfigureAwait(false);
+        await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>Opens <paramref name="address"/> in another page of this page's session, as following a link to it would.</summary>
     public Task<UITestPage> OpenAsync(string address, CancellationToken cancellationToken = default)
     {

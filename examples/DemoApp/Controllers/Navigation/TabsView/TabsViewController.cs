@@ -113,7 +113,7 @@ internal sealed partial class TabsViewController : DemoStandardController
     ];
 
     [RecursiveMember]
-    public partial TabsViewGroupContext TabsViewGroup { get; set; } = new();
+    public partial TabsViewGroupContext TabsViewGroup { get; set; }
 
     [RecursiveMember]
     public partial TabsViewItemGroupContext FirstTabGroup { get; set; }
@@ -126,13 +126,14 @@ internal sealed partial class TabsViewController : DemoStandardController
 
     public TabsViewController()
     {
+        TabsViewGroup = new TabsViewGroupContext(Documents);
         FirstTabGroup = new TabsViewItemGroupContext(Documents[0]);
     }
 
-    /// <summary>A tab's close or the tab menu's remove entry: reported, and the tab kept.</summary>
+    /// <summary>A tab's close or the tab menu's remove entry: the document is closed, and the Tabs view section brings it back.</summary>
     [UICommand]
     public void RemoveDocument(string id)
-        => TabsViewGroup.ReportRemove(Documents.FirstOrDefault(document => document.Id == id)?.Title?.ToString() ?? id);
+        => TabsViewGroup.Close(id);
 
     [UICommand]
     public void CycleTabsViewGroupOption(string id)

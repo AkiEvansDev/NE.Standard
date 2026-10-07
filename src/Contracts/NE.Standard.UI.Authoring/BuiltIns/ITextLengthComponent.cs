@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
@@ -7,6 +8,11 @@ namespace NE.Standard.UI.Authoring.BuiltIns;
 /// </summary>
 public interface ITextLengthComponent
 {
+    /// <summary>
+    /// Gets the registered property key for <see cref="MaxLength"/>.
+    /// </summary>
+    static UIProperty MaxLengthProperty { get; } = new(nameof(MaxLength));
+
     /// <summary>
     /// Gets or sets the maximum number of characters allowed.
     /// </summary>

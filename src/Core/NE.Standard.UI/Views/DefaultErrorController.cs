@@ -1,21 +1,32 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Application;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Views;
 
 /// <summary>
-/// Carries the message of the failure that redirected here.
+/// Shows the application's <c>ErrorPageMessage</c>, or the failure's own message where <c>IncludeExceptionDetail</c> is on.
 /// </summary>
 [UIAllowAnonymous]
 internal sealed partial class DefaultErrorController : UIControllerBase
 {
-    private const string DefaultMessage = "An unexpected error occurred.";
+    private readonly UIErrorHandlingOptions _errors;
 
+    public DefaultErrorController(UIApplication application)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+
+        _errors = application.ErrorHandling;
+        Message = _errors.ErrorPageMessage;
+    }
+
+    // Bound to a translatable description, so a word key is translated by the page, in the reader's language.
     [RecursiveMember]
-    public partial string Message { get; set; } = DefaultMessage;
+    public partial string Message { get; set; }
 
     protected override Task OnInitializeAsync(CancellationToken cancellationToken)
     {
@@ -30,8 +41,9 @@ internal sealed partial class DefaultErrorController : UIControllerBase
         return Task.CompletedTask;
     }
 
+    // The page is open to anyone at its own address, so a free-text message in the query would be shown on the application's origin.
     private void ShowMessageOf(UINavigationRequest navigation)
-        => Message = navigation.Parameters?.TryGetValue("message", out var value) == true && value is string message && !string.IsNullOrWhiteSpace(message)
+        => Message = _errors.IncludeExceptionDetail && navigation.Parameters?.TryGetValue("message", out var value) == true && value is string message && !string.IsNullOrWhiteSpace(message)
             ? message
-            : DefaultMessage;
+            : _errors.ErrorPageMessage;
 }

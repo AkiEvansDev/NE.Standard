@@ -15,6 +15,7 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Commands;
@@ -92,11 +93,12 @@ internal abstract partial class UIRuntimeBase
             if (request.Action is null)
             {
                 compiledEvent = View.Events.GetRequired(request.EventId);
-                metadata = Controller.GetCommandMetadata(compiledEvent.Command);
+                metadata = UIBuiltInCommands.IsBuiltIn(compiledEvent.Command) ? new BuiltInCommandMetadata(compiledEvent.Command) : Controller.GetCommandMetadata(compiledEvent.Command);
             }
             else
             {
-                offered = TakeOffer(request.Action);
+                // Peeked, not taken: a press the run limit or a cancelled wait turns away leaves the offer for the next one.
+                offered = PeekOffer(request.Action);
                 metadata = Controller.GetCommandMetadata(offered.Command);
             }
         }
@@ -106,15 +108,7 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, "ResolveCommand", request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
-
-            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
-
-            return await PublishCommandResultAsync(new UICommandExecutionResult
-            {
-                Command = ResolveCommandResult(error, exception),
-                Changes = changes
-            }, invoker, cancellationToken).ConfigureAwait(false);
+            return await AnswerTurnedAwayAsync(invoker, request, exception, "ResolveCommand", cancellationToken).ConfigureAwait(false);
         }
 
         if (metadata.ConcurrencyMode == UICommandConcurrencyMode.Background)
@@ -131,6 +125,25 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
+    /// <summary>Answers a press that failed before its command ran — unresolved, closed, not admitted — and publishes the answer.</summary>
+    private async Task<UICommandExecutionResult> AnswerTurnedAwayAsync(UIHandle invoker, UICommandRequest request, Exception exception, string step, CancellationToken cancellationToken)
+    {
+        RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, step, request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
+
+        ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
+
+        return await PublishCommandResultAsync(new UICommandExecutionResult
+        {
+            Command = ResolveCommandResult(error, exception),
+            Changes = changes,
+            Refused = IsRefusal(exception)
+        }, invoker, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Whether a failure turned the command away rather than failed it: busy, not allowed, closed, no longer on offer.</summary>
+    private static bool IsRefusal(Exception exception)
+        => exception is UnauthorizedAccessException;
+
     /// <summary>
     /// Runs a command an event or an offered action raised, or starts it detached; <paramref name="maxRuns"/> above zero holds it to
     /// that many runs at once in this runtime.
@@ -144,7 +157,7 @@ internal abstract partial class UIRuntimeBase
         {
             if (compiledEvent is null)
             {
-                // An offered action stands on no component to gate: the offer is its gate, spent as it was taken.
+                // An offered action stands on no component to gate: the offer is its gate, spent below once the run is admitted.
                 arguments = offered?.Arguments ?? FrozenDictionary<string, object?>.Empty;
             }
             else
@@ -169,6 +182,20 @@ internal abstract partial class UIRuntimeBase
                 step = "EnterRun";
                 EnterRun(command, maxRuns);
             }
+
+            // Spent once admitted — inside the exclusive lock, or holding its run — so of two presses that both peeked it, one runs.
+            if (offered is not null)
+            {
+                step = "TakeOffer";
+
+                if (!TryTakeOffer(offered))
+                {
+                    if (maxRuns > 0)
+                        LeaveRun(command);
+
+                    throw NotOffered();
+                }
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -176,15 +203,7 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, step, request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
-
-            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
-
-            return await PublishCommandResultAsync(new UICommandExecutionResult
-            {
-                Command = ResolveCommandResult(error, exception),
-                Changes = changes
-            }, invoker, cancellationToken).ConfigureAwait(false);
+            return await AnswerTurnedAwayAsync(invoker, request, exception, step, cancellationToken).ConfigureAwait(false);
         }
 
         var run = maxRuns > 0 ? command : null;
@@ -477,9 +496,9 @@ internal abstract partial class UIRuntimeBase
     {
         try
         {
-            UICommandResult commandResult = await Controller
-                .ExecuteCommandAsync(command, arguments, cancellationToken)
-                .ConfigureAwait(false);
+            UICommandResult commandResult = UIBuiltInCommands.IsBuiltIn(command)
+                ? await RunBuiltInCommandAsync(request, command, arguments, cancellationToken).ConfigureAwait(false)
+                : await Controller.ExecuteCommandAsync(command, arguments, cancellationToken).ConfigureAwait(false);
 
             commandResult = WithFailureNotification(ResolveRuntimeCommandResult(commandResult), exception: null);
             commandResult.Validate();
@@ -503,10 +522,12 @@ internal abstract partial class UIRuntimeBase
             ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
             UICommandResult failed = ResolveCommandResult(error, exception);
 
+            // The command's filters refuse with the same exception before its body runs: turned away, not failed.
             return new UICommandExecutionResult
             {
                 Command = failed,
-                Changes = WithPageStateAhead(changes, failed)
+                Changes = WithPageStateAhead(changes, failed),
+                Refused = IsRefusal(exception)
             };
         }
     }

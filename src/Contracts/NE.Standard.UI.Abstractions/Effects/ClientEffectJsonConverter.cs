@@ -37,7 +37,9 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.OpenPicker] = typeof(CompiledOpenPickerEffect),
         [ClientEffectKinds.ConfirmLeave] = typeof(ConfirmLeaveEffect),
         [ClientEffectKinds.ReplaceAddress] = typeof(ReplaceAddressEffect),
-        [ClientEffectKinds.PushAddress] = typeof(PushAddressEffect)
+        [ClientEffectKinds.PushAddress] = typeof(PushAddressEffect),
+        [ClientEffectKinds.RequestNotificationPermission] = typeof(RequestNotificationPermissionEffect),
+        [ClientEffectKinds.ShowSystemNotification] = typeof(ShowSystemNotificationEffect)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <inheritdoc />

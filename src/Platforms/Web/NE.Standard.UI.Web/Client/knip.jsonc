@@ -5,6 +5,7 @@
   "entry": [
     "src/ui.ts",
     "src/boot.ts",
+    "src/worker.ts",
     // Holds the runtime's types to the plugin contract; compiled by the type check, imported by nothing.
     "src/runtime/plugin-api-check.ts",
     "tests/**/*.test.ts",

@@ -1,5 +1,6 @@
 // A row's refusals — no drag, no choice, no removal — read off its wrapper, where the item says so, or off the component it wraps,
-// where the row's template says so: an items view draws the template inside the wrapper, and either refusing wins.
+// where the row's template says so: an items view draws the template inside the wrapper, and either refusing wins. A bound tab is
+// such a row: its template's marks stand on the tab, inside the wrapper its tabs view draws around it.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,6 +12,7 @@ const { isItemRefused } = await import("../src/interactions/interactive-state.ts
 const { isLiftable } = await import("../src/interactions/item-drags.ts");
 const { removableRows } = await import("../src/interactions/items-selection-engine.ts");
 const { itemSelection } = await import("../src/interactions/row-selection.ts");
+const { isTabRefused } = await import("../src/interactions/tab-rows.ts");
 
 type List = { readonly root: FakeElement; readonly host: FakeElement; readonly rows: FakeElement[]; readonly templates: FakeElement[] };
 
@@ -74,4 +76,23 @@ test("a Delete on the chosen rows leaves a row whose template refuses the remova
     templates[1].setAttribute("data-ui-unremovable", "");
 
     assert.deepEqual(removableRows(rows.map(real), real(rows[0])), [rows[0], rows[2]]);
+});
+
+test("a wrapped tab whose template refuses the drag or the rename is refused it, as a bare tab marked so is", () => {
+    const tab = (key: string): FakeElement => FakeElement.of("ui-tab-item", { "data-ui-id": `2-${key}` });
+    const wrapped = [tab("a"), tab("b"), tab("c")];
+    const bare = tab("d");
+    const host = FakeElement.of("ui-tabs-view__strip", { "data-ui-items-host": "" })
+        .append(...wrapped.map((item, index) => FakeElement.of("ui-tabs-view__item", { "data-ui-key": String(index) }).append(item)), bare);
+
+    FakeElement.of("ui-tabs-view", { "data-ui-id": "2" }).append(host);
+
+    wrapped[1].setAttribute("data-ui-undraggable", "");
+    wrapped[2].setAttribute("data-ui-unrenamable", "");
+    bare.setAttribute("data-ui-unrenamable", "");
+
+    assert.deepEqual(wrapped.map(item => isTabRefused(real(item), "data-ui-undraggable")), [false, true, false]);
+    assert.deepEqual(wrapped.map(item => isTabRefused(real(item), "data-ui-unrenamable")), [false, false, true]);
+    assert.equal(isTabRefused(real(bare), "data-ui-unrenamable"), true);
+    assert.equal(isTabRefused(real(bare), "data-ui-undraggable"), false);
 });

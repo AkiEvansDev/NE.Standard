@@ -30,3 +30,16 @@ export class InboundOrder {
         });
     }
 }
+
+/**
+ * Runs `next` once `apply` has applied a change set, and also when it threw before its promise existed: what waits on `next` (a
+ * command's pending dispatch) never stays pending. Fails with what `apply` threw, once `next` has run.
+ */
+export async function afterAppliedAsync(apply: () => void | Promise<void>, next: () => void): Promise<void> {
+    try {
+        await apply();
+    }
+    finally {
+        next();
+    }
+}

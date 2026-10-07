@@ -18,6 +18,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     private const string StackGroup = nameof(NotificationTestController.StackGroup);
     private const string WrapGroup = nameof(NotificationTestController.WrapGroup);
     private const string UndoGroup = nameof(NotificationTestController.UndoGroup);
+    private const string SystemGroup = nameof(NotificationTestController.SystemGroup);
     private const string Words = "demo.overlays.notification.";
 
     public static string ViewKey => "demo.overlays.notification.test";
@@ -30,7 +31,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     protected override string HeaderDescription => "demo.overlays.notification.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(DemoUI.CreateColumns([CreateDeployGroup(), CreateStackGroup()], [CreateJobGroup(), CreateUndoGroup(), CreateWrapGroup()]));
+        => _ = container.AddChildren(DemoUI.CreateColumns([CreateDeployGroup(), CreateStackGroup(), CreateSystemGroup()], [CreateJobGroup(), CreateUndoGroup(), CreateWrapGroup()]));
 
     /// <summary>Each target keeps the line its last deploy left; the toast is the moment, the line is the record.</summary>
     private static ContainerComponent CreateDeployGroup()
@@ -101,6 +102,34 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
                 .AddChild(CreateButton(Words + "undo.cancel", nameof(NotificationTestController.CancelNextDeploy), UIButtonType.Outline))
             ),
             note: Words + "undo.note",
+            words: true
+        );
+    }
+
+    /// <summary>
+    /// Off the page: the system's notification while the page is off screen, the toast while it is on; the question is the browser's,
+    /// asked in the reader's own press.
+    /// </summary>
+    private static ContainerComponent CreateSystemGroup()
+    {
+        return DemoUI.CreateGroup(SystemGroup, Words + "system.title",
+            content => content.AddChild(DemoUI.CreateStack(12)
+                .AddChild(new ParagraphComponent()
+                    .BindDescription(nameof(SystemGroupContext.Permission), UIBindingScope.Relative)
+                )
+                .AddChild(UILayout.Row(8)
+                    .AddChild(new ButtonComponent()
+                        .InteractOn(EventNames.Click, new RequestNotificationPermissionEffect())
+                        .BindVisibility(nameof(SystemGroupContext.AskVisibility), UIBindingScope.Relative)
+                        .SetType(UIButtonType.Primary)
+                        .SetHorizontalAlignment(UIAlignment.Start)
+                        .SetTitle(Words + "system.ask")
+                    )
+                    .AddChild(CreateButton(Words + "system.notify", nameof(NotificationTestController.NotifyLaterAsync), UIButtonType.Outline))
+                    .AddChild(CreateButton(Words + "system.notify-now", nameof(NotificationTestController.NotifyNow), UIButtonType.Outline))
+                )
+            ),
+            note: Words + "system.note",
             words: true
         );
     }

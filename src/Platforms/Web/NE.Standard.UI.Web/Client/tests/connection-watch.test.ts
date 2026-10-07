@@ -82,6 +82,7 @@ test("a reconnect past the grace marks the page and shows the notice until the c
     assert.equal(html.getAttribute("data-ui-connection"), "reconnecting");
     assert.equal(notices().length, 1);
     assert.equal(notices()[0].textContent, "Reconnecting…");
+    assert.ok(notices()[0].classList.contains("ui-notification--connection"), "a phone shows it at the bottom whatever the view's corner");
 
     // A toast's own timer would end it while SignalR still tries: it says a state, not an event.
     mock.timers.tick(30000);

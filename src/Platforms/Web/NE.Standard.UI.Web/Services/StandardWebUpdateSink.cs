@@ -63,7 +63,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         await _hub.Clients
             .Clients([.. instanceIds])
-            .SendAsync("ui.changes", _outgoing.Stage(changes, handle.Session.SessionId, instanceIds.Count), cancellationToken)
+            .SendAsync("ui.changes", _outgoing.Stage(changes, handle.Session.SessionId, instanceIds), cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -81,7 +81,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         await _hub.Clients
             .Client(handle.Instance.Id)
-            .SendAsync("ui.commandResult", _outgoing.Stage(sent, handle.Session.SessionId, 1), cancellationToken)
+            .SendAsync("ui.commandResult", _outgoing.Stage(sent, handle.Session.SessionId, [handle.Instance.Id]), cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -108,13 +108,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
         if (named is null)
             return result;
 
-        return new UICommandExecutionResult
-        {
-            Command = result.Command.Success ? UICommandResult.Ok(named) : UICommandResult.Fail(result.Command.Error!, named),
-            Changes = result.Changes,
-            Accepted = result.Accepted,
-            RequestId = result.RequestId
-        };
+        return result with { Command = result.Command.Success ? UICommandResult.Ok(named) : UICommandResult.Fail(result.Command.Error!, named) };
     }
 
     /// <summary>The effect marked stored where it switches to what the session holds and is not marked yet; otherwise none.</summary>

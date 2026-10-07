@@ -131,6 +131,12 @@ public static class WebAttributes
 
     public const string PressRipple = "data-ui-press-ripple";
 
+    /// <summary>On <c>&lt;html&gt;</c>: the framework's service worker's address, where the application turned system notifications on.</summary>
+    public const string ServiceWorker = "data-ui-service-worker";
+
+    /// <summary>On <c>&lt;html&gt;</c>: the application's own worker imports the framework's, so the page waits for it instead of registering.</summary>
+    public const string ServiceWorkerImported = "data-ui-service-worker-imported";
+
     public const string FlyoutNoBackdropClose = "data-ui-flyout-no-backdrop-close";
 
     public const string FlyoutNoEscapeClose = "data-ui-flyout-no-escape-close";
@@ -439,8 +445,6 @@ public static class WebAttributes
     public const string TreeUnremovable = "data-ui-tree-unremovable";
 
     public const string TabKey = "data-ui-tab-key";
-
-    public const string TabOrder = "data-ui-tab-order";
 
     /// <summary>On a pinned tab's root: the strip draws its pin, hides its close and refuses to drag it.</summary>
     public const string TabPinned = "data-ui-tab-pinned";

@@ -48,7 +48,7 @@ export class ConnectionWatch {
         this.root.setAttribute(ConnectionAttribute, "reconnecting");
 
         // Kept until the connection is back or given up: it says a state, and a toast's own timer would end it mid-reconnect.
-        this.notice = this.notifications.show({ message: clientStrings.text("ui.connection.reconnecting"), sticky: true });
+        this.notice = this.notifications.show({ message: clientStrings.text("ui.connection.reconnecting"), sticky: true, connection: true });
     }
 
     private reconnected(): void {

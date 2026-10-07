@@ -8,7 +8,8 @@ namespace NE.Standard.UI.Shell.Commands;
 /// <summary>
 /// Represents a command result together with server-side UI changes produced by the command.
 /// </summary>
-public sealed class UICommandExecutionResult
+/// <remarks>A record, so a copy with one part replaced (<c>with</c>) carries every other part, including one added later.</remarks>
+public sealed record UICommandExecutionResult
 {
     /// <summary>
     /// Gets the command result.
@@ -25,6 +26,14 @@ public sealed class UICommandExecutionResult
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Accepted { get; init; }
+
+    /// <summary>
+    /// Gets whether the server turned the command away before its body ran — busy, not allowed, a closed component, an action no
+    /// longer on offer — rather than running it and failing.
+    /// </summary>
+    /// <remarks>What a toast's Undo is pressable again after: a refused run spent nothing, a failed one spent its offer.</remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Refused { get; init; }
 
     /// <summary>
     /// Gets the id of the request a pushed result ends; null on an invoke's own answer and on a result nobody asked for.

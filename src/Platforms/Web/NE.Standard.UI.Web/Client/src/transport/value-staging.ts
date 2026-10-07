@@ -5,8 +5,11 @@ import type { ServerChangeSet, ServerValueUIUpdate } from "../metadata/metadata-
 
 const StagePath = "/_ne/values";
 
-/** Bytes of JSON past which a value is staged: a quarter of the hub's 32 KB cap (room for the envelope), inside a TCP initial window. */
-export const LargeValueBytes = 8 * 1024;
+/** The hub's message cap (docs/VALUES.md §1): a message past it closes the connection. */
+export const HubMessageBytes = 32 * 1024;
+
+/** Bytes of JSON past which a value is staged: a quarter of the hub's cap (room for the envelope), inside a TCP initial window. */
+export const LargeValueBytes = HubMessageBytes / 4;
 
 /** How long a staged value's trip may take; everything after it waits for it, so a hang would stall the page silently. */
 const StagedValueTimeoutMilliseconds = 30_000;
@@ -29,8 +32,12 @@ export function hasStagedValues(changes: ServerChangeSet | undefined): boolean {
     return changes?.updates?.some(update => typeof (update as ServerValueUIUpdate).valueToken === "string") === true;
 }
 
-/** The change set with every staged value fetched into its update; the same change set when it names none. */
-export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefined, timeoutMilliseconds = StagedValueTimeoutMilliseconds): Promise<ServerChangeSet | undefined> {
+/**
+ * The change set with every staged value fetched into its update; the same change set when it names none. `instanceId` is the
+ * connection the set arrived on: the server lets a value go once each connection it was sent to has read it, so a second read by one
+ * tab never spends another's.
+ */
+export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefined, instanceId: string | null = null, timeoutMilliseconds = StagedValueTimeoutMilliseconds): Promise<ServerChangeSet | undefined> {
     if (changes === undefined || !hasStagedValues(changes))
         return changes;
 
@@ -41,7 +48,8 @@ export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefine
         if (typeof token !== "string")
             return update;
 
-        const response = await fetch(`${StagePath}/${encodeURIComponent(token)}`, { credentials: "same-origin", signal: AbortSignal.timeout(timeoutMilliseconds) });
+        const reader = instanceId === null ? "" : `?instance=${encodeURIComponent(instanceId)}`;
+        const response = await fetch(`${StagePath}/${encodeURIComponent(token)}${reader}`, { credentials: "same-origin", signal: AbortSignal.timeout(timeoutMilliseconds) });
 
         if (!response.ok)
             throw new Error(`Fetching a staged value failed with status ${response.status}.`);

@@ -6,6 +6,7 @@ import { copySelection } from "../interactions/legacy-commands";
 import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine, offeredAction } from "../interactions/notification-engine";
 import { dispatchOpenPicker } from "../interactions/picker-events";
+import { showSystemNotification, SystemNotificationServices, whenOnScreen } from "../interactions/system-notifications";
 import { holdAtEnd, isEndAnchored, letGoOfEnd } from "../interactions/scroll-anchor-engine";
 import { itemsHostOf, letGoOfRow, revealItem } from "../items/item-reveal";
 import { hostOfScrollTarget, viewportOf } from "../items/items-viewport";
@@ -19,6 +20,7 @@ import {
     DownloadFileClientEffect,
     NotificationClientEffect,
     ScrollClientEffect,
+    SystemNotificationClientEffect,
     ScrollToClientEffect,
     ScrollToItemClientEffect,
     SetThemeClientEffect,
@@ -34,6 +36,7 @@ import {
 } from "../metadata/metadata-index.ts";
 import { prefersReducedMotion } from "../rendering/motion";
 import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
+import { clientStrings } from "../runtime/client-strings";
 import { logError, logWarn } from "../runtime/logger";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { applyInsertText } from "./insert-text.ts";
@@ -50,8 +53,8 @@ export type EffectContext = {
 export type EffectRegistryOptions = {
     readonly dialogs?: DialogEngine;
     readonly notifications?: NotificationEngine;
-    // Runs the command the server offered a notification's action for; left out, a notification shows no action.
-    readonly runAction?: (id: string) => void;
+    // Runs the command the server offered a notification's action for, answering whether it ran; left out, a notification shows no action.
+    readonly runAction?: (id: string) => Promise<boolean>;
     // Reads the value a copy effect names a component for; left out where nothing on the page holds one.
     readonly valueReaders?: ValueReaderRegistry;
     // How the chosen theme reaches the session; left out where there is no connection to report it on.
@@ -60,6 +63,12 @@ export type EffectRegistryOptions = {
     readonly navigate?: (url: string) => void;
     // Where the page's state is written into its address; left out where the page keeps no history of its own.
     readonly address?: AddressWriter;
+    // Tells the runtime the page's state may have changed — a notification permission just answered; left out where none is told.
+    readonly clientStateChanged?: () => void;
+    // The tab's id, which a system notification's click finds its page by.
+    readonly windowId?: string;
+    // How the browser shows a system notification; left out, the page's own.
+    readonly systemNotifications?: SystemNotificationServices;
 };
 
 /** What an address effect writes through: the route stays, the query is rewritten in place or as a new entry. */
@@ -82,11 +91,14 @@ export class EffectRegistry {
     private readonly handlers = new Map<string, EffectHandler>();
     private readonly dialogs: DialogEngine | undefined;
     private readonly notifications: NotificationEngine | undefined;
-    private readonly runAction: ((id: string) => void) | undefined;
+    private readonly runAction: ((id: string) => Promise<boolean>) | undefined;
     private readonly valueReaders: ValueReaderRegistry | undefined;
     private readonly reportTheme: ((mode: ThemeName) => void) | undefined;
     private readonly navigate: ((url: string) => void) | undefined;
     private readonly address: AddressWriter | undefined;
+    private readonly clientStateChanged: (() => void) | undefined;
+    private readonly windowId: string;
+    private readonly systemNotifications: SystemNotificationServices | undefined;
 
     public constructor(options: EffectRegistryOptions = {}) {
         this.dialogs = options.dialogs;
@@ -96,6 +108,9 @@ export class EffectRegistry {
         this.reportTheme = options.reportTheme;
         this.navigate = options.navigate;
         this.address = options.address;
+        this.clientStateChanged = options.clientStateChanged;
+        this.windowId = options.windowId ?? "";
+        this.systemNotifications = options.systemNotifications;
 
         this.registerDefaults();
     }
@@ -369,6 +384,19 @@ export class EffectRegistry {
             });
         });
 
+        this.register("RequestNotificationPermission", () => {
+            // A browser without notifications has nothing to ask: the page already reports them unsupported.
+            if (typeof Notification === "undefined")
+                return;
+
+            // Asked here, in the press the effect runs in: a browser shows no prompt raised outside the reader's own gesture.
+            Notification.requestPermission()
+                .then(() => this.clientStateChanged?.())
+                .catch((error: unknown) => logWarn("asking for the notification permission failed.", error));
+        });
+
+        this.register("ShowSystemNotification", context => this.showSystemNotification(context.effect));
+
         this.register("Announce", context => {
             const effect = context.effect as AnnounceClientEffect;
 
@@ -412,6 +440,77 @@ export class EffectRegistry {
 
         apply(this.dialogs, key);
     }
+
+    /**
+     * Shows the system's notification where the page is off screen (or always, where it asks) and the browser lets it; anywhere
+     * else, its fallback toast — held until the page is on screen, since one raised off screen would pass unread.
+     */
+    private showSystemNotification(effect: SystemNotificationClientEffect): void {
+        const title = effect.title;
+
+        if (!isPhrase(title) && !isAuthorText(title)) {
+            logWarn("system notification effect carries no title.", effect);
+            return;
+        }
+
+        const body = isPhrase(effect.body) || isAuthorText(effect.body) ? effect.body : undefined;
+        const toast = (): void => {
+            if (effect.fallback === "None" || this.notifications === undefined)
+                return;
+
+            const notifications = this.notifications;
+            const action = this.runAction === undefined ? undefined : offeredAction(effect.action, this.runAction);
+
+            whenOnScreen(() => notifications.show(body === undefined ? { message: title, action } : { title, message: body, action }));
+        };
+
+        if (effect.when !== "Always" && document.visibilityState !== "hidden") {
+            toast();
+            return;
+        }
+
+        const action = typeof effect.action?.id === "string" ? effect.action.id : undefined;
+        const runAction = this.runAction;
+
+        void showSystemNotification({
+            title: wordsOf(title),
+            body: body === undefined ? undefined : wordsOf(body),
+            tag: effect.tag ?? "",
+            icon: typeof effect.icon === "string" && isLocalRoute(effect.icon) ? effect.icon : applicationIcon(),
+            silent: effect.silent === true,
+            requireInteraction: effect.requireInteraction === true,
+            // Only a path of this site: a notification is no way to open another.
+            address: typeof effect.address === "string" && isLocalRoute(effect.address) ? effect.address : ownAddress(),
+            windowId: this.windowId,
+            action
+        }, () => {
+            if (action !== undefined && runAction !== undefined)
+                void runAction(action);
+        }, this.systemNotifications).then(shown => {
+            if (!shown)
+                toast();
+        });
+    }
+}
+
+/** A phrase or the author's text as the page shows it now, for a place no language switch rewrites. */
+function wordsOf(value: unknown): string {
+    if (isPhrase(value))
+        return clientStrings.translate(value.key, value.args);
+
+    return isAuthorText(value) ? clientStrings.resolveText(value.text) : "";
+}
+
+/** The page's own icon, which a system notification shows where it names none; none for the shell's empty one, a `data:` stand-in. */
+function applicationIcon(): string | undefined {
+    const icon = document.querySelector<HTMLLinkElement>("link[rel~='icon']")?.href;
+
+    return icon === undefined || icon.startsWith("data:") ? undefined : icon;
+}
+
+/** Where the page stands: what a system notification's click brings back where the page is gone. */
+function ownAddress(): string {
+    return window.location.pathname + window.location.search + window.location.hash;
 }
 
 function applyVisibility(target: Element | null, value: string | null): void {

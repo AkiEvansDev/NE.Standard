@@ -48,9 +48,14 @@ export function carriedRows(row: HTMLElement, shown: readonly HTMLElement[]): HT
     return chosen.includes(row) ? chosen.filter(other => other === row || isLiftable(other)) : [row];
 }
 
-/** Whether a row may be lifted: not refused (`Undraggable`, by its item or its template), not disabled, and drawn — one folded away would move unseen. */
+/** Whether a row may be dragged at all: not refused (`Undraggable`, by its item or its template) and not disabled. */
+export function isDraggableRow(row: HTMLElement): boolean {
+    return !isItemRefused(row, UndraggableAttribute) && !isItemDisabled(row);
+}
+
+/** Whether a row may be lifted now: draggable, and drawn — one folded away would move unseen. */
 export function isLiftable(row: HTMLElement): boolean {
-    return !isItemRefused(row, UndraggableAttribute) && !isItemDisabled(row) && rowBox(row) !== null;
+    return isDraggableRow(row) && rowBox(row) !== null;
 }
 
 /** What a drag of a host's rows allows: the effects it offers them for, and a move wherever its rows also move among themselves. */

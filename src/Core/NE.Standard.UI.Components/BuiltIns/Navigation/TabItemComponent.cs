@@ -41,7 +41,10 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// <summary>
     /// Gets or sets where this tab sits in the strip, ascending.
     /// </summary>
-    /// <remarks>Two-way: a drag writes the dropped tab's new position back, so reordering changes the item, not the collection.</remarks>
+    /// <remarks>
+    /// Bound two-way, but written by the server alone: a drag or a pin tells it where the tab goes, and it writes the orders that
+    /// put it there, so reordering changes the item, not the collection. A page's own write of it is refused.
+    /// </remarks>
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
         DefaultBindingMode = UIBindingMode.TwoWay,
@@ -53,7 +56,7 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// </summary>
     /// <remarks>
     /// Whether a close from elsewhere is refused is the controller's answer. Two-way: the strip's tab menu pins and unpins, writing the
-    /// new state back as a drag writes the order.
+    /// new state back.
     /// </remarks>
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
@@ -67,6 +70,10 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     protected TabItemComponent(string? id = null) : base(id)
     {
         SetRegion(RegionNames.Header, new TabCaptionRegion());
+
+        // Written by the page, an order is no move the server can judge: a drag renumbers tabs that did not move, one write at a time.
+        _ = On(EventNames.Move, UIBuiltInCommands.MoveTab, UIAction.ArgCurrentItemKey(UIBuiltInCommands.KeyArgument), UIAction.ArgEventValue(UIBuiltInCommands.IndexArgument));
+        _ = On(EventNames.TabPin, UIBuiltInCommands.PlaceTab, UIAction.ArgCurrentItemKey(UIBuiltInCommands.KeyArgument));
     }
 
     /// <summary>

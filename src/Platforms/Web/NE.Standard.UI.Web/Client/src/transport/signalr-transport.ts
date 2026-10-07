@@ -1,5 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
 import { ServerChangeSet, ThemeColorsModel, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index";
+import type { ClientState } from "../runtime/client-state";
 import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
 import { AttachGate, ConnectionDropped } from "./attach-gate";
 import { ChangeSink, InboundOrder } from "./inbound-order";
@@ -125,15 +126,15 @@ export class SignalRTransport {
         try {
             const result = await this.invokeCoreAsync<WebUIAttachResult>("AttachAsync", [request]);
 
-            // A runtime built since the page attached is not the page's: a value waiting meanwhile would land in it, so the page reloads with nothing sent.
-            if (result.fresh !== true)
-                this.gate.markAttached();
+            // A runtime built since the page attached, or a page the server will not attach as it stands, reloads with nothing sent.
+            this.gate.answered(result);
 
             return result;
         }
         catch (error) {
-            // A gate never marked attached would hang every call: failing it rejects the waiting ones and re-arms it for a retried attach.
-            this.gate.failAttach(error);
+            // A gate never opened would hang every call: shut until the retried attach, and giving up closes it. Whoever waits keeps
+            // waiting — failed here, a value among them would be dropped, though the retry a moment later attaches.
+            this.gate.rearm();
 
             throw error;
         }
@@ -171,6 +172,11 @@ export class SignalRTransport {
     /** Resolves once the runtime is attached and calls go through; fails once the connection is given up. */
     public whenAttached(): Promise<void> {
         return this.gate.wait();
+    }
+
+    /** Tells the runtime what the page is now: on screen or not, and what the browser lets it show. */
+    public async reportClientStateAsync(state: ClientState): Promise<void> {
+        await this.invokeAsync<void>("ReportClientStateAsync", [state]);
     }
 
     /** Tells the session which theme the client is now in. */

@@ -5,17 +5,21 @@
 // Every element press-ripple-engine.ts presses, and the pseudo-element its wave takes. One list beside the engine's own, imported
 // after every component so the wave's layer wins the ties with a component's own pseudo-element rules.
 
-// A button, an action, a list entry: `::after`, since a button's `::before` may be its glyph (a key-value row's pencil, a "…").
+// A button, an action, a list entry: `::after`, since a button's `::before` may be its glyph (a key-value row's pencil, a "…"). A
+// split button's part takes its own (press-ripple-engine.ts), cut to the part's corners.
 .ui-button:not(.ui-tab-header, .ui-menu-item),
+.ui-split-button__main,
+.ui-split-button__toggle,
 .ui-action,
 .ui-language-switcher__choice,
 .ui-pager__size-choice {
     .ui-press-ripple(after);
 }
 
-// Where `::after` is the element's own mark — a tab's line, a menu entry's chevron or tick, a multi-select option's tick, a row's
+// Where `::after` is the element's own mark — a tab's line (a tabs view's caption too), a menu entry's chevron or tick, a multi-select option's tick, a row's
 // drop line, a pinned row's chosen mark — the wave takes `::before`.
 .ui-tab-header,
+.ui-tab-item__caption,
 .ui-menu-item,
 .ui-select__option,
 .ui-items-view__item,
@@ -27,7 +31,7 @@
 }
 
 // The wave stands on the element's frame, so an element not positioned of its own is while it plays.
-:is(.ui-language-switcher__choice, .ui-pager__size-choice, .ui-select__option, .ui-items-view__item, .ui-items-view__item > [data-ui-id], .ui-table__row, .ui-tree__row, .ui-key-value-action__row).ui-pressing {
+:is(.ui-split-button__main, .ui-split-button__toggle, .ui-language-switcher__choice, .ui-pager__size-choice, .ui-select__option, .ui-items-view__item, .ui-items-view__item > [data-ui-id], .ui-table__row, .ui-tree__row, .ui-key-value-action__row).ui-pressing {
     position: relative;
 }
 

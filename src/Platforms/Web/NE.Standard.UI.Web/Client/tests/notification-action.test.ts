@@ -1,5 +1,6 @@
 // A toast's action as a command's effect asks for it: one button under the message, in the page's words, running what the server
 // offered once and closing the toast; reached from the keyboard, which holds the toast open; standing for the effect's own duration.
+// A press the server refuses (a busy command) leaves the toast and its action to press again within that window.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -51,6 +52,9 @@ function page(): { readonly opener: FakeElement; readonly engine: InstanceType<t
     return { opener, engine: new NotificationEngine({ root: real<ParentNode>(fakeDocument.body) }) };
 }
 
+/** An offered action's run, answered as gone through. */
+const Ran = (): Promise<boolean> => Promise.resolve(true);
+
 function actionOf(toast: HTMLElement): FakeElement {
     return real<FakeElement>(toast.querySelector(".ui-notification__action"));
 }
@@ -60,7 +64,7 @@ test("an offered action is the toast's one button, in the page's words, running 
 
     const { engine } = page();
     const ran: string[] = [];
-    const toast = engine.show({ message: { text: "Deleted." }, action: offeredAction({ label: { key: "demo.undo" }, id: "a1" }, id => ran.push(id)) });
+    const toast = engine.show({ message: { text: "Deleted." }, action: offeredAction({ label: { key: "demo.undo" }, id: "a1" }, id => Promise.resolve(ran.push(id) > 0)) });
     const buttons = real<FakeElement>(toast).querySelectorAll("button");
 
     assert.equal(buttons.length, 2);
@@ -75,7 +79,7 @@ test("an action's words are written again at a language switch while the toast s
     clientStrings.useTable({ language: "en", complete: true, prefixes: ["demo."], words: { "demo.undo": "Undo" } });
 
     const { engine } = page();
-    const toast = engine.show({ message: { text: "Deleted." }, sticky: true, action: offeredAction({ label: { key: "demo.undo" }, id: "a1" }, () => undefined) });
+    const toast = engine.show({ message: { text: "Deleted." }, sticky: true, action: offeredAction({ label: { key: "demo.undo" }, id: "a1" }, Ran) });
 
     clientStrings.useTable({ language: "ru", complete: true, prefixes: ["demo."], words: { "demo.undo": "Отменить" } });
     clientStrings.rewriteMarks(real<ParentNode>(fakeDocument.body));
@@ -84,11 +88,11 @@ test("an action's words are written again at a language switch while the toast s
 });
 
 test("an action the server could not offer shows no button, and the message still shows", () => {
-    assert.equal(offeredAction({ label: { text: "Undo" } }, () => undefined), undefined);
-    assert.equal(offeredAction(undefined, () => undefined), undefined);
+    assert.equal(offeredAction({ label: { text: "Undo" } }, Ran), undefined);
+    assert.equal(offeredAction(undefined, Ran), undefined);
 
     const { engine } = page();
-    const toast = engine.show({ message: { text: "Deleted." }, action: offeredAction({ label: { text: "Undo" } }, () => undefined) });
+    const toast = engine.show({ message: { text: "Deleted." }, action: offeredAction({ label: { text: "Undo" } }, Ran) });
 
     assert.equal(toast.querySelector(".ui-notification__action"), null);
     assert.equal(real<FakeElement>(toast).isConnected, true);
@@ -97,7 +101,7 @@ test("an action the server could not offer shows no button, and the message stil
 test("a passing toast's action runs once and closes the toast; a sticky one's stays and runs again", () => {
     const { engine } = page();
     const ran: string[] = [];
-    const passing = engine.show({ message: "Deleted.", action: { label: "Undo", run: () => ran.push("undo") } });
+    const passing = engine.show({ message: "Deleted.", action: { label: "Undo", run: () => void ran.push("undo") } });
 
     actionOf(passing).click();
     actionOf(passing).click();
@@ -105,7 +109,7 @@ test("a passing toast's action runs once and closes the toast; a sticky one's st
     assert.deepEqual(ran, ["undo"]);
     assert.equal(real<FakeElement>(passing).isConnected, false);
 
-    const sticky = engine.show({ message: "Lost.", sticky: true, action: { label: "Reload", run: () => ran.push("reload") } });
+    const sticky = engine.show({ message: "Lost.", sticky: true, action: { label: "Reload", run: () => void ran.push("reload") } });
 
     actionOf(sticky).click();
     actionOf(sticky).click();
@@ -117,7 +121,7 @@ test("a passing toast's action runs once and closes the toast; a sticky one's st
 test("a toast stands for its own duration, which is its action's window, and for the page's default without one", () => {
     const { engine } = page();
     const ran: string[] = [];
-    const long = engine.show({ message: "Deleted.", durationMs: 12000, action: { label: "Undo", run: () => ran.push("undo") } });
+    const long = engine.show({ message: "Deleted.", durationMs: 12000, action: { label: "Undo", run: () => void ran.push("undo") } });
     const plain = engine.show({ message: "Saved." });
 
     advance(5000);
@@ -157,7 +161,7 @@ test("a toast with an action and no duration of its own stands eight seconds, on
 test("the action is reached from the keyboard after the close, holds the toast open, and gives the focus back once pressed", () => {
     const { opener, engine } = page();
     const ran: string[] = [];
-    const toast = engine.show({ message: "Deleted.", durationMs: 1000, action: { label: "Undo", run: () => ran.push("undo") } });
+    const toast = engine.show({ message: "Deleted.", durationMs: 1000, action: { label: "Undo", run: () => void ran.push("undo") } });
     const action = actionOf(toast);
 
     // A native button after the close, in the order the toast is drawn: Tab reaches it with nothing of its own.
@@ -196,4 +200,31 @@ test("on a phone the stack stands above the page's bottom bar, and on the window
     engine.show({ message: "Saved." });
 
     assert.equal(host.style.getPropertyValue("--ui-notification-lift"), "");
+});
+
+test("a passing toast's action refused as busy stays to press again, and the toast closes once a press goes through", async () => {
+    const { engine } = page();
+    const answers: ((took: boolean) => void)[] = [];
+    const toast = engine.show({ message: "Deleted.", action: { label: "Undo", run: () => new Promise<boolean>(answer => answers.push(answer)) } });
+
+    actionOf(toast).click();
+    // On its way: a second press asks for nothing the first has not.
+    actionOf(toast).click();
+
+    assert.equal(answers.length, 1);
+    assert.equal(real<FakeElement>(toast).isConnected, true);
+
+    answers[0](false);
+    await Promise.resolve();
+
+    assert.equal(real<FakeElement>(toast).isConnected, true);
+
+    actionOf(toast).click();
+
+    assert.equal(answers.length, 2);
+
+    answers[1](true);
+    await Promise.resolve();
+
+    assert.equal(real<FakeElement>(toast).isConnected, false);
 });

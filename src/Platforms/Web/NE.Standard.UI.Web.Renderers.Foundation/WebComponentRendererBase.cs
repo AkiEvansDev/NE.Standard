@@ -1064,7 +1064,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         }
         else
         {
-            UIPropertyAddress address = new(context.Node.ComponentId, property, ResolveDynamicParameters(context));
+            // A binding taking no key — a Root-scoped ability on a row's template — is one value for every row, sent under no row.
+            UIPropertyAddress address = new(context.Node.ComponentId, property, binding.Parameters.Length == 0 ? null : ResolveDynamicParameters(context));
 
             if (!context.Values.TryGetValue(address, out raw))
                 return false;

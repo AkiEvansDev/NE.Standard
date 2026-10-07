@@ -105,6 +105,12 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     public bool HasViewers => _context is not null && _context.Runtime.HasViewers;
 
     /// <summary>
+    /// Gets whether a page attached to this controller's runtime is on screen now, as its page last reported — where none is, a
+    /// system notification reaches the reader and a toast would not.
+    /// </summary>
+    public bool HasVisibleViewers => _context is not null && _context.Runtime.HasVisibleViewers;
+
+    /// <summary>
     /// Runs with the navigation a page shows the runtime at — the place to read a parameter that shapes what the page shows, first
     /// paint included.
     /// </summary>
@@ -113,16 +119,17 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// paints; and for every attach, before <see cref="OnAttachedAsync"/> and in the same turn, so the attach is answered with what
     /// both wrote. The attach of the tab whose own render built the runtime skips it, the render having run it with that navigation —
     /// unless another page's navigation ran since. A render that paints a runtime already running (a kept one) does not run it: that
-    /// runtime may be another tab's; the attach that follows does. Runs under the runtime's lock, as a value does, not in a command's
-    /// turn; going back or forward within the page, in a command's turn, as an exclusive command does. <see cref="UIContext.Handle"/> is
-    /// the page's connection, the render's own in a render.
+    /// runtime may be another tab's; the attach that follows does. Runs in a command's turn, between exclusive commands — at an attach or
+    /// a render as posted work does; going back or forward within the page as an exclusive command does. Either way outside the runtime's
+    /// lock, as a command's body, so it may await <c>Context.Runtime.InvokeAsync</c>.
+    /// <see cref="UIContext.Handle"/> is the page's connection, the render's own in a render.
     /// </remarks>
     protected virtual Task OnNavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
         => Task.CompletedTask;
 
     /// <summary>Runs each time a connection attaches — a new tab, a reload, a navigation that finds the runtime again.</summary>
     /// <remarks>
-    /// Given the navigation it arrived with. Runs under the runtime's lock, as a value does, not in a command's turn, after the first attach's
+    /// Given the navigation it arrived with. Runs as posted work does, between exclusive commands as a command's body runs, after the first attach's
     /// <see cref="OnInitializeAsync"/> and after <see cref="OnNavigatedAsync"/>; what it writes is in the page the attach is answered
     /// with, but not in the page the render painted — a parameter that shapes the first paint belongs in <see cref="OnNavigatedAsync"/>.
     /// <see cref="UIContext.Handle"/> is the attaching connection.
@@ -135,7 +142,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// it gone.
     /// </summary>
     /// <remarks>
-    /// Queued and run as posted work is, between exclusive commands and under the runtime's lock, since a closing connection waits for
+    /// Queued and run as posted work is, between exclusive commands as a command's body runs, since a closing connection waits for
     /// nobody; what it writes flushes to the pages still attached.
     /// </remarks>
     protected virtual Task OnDetachedAsync(CancellationToken cancellationToken)
@@ -166,6 +173,18 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// navigation a sign-in ends in renders.
     /// </remarks>
     protected virtual Task OnThemeChangedAsync(UIThemeMode? previousMode, CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    /// <summary>
+    /// Runs when a page of this runtime reports another notification permission — the reader answered a
+    /// <c>RequestNotificationPermissionEffect</c>, or changed it in the browser's settings.
+    /// </summary>
+    /// <remarks>
+    /// Runs in a command's turn, as an attach's hooks do; <see cref="UIContext.Handle"/> is that page's connection, and
+    /// <see cref="UIContext.NotificationPermission"/> already the new one. The permission a page attaches with is read there, in
+    /// <see cref="OnAttachedAsync"/>: this runs only for a change after it.
+    /// </remarks>
+    protected virtual Task OnNotificationPermissionChangedAsync(UINotificationPermission previous, CancellationToken cancellationToken)
         => Task.CompletedTask;
 
     /// <summary>Gets whether the page holds work its reader has not saved; the controller sets and clears it itself.</summary>
@@ -230,6 +249,13 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ThrowIfDisposed();
 
         return OnThemeChangedAsync(previousMode, cancellationToken);
+    }
+
+    Task IUIControllerLifecycle.NotificationPermissionChangedAsync(UINotificationPermission previous, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+
+        return OnNotificationPermissionChangedAsync(previous, cancellationToken);
     }
 
     Task<UICommandResult> IUIControllerLifecycle.LeaveRequestedAsync(string target, CancellationToken cancellationToken)

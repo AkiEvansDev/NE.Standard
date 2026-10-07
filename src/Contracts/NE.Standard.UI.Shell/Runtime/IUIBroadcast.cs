@@ -11,17 +11,17 @@ namespace NE.Standard.UI.Shell.Runtime;
 /// </summary>
 /// <remarks>
 /// Each runtime reached runs the work as <see cref="IUIRuntimeAccess.Post"/> runs it: queued and returned from at once, between the
-/// runtime's exclusive commands and under its lock, one at a time in the order it was posted — every runtime of a topic in the same
+/// runtime's exclusive commands as a command's body runs, one at a time in the order it was posted — every runtime of a topic in the same
 /// order — and a failure goes to that
-/// controller's exception handler. A runtime no page looks at now (<see cref="IUIRuntimeAccess.HasViewers"/>) is passed over unless
-/// <c>viewersOnly</c> is <see langword="false"/>, and catches up when a page next attaches to it. Reaches the runtimes of this process
-/// only; answers how many it posted to.
+/// controller's exception handler. <c>viewers</c> picks the runtimes by who looks at them (<see cref="UIViewers"/>): by default one
+/// no page is attached to is passed over, and catches up when a page next attaches to it. Reaches the runtimes of this process only;
+/// answers how many it posted to.
 /// </remarks>
 public interface IUIBroadcast
 {
     /// <summary>Posts <paramref name="action"/> to every runtime subscribed to <paramref name="topic"/> through <see cref="UIContext.Subscribe"/>.</summary>
-    ValueTask<int> PostAsync(string topic, Func<IUIController, Task> action, bool viewersOnly = true, CancellationToken cancellationToken = default);
+    ValueTask<int> PostAsync(string topic, Func<IUIController, Task> action, UIViewers viewers = UIViewers.Connected, CancellationToken cancellationToken = default);
 
     /// <summary>Posts <paramref name="action"/> to every runtime of every session signed in as <paramref name="userId"/>, whatever its route.</summary>
-    ValueTask<int> PostToUserAsync(string userId, Func<IUIController, Task> action, bool viewersOnly = true, CancellationToken cancellationToken = default);
+    ValueTask<int> PostToUserAsync(string userId, Func<IUIController, Task> action, UIViewers viewers = UIViewers.Connected, CancellationToken cancellationToken = default);
 }

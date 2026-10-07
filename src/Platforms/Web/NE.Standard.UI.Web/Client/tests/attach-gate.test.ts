@@ -1,5 +1,6 @@
-// What a hub call waits behind: open once attached, pending again through a reconnect, and — once the connection is lost for good —
-// failing every waiting and every later call at once rather than leaving them waiting for ever.
+// What a hub call waits behind: open once attached, pending again through a reconnect, a failed attach and an attach answered with a
+// reload, and — once the connection is lost for good — failing every waiting and every later call at once rather than leaving them
+// waiting for ever.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -49,13 +50,13 @@ test("a reconnect during an attach keeps the gate the calls already wait on", as
     assert.equal(await settlement(waiting), "open");
 });
 
-test("a failed attach fails the calls waiting and arms again for the retry", async () => {
+test("a failed attach keeps the calls waiting for the retry, and the retry that attaches lets them through", async () => {
     const gate = new AttachGate();
     const waiting = gate.wait();
 
-    gate.failAttach(new Error("attach refused"));
+    gate.rearm();
 
-    assert.equal(await settlement(waiting), "failed: attach refused");
+    assert.equal(await settlement(waiting), "pending");
 
     const next = gate.wait();
 
@@ -63,7 +64,52 @@ test("a failed attach fails the calls waiting and arms again for the retry", asy
 
     gate.markAttached();
 
+    assert.equal(await settlement(waiting), "open");
     assert.equal(await settlement(next), "open");
+});
+
+test("a failed re-attach of an attached page holds the calls after it until the retry", async () => {
+    const gate = new AttachGate();
+
+    gate.markAttached();
+    gate.rearm();
+
+    const waiting = gate.wait();
+
+    assert.equal(await settlement(waiting), "pending");
+
+    gate.markAttached();
+
+    assert.equal(await settlement(waiting), "open");
+});
+
+test("an attach answered with a reload, or with a runtime built anew, keeps the gate shut; the page reloads or gives up", async () => {
+    for (const answer of [{ reload: true }, { fresh: true }]) {
+        const gate = new AttachGate();
+        const waiting = gate.wait();
+
+        gate.answered(answer);
+
+        assert.equal(await settlement(waiting), "pending");
+
+        gate.markAttached();
+        gate.answered(answer);
+
+        assert.equal(await settlement(gate.wait()), "pending");
+
+        gate.close(new Error("lost"));
+
+        assert.equal(await settlement(gate.wait()), "failed: lost");
+    }
+});
+
+test("an attach answered for a page that goes on opens the gate", async () => {
+    const gate = new AttachGate();
+    const waiting = gate.wait();
+
+    gate.answered({ reload: false, fresh: false });
+
+    assert.equal(await settlement(waiting), "open");
 });
 
 test("a lost connection fails the calls waiting and every call after, at once", async () => {
@@ -82,7 +128,7 @@ test("nothing opens a lost gate again", async () => {
 
     gate.close(new Error("lost"));
     gate.rearm();
-    gate.failAttach(new Error("attach refused"));
+    gate.rearm();
     gate.markAttached();
     gate.close(new Error("lost twice"));
 

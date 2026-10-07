@@ -80,6 +80,15 @@
     opacity: 1;
 }
 
+// The group carries the states; an option off of its own answers nothing. On, the ring and the dot lean, the ground between stays.
+.ui-toggle-answers(~".ui-radio-group@{ui-toggle-live} .ui-radio-group__item:not(:has(> .ui-radio-group__input:disabled))", ~".ui-radio-group__input", ~".ui-radio-group__dot", {
+    border-color: @ui-toggle-leaned;
+
+    &::after {
+        background: @ui-toggle-leaned;
+    }
+});
+
 // A size steps the dot with the text ui-input.less sizes; the mark inside stays a whole number of pixels.
 .ui-radio-group.ui-input--small .ui-radio-group__dot {
     width: 0.875rem;

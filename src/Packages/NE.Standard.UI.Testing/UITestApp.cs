@@ -150,7 +150,8 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
                     Id = instanceId,
                     WindowId = windowId,
                     Navigation = view.Navigation,
-                    StartsFromSnapshot = true
+                    StartsFromSnapshot = true,
+                    ClientState = new UIClientState(IsVisible: true, session.NotificationPermission)
                 },
                 cancellationToken
             ).ConfigureAwait(false);

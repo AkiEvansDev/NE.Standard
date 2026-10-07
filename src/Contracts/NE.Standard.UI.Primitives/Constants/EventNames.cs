@@ -89,7 +89,10 @@ public static class EventNames
     /// <summary>A tree node unfolded before its children are in the list; not <see cref="Expand"/>, which is a details element's toggle.</summary>
     public const string Unfold = "unfold";
 
-    /// <summary>A tree node dropped on another after a drag; the node's <c>DropTarget</c> names where.</summary>
+    /// <summary>
+    /// A row moved to another place among its own: a list's, a table's or a tab's carries the index it takes, a tree node's names its
+    /// new folder on its <c>DropTarget</c> too.
+    /// </summary>
     public const string Move = "move";
 
     /// <summary>A tree node the viewer asked to remove with the Delete key.</summary>
@@ -97,6 +100,11 @@ public static class EventNames
 
     /// <summary>An entry an application put into a tabs view's tab menu, carrying the entry's key and the tab's.</summary>
     public const string TabMenuEntry = "tab-menu-entry";
+
+    /// <summary>
+    /// Fires when a tab is pinned or unpinned from its menu; the framework puts it at the edge of the pinned tabs.
+    /// </summary>
+    public const string TabPin = "tab-pin";
 
     /// <summary>
     /// What a view's own key chord (<c>UIViewBase.CreateShortcuts</c>) is raised as on the view's content, its chord after it:

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Commands;
+using NE.Standard.UI.Shell.Runtime;
 
 namespace NE.Standard.UI.Controllers;
 
@@ -20,11 +21,14 @@ internal interface IUIControllerLifecycle
     /// <summary>A connection detached.</summary>
     Task DetachedAsync(CancellationToken cancellationToken);
 
-    /// <summary>A connection's session moved to another language; <see cref="Shell.Runtime.UIContext.Handle"/> is that connection.</summary>
+    /// <summary>A connection's session moved to another language; <see cref="UIContext.Handle"/> is that connection.</summary>
     Task LanguageChangedAsync(string previousLanguage, CancellationToken cancellationToken);
 
-    /// <summary>A connection's session moved to another theme mode; <see cref="Shell.Runtime.UIContext.Handle"/> is that connection.</summary>
+    /// <summary>A connection's session moved to another theme mode; <see cref="UIContext.Handle"/> is that connection.</summary>
     Task ThemeChangedAsync(UIThemeMode? previousMode, CancellationToken cancellationToken);
+
+    /// <summary>A connection's page reported another notification permission; <see cref="UIContext.Handle"/> is that connection.</summary>
+    Task NotificationPermissionChangedAsync(UINotificationPermission previous, CancellationToken cancellationToken);
 
     /// <summary>The reader starts to leave a page that holds unsaved work, for <paramref name="target"/>; answers what happens instead.</summary>
     Task<UICommandResult> LeaveRequestedAsync(string target, CancellationToken cancellationToken);

@@ -738,7 +738,7 @@ internal sealed partial class ChatController : UIControllerBase
                 other.Hear(chatId, author, words);
 
             return Task.CompletedTask;
-        }, viewersOnly: false, cancellationToken).ConfigureAwait(false);
+        }, UIViewers.All, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Posts the draft with a line for the files; nothing when there is neither.</summary>

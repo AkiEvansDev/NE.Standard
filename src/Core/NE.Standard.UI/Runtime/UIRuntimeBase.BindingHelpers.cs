@@ -44,6 +44,10 @@ internal abstract partial class UIRuntimeBase
         return result;
     }
 
+    /// <summary>The first <paramref name="count"/> keys: the row's own, or an ancestor's, out of keys that name more.</summary>
+    private static object?[] TakeDynamicParameters(object?[] source, int count)
+        => source.Length == count ? source : source[..count];
+
     private static bool TryBuildDynamicParameters(CompiledUIBinding binding, object[] materializedParameters, out object?[] dynamicParameters)
     {
         ArgumentNullException.ThrowIfNull(binding);

@@ -20,12 +20,14 @@ internal interface IUIRuntimeConnectionUpdater
     /// Tells the controller a connection attached with its navigation, once the runtime is ready for it; a render's own attach only
     /// tells it the navigation, and only where it built the runtime (<paramref name="created"/>).
     /// </summary>
+    /// <remarks>Waits for a command's turn, so it is never called from inside one.</remarks>
     Task NotifyAttachedAsync(UIHandle handle, bool created, CancellationToken cancellationToken);
 
     /// <summary>
     /// Tells the controller what moved in a connection's session since it last heard, as a command runs — what the page's own switch
     /// takes; the handle is already refreshed.
     /// </summary>
+    /// <remarks>Waits for a command's turn, so it is never called from inside one: a command's own switch tells the controller inline.</remarks>
     Task NotifySessionChangedAsync(UIHandle handle, CancellationToken cancellationToken);
 
     /// <summary>Whether the session moved in anything the controller hears since it last heard it.</summary>
@@ -38,6 +40,13 @@ internal interface IUIRuntimeConnectionUpdater
     void PostSessionChanged(UIHandle handle);
 
     void DetachConnection(string instanceId);
+
+    /// <summary>
+    /// Makes what a connection's page reports its handle's, counts it on screen or not, and tells the controller a changed
+    /// notification permission as a command runs.
+    /// </summary>
+    /// <remarks>Waits for a command's turn where it tells the controller, so it is never called from inside one.</remarks>
+    Task UpdateClientStateAsync(UIHandle handle, UIClientState state, CancellationToken cancellationToken);
 
     /// <summary>
     /// Reads a window of items for one instance and answers it what that changed; every other attached instance gets it from the

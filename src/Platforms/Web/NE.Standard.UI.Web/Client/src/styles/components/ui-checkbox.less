@@ -40,6 +40,12 @@
     border-color: var(--ui-color-primary);
 }
 
+// A box whose input is off of its own (a data grid's row that cannot be chosen) answers nothing either.
+.ui-toggle-answers(~".ui-checkbox:not(:has(> .ui-checkbox__input:is(:disabled, .ui-disabled)))", ~".ui-checkbox__input", ~".ui-checkbox__box", {
+    background: @ui-toggle-leaned;
+    border-color: @ui-toggle-leaned;
+});
+
 // The framework's own check mark, as a menu entry and a row's save button draw it, centred by the box.
 .ui-checkbox__box::after {
     .ui-check-glyph(@ui-glyph-sm);

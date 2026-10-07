@@ -52,7 +52,8 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     public bool? Renamable { get; set; }
 
     /// <summary>
-    /// Gets or sets whether tabs can be reordered by dragging their captions; a tab whose item says <c>CanDrag</c> false stays put.
+    /// Gets or sets whether tabs can be reordered by dragging their captions; a tab whose item says <c>CanDrag</c> false stays put,
+    /// and the server, which writes the orders, refuses its move.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? Draggable { get; set; }

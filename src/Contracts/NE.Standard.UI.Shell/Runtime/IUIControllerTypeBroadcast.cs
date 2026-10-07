@@ -11,7 +11,7 @@ namespace NE.Standard.UI.Shell.Runtime;
 /// </summary>
 internal interface IUIControllerTypeBroadcast
 {
-    ValueTask<int> PostAsync(string topic, Type controllerType, Func<IUIController, Task> action, bool viewersOnly, CancellationToken cancellationToken);
+    ValueTask<int> PostAsync(string topic, Type controllerType, Func<IUIController, Task> action, UIViewers viewers, CancellationToken cancellationToken);
 
-    ValueTask<int> PostToUserAsync(string userId, Type controllerType, Func<IUIController, Task> action, bool viewersOnly, CancellationToken cancellationToken);
+    ValueTask<int> PostToUserAsync(string userId, Type controllerType, Func<IUIController, Task> action, UIViewers viewers, CancellationToken cancellationToken);
 }

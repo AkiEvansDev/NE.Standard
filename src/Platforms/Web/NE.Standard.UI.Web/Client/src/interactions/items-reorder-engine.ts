@@ -27,6 +27,7 @@ import { allowedEffect, beginItemsDrag, carriedRows, isLiftable, offeredItems } 
 import { ownControlOf } from "./own-control.ts";
 import { dispatchRowEvent, focusedRow, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
 import { hostOf, KeyboardRowsRootSelector, rowBox, rowKey, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
+import { stripHostOf } from "./tab-rows.ts";
 
 const RowSelector = ".ui-items-view__item, .ui-table__row";
 const DraggingClass = "ui-row--dragging";
@@ -49,48 +50,74 @@ export type Flow = {
     readonly rightToLeft: boolean;
 };
 
-/** What a row's `move` carries past its keys: the index it takes in its collection. */
+/** What a row's `move` carries past its keys: the index it takes in its collection — a tab's, its place in the strip. */
 type ItemMoveDetail = {
     readonly index: number;
 };
 
-/** What a row's move asks of the rows moved ahead: the row put in its new place now, and settled once its command is answered. */
-export type MovesAhead = Pick<PendingMoves, "ahead" | "settle">;
+/** Raises a row's `move` with the index it takes: a list's, a table's, a tree node's or a tab's. */
+export function raiseItemMove(row: HTMLElement, index: number): void {
+    dispatchRowEvent(row, MoveEventName, { index } satisfies ItemMoveDetail);
+}
+
+/**
+ * What a row's move asks of the rows moved ahead: a list's row put in its new place now and settled once its command is answered;
+ * a strip a gesture already put in order (a tab's), brought back to the order its data holds once answered.
+ */
+export type MovesAhead = Pick<PendingMoves, "ahead" | "settle"> & {
+    readonly resort: (host: Element) => void;
+};
+
+/** A move standing ahead of its answer: a list's row the ledger keeps, or a strip to sort again. */
+type MadeMove = { readonly pending: PendingMove } | { readonly strip: Element };
 
 /**
  * How the pipeline reads a row's `move`: the index rides after the row's own keys, where `UIAction.ArgEventValue` reads it. Once the
- * pipeline takes it, the row stands at that index ahead of the command, and the command's answer settles it; with no `moves`, the
- * row waits for the server.
+ * pipeline takes it, a list's row stands at that index ahead of the command and the answer settles it; a tab's strip, which the drag
+ * already reordered, takes the order its data holds once answered, so a refused move puts the tab back. With no `moves`, the row
+ * waits for the server.
  */
 export function itemMoveEvent(moves?: MovesAhead): { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } {
     return {
         name: MoveEventName,
         registration: {
-            // A tree's `move` carries nothing and keeps its chain: its target travels on the node's own two-way value.
             dynamicParameters: context => {
                 const index = moveIndexOf(context.domEvent);
 
                 return index === null ? null : [...context.dynamicParameters, index];
             },
-            ...aheadOfAnswer<PendingMove>(domEvent => moves === undefined ? null : moveAhead(moves, domEvent), move => moves?.settle(move))
+            ...aheadOfAnswer<MadeMove>(
+                domEvent => moves === undefined ? null : moveAhead(moves, domEvent),
+                made => "pending" in made ? moves?.settle(made.pending) : moves?.resort(made.strip)
+            )
         }
     };
 }
 
-/** The index a row's `move` carries; null for a tree's, which carries none. */
+/** The index a row's `move` carries; null for a move with none. */
 function moveIndexOf(domEvent: Event): number | null {
     const index = domEvent instanceof CustomEvent ? (domEvent.detail as Partial<ItemMoveDetail> | null)?.index : undefined;
 
     return typeof index === "number" ? index : null;
 }
 
-/** Puts the row a `move` was raised on at the index it carries; null for a tree's move, or a row standing in no items host. */
-function moveAhead(moves: MovesAhead, domEvent: Event): PendingMove | null {
+/** Puts the list's row a `move` was raised on at the index it carries, or notes a tab's strip; null for a tree node's move. */
+function moveAhead(moves: MovesAhead, domEvent: Event): MadeMove | null {
     const index = moveIndexOf(domEvent);
-    const row = index === null || !(domEvent.target instanceof Element) ? null : domEvent.target.closest<HTMLElement>(RowSelector);
-    const host = row?.parentElement ?? null;
 
-    return index === null || row === null || host === null || !host.hasAttribute(ItemsHostAttribute) ? null : moves.ahead(host, rowKey(row), index);
+    if (index === null || !(domEvent.target instanceof Element))
+        return null;
+
+    const strip = stripHostOf(domEvent.target);
+
+    if (strip !== null)
+        return { strip };
+
+    const row = domEvent.target.closest<HTMLElement>(RowSelector);
+    const host = row?.parentElement ?? null;
+    const pending = row === null || host === null || !host.hasAttribute(ItemsHostAttribute) ? null : moves.ahead(host, rowKey(row), index);
+
+    return pending === null ? null : { pending };
 }
 
 /** The rules and the values the engine reads: whether a sort orders a host, and a virtualized host's whole collection. */
@@ -303,7 +330,7 @@ export class ItemsReorderEngine {
         this.endDrag();
 
         if (index !== null)
-            dispatchRowEvent(drag.row, MoveEventName, { index } satisfies ItemMoveDetail);
+            raiseItemMove(drag.row, index);
     }
 
     private endDrag(): void {
@@ -348,7 +375,7 @@ export class ItemsReorderEngine {
         const index = anchor === undefined ? null : this.indexOf({ host, row: current }, anchor, up ? "before" : "after");
 
         if (index !== null)
-            dispatchRowEvent(current, MoveEventName, { index } satisfies ItemMoveDetail);
+            raiseItemMove(current, index);
     }
 }
 

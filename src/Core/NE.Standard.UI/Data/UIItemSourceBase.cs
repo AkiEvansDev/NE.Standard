@@ -86,6 +86,11 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     // window and its offset.
     private readonly SemaphoreSlim _loading = new(1, 1);
 
+    // Short and synchronous, unlike the load gate, which is held across the author's read: a read's result is applied, and an
+    // Append/Prepend/Remove/Invalidate from a command, a post or a broadcast writes the window, one at a time. Not the command's
+    // turn: a scroll would wait out a long command, and a command that loads a window itself would wait for its own turn.
+    private readonly Lock _window = new();
+
     /// <summary>Gets the realized window — the items the client currently holds, in the order they are shown.</summary>
     /// <remarks>Mutate only through the <c>Append</c>/<c>Prepend</c>/<c>Remove</c> helpers, not by writing here directly.</remarks>
     [RecursiveMember(false)]
@@ -111,7 +116,8 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
             ArgumentNullException.ThrowIfNull(window);
             window.Validate(request);
 
-            ApplyWindow(request, window);
+            lock (_window)
+                ApplyWindow(request, window);
 
             if (request.Mode != UIItemWindowMode.Extend)
                 ReplacingCount = request.Count;
@@ -266,49 +272,86 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
+        lock (_window)
+        {
+            var index = IndexOf(key);
+
+            return index < 0 ? null : Items[index];
+        }
+    }
+
+    private int IndexOf(string key)
+    {
         for (var i = 0; i < Items.Count; i++)
         {
             if (string.Equals(Items[i].Id, key, StringComparison.Ordinal))
-                return Items[i];
+                return i;
         }
 
-        return null;
+        return -1;
     }
 
     /// <summary>
     /// Adds an item at the end of the window — a message that just arrived, for a viewer already at the end.
     /// </summary>
+    /// <remarks>An item the window already holds under that key — a read that brought it first — is replaced where it stands.</remarks>
     protected void Append(TItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        Items.Add(item);
-        HasMoreAfter = false;
+        lock (_window)
+        {
+            if (TryReplace(item))
+                return;
 
-        if (TotalCount is int total)
-            TotalCount = total + 1;
+            Items.Add(item);
+            HasMoreAfter = false;
 
-        // Trims after growing so a long-lived source never ends up holding everything it ever received.
-        TrimWindow(fromTheEnd: false);
+            if (TotalCount is int total)
+                TotalCount = total + 1;
+
+            // Trims after growing so a long-lived source never ends up holding everything it ever received.
+            TrimWindow(fromTheEnd: false);
+        }
+    }
+
+    /// <summary>Puts <paramref name="item"/> in the place of the one the window holds under its key, if it holds one; counted already.</summary>
+    private bool TryReplace(TItem item)
+    {
+        var index = IndexOf(item.Id);
+
+        if (index < 0)
+            return false;
+
+        Items[index] = item;
+
+        return true;
     }
 
     /// <summary>
     /// Adds an item at the start of the window.
     /// </summary>
+    /// <remarks>An item the window already holds under that key is replaced where it stands.</remarks>
     protected void Prepend(TItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        Items.Insert(0, item);
+        lock (_window)
+        {
+            if (TryReplace(item))
+                return;
 
-        // The window now starts one item earlier; an offset that disagrees with it would misplace later requests.
-        if (Offset is int offset && offset > 0)
-            Offset = offset - 1;
+            Items.Insert(0, item);
 
-        if (TotalCount is int total)
-            TotalCount = total + 1;
+            // The window now starts one item earlier; an offset that disagrees with it would misplace later requests.
+            if (Offset is int offset && offset > 0)
+                Offset = offset - 1;
 
-        TrimWindow(fromTheEnd: true);
+            if (TotalCount is int total)
+                TotalCount = total + 1;
+
+            TrimWindow(fromTheEnd: true);
+        }
     }
 
     /// <summary>
@@ -316,23 +359,28 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     /// </summary>
     protected bool Remove(string key)
     {
-        TItem? item = Find(key);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        if (item is null)
+        lock (_window)
         {
-            // Still one fewer item behind the window, and the scrollbar is drawn from that count.
-            if (TotalCount is int missing && missing > 0)
-                TotalCount = missing - 1;
+            var index = IndexOf(key);
 
-            return false;
+            if (index < 0)
+            {
+                // Still one fewer item behind the window, and the scrollbar is drawn from that count.
+                if (TotalCount is int missing && missing > 0)
+                    TotalCount = missing - 1;
+
+                return false;
+            }
+
+            Items.RemoveAt(index);
+
+            if (TotalCount is int total && total > 0)
+                TotalCount = total - 1;
+
+            return true;
         }
-
-        _ = Items.Remove(item);
-
-        if (TotalCount is int total && total > 0)
-            TotalCount = total - 1;
-
-        return true;
     }
 
     /// <summary>
@@ -340,12 +388,15 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     /// </summary>
     protected void Invalidate()
     {
-        Items.Clear();
+        lock (_window)
+        {
+            Items.Clear();
 
-        Offset = null;
-        TotalCount = null;
-        HasMoreBefore = false;
-        HasMoreAfter = false;
-        GroupBefore = null;
+            Offset = null;
+            TotalCount = null;
+            HasMoreBefore = false;
+            HasMoreAfter = false;
+            GroupBefore = null;
+        }
     }
 }

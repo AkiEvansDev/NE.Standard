@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
+using NE.Standard.UI.Files;
 
 namespace NE.Standard.UI.Web.Hosting;
 
@@ -15,18 +16,30 @@ namespace NE.Standard.UI.Web.Hosting;
 /// <remarks>
 /// In memory, since a value lives only between staging and the fetch/update that names it — both of which reach the server that
 /// staged it, per SignalR's sticky sessions. A client's value is kept as the JSON it arrived as and read when it is taken: the
-/// bytes are what the allowance counts, and the object graph they read into is several times larger.
+/// bytes are what the allowance counts, and the object graph they read into is several times larger. Each direction has an
+/// allowance of its own, so a page's own values never crowd out what the reader sends.
 /// </remarks>
 internal sealed class WebValueStagingStore
 {
     private readonly ConcurrentDictionary<string, IncomingValue> _incoming = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, OutgoingValue> _outgoing = new(StringComparer.Ordinal);
     private readonly WebSessionAllowance _allowance = new();
+    private readonly WebSessionAllowance _outgoingAllowance = new();
+
+    // Every token in the order it was staged, which is the order it expires in: the retention is one for all.
+    private readonly ConcurrentQueue<(DateTimeOffset ExpiresAt, string Token)> _expiries = new();
+    private readonly Lock _sweepSync = new();
+
+    // The tokens each connection's last attach staged: dead once the connection attaches again or closes.
+    private readonly ConcurrentDictionary<string, string[]> _attaches = new(StringComparer.Ordinal);
+
     private readonly TimeProvider _time;
     private readonly JsonSerializerOptions _json;
     private readonly TimeSpan _retention;
     private readonly long _maxPerSession;
     private readonly long _maxTotal;
+    private readonly long _maxOutgoingPerSession;
+    private readonly long _maxOutgoingTotal;
 
     /// <summary>How many values are staged now, both ways, for the web meter.</summary>
     public int Count => _incoming.Count + _outgoing.Count;
@@ -39,7 +52,7 @@ internal sealed class WebValueStagingStore
             long size = 0;
 
             foreach (KeyValuePair<string, IncomingValue> entry in _incoming)
-                size += entry.Value.Bytes;
+                size += entry.Value.Json.Length;
 
             foreach (KeyValuePair<string, OutgoingValue> entry in _outgoing)
                 size += entry.Value.Json.Length;
@@ -62,6 +75,8 @@ internal sealed class WebValueStagingStore
         _retention = options.Value.StagingRetention;
         _maxPerSession = options.Value.MaxStagedBytesPerSession;
         _maxTotal = options.Value.MaxStagedBytesTotal ?? 0;
+        _maxOutgoingPerSession = options.Value.MaxOutgoingStagedBytesPerSession;
+        _maxOutgoingTotal = options.Value.MaxOutgoingStagedBytesTotal ?? 0;
     }
 
     /// <summary>
@@ -79,20 +94,29 @@ internal sealed class WebValueStagingStore
         return _allowance.Open(sessionId, _maxPerSession, _maxTotal);
     }
 
-    // Swept on the way in, not by a timer: the store only grows when something is staged.
+    // Swept on the way in, not by a timer: the store only grows when something is staged. Off the queue's head, so a sweep costs
+    // what expired, never every value staged.
     private void RemoveExpired(DateTimeOffset now)
     {
-        foreach (KeyValuePair<string, IncomingValue> entry in _incoming)
+        lock (_sweepSync)
         {
-            if (entry.Value.ExpiresAt <= now && _incoming.TryRemove(entry.Key, out IncomingValue removed))
-                _allowance.Release(removed.SessionId, removed.Bytes);
-        }
+            // One sweeper at a time, so the head peeked is the head taken.
+            while (_expiries.TryPeek(out (DateTimeOffset ExpiresAt, string Token) head) && head.ExpiresAt <= now)
+            {
+                _ = _expiries.TryDequeue(out _);
 
-        foreach (KeyValuePair<string, OutgoingValue> entry in _outgoing)
-        {
-            if (entry.Value.ExpiresAt <= now)
-                _ = _outgoing.TryRemove(entry.Key, out _);
+                if (_incoming.TryRemove(head.Token, out IncomingValue incoming))
+                    _allowance.Release(incoming.SessionId, incoming.Bytes);
+                else
+                    RemoveOutgoing(head.Token);
+            }
         }
+    }
+
+    private void RemoveOutgoing(string token)
+    {
+        if (_outgoing.TryRemove(token, out OutgoingValue? removed))
+            _outgoingAllowance.Release(removed.SessionId, removed.Bytes);
     }
 
     /// <summary>
@@ -109,6 +133,7 @@ internal sealed class WebValueStagingStore
         var token = Guid.NewGuid().ToString("N");
 
         _incoming[token] = new IncomingValue(claim.SessionId, json, now + _retention, claim.Keep());
+        _expiries.Enqueue((now + _retention, token));
 
         return token;
     }
@@ -161,28 +186,68 @@ internal sealed class WebValueStagingStore
     }
 
     /// <summary>
-    /// Stages the JSON of a value the server sends to <paramref name="readers"/> tabs of a session, and returns the token they fetch it by.
+    /// Stages the JSON of a value the server sends to the session's <paramref name="readers"/> — the instances the change set goes
+    /// to — and answers the token they fetch it by; false, staging nothing, where it would cross
+    /// <see cref="WebValueOptions.MaxOutgoingStagedBytesPerSession"/> or <see cref="WebValueOptions.MaxOutgoingStagedBytesTotal"/>,
+    /// and the value travels inline instead.
     /// </summary>
-    public string StageOutgoing(string sessionId, byte[] json, int readers)
+    /// <remarks>An attach's tokens are named by <paramref name="attachOf"/>, its connection, so its next attach lets them go.</remarks>
+    public bool TryStageOutgoing(string sessionId, byte[] json, IReadOnlyCollection<string> readers, string? attachOf, out string token)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentNullException.ThrowIfNull(json);
+        ArgumentNullException.ThrowIfNull(readers);
 
         DateTimeOffset now = _time.GetUtcNow();
 
         RemoveExpired(now);
 
-        var token = Guid.NewGuid().ToString("N");
+        token = string.Empty;
+        long bytes;
 
-        _outgoing[token] = new OutgoingValue(sessionId, json, now + _retention, Math.Max(1, readers));
+        using (WebSessionAllowance.Claim claim = _outgoingAllowance.Open(sessionId, _maxOutgoingPerSession, _maxOutgoingTotal))
+        {
+            if (!claim.TryReserve(json.LongLength + UIAllowanceCharge.EntryBytes))
+                return false;
 
-        return token;
+            bytes = claim.Keep();
+        }
+
+        token = Guid.NewGuid().ToString("N");
+
+        _outgoing[token] = new OutgoingValue(sessionId, json, now + _retention, bytes, readers);
+        _expiries.Enqueue((now + _retention, token));
+
+        if (attachOf is not null)
+        {
+            var staged = token;
+
+            _ = _attaches.AddOrUpdate(attachOf, [staged], (_, held) => [.. held, staged]);
+        }
+
+        return true;
     }
 
     /// <summary>
-    /// Reads the JSON a token names for the session, and lets it go once every tab it was sent to has read it.
+    /// Lets go of the values a connection's last attach staged: once it attaches again its new snapshot carries its own, and once it
+    /// closes nothing fetches them.
     /// </summary>
-    public bool TryRead(string sessionId, string token, out byte[] json)
+    public void ReleaseAttach(string connectionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionId);
+
+        if (!_attaches.TryRemove(connectionId, out var tokens))
+            return;
+
+        foreach (var token in tokens)
+            RemoveOutgoing(token);
+    }
+
+    /// <summary>
+    /// Reads the JSON a token names for the session, and lets it go once every instance it was sent to has read it. A read by an
+    /// instance that already read it, or names none, spends nothing: a retry of one tab must not spend another's read.
+    /// </summary>
+    public bool TryRead(string sessionId, string token, string? instanceId, out byte[] json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -194,12 +259,12 @@ internal sealed class WebValueStagingStore
 
         if (staged.ExpiresAt <= _time.GetUtcNow())
         {
-            _ = _outgoing.TryRemove(token, out _);
+            RemoveOutgoing(token);
             return false;
         }
 
-        if (Interlocked.Decrement(ref staged.Readers) <= 0)
-            _ = _outgoing.TryRemove(token, out _);
+        if (instanceId is not null && staged.ReadBy(instanceId))
+            RemoveOutgoing(token);
 
         json = staged.Json;
         return true;
@@ -207,15 +272,25 @@ internal sealed class WebValueStagingStore
 
     private readonly record struct IncomingValue(string SessionId, ReadOnlyMemory<byte> Json, DateTimeOffset ExpiresAt, long Bytes);
 
-    private sealed class OutgoingValue(string sessionId, byte[] json, DateTimeOffset expiresAt, int readers)
+    private sealed class OutgoingValue(string sessionId, byte[] json, DateTimeOffset expiresAt, long bytes, IReadOnlyCollection<string> readers)
     {
+        // The instances yet to read it; a set rather than a count, so one instance's second read is not another's.
+        private readonly HashSet<string> _unread = new(readers, StringComparer.Ordinal);
+
         public string SessionId { get; } = sessionId;
 
         public byte[] Json { get; } = json;
 
         public DateTimeOffset ExpiresAt { get; } = expiresAt;
 
-        // A field, not a property: the count is decremented in place by every tab that reads it.
-        public int Readers = readers;
+        /// <summary>What the value counts against the session's outgoing allowance.</summary>
+        public long Bytes { get; } = bytes;
+
+        /// <summary>Marks the instance's read, and answers whether every instance has now read it.</summary>
+        public bool ReadBy(string instanceId)
+        {
+            lock (_unread)
+                return _unread.Remove(instanceId) && _unread.Count == 0;
+        }
     }
 }
