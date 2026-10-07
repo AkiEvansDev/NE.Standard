@@ -1,3 +1,4 @@
+@import "../mixins/responsive.less";
 @import "../mixins/surface-image.less";
 
 .ui-scroll {
@@ -6,8 +7,9 @@
     scrollbar-gutter: stable;
     // Declared so BorderThickness has something to draw with — see the note on .ui-stack-panel.
     border-style: solid;
-    border-width: 0;
+    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-color: transparent;
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
     background-color: var(--ui-surface-color, transparent);
     // `::before`, so the blur's layer comes ahead of the content it stays under while that scrolls.
     .ui-surface-image(before; true);

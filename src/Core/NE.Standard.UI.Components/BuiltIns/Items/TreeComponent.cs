@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -19,7 +18,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// keyed list in walking order, each naming the node above it.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
-[UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
@@ -31,9 +29,6 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     where T : TreeComponent<T>, IUIComponentDefinition
 {
     private const double DefaultIndent = 16;
-
-    // A tree is a list in a panel and draws no edge of its own.
-    private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(0);
 
     /// <summary>
     /// Gets or sets how far each level steps in from the one above, in pixels.

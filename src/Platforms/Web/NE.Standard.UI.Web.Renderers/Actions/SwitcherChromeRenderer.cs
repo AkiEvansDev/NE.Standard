@@ -29,7 +29,7 @@ internal static class SwitcherChromeRenderer
 
         ButtonRendererBase.RenderButtonLook(context, root);
 
-        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, "--ui-padding");
+        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
 
         SurfaceStyleRenderer.RenderBackground(context, root, ISurfaceComponent.BackgroundProperty);
 

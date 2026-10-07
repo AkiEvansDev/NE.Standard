@@ -2,6 +2,7 @@
 // Escape is one document listener over every dismissal, closing only one popup: the innermost, else the newest. A popup behind an
 // open modal dialog is left alone: a press in the dialog is not outside it, and Escape is the dialog's.
 
+import { isCancellingField } from "./field-escape.ts";
 import { isInRenameField } from "./inline-rename.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 
@@ -39,8 +40,8 @@ function installEscape(): void {
 
     document.addEventListener("keydown", domEvent => {
         // A key already taken — a drag cancelled by it — is not also a popup's; nor is a rename field's, which cancels the rename, where
-        // closing its popup first would take the focus away and its blur would save it.
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isInRenameField(domEvent.target))
+        // closing its popup first would take the focus away and its blur would save it; nor a field's whose Escape is its cancel.
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isInRenameField(domEvent.target) || isCancellingField(domEvent.target))
             return;
 
         if (dismissNewest())

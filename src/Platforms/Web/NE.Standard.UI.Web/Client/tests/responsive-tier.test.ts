@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { currentResponsiveTier, resolveResponsiveTier, responsiveVariable, toResponsiveTier } from "../src/rendering/responsive-tier.ts";
+import { currentResponsiveTier, resolveResponsiveTier, resolveTier, responsiveTierQuery, responsiveVariable, toResponsiveTier } from "../src/rendering/responsive-tier.ts";
 
 test("a bare value answers for the base tier alone", () => {
     assert.equal(toResponsiveTier(2, "base"), 2);
@@ -42,4 +42,17 @@ test("the viewport's tier is the widest min-width query that matches", () => {
 test("a tier's variable is the bare name for base and a suffix for the rest", () => {
     assert.equal(responsiveVariable("--ui-split-columns", "base"), "--ui-split-columns");
     assert.equal(responsiveVariable("--ui-split-columns", "xl"), "--ui-split-columns-xl");
+});
+
+test("the cascade reads any source, and an empty answer is no answer", () => {
+    const own: Record<string, string> = { base: "1fr", md: "2fr 1fr" };
+
+    assert.equal(resolveTier("xl", tier => own[tier]), "2fr 1fr");
+    assert.equal(resolveTier("sm", tier => own[tier]), "1fr");
+    assert.equal(resolveTier("xxl", () => undefined), undefined);
+});
+
+test("a tier's query is the stylesheet's min-width at its breakpoint", () => {
+    assert.equal(responsiveTierQuery("md"), "(min-width: 768px)");
+    assert.equal(responsiveTierQuery("xxl"), "(min-width: 1536px)");
 });

@@ -37,6 +37,8 @@ if (typeof window !== "undefined") {
     window.addEventListener("keydown", domEvent => noteKey(domEvent), true);
     // The focus event too, which comes before focusin: an element focused by a script after a press (a list taking its one tab stop
     // back) matched `:focus` unmarked in between, and a style read there started the keyboard row's wash, which then faded out.
+    // Even this is late, since the browser reads the style once the focus has moved and before the event: a focus the framework
+    // makes is marked ahead of it (focusAsLastInput), and a list marks the root a press is about to focus (ItemsSelectionEngine).
     window.addEventListener("focus", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusin", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusout", domEvent => markPointerFocus(domEvent.target, false), true);
@@ -117,8 +119,9 @@ export function markPointerFocus(target: EventTarget | null, pointer: boolean): 
         target.toggleAttribute(PointerFocusAttribute, pointer);
 }
 
-/** Focuses an element without scrolling the page out from under the pointer; the focus rule above marks it if the pointer was last. */
+/** Focuses an element without scrolling the page out from under the pointer, marked first if the pointer was last (the rule above). */
 export function focusAsLastInput(element: HTMLElement): void {
+    noteFocus(element);
     element.focus({ preventScroll: true });
 }
 

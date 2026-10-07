@@ -54,6 +54,8 @@ internal abstract partial class UIRuntimeBase
 
     private readonly Queue<(string Operation, Func<CancellationToken, Task> Action)> _posted = new();
     private bool _drainingPosted;
+    // Completed once the drain running when it was asked for runs dry: what a test waits on to see posted work's effect.
+    private TaskCompletionSource? _postedDrained;
 
     /// <inheritdoc />
     public void Post(Func<CancellationToken, Task> action)
@@ -90,20 +92,41 @@ internal abstract partial class UIRuntimeBase
 
     private async Task DrainPostedAsync()
     {
-        while (true)
-        {
-            (string Operation, Func<CancellationToken, Task> Action) next;
-
-            lock (_posted)
-            {
-                if (!_posted.TryDequeue(out next))
-                {
-                    _drainingPosted = false;
-                    return;
-                }
-            }
-
+        while (TakePosted(out (string Operation, Func<CancellationToken, Task> Action) next))
             await RunPostedAsync(next.Operation, next.Action).ConfigureAwait(false);
+    }
+
+    /// <summary>Takes the next posted work; with none left, ends the drain and lets go of whoever waits for it to run dry.</summary>
+    private bool TakePosted(out (string Operation, Func<CancellationToken, Task> Action) next)
+    {
+        TaskCompletionSource? drained;
+
+        lock (_posted)
+        {
+            if (_posted.TryDequeue(out next))
+                return true;
+
+            _drainingPosted = false;
+            drained = _postedDrained;
+            _postedDrained = null;
+        }
+
+        drained?.SetResult();
+
+        return false;
+    }
+
+    /// <summary>Completes once the work posted so far has run — at once where none is queued; a test's way to see what it did.</summary>
+    internal Task WhenPostedRanAsync()
+    {
+        lock (_posted)
+        {
+            if (!_drainingPosted)
+                return Task.CompletedTask;
+
+            _postedDrained ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            return _postedDrained.Task;
         }
     }
 
@@ -173,41 +196,115 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <inheritdoc />
-    public async Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, UIHandle? except = null, CancellationToken cancellationToken = default)
+    public Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, UIHandle? except = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(effects);
 
         if (effects.Count == 0)
-            return;
+            return Task.CompletedTask;
 
-        // The command-result channel with no command behind it, as SendEffectsAsync takes to its one connection.
+        UICommandExecutionResult result = OutsideCommand(effects);
+        IReadOnlyList<UIHandle> viewers = ViewerHandles;
+        UIHandle? hiddenShower = PickSystemNotificationPage(viewers, except, UINotificationWhen.WhenHidden);
+        UIHandle? alwaysShower = PickSystemNotificationPage(viewers, except, UINotificationWhen.Always);
+
+        return SendEachAsync(viewers, viewer => IsSame(viewer, except) ? null : ForPage(result, viewer, hiddenShower, alwaysShower), cancellationToken);
+    }
+
+    /// <summary>
+    /// Effects raised outside a command, resolved, on the command-result channel with no command behind it — the one way every send
+    /// outside a command builds what it sends.
+    /// </summary>
+    private UICommandExecutionResult OutsideCommand(IReadOnlyList<ClientEffect> effects)
+    {
         UICommandResult command = UICommandResult.Ok(ResolveEffects(effects));
-        UICommandExecutionResult result = new()
+
+        return new UICommandExecutionResult
         {
             Command = command,
             Changes = WithPageStateAhead(ServerChangeSet.Empty, command)
         };
+    }
 
+    /// <summary>
+    /// The one page of a reader's that shows a system notification as the system's, so it sounds once rather than once a page: for
+    /// one shown <see cref="UINotificationWhen.Always"/> the first on screen, else the first off screen; for one shown only off
+    /// screen none while any page is on screen — the reader is told there — else the first off screen.
+    /// </summary>
+    /// <remarks>Shared by a send to a runtime's pages and a send to a session's, which pass every page of the session.</remarks>
+    internal static UIHandle? PickSystemNotificationPage(IReadOnlyList<UIHandle> pages, UIHandle? except, UINotificationWhen when)
+    {
+        UIHandle? offScreen = null;
+
+        for (var i = 0; i < pages.Count; i++)
+        {
+            UIHandle page = pages[i];
+
+            if (page.ClientState.IsVisible)
+            {
+                if (when == UINotificationWhen.WhenHidden)
+                    return null;
+
+                if (!IsSame(page, except))
+                    return page;
+            }
+            else if (offScreen is null && !IsSame(page, except))
+            {
+                offScreen = page;
+            }
+        }
+
+        return offScreen;
+    }
+
+    private static bool IsSame(UIHandle page, UIHandle? other)
+        => other is not null && StringComparer.Ordinal.Equals(page.Instance.Id, other.Instance.Id);
+
+    /// <summary>The result as one page is sent it: without the system notifications it does not show; null where nothing is left.</summary>
+    private static UICommandExecutionResult? ForPage(UICommandExecutionResult result, UIHandle page, UIHandle? hiddenShower, UIHandle? alwaysShower)
+    {
+        ClientEffect[] effects = result.Command.Effects;
+        List<ClientEffect>? kept = null;
+
+        for (var i = 0; i < effects.Length; i++)
+        {
+            if (effects[i] is ShowSystemNotificationEffect notification && !GetsSystemNotification(page, notification.When, notification.When == UINotificationWhen.Always ? alwaysShower : hiddenShower))
+                kept ??= [.. effects.AsSpan(0, i)];
+            else
+                kept?.Add(effects[i]);
+        }
+
+        if (kept is null)
+            return result;
+
+        return kept.Count == 0 ? null : result with { Command = UICommandResult.Ok(kept) };
+    }
+
+    /// <summary>
+    /// Whether a page is sent a system notification: the page <see cref="PickSystemNotificationPage"/> picked, and for one shown only
+    /// off screen every page on screen too, which shows its fallback.
+    /// </summary>
+    internal static bool GetsSystemNotification(UIHandle page, UINotificationWhen when, UIHandle? picked)
+        => ReferenceEquals(page, picked) || (when == UINotificationWhen.WhenHidden && page.ClientState.IsVisible);
+
+    /// <summary>Sends each page what <paramref name="resultFor"/> picks for it, none where it picks nothing; one failed send stops no other.</summary>
+    private async Task SendEachAsync(IReadOnlyList<UIHandle> pages, Func<UIHandle, UICommandExecutionResult?> resultFor, CancellationToken cancellationToken)
+    {
         IUIUpdateSink updates = Connection.ClientServices.Updates;
         ExceptionDispatchInfo? failure = null;
 
-        // While a page is on screen, the reader is told there: a page off screen leaves out what it would show only off screen.
-        UICommandExecutionResult? offScreen = HasVisibleViewers ? WithoutHiddenOnly(result) : result;
-
-        foreach (UIHandle viewer in ViewerHandles)
+        for (var i = 0; i < pages.Count; i++)
         {
-            if (except is not null && StringComparer.Ordinal.Equals(viewer.Instance.Id, except.Instance.Id))
-                continue;
-
-            UICommandExecutionResult? sent = viewer.ClientState.IsVisible ? result : offScreen;
+            UIHandle page = pages[i];
+            UICommandExecutionResult? sent = resultFor(page);
 
             if (sent is null)
                 continue;
 
             try
             {
-                await updates.SendCommandResultAsync(viewer, sent, cancellationToken).ConfigureAwait(false);
+                await updates.SendCommandResultAsync(page, sent, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
@@ -219,22 +316,19 @@ internal abstract partial class UIRuntimeBase
         failure?.Throw();
     }
 
-    /// <summary>The result without the system notifications shown only off screen; null where nothing else is left in it.</summary>
-    private static UICommandExecutionResult? WithoutHiddenOnly(UICommandExecutionResult result)
+    /// <inheritdoc />
+    public Task SendEffectsToAsync(IReadOnlyList<UIHandle> pages, IReadOnlyList<ClientEffect> effects, CancellationToken cancellationToken = default)
     {
-        ClientEffect[] effects = result.Command.Effects;
-        List<ClientEffect> kept = new(effects.Length);
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(pages);
+        ArgumentNullException.ThrowIfNull(effects);
 
-        for (var i = 0; i < effects.Length; i++)
-        {
-            if (effects[i] is not ShowSystemNotificationEffect { When: UINotificationWhen.WhenHidden })
-                kept.Add(effects[i]);
-        }
+        if (effects.Count == 0)
+            return Task.CompletedTask;
 
-        if (kept.Count == effects.Length)
-            return result;
+        UICommandExecutionResult result = OutsideCommand(effects);
 
-        return kept.Count == 0 ? null : result with { Command = UICommandResult.Ok(kept) };
+        return SendEachAsync(pages, _ => result, cancellationToken);
     }
 
     /// <inheritdoc />

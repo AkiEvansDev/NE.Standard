@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Frozen;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Hosting;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
@@ -38,6 +41,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         ContainerComponent.ComponentTypeKey, StackPanelComponent.ComponentTypeKey, WrapPanelComponent.ComponentTypeKey,
         SurfaceComponent.ComponentTypeKey, ScrollContainerComponent.ComponentTypeKey
     }.ToFrozenSet(StringComparer.Ordinal);
+
+    // The sides a view's own buttons open (ButtonComponent.OpensDrawer), read off the compiled state once per view.
+    private static readonly ConditionalWeakTable<CompiledView, StrongBox<(bool Left, bool Right)>> DrawerOpeners = [];
 
     private readonly IWebRendererRegistry _renderers;
     private readonly ITranslator _translator;
@@ -92,12 +98,19 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         ArgumentNullException.ThrowIfNull(metadata);
 
         CompiledView view = viewResolution.View;
-        // A left side that is a rail alone is a bar along the page's bottom on a phone, not a drawer, so it has no button.
-        var bottomBar = view.Options.SideDrawers && IsRailAlone(view, RegionNames.LeftSide);
+        // A left side that is a rail alone is a bar along the page's bottom on a phone, not a drawer, so it has no button; unless the
+        // view keeps it a drawer, where the rail is drawn as a list.
+        var railAlone = view.Options.SideDrawers && IsRailAlone(view, RegionNames.LeftSide);
+        var bottomBar = railAlone && view.Options.RailBottomBar;
+        var railDrawer = railAlone && !view.Options.RailBottomBar;
         var leftDrawer = !bottomBar && HasRegion(view, RegionNames.LeftSide);
         var rightDrawer = HasRegion(view, RegionNames.RightSide);
+        // A side the page opens by a button of its own gets none of the shell's, so a header collapsed on a phone leaves no band for it.
+        (var leftOpener, var rightOpener) = OwnOpeners(view);
+        var leftToggle = leftDrawer && !leftOpener;
+        var rightToggle = rightDrawer && !rightOpener;
         // The band that carries the drawers' buttons: the header, or the content where a page has none.
-        var toggles = view.Options.SideDrawers ? ToggleHost(view, leftDrawer, rightDrawer) : null;
+        var toggles = view.Options.SideDrawers ? ToggleHost(view, leftToggle, rightToggle) : null;
         // A keyboard reader would otherwise Tab through the whole side, a sidebar menu's every entry, before reaching the page.
         var skipLink = HasRegion(view, RegionNames.LeftSide);
 
@@ -126,14 +139,21 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                 if (bottomBar && string.Equals(region.Key, RegionNames.LeftSide, StringComparison.Ordinal))
                     _ = section.Attribute(WebAttributes.BottomBar);
 
+                if (railDrawer && string.Equals(region.Key, RegionNames.LeftSide, StringComparison.Ordinal))
+                    _ = section.Attribute(WebAttributes.RailDrawer);
+
+                // What the drawer's buttons name as the region they open.
+                if (view.Options.SideDrawers && IsDrawer(region.Key, leftDrawer, rightDrawer))
+                    _ = section.Attribute("id", WebAttributes.DrawerId(region.Key));
+
                 var carriesToggles = string.Equals(region.Key, toggles, StringComparison.Ordinal);
 
-                if (carriesToggles && leftDrawer)
+                if (carriesToggles && leftToggle)
                     RenderDrawerToggle(section, RegionNames.LeftSide, viewResolution);
 
                 RenderRoot(viewResolution, region.RootComponentId, section, metadata, values);
 
-                if (carriesToggles && rightDrawer)
+                if (carriesToggles && rightToggle)
                     RenderDrawerToggle(section, RegionNames.RightSide, viewResolution);
             });
         }
@@ -202,6 +222,26 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private static bool HasRegion(CompiledView view, string key)
         => FindRegion(view, key) is not null;
 
+    /// <summary>The sides a button of the view's own opens (<see cref="ButtonComponent{T}.OpensDrawer"/>).</summary>
+    private static (bool Left, bool Right) OwnOpeners(CompiledView view)
+        => DrawerOpeners.GetValue(view, static view =>
+        {
+            (bool Left, bool Right) openers = default;
+
+            foreach (UIComponentState state in view.State.All)
+            {
+                if (!state.TryGet(ButtonComponent.OpensDrawerProperty, out CompiledUIPropertyValue? value) || value.IsBind)
+                    continue;
+
+                if (value.Value is UISide.Left)
+                    openers.Left = true;
+                else if (value.Value is UISide.Right)
+                    openers.Right = true;
+            }
+
+            return new StrongBox<(bool Left, bool Right)>(openers);
+        }).Value;
+
     private static string? ToggleHost(CompiledView view, bool leftDrawer, bool rightDrawer)
         => !leftDrawer && !rightDrawer ? null
             : HasRegion(view, RegionNames.Header) ? RegionNames.Header
@@ -243,6 +283,10 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             _ => SideMenu(view, side) is null ? "complementary" : "navigation"
         };
 
+    private static bool IsDrawer(string key, bool leftDrawer, bool rightDrawer)
+        => (leftDrawer && string.Equals(key, RegionNames.LeftSide, StringComparison.Ordinal))
+            || (rightDrawer && string.Equals(key, RegionNames.RightSide, StringComparison.Ordinal));
+
     /// <summary>The button that opens one side as a drawer; the stylesheet shows it only on a narrow screen, and draws its burger.</summary>
     private void RenderDrawerToggle(IHtmlElementBuilder section, string side, UIViewResolution resolution)
         => _ = section.Element("button", toggle =>
@@ -251,7 +295,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                 .Class(DrawerToggleClass)
                 .Attribute("type", "button")
                 .Attribute(WebAttributes.DrawerToggle, side)
-                .Attribute("aria-expanded", "false");
+                .Attribute("aria-expanded", "false")
+                .Attribute("aria-controls", WebAttributes.DrawerId(side));
 
             WebWords.Write(_translator, resolution.Session.Language, toggle, "aria-label", UIStrings.SideOpen);
         });
@@ -356,12 +401,12 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private static void RenderDialogLayout(CompiledDialog dialog, IHtmlElementBuilder surface)
     {
         // A component's words, written as a component's are: Fill is the overlay's room less the panel's margins (ui-dialog.less).
-        WriteDialogLength(surface, dialog.Width, "--ui-width", UIOrientation.Horizontal);
-        WriteDialogLength(surface, dialog.MinWidth, "--ui-min-width", UIOrientation.Horizontal);
-        WriteDialogLength(surface, dialog.MaxWidth, "--ui-max-width", UIOrientation.Horizontal);
-        WriteDialogLength(surface, dialog.Height, "--ui-height", UIOrientation.Vertical);
-        WriteDialogLength(surface, dialog.MinHeight, "--ui-min-height", UIOrientation.Vertical);
-        WriteDialogLength(surface, dialog.MaxHeight, "--ui-max-height", UIOrientation.Vertical);
+        WriteDialogLength(surface, dialog.Width, WebResponsiveCss.WidthVariable, UIOrientation.Horizontal);
+        WriteDialogLength(surface, dialog.MinWidth, WebResponsiveCss.MinWidthVariable, UIOrientation.Horizontal);
+        WriteDialogLength(surface, dialog.MaxWidth, WebResponsiveCss.MaxWidthVariable, UIOrientation.Horizontal);
+        WriteDialogLength(surface, dialog.Height, WebResponsiveCss.HeightVariable, UIOrientation.Vertical);
+        WriteDialogLength(surface, dialog.MinHeight, WebResponsiveCss.MinHeightVariable, UIOrientation.Vertical);
+        WriteDialogLength(surface, dialog.MaxHeight, WebResponsiveCss.MaxHeightVariable, UIOrientation.Vertical);
 
         if (dialog.Margin is UIResponsive<UIThickness> margin)
             WebResponsiveCss.WriteMargin(surface, margin);
@@ -374,7 +419,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
         // Written here, not in the stylesheet: a cap in the chain's default would clamp a width the author named.
         if (dialog.Placement == UIDialogPlacement.Center && dialog.Width is null && dialog.MaxWidth is null)
-            _ = surface.Style("--ui-max-width-sm", CenteredDialogWidthCap);
+            _ = surface.Style(WebResponsiveCss.TierName(WebResponsiveCss.MaxWidthVariable, UIResponsiveTier.Sm), CenteredDialogWidthCap);
     }
 
     private static void WriteDialogLength(IHtmlElementBuilder surface, UIResponsive<UILayoutLength>? value, string cssVariableName, UIOrientation axis)

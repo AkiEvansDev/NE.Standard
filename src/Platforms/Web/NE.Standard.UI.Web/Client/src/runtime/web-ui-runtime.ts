@@ -51,7 +51,7 @@ import { BreadcrumbsEngine } from "../interactions/breadcrumbs-engine";
 import { ColorInputEngine } from "../interactions/color-input-engine";
 import { TableColumns, TableColumnsEngine } from "../interactions/table-columns-engine";
 import { TreeEngine } from "../interactions/tree-engine";
-import { browserNotifications } from "../interactions/system-notifications";
+import { browserNotifications, followClick } from "../interactions/system-notifications";
 import { TabMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions/tabs-view-engine";
 import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
@@ -90,6 +90,7 @@ import { AttachOutcome, attachWithRetryAsync, LeftToReconnect } from "../transpo
 import { readTimeZone } from "../transport/reader-time-zone";
 import { ClientStateReporter } from "./client-state";
 import { startServiceWorker } from "./service-worker";
+import type { NotificationClick } from "./worker-messages";
 import { decideReload, forgetReload, sessionMemory } from "./reload-guard";
 import { ConnectionWatch } from "./connection-watch";
 import { CommandDispatcher } from "../transport/command-dispatcher";
@@ -210,7 +211,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["image input", ({ root, validation, propertyPatchEngine, dialogs }) => new ImageInputEngine({ root, validation, propertyPatchEngine, dialogs })],
     ["key value action", ({ root, dom, propertyPatchEngine, validation }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine, validation })],
     // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
-    ["field keys", ({ root }) => new FieldKeysEngine({ root })],
+    ["field keys", ({ root, propertyPatchEngine }) => new FieldKeysEngine({ root, propertyPatchEngine })],
     ["field box press", ({ root }) => new FieldBoxPressEngine({ root })],
     ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],
     ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root })],
@@ -357,8 +358,10 @@ export class WebUIRuntime {
                 logWarn("running a notification's action failed.", error);
                 return false;
             });
-        // A system notification's click reaches the page through the worker where one shows them, and runs as a toast's press does.
-        const worker = startServiceWorker(document.documentElement, this.windowId, id => void runAction(id));
+        // A system notification's click, whether the worker showed it or the page itself: to its address through the leave guard,
+        // built further down, or its command as a toast's press runs it.
+        const followNotificationClick = (click: NotificationClick): void => followClick(click, url => this.leaveGuard.navigate(url), id => void runAction(id));
+        const worker = startServiceWorker(document.documentElement, this.windowId, followNotificationClick);
 
         this.effects = new EffectRegistry({
             address,
@@ -372,6 +375,7 @@ export class WebUIRuntime {
             navigate: url => this.leaveGuard.navigate(url),
             clientStateChanged: () => this.clientState.changed(),
             windowId: this.windowId,
+            followNotificationClick,
             systemNotifications: browserNotifications(worker)
         });
 

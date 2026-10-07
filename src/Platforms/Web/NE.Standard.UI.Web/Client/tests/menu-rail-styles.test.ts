@@ -79,5 +79,5 @@ test("a small rail's label leaves the eye but stays the entry's name, and its to
 test("a rail's entries stand edge to edge, square slices with no rounded hover to set apart", () => {
     assert.match(declarations(".ui-menu--rail.ui-orientation--vertical > .ui-menu__host") ?? "", /gap: var\(--ui-menu-spacing-xxl, [^;]*var\(--ui-menu-spacing, 0\)\)/);
     assert.match(declarations(".ui-menu--rail.ui-orientation--horizontal > .ui-menu__host") ?? "", /gap: var\(--ui-menu-spacing-xxl, [^;]*var\(--ui-menu-spacing, 0\)\)/);
-    assert.match(declarations(railEntry) ?? "", /border-radius: 0;/);
+    assert.match(declarations(railEntry) ?? "", /--ui-menu-entry-tl: 0;\s*--ui-menu-entry-tr: 0;\s*--ui-menu-entry-br: 0;\s*--ui-menu-entry-bl: 0;/);
 });

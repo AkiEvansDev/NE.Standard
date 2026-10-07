@@ -4,7 +4,7 @@ import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FlyoutContentClass, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FlyoutContentClass, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
 import { motion } from "../rendering/motion.ts";
 import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
 import { ClientStore } from "../state/client-store.ts";
@@ -21,6 +21,8 @@ const PopupMenuSelector = `[${FlyoutAttribute}], .ui-context-menu, .${FlyoutCont
 // On a menu once the reader has unfolded a section of it by hand: only then does a section slide open, never as the page arrives.
 const UnfoldedAttribute = "data-ui-menu-unfolded";
 const SelectAttribute = MenuSelectAttribute;
+// On a rail kept a drawer while it is drawn as a list there, so the rail's class can be given back.
+const RailAsListAttribute = "data-ui-menu-rail-list";
 
 const OpenGroupSlot = "menu-open-group";
 
@@ -63,9 +65,16 @@ export class MenuGroupEngine {
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
 
-        this.reconcileEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        const menus = this.root.querySelectorAll<HTMLElement>(`.${RootClass}`);
 
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [CollapsedAttribute] }, menus => this.reconcileEach(menus));
+        // The shape first, so a drawer's rail drawn as a list opens the current page's group as a list does.
+        fitDrawerRails(menus);
+        this.reconcileEach(menus);
+
+        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [CollapsedAttribute] }, changed => {
+            fitDrawerRails(changed);
+            this.reconcileEach(changed);
+        });
 
         // Whoever opens or closes a group — this engine, the search, a server-rendered start — the entry tells the reader so.
         for (const group of this.root.querySelectorAll<HTMLElement>(`[${GroupAttribute}]`))
@@ -77,9 +86,21 @@ export class MenuGroupEngine {
         });
 
         // Across the drawer breakpoint a bottom bar turns into its column and back: a flyout placed toward the old side would hang over
-        // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts).
-        if (typeof matchMedia === "function")
-            matchMedia(DrawerBreakpointQuery).addEventListener("change", () => this.closeBarFlyout());
+        // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts). A drawer's rail turns into a list and back.
+        if (typeof matchMedia === "function") {
+            matchMedia(DrawerBreakpointQuery).addEventListener("change", () => {
+                this.closeBarFlyout();
+                this.refitDrawerRails();
+            });
+        }
+    }
+
+    /** Gives a drawer's rail the shape of the width it now stands at, its groups re-resolved for it as a fold re-resolves them. */
+    private refitDrawerRails(): void {
+        const menus = this.root.querySelectorAll<HTMLElement>(`[${RailDrawerAttribute}] .${RootClass}`);
+
+        fitDrawerRails(menus);
+        this.reconcileEach(menus);
     }
 
     private closeBarFlyout(): void {
@@ -335,6 +356,23 @@ export function isBottomBar(menu: Element): boolean {
         && menu.closest(`[${BottomBarAttribute}]`) !== null
         && typeof matchMedia === "function"
         && !matchMedia(DrawerBreakpointQuery).matches;
+}
+
+/**
+ * Draws a rail whose side is kept a drawer (the server marks the side) as a list below the drawer breakpoint and as the rail from it.
+ * Its class is all that makes a rail — every rail rule of the stylesheet, its flyouts and its cut labels' tooltips read it — so the
+ * list is the menu without it, a mark kept to give it back.
+ */
+function fitDrawerRails(menus: Iterable<HTMLElement>): void {
+    const narrow = typeof matchMedia === "function" && !matchMedia(DrawerBreakpointQuery).matches;
+
+    for (const menu of menus) {
+        if ((!menu.classList.contains(MenuRailClass) && !menu.hasAttribute(RailAsListAttribute)) || menu.closest(`[${RailDrawerAttribute}]`) === null)
+            continue;
+
+        menu.classList.toggle(MenuRailClass, !narrow);
+        menu.toggleAttribute(RailAsListAttribute, narrow);
+    }
 }
 
 /** Whether the menu's groups fly out: folded to its icons, or a rail, which is never unfolded. */

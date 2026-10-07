@@ -1,6 +1,7 @@
 import { ComponentSelector, cssAttributeValue, DialogSurfaceClass } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
 import { isCaretField } from "./caret-fields";
+import { isCancellingField } from "./field-escape";
 import { isInRenameField } from "./inline-rename";
 import { isInEditingRow } from "./key-value-action-engine";
 import { hasOpenPopups } from "./popup-dismissal";
@@ -115,7 +116,7 @@ export class DialogEngine {
             return;
 
         // A popup open inside, or an editor that cancels on Escape (it hears the key after this capture listener), takes the first one.
-        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups() && !isInRenameField(domEvent.target) && !isInEditingRow(domEvent.target)) {
+        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups() && !isInRenameField(domEvent.target) && !isInEditingRow(domEvent.target) && !isCancellingField(domEvent.target)) {
             const key = topmost.getAttribute(DialogAttribute);
 
             if (key !== null) {

@@ -12,3 +12,15 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
 }
+
+// A child's column span at the viewport's tier, into @into, for a host that lines its children up rather than placing them; its tiers
+// reset and fenced on the child, as a placed child's are. With no span set the value is invalid, and the basis falls back to auto.
+.ui-placement-span(@into) {
+    .ui-responsive-reset(--ui-placement-column-span);
+    @{into}: .ui-responsive-chain(--ui-placement-column-span)[@value];
+}
+
+// A line's item as @span of the twenty-four columns its host's row would have, its @gap subtracted as a placement host's columns do.
+.ui-placement-span-basis(@span, @gap) {
+    flex-basis: calc((100% - 23 * var(@gap, 0px)) / 24 * var(@span) + (var(@span) - 1) * var(@gap, 0px));
+}

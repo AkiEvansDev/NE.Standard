@@ -4,9 +4,9 @@ import { ValueReaderRegistry, resolveValueHolder, toDomString } from "../extensi
 import { DialogEngine } from "../interactions/dialog-engine";
 import { copySelection } from "../interactions/legacy-commands";
 import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
-import { NotificationEngine, offeredAction } from "../interactions/notification-engine";
+import { NotificationEngine, offeredAction, offeredActionId } from "../interactions/notification-engine";
 import { dispatchOpenPicker } from "../interactions/picker-events";
-import { showSystemNotification, SystemNotificationServices, whenOnScreen } from "../interactions/system-notifications";
+import { showSystemNotification, SystemNotificationServices } from "../interactions/system-notifications";
 import { holdAtEnd, isEndAnchored, letGoOfEnd } from "../interactions/scroll-anchor-engine";
 import { itemsHostOf, letGoOfRow, revealItem } from "../items/item-reveal";
 import { hostOfScrollTarget, viewportOf } from "../items/items-viewport";
@@ -36,8 +36,10 @@ import {
 } from "../metadata/metadata-index.ts";
 import { prefersReducedMotion } from "../rendering/motion";
 import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
+import { browserNotificationPermission, isOnScreen } from "../runtime/client-state";
 import { clientStrings } from "../runtime/client-strings";
 import { logError, logWarn } from "../runtime/logger";
+import type { NotificationClick } from "../runtime/worker-messages";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { applyInsertText } from "./insert-text.ts";
 import { buildNavigationUrl } from "./navigation-url";
@@ -67,6 +69,9 @@ export type EffectRegistryOptions = {
     readonly clientStateChanged?: () => void;
     // The tab's id, which a system notification's click finds its page by.
     readonly windowId?: string;
+    // Follows a click on a system notification the page showed itself, as the worker's click is followed; left out, the click only
+    // brings the page forward.
+    readonly followNotificationClick?: (click: NotificationClick) => void;
     // How the browser shows a system notification; left out, the page's own.
     readonly systemNotifications?: SystemNotificationServices;
 };
@@ -98,6 +103,7 @@ export class EffectRegistry {
     private readonly address: AddressWriter | undefined;
     private readonly clientStateChanged: (() => void) | undefined;
     private readonly windowId: string;
+    private readonly followNotificationClick: ((click: NotificationClick) => void) | undefined;
     private readonly systemNotifications: SystemNotificationServices | undefined;
 
     public constructor(options: EffectRegistryOptions = {}) {
@@ -110,6 +116,7 @@ export class EffectRegistry {
         this.address = options.address;
         this.clientStateChanged = options.clientStateChanged;
         this.windowId = options.windowId ?? "";
+        this.followNotificationClick = options.followNotificationClick;
         this.systemNotifications = options.systemNotifications;
 
         this.registerDefaults();
@@ -386,7 +393,7 @@ export class EffectRegistry {
 
         this.register("RequestNotificationPermission", () => {
             // A browser without notifications has nothing to ask: the page already reports them unsupported.
-            if (typeof Notification === "undefined")
+            if (browserNotificationPermission() === undefined)
                 return;
 
             // Asked here, in the press the effect runs in: a browser shows no prompt raised outside the reader's own gesture.
@@ -443,7 +450,7 @@ export class EffectRegistry {
 
     /**
      * Shows the system's notification where the page is off screen (or always, where it asks) and the browser lets it; anywhere
-     * else, its fallback toast — held until the page is on screen, since one raised off screen would pass unread.
+     * else, its fallback toast, which the engine holds until the page is on screen as it holds every toast.
      */
     private showSystemNotification(effect: SystemNotificationClientEffect): void {
         const title = effect.title;
@@ -458,19 +465,19 @@ export class EffectRegistry {
             if (effect.fallback === "None" || this.notifications === undefined)
                 return;
 
-            const notifications = this.notifications;
             const action = this.runAction === undefined ? undefined : offeredAction(effect.action, this.runAction);
 
-            whenOnScreen(() => notifications.show(body === undefined ? { message: title, action } : { title, message: body, action }));
+            this.notifications.show(body === undefined ? { message: title, action } : { title, message: body, action });
         };
 
-        if (effect.when !== "Always" && document.visibilityState !== "hidden") {
+        if (effect.when !== "Always" && isOnScreen(document.visibilityState)) {
             toast();
             return;
         }
 
-        const action = typeof effect.action?.id === "string" ? effect.action.id : undefined;
-        const runAction = this.runAction;
+        const action = offeredActionId(effect.action);
+        // Only a path of this site: a notification is no way to open another.
+        const bringTo = typeof effect.address === "string" && isLocalRoute(effect.address) ? effect.address : undefined;
 
         void showSystemNotification({
             title: wordsOf(title),
@@ -479,14 +486,11 @@ export class EffectRegistry {
             icon: typeof effect.icon === "string" && isLocalRoute(effect.icon) ? effect.icon : applicationIcon(),
             silent: effect.silent === true,
             requireInteraction: effect.requireInteraction === true,
-            // Only a path of this site: a notification is no way to open another.
-            address: typeof effect.address === "string" && isLocalRoute(effect.address) ? effect.address : ownAddress(),
+            address: bringTo ?? ownAddress(),
             windowId: this.windowId,
+            bringTo,
             action
-        }, () => {
-            if (action !== undefined && runAction !== undefined)
-                void runAction(action);
-        }, this.systemNotifications).then(shown => {
+        }, () => this.followNotificationClick?.({ bringTo, action }), this.systemNotifications).then(shown => {
             if (!shown)
                 toast();
         });

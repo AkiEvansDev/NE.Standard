@@ -11,6 +11,9 @@ import less from "less";
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 const entryRadius = "border-radius: calc(var(--ui-radius-button) * 2 / 3);";
+// A menu's entry takes the corner one by one, so its shape rules add up as corner properties would and its border's chain reads them.
+const entryCorners = ["tl", "tr", "br", "bl"].map(corner => `--ui-menu-entry-${corner}: calc(var(--ui-radius-button) * 2 / 3);`);
+const entryChain = "var(--ui-border-radius, var(--ui-menu-entry-tl) var(--ui-menu-entry-tr) var(--ui-menu-entry-br) var(--ui-menu-entry-bl))";
 const popupRadius = "border-radius: calc(var(--ui-radius-button) * 2 / 3 + 0.25rem);";
 
 /** The declarations of the first rule whose selector list starts with `selector`, or null. */
@@ -32,14 +35,17 @@ test("a popup's list entries take the entry corner, and the popup rounds to it p
         ".ui-select__option {",
         ".ui-tab-overflow__entry {",
         ".ui-language-switcher__choice {",
-        ".ui-temporal-input__day,",
-        ":is(.ui-context-menu, .ui-split-button__menu, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item {"
+        ".ui-temporal-input__day,"
     ]) {
         const at = css.indexOf(entry);
 
         assert.ok(at >= 0, `no rule for ${entry}`);
         assert.ok(css.slice(at, css.indexOf("}", at)).includes(entryRadius), `${entry} does not take the list entry's corner`);
     }
+
+    const menuEntry = declarations(":is(.ui-context-menu, .ui-split-button__menu, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item {") ?? "";
+
+    assert.ok(entryCorners.every(corner => menuEntry.includes(corner)), "a popup menu's entry does not take the list entry's corner");
 });
 
 test("a popup's entries round after a bar's square ones, so a bar's flyout is a rounded list too", () => {
@@ -50,16 +56,19 @@ test("a popup's entries round after a bar's square ones, so a bar's flyout is a 
 });
 
 test("a sidebar's current entry rounds as its neighbours do, straight only on the edge its mark stands on", () => {
-    assert.ok((declarations(".ui-menu-item {") ?? "").includes(entryRadius), "a sidebar's entry does not take the list entry's corner");
-    assert.doesNotMatch(declarations(".ui-menu-item--selected {") ?? "", /border-radius/);
+    const entry = declarations(".ui-menu-item {") ?? "";
 
-    for (const [side, corners] of [["left", ["top-left", "bottom-left"]], ["right", ["top-right", "bottom-right"]], ["top", ["top-left", "top-right"]], ["bottom", ["bottom-left", "bottom-right"]]] as const) {
+    assert.ok(entryCorners.every(corner => entry.includes(corner)), "a sidebar's entry does not take the list entry's corner");
+    assert.ok(entry.includes(entryChain), "a sidebar's entry does not read its corners through the border's chain");
+    assert.doesNotMatch(declarations(".ui-menu-item--selected {") ?? "", /radius|--ui-menu-entry/);
+
+    for (const [side, corners] of [["left", ["tl", "bl"]], ["right", ["tr", "br"]], ["top", ["tl", "tr"]], ["bottom", ["bl", "br"]]] as const) {
         const rule = declarations(`.ui-menu.ui-side--${side} .ui-menu-item--selected {`) ?? "";
 
         for (const corner of corners)
-            assert.match(rule, new RegExp(`border-${corner}-radius: 0;`), `the ${side} mark's ${corner} corner is not straight`);
+            assert.match(rule, new RegExp(`--ui-menu-entry-${corner}: 0;`), `the ${side} mark's ${corner} corner is not straight`);
 
-        assert.equal((rule.match(/radius/g) ?? []).length, 2, `the ${side} mark straightens more than its own edge`);
+        assert.equal((rule.match(/--ui-menu-entry-|radius/g) ?? []).length, 2, `the ${side} mark straightens more than its own edge`);
     }
 });
 

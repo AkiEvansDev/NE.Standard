@@ -13,17 +13,24 @@ const css = (await less.render(readFileSync(source, "utf8"), { filename: source 
 
 /** The `@media (max-width: …)` block that takes `variable` back below `breakpoint`, on `selector`. */
 function fence(selector: string, variable: string, breakpoint: string): boolean {
-    const pattern = new RegExp(`@media \\(max-width: ${breakpoint}\\) \\{[^}]*${selector.replace(/[[\]]/g, "\\$&")} \\{[^}]*${variable}: initial !important`);
+    const pattern = new RegExp(`@media \\(max-width: ${breakpoint}\\) \\{[^}]*${selector.replace(/[[\]*]/g, "\\$&")} \\{[^}]*${variable}: initial !important`);
 
     return pattern.test(css);
 }
 
 test("every layout tier on a component root is fenced into its band", () => {
-    for (const variable of ["--ui-width", "--ui-min-width", "--ui-max-width", "--ui-height", "--ui-min-height", "--ui-max-height", "--ui-margin", "--ui-padding"]) {
+    for (const variable of ["--ui-width", "--ui-min-width", "--ui-max-width", "--ui-height", "--ui-min-height", "--ui-max-height", "--ui-margin", "--ui-padding", "--ui-border-thickness", "--ui-border-radius"]) {
         assert.ok(fence("[data-ui-id]", `${variable}-sm`, "639.98px"), `${variable}-sm is not fenced below sm`);
         assert.ok(fence("[data-ui-id]", `${variable}-md`, "767.98px"), `${variable}-md is not fenced below md`);
         assert.ok(fence("[data-ui-id]", `${variable}-xl`, "1279.98px"), `${variable}-xl is not fenced below xl`);
         assert.ok(fence("[data-ui-id]", `${variable}-xxl`, "1535.98px"), `${variable}-xxl is not fenced below xxl`);
+    }
+});
+
+test("a border's tiers are fenced on the part that draws it, not only on a component's root", () => {
+    for (const variable of ["--ui-border-thickness", "--ui-border-radius"]) {
+        assert.ok(fence(`[style*="${variable}"]`, `${variable}-sm`, "639.98px"), `${variable}-sm is not fenced on a part`);
+        assert.ok(fence(`[style*="${variable}"]`, `${variable}-xxl`, "1535.98px"), `${variable}-xxl is not fenced on a part`);
     }
 });
 

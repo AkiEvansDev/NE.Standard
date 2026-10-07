@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Runtime;
 using NE.Standard.UI.Shell.Controllers;
 using NE.Standard.UI.Shell.Runtime;
@@ -12,9 +14,9 @@ namespace NE.Standard.UI.Hosting;
 
 /// <summary>
 /// The host's topics and the posts to them: which runtimes took which topic, dropped as each runtime is asked to go, and a user's
-/// runtimes found the way <see cref="IUISessions"/> finds them.
+/// runtimes found the way <see cref="IUISessions"/> finds them — which a user's notification reaches too.
 /// </summary>
-internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider services) : IUIBroadcast, IUIControllerTypeBroadcast
+internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider services) : IUIBroadcast, IUIControllerTypeBroadcast, IUINotifier
 {
     // One lock for the index and every post, so two posts reach every runtime they share in the same order.
     private readonly Lock _sync = new();
@@ -169,20 +171,10 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentNullException.ThrowIfNull(action);
 
-        IReadOnlyList<string> sessions = await services.GetRequiredService<IUserSessionStore>().FindByUserAsync(userId, cancellationToken).ConfigureAwait(false);
         List<IUIRuntime> runtimes = [];
 
-        // Read off each session's own index, as a session's end reads it; posted outside the store's lock.
-        for (var i = 0; i < sessions.Count; i++)
-        {
-            UIRuntimeKey[] keys = store.GetSessionKeys(sessions[i]);
-
-            for (var k = 0; k < keys.Length; k++)
-            {
-                if (store.TryGet(keys[k], out IUIRuntime? runtime))
-                    runtimes.Add(runtime!);
-            }
-        }
+        foreach (List<IUIRuntime> session in await FindUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false))
+            runtimes.AddRange(session);
 
         var posted = 0;
 
@@ -196,5 +188,111 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
         }
 
         return posted;
+    }
+
+    /// <summary>The runtimes of each session signed in as <paramref name="userId"/>, one list a session.</summary>
+    private async ValueTask<List<List<IUIRuntime>>> FindUserSessionsAsync(string userId, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string> sessions = await services.GetRequiredService<IUserSessionStore>().FindByUserAsync(userId, cancellationToken).ConfigureAwait(false);
+        List<List<IUIRuntime>> found = new(sessions.Count);
+
+        // Read off each session's own index, as a session's end reads it; used outside the store's lock.
+        for (var i = 0; i < sessions.Count; i++)
+        {
+            UIRuntimeKey[] keys = store.GetSessionKeys(sessions[i]);
+            List<IUIRuntime> runtimes = new(keys.Length);
+
+            for (var k = 0; k < keys.Length; k++)
+            {
+                if (store.TryGet(keys[k], out IUIRuntime? runtime))
+                    runtimes.Add(runtime!);
+            }
+
+            found.Add(runtimes);
+        }
+
+        return found;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<int> NotifyUserAsync(string userId, ShowSystemNotificationEffect notification, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentNullException.ThrowIfNull(notification);
+
+        if (notification.Action is not null)
+            throw new ArgumentException("A notification sent to a user offers no action: its command would belong to one page's runtime, and it reaches pages of any. Give it an Address instead.", nameof(notification));
+
+        ClientEffect[] effects = [notification];
+        ExceptionDispatchInfo? failure = null;
+        var sent = 0;
+
+        foreach (List<IUIRuntime> session in await FindUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false))
+        {
+            foreach ((UIRuntimeBase runtime, List<UIHandle> pages) in PickSessionPages(session, notification.When))
+            {
+                try
+                {
+                    await runtime.SendEffectsToAsync(pages, effects, cancellationToken).ConfigureAwait(false);
+                    sent += pages.Count;
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+                {
+                    // A page whose connection is gone, or a runtime ending, must not keep it from the user's other pages.
+                    failure ??= ExceptionDispatchInfo.Capture(exception);
+                }
+            }
+        }
+
+        failure?.Throw();
+
+        return sent;
+    }
+
+    /// <summary>
+    /// The pages of one session a notification goes to, by runtime, picked as a runtime's send to all picks them
+    /// (<see cref="UIRuntimeBase.GetsSystemNotification"/>), so it sounds once.
+    /// </summary>
+    private static List<(UIRuntimeBase Runtime, List<UIHandle> Pages)> PickSessionPages(List<IUIRuntime> session, UINotificationWhen when)
+    {
+        List<UIHandle> pages = [];
+        List<UIRuntimeBase> owners = [];
+
+        for (var i = 0; i < session.Count; i++)
+        {
+            if (session[i] is not UIRuntimeBase { IsStarted: true } runtime)
+                continue;
+
+            foreach (UIHandle page in runtime.ViewerHandles)
+            {
+                pages.Add(page);
+                owners.Add(runtime);
+            }
+        }
+
+        List<(UIRuntimeBase Runtime, List<UIHandle> Pages)> picked = [];
+        UIHandle? shower = UIRuntimeBase.PickSystemNotificationPage(pages, except: null, when);
+
+        for (var i = 0; i < pages.Count; i++)
+        {
+            if (UIRuntimeBase.GetsSystemNotification(pages[i], when, shower))
+                AddPage(picked, owners[i], pages[i]);
+        }
+
+        return picked;
+    }
+
+    private static void AddPage(List<(UIRuntimeBase Runtime, List<UIHandle> Pages)> picked, UIRuntimeBase runtime, UIHandle page)
+    {
+        for (var i = 0; i < picked.Count; i++)
+        {
+            if (ReferenceEquals(picked[i].Runtime, runtime))
+            {
+                picked[i].Pages.Add(page);
+                return;
+            }
+        }
+
+        picked.Add((runtime, [page]));
     }
 }

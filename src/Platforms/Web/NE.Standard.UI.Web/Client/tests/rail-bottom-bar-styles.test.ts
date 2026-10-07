@@ -14,7 +14,11 @@ const css = (await less.render(readFileSync(source, "utf8"), { filename: source 
 
 /** Every block of the phone's query, the drawer breakpoint's, one after another. */
 function phoneBlocks(): string {
-    const opening = "@media (max-width: 767.98px) {";
+    return mediaBlocks("@media (max-width: 767.98px) {");
+}
+
+/** Every block of a query, one after another. */
+function mediaBlocks(opening: string): string {
     let blocks = "";
 
     for (let start = css.indexOf(opening); start >= 0; start = css.indexOf(opening, start + 1)) {
@@ -173,4 +177,11 @@ test("the bar's hairline is the rail's, under its entries, so the current entry'
     assert.doesNotMatch(bar, /border-top/, "a border on the side stands above the rail's box: the entry's line would lie a pixel under it");
     assert.match(declarations(phone, barRail) ?? "", /box-shadow: inset 0 1px 0 0 var\(--ui-color-border\);/);
     assert.doesNotMatch(declarations(phone, barRail) ?? "", /padding-top|border-top/, "the entries would start below the hairline");
+});
+
+test("a page's own drawer button shows only where its side is a drawer: never from the breakpoint up, nor for the bottom bar's side", () => {
+    const wide = mediaBlocks("@media (min-width: 768px) {");
+
+    assert.match(declarations(wide, "[data-ui-id][data-ui-drawer-toggle]") ?? "", /display: none !important;/);
+    assert.match(declarations(phone, '[data-ui-root]:has(> [data-ui-region="left-side"][data-ui-bottom-bar]) [data-ui-id][data-ui-drawer-toggle="left-side"]') ?? "", /display: none !important;/);
 });

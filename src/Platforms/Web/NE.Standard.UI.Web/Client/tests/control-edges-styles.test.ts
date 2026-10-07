@@ -23,8 +23,12 @@ function declarations(selector: string): string | null {
 test("a Filled field draws a line under its ground in the mark, on square bottom corners, and keeps it under the pointer", () => {
     const filled = declarations(`.ui-input--filled > :is(${fields}),\n.ui-input--filled > .ui-field-box`) ?? "";
 
-    assert.match(filled, /border-bottom-color: var\(--ui-color-mark\);\s*border-end-start-radius: 0;\s*border-end-end-radius: 0;/);
-    assert.match(declarations(".ui-input--filled.ui-image-input--inline > .ui-image-input__surface") ?? "", /border-end-end-radius: 0;/);
+    // Square bottom corners as the radius chain's own default, so an authored BorderRadius still wins.
+    const squareBottom = /border-radius: var\(--ui-border-radius-xxl, [^;]*var\(--ui-border-radius, var\(--ui-radius-input\) var\(--ui-radius-input\) 0 0\)/;
+
+    assert.match(filled, /border-bottom-color: var\(--ui-color-mark\);/);
+    assert.match(filled, squareBottom);
+    assert.match(declarations(".ui-input--filled.ui-image-input--inline > .ui-image-input__surface") ?? "", squareBottom);
     assert.match(css, /\.ui-search__field--filled \{[^}]*border-end-start-radius: 0;/);
     assert.doesNotMatch(css, /\.ui-input--tonal[^{,]*\{[^}]*border-end-/);
 
@@ -42,7 +46,7 @@ test("an Outline field's border and an Underline field's rule are the mark, not 
 
 test("an unchecked checkbox's, radio's and switch's ring and a switch's knob are the mark", () => {
     for (const box of [".ui-checkbox__box", ".ui-radio-group__dot", ".ui-switch__box"])
-        assert.match(declarations(box) ?? "", /border: var\(--ui-border-width, 1px\) solid var\(--ui-color-mark\);/, `${box} rings in another colour`);
+        assert.match(declarations(box) ?? "", /border-style: solid;\s*border-color: var\(--ui-color-mark\);\s*border-width: var\(--ui-border-thickness-xxl, [^;]*var\(--ui-border-width, 1px\)/, `${box} rings in another colour`);
 
     assert.match(declarations(".ui-switch__box::after") ?? "", /background: var\(--ui-color-mark\);/);
 });
@@ -82,3 +86,19 @@ test("a warning and an info colour a field's edge in their own colour as an erro
     assert.ok(css.includes(`.ui-input--filled${marked}:not(.ui-disabled) > :is(${state})`), "Filled's focused line drops a message's colour");
     assert.ok(css.includes(":not(.ui-invalid, .ui-validation--warning, .ui-validation--info) > .ui-image-input__surface"), "a picture's hover covers a message's edge");
 });
+
+test("a field told to leave out its focus edge draws no brand edge under a focus, and the forced palette still marks it", () => {
+    const state = `${fields}, .ui-field-box, .ui-image-input__surface`;
+    const focus = ":focus-within:where(:not([data-ui-pointer-focus], :has([data-ui-pointer-focus]:focus)))";
+    const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(match => ({ selector: match[1].trim(), body: match[2] }));
+    const edges = rules.filter(rule => rule.selector.includes(focus) && /var\(--ui-color-primary\)|--ui-input-focus-ring/.test(rule.body) && !rule.selector.includes("ui-search__field"));
+
+    assert.ok(edges.length >= 4, "the field's focus edges were not found");
+
+    for (const rule of edges)
+        assert.ok(rule.selector.split(",\n").filter(part => part.includes(focus)).every(part => part.includes(":where(:not(.ui-input--no-focus-edge))")), `a focus edge drawn without the guard: ${rule.selector}`);
+
+    assert.ok(css.includes(`:not(.ui-disabled):where(:not(.ui-input--no-focus-edge)) > :is(${state})${focus}`), "the shared edge is not guarded");
+    assert.match(declarations(`  .ui-input--no-focus-edge:not(.ui-disabled) > :is(${state})${focus}`) ?? "", /outline: 2px solid Highlight;/, "the forced palette drops the field's focus");
+});
+

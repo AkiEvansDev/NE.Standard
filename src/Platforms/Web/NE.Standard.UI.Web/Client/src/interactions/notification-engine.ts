@@ -2,6 +2,7 @@
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { toColorToken } from "../rendering/web-dom-converters.ts";
 import type { NotificationActionModel } from "../metadata/metadata-index.ts";
+import { isOnScreen } from "../runtime/client-state.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
@@ -132,11 +133,6 @@ export class NotificationEngine {
         if (request.action !== undefined)
             element.append(createAction(request.action, request.sticky === true ? null : () => this.dismiss(element)));
 
-        const host = this.ensureHost();
-
-        liftAboveBottomBar(host);
-        host.append(element);
-
         element.addEventListener("focusin", domEvent => {
             const from = domEvent.relatedTarget;
 
@@ -144,9 +140,25 @@ export class NotificationEngine {
                 this.focusOrigins.set(element, from);
         });
 
-        if (request.sticky === true)
-            return element;
+        // A toast raised off screen would pass unread: it waits until the page is on screen, and one dismissed meanwhile never shows.
+        whenOnScreen(() => {
+            if (element.classList.contains(LeavingClass))
+                return;
 
+            const host = this.ensureHost();
+
+            liftAboveBottomBar(host);
+            host.append(element);
+
+            if (request.sticky !== true)
+                this.standFor(element, request);
+        });
+
+        return element;
+    }
+
+    /** Closes a passing toast once its time is up. */
+    private standFor(element: HTMLElement, request: NotificationRequest): void {
         // Paused while hovered or holding the keyboard, so a toast neither vanishes under a reader nor takes the focus down with it.
         const duration = request.durationMs !== undefined && request.durationMs > 0
             ? request.durationMs
@@ -183,16 +195,19 @@ export class NotificationEngine {
             focused = false;
             resume();
         });
-
-        return element;
     }
 
     /** Fades the toast (the stylesheet's leaving animation), then closes the gap it leaves, so the stack slides rather than jumps. */
     public dismiss(element: HTMLElement): void {
-        if (!element.isConnected || element.classList.contains(LeavingClass))
+        if (element.classList.contains(LeavingClass))
             return;
 
         element.classList.add(LeavingClass);
+
+        // One still waiting for the page to come on screen is marked, and never shows.
+        if (!element.isConnected)
+            return;
+
         this.returnFocus(element);
 
         if (prefersReducedMotion() || typeof element.animate !== "function") {
@@ -235,6 +250,24 @@ export class NotificationEngine {
 
         return host;
     }
+}
+
+/** Runs `show` now on a page on screen, else once the page comes back on screen. */
+function whenOnScreen(show: () => void): void {
+    if (isOnScreen(document.visibilityState)) {
+        show();
+        return;
+    }
+
+    const shown = (): void => {
+        if (!isOnScreen(document.visibilityState))
+            return;
+
+        document.removeEventListener("visibilitychange", shown);
+        show();
+    };
+
+    document.addEventListener("visibilitychange", shown);
 }
 
 /**
@@ -323,15 +356,21 @@ function createAction(action: NotificationAction, done: (() => void) | null): HT
  * server offered nothing — a command it could not offer is logged there, and the message still shows, without the button.
  */
 export function offeredAction(model: NotificationActionModel | null | undefined, runAction: (id: string) => Promise<boolean>): NotificationAction | undefined {
-    if (model === null || model === undefined || typeof model.id !== "string" || model.id.length === 0)
+    const id = offeredActionId(model);
+    const label = model?.label;
+
+    if (id === undefined)
         return undefined;
 
-    if (!isPhrase(model.label) && !isAuthorText(model.label)) {
+    if (!isPhrase(label) && !isAuthorText(label)) {
         logWarn("a notification's action carries no words.", model);
         return undefined;
     }
 
-    const id = model.id;
+    return { label, run: () => runAction(id) };
+}
 
-    return { label: model.label, run: () => runAction(id) };
+/** The id the server offered a notification's action under, or none where it offered nothing. */
+export function offeredActionId(model: NotificationActionModel | null | undefined): string | undefined {
+    return model !== null && model !== undefined && typeof model.id === "string" && model.id.length > 0 ? model.id : undefined;
 }

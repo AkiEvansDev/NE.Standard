@@ -81,6 +81,11 @@ public static class EventNames
     public const string Enter = "enter";
 
     /// <summary>
+    /// Fires on Escape in a text field, once the field went back to its last committed value and let go of the focus: a cancel.
+    /// </summary>
+    public const string Escape = "escape";
+
+    /// <summary>
     /// Fires when a label is renamed in place; distinct from <see cref="Change"/> because a component may commit more than
     /// one value that way, e.g. a tab's caption and position.
     /// </summary>

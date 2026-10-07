@@ -65,6 +65,9 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private const string TooltipNamedUntitledTarget = $":scope[{TooltipNamedAttribute}]:not([{TitleShownAttribute}]), :scope:not([{TitleShownAttribute}]) > [{TooltipNamedAttribute}]";
     private const string TooltipNamedTitledTarget = $":scope[{TooltipNamedAttribute}][{TitleShownAttribute}], :scope[{TitleShownAttribute}] > [{TooltipNamedAttribute}]";
 
+    // A field its container and its caret already frame (`ShowFocusEdge = false`): the stylesheet leaves its focus edge undrawn.
+    private const string NoFocusEdgeClassName = "ui-input--no-focus-edge";
+
     // A text body is drawn per row, so its operation lists are built once rather than per body.
     private static readonly WebDomOperation[] TextAlignmentOperations = [WebDomOperation.Class(converter: WebDomConverters.TextAlignmentClass)];
     private static readonly WebDomOperation[] BadgePlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.TextBadgePlacementClass)];
@@ -414,6 +417,8 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             if (value is UIInputAppearance appearance)
                 _ = target.Class(WebClassNames.InputAppearance(appearance));
         }, InputAppearanceOperations);
+
+        RenderFlagClass(context, root, IFieldInputComponent.ShowFocusEdgeProperty, NoFocusEdgeClassName, WebValueCondition.IsFalse);
 
         RenderInputSize(context, root);
     }

@@ -180,11 +180,24 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// <c>RequestNotificationPermissionEffect</c>, or changed it in the browser's settings.
     /// </summary>
     /// <remarks>
-    /// Runs in a command's turn, as an attach's hooks do; <see cref="UIContext.Handle"/> is that page's connection, and
-    /// <see cref="UIContext.NotificationPermission"/> already the new one. The permission a page attaches with is read there, in
+    /// Run as posted work is, between exclusive commands, so the page's report waits for no turn; <see cref="UIContext.Handle"/> is
+    /// that page's connection, and <see cref="UIContext.NotificationPermission"/> what it reported last. The permission a page attaches with is read there, in
     /// <see cref="OnAttachedAsync"/>: this runs only for a change after it.
     /// </remarks>
     protected virtual Task OnNotificationPermissionChangedAsync(UINotificationPermission previous, CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
+    /// <summary>
+    /// Runs when <see cref="HasVisibleViewers"/> flips: a page of this runtime came on screen where none was, or the last one left
+    /// it — the moment to mark read what arrived while nobody looked.
+    /// </summary>
+    /// <remarks>
+    /// Per runtime, not per tab: one tab of it giving way to another on screen is no flip. Raised by a page's report, by an attach (in
+    /// its turn, after <see cref="OnAttachedAsync"/>) and by a detach, and run as posted work is, between exclusive commands; a flip
+    /// and its flip back before it ran reach it not at all. <paramref name="wasVisible"/> is what it last heard, and
+    /// <see cref="HasVisibleViewers"/> already the new state; <see cref="UIContext.Handle"/> is the page that reported or attached.
+    /// </remarks>
+    protected virtual Task OnVisibilityChangedAsync(bool wasVisible, CancellationToken cancellationToken)
         => Task.CompletedTask;
 
     /// <summary>Gets whether the page holds work its reader has not saved; the controller sets and clears it itself.</summary>
@@ -256,6 +269,13 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ThrowIfDisposed();
 
         return OnNotificationPermissionChangedAsync(previous, cancellationToken);
+    }
+
+    Task IUIControllerLifecycle.VisibilityChangedAsync(bool wasVisible, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+
+        return OnVisibilityChangedAsync(wasVisible, cancellationToken);
     }
 
     Task<UICommandResult> IUIControllerLifecycle.LeaveRequestedAsync(string target, CancellationToken cancellationToken)

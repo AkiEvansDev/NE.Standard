@@ -272,6 +272,10 @@ public static class WebAttributes
     /// <summary>On the button that opens a side as a drawer, naming the side's region; and on the root while one is open (side-drawer-engine.ts).</summary>
     public const string DrawerToggle = "data-ui-drawer-toggle";
 
+    /// <summary>The id a side's region carries where it is a drawer, which the buttons opening it name in <c>aria-controls</c>.</summary>
+    public static string DrawerId(string side)
+        => "ui-" + side;
+
     /// <summary>On each band of the page — header, sides, content, footer — naming it; a side's drawer is found by it.</summary>
     public const string Region = "data-ui-region";
     public const string DrawerOpen = "data-ui-drawer-open";
@@ -284,6 +288,12 @@ public static class WebAttributes
     /// bottom rather than a drawer, and its groups fly out upward (menu-group-engine.ts).
     /// </summary>
     public const string BottomBar = "data-ui-bottom-bar";
+
+    /// <summary>
+    /// On a left side that is a rail alone where the view keeps it a drawer (<c>UIViewOptions.RailBottomBar</c> off): below the drawer
+    /// breakpoint its rail is drawn as a list (menu-group-engine.ts).
+    /// </summary>
+    public const string RailDrawer = "data-ui-rail-drawer";
 
     /// <summary>On the shell's link to the content region, which skip-link-engine.ts moves the keyboard to without touching the address.</summary>
     public const string SkipLink = "data-ui-skip-link";
@@ -363,6 +373,9 @@ public static class WebAttributes
 
     /// <summary>On a one-line field with <c>OnEnter</c>: Enter commits the value and raises <c>enter</c>, and the field keeps the focus.</summary>
     public const string RunsOnEnter = "data-ui-runs-on-enter";
+
+    /// <summary>On a text field with <c>OnEscape</c>: Escape puts back its last committed value, leaves it and raises <c>escape</c>.</summary>
+    public const string RunsOnEscape = "data-ui-runs-on-escape";
 
     /// <summary>A split button's mode — <c>split</c> or <c>menu</c> — which says whether the main part opens the menu too.</summary>
     public const string SplitMode = "data-ui-split-mode";

@@ -79,6 +79,10 @@ internal sealed partial class TextInputLabelsGroupContext : DemoGroupContext
         LogEvent($"label \"{label}\" added");
     }
 
+    // Escape has already put the field back and sent nothing: the draft is still what it was.
+    public void DropLabel()
+        => LogEvent("the label typed was dropped");
+
     public void Save()
         => LogEvent($"saved \"{Name}\" with {Labels.Count} labels");
 }
@@ -129,6 +133,10 @@ internal sealed partial class TextInputController() : DemoStandardController
     [UICommand]
     public void AddLabel()
         => LabelsGroup.AddLabel();
+
+    [UICommand]
+    public void DropLabel()
+        => LabelsGroup.DropLabel();
 
     [UICommand]
     public void SaveRelease()

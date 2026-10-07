@@ -71,6 +71,15 @@ test("a finger held for the context menu, which raises no mouse events, gives th
     assert.equal(host.getAttribute("tabindex"), "-1");
 });
 
+test("a press marks the list as the pointer's before the browser focuses it, so no style read sees it focused unmarked", () => {
+    const { root, text } = list();
+
+    root.removeAttribute("data-ui-pointer-focus");
+    press("pointerdown", text);
+
+    assert.equal(root.hasAttribute("data-ui-pointer-focus"), true);
+});
+
 test("a press outside the list leaves its box as it is", () => {
     const { root, host } = list();
     const outside = FakeElement.of("ui-button", {}, "button");

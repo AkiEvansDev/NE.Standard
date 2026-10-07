@@ -43,9 +43,9 @@
     min-height: 0;
     // Border and fill follow BorderThickness/-Color/-Radius and Surface, which the renderer writes on this box, not the root.
     border-style: solid;
-    border-width: var(--ui-border-width, 1px);
+    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
     border-color: var(--ui-color-border);
-    border-radius: var(--ui-radius-row);
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-row));
     background: var(--ui-surface-color, transparent);
     // The corners clip the header's ground and the host's scrollbar; the rows carry no overhang of their own.
     overflow: hidden;

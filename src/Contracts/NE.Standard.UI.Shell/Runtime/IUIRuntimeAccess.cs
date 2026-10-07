@@ -61,10 +61,20 @@ public interface IUIRuntimeAccess
     /// <summary>Sends client effects to every page attached to the runtime but <paramref name="except"/>.</summary>
     /// <remarks>
     /// Under <c>PerClient</c>, every tab sharing it; the effects are resolved as <see cref="ResolveEffects"/> resolves them. Where
-    /// <see cref="UIContext.SendEffectsAsync"/> reaches the one connection a command runs for. A send that fails does not stop the
-    /// others; the first failure is rethrown once every page has been tried.
+    /// <see cref="UIContext.SendEffectsAsync"/> reaches the one connection a command runs for. A system notification sounds once: one
+    /// shown only off screen reaches the pages on screen, or with none on screen one page off screen; one shown always reaches one
+    /// page, the first on screen, else one off screen. A send that fails does not stop the others; the first failure is rethrown once
+    /// every page has been tried.
     /// </remarks>
     Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, UIHandle? except = null, CancellationToken cancellationToken = default);
+
+    /// <summary>Sends client effects to the given pages of this runtime, resolved as <see cref="SendEffectsToAllAsync"/> sends them.</summary>
+    /// <remarks>
+    /// What <see cref="UIContext.SendEffectsAsync"/> sends its one connection through. Every page is sent the effects as they stand,
+    /// its system notifications included: which page shows one is the caller's choice. A send that fails does not stop the others;
+    /// the first failure is rethrown once every page has been tried.
+    /// </remarks>
+    Task SendEffectsToAsync(IReadOnlyList<UIHandle> pages, IReadOnlyList<ClientEffect> effects, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Requests a full client resynchronization on the next runtime flush.

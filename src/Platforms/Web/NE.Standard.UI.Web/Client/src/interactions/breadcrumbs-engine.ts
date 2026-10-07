@@ -3,6 +3,7 @@
 // A step Visibility collapses keeps its place and mark (the step before it is still a page above); only `ui-hidden` takes one out.
 
 import { VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { responsiveTiers } from "../rendering/responsive-tier.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
 
@@ -72,10 +73,7 @@ export class BreadcrumbsEngine {
 /** Writes the tiers a wrapper's step is collapsed in; written only when they change, since the engine watches the trail. */
 function markCollapsedTiers(item: HTMLElement): void {
     const step = item.querySelector<HTMLElement>(`:scope > .${StepClass}`);
-    const tiers = step === null ? "" : VisibilityTierAttributes
-        .filter(attribute => step.getAttribute(attribute) === "collapsed")
-        .map(attribute => attribute === VisibilityTierAttributes[0] ? "base" : attribute.slice(attribute.lastIndexOf("-") + 1))
-        .join(" ");
+    const tiers = step === null ? "" : responsiveTiers.filter((_, index) => step.getAttribute(VisibilityTierAttributes[index]) === "collapsed").join(" ");
 
     if (tiers.length === 0)
         item.removeAttribute(CollapsedTiersAttribute);

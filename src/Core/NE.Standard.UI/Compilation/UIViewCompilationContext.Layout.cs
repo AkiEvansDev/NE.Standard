@@ -19,19 +19,11 @@ internal sealed partial class UIViewCompilationContext
 
         var vertical = (splitter.Orientation ?? UIOrientation.Vertical) == UIOrientation.Vertical;
 
-        ValidateGridSplitterTrack(container, splitter, placement.Base, vertical);
-
-        if (placement.Sm is UIGridPlacement sm)
-            ValidateGridSplitterTrack(container, splitter, sm, vertical);
-
-        if (placement.Md is UIGridPlacement md)
-            ValidateGridSplitterTrack(container, splitter, md, vertical);
-
-        if (placement.Xl is UIGridPlacement xl)
-            ValidateGridSplitterTrack(container, splitter, xl, vertical);
-
-        if (placement.Xxl is UIGridPlacement xxl)
-            ValidateGridSplitterTrack(container, splitter, xxl, vertical);
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (placement.Get(tier) is UIGridPlacement tierPlacement)
+                ValidateGridSplitterTrack(container, splitter, tierPlacement, vertical);
+        }
     }
 
     private static void ValidateGridSplitterTrack(IGridTracksComponent container, IGridSplitterComponent splitter, UIGridPlacement placement, bool vertical)

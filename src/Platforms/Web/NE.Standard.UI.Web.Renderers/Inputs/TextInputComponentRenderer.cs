@@ -120,6 +120,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
 
                 NativeInputRendererBase.RenderRunsOnEnter(context, input);
+                NativeInputRendererBase.RenderRunsOnEscape(context, input);
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
                 RenderFieldLabel(context, input);

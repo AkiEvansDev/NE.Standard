@@ -10,9 +10,9 @@
     flex-direction: column;
     // Border and fill follow BorderThickness/-Color/-Radius and Surface, the same knobs Card uses.
     border-style: solid;
-    border-width: var(--ui-border-width, 1px);
+    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
     border-color: var(--ui-color-border);
-    border-radius: var(--ui-radius-row);
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-row));
     background: var(--ui-surface-color, transparent);
     // Rows carry the inset, so wash and separator run border to border with no negative margin, which subgrid clips unevenly.
     padding: 0;

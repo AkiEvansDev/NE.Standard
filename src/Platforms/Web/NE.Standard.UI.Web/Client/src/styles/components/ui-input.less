@@ -151,6 +151,10 @@
 // The three inputs that open a popup, for the rule below.
 @ui-input-open: ~".ui-color-input--open, .ui-select--open, .ui-temporal-input--open";
 
+// A root whose field draws its focus edge: all but `ShowFocusEdge = false`, a field its container or caret already frames. Weightless,
+// so the focus rules keep their place in the ladder; the hover and an open list still answer.
+@ui-field-edged: ~":where(:not(.ui-input--no-focus-edge))";
+
 // A box-shaped field (a <textarea>, a package's editor) takes the ground by class; `--ui-field-fill` lets a sticky gutter match it.
 .ui-field-box {
     --ui-field-fill: var(--ui-field-rest);
@@ -161,7 +165,7 @@
 }
 
 // An outline, not an inset shadow, which paints under a child's own ground (a sticky gutter); pulled inward, it lands the same.
-.ui-field-box@{ui-field-focus} {
+@{ui-field-edged} > .ui-field-box@{ui-field-focus} {
     outline: var(--ui-input-focus-ring, 1px) solid var(--ui-field-ring, var(--ui-color-primary));
     outline-offset: calc(-1 * (var(--ui-input-focus-ring, 1px) + var(--ui-border-width, 1px)));
 }
@@ -193,8 +197,7 @@
 .ui-input--filled > :is(@{ui-input-field}),
 .ui-input--filled > .ui-field-box {
     border-bottom-color: var(--ui-color-mark);
-    border-end-start-radius: 0;
-    border-end-end-radius: 0;
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-input) var(--ui-radius-input) 0 0");
 }
 
 // No fill, a border all the way round in the mark, which reads 3:1 on the ground — the whole difference from Filled.
@@ -222,12 +225,12 @@
 .ui-input--underline > :is(@{ui-input-field}),
 .ui-input--underline > .ui-field-box {
     --ui-field-fill: var(--ui-field-ground);
-    // Sides switched off by style, not width: an authored BorderThickness arrives as an inline border-width no stylesheet can outrank.
+    // Sides switched off by style, not width: an authored BorderThickness thickens the rule alone.
     border-style: none none solid none;
-    border-width: 0 0 var(--ui-border-width, 1px) 0;
+    .ui-responsive-property(border-width, --ui-border-thickness, ~"0 0 var(--ui-border-width, 1px) 0");
     // The rule is all that says a field is there, so it is the mark's, not a divider's.
     border-color: var(--ui-color-mark);
-    border-radius: 0;
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
     background: none;
     padding-left: 0;
     padding-right: 0;
@@ -331,8 +334,8 @@
 }
 
     // Underline's focus is its rule alone; invalid still outranks it.
-    .ui-input--underline:not(.ui-disabled)@{ui-field-focus} > :is(@{ui-input-field}),
-    .ui-input--underline:not(.ui-disabled) > .ui-field-box@{ui-field-focus} {
+    .ui-input--underline:not(.ui-disabled)@{ui-field-edged}@{ui-field-focus} > :is(@{ui-input-field}),
+    .ui-input--underline:not(.ui-disabled)@{ui-field-edged} > .ui-field-box@{ui-field-focus} {
         border-bottom-color: var(--ui-color-primary);
     }
 
@@ -370,20 +373,20 @@
 }
 
 // :focus-within covers a row and a directly focused field alike; a focus the pointer handed back lights nothing (@ui-field-focus).
-:not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus} {
+:not(.ui-disabled)@{ui-field-edged} > :is(@{ui-input-field-state})@{ui-field-focus} {
     border-color: var(--ui-color-primary);
 }
 
-:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus} {
+:is(@{ui-validation-marked}):not(.ui-disabled)@{ui-field-edged} > :is(@{ui-input-field-state})@{ui-field-focus} {
     border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 
 // Inset, since a panel's overflow: hidden clips an outer ring unevenly; a box uses the outline above, as its content covers a shadow.
-:not(.ui-disabled) > :is(@{ui-input-field})@{ui-field-focus} {
+:not(.ui-disabled)@{ui-field-edged} > :is(@{ui-input-field})@{ui-field-focus} {
     .ui-field-edge-active();
 }
 
-:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field})@{ui-field-focus} {
+:is(@{ui-validation-marked}):not(.ui-disabled)@{ui-field-edged} > :is(@{ui-input-field})@{ui-field-focus} {
     .ui-field-edge-active(var(--ui-validation-color, var(--ui-color-danger-ink)));
 }
 
@@ -404,7 +407,7 @@
 
 // The sides keep the pointer's faint edge through the focus: dropping it as the focus came made the field change its frame twice.
 
-.ui-input--filled:not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus},
+.ui-input--filled:not(.ui-disabled)@{ui-field-edged} > :is(@{ui-input-field-state})@{ui-field-focus},
 .ui-input--filled:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
     --ui-field-line: var(--ui-color-primary);
     border-color: var(--ui-field-hover);

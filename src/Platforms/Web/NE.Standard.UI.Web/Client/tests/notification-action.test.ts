@@ -1,6 +1,7 @@
 // A toast's action as a command's effect asks for it: one button under the message, in the page's words, running what the server
 // offered once and closing the toast; reached from the keyboard, which holds the toast open; standing for the effect's own duration.
-// A press the server refuses (a busy command) leaves the toast and its action to press again within that window.
+// A press the server refuses (a busy command) leaves the toast and its action to press again within that window. A toast raised
+// off screen waits for the page to come on screen.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -38,7 +39,7 @@ installFakeDom({
     }
 });
 
-const { NotificationEngine, offeredAction } = await import("../src/interactions/notification-engine.ts");
+const { NotificationEngine, offeredAction, offeredActionId } = await import("../src/interactions/notification-engine.ts");
 const { clientStrings } = await import("../src/runtime/client-strings.ts");
 
 function page(): { readonly opener: FakeElement; readonly engine: InstanceType<typeof NotificationEngine> } {
@@ -90,6 +91,8 @@ test("an action's words are written again at a language switch while the toast s
 test("an action the server could not offer shows no button, and the message still shows", () => {
     assert.equal(offeredAction({ label: { text: "Undo" } }, Ran), undefined);
     assert.equal(offeredAction(undefined, Ran), undefined);
+    assert.equal(offeredActionId({ label: { text: "Undo" }, id: "" }), undefined);
+    assert.equal(offeredActionId({ id: "a1" }), "a1");
 
     const { engine } = page();
     const toast = engine.show({ message: { text: "Deleted." }, action: offeredAction({ label: { text: "Undo" } }, Ran) });
@@ -227,4 +230,44 @@ test("a passing toast's action refused as busy stays to press again, and the toa
     await Promise.resolve();
 
     assert.equal(real<FakeElement>(toast).isConnected, false);
+});
+
+/** Puts the page off screen or back, as the browser does: its state first, then the event. */
+function setOnScreen(onScreen: boolean): void {
+    Object.assign(fakeDocument, { visibilityState: onScreen ? "visible" : "hidden" });
+    fakeDocument.documentElement.dispatchEvent(new FakeEvent("visibilitychange"));
+}
+
+test("a toast raised off screen waits until the page is on screen, and its time starts there", () => {
+    const { engine } = page();
+
+    setOnScreen(false);
+
+    const toast = engine.show({ message: "Saved." });
+
+    advance(6000);
+
+    assert.equal(real<FakeElement>(toast).isConnected, false);
+
+    setOnScreen(true);
+
+    assert.equal(real<FakeElement>(toast).isConnected, true);
+
+    advance(5000);
+
+    assert.equal(real<FakeElement>(toast).isConnected, false);
+});
+
+test("a toast dismissed while it waits for the page never shows", () => {
+    const { engine } = page();
+
+    setOnScreen(false);
+
+    const notice = engine.show({ message: "Reconnecting…", sticky: true });
+
+    engine.dismiss(notice);
+    setOnScreen(true);
+
+    assert.equal(real<FakeElement>(notice).isConnected, false);
+    assert.equal(fakeDocument.body.querySelectorAll(".ui-notification").length, 0);
 });

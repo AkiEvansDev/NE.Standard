@@ -33,10 +33,21 @@ public sealed record UIViewOptions
     /// <remarks>
     /// Below the medium breakpoint the sides leave the page's columns and slide over the content, each opened by a button the header
     /// carries, so a phone gives the content its whole width; a left side that is a rail alone is a bar along the page's bottom instead
-    /// (<see cref="UIMenuDisplay.Rail"/>). An open drawer covers its button, so a sidebar menu's fold switch lying there puts the
+    /// (<see cref="UIMenuDisplay.Rail"/>), unless <see cref="RailBottomBar"/> is off. An open drawer covers its button, so a sidebar menu's fold switch lying there puts the
     /// drawer away rather than fold the menu. Off, the sides keep their columns at every width.
     /// </remarks>
     public bool SideDrawers { get; init; } = true;
+
+    /// <summary>
+    /// Gets whether a left side that is a rail alone becomes the page's bottom bar where the sides are drawers; on unless the view
+    /// turns it off.
+    /// </summary>
+    /// <remarks>
+    /// Off, that side is a drawer as any other, opened by the header's button, and the rail is drawn in it as a list — each entry its
+    /// icon beside its title, its groups opening inline — so a page whose bottom is its own (a chat's composer) keeps it. From the
+    /// medium breakpoint up the rail stands in its column either way. Nothing without <see cref="SideDrawers"/>.
+    /// </remarks>
+    public bool RailBottomBar { get; init; } = true;
 
     /// <summary>Gets what the left side is to a screen reader's list of landmarks; read from the side unless the view says.</summary>
     /// <remarks>

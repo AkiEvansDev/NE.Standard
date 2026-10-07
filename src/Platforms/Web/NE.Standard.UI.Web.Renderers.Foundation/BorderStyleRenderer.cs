@@ -7,18 +7,19 @@ using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
-/// <summary>Renders <see cref="IBorderedComponent"/>'s border colour, thickness and radius onto a component's root element.</summary>
+/// <summary>
+/// Renders <see cref="IBorderedComponent"/>'s border colour, thickness and radius onto the element that draws the border: the
+/// thickness and the radius as their breakpoint tiers, which the stylesheet's chains on that element read with its own defaults.
+/// </summary>
 public static class BorderStyleRenderer
 {
     private static readonly WebDomOperation[] ColorOperations = [WebDomOperation.Style("border-color", converter: WebDomConverters.ThemeColorCss)];
 
     private static readonly WebDomOperation[] ThicknessOperations =
     [
-        WebDomOperation.Style("border-width", converter: WebDomConverters.ThicknessCss),
+        .. ResponsiveRenderer.TierOperations(WebResponsiveCss.BorderThicknessVariable, WebDomConverters.ResponsiveThicknessCss),
         WebDomOperation.Class(converter: WebDomConverters.BorderNoneClass)
     ];
-
-    private static readonly WebDomOperation[] RadiusOperations = [WebDomOperation.Style("border-radius", converter: WebDomConverters.RadiusCss)];
 
     public static void RenderBorderStyle(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -31,11 +32,11 @@ public static class BorderStyleRenderer
                 _ = target.Style("border-color", css);
         }, ColorOperations);
 
-        _ = WebComponentRendererBase.RenderProperty<UIThickness?>(context, root, IBorderedComponent.BorderThicknessProperty, static (target, value) =>
+        _ = WebComponentRendererBase.RenderProperty<UIResponsive<UIThickness>?>(context, root, IBorderedComponent.BorderThicknessProperty, static (target, value) =>
         {
-            if (value is UIThickness borderThickness)
+            if (value is UIResponsive<UIThickness> borderThickness)
             {
-                _ = target.Style("border-width", WebCssValues.Thickness(borderThickness));
+                WebResponsiveCss.WriteTiers(target, borderThickness, WebResponsiveCss.BorderThicknessVariable, WebCssValues.Thickness);
 
                 // A component with no edge of its own may lay out differently (a key-value list drops its rows' inset).
                 if (WebClassNames.BorderNone(borderThickness) is { Length: > 0 } none)
@@ -43,10 +44,6 @@ public static class BorderStyleRenderer
             }
         }, ThicknessOperations);
 
-        _ = WebComponentRendererBase.RenderProperty<UICornerRadius?>(context, root, IBorderedComponent.BorderRadiusProperty, static (target, value) =>
-        {
-            if (value is UICornerRadius borderRadius)
-                _ = target.Style("border-radius", WebCssValues.Radius(borderRadius));
-        }, RadiusOperations);
+        ResponsiveRenderer.ApplyResponsiveRadius(context, root, IBorderedComponent.BorderRadiusProperty, WebResponsiveCss.BorderRadiusVariable);
     }
 }

@@ -20,7 +20,9 @@ public enum UIMenuDisplay
     /// nothing else — the rail itself, or containers, stack or wrap panels, surfaces and scroll containers each holding only the next
     /// one down to it — is no drawer and gets no button: the rail lies along the page's bottom as a horizontal rail does, the boxes
     /// around it laid aside, the content and footer ending above it; its groups fly out upward, and the arrows across it walk it. A
-    /// side holding anything more, a <see cref="List"/> menu, and a right side stay drawers.
+    /// side holding anything more, a <see cref="List"/> menu, and a right side stay drawers. A view that turns
+    /// <see cref="UIViewOptions.RailBottomBar"/> off keeps that side a drawer too, its rail drawn there as a list: icon beside title,
+    /// its groups opening inline.
     /// </remarks>
     Rail = 1,
 }

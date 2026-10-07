@@ -52,6 +52,11 @@ class FakeTarget {
     public closest(): FakeTarget | null {
         return this.renameField ? this : null;
     }
+
+    // No field here cancels on its own Escape (`OnEscape`).
+    public hasAttribute(): boolean {
+        return false;
+    }
 }
 
 // The open dialogs, as the document answers for them: none, unless a test puts a modal one up.

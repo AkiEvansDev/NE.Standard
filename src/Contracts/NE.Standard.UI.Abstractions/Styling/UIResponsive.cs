@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
@@ -37,21 +38,39 @@ public readonly record struct UIResponsive<T>(T Base, T? Sm, T? Md, T? Xl, T? Xx
     public static UIResponsive<T> Create(T value, T? sm = null, T? md = null, T? xl = null, T? xxl = null)
         => new(value, sm, md, xl, xxl);
 
+    /// <summary>Gets the tier's own value, or <see langword="null"/> where it is unset; the base tier is always set.</summary>
+    public T? Get(UIResponsiveTier tier)
+        => tier switch
+        {
+            UIResponsiveTier.Base => Base,
+            UIResponsiveTier.Sm => Sm,
+            UIResponsiveTier.Md => Md,
+            UIResponsiveTier.Xl => Xl,
+            UIResponsiveTier.Xxl => Xxl,
+            _ => throw new ArgumentOutOfRangeException(nameof(tier), tier, null)
+        };
+
+    /// <summary>Gets the value in force at the tier: its own, or the nearest narrower one set (the mobile-first cascade).</summary>
+    public T Resolve(UIResponsiveTier tier)
+    {
+        for (UIResponsiveTier candidate = tier; candidate > UIResponsiveTier.Base; candidate--)
+        {
+            if (Get(candidate) is T value)
+                return value;
+        }
+
+        return Base;
+    }
+
     public override string ToString()
     {
         var result = string.Create(CultureInfo.InvariantCulture, $"{Base}");
 
-        if (Sm is T sm)
-            result += string.Create(CultureInfo.InvariantCulture, $" sm:{sm}");
-
-        if (Md is T md)
-            result += string.Create(CultureInfo.InvariantCulture, $" md:{md}");
-
-        if (Xl is T xl)
-            result += string.Create(CultureInfo.InvariantCulture, $" xl:{xl}");
-
-        if (Xxl is T xxl)
-            result += string.Create(CultureInfo.InvariantCulture, $" xxl:{xxl}");
+        for (UIResponsiveTier tier = UIResponsiveTier.Sm; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (Get(tier) is T value)
+                result += string.Create(CultureInfo.InvariantCulture, $" {tier.ToString().ToLowerInvariant()}:{value}");
+        }
 
         return result;
     }

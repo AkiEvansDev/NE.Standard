@@ -1539,20 +1539,21 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
     /// <summary>
     /// Makes what a connection's page reports of itself — on screen or not, its notification permission — its handle's, and its
-    /// runtime's, whose controller hears a changed permission as a command runs.
+    /// runtime's, whose controller hears what changed as posted work.
     /// </summary>
-    internal Task ReportClientStateAsync(UIHandle handle, UIClientState state, CancellationToken cancellationToken = default)
+    internal void ReportClientState(UIHandle handle, UIClientState state)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(state);
 
         if (RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry) && entry!.Runtime is IUIRuntimeConnectionUpdater updater)
-            return updater.UpdateClientStateAsync(handle, state, cancellationToken);
+        {
+            updater.UpdateClientState(handle, state);
+            return;
+        }
 
         // A page with no controller has no runtime to count it: its handle is all there is.
         _ = handle.RefreshClientState(state);
-
-        return Task.CompletedTask;
     }
 
     /// <summary>

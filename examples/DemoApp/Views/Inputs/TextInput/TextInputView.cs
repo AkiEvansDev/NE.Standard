@@ -252,6 +252,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetFormId(ReleaseFormId)
                     .BindValue(nameof(TextInputLabelsGroupContext.Draft), UIBindingScope.Relative)
                     .OnEnter(nameof(TextInputController.AddLabel))
+                    .OnEscape(nameof(TextInputController.DropLabel))
                     .SetTrailingAction(new ButtonComponent()
                         .SetType(UIButtonType.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Add))
@@ -264,7 +265,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Save the release")
                     .OnSubmit(ReleaseFormId, nameof(TextInputController.SaveRelease))
                 ),
-            note: "`OnEnter`: Enter commits what was typed, then runs the command; the controller adds the label and empties the field, and the caret stays for the next one. It presses no form's button: Enter in Release does, Shift+Enter in Labels too. An empty field adds nothing.",
+            note: "`OnEnter`: Enter commits what was typed, then runs the command; the controller adds the label and empties the field, and the caret stays for the next one. It presses no form's button: Enter in Release does, Shift+Enter in Labels too. An empty field adds nothing. `OnEscape`: Escape drops what was typed, sends nothing, and runs its command.",
             context: LabelsGroup
         );
     }

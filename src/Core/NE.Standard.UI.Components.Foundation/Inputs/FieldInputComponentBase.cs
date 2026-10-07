@@ -16,6 +16,10 @@ public abstract partial class FieldInputComponentBase<TComponent, TValue>(string
     public UIInputAppearance? Appearance { get; set; }
 
     /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IFieldInputComponent), DefaultValue = true)]
+    public bool? ShowFocusEdge { get; set; }
+
+    /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
     public UIInputSize? Size { get; set; }
 

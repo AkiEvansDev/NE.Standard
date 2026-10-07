@@ -178,7 +178,7 @@ public sealed partial class UITestPage
         => value switch
         {
             T plain => plain,
-            UIResponsive<T> responsive => responsive.Xxl ?? responsive.Xl ?? responsive.Md ?? responsive.Sm ?? responsive.Base,
+            UIResponsive<T> responsive => responsive.Resolve(UIResponsiveTier.Xxl),
             _ => null
         };
 

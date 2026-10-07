@@ -440,14 +440,18 @@ internal sealed class UIComponentGateIndex
         => value switch
         {
             UIVisibility visibility => visibility != UIVisibility.Visible,
-            UIResponsive<UIVisibility> responsive => IsHidden(responsive.Base)
-                && IsHidden(responsive.Sm)
-                && IsHidden(responsive.Md)
-                && IsHidden(responsive.Xl)
-                && IsHidden(responsive.Xxl),
+            UIResponsive<UIVisibility> responsive => IsHiddenAtEveryTier(responsive),
             _ => false
         };
 
-    private static bool IsHidden(UIVisibility? visibility)
-        => visibility is null or not UIVisibility.Visible;
+    private static bool IsHiddenAtEveryTier(UIResponsive<UIVisibility> responsive)
+    {
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (responsive.Get(tier) == UIVisibility.Visible)
+                return false;
+        }
+
+        return true;
+    }
 }

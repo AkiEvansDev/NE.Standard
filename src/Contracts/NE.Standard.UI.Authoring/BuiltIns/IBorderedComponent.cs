@@ -32,14 +32,15 @@ public interface IBorderedComponent : IVisualComponent
     UIThemeColor? BorderColor { get; }
 
     /// <summary>
-    /// Gets the border's thickness, written as CSS <c>border-width</c>; unset leaves the stylesheet's own.
+    /// Gets the border's thickness, optionally overridden per breakpoint; unset leaves the stylesheet's own.
     /// </summary>
+    /// <remarks>A frame on a wide screen may run edge to edge on a phone: <c>SetBorderThickness(UIThickness.Uniform(0), md: UIThickness.Uniform(1))</c>.</remarks>
     [UIComponentProperty(DefaultValue = null)]
-    UIThickness? BorderThickness { get; }
+    UIResponsive<UIThickness>? BorderThickness { get; }
 
     /// <summary>
-    /// Gets the corner rounding, written as CSS <c>border-radius</c>; unset leaves the stylesheet's own.
+    /// Gets the corner rounding, optionally overridden per breakpoint; unset leaves the stylesheet's own.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
-    UICornerRadius? BorderRadius { get; }
+    UIResponsive<UICornerRadius>? BorderRadius { get; }
 }

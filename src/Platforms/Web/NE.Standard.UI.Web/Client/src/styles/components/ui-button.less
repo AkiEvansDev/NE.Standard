@@ -14,8 +14,11 @@
     .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
-    border: 1px solid transparent;
-    border-radius: var(--ui-radius-button);
+    // The border, too, through its chains (BorderThickness, BorderRadius): a flat width or corner would swallow the author's.
+    border-style: solid;
+    border-color: transparent;
+    .ui-responsive-property(border-width, --ui-border-thickness, 1px);
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-button));
     background-color: var(--ui-surface-color, transparent);
     // The blur's layer on `::before`: `::after` is the press's wave (core/press.less).
     .ui-surface-image(before);

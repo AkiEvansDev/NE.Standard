@@ -38,14 +38,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     // Every rendered component registers these same lists, so they are built once rather than per component.
     private static readonly WebDomOperation[] ThemeOperations = [WebDomOperation.Attribute(WebAttributes.Theme, converter: WebDomConverters.ThemeNameCss)];
 
-    private static readonly WebDomOperation[] VisibilityOperations =
-    [
-        WebDomOperation.Attribute(WebAttributes.Visibility, converter: WebDomConverters.VisibilityBaseAttribute),
-        WebDomOperation.Attribute(WebAttributes.VisibilitySm, converter: WebDomConverters.VisibilitySmAttribute),
-        WebDomOperation.Attribute(WebAttributes.VisibilityMd, converter: WebDomConverters.VisibilityMdAttribute),
-        WebDomOperation.Attribute(WebAttributes.VisibilityXl, converter: WebDomConverters.VisibilityXlAttribute),
-        WebDomOperation.Attribute(WebAttributes.VisibilityXxl, converter: WebDomConverters.VisibilityXxlAttribute)
-    ];
+    private static readonly WebDomOperation[] VisibilityOperations = ResponsiveRenderer.TierOperations(WebAttributes.Visibility, WebDomConverters.VisibilityAttribute, WebDomOperation.Attribute);
 
     private static readonly WebDomOperation[] EnabledOperations =
     [
@@ -74,26 +67,10 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     private static readonly WebDomOperation[] PlacementOperations =
     [
-        WebDomOperation.Style("--ui-placement-column", converter: WebDomConverters.GridPlacementBaseColumnCss),
-        WebDomOperation.Style("--ui-placement-row", converter: WebDomConverters.GridPlacementBaseRowCss),
-        WebDomOperation.Style("--ui-placement-column-span", converter: WebDomConverters.GridPlacementBaseColumnSpanCss),
-        WebDomOperation.Style("--ui-placement-row-span", converter: WebDomConverters.GridPlacementBaseRowSpanCss),
-        WebDomOperation.Style("--ui-placement-sm-column", converter: WebDomConverters.GridPlacementSmColumnCss),
-        WebDomOperation.Style("--ui-placement-sm-row", converter: WebDomConverters.GridPlacementSmRowCss),
-        WebDomOperation.Style("--ui-placement-sm-column-span", converter: WebDomConverters.GridPlacementSmColumnSpanCss),
-        WebDomOperation.Style("--ui-placement-sm-row-span", converter: WebDomConverters.GridPlacementSmRowSpanCss),
-        WebDomOperation.Style("--ui-placement-md-column", converter: WebDomConverters.GridPlacementMdColumnCss),
-        WebDomOperation.Style("--ui-placement-md-row", converter: WebDomConverters.GridPlacementMdRowCss),
-        WebDomOperation.Style("--ui-placement-md-column-span", converter: WebDomConverters.GridPlacementMdColumnSpanCss),
-        WebDomOperation.Style("--ui-placement-md-row-span", converter: WebDomConverters.GridPlacementMdRowSpanCss),
-        WebDomOperation.Style("--ui-placement-xl-column", converter: WebDomConverters.GridPlacementXlColumnCss),
-        WebDomOperation.Style("--ui-placement-xl-row", converter: WebDomConverters.GridPlacementXlRowCss),
-        WebDomOperation.Style("--ui-placement-xl-column-span", converter: WebDomConverters.GridPlacementXlColumnSpanCss),
-        WebDomOperation.Style("--ui-placement-xl-row-span", converter: WebDomConverters.GridPlacementXlRowSpanCss),
-        WebDomOperation.Style("--ui-placement-xxl-column", converter: WebDomConverters.GridPlacementXxlColumnCss),
-        WebDomOperation.Style("--ui-placement-xxl-row", converter: WebDomConverters.GridPlacementXxlRowCss),
-        WebDomOperation.Style("--ui-placement-xxl-column-span", converter: WebDomConverters.GridPlacementXxlColumnSpanCss),
-        WebDomOperation.Style("--ui-placement-xxl-row-span", converter: WebDomConverters.GridPlacementXxlRowSpanCss)
+        .. ResponsiveRenderer.TierOperations(WebResponsiveCss.PlacementColumnVariable, WebDomConverters.GridPlacementColumnCss),
+        .. ResponsiveRenderer.TierOperations(WebResponsiveCss.PlacementRowVariable, WebDomConverters.GridPlacementRowCss),
+        .. ResponsiveRenderer.TierOperations(WebResponsiveCss.PlacementColumnSpanVariable, WebDomConverters.GridPlacementColumnSpanCss),
+        .. ResponsiveRenderer.TierOperations(WebResponsiveCss.PlacementRowSpanVariable, WebDomConverters.GridPlacementRowSpanCss)
     ];
 
     /// <summary>What a tooltip's words do to the element they are the tooltip of; first in a list of operations the words drive.</summary>
@@ -104,13 +81,6 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     private static readonly WebDomOperation[] DataOperations = [WebDomOperation.Data()];
     private static readonly WebDomOperation[] LinkAddressOperations = [WebDomOperation.Attribute(WebAttributes.Href, converter: WebDomConverters.SafeUrl)];
     private static readonly WebDomOperation[] AccessibleNameOperations = [WebDomOperation.Attribute("aria-label")];
-
-    // The four custom properties one placement tier writes, named once per tier.
-    private static readonly PlacementTierNames BasePlacement = new("--ui-placement");
-    private static readonly PlacementTierNames SmPlacement = new("--ui-placement-sm");
-    private static readonly PlacementTierNames MdPlacement = new("--ui-placement-md");
-    private static readonly PlacementTierNames XlPlacement = new("--ui-placement-xl");
-    private static readonly PlacementTierNames XxlPlacement = new("--ui-placement-xxl");
 
     // A binding attribute's and a patch mark's name per property name, since kebab-casing builds a string each time.
     private static readonly ConcurrentDictionary<string, string> BindingAttributeNames = new(StringComparer.Ordinal);
@@ -163,20 +133,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             if (value is not UIResponsive<UIVisibility> responsive)
                 return;
 
-            UIVisibility tier = responsive.Base;
-            RenderVisibilityTier(target, WebAttributes.Visibility, tier);
-
-            tier = responsive.Sm ?? tier;
-            RenderVisibilityTier(target, WebAttributes.VisibilitySm, tier);
-
-            tier = responsive.Md ?? tier;
-            RenderVisibilityTier(target, WebAttributes.VisibilityMd, tier);
-
-            tier = responsive.Xl ?? tier;
-            RenderVisibilityTier(target, WebAttributes.VisibilityXl, tier);
-
-            tier = responsive.Xxl ?? tier;
-            RenderVisibilityTier(target, WebAttributes.VisibilityXxl, tier);
+            for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+                RenderVisibilityTier(target, WebResponsiveCss.TierName(WebAttributes.Visibility, tier), responsive.Resolve(tier));
         }, VisibilityOperations);
 
         // The class is the look and the fact the client reads: it makes the root's children inert and refuses a press on the root
@@ -232,12 +190,12 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             }
         }, VerticalAlignmentOperations);
 
-        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.WidthProperty, "--ui-width", UIOrientation.Horizontal);
-        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinWidthProperty, "--ui-min-width", UIOrientation.Horizontal);
-        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxWidthProperty, "--ui-max-width", UIOrientation.Horizontal);
-        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HeightProperty, "--ui-height", UIOrientation.Vertical);
-        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinHeightProperty, "--ui-min-height", UIOrientation.Vertical);
-        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxHeightProperty, "--ui-max-height", UIOrientation.Vertical);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.WidthProperty, WebResponsiveCss.WidthVariable, UIOrientation.Horizontal);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinWidthProperty, WebResponsiveCss.MinWidthVariable, UIOrientation.Horizontal);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxWidthProperty, WebResponsiveCss.MaxWidthVariable, UIOrientation.Horizontal);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HeightProperty, WebResponsiveCss.HeightVariable, UIOrientation.Vertical);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinHeightProperty, WebResponsiveCss.MinHeightVariable, UIOrientation.Vertical);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxHeightProperty, WebResponsiveCss.MaxHeightVariable, UIOrientation.Vertical);
 
         _ = RenderProperty<int?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.ZIndexProperty, static (target, value) =>
         {
@@ -343,6 +301,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     // One custom property per tier; the stylesheet's widest-first var() chain lets an unset tier inherit the one below.
+    // One custom property per part and tier; the stylesheet's chains, fenced where they are reset, let an unset tier inherit the one below.
     private static void ApplyPlacement(WebRenderContext context, IHtmlElementBuilder html)
     {
         _ = RenderProperty<UIResponsive<UIGridPlacement>?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.PlacementProperty, static (target, value) =>
@@ -350,39 +309,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             if (value is not UIResponsive<UIGridPlacement> responsive)
                 return;
 
-            WritePlacementTier(target, BasePlacement, responsive.Base);
-
-            if (responsive.Sm is UIGridPlacement sm)
-                WritePlacementTier(target, SmPlacement, sm);
-
-            if (responsive.Md is UIGridPlacement md)
-                WritePlacementTier(target, MdPlacement, md);
-
-            if (responsive.Xl is UIGridPlacement xl)
-                WritePlacementTier(target, XlPlacement, xl);
-
-            if (responsive.Xxl is UIGridPlacement xxl)
-                WritePlacementTier(target, XxlPlacement, xxl);
+            WebResponsiveCss.WriteTiers(target, responsive, WebResponsiveCss.PlacementColumnVariable, static placement => placement.Column.ToString(CultureInfo.InvariantCulture));
+            WebResponsiveCss.WriteTiers(target, responsive, WebResponsiveCss.PlacementRowVariable, static placement => placement.Row.ToString(CultureInfo.InvariantCulture));
+            WebResponsiveCss.WriteTiers(target, responsive, WebResponsiveCss.PlacementColumnSpanVariable, static placement => placement.ColumnSpan.ToString(CultureInfo.InvariantCulture));
+            WebResponsiveCss.WriteTiers(target, responsive, WebResponsiveCss.PlacementRowSpanVariable, static placement => placement.RowSpan.ToString(CultureInfo.InvariantCulture));
         }, PlacementOperations);
-    }
-
-    private static void WritePlacementTier(IHtmlElementBuilder target, PlacementTierNames names, UIGridPlacement placement)
-    {
-        _ = target.Style(names.Column, placement.Column.ToString(CultureInfo.InvariantCulture));
-        _ = target.Style(names.Row, placement.Row.ToString(CultureInfo.InvariantCulture));
-        _ = target.Style(names.ColumnSpan, placement.ColumnSpan.ToString(CultureInfo.InvariantCulture));
-        _ = target.Style(names.RowSpan, placement.RowSpan.ToString(CultureInfo.InvariantCulture));
-    }
-
-    private sealed class PlacementTierNames(string prefix)
-    {
-        public string Column { get; } = prefix + "-column";
-
-        public string Row { get; } = prefix + "-row";
-
-        public string ColumnSpan { get; } = prefix + "-column-span";
-
-        public string RowSpan { get; } = prefix + "-row-span";
     }
 
     private static void ApplyMetadata(WebRenderContext context)

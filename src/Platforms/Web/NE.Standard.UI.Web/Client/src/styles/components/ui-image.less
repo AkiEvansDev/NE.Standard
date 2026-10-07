@@ -3,15 +3,17 @@
 .ui-image {
     display: block;
     .ui-responsive-property(max-width, --ui-max-width, 100%);
+    // CornerRadius, through the border's chain as a bordered component's corners are.
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
 }
 
 // An unset Fit draws no class: the default is the image's intrinsic size under .ui-image's own max-width.
 
 // Shape Circle: a square box — one length given, the other follows — cropped to its middle; before the fits, so an explicit Fit
-// still wins, and over an inline CornerRadius, since the shape is the stronger word.
+// still wins, and after .ui-image, so it wins over a CornerRadius, since the shape is the stronger word.
 .ui-image--circle {
     aspect-ratio: 1;
-    border-radius: 50% !important;
+    border-radius: 50%;
     object-fit: cover;
 }
 

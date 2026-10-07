@@ -140,6 +140,16 @@ test("where nothing hovers, what a hover reveals shows on the chosen thing, or a
     const chosenClose = rules.find(rule => rule.selector === ".ui-tab-item--selected .ui-tab-item__close");
 
     assert.ok(pencil !== undefined && pencil.body.includes("opacity: 1;") && pencil.body.includes("inset: 0.25rem 0.25rem auto auto;"), "a picture's pencil does not stand in its corner without a hover");
+    assert.ok(pencil.selector.startsWith(".ui-image-input:not(.ui-image-input--avatar)"), "an avatar's pencil stands in its corner");
     assert.ok(cross !== undefined && cross.body.includes("opacity: 1;"), "a shelf tile's cross does not show without a hover");
     assert.ok(chosenClose !== undefined && !underHover(chosenClose) && chosenClose.body.includes("opacity: 1;"), "the chosen tab's close waits for a hover");
 });
+
+test("where nothing hovers, an avatar wears the hover's veil, lighter, with its pencil in the middle", () => {
+    const noHover = (rule: CssRule) => rule.conditions.some(condition => condition.startsWith("@media") && condition.includes("(hover: none)"));
+    const veil = rules.find(rule => noHover(rule) && rule.selector.startsWith(".ui-image-input--avatar") && rule.selector.endsWith(":has(> .ui-image-input__picture[src]) > .ui-image-input__edit"));
+
+    assert.ok(veil !== undefined && veil.body.includes("opacity: 1;"), "an avatar's veil does not show without a hover");
+    assert.ok(veil.body.includes("black 30%") && !veil.body.includes("inset"), "an avatar's veil is not the lighter whole-picture one");
+});
+

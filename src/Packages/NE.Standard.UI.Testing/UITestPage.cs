@@ -217,21 +217,32 @@ public sealed partial class UITestPage
     /// <summary>Gets what the page last reported of itself: whether it is on screen, and its notification permission.</summary>
     public UIClientState ClientState => _resolution.Handle.ClientState;
 
-    /// <summary>Takes the page off screen — another tab chosen, the window minimised — as the page reports it.</summary>
+    /// <summary>
+    /// Takes the page off screen — another tab chosen, the window minimised — as the page reports it; returns once the controller's
+    /// <c>OnVisibilityChangedAsync</c>, where the runtime went off screen, has run.
+    /// </summary>
     public Task HideAsync(CancellationToken cancellationToken = default)
         => ReportAsync(ClientState with { IsVisible = false }, cancellationToken);
 
-    /// <summary>Brings the page back on screen, as the page reports it.</summary>
+    /// <summary>Brings the page back on screen, as the page reports it; returns once the controller heard it, as <see cref="HideAsync"/> does.</summary>
     public Task ShowAsync(CancellationToken cancellationToken = default)
         => ReportAsync(ClientState with { IsVisible = true }, cancellationToken);
 
-    /// <summary>Reports the browser's answer to a notification permission prompt, or a change made in its settings.</summary>
+    /// <summary>
+    /// Reports the browser's answer to a notification permission prompt, or a change made in its settings; returns once the
+    /// controller's <c>OnNotificationPermissionChangedAsync</c> has run.
+    /// </summary>
     public Task ReportNotificationPermissionAsync(UINotificationPermission permission, CancellationToken cancellationToken = default)
         => ReportAsync(ClientState with { NotificationPermission = permission }, cancellationToken);
 
     private async Task ReportAsync(UIClientState state, CancellationToken cancellationToken)
     {
-        await _app.Host.ReportClientStateAsync(_resolution.Handle, state, cancellationToken).ConfigureAwait(false);
+        _app.Host.ReportClientState(_resolution.Handle, state);
+
+        // The hooks a report raises are posted, so the page's report does not wait for a turn; the test waits for them instead.
+        if (_resolution.Runtime is Runtime.UIRuntimeBase runtime)
+            await runtime.WhenPostedRanAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
     }
 

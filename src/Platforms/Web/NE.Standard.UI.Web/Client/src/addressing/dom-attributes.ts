@@ -201,6 +201,8 @@ export const DrawerOpenAttribute = "data-ui-drawer-open";
 export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
 /** On a left side that is a rail alone: below the drawer breakpoint a bar along the page's bottom, its groups flying out upward. */
 export const BottomBarAttribute = "data-ui-bottom-bar";
+/** On a left side that is a rail alone kept a drawer (UIViewOptions.RailBottomBar off): below the drawer breakpoint its rail is a list. */
+export const RailDrawerAttribute = "data-ui-rail-drawer";
 /** On the shell's link to the content region, which skip-link-engine.ts follows by moving the keyboard there. */
 export const SkipLinkAttribute = "data-ui-skip-link";
 /** On each band of the page, naming it: a side's drawer is found by it. */
@@ -337,7 +339,10 @@ export const TabCaptionAttribute = "data-ui-tab-caption";
 /** On a pinned tab's root: the strip draws its pin, hides its close and refuses to drag it. */
 export const TabPinnedAttribute = "data-ui-tab-pinned";
 
-/** Every tier Visibility writes, narrowest first — each one fenced into its own width band by the stylesheet. */
+/**
+ * Every tier Visibility writes, narrowest first (`responsiveTiers`' order) — each one fenced into its own width band by the stylesheet.
+ * Spelled whole rather than built by `responsiveVariable`, so the stylesheet hook guard sees each name written.
+ */
 export const VisibilityTierAttributes = [
     VisibilityAttribute,
     "data-ui-visibility-sm",

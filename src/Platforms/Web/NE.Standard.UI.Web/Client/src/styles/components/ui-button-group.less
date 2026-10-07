@@ -98,8 +98,10 @@
         align-self: stretch;
         .ui-responsive-property(min-height, --ui-min-height, 0);
         .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-3);
-        border: 0;
-        border-radius: 0;
+        border-style: none;
+        border-color: currentColor;
+        .ui-responsive-property(border-width, --ui-border-thickness, 0);
+        .ui-responsive-property(border-radius, --ui-border-radius, 0);
     }
 
     // An icon alone is a square, as an icon button is: as wide as the strip is tall inside its edge. Not aspect-ratio, which a segment

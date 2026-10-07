@@ -30,6 +30,9 @@ internal interface IUIControllerLifecycle
     /// <summary>A connection's page reported another notification permission; <see cref="UIContext.Handle"/> is that connection.</summary>
     Task NotificationPermissionChangedAsync(UINotificationPermission previous, CancellationToken cancellationToken);
 
+    /// <summary>The runtime went on or off screen: no page of it was on screen and one is now, or the other way round.</summary>
+    Task VisibilityChangedAsync(bool wasVisible, CancellationToken cancellationToken);
+
     /// <summary>The reader starts to leave a page that holds unsaved work, for <paramref name="target"/>; answers what happens instead.</summary>
     Task<UICommandResult> LeaveRequestedAsync(string target, CancellationToken cancellationToken);
 }

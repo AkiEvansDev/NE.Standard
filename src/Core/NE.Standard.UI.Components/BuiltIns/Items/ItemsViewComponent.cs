@@ -177,6 +177,11 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// so a list ending under something laid over its foot (a composer) shows its last row clear of it. A list held at its end stays there
     /// as the padding changes.
     /// </summary>
+    /// <remarks>
+    /// An overlay spanning the view's width stands over its scrollbar too, a strip that comes and goes with the rows' overflow.
+    /// <c>VerticalScroll = UIScrollMode.Always</c> keeps the strip whether the rows overflow or not, so the overlay's margin can count
+    /// it; a screen whose scrollbars float over the content (a touch screen) reserves none either way.
+    /// </remarks>
     [UIComponentProperty(DefaultValue = null)]
     public UIResponsive<UIThickness>? Padding { get; set; }
 

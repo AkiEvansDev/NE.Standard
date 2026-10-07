@@ -95,7 +95,9 @@ test("a round image is a square box, filled unless its fit says otherwise, whate
     const rule = declarations(".ui-image--circle") ?? "";
 
     assert.match(rule, /aspect-ratio: 1;/);
-    assert.match(rule, /border-radius: 50% !important;/);
+    assert.match(rule, /border-radius: 50%;/);
     assert.match(rule, /object-fit: cover;/);
+    assert.match(declarations(".ui-image") ?? "", /border-radius: var\(--ui-border-radius-xxl,/, "a corner radius comes through the chain, not inline");
+    assert.ok(css.indexOf(".ui-image {") < css.indexOf(".ui-image--circle {"), "the circle comes later and wins over a corner radius");
     assert.ok(css.indexOf(".ui-image--circle {") < css.indexOf(".ui-image-fit--contain {"), "an explicit fit comes later and wins");
 });

@@ -7,7 +7,8 @@ import { buildPageDialog, PageDialogParts } from "./page-dialog";
 const LeaveDialogKey = "ui-leave";
 const Parts = new PageDialogParts("data-ui-leave-part");
 
-// The centred panel's cap a view's dialog takes when it names no width (`WebViewRenderer.CenteredDialogWidthCap`).
+// The centred panel's cap a view's dialog takes when it names no width (`WebViewRenderer.CenteredDialogWidthCap`, held equal by
+// `DialogLayoutRenderTests`).
 const CenteredDialogWidthCap = "560px";
 
 // Built once and kept: a page that took it off the body gets it back.

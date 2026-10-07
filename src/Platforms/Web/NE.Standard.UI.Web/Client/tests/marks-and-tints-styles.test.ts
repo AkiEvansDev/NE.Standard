@@ -36,7 +36,7 @@ test("a popup's list marks no line: a folded menu's flyout's current entry is it
     const entry = declarations(".ui-menu .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item--selected") ?? "";
 
     assert.match(entry, /box-shadow: var\(--ui-selected-mark, none\);/);
-    assert.match(entry, /border-radius: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
+    assert.match(entry, /--ui-menu-entry-tl: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);[\s\S]*--ui-menu-entry-bl: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
     assert.doesNotMatch(declarations(".ui-select__option[aria-selected=\"true\"]") ?? "", /box-shadow/);
 });
 

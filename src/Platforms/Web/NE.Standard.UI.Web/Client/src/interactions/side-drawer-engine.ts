@@ -1,14 +1,17 @@
-// A side as a drawer on a narrow screen (UIViewOptions.SideDrawers): opened by its header button, put away by a press outside,
-// Escape, a link taken inside it, the fold switch lying where that button was, or the screen growing wide again. Open, the drawer
-// is a focus holder, as a dialog's surface is.
+// A side as a drawer on a narrow screen (UIViewOptions.SideDrawers): opened by its header button, or a button of the page's own
+// (ButtonComponent.OpensDrawer); put away by a press outside, Escape, a link or a menu entry taken inside it, the fold switch lying
+// where that button was, or the screen growing wide again. Open, the drawer is a focus holder, as a dialog's surface is.
 
-import { CollapsedAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FocusHolderAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FlyoutContentClass, FocusHolderAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, PassiveMenuEntrySelector, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { isInert } from "./interactive-state.ts";
 import { motion } from "../rendering/motion.ts";
 import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
 import { focusAsLastInput, isPointerLast, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
 
 const RootSelector = "[data-ui-root]";
 const LinkSelector = "a[href]";
+// The popups a menu entry can stand in inside a drawer: what they run acts on the drawer's own content, which must stay in sight.
+const PopupMenuSelector = `.ui-context-menu, .ui-split-button__menu, .${FlyoutContentClass}`;
 const CollapsibleClass = "ui-collapsible";
 const RightSide = "right-side";
 const LeftEdgeClass = "ui-side--left";
@@ -23,6 +26,9 @@ export class SideDrawerEngine {
 
     // The drawers made holders while open, each with whether its tab index was this engine's to add.
     private readonly holders = new Map<HTMLElement, boolean>();
+
+    // The button that opened each shell's drawer, which the keyboard goes back to: a side may have more than one.
+    private readonly openers = new WeakMap<HTMLElement, HTMLElement>();
 
     public constructor(options: SideDrawerEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -46,7 +52,7 @@ export class SideDrawerEngine {
             const side = toggle.getAttribute(DrawerToggleAttribute);
 
             if (shell !== null && side !== null)
-                this.toggle(shell, side);
+                this.toggle(shell, side, toggle);
 
             return;
         }
@@ -64,12 +70,13 @@ export class SideDrawerEngine {
             return;
         }
 
-        // A link taken inside an open drawer leaves the page it opened over: the next one starts with it put away.
-        const link = domEvent.target.closest(LinkSelector);
-        const drawer = link?.closest<HTMLElement>(`[${RegionAttribute}]`);
+        // A link taken inside an open drawer leaves the page it opened over, and a menu entry pressed there has done what the drawer was
+        // opened for: the page goes on with it put away.
+        const taken = domEvent.target.closest<HTMLElement>(`${LinkSelector}, .${MenuItemClass}`);
+        const drawer = taken?.closest<HTMLElement>(`[${RegionAttribute}]`);
         const shell = drawer?.parentElement ?? null;
 
-        if (drawer !== null && drawer !== undefined && shell?.getAttribute(DrawerOpenAttribute) === drawer.getAttribute(RegionAttribute))
+        if (taken !== null && drawer !== null && drawer !== undefined && shell?.getAttribute(DrawerOpenAttribute) === drawer.getAttribute(RegionAttribute) && closesDrawer(taken))
             this.close(shell);
     }
 
@@ -78,20 +85,21 @@ export class SideDrawerEngine {
             this.closeAll();
     }
 
-    private toggle(shell: HTMLElement, side: string): void {
+    private toggle(shell: HTMLElement, side: string, opener: HTMLElement): void {
         if (shell.getAttribute(DrawerOpenAttribute) === side) {
             this.close(shell);
             return;
         }
 
-        shell.setAttribute(DrawerOpenAttribute, side);
-        this.markToggles(shell);
-
         const drawer = drawerOf(shell, side);
 
-        if (drawer === null)
+        // A page's own button naming a side that is no drawer — none, or the phone's bottom bar — opens nothing.
+        if (drawer === null || drawer.hasAttribute(BottomBarAttribute))
             return;
 
+        shell.setAttribute(DrawerOpenAttribute, side);
+        this.openers.set(shell, opener);
+        this.markToggles(shell);
         this.hold(drawer);
 
         // Into the drawer, not behind the backdrop; retried each frame while its fade-in still hides the controls, unless the reader moved.
@@ -144,7 +152,7 @@ export class SideDrawerEngine {
         const active = document.activeElement;
 
         if (active === null || active === document.body || drawer?.contains(active) === true) {
-            const toggle = shell.querySelector<HTMLElement>(`[${DrawerToggleAttribute}="${cssAttributeValue(side)}"]`);
+            const toggle = this.returnTarget(shell, side);
 
             // From inside the drawer as any popup gives it back, a pointer's opening's as the pointer's; from the body, plainly.
             if (toggle !== null && drawer !== null && drawer.contains(active))
@@ -154,6 +162,20 @@ export class SideDrawerEngine {
         }
 
         this.release(drawer);
+    }
+
+    /** The button the drawer opened from, or failing that the side's first one in sight: not one a collapsed header holds. */
+    private returnTarget(shell: HTMLElement, side: string): HTMLElement | null {
+        const opener = this.openers.get(shell);
+
+        this.openers.delete(shell);
+
+        if (opener?.isConnected === true && opener.getAttribute(DrawerToggleAttribute) === side && opener.checkVisibility())
+            return opener;
+
+        const toggles = [...shell.querySelectorAll<HTMLElement>(`[${DrawerToggleAttribute}="${cssAttributeValue(side)}"]`)];
+
+        return toggles.find(toggle => toggle.checkVisibility()) ?? toggles[0] ?? null;
     }
 
     private markToggles(shell: HTMLElement): void {
@@ -193,6 +215,21 @@ export function isDrawerFoldSwitch(toggle: Element): boolean {
         return false;
 
     return shell.matches(RootSelector) && shell.getAttribute(DrawerOpenAttribute) === side && panel.classList.contains(side === RightSide ? RightEdgeClass : LeftEdgeClass);
+}
+
+/**
+ * Whether a press on a link or a menu entry inside an open drawer puts it away. Not a group's own entry, which only opens its group;
+ * not a check, which toggles in place as it does in a flyout; not a caption, a rule or a disabled entry; not an entry of a popup
+ * menu (a context menu, a split button's list, a flyout's), which acts on the drawer's own content.
+ */
+function closesDrawer(taken: HTMLElement): boolean {
+    if (!taken.classList.contains(MenuItemClass))
+        return true;
+
+    return !taken.matches(`${MenuGroupEntrySelector}, ${PassiveMenuEntrySelector}`)
+        && taken.getAttribute(MenuItemKindAttribute) !== "check"
+        && !isInert(taken)
+        && taken.closest(PopupMenuSelector) === null;
 }
 
 function drawerOf(shell: HTMLElement, side: string): HTMLElement | null {

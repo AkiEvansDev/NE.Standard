@@ -1,6 +1,8 @@
 using System;
 using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -48,7 +50,9 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         // The form the button submits (OnSubmit): the framework's, and a real button joins the browser's own by `form`, as its fields do.
         NativeInputRendererBase.RenderFormId(context, root, ButtonComponent.SubmitFormIdProperty, WebAttributes.SubmitFormId, joinsForm: IsButtonElement);
 
-        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ButtonComponent.PaddingProperty, "--ui-padding");
+        RenderDrawerOpener(context, root);
+
+        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ButtonComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
 
         SurfaceStyleRenderer.RenderBackground(context, root, ButtonComponent.BackgroundProperty);
 
@@ -84,6 +88,43 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
             if (!string.IsNullOrWhiteSpace(value))
                 _ = target.Attribute(WebAttributes.Shortcut, value);
         }, ShortcutOperations);
+
+    /// <summary>
+    /// A button that opens a side's drawer (<see cref="ButtonComponent{T}.OpensDrawer"/>) wears the shell's own button's marks, which
+    /// side-drawer-engine.ts presses, marks expanded and gives the keyboard back to; nothing where the side is no drawer.
+    /// </summary>
+    private static void RenderDrawerOpener(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        CompiledView view = context.ViewResolution.View;
+
+        _ = ResolveRenderValue(context, ButtonComponent.OpensDrawerProperty, out UISide? side, out _);
+
+        var region = side switch
+        {
+            UISide.Left => RegionNames.LeftSide,
+            UISide.Right => RegionNames.RightSide,
+            _ => null
+        };
+
+        if (region is null || !view.Options.SideDrawers || !HasRegion(view, region))
+            return;
+
+        _ = root
+            .Attribute(WebAttributes.DrawerToggle, region)
+            .Attribute("aria-expanded", "false")
+            .Attribute("aria-controls", WebAttributes.DrawerId(region));
+    }
+
+    private static bool HasRegion(CompiledView view, string key)
+    {
+        foreach (CompiledRegion region in view.Regions)
+        {
+            if (string.Equals(region.Key, key, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Draws the button's label (icon, title, description, badge) into a box the chrome can address; a titleless control takes

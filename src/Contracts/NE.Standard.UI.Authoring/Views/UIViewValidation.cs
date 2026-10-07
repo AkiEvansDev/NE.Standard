@@ -69,15 +69,18 @@ internal static class UIViewValidation
             ValidateResponsive(owner, nameof(IVisualComponent.Placement), component.Placement, static placement => placement.Validate());
             ValidateLengths(owner, component.Width, component.MinWidth, component.MaxWidth, component.Height, component.MinHeight, component.MaxHeight);
 
-            // A padding and a border hold no negative side; a margin may, which is why Margin is not checked here.
+            // A padding, a border and a corner hold no negative side; a margin may, which is why Margin is not checked here.
             if (component is ISurfaceComponent surface)
             {
                 ValidateResponsive(owner, nameof(ISurfaceComponent.Padding), surface.Padding, static padding => padding.Validate());
                 ValidateBackgroundImage(owner, surface);
             }
 
-            if (component is IBorderedComponent { BorderThickness: UIThickness border })
-                ValidateResponsive<UIThickness>(owner, nameof(IBorderedComponent.BorderThickness), UIResponsive<UIThickness>.FromValue(border), static thickness => thickness.Validate());
+            if (component is IBorderedComponent bordered)
+            {
+                ValidateResponsive(owner, nameof(IBorderedComponent.BorderThickness), bordered.BorderThickness, static thickness => thickness.Validate());
+                ValidateResponsive(owner, nameof(IBorderedComponent.BorderRadius), bordered.BorderRadius, static radius => radius.Validate());
+            }
         }
     }
 
@@ -89,19 +92,11 @@ internal static class UIViewValidation
 
         try
         {
-            validate(responsive.Base);
-
-            if (responsive.Sm is T sm)
-                validate(sm);
-
-            if (responsive.Md is T md)
-                validate(md);
-
-            if (responsive.Xl is T xl)
-                validate(xl);
-
-            if (responsive.Xxl is T xxl)
-                validate(xxl);
+            for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+            {
+                if (responsive.Get(tier) is T tierValue)
+                    validate(tierValue);
+            }
         }
         catch (ArgumentException exception)
         {

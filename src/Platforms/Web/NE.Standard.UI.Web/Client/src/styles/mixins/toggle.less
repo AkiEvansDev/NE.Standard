@@ -39,20 +39,22 @@
 }
 
 // A toggle answers a pointer on its box alone, nothing drawn past the box's edge, which a container at the toggle's side would cut:
-// off, the ring takes the ink and the box a shade of it; on, the fill leans toward the ink; a press goes twice as far as a hover.
+// off, the ring goes halfway to the ink and the box takes a shade of it; on, the fill leans toward the ink; a press goes about twice
+// as far as a hover. Halfway, since the full ink is a white ring on a dark theme, which shouts for a hover.
 // Not in forced colours, where the box keeps the system's. @root is what the pointer is over, carrying the guard; @on draws the on box.
 @ui-toggle-live: ~":not(.ui-disabled, .ui-readonly, .ui-loading)";
 @ui-toggle-can-hover: ~"(hover: hover) and (forced-colors: none)";
+@ui-toggle-ring: ~"color-mix(in srgb, var(--ui-color-on-surface) 50%, var(--ui-color-mark))";
 
 .ui-toggle-answers(@root, @input, @box, @on) {
     @media @ui-toggle-can-hover {
         @{root}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
-            background: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-raised));
+            background: color-mix(in srgb, var(--ui-color-on-surface) 6%, var(--ui-surface-raised));
         }
 
         // An invalid box keeps its message's edge.
         @{root}@{ui-toggle-live}:not(.ui-invalid):hover > @{input}:not(:checked) ~ @{box} {
-            border-color: var(--ui-color-on-surface);
+            border-color: @ui-toggle-ring;
         }
 
         @{root}@{ui-toggle-live}:hover > @{input}:checked ~ @{box} {
@@ -62,29 +64,31 @@
 
     @media (forced-colors: none) {
         @{root}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
-            background: color-mix(in srgb, var(--ui-color-on-surface) 20%, var(--ui-surface-raised));
+            background: color-mix(in srgb, var(--ui-color-on-surface) 12%, var(--ui-surface-raised));
         }
 
         @{root}@{ui-toggle-live}:not(.ui-invalid):active > @{input}:not(:checked) ~ @{box} {
-            border-color: var(--ui-color-on-surface);
+            border-color: @ui-toggle-ring;
         }
 
         @{root}@{ui-toggle-live}:active > @{input}:checked ~ @{box} {
             @on();
-            --ui-toggle-lean: 68%;
+            --ui-toggle-lean: 82%;
         }
     }
 }
 
-// The primary leaning toward the ink by the answer's share: 82% under a hover, 68% under a press.
-@ui-toggle-leaned: ~"color-mix(in srgb, var(--ui-color-primary) var(--ui-toggle-lean, 82%), var(--ui-color-on-surface))";
+// The primary leaning toward the ink by the answer's share: 90% under a hover, 82% under a press.
+@ui-toggle-leaned: ~"color-mix(in srgb, var(--ui-color-primary) var(--ui-toggle-lean, 90%), var(--ui-color-on-surface))";
 
 // The ring is the mark: unchecked, it is all that says a box is there.
 .ui-toggle-box(@height) {
     position: relative;
     flex: 0 0 auto;
     height: @height;
-    border: var(--ui-border-width, 1px) solid var(--ui-color-mark);
+    border-style: solid;
+    border-color: var(--ui-color-mark);
+    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
     background: var(--ui-surface-raised);
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
 }

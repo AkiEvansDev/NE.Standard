@@ -6,7 +6,7 @@ import {
     TableHeaderClass, TableHiddenAttribute, TableHideBelowAttribute, TableLastAttribute, TableReorderingAttribute, TableResizerClass, TableRowClass,
     TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute, TableStartsHiddenAttribute
 } from "../addressing/dom-attributes.ts";
-import { currentResponsiveTier, responsiveBreakpoints, responsiveTiers } from "../rendering/responsive-tier.ts";
+import { currentResponsiveTier, responsiveTierQuery, responsiveTiers } from "../rendering/responsive-tier.ts";
 import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
 import { OnceWarner } from "../runtime/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
@@ -162,7 +162,7 @@ export class TableColumnsEngine {
         if (typeof matchMedia === "function") {
             for (const tier of responsiveTiers) {
                 if (tier !== "base")
-                    matchMedia(`(min-width: ${responsiveBreakpoints[tier]}px)`).addEventListener("change", () => this.layoutAll());
+                    matchMedia(responsiveTierQuery(tier)).addEventListener("change", () => this.layoutAll());
             }
         }
 

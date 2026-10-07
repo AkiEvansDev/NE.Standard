@@ -6,13 +6,28 @@
 @import (reference) "./runtime.less";
 
 // UIViewOptions.SideDrawers: on a narrow screen the sides slide over the content from their edges, opened by header buttons; a left
-// side that is a rail alone (WebViewRenderer marks it) is a bar along the page's bottom instead.
+// side that is a rail alone (WebViewRenderer marks it) is a bar along the page's bottom instead, unless the view keeps it a drawer
+// (UIViewOptions.RailBottomBar), where its rail is drawn as a list (menu-group-engine.ts).
 
 @ui-drawer-width: 20rem;
 
 .ui-shell__drawer-toggle,
 .ui-shell__drawer-backdrop {
     display: none;
+}
+
+// A page's own button for a drawer (ButtonComponent.OpensDrawer) shows only where its side is one, as the shell's own does: from the
+// breakpoint up, and for a left side that is the bottom bar, it would open nothing. Over the author's Visibility, for the same reason.
+@media (min-width: @ui-breakpoint-md) {
+    [data-ui-id][data-ui-drawer-toggle] {
+        display: none !important;
+    }
+}
+
+@media (max-width: (@ui-breakpoint-md - 0.02px)) {
+    [data-ui-root]:has(> [data-ui-region="left-side"][data-ui-bottom-bar]) [data-ui-id][data-ui-drawer-toggle="left-side"] {
+        display: none !important;
+    }
 }
 
 @media (max-width: (@ui-breakpoint-md - 0.02px)) {

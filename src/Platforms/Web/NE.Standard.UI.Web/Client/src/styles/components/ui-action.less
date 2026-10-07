@@ -7,7 +7,7 @@
 .ui-action {
     justify-content: flex-start;
     // A button's corners, not a row's: a row of a list is square, an action is a control of its own.
-    border-radius: var(--ui-radius-button);
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-button));
     gap: @ui-space-3;
     // Re-called with this control's own defaults rather than written flat, or runtime.less's var() chain is silently swallowed.
     .ui-responsive-property(min-height, --ui-min-height, @ui-row-height);

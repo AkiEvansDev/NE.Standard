@@ -67,7 +67,8 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// search (<see cref="SetSearch"/>): its groups fly out, so a match among their entries would not show. A rail that is the whole of
     /// a view's left side is the page's bottom navigation bar on a phone rather than a drawer (<see cref="UIMenuDisplay.Rail"/> says
     /// when): its entries share the width down to a press's width each (<see cref="Size"/> says which) and then scroll sideways, the
-    /// current one marked on its top edge, over the bar's hairline. A rail's entries stand edge to edge, as square slices of it.
+    /// current one marked on its top edge, over the bar's hairline — or, where the view turns <c>UIViewOptions.RailBottomBar</c> off,
+    /// it is that side's drawer drawn as a list. A rail's entries stand edge to edge, as square slices of it.
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = UIMenuDisplay.List)]
     public UIMenuDisplay? Display { get; set; }

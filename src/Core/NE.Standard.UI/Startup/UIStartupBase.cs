@@ -33,10 +33,18 @@ public abstract class UIStartupBase
         // Built in the host's own container, on first resolve: a provider built here would construct every singleton the build touches a second time.
         _ = services.AddSingleton(application.Build);
         _ = services.AddSingleton<IUIHost, UIHost>();
+        AddHostServices(services, static provider => (UIHost)provider.GetRequiredService<IUIHost>());
+    }
+
+    /// <summary>Registers what the host itself serves, read from <paramref name="host"/>; a test host, built after its container, passes its own.</summary>
+    internal static void AddHostServices(IServiceCollection services, Func<IServiceProvider, UIHost> host)
+    {
         // The host holds the runtimes a session's end has to reach, so it is what ends one.
-        _ = services.AddSingleton<IUISessions>(static provider => (UIHost)provider.GetRequiredService<IUIHost>());
+        _ = services.AddSingleton<IUISessions>(host);
         // The host's too: its runtimes are what a topic and a user's pages are.
-        _ = services.AddSingleton<IUIBroadcast>(static provider => ((UIHost)provider.GetRequiredService<IUIHost>()).Broadcast);
+        _ = services.AddSingleton<IUIBroadcast>(provider => host(provider).Broadcast);
+        // And a user's notification: it reaches the pages a broadcast to the user would.
+        _ = services.AddSingleton<IUINotifier>(provider => host(provider).Broadcast);
     }
 
     internal void Configure(IServiceCollection services, UIApplicationBuilder application)

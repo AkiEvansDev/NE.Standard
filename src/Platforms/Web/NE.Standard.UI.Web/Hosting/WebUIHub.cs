@@ -450,7 +450,7 @@ internal sealed partial class WebUIHub : Hub
 
     /// <summary>Records what the page reports of itself — on screen or not, its notification permission — on its connection.</summary>
     /// <remarks>What the client says: it steers whether a notification shows on the screen or the system's, never what is allowed.</remarks>
-    public async Task ReportClientStateAsync(WebUIClientStateRequest request)
+    public Task ReportClientStateAsync(WebUIClientStateRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -458,7 +458,9 @@ internal sealed partial class WebUIHub : Hub
 
         // A page with no controller holds no handle, and nothing reads what it reports.
         if (_host is UIHost host && Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle)
-            await host.ReportClientStateAsync(handle, state, Context.ConnectionAborted).ConfigureAwait(false);
+            host.ReportClientState(handle, state);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>

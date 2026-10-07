@@ -1,7 +1,8 @@
 // A notification of the operating system's, shown through the browser: by the service worker the application registered where it
 // did, else by the page itself (`new Notification`), which a phone's browser refuses — answered false, and the page shows its fallback.
 
-import type { NotificationClickData } from "../runtime/worker-messages.ts";
+import { browserNotificationPermission } from "../runtime/client-state.ts";
+import type { NotificationClick, NotificationClickData } from "../runtime/worker-messages.ts";
 
 /** What the system shows, its words already in the page's language, and what a click on it does. */
 export type SystemNotificationRequest = {
@@ -15,6 +16,8 @@ export type SystemNotificationRequest = {
     // Where a click goes once the page is gone, and which page it brings forward while it is open.
     readonly address: string;
     readonly windowId: string;
+    // The address the notification named itself, where a click brings the page that showed it; none leaves that page where it stands.
+    readonly bringTo?: string;
     // The command a click runs once the page is in front, offered for one press.
     readonly action?: string;
 };
@@ -31,7 +34,7 @@ export type SystemNotificationServices = {
 /** The browser's own, showing through `registration` where a service worker is registered, else through the page. */
 export function browserNotifications(registration?: SystemNotificationServices["registration"]): SystemNotificationServices {
     return {
-        permission: () => typeof Notification === "undefined" ? undefined : Notification.permission,
+        permission: browserNotificationPermission,
         registration: registration ?? (() => Promise.resolve(undefined)),
         create: (title, options) => new Notification(title, options),
         focus: () => window.focus()
@@ -46,7 +49,7 @@ export async function showSystemNotification(request: SystemNotificationRequest,
     if (services.permission() !== "granted")
         return false;
 
-    const data: NotificationClickData = { address: request.address, windowId: request.windowId, action: request.action };
+    const data: NotificationClickData = { address: request.address, windowId: request.windowId, bringTo: request.bringTo, action: request.action };
     // `renotify`, which the DOM's types leave out: one replacing another of its tag is shown and sounded again, not swapped in
     // silently — a second message in a chat is news too.
     const options: NotificationOptions & { readonly renotify?: boolean } = {
@@ -83,20 +86,23 @@ export async function showSystemNotification(request: SystemNotificationRequest,
     }
 }
 
-/** Runs `show` now on a page on screen, else once the page comes back on screen: a toast raised off screen would pass unread. */
-export function whenOnScreen(show: () => void, doc: Pick<Document, "visibilityState" | "addEventListener" | "removeEventListener"> = document): void {
-    if (doc.visibilityState !== "hidden") {
-        show();
+/**
+ * Follows a click once its page is in front: to the address the notification named where the page stands elsewhere — through the
+ * page's own leave, so unsaved work is asked about first — else the command it offered, which belongs to the page it was shown on.
+ */
+export function followClick(click: NotificationClick, navigate: (url: string) => void, runAction: (id: string) => void, here: Pick<Location, "origin" | "pathname" | "search" | "hash"> = window.location): void {
+    if (click.bringTo !== undefined && isElsewhere(click.bringTo, here)) {
+        navigate(click.bringTo);
         return;
     }
 
-    const shown = (): void => {
-        if (doc.visibilityState === "hidden")
-            return;
+    if (click.action !== undefined)
+        runAction(click.action);
+}
 
-        doc.removeEventListener("visibilitychange", shown);
-        show();
-    };
+/** Whether the page stands somewhere other than `address`; a fragment counts only where the address names one. */
+function isElsewhere(address: string, here: Pick<Location, "origin" | "pathname" | "search" | "hash">): boolean {
+    const target = new URL(address, here.origin);
 
-    doc.addEventListener("visibilitychange", shown);
+    return target.pathname !== here.pathname || target.search !== here.search || (target.hash !== "" && target.hash !== here.hash);
 }

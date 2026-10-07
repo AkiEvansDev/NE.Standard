@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -23,15 +22,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// </summary>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
-[UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent, IKeyValueActionComponent
     where T : KeyValueActionComponent<T>, IUIComponentDefinition
 {
-    // The list draws an edge where the contract leaves the stylesheet's own.
-    private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(1);
-
     /// <summary>
     /// Gets or sets whether separator lines are shown between rows.
     /// </summary>

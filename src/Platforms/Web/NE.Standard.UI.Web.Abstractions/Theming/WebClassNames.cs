@@ -221,12 +221,32 @@ public static class WebClassNames
             _ => string.Empty
         };
 
+    private const string BorderNoneClass = "ui-border--none";
+
     /// <summary>
     /// <c>ui-border--none</c> for a thickness of nothing on every side — a component that draws no edge of its own, which the
-    /// stylesheet cannot read off the inline <c>border-width</c>; empty otherwise.
+    /// stylesheet cannot read off its border's tiers; empty otherwise.
     /// </summary>
     public static string BorderNone(UIThickness value)
-        => value is { Left: 0, Top: 0, Right: 0, Bottom: 0 } ? "ui-border--none" : string.Empty;
+        => IsNone(value) ? BorderNoneClass : string.Empty;
+
+    /// <summary>
+    /// <c>ui-border--none</c> for a responsive thickness that is nothing on every side at every breakpoint it sets: an edge at any
+    /// width is an edge the component lays out for.
+    /// </summary>
+    public static string BorderNone(UIResponsive<UIThickness> value)
+    {
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (value.Get(tier) is UIThickness thickness && !IsNone(thickness))
+                return string.Empty;
+        }
+
+        return BorderNoneClass;
+    }
+
+    private static bool IsNone(UIThickness value)
+        => value is { Left: 0, Top: 0, Right: 0, Bottom: 0 };
 
     public static string SurfaceStyle(UISurfaceStyle value)
         => value switch

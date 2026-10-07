@@ -1,12 +1,14 @@
 @import "../core/tokens.less";
 @import "../mixins/placement.less";
+@import "../mixins/responsive.less";
 @import "../mixins/surface-image.less";
 
 // A panel that folds to its switch (the fold is in ui-collapsible.less): a layout panel, no fill or edge unless the author asks.
 .ui-collapsible-panel {
     border-style: solid;
-    border-width: 0;
+    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-color: transparent;
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 }

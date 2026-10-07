@@ -19,6 +19,11 @@ public interface IFieldInputComponent : ISizedInputComponent
     static UIProperty TitlePlacementProperty { get; } = new(nameof(TitlePlacement));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="ShowFocusEdge"/>.
+    /// </summary>
+    static UIProperty ShowFocusEdgeProperty { get; } = new(nameof(ShowFocusEdge));
+
+    /// <summary>
     /// Gets where the caption stands, decided once at render; a multi-line field's box always keeps it on top.
     /// </summary>
     UIInputTitlePlacement? TitlePlacement { get; }
@@ -28,4 +33,10 @@ public interface IFieldInputComponent : ISizedInputComponent
     /// for an unset editor.
     /// </summary>
     UIInputAppearance? Appearance { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the field's edge takes the brand's colour while it holds the focus; off for a field its container and its
+    /// caret already frame, as a composer that is a bubble's whole content. The hover and an open list still answer.
+    /// </summary>
+    bool? ShowFocusEdge { get; set; }
 }

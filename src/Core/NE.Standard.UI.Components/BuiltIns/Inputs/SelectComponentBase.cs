@@ -42,6 +42,10 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     public UIInputAppearance? Appearance { get; set; }
 
     /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IFieldInputComponent), DefaultValue = true)]
+    public bool? ShowFocusEdge { get; set; }
+
+    /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
     public UIInputSize? Size { get; set; }
 

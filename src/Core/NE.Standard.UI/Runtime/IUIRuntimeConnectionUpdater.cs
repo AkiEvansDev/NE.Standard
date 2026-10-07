@@ -42,11 +42,10 @@ internal interface IUIRuntimeConnectionUpdater
     void DetachConnection(string instanceId);
 
     /// <summary>
-    /// Makes what a connection's page reports its handle's, counts it on screen or not, and tells the controller a changed
-    /// notification permission as a command runs.
+    /// Makes what a connection's page reports its handle's, counts it on screen or not, and posts the controller what changed: its
+    /// runtime going on or off screen, a changed notification permission.
     /// </summary>
-    /// <remarks>Waits for a command's turn where it tells the controller, so it is never called from inside one.</remarks>
-    Task UpdateClientStateAsync(UIHandle handle, UIClientState state, CancellationToken cancellationToken);
+    void UpdateClientState(UIHandle handle, UIClientState state);
 
     /// <summary>
     /// Reads a window of items for one instance and answers it what that changed; every other attached instance gets it from the

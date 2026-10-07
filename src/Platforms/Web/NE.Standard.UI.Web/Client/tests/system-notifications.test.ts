@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SystemNotificationRequest, SystemNotificationServices } from "../src/interactions/system-notifications.ts";
-import { showSystemNotification, whenOnScreen } from "../src/interactions/system-notifications.ts";
+import { followClick, showSystemNotification } from "../src/interactions/system-notifications.ts";
 
 const Request: SystemNotificationRequest = {
     title: "New message",
@@ -14,6 +14,7 @@ const Request: SystemNotificationRequest = {
     requireInteraction: false,
     address: "/chat?id=42",
     windowId: "tab-1",
+    bringTo: "/chat?id=42",
     action: "offer-1"
 };
 
@@ -70,7 +71,7 @@ test("shown by the page, a click brings it forward, closes the notification and 
     assert.equal(notification.options.tag, "chat:42");
     // One replacing another of its tag is shown again, not swapped in silently.
     assert.equal((notification.options as { renotify?: boolean }).renotify, true);
-    assert.deepEqual(notification.options.data, { address: "/chat?id=42", windowId: "tab-1", action: "offer-1" });
+    assert.deepEqual(notification.options.data, { address: "/chat?id=42", windowId: "tab-1", bringTo: "/chat?id=42", action: "offer-1" });
 
     notification.click?.();
 
@@ -92,22 +93,27 @@ test("a browser that refuses the page's own notification answers false, for the 
     assert.equal(await showSystemNotification(Request, () => undefined, services), false);
 });
 
-test("a fallback raised off screen waits until the page is on screen", () => {
-    const listeners = new Map<string, () => void>();
-    const doc = {
-        visibilityState: "hidden" as DocumentVisibilityState,
-        addEventListener: (name: string, listener: () => void) => listeners.set(name, listener),
-        removeEventListener: (name: string) => listeners.delete(name)
-    };
-    let shown = 0;
+function follow(click: { bringTo?: string; action?: string }, here: string): { went: string[]; ran: string[] } {
+    const went: string[] = [];
+    const ran: string[] = [];
+    const url = new URL(here, "https://site.test");
 
-    whenOnScreen(() => shown++, doc as unknown as Document);
+    followClick(click, address => went.push(address), id => ran.push(id), url);
 
-    assert.equal(shown, 0);
+    return { went, ran };
+}
 
-    doc.visibilityState = "visible";
-    listeners.get("visibilitychange")?.();
+test("a click brings a page standing elsewhere to the notification's address, through the page's own leave, and runs no command", () => {
+    assert.deepEqual(follow({ bringTo: "/chat?id=42", action: "offer-1" }, "/notes"), { went: ["/chat?id=42"], ran: [] });
+    assert.deepEqual(follow({ bringTo: "/chat?id=42" }, "/chat?id=7"), { went: ["/chat?id=42"], ran: [] });
+});
 
-    assert.equal(shown, 1);
-    assert.equal(listeners.size, 0);
+test("a click on a page already at the address, or naming none, runs the offered command where it stands", () => {
+    assert.deepEqual(follow({ bringTo: "/chat?id=42", action: "offer-1" }, "/chat?id=42#m3"), { went: [], ran: ["offer-1"] });
+    assert.deepEqual(follow({ action: "offer-1" }, "/notes"), { went: [], ran: ["offer-1"] });
+    assert.deepEqual(follow({}, "/notes"), { went: [], ran: [] });
+});
+
+test("a fragment the address names counts: the page goes to it", () => {
+    assert.deepEqual(follow({ bringTo: "/chat?id=42#m9" }, "/chat?id=42#m3"), { went: ["/chat?id=42#m9"], ran: [] });
 });

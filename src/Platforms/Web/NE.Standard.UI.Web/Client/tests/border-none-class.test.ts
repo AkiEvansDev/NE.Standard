@@ -24,6 +24,12 @@ test("one side drawn is an edge", () => {
     assert.equal(convert(1), "");
 });
 
+test("a responsive thickness is no edge only where every breakpoint it sets is nothing", () => {
+    assert.equal(convert({ base: 0, sm: null, md: { top: 0, right: 0, bottom: 0, left: 0 }, xl: null, xxl: null }), "ui-border--none");
+    assert.equal(convert({ base: 0, sm: null, md: 1, xl: null, xxl: null }), "");
+    assert.equal(convert({ base: 1, sm: null, md: 0, xl: null, xxl: null }), "");
+});
+
 test("no thickness leaves the stylesheet's edge", () => {
     assert.equal(convert(null), "");
     assert.equal(convert(undefined), "");

@@ -22,7 +22,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// </summary>
 /// <remarks>Sorting by header, editing and paging are an add-on's.</remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
-[UIComponentPropertyDefault(nameof(IBorderedComponent.BorderThickness), nameof(DefaultBorderThickness))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IItemsHostComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
@@ -35,9 +34,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent
     where T : TableComponent<T>, IUIComponentDefinition
 {
-    // The table draws an edge where the contract leaves the stylesheet's own.
-    private static readonly UIThickness DefaultBorderThickness = UIThickness.Uniform(1);
-
     // Columns whose floors outrun the box scroll sideways with their header rather than being cut at its edge.
     private const UIScrollMode DefaultHorizontalScroll = UIScrollMode.Auto;
 

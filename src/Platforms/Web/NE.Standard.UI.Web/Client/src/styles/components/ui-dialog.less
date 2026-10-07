@@ -40,15 +40,7 @@
     display: flex;
     flex-direction: column;
     // The panel takes a component's size and alignment tiers; unset, it centres and sizes to its content within the screen.
-    .ui-responsive-reset(--ui-width);
-    .ui-responsive-reset(--ui-min-width);
-    .ui-responsive-reset(--ui-max-width);
-    .ui-responsive-reset(--ui-height);
-    .ui-responsive-reset(--ui-min-height);
-    .ui-responsive-reset(--ui-max-height);
-    .ui-responsive-reset(--ui-margin);
-    .ui-responsive-reset(--ui-margin-x);
-    .ui-responsive-reset(--ui-margin-y);
+    .ui-responsive-layout-reset();
     // Fill and the screen's guard are the overlay's room less the panel's margins, as a component's Fill is (core/runtime.less): an
     // authored margin's sums, else the default margin, which the phone's and a sheet's rules restate beside their own.
     .ui-responsive-property(--ui-fill-margin-x, --ui-margin-x, (@ui-space-4 * 2));

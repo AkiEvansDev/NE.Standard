@@ -93,7 +93,9 @@
     height: auto;
     min-height: @ui-control-height;
     padding: 0 @ui-space-3;
+    // No edge to draw an authored thickness with, as ever: the boundary is the inset shadow. Its corners are the author's.
     border: none;
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-input));
     background-clip: border-box;
     box-shadow: inset 0 0 0 var(--ui-border-width, 1px) var(--ui-color-border);
     font: inherit;

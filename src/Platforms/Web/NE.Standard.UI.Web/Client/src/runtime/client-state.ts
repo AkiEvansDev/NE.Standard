@@ -18,10 +18,20 @@ export type ClientStateSource = {
 
 const BrowserSource: ClientStateSource = {
     visibilityState: () => document.visibilityState,
+    notificationPermission: browserNotificationPermission
+};
+
+/** Whether a page is on screen: anything but hidden, focus not counted — an unfocused window is usually still read. */
+export function isOnScreen(visibilityState: DocumentVisibilityState): boolean {
+    return visibilityState !== "hidden";
+}
+
+/** What the browser lets the page show, or none where it shows no notifications. */
+export function browserNotificationPermission(): NotificationPermission | undefined {
     // A page that is not secure (plain http but for localhost) shows none, though Chromium names it `denied` there: a reader told to
     // unblock it in the settings would find nothing to unblock.
-    notificationPermission: () => typeof Notification === "undefined" || !window.isSecureContext ? undefined : Notification.permission
-};
+    return typeof Notification === "undefined" || !window.isSecureContext ? undefined : Notification.permission;
+}
 
 // How long a burst of changes — a window switched away and straight back — settles before it is reported, once.
 const SettleMilliseconds = 200;
@@ -29,7 +39,7 @@ const SettleMilliseconds = 200;
 /** What the page is now. */
 export function readClientState(source: ClientStateSource = BrowserSource): ClientState {
     return {
-        visible: source.visibilityState() !== "hidden",
+        visible: isOnScreen(source.visibilityState()),
         notificationPermission: source.notificationPermission() ?? "unsupported"
     };
 }

@@ -77,6 +77,8 @@ export function registerBuiltInEvents(catalog: EventCatalog): void {
     catalog.registerNative("search");
     // Enter in a one-line field with OnEnter; raised by field-keys-engine.ts on the field once its value is committed.
     catalog.registerNative("enter");
+    // Escape in a text field with OnEscape; raised by field-keys-engine.ts on the field once it went back to its committed value and left.
+    catalog.registerNative("escape");
     catalog.registerNative("rename");
     // A tree node unfolded before its children are in the list; raised by tree-engine.ts on the row.
     catalog.registerNative("unfold");

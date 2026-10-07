@@ -32,6 +32,12 @@ export function commitWaiting(): void {
         engine.commitAll();
 }
 
+/** Lets a field's waiting commit go unsent: what was typed was cancelled. */
+export function dropWaiting(field: Element): void {
+    for (const engine of engines)
+        engine.drop(field);
+}
+
 export class DebouncedCommitEngine {
     private readonly root: ParentNode;
     // A map, not a weak one: a leave walks the fields still waiting; each leaves it as its timer fires or a native commit lands.
@@ -48,6 +54,19 @@ export class DebouncedCommitEngine {
 
     public get waiting(): boolean {
         return this.timers.size > 0;
+    }
+
+    public drop(field: Element): void {
+        if (!isDebouncedField(field))
+            return;
+
+        const timer = this.timers.get(field);
+
+        if (timer === undefined)
+            return;
+
+        window.clearTimeout(timer);
+        this.timers.delete(field);
     }
 
     public commitAll(): void {

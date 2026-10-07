@@ -1,12 +1,19 @@
+// A responsive value's tier chain, widest first, read through a lookup: `.ui-responsive-chain(--ui-x; 0px)[@value]`, ending at
+// @default (none when it is left out). It reads the widest tier written, so the element carrying the tiers fences them.
+.ui-responsive-chain(@variable; @default: ~"") {
+    @fallback: if((@default = ~""), ~"", ~", @{default}");
+    @value: ~"var(@{variable}-xxl, var(@{variable}-xl, var(@{variable}-md, var(@{variable}-sm, var(@{variable}@{fallback})))))";
+}
+
 // One authoring property through a five-tier var() chain, widest first; a flat literal on the same element would win the cascade.
 .ui-responsive-property(@property, @variable, @default) {
-    @{property}: var(~"@{variable}-xxl", var(~"@{variable}-xl", var(~"@{variable}-md", var(~"@{variable}-sm", var(~"@{variable}", @default)))));
+    @{property}: .ui-responsive-chain(@variable; @default)[@value];
 }
 
 // A component's default floor (a min-width, a min-height) that yields to the authored size it bounds: a floor wins over a smaller
 // width in CSS, so without the min() a Width below the floor would be silently ignored. An authored floor still wins over both.
 .ui-responsive-floor(@property, @variable, @floor, @size-variable) {
-    @size: ~"var(@{size-variable}-xxl, var(@{size-variable}-xl, var(@{size-variable}-md, var(@{size-variable}-sm, var(@{size-variable}, @{floor})))))";
+    @size: .ui-responsive-chain(@size-variable; @floor)[@value];
     .ui-responsive-property(@property, @variable, ~"min(@{floor}, @{size})");
 }
 
@@ -40,10 +47,49 @@
     }
 }
 
-.ui-responsive-reset-infix(@prefix, @suffix) {
-    @{prefix}-@{suffix}: initial;
-    @{prefix}-sm-@{suffix}: initial;
-    @{prefix}-md-@{suffix}: initial;
-    @{prefix}-xl-@{suffix}: initial;
-    @{prefix}-xxl-@{suffix}: initial;
+// A component's own size and margin tiers, reset on whatever wears a component's layout: a component's root, a dialog's panel.
+.ui-responsive-layout-reset() {
+    .ui-responsive-reset(--ui-width);
+    .ui-responsive-reset(--ui-min-width);
+    .ui-responsive-reset(--ui-max-width);
+    .ui-responsive-reset(--ui-height);
+    .ui-responsive-reset(--ui-min-height);
+    .ui-responsive-reset(--ui-max-height);
+    .ui-responsive-reset(--ui-margin);
+    .ui-responsive-reset(--ui-margin-x);
+    .ui-responsive-reset(--ui-margin-y);
+}
+
+// @rules once per tier inside that tier's own width band and no other, for a rule CSS cannot undo (`display: none`): with @tier naming
+// the tier and @name its entry of @names, the five full names narrowest first, written whole so the hook guard can read them.
+.ui-responsive-bands(@names; @rules) {
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        @tier: base;
+        @name: extract(@names, 1);
+        @rules();
+    }
+
+    @media (min-width: @ui-breakpoint-sm) and (max-width: (@ui-breakpoint-md - 0.02px)) {
+        @tier: sm;
+        @name: extract(@names, 2);
+        @rules();
+    }
+
+    @media (min-width: @ui-breakpoint-md) and (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        @tier: md;
+        @name: extract(@names, 3);
+        @rules();
+    }
+
+    @media (min-width: @ui-breakpoint-xl) and (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        @tier: xl;
+        @name: extract(@names, 4);
+        @rules();
+    }
+
+    @media (min-width: @ui-breakpoint-xxl) {
+        @tier: xxl;
+        @name: extract(@names, 5);
+        @rules();
+    }
 }

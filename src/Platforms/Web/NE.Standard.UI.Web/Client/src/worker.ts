@@ -3,6 +3,7 @@
 // address where that page is gone. Registered at `/_ne/`, where it controls no page of the application; an application with a
 // worker of its own imports this one into it instead. Types declared here: the worker's own library cannot share the page's.
 
+import { isLocalRoute } from "./rendering/url-safety.ts";
 import { NotificationClickMessage, WindowQueryMessage } from "./runtime/worker-messages.ts";
 import type { NotificationClickData } from "./runtime/worker-messages.ts";
 
@@ -40,7 +41,10 @@ self.addEventListener("notificationclick", event => {
     event.waitUntil(openPage(event.notification.data as NotificationClickData | null));
 });
 
-/** Brings the page the notification came from forward and runs its command there; with that page gone, opens its address. */
+/**
+ * Brings the page the notification came from forward and has it follow the click there — to the address the notification named, or
+ * its command; with that page gone, opens its address.
+ */
 async function openPage(data: NotificationClickData | null): Promise<void> {
     if (data === null || typeof data.windowId !== "string")
         return;
@@ -50,7 +54,7 @@ async function openPage(data: NotificationClickData | null): Promise<void> {
 
     if (page === null) {
         // Only a path of this site: the page checked it as it showed the notification, and a worker opens nothing else.
-        if (typeof data.address === "string" && data.address.startsWith("/") && !data.address.startsWith("//"))
+        if (typeof data.address === "string" && isLocalRoute(data.address))
             await self.clients.openWindow(data.address);
 
         return;
@@ -58,9 +62,10 @@ async function openPage(data: NotificationClickData | null): Promise<void> {
 
     await page.focus();
 
-    // A client's message has no target origin to name: the worker reaches only pages of its own.
-    if (typeof data.action === "string")
-        page.postMessage({ kind: NotificationClickMessage, action: data.action }, []);
+    // A client's message has no target origin to name: the worker reaches only pages of its own. The page goes to the address
+    // itself, through its own leave, so its unsaved work is asked about first.
+    if (typeof data.action === "string" || typeof data.bringTo === "string")
+        page.postMessage({ kind: NotificationClickMessage, action: data.action, bringTo: data.bringTo }, []);
 }
 
 /** The page whose tab is `windowId`, asked of each page at once; none where no page answers in time. */

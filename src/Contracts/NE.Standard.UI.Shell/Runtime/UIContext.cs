@@ -5,14 +5,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Primitives.Localization;
-using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Sessions;
-using NE.Standard.UI.Shell.Updates;
-using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Shell.Runtime;
 
@@ -170,17 +167,7 @@ public sealed class UIContext
     {
         ArgumentNullException.ThrowIfNull(effects);
 
-        if (effects.Count == 0)
-            return Task.CompletedTask;
-
-        // The command-result channel with no command behind it, the route a download already takes when it is raised outside one.
-        UICommandExecutionResult result = new()
-        {
-            Command = UICommandResult.Ok(Runtime.ResolveEffects(effects)),
-            Changes = ServerChangeSet.Empty
-        };
-
-        return Updates.SendCommandResultAsync(Handle, result, cancellationToken);
+        return Runtime.SendEffectsToAsync([Handle], effects, cancellationToken);
     }
 
     /// <summary>
@@ -210,10 +197,6 @@ public sealed class UIContext
     private IUITopicSubscriber Topics
         => Runtime as IUITopicSubscriber
             ?? throw new InvalidOperationException("This runtime takes no topics; the host's runtimes do.");
-
-    private IUIUpdateSink Updates
-        => (IUIUpdateSink?)Services.GetService(typeof(IUIUpdateSink))
-            ?? throw new InvalidOperationException($"'{nameof(IUIUpdateSink)}' is not registered.");
 
     /// <summary>
     /// Translates a plain value using the current session language — under key prefixes, only a prefixed one.

@@ -15,10 +15,9 @@
     display: flex;
     flex-direction: column;
     border-style: solid;
-    // Flat, not a fallback: --ui-border-width is always defined; an authored BorderThickness is inline and wins anyway.
-    border-width: 0;
+    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-color: var(--ui-color-border);
-    border-radius: var(--ui-radius-row);
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-row));
     background: var(--ui-surface-color, transparent);
     // No `outline: none`: the tree holds the keyboard's focus as the items view and the table do, and wears the theme's ring as they do.
     // The room before a title: the chevron plus the gap, both dropped with no chevron as the hidden toggle takes its gap.

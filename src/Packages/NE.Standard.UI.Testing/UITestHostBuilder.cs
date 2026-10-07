@@ -4,8 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Hosting;
-using NE.Standard.UI.Shell.Runtime;
-using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Startup;
 
 namespace NE.Standard.UI.Testing;
@@ -43,10 +41,9 @@ internal static class UITestHostBuilder
         configureServices?.Invoke(services);
         configureApplication?.Invoke(applicationBuilder);
 
-        // As the startup registers it: the host is what ends a session, and it is built after the container here.
+        // As the startup registers them; the host is built after the container here.
         UIHost? built = null;
-        _ = services.AddSingleton<IUISessions>(_ => built ?? throw new InvalidOperationException("The test host is not built yet."));
-        _ = services.AddSingleton<IUIBroadcast>(_ => built?.Broadcast ?? throw new InvalidOperationException("The test host is not built yet."));
+        UIStartupBase.AddHostServices(services, _ => built ?? throw new InvalidOperationException("The test host is not built yet."));
 
         UIApplication application;
 

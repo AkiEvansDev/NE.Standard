@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/responsive.less";
 
 .ui-accordion {
     // Always a column: one section open at a time only means something down an axis where it can grow.
@@ -6,8 +7,9 @@
     flex-direction: column;
     // Declared so BorderThickness has something to draw with — see .ui-stack-panel for why all three.
     border-style: solid;
-    border-width: 0;
+    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-color: transparent;
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
 }
 
 .ui-accordion > [data-ui-id] {
@@ -19,21 +21,24 @@
     align-self: var(--ui-align-h, normal);
 }
 
-// One block, not a stack of cards: sections share the edge between them, only the outermost corners are rounded.
+// One block, not a stack of cards: sections share the edge between them, only the outermost corners are rounded. Whole shorthands,
+// each through the chain, so a section's authored BorderThickness or BorderRadius still wins.
 .ui-accordion > .ui-expander {
-    border-radius: 0;
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
 }
 
 .ui-accordion > .ui-expander + .ui-expander {
-    border-top-width: 0;
+    .ui-responsive-property(border-width, --ui-border-thickness, ~"0 var(--ui-border-width, 1px) var(--ui-border-width, 1px)");
 }
 
 .ui-accordion > .ui-expander:first-child {
-    border-top-left-radius: var(--ui-radius-card);
-    border-top-right-radius: var(--ui-radius-card);
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-card) var(--ui-radius-card) 0 0");
 }
 
 .ui-accordion > .ui-expander:last-child {
-    border-bottom-left-radius: var(--ui-radius-card);
-    border-bottom-right-radius: var(--ui-radius-card);
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"0 0 var(--ui-radius-card) var(--ui-radius-card)");
+}
+
+.ui-accordion > .ui-expander:only-child {
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
 }

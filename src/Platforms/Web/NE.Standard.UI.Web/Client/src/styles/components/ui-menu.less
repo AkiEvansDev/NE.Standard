@@ -68,10 +68,21 @@
     min-width: 0;
 }
 
-// An entry's states are .ui-button's; here its row shape: rounded, the current entry straight on the edge its mark stands on.
+// An entry's four corners, which its shape rules set one by one and its border's chain reads.
+.ui-menu-entry-corners(@radius) {
+    --ui-menu-entry-tl: @radius;
+    --ui-menu-entry-tr: @radius;
+    --ui-menu-entry-br: @radius;
+    --ui-menu-entry-bl: @radius;
+}
+
+// An entry's states are .ui-button's; here its row shape: rounded, the current entry straight on the edge its mark stands on. The
+// shape rules below set its corners one by one, as variables, so they add up as corner properties would, and an authored
+// BorderRadius still wins through the chain.
 .ui-menu-item {
     justify-content: flex-start;
-    border-radius: @ui-list-entry-radius;
+    .ui-menu-entry-corners(@ui-list-entry-radius);
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-menu-entry-tl) var(--ui-menu-entry-tr) var(--ui-menu-entry-br) var(--ui-menu-entry-bl)");
     gap: @ui-space-2;
     // Re-called with this control's own default; 1.75rem, not 2, keeps rows close enough to read as one list rather than loose items.
     .ui-responsive-property(min-height, --ui-min-height, @ui-list-row-height);
@@ -81,12 +92,12 @@
 
 // Along a bar the entries are square, as a tab strip's captions are: a row of rounded pills reads as buttons, not as a bar.
 .ui-menu.ui-orientation--horizontal .ui-menu-item {
-    border-radius: 0;
+    .ui-menu-entry-corners(0);
 }
 
 // In a popup an entry's corner runs parallel to the popup's, a bar's flyout too (after the bar's rule, which it ties with).
 :is(.ui-context-menu, .ui-split-button__menu, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item {
-    border-radius: @ui-list-entry-radius;
+    .ui-menu-entry-corners(@ui-list-entry-radius);
 }
 
 // The current entry keeps its ground under the pointer: restated at the ghost button's hover specificity, which this file wins by order.
@@ -111,26 +122,26 @@
 // keeps the side's corners.
 .ui-menu.ui-side--left .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-left);
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
+    --ui-menu-entry-tl: 0;
+    --ui-menu-entry-bl: 0;
 }
 
 .ui-menu.ui-side--right .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-right);
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+    --ui-menu-entry-tr: 0;
+    --ui-menu-entry-br: 0;
 }
 
 .ui-menu.ui-side--top .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-top);
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+    --ui-menu-entry-tl: 0;
+    --ui-menu-entry-tr: 0;
 }
 
 .ui-menu.ui-side--bottom .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-bottom);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+    --ui-menu-entry-bl: 0;
+    --ui-menu-entry-br: 0;
 }
 
 // A bar's current entry is marked along its bottom edge whatever Side says: a line on one side of a row reads as a box.
@@ -142,7 +153,7 @@
 // its neighbours.
 .ui-menu .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item--selected {
     .ui-selected-mark(none);
-    border-radius: @ui-list-entry-radius;
+    .ui-menu-entry-corners(@ui-list-entry-radius);
 }
 
 // Collapsed, an entry keeps its padding so the glyph stays in line with the page title's edge; not in the flyout, which keeps titles.
@@ -632,7 +643,7 @@
 @{ui-menu-rail-entry} {
     flex-direction: column;
     justify-content: center;
-    border-radius: 0;
+    .ui-menu-entry-corners(0);
     gap: 0;
     .ui-responsive-property(min-height, --ui-min-height, var(--ui-menu-rail-entry-height));
     .ui-responsive-property(padding, --ui-padding, var(--ui-menu-rail-padding));

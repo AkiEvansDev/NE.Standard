@@ -42,10 +42,10 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     public UIImageFit? Fit { get; set; }
 
     /// <summary>
-    /// Gets or sets the corner radius applied to the image.
+    /// Gets or sets the corner radius applied to the image, optionally overridden per breakpoint.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
-    public UICornerRadius? CornerRadius { get; set; }
+    public UIResponsive<UICornerRadius>? CornerRadius { get; set; }
 
     /// <summary>
     /// Gets or sets the image's shape — <see cref="UIImageShape.Circle"/> for a person's avatar: a square box, cropped to its middle

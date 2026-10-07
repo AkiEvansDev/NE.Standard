@@ -12,8 +12,9 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// <remarks>
 /// Shown where the page is off screen (<see cref="When"/>) and its browser lets it (<c>UIContext.NotificationPermission</c>, asked by
 /// <see cref="RequestNotificationPermissionEffect"/>); the page decides as it shows it, from what it is then. Sent to every page of a
-/// runtime, it is shown by the hidden ones only while none is on screen, and once: the pages share its <see cref="Tag"/>. The words
-/// are translated in the page's language, as a toast's are.
+/// runtime, it sounds once: shown only off screen, it reaches a page off screen only while none is on screen, and then one such page;
+/// shown <see cref="UINotificationWhen.Always"/>, it reaches one page, the first on screen, else one off screen. The words are
+/// translated in the page's language, as a toast's are.
 /// </remarks>
 public sealed class ShowSystemNotificationEffect : ClientEffect
 {
@@ -56,9 +57,13 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     public string? Icon { get; init; }
 
     /// <summary>
-    /// Gets the address of this site a click opens where the page is gone, or <see langword="null"/> for the page's own; a page still
-    /// open is brought to the front instead.
+    /// Gets the address of this site a click brings the page that showed it to, or opens where that page is gone;
+    /// <see langword="null"/> leaves the page where it stands.
     /// </summary>
+    /// <remarks>
+    /// The page goes there through its own leave, so its unsaved work is asked about first; a page already there runs
+    /// <see cref="Action"/> instead, which belongs to the page it leaves.
+    /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Address { get; init; }
 
@@ -74,7 +79,10 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     /// Gets the command a click on it runs once the page is in front — its button's in the fallback toast — or <see langword="null"/>
     /// for a click that only brings the page forward.
     /// </summary>
-    /// <remarks>Offered as a toast's action is, and run once; a click once the page is gone, its runtime with it, only opens <see cref="Address"/>.</remarks>
+    /// <remarks>
+    /// Offered as a toast's action is, and run once; a click once the page is gone, its runtime with it, only opens <see cref="Address"/>.
+    /// A notification sent to a user (<c>IUINotifier</c>) offers none: a command belongs to one page's runtime.
+    /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public UINotificationAction? Action { get; init; }
 

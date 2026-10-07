@@ -58,7 +58,7 @@ public static class WebDomConverters
     public const string LayoutLengthCss = "layoutLengthCss";
     public const string ThicknessCss = "thicknessCss";
 
-    /// <summary>A border thickness as <c>WebClassNames.BorderNone</c>: the class when every side is nothing, else none.</summary>
+    /// <summary>A border thickness as <c>WebClassNames.BorderNone</c>: the class when every side of every tier is nothing, else none.</summary>
     public const string BorderNoneClass = "borderNoneClass";
     public const string RadiusCss = "radiusCss";
     public const string GridUnitCss = "gridUnitCss";
@@ -145,75 +145,36 @@ public static class WebDomConverters
     /// <summary>A set of days as the space-separated <c>yyyy-MM-dd</c> tokens <c>WebTemporalFormat.Days</c> writes; none removes the attribute.</summary>
     public const string MarkedDaysAttribute = "markedDaysAttribute";
 
-    public const string ResponsiveLayoutLengthBaseCss = "responsiveLayoutLengthBaseCss";
-    public const string ResponsiveLayoutLengthSmCss = "responsiveLayoutLengthSmCss";
-    public const string ResponsiveLayoutLengthMdCss = "responsiveLayoutLengthMdCss";
-    public const string ResponsiveLayoutLengthXlCss = "responsiveLayoutLengthXlCss";
-    public const string ResponsiveLayoutLengthXxlCss = "responsiveLayoutLengthXxlCss";
+    /// <summary>A length tier (<c>WebCssValues.ResponsiveLayoutLength</c>): nothing for <c>Auto</c>, so the stylesheet's default applies.</summary>
+    public static readonly WebResponsiveConverters ResponsiveLayoutLengthCss = new("responsiveLayoutLength", "Css");
 
     /// <summary>A component's width tier (<c>WebCssValues.ResponsiveSize</c>): <c>Fill</c> less its margins across.</summary>
-    public const string ResponsiveWidthBaseCss = "responsiveWidthBaseCss";
-    public const string ResponsiveWidthSmCss = "responsiveWidthSmCss";
-    public const string ResponsiveWidthMdCss = "responsiveWidthMdCss";
-    public const string ResponsiveWidthXlCss = "responsiveWidthXlCss";
-    public const string ResponsiveWidthXxlCss = "responsiveWidthXxlCss";
+    public static readonly WebResponsiveConverters ResponsiveWidthCss = new("responsiveWidth", "Css");
 
     /// <summary>A component's height tier (<c>WebCssValues.ResponsiveSize</c>): <c>Fill</c> less its margins down.</summary>
-    public const string ResponsiveHeightBaseCss = "responsiveHeightBaseCss";
-    public const string ResponsiveHeightSmCss = "responsiveHeightSmCss";
-    public const string ResponsiveHeightMdCss = "responsiveHeightMdCss";
-    public const string ResponsiveHeightXlCss = "responsiveHeightXlCss";
-    public const string ResponsiveHeightXxlCss = "responsiveHeightXxlCss";
+    public static readonly WebResponsiveConverters ResponsiveHeightCss = new("responsiveHeight", "Css");
 
-    public const string ResponsiveThicknessBaseCss = "responsiveThicknessBaseCss";
-    public const string ResponsiveThicknessSmCss = "responsiveThicknessSmCss";
-    public const string ResponsiveThicknessMdCss = "responsiveThicknessMdCss";
-    public const string ResponsiveThicknessXlCss = "responsiveThicknessXlCss";
-    public const string ResponsiveThicknessXxlCss = "responsiveThicknessXxlCss";
+    /// <summary>A thickness tier (<c>WebCssValues.Thickness</c>): a padding's, a margin's or a border's at that breakpoint.</summary>
+    public static readonly WebResponsiveConverters ResponsiveThicknessCss = new("responsiveThickness", "Css");
 
     /// <summary>A margin tier's left and right summed (<c>WebCssValues.ThicknessSum</c>), what a <c>Fill</c> width leaves out.</summary>
-    public const string ResponsiveThicknessHorizontalBaseCss = "responsiveThicknessHorizontalBaseCss";
-    public const string ResponsiveThicknessHorizontalSmCss = "responsiveThicknessHorizontalSmCss";
-    public const string ResponsiveThicknessHorizontalMdCss = "responsiveThicknessHorizontalMdCss";
-    public const string ResponsiveThicknessHorizontalXlCss = "responsiveThicknessHorizontalXlCss";
-    public const string ResponsiveThicknessHorizontalXxlCss = "responsiveThicknessHorizontalXxlCss";
+    public static readonly WebResponsiveConverters ResponsiveThicknessHorizontalCss = new("responsiveThicknessHorizontal", "Css");
 
     /// <summary>A margin tier's top and bottom summed (<c>WebCssValues.ThicknessSum</c>), what a <c>Fill</c> height leaves out.</summary>
-    public const string ResponsiveThicknessVerticalBaseCss = "responsiveThicknessVerticalBaseCss";
-    public const string ResponsiveThicknessVerticalSmCss = "responsiveThicknessVerticalSmCss";
-    public const string ResponsiveThicknessVerticalMdCss = "responsiveThicknessVerticalMdCss";
-    public const string ResponsiveThicknessVerticalXlCss = "responsiveThicknessVerticalXlCss";
-    public const string ResponsiveThicknessVerticalXxlCss = "responsiveThicknessVerticalXxlCss";
-    public const string ResponsivePixelsBaseCss = "responsivePixelsBaseCss";
-    public const string ResponsivePixelsSmCss = "responsivePixelsSmCss";
-    public const string ResponsivePixelsMdCss = "responsivePixelsMdCss";
-    public const string ResponsivePixelsXlCss = "responsivePixelsXlCss";
-    public const string ResponsivePixelsXxlCss = "responsivePixelsXxlCss";
+    public static readonly WebResponsiveConverters ResponsiveThicknessVerticalCss = new("responsiveThicknessVertical", "Css");
 
-    public const string GridPlacementBaseColumnCss = "gridPlacementBaseColumnCss";
-    public const string GridPlacementBaseRowCss = "gridPlacementBaseRowCss";
-    public const string GridPlacementBaseColumnSpanCss = "gridPlacementBaseColumnSpanCss";
-    public const string GridPlacementBaseRowSpanCss = "gridPlacementBaseRowSpanCss";
-    public const string GridPlacementSmColumnCss = "gridPlacementSmColumnCss";
-    public const string GridPlacementSmRowCss = "gridPlacementSmRowCss";
-    public const string GridPlacementSmColumnSpanCss = "gridPlacementSmColumnSpanCss";
-    public const string GridPlacementSmRowSpanCss = "gridPlacementSmRowSpanCss";
-    public const string GridPlacementMdColumnCss = "gridPlacementMdColumnCss";
-    public const string GridPlacementMdRowCss = "gridPlacementMdRowCss";
-    public const string GridPlacementMdColumnSpanCss = "gridPlacementMdColumnSpanCss";
-    public const string GridPlacementMdRowSpanCss = "gridPlacementMdRowSpanCss";
-    public const string GridPlacementXlColumnCss = "gridPlacementXlColumnCss";
-    public const string GridPlacementXlRowCss = "gridPlacementXlRowCss";
-    public const string GridPlacementXlColumnSpanCss = "gridPlacementXlColumnSpanCss";
-    public const string GridPlacementXlRowSpanCss = "gridPlacementXlRowSpanCss";
-    public const string GridPlacementXxlColumnCss = "gridPlacementXxlColumnCss";
-    public const string GridPlacementXxlRowCss = "gridPlacementXxlRowCss";
-    public const string GridPlacementXxlColumnSpanCss = "gridPlacementXxlColumnSpanCss";
-    public const string GridPlacementXxlRowSpanCss = "gridPlacementXxlRowSpanCss";
+    /// <summary>A corner radius tier (<c>WebCssValues.Radius</c>): a border's or a picture's rounding at that breakpoint.</summary>
+    public static readonly WebResponsiveConverters ResponsiveRadiusCss = new("responsiveRadius", "Css");
 
-    public const string VisibilityBaseAttribute = "visibilityBaseAttribute";
-    public const string VisibilitySmAttribute = "visibilitySmAttribute";
-    public const string VisibilityMdAttribute = "visibilityMdAttribute";
-    public const string VisibilityXlAttribute = "visibilityXlAttribute";
-    public const string VisibilityXxlAttribute = "visibilityXxlAttribute";
+    /// <summary>A pixel tier (<c>WebCssValues.Pixels</c>): a spacing at that breakpoint.</summary>
+    public static readonly WebResponsiveConverters ResponsivePixelsCss = new("responsivePixels", "Css");
+
+    /// <summary>A placement tier's parts, one custom property each (<c>WebResponsiveCss.PlacementColumnVariable</c> and its siblings).</summary>
+    public static readonly WebResponsiveConverters GridPlacementColumnCss = new("gridPlacement", "ColumnCss");
+    public static readonly WebResponsiveConverters GridPlacementRowCss = new("gridPlacement", "RowCss");
+    public static readonly WebResponsiveConverters GridPlacementColumnSpanCss = new("gridPlacement", "ColumnSpanCss");
+    public static readonly WebResponsiveConverters GridPlacementRowSpanCss = new("gridPlacement", "RowSpanCss");
+
+    /// <summary>A visibility tier as its attribute: the value in force there, resolved through the narrower tiers; none for visible.</summary>
+    public static readonly WebResponsiveConverters VisibilityAttribute = new("visibility", "Attribute");
 }

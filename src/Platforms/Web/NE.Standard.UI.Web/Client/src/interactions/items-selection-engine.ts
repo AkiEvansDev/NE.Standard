@@ -8,7 +8,7 @@ import {
 import { observeComponents } from "./dom-mutations.ts";
 import { ownControlOf, ownPressControlsOf, soleControlOf } from "./own-control.ts";
 import { ownDescendants } from "./own-descendants.ts";
-import { markPointerFocus } from "./popup-focus.ts";
+import { focusAsLastInput, markPointerFocus } from "./popup-focus.ts";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import type { RowAxis } from "./row-cursor.ts";
 import { dispatchRowEvent, focusedRow, isRowKey, litRow, resolveRowTarget, RowPressEventName, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
@@ -264,7 +264,7 @@ export class ItemsSelectionEngine {
         const root = box?.closest<HTMLElement>(RootSelector) ?? null;
 
         if (box !== null && root !== null && [...root.querySelectorAll(HostBoxSelector)].includes(box))
-            root.focus({ preventScroll: true });
+            focusAsLastInput(root);
     }
 
     /**
@@ -280,6 +280,12 @@ export class ItemsSelectionEngine {
 
         if (target === null || root === null)
             return;
+
+        // The pointer's mark before the press's focus: the browser reads the style as the focus moves, ahead of the focus event, and a
+        // root coming back from elsewhere drew the keyboard's wash on its last cursor row for that read, which then faded out. A press
+        // that focuses a row's own control instead leaves the mark on an unfocused root, which nothing reads.
+        if (document.activeElement !== root)
+            markPointerFocus(root, true);
 
         for (const box of root.querySelectorAll<HTMLElement>(HostBoxSelector)) {
             if (box.contains(target) && box.getAttribute("tabindex") === "-1") {

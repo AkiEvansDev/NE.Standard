@@ -22,7 +22,7 @@ public enum UIInputAppearance
     Underline = 2,
 
     /// <summary>
-    /// No box until touched: the text sits on whatever is behind it and the focus ring shows it is being edited. Tighter than
+    /// No box until touched: the text sits on whatever is behind it, and a wash under it shows it is being edited. Tighter than
     /// the others, for a field in a list row.
     /// </summary>
     Ghost = 3,

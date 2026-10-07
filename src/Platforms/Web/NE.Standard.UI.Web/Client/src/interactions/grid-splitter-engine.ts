@@ -2,7 +2,7 @@
 // container's Columns/Rows are not bindable, and a drag is nobody's application state.
 
 import { ColumnLimitsAttribute, RowLimitsAttribute, SplitFoldedAttribute, SplitterStepAttribute } from "../addressing/dom-attributes";
-import { currentResponsiveTier, ResponsiveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier";
+import { currentResponsiveTier, resolveTier, ResponsiveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier";
 import { OnceWarner } from "../runtime/logger";
 import { ClientBootPatch, ClientStore } from "../state/client-store";
 import { observeComponents } from "./dom-mutations";
@@ -363,12 +363,10 @@ function axisOf(splitter: HTMLElement): SplitAxis {
 
 /** The template in force at this tier: the viewer's for this tier or the nearest narrower one, else the authored. */
 function resolveTemplate(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier): string | null {
-    for (let position = responsiveTiers.indexOf(tier); position >= 0; position--) {
-        const own = container.style.getPropertyValue(responsiveVariable(axis.split, responsiveTiers[position])).trim();
+    const own = resolveTier(tier, candidate => container.style.getPropertyValue(responsiveVariable(axis.split, candidate)).trim() || undefined);
 
-        if (own.length > 0)
-            return own;
-    }
+    if (own !== undefined)
+        return own;
 
     const authored = container.style.getPropertyValue(axis.authored).trim();
 

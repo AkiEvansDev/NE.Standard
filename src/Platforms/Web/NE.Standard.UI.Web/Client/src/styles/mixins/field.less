@@ -15,8 +15,11 @@
     --ui-field-hover: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-field-ground));
     // Outline's and Underline's border on hover; a control that doesn't lift (a code field) sets it to its rest.
     --ui-field-hover-accent: color-mix(in srgb, var(--ui-color-primary) 60%, transparent);
-    border: var(--ui-border-width, 1px) solid var(--ui-field-rest);
-    border-radius: var(--ui-radius-input);
+    border-style: solid;
+    border-color: var(--ui-field-rest);
+    // The width and the corners through their chains: an authored BorderThickness and BorderRadius (BorderStyleRenderer) win.
+    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-input));
     background: var(--ui-field-rest);
     transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }

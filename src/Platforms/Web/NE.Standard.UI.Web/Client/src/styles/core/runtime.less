@@ -137,6 +137,16 @@
     grid-column: 2;
 }
 
+// A border's tiers stand on the element that draws it, which is often a part inside the component (a field's row, a table's frame):
+// fenced there too, or the widest tier written would win at every width. The component's root resets them below.
+[style*="--ui-border-thickness"] {
+    .ui-responsive-fence(--ui-border-thickness);
+}
+
+[style*="--ui-border-radius"] {
+    .ui-responsive-fence(--ui-border-radius);
+}
+
 [data-ui-id] {
     --ui-align-h: initial;
     --ui-align-v: initial;
@@ -145,16 +155,10 @@
     // Custom properties inherit; without this reset a tinted card would hand its colour to every surface inside it.
     --ui-surface-color: initial;
 
-    .ui-responsive-reset(--ui-width);
-    .ui-responsive-reset(--ui-min-width);
-    .ui-responsive-reset(--ui-max-width);
-    .ui-responsive-reset(--ui-height);
-    .ui-responsive-reset(--ui-min-height);
-    .ui-responsive-reset(--ui-max-height);
-    .ui-responsive-reset(--ui-margin);
-    .ui-responsive-reset(--ui-margin-x);
-    .ui-responsive-reset(--ui-margin-y);
+    .ui-responsive-layout-reset();
     .ui-responsive-reset(--ui-padding);
+    .ui-responsive-reset(--ui-border-thickness);
+    .ui-responsive-reset(--ui-border-radius);
 
     // Fill (WebCssValues.FillSize) is the parent's room less the element's own margins on that axis, so a filled box with a margin
     // fits its parent in any layout rather than overflowing it by the margin; the margin's tiers carry their sides summed.
@@ -225,25 +229,9 @@
     }
 }
 
-@media (max-width: (@ui-breakpoint-sm - 0.02px)) {
-    .ui-visibility-rules(data-ui-visibility);
-}
-
-@media (min-width: @ui-breakpoint-sm) and (max-width: (@ui-breakpoint-md - 0.02px)) {
-    .ui-visibility-rules(data-ui-visibility-sm);
-}
-
-@media (min-width: @ui-breakpoint-md) and (max-width: (@ui-breakpoint-xl - 0.02px)) {
-    .ui-visibility-rules(data-ui-visibility-md);
-}
-
-@media (min-width: @ui-breakpoint-xl) and (max-width: (@ui-breakpoint-xxl - 0.02px)) {
-    .ui-visibility-rules(data-ui-visibility-xl);
-}
-
-@media (min-width: @ui-breakpoint-xxl) {
-    .ui-visibility-rules(data-ui-visibility-xxl);
-}
+.ui-responsive-bands(data-ui-visibility data-ui-visibility-sm data-ui-visibility-md data-ui-visibility-xl data-ui-visibility-xxl; {
+    .ui-visibility-rules(@name);
+});
 
 .ui-disabled {
     opacity: var(--ui-disabled-opacity);

@@ -175,6 +175,23 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     public T OnEnterLiteral(string command, params KeyValuePair<string, object?>[] arguments)
         => OnLiteral(EventNames.Enter, command, arguments);
+
+    /// <summary>
+    /// Runs <paramref name="command"/> on Escape as a cancel: the field goes back to its last committed value, sending nothing typed
+    /// since, and leaves the focus as Escape does; without it Escape commits and leaves.
+    /// </summary>
+    public T OnEscape(string command)
+        => On(EventNames.Escape, command);
+    /// <summary>
+    /// Runs <paramref name="command"/> on Escape with UI action arguments — in a row's template, the row's key among them.
+    /// </summary>
+    public T OnEscape(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => On(EventNames.Escape, command, arguments);
+    /// <summary>
+    /// Runs <paramref name="command"/> on Escape with literal argument values.
+    /// </summary>
+    public T OnEscapeLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnLiteral(EventNames.Escape, command, arguments);
 }
 
 /// <summary>

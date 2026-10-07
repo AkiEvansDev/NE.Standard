@@ -84,6 +84,21 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     public string? SubmitFormId { get; set; }
 
     /// <summary>
+    /// Gets or sets the side whose drawer the button opens and puts away (<see cref="UIViewOptions.SideDrawers"/>), left or right.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only. The page's own button for that side, then, is this one: the shell draws none, so a header collapsed on a phone
+    /// leaves no band behind for it. Shown only where the side is a drawer — below the medium breakpoint, and never where a left side
+    /// is the bottom bar — the button is as expanded as the drawer is open, and the keyboard comes back to it when the drawer goes.
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
+    public UISide? OpensDrawer
+    {
+        get;
+        set => field = value is null or UISide.Left or UISide.Right ? value : throw new ArgumentOutOfRangeException(nameof(value), value, "A drawer is a left or a right side.");
+    }
+
+    /// <summary>
     /// Initializes the button centred, with the in-control label defaults.
     /// </summary>
     protected ButtonComponent(string? id = null) : base(id)

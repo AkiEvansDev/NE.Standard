@@ -19,6 +19,7 @@ internal abstract partial class UIRuntimeBase
     private const string ThemeChangedOperation = "ThemeChanged";
     private const string SessionChangedOperation = "SessionChanged";
     private const string NotificationPermissionChangedOperation = "NotificationPermissionChanged";
+    private const string VisibilityChangedOperation = "VisibilityChanged";
 
     private readonly Lock _connectionsLock = new();
     // Each attached instance's handle, so the connection outside a command can pass to a tab still attached when its own leaves.
@@ -32,6 +33,10 @@ internal abstract partial class UIRuntimeBase
 
     // Of those, the ones whose page last reported itself on screen; read without the lock.
     private int _visibleViewers;
+
+    // Whether a page was on screen when the controller last heard, so a flip reaches it once however it came — a report, an attach
+    // or a detach — and a flip back before it ran reaches it not at all.
+    private bool _heardVisible;
 
     // The last queued update each instance's attach snapshot holds; an instance with none is sent every change set whole, unless it
     // starts from a snapshot it has not taken yet, and then it is sent nothing.
@@ -133,25 +138,41 @@ internal abstract partial class UIRuntimeBase
     private void AttachInstanceNoLock(UIHandle handle)
     {
         UIInstance instance = handle.Instance;
-        var added = !_attachedHandles.ContainsKey(instance.Id);
+        var added = !_attachedHandles.TryGetValue(instance.Id, out UIHandle? replaced);
 
         _attachedHandles[instance.Id] = handle;
 
         if (added)
-        {
             _attachedInstanceIdsSnapshot = [.. _attachedHandles.Keys];
 
-            if (IsViewer(instance))
-            {
+        if (IsViewer(instance))
+        {
+            if (added)
                 Volatile.Write(ref _viewers, _viewers + 1);
 
-                if (handle.ClientState.IsVisible)
-                    Volatile.Write(ref _visibleViewers, _visibleViewers + 1);
-            }
+            // A connection attaching again (a full resync) brings a handle of its own, its page's state read anew: the one it
+            // replaces is counted no more.
+            _ = CountVisibleNoLock(replaced is not null && replaced.ClientState.IsVisible, handle.ClientState.IsVisible);
         }
 
         if (instance.StartsFromSnapshot && !_watermarks.ContainsKey(instance.Id))
             _ = _awaitingSnapshot.Add(instance.Id);
+    }
+
+    /// <summary>
+    /// Counts a viewer's move on or off screen — attached, replaced, reported, detached — and answers whether it took the runtime
+    /// from none on screen to one, or back.
+    /// </summary>
+    private bool CountVisibleNoLock(bool wasVisible, bool isVisible)
+    {
+        if (wasVisible == isVisible)
+            return false;
+
+        var before = _visibleViewers;
+
+        Volatile.Write(ref _visibleViewers, before + (isVisible ? 1 : -1));
+
+        return before == (isVisible ? 0 : 1);
     }
 
     /// <inheritdoc />
@@ -160,6 +181,7 @@ internal abstract partial class UIRuntimeBase
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
 
         UIHandle? removed;
+        var hidden = false;
 
         lock (_connectionsLock)
         {
@@ -174,9 +196,7 @@ internal abstract partial class UIRuntimeBase
             if (IsViewer(removed.Instance))
             {
                 Volatile.Write(ref _viewers, _viewers - 1);
-
-                if (removed.ClientState.IsVisible)
-                    Volatile.Write(ref _visibleViewers, _visibleViewers - 1);
+                hidden = CountVisibleNoLock(removed.ClientState.IsVisible, isVisible: false);
             }
 
             // Under PerClient another tab may still be attached: what the runtime raises outside a command goes to it, not to
@@ -193,29 +213,73 @@ internal abstract partial class UIRuntimeBase
 
         // Queued, not awaited: a detach comes from a closing connection, which waits for nobody's code.
         if (IsViewer(removed.Instance) && Controller is IUIControllerLifecycle lifecycle)
+        {
             PostCore("Detached", lifecycle.DetachedAsync);
+
+            if (hidden)
+                PostCore(VisibilityChangedOperation, cancellation => HearVisibilityAsync(lifecycle, cancellation));
+        }
+    }
+
+    /// <summary>
+    /// Tells the controller its runtime went on or off screen, where that differs from what it last heard; run in a command's turn, so
+    /// two flips queued back to back collapse into what is true when the first runs.
+    /// </summary>
+    private Task HearVisibilityAsync(IUIControllerLifecycle lifecycle, CancellationToken cancellationToken)
+    {
+        bool wasVisible;
+
+        lock (_connectionsLock)
+        {
+            var visible = HasVisibleViewers;
+
+            if (visible == _heardVisible)
+                return Task.CompletedTask;
+
+            wasVisible = _heardVisible;
+            _heardVisible = visible;
+        }
+
+        return lifecycle.VisibilityChangedAsync(wasVisible, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task UpdateClientStateAsync(UIHandle handle, UIClientState state, CancellationToken cancellationToken)
+    public void UpdateClientState(UIHandle handle, UIClientState state)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(state);
 
         UIClientState previous;
+        var flipped = false;
 
         lock (_connectionsLock)
         {
             previous = handle.RefreshClientState(state);
 
             // Counted only while attached: one that left, or a render's own, is no viewer to count.
-            if (previous.IsVisible != state.IsVisible && IsViewer(handle.Instance) && _attachedHandles.TryGetValue(handle.Instance.Id, out UIHandle? attached) && ReferenceEquals(attached, handle))
-                Volatile.Write(ref _visibleViewers, _visibleViewers + (state.IsVisible ? 1 : -1));
+            if (IsViewer(handle.Instance) && _attachedHandles.TryGetValue(handle.Instance.Id, out UIHandle? attached) && ReferenceEquals(attached, handle))
+                flipped = CountVisibleNoLock(previous.IsVisible, state.IsVisible);
         }
 
-        if (previous.NotificationPermission != state.NotificationPermission && Controller is IUIControllerLifecycle lifecycle)
-            await RunLifecycleHookAsync(handle, NotificationPermissionChangedOperation, cancellation => lifecycle.NotificationPermissionChangedAsync(previous.NotificationPermission, cancellation), cancellationToken).ConfigureAwait(false);
+        if (Controller is not IUIControllerLifecycle lifecycle)
+            return;
+
+        // Posted, not awaited: the page's next command waits behind this report on its connection, and must not wait for a turn too.
+        if (flipped)
+            PostLifecycleHook(handle, VisibilityChangedOperation, cancellation => HearVisibilityAsync(lifecycle, cancellation));
+
+        if (previous.NotificationPermission != state.NotificationPermission)
+            PostLifecycleHook(handle, NotificationPermissionChangedOperation, cancellation => lifecycle.NotificationPermissionChangedAsync(previous.NotificationPermission, cancellation));
     }
+
+    /// <summary>Queues a controller's lifecycle hook as posted work, with <paramref name="handle"/> the connection it runs for.</summary>
+    private void PostLifecycleHook(UIHandle handle, string operation, Func<CancellationToken, Task> hook)
+        => PostCore(operation, async cancellation =>
+        {
+            using IDisposable invocation = BeginInvocation(handle);
+
+            await hook(cancellation).ConfigureAwait(false);
+        });
 
     /// <inheritdoc />
     public async Task NotifyAttachedAsync(UIHandle handle, bool created, CancellationToken cancellationToken)
@@ -244,7 +308,12 @@ internal abstract partial class UIRuntimeBase
                 await lifecycle.NavigatedAsync(instance.Navigation, cancellation).ConfigureAwait(false);
 
             if (viewer)
+            {
                 await lifecycle.AttachedAsync(instance.Navigation, cancellation).ConfigureAwait(false);
+
+                // In the attach's own turn, so a page attaching on screen is answered with what the controller wrote for it.
+                await HearVisibilityAsync(lifecycle, cancellation).ConfigureAwait(false);
+            }
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -411,12 +480,7 @@ internal abstract partial class UIRuntimeBase
         if (Controller is not IUIControllerLifecycle)
             return;
 
-        PostCore(SessionChangedOperation, async cancellation =>
-        {
-            using IDisposable invocation = BeginInvocation(handle);
-
-            await HearSessionAsync(handle, cancellation).ConfigureAwait(false);
-        });
+        PostLifecycleHook(handle, SessionChangedOperation, cancellation => HearSessionAsync(handle, cancellation));
     }
 
     /// <summary>Records what an instance's attach snapshot holds: every update queued up to <paramref name="sequence"/>.</summary>

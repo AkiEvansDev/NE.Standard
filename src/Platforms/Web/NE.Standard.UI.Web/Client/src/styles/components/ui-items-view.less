@@ -61,11 +61,9 @@
     gap: var(--ui-items-view-gap);
 }
 
-// display: contents drops the wrapper from layout so the template root is the line's item; the tier reset stops items inheriting its placement.
+// display: contents drops the wrapper from layout so the template root is the line's item, which resets its own span's tiers.
 .ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item,
 .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item {
-    .ui-responsive-reset-infix(--ui-placement, column-span);
-
     display: contents;
     // The tile's wash lays the tile's own picture and dim back under itself; a tile with none must not find an ancestor's here.
     --ui-surface-image: none;
@@ -74,37 +72,13 @@
 
 @ui-wrap-items: ~".ui-items-view--wrap > .ui-items-view__host > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id], .ui-items-view--wrap > .ui-items-view__host > [data-ui-id], .ui-items-view--wrap > [data-ui-items-host] > [data-ui-id]";
 
-// With no span the calc is invalid and the basis falls back to auto, the content's width; the gap is subtracted as the wrap panel does.
+// With no span the calc is invalid and the basis falls back to auto, the content's width.
 :is(@{ui-wrap-items}) {
-    --ui-items-view-span: var(--ui-placement-column-span);
+    .ui-placement-span(--ui-items-view-span);
 
     flex-grow: 0;
     flex-shrink: 0;
-    flex-basis: calc((100% - 23 * var(--ui-items-view-gap, 0px)) / 24 * var(--ui-items-view-span) + (var(--ui-items-view-span) - 1) * var(--ui-items-view-gap, 0px));
-}
-
-@media (min-width: @ui-breakpoint-sm) {
-    :is(@{ui-wrap-items}) {
-        --ui-items-view-span: var(--ui-placement-sm-column-span, var(--ui-placement-column-span));
-    }
-}
-
-@media (min-width: @ui-breakpoint-md) {
-    :is(@{ui-wrap-items}) {
-        --ui-items-view-span: var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span)));
-    }
-}
-
-@media (min-width: @ui-breakpoint-xl) {
-    :is(@{ui-wrap-items}) {
-        --ui-items-view-span: var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span))));
-    }
-}
-
-@media (min-width: @ui-breakpoint-xxl) {
-    :is(@{ui-wrap-items}) {
-        --ui-items-view-span: var(--ui-placement-xxl-column-span, var(--ui-placement-xl-column-span, var(--ui-placement-md-column-span, var(--ui-placement-sm-column-span, var(--ui-placement-column-span)))));
-    }
+    .ui-placement-span-basis(--ui-items-view-span, --ui-items-view-gap);
 }
 
 // What stands among the items but is not one spans the row: the empty state, a window's spacers, a bucket's header.

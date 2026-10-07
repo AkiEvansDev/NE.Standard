@@ -59,7 +59,9 @@
     .ui-tab-caption();
     // overflow: visible, since the underline is drawn outside the caption's box; the renderer writes no inline Overflow for a caption.
     overflow: visible;
-    border-radius: var(--ui-radius-row) var(--ui-radius-row) 0 0;
+    // No bottom border: the mark is placed from the padding edge, and a border would lift it a pixel above the strip's rule.
+    .ui-responsive-property(border-width, --ui-border-thickness, 1px 1px 0);
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-row) var(--ui-radius-row) 0 0");
     .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
     .ui-responsive-property(padding, --ui-padding, calc(@ui-space-1 - 1px) @ui-space-3 @ui-space-1);
 }

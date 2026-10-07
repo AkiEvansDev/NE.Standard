@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
@@ -13,7 +14,7 @@ public static class SurfaceChromeRenderer
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, "--ui-padding");
+        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
 
         SurfaceStyleRenderer.RenderBackground(context, root, ISurfaceComponent.BackgroundProperty);
         SurfaceStyleRenderer.RenderBackgroundImage(context, root);

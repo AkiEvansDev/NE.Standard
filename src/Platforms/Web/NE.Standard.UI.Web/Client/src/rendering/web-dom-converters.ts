@@ -3,7 +3,7 @@
 // `.ts` on the imports, and types imported as types: `node --test` runs this module and resolves files literally.
 import { BadgeSetAttribute, BadgeTextAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
-import { resolveResponsiveTier, toResponsiveTier } from "./responsive-tier.ts";
+import { resolveResponsiveTier, responsiveTiers, toResponsiveTier } from "./responsive-tier.ts";
 import { isIconClassName, toIconClassName, toIconSourceCss } from "./icon-value.ts";
 import { clampByte, onColorToken, toHexByte } from "./color-bytes.ts";
 import { toSafeImageSource, toSafeLink } from "./url-safety.ts";
@@ -240,6 +240,11 @@ function familyClass(name: string, family: ClassFamily, convert: WebDomConverter
     return [name, convert];
 }
 
+/** One converter per breakpoint tier, named `{prefix}{Tier}{suffix}` as `WebResponsiveConverters` names them on the server. */
+function tierConverters(prefix: string, suffix: string, convert: (value: unknown, tier: ResponsiveTier) => string | undefined): [string, WebDomConverter][] {
+    return responsiveTiers.map(tier => [`${prefix}${tier[0].toUpperCase()}${tier.slice(1)}${suffix}`, value => convert(value, tier)]);
+}
+
 export const webDomConverters = new Map<string, WebDomConverter>([
     tokenClass("colorClass", "ui-color--", colorTokens),
     familyClass("themeColorClass", toTokenClassFamily("ui-color--", colorTokens), value => toThemeColorClass(value)),
@@ -306,66 +311,19 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["textAppearanceFontWeightCss", value => toTextAppearanceField(value, "weight")],
     ["textAppearanceLineHeightCss", value => toTextAppearanceField(value, "lineHeight")],
     ["textAppearanceLetterSpacingCss", value => toTextAppearanceField(value, "letterSpacing")],
-    ["responsiveLayoutLengthBaseCss", value => toLayoutLength(toResponsiveTier(value, "base"))],
-    ["responsiveLayoutLengthSmCss", value => toLayoutLength(toResponsiveTier(value, "sm"))],
-    ["responsiveLayoutLengthMdCss", value => toLayoutLength(toResponsiveTier(value, "md"))],
-    ["responsiveLayoutLengthXlCss", value => toLayoutLength(toResponsiveTier(value, "xl"))],
-    ["responsiveLayoutLengthXxlCss", value => toLayoutLength(toResponsiveTier(value, "xxl"))],
-    ["responsiveWidthBaseCss", value => toSize(toResponsiveTier(value, "base"), "horizontal")],
-    ["responsiveWidthSmCss", value => toSize(toResponsiveTier(value, "sm"), "horizontal")],
-    ["responsiveWidthMdCss", value => toSize(toResponsiveTier(value, "md"), "horizontal")],
-    ["responsiveWidthXlCss", value => toSize(toResponsiveTier(value, "xl"), "horizontal")],
-    ["responsiveWidthXxlCss", value => toSize(toResponsiveTier(value, "xxl"), "horizontal")],
-    ["responsiveHeightBaseCss", value => toSize(toResponsiveTier(value, "base"), "vertical")],
-    ["responsiveHeightSmCss", value => toSize(toResponsiveTier(value, "sm"), "vertical")],
-    ["responsiveHeightMdCss", value => toSize(toResponsiveTier(value, "md"), "vertical")],
-    ["responsiveHeightXlCss", value => toSize(toResponsiveTier(value, "xl"), "vertical")],
-    ["responsiveHeightXxlCss", value => toSize(toResponsiveTier(value, "xxl"), "vertical")],
-    ["responsiveThicknessBaseCss", value => toThickness(toResponsiveTier(value, "base"))],
-    ["responsiveThicknessSmCss", value => toThickness(toResponsiveTier(value, "sm"))],
-    ["responsiveThicknessMdCss", value => toThickness(toResponsiveTier(value, "md"))],
-    ["responsiveThicknessXlCss", value => toThickness(toResponsiveTier(value, "xl"))],
-    ["responsiveThicknessXxlCss", value => toThickness(toResponsiveTier(value, "xxl"))],
-    ["responsiveThicknessHorizontalBaseCss", value => toThicknessSum(toResponsiveTier(value, "base"), "horizontal")],
-    ["responsiveThicknessHorizontalSmCss", value => toThicknessSum(toResponsiveTier(value, "sm"), "horizontal")],
-    ["responsiveThicknessHorizontalMdCss", value => toThicknessSum(toResponsiveTier(value, "md"), "horizontal")],
-    ["responsiveThicknessHorizontalXlCss", value => toThicknessSum(toResponsiveTier(value, "xl"), "horizontal")],
-    ["responsiveThicknessHorizontalXxlCss", value => toThicknessSum(toResponsiveTier(value, "xxl"), "horizontal")],
-    ["responsiveThicknessVerticalBaseCss", value => toThicknessSum(toResponsiveTier(value, "base"), "vertical")],
-    ["responsiveThicknessVerticalSmCss", value => toThicknessSum(toResponsiveTier(value, "sm"), "vertical")],
-    ["responsiveThicknessVerticalMdCss", value => toThicknessSum(toResponsiveTier(value, "md"), "vertical")],
-    ["responsiveThicknessVerticalXlCss", value => toThicknessSum(toResponsiveTier(value, "xl"), "vertical")],
-    ["responsiveThicknessVerticalXxlCss", value => toThicknessSum(toResponsiveTier(value, "xxl"), "vertical")],
-    ["responsivePixelsBaseCss", value => toOptionalPixels(toResponsiveTier(value, "base"))],
-    ["responsivePixelsSmCss", value => toOptionalPixels(toResponsiveTier(value, "sm"))],
-    ["responsivePixelsMdCss", value => toOptionalPixels(toResponsiveTier(value, "md"))],
-    ["responsivePixelsXlCss", value => toOptionalPixels(toResponsiveTier(value, "xl"))],
-    ["responsivePixelsXxlCss", value => toOptionalPixels(toResponsiveTier(value, "xxl"))],
-    ["visibilityBaseAttribute", value => toVisibilityAttribute(value, "base")],
-    ["visibilitySmAttribute", value => toVisibilityAttribute(value, "sm")],
-    ["visibilityMdAttribute", value => toVisibilityAttribute(value, "md")],
-    ["visibilityXlAttribute", value => toVisibilityAttribute(value, "xl")],
-    ["visibilityXxlAttribute", value => toVisibilityAttribute(value, "xxl")],
-    ["gridPlacementBaseColumnCss", value => toResponsiveGridPlacementPart(value, "base", "column")],
-    ["gridPlacementBaseRowCss", value => toResponsiveGridPlacementPart(value, "base", "row")],
-    ["gridPlacementBaseColumnSpanCss", value => toResponsiveGridPlacementPart(value, "base", "columnSpan")],
-    ["gridPlacementBaseRowSpanCss", value => toResponsiveGridPlacementPart(value, "base", "rowSpan")],
-    ["gridPlacementSmColumnCss", value => toResponsiveGridPlacementPart(value, "sm", "column")],
-    ["gridPlacementSmRowCss", value => toResponsiveGridPlacementPart(value, "sm", "row")],
-    ["gridPlacementSmColumnSpanCss", value => toResponsiveGridPlacementPart(value, "sm", "columnSpan")],
-    ["gridPlacementSmRowSpanCss", value => toResponsiveGridPlacementPart(value, "sm", "rowSpan")],
-    ["gridPlacementMdColumnCss", value => toResponsiveGridPlacementPart(value, "md", "column")],
-    ["gridPlacementMdRowCss", value => toResponsiveGridPlacementPart(value, "md", "row")],
-    ["gridPlacementMdColumnSpanCss", value => toResponsiveGridPlacementPart(value, "md", "columnSpan")],
-    ["gridPlacementMdRowSpanCss", value => toResponsiveGridPlacementPart(value, "md", "rowSpan")],
-    ["gridPlacementXlColumnCss", value => toResponsiveGridPlacementPart(value, "xl", "column")],
-    ["gridPlacementXlRowCss", value => toResponsiveGridPlacementPart(value, "xl", "row")],
-    ["gridPlacementXlColumnSpanCss", value => toResponsiveGridPlacementPart(value, "xl", "columnSpan")],
-    ["gridPlacementXlRowSpanCss", value => toResponsiveGridPlacementPart(value, "xl", "rowSpan")],
-    ["gridPlacementXxlColumnCss", value => toResponsiveGridPlacementPart(value, "xxl", "column")],
-    ["gridPlacementXxlRowCss", value => toResponsiveGridPlacementPart(value, "xxl", "row")],
-    ["gridPlacementXxlColumnSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "columnSpan")],
-    ["gridPlacementXxlRowSpanCss", value => toResponsiveGridPlacementPart(value, "xxl", "rowSpan")],
+    ...tierConverters("responsiveLayoutLength", "Css", (value, tier) => toLayoutLength(toResponsiveTier(value, tier))),
+    ...tierConverters("responsiveWidth", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "horizontal")),
+    ...tierConverters("responsiveHeight", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "vertical")),
+    ...tierConverters("responsiveThickness", "Css", (value, tier) => toThickness(toResponsiveTier(value, tier))),
+    ...tierConverters("responsiveThicknessHorizontal", "Css", (value, tier) => toThicknessSum(toResponsiveTier(value, tier), "horizontal")),
+    ...tierConverters("responsiveThicknessVertical", "Css", (value, tier) => toThicknessSum(toResponsiveTier(value, tier), "vertical")),
+    ...tierConverters("responsiveRadius", "Css", (value, tier) => toRadius(toResponsiveTier(value, tier))),
+    ...tierConverters("responsivePixels", "Css", (value, tier) => toOptionalPixels(toResponsiveTier(value, tier))),
+    ...tierConverters("visibility", "Attribute", (value, tier) => toVisibilityAttribute(value, tier)),
+    ...tierConverters("gridPlacement", "ColumnCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "column")),
+    ...tierConverters("gridPlacement", "RowCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "row")),
+    ...tierConverters("gridPlacement", "ColumnSpanCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "columnSpan")),
+    ...tierConverters("gridPlacement", "RowSpanCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "rowSpan")),
     tokenClass("imageFitClass", "ui-image-fit--", imageFitTokens),
     familyClass("imageShapeClass", toClassFamily(["ui-image--circle"]), value => toToken(value, imageShapeTokens) === "circle" ? "ui-image--circle" : ""),
     ["backgroundImageCss", value => toBackgroundImageCss(value)],
@@ -551,66 +509,60 @@ function toSize(value: unknown, axis: "horizontal" | "vertical"): string {
     return axis === "horizontal" ? "var(--ui-fill-width, 100%)" : "var(--ui-fill-height, 100%)";
 }
 
+type ThicknessSides = { top: number; right: number; bottom: number; left: number };
+
+/** A thickness's four sides, a bare number for all four; none for anything that is not a thickness. */
+function toThicknessSides(value: unknown): ThicknessSides | undefined {
+    if (typeof value === "number") {
+        return { top: value, right: value, bottom: value, left: value };
+    }
+
+    if (value === null || typeof value !== "object") {
+        return undefined;
+    }
+
+    const model = value as Partial<ThicknessSides>;
+
+    return { top: model.top ?? 0, right: model.right ?? 0, bottom: model.bottom ?? 0, left: model.left ?? 0 };
+}
+
 function toThickness(value: unknown): string {
     if (value === null || value === undefined) {
         return "";
     }
 
-    if (typeof value === "number") {
-        return `${value}px ${value}px ${value}px ${value}px`;
-    }
+    const sides = toThicknessSides(value);
 
-    if (typeof value !== "object") {
-        return String(value);
-    }
-
-    const model = value as { top?: number; right?: number; bottom?: number; left?: number };
-    const top = model.top ?? 0;
-    const right = model.right ?? 0;
-    const bottom = model.bottom ?? 0;
-    const left = model.left ?? 0;
-
-    return `${top}px ${right}px ${bottom}px ${left}px`;
+    return sides === undefined ? String(value) : `${sides.top}px ${sides.right}px ${sides.bottom}px ${sides.left}px`;
 }
 
 // Mirrors WebCssValues.ThicknessSum: a margin's two sides along an axis, the room a Fill size leaves out.
 function toThicknessSum(value: unknown, axis: "horizontal" | "vertical"): string {
-    if (value === null || value === undefined) {
+    const sides = toThicknessSides(value);
+
+    if (sides === undefined) {
         return "";
     }
 
-    if (typeof value === "number") {
-        return toPixels(value * 2);
-    }
-
-    if (typeof value !== "object") {
-        return "";
-    }
-
-    const model = value as { top?: number; right?: number; bottom?: number; left?: number };
-
-    return axis === "horizontal" ? toPixels((model.left ?? 0) + (model.right ?? 0)) : toPixels((model.top ?? 0) + (model.bottom ?? 0));
+    return axis === "horizontal" ? toPixels(sides.left + sides.right) : toPixels(sides.top + sides.bottom);
 }
 
-// Mirrors WebClassNames.BorderNone: a thickness of nothing on every side says the component draws no edge of its own.
+// Mirrors WebClassNames.BorderNone: a thickness of nothing on every side, at every breakpoint it sets, says the component draws no
+// edge of its own.
 function toBorderNoneClass(value: unknown): string {
     if (value === null || value === undefined) {
         return "";
     }
 
-    if (typeof value === "number") {
-        return value === 0 ? "ui-border--none" : "";
+    if (typeof value === "object" && "base" in value) {
+        const tiers = responsiveTiers.map(tier => toResponsiveTier(value, tier)).filter(tier => tier !== null && tier !== undefined);
+
+        return tiers.every(tier => toBorderNoneClass(tier) !== "") ? "ui-border--none" : "";
     }
 
-    if (typeof value !== "object") {
-        return "";
-    }
+    const sides = toThicknessSides(value);
 
-    const model = value as { top?: number; right?: number; bottom?: number; left?: number };
-
-    return (model.top ?? 0) === 0 && (model.right ?? 0) === 0 && (model.bottom ?? 0) === 0 && (model.left ?? 0) === 0
-        ? "ui-border--none"
-        : "";
+    return sides !== undefined && sides.top === 0 && sides.right === 0 && sides.bottom === 0 && sides.left === 0 ? "ui-border--none" : "";
 }
 
 function toRadius(value: unknown): string {
@@ -713,10 +665,6 @@ function toGridTemplate(value: unknown): string {
     }
 
     return value.map(unit => toGridUnit(unit)).join(" ");
-}
-
-function toResponsiveGridPlacementPart(value: unknown, tier: "base" | "sm" | "md" | "xl" | "xxl", part: "column" | "row" | "columnSpan" | "rowSpan"): string {
-    return toGridPlacementPart(toResponsiveTier(value, tier), part);
 }
 
 function toGridPlacementPart(value: unknown, part: "column" | "row" | "columnSpan" | "rowSpan"): string {

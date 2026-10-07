@@ -116,6 +116,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
             NativeInputRendererBase.RenderPlaceholder(context, textarea);
             NativeInputRendererBase.RenderRunsOnEnter(context, textarea);
+            NativeInputRendererBase.RenderRunsOnEscape(context, textarea);
             NativeInputRendererBase.RenderFormId(context, textarea);
             NativeInputRendererBase.RenderFieldName(context, textarea);
             NativeInputRendererBase.RenderIsReadOnly(context, root, textarea);

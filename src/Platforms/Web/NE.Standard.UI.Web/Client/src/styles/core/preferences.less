@@ -60,6 +60,12 @@
         --ui-focus-ring-width: 2px;
     }
 
+    // A field told to draw no focus edge (`ShowFocusEdge = false`) still shows its focus here, in the selection colour.
+    .ui-input--no-focus-edge:not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus} {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
+
     // A chosen row, option, entry or segment: an outline in the selection colour stands for the wash and the edge mark.
     .ui-items-view:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-selected],
     .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id],

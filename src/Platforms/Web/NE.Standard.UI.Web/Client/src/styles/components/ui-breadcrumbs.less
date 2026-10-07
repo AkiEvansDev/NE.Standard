@@ -58,26 +58,10 @@
         }
     }
 
-    // Banded like runtime.less bands the tiers: each tier's attribute means "collapsed" only inside its own width.
-    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
-        .ui-breadcrumbs-hide-step(data-ui-visibility; base);
-    }
-
-    @media (min-width: @ui-breakpoint-sm) and (max-width: (@ui-breakpoint-md - 0.02px)) {
-        .ui-breadcrumbs-hide-step(data-ui-visibility-sm; sm);
-    }
-
-    @media (min-width: @ui-breakpoint-md) and (max-width: (@ui-breakpoint-xl - 0.02px)) {
-        .ui-breadcrumbs-hide-step(data-ui-visibility-md; md);
-    }
-
-    @media (min-width: @ui-breakpoint-xl) and (max-width: (@ui-breakpoint-xxl - 0.02px)) {
-        .ui-breadcrumbs-hide-step(data-ui-visibility-xl; xl);
-    }
-
-    @media (min-width: @ui-breakpoint-xxl) {
-        .ui-breadcrumbs-hide-step(data-ui-visibility-xxl; xxl);
-    }
+    // Banded as runtime.less bands Visibility: each tier's attribute means "collapsed" only inside its own width.
+    .ui-responsive-bands(data-ui-visibility data-ui-visibility-sm data-ui-visibility-md data-ui-visibility-xl data-ui-visibility-xxl; {
+        .ui-breadcrumbs-hide-step(@name; @tier);
+    });
 
     // The filter's own way of taking an item out, which lands on the wrapper rather than on the step.
     .ui-breadcrumbs__item.ui-hidden {

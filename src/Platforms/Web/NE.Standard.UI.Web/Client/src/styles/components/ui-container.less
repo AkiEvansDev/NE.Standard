@@ -17,8 +17,9 @@
     row-gap: var(--ui-container-gap);
     column-gap: min(var(--ui-container-gap), calc((100% - var(--ui-container-fixed-columns, 0px)) / 24));
     border-style: solid;
-    border-width: 0;
+    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-color: transparent;
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 
@@ -37,43 +38,24 @@
     display: none;
 }
 
-.ui-responsive-grid-line-base(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
-    @{property}: var(~"@{prefix}-@{position-suffix}", auto) / span var(~"@{prefix}-@{span-suffix}", @span-default);
-}
-
-.ui-responsive-grid-line-sm(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
-    @{property}: var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto))
-        / span var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default));
-}
-
-.ui-responsive-grid-line-md(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
-    @{property}: var(~"@{prefix}-md-@{position-suffix}", var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto)))
-        / span var(~"@{prefix}-md-@{span-suffix}", var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default)));
-}
-
-.ui-responsive-grid-line-xl(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
-    @{property}: var(~"@{prefix}-xl-@{position-suffix}", var(~"@{prefix}-md-@{position-suffix}", var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto))))
-        / span var(~"@{prefix}-xl-@{span-suffix}", var(~"@{prefix}-md-@{span-suffix}", var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default))));
-}
-
-.ui-responsive-grid-line-xxl(@property, @prefix, @position-suffix, @span-suffix, @span-default) {
-    @{property}: var(~"@{prefix}-xxl-@{position-suffix}", var(~"@{prefix}-xl-@{position-suffix}", var(~"@{prefix}-md-@{position-suffix}", var(~"@{prefix}-sm-@{position-suffix}", var(~"@{prefix}-@{position-suffix}", auto)))))
-        / span var(~"@{prefix}-xxl-@{span-suffix}", var(~"@{prefix}-xl-@{span-suffix}", var(~"@{prefix}-md-@{span-suffix}", var(~"@{prefix}-sm-@{span-suffix}", var(~"@{prefix}-@{span-suffix}", @span-default)))));
+// A child's line on one axis: its position and its span, each through its tier chain (the tiers are fenced where they are reset).
+.ui-placement-line(@property, @axis, @span-default) {
+    @{property}: .ui-responsive-chain(~"--ui-placement-@{axis}"; auto)[@value] / span .ui-responsive-chain(~"--ui-placement-@{axis}-span"; @span-default)[@value];
 }
 
 :is(@{ui-placement-hosts}) > [data-ui-id] {
-    .ui-responsive-reset-infix(--ui-placement, column);
-    .ui-responsive-reset-infix(--ui-placement, row);
-    .ui-responsive-reset-infix(--ui-placement, column-span);
-    .ui-responsive-reset-infix(--ui-placement, row-span);
+    .ui-responsive-reset(--ui-placement-column);
+    .ui-responsive-reset(--ui-placement-row);
+    .ui-responsive-reset(--ui-placement-column-span);
+    .ui-responsive-reset(--ui-placement-row-span);
 
     --ui-placement-column: 1;
     --ui-placement-row: 1;
     --ui-placement-column-span: 24;
     --ui-placement-row-span: 1;
 
-    .ui-responsive-grid-line-base(grid-column, --ui-placement, column, column-span, 24);
-    .ui-responsive-grid-line-base(grid-row, --ui-placement, row, row-span, 1);
+    .ui-placement-line(grid-column, column, 24);
+    .ui-placement-line(grid-row, row, 1);
 }
 
 // An authored width is capped at the parent's room less the child's own margins (core/runtime.less), so it is not cut off on a
@@ -86,31 +68,3 @@
     .ui-scroll:is(.ui-scroll-x--auto, .ui-scroll-x--always) > [data-ui-id] {
         .ui-responsive-property(max-width, --ui-max-width, none);
     }
-
-@media (min-width: @ui-breakpoint-sm) {
-    :is(@{ui-placement-hosts}) > [data-ui-id] {
-        .ui-responsive-grid-line-sm(grid-column, --ui-placement, column, column-span, 24);
-        .ui-responsive-grid-line-sm(grid-row, --ui-placement, row, row-span, 1);
-    }
-}
-
-@media (min-width: @ui-breakpoint-md) {
-    :is(@{ui-placement-hosts}) > [data-ui-id] {
-        .ui-responsive-grid-line-md(grid-column, --ui-placement, column, column-span, 24);
-        .ui-responsive-grid-line-md(grid-row, --ui-placement, row, row-span, 1);
-    }
-}
-
-@media (min-width: @ui-breakpoint-xl) {
-    :is(@{ui-placement-hosts}) > [data-ui-id] {
-        .ui-responsive-grid-line-xl(grid-column, --ui-placement, column, column-span, 24);
-        .ui-responsive-grid-line-xl(grid-row, --ui-placement, row, row-span, 1);
-    }
-}
-
-@media (min-width: @ui-breakpoint-xxl) {
-    :is(@{ui-placement-hosts}) > [data-ui-id] {
-        .ui-responsive-grid-line-xxl(grid-column, --ui-placement, column, column-span, 24);
-        .ui-responsive-grid-line-xxl(grid-row, --ui-placement, row, row-span, 1);
-    }
-}

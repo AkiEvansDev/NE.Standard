@@ -123,3 +123,80 @@ test("Escape puts the drawer away and gives the focus back to its button; one a 
     assert.equal(toggle.getAttribute("aria-expanded"), "false");
     assert.equal(fakeDocument.activeElement, toggle);
 });
+
+test("a page's own button opens the drawer, and the keyboard goes back to it rather than to a button out of sight", () => {
+    const { root, toggle, drawer } = shell();
+    const opener = FakeElement.of("ui-button", { "data-ui-drawer-toggle": "left", "aria-expanded": "false" }, "button");
+
+    // The shell's own, in a header collapsed on a phone: first in the page, out of sight.
+    toggle.laidOut = false;
+    root.append(FakeElement.of("", { "data-ui-region": "content" }).append(opener));
+    drawer.visible = true;
+    opener.focus();
+    openByKey(opener);
+
+    assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
+    assert.equal(opener.getAttribute("aria-expanded"), "true");
+
+    fakeDocument.activeElement?.dispatchEvent(new FakeKeyboardEvent("Escape", fakeDocument.activeElement));
+
+    assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
+    assert.equal(opener.getAttribute("aria-expanded"), "false");
+    assert.equal(fakeDocument.activeElement, opener);
+});
+
+test("a button naming a side that is the phone's bottom bar, or no side at all, opens nothing", () => {
+    const { root, drawer } = shell();
+    const toBar = FakeElement.of("ui-button", { "data-ui-drawer-toggle": "left" }, "button");
+    const toNothing = FakeElement.of("ui-button", { "data-ui-drawer-toggle": "right" }, "button");
+
+    drawer.setAttribute("data-ui-bottom-bar", "");
+    root.append(toBar, toNothing);
+    toBar.dispatchEvent(new FakeEvent("click"));
+    toNothing.dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
+    assert.equal(drawer.hasAttribute("data-ui-focus-holder"), false);
+});
+
+test("a press on a menu entry in the drawer puts it away, a command's as a link's", () => {
+    const { root, toggle, drawer } = shell();
+    const entry = FakeElement.of("ui-menu-item", {}, "a");
+
+    drawer.append(FakeElement.of("ui-menu").append(FakeElement.of("ui-menu__host").append(FakeElement.of("ui-menu__item").append(entry))));
+    toggle.dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
+
+    entry.dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
+});
+
+test("a group's own entry, a check, a caption, a disabled entry and a popup menu's entry leave the drawer open", () => {
+    const { root, toggle, drawer } = shell();
+    const groupEntry = FakeElement.of("ui-menu-item", { href: "/settings" }, "a");
+    const check = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "check" }, "a");
+    const caption = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "header" }, "a");
+    const disabled = FakeElement.of("ui-menu-item", { "aria-disabled": "true" }, "a");
+    const popupEntry = FakeElement.of("ui-menu-item", {}, "a");
+
+    drawer.append(
+        FakeElement.of("ui-menu").append(
+            FakeElement.of("ui-menu__host").append(
+                FakeElement.of("ui-menu__item", { "data-ui-menu-group": "" }).append(groupEntry),
+                FakeElement.of("ui-menu__item").append(check),
+                FakeElement.of("ui-menu__item").append(caption),
+                FakeElement.of("ui-menu__item").append(disabled)
+            )
+        ),
+        FakeElement.of("ui-context-menu").append(FakeElement.of("ui-menu").append(popupEntry))
+    );
+    toggle.dispatchEvent(new FakeEvent("click"));
+
+    for (const entry of [groupEntry, check, caption, disabled, popupEntry]) {
+        entry.dispatchEvent(new FakeEvent("click"));
+
+        assert.equal(root.getAttribute("data-ui-drawer-open"), "left", `${entry.className} closed it`);
+    }
+});

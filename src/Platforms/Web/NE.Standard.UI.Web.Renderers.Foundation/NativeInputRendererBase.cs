@@ -110,10 +110,29 @@ public static class NativeInputRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(input);
 
-        CompiledUIEventAddress enter = new(context.Node.ComponentId, EventNames.Enter);
-
-        if (context.ViewResolution.View.Events.TryGet(enter, out _) || context.ViewResolution.View.Interactions.GetBySource(enter).Count > 0)
+        if (HandlesEvent(context, EventNames.Enter))
             _ = input.Attribute(WebAttributes.RunsOnEnter);
+    }
+
+    /// <summary>Whether the view runs a command or an interaction on the component's <paramref name="eventName"/>.</summary>
+    private static bool HandlesEvent(WebRenderContext context, string eventName)
+    {
+        CompiledUIEventAddress address = new(context.Node.ComponentId, eventName);
+
+        return context.ViewResolution.View.Events.TryGet(address, out _) || context.ViewResolution.View.Interactions.GetBySource(address).Count > 0;
+    }
+
+    /// <summary>
+    /// Marks a text field whose Escape runs a command or an interaction (<c>OnEscape</c>): the field keys engine puts back its last
+    /// committed value, leaves it and raises <c>escape</c>, rather than committing what was typed.
+    /// </summary>
+    public static void RenderRunsOnEscape(WebRenderContext context, IHtmlElementBuilder input)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(input);
+
+        if (HandlesEvent(context, EventNames.Escape))
+            _ = input.Attribute(WebAttributes.RunsOnEscape);
     }
 
     /// <summary>Writes the <c>name</c> a native field carries; <paramref name="part"/> separates several fields of one component.</summary>

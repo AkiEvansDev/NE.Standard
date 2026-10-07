@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -15,7 +14,6 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
     private static readonly WebDomOperation[] FallbackSourceOperations = [WebDomOperation.Attribute(WebAttributes.FallbackSrc, converter: WebDomConverters.SafeImageSource)];
     private static readonly WebDomOperation[] AltTextOperations = [WebDomOperation.Attribute("alt")];
     private static readonly WebDomOperation[] FitOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageFitClass)];
-    private static readonly WebDomOperation[] CornerRadiusOperations = [WebDomOperation.Style("border-radius", converter: WebDomConverters.RadiusCss)];
     private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageShapeClass)];
 
     public override string ComponentTypeKey => ImageComponent.ComponentTypeKey;
@@ -54,11 +52,8 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
                 _ = target.Class(WebClassNames.ImageFit(fit));
         }, FitOperations);
 
-        _ = RenderProperty<UICornerRadius?>(context, root, ImageComponent.CornerRadiusProperty, static (target, value) =>
-        {
-            if (value is UICornerRadius radius)
-                _ = target.Style("border-radius", WebCssValues.Radius(radius));
-        }, CornerRadiusOperations);
+        // Through the border's radius chain, which the shape's circle outranks in the stylesheet.
+        ResponsiveRenderer.ApplyResponsiveRadius(context, root, ImageComponent.CornerRadiusProperty, WebResponsiveCss.BorderRadiusVariable);
 
         _ = RenderProperty<UIImageShape?>(context, root, ImageComponent.ShapeProperty, static (target, value) =>
         {

@@ -4,6 +4,7 @@
 import { ServiceWorkerAttribute, ServiceWorkerImportedAttribute } from "../addressing/dom-attributes.ts";
 import { logWarn } from "./logger.ts";
 import { answerWorker } from "./worker-messages.ts";
+import type { NotificationClick } from "./worker-messages.ts";
 
 /** The scope the framework's own worker takes: the framework's addresses, so it controls no page of the application. */
 const FrameworkScope = "/_ne/";
@@ -17,7 +18,7 @@ type WorkerRegistration = Pick<ServiceWorkerRegistration, "showNotification">;
  * Starts what the shell asked for on `root` — registers the framework's worker, or waits for the application's — and answers how a
  * notification reaches it; none where the shell asked for nothing, or the browser has no workers.
  */
-export function startServiceWorker(root: Element, windowId: string, runAction: (id: string) => void): (() => Promise<WorkerRegistration | undefined>) | undefined {
+export function startServiceWorker(root: Element, windowId: string, click: (click: NotificationClick) => void): (() => Promise<WorkerRegistration | undefined>) | undefined {
     const path = root.getAttribute(ServiceWorkerAttribute);
 
     if (path === null || !("serviceWorker" in navigator))
@@ -25,7 +26,7 @@ export function startServiceWorker(root: Element, windowId: string, runAction: (
 
     const container = navigator.serviceWorker;
 
-    answerWorker(container, windowId, runAction);
+    answerWorker(container, windowId, click);
 
     // Asked again each time: the application's worker may be ready by the next notification.
     if (root.hasAttribute(ServiceWorkerImportedAttribute))
