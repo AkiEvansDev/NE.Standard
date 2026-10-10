@@ -1,0 +1,636 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web hosting — NE.Standard</title>
+    <meta name="description" content="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">
+    <link rel="stylesheet" href="site.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <script src="site.js" defer></script>
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <button class="pages-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Pages</button>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <input class="nav-filter" type="search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" hidden>
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="extensions.html" title="One-call shorthands over the built-in components for the page parts, inline messages, form rows, button pairs, text roles and show-when rules a screen writes again and again.">Presets</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, validation on inputs, and forms.">Binding</a></li>
+                <li><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation keys and content, UIPhrase and plurals, switching the page&#39;s language in place, the framework&#39;s own words, and missing translations.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command or page is reported.">Dialogs and notifications</a></li>
+                <li><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="testing.html" title="Test a view and its controller together without a browser — boot the application&#39;s startup, open a page, act on its components and read what it shows.">Testing an application</a></li>
+                <li class="current"><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums and value types</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line unless it is told to wrap.">Text</a></li>
+                <li><a href="components/timestamp.html" title="A moment shown in the reader&#39;s own time zone and language, formatted by the page.">Timestamp</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/language-switcher.html" title="A button that switches the page to another language in place, and tells the session.">Language switcher</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/calendar.html" title="A month&#39;s calendar drawn in place, whose press on a day chooses it.">Calendar</a></li>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/multi-select.html" title="A dropdown input that holds several options out of a bound list.">Multi select</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A select whose open list carries a search field pinned over its options.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value, or a band of two, by dragging handles along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/pager.html" title="The pages of a paged items view or table.">Pager</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Web hosting</h1>
+<p>Web is the platform implemented today: ASP.NET Core for the shell and the transport, SignalR for the live
+channel, and a TypeScript client embedded in the assembly.</p>
+<h2 id="startup">Startup</h2>
+<p><code>WebStartupBuilder.Configure&lt;TWebStartup, TStartup&gt;(services)</code> drives a <code>WebStartupBase&lt;TStartup&gt;</code> subclass:</p>
+<pre><code class="language-csharp">internal sealed class AppWebStartup : WebStartupBase&lt;AppStartup&gt;
+{
+    protected override void ConfigureServices(IServiceCollection services)
+    {
+        _ = services.AddStandardRenderers();
+        _ = services.AddMaterialWebIcons(MaterialIconStyle.Fill | MaterialIconStyle.Outlined, AppIcons.All());
+    }
+}
+</code></pre>
+<p><code>WebStartupBase&lt;TStartup&gt;.Configure</code> registers four option types — <code>WebViewRenderCacheOptions</code>,
+<code>WebEndpointOptions</code>, <code>WebValueOptions</code> and <code>WebResponseCompressionOptions</code> — calls your <code>ConfigureServices</code>
+override, then registers the framework's own web defaults: response compression (configured, not yet
+installed), SignalR with the framework's JSON wire settings, <code>IWebAssetRegistry</code>, <code>IWebRendererRegistry</code>,
+<code>IWebViewRenderer</code>, the file-system render cache (<code>IWebViewRenderCache</code>) and the task that clears it on startup,
+the task that compresses the page's scripts and stylesheets in the background once the host has started, the staging store for large values, the update sink (<code>IUIUpdateSink</code>), the dialog service (<code>IUIDialogService</code>), the
+download address provider and the content address resolver — and finally <code>UIStartupBuilder.Configure&lt;TStartup&gt;</code>,
+which wires the platform-agnostic engine and its own defaults: the session store, the file store, the upload and
+download services, authorization and the exception handler (<a href="platforms.html">platforms</a> says where that seam
+runs). The default services are registered with <code>TryAdd</code>, so an implementation your <code>ConfigureServices</code> registered
+first wins.</p>
+<p><code>WebValueOptions</code> bounds a value too large for the hub, which the client posts beside it instead:
+<code>MaxValueSize</code> (16 MB of JSON by default, refused as it arrives), <code>MaxStagedBytesPerSession</code> (64 MB) and
+<code>MaxStagedBytesTotal</code> (512 MB, every session together) for what may wait staged at once, and <code>StagingRetention</code> (two
+minutes).</p>
+<p>Hosting itself is five lines:</p>
+<pre><code class="language-csharp">WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+WebStartupBuilder.Configure&lt;AppWebStartup, AppStartup&gt;(builder.Services);
+WebApplication app = builder.Build();
+await app.MapStandardUIWebAsync();
+await app.RunAsync();
+</code></pre>
+<h2 id="mapstandarduiwebasync"><code>MapStandardUIWebAsync</code></h2>
+<p>Maps, in order: every registered asset's own GET route, the file transfer endpoints (<code>POST /_ne/files/upload</code>,
+<code>GET /_ne/files/{token}</code>), the staged-value endpoints (<code>POST /_ne/values</code>, <code>GET /_ne/values/{token}</code>), the
+protected-content endpoint (<code>GET /_ne/content/{**key}</code> — a key may hold <code>/</code>), the response compression middleware
+in front of everything just mapped, the SignalR hub at <code>/_ne/hub</code>, and last the catch-all shell route
+<code>GET /{**route}</code> — which matches <em>every</em> path there is but the framework's own.</p>
+<p><strong>Everything the framework serves stands under <code>/_ne/</code></strong>: the hub, the endpoints above, and its assets — the stylesheets
+under <code>/_ne/css/</code>, the scripts under <code>/_ne/js/</code>, the fonts under <code>/_ne/fonts/</code>, a component package's bundles and an icon
+pack's stylesheet among them. The shell route answers nothing under that prefix, so an address beneath it that nothing
+maps is a <code>404</code>, never a page; the rest of the address space is the application's, and its own routes and static files
+cannot collide with the framework's.</p>
+<p><strong>That last part is why an application's own static files must be served before routing.</strong> <code>app.UseStaticFiles()</code>
+left where ASP.NET puts it by default runs after routing has already matched the catch-all, stands down, and
+every file comes back as the not-found page, answered with a 404. Call it, and <code>UseRouting()</code>, by hand before the map:</p>
+<pre><code class="language-csharp">app.UseStaticFiles();
+app.UseRouting();
+
+await app.MapStandardUIWebAsync();
+</code></pre>
+<p><code>MapStaticAssets()</code> looks like the modern replacement and is not one here: its precompressed variants and the
+framework's own response compression together return an empty body for every compressible asset.</p>
+<p><code>WebEndpointOptions</code> gates the hub and the shell route behind ASP.NET authorization: <code>RequireAuthorization</code>
+(off by default) and <code>AuthorizationPolicy</code> (the default policy when unset). The other endpoints are left out
+of that gate: assets are public and carry no session check at all, so nothing private belongs in one; the file,
+staged-value and content endpoints each require the session cookie and its authorization instead. Its
+<code>InertContent</code> (on by default) serves content and downloads inert: a <code>Content-Security-Policy</code> that runs nothing, and
+HTML, XML or SVG sent as an attachment — an application that deliberately serves active content turns it off. Its
+<code>Icon</code> names the page's icon — an absolute path under the application's static files or a <code>data:</code> URL:</p>
+<pre><code class="language-csharp">services.Configure&lt;WebEndpointOptions&gt;(options =&gt; options.Icon = &quot;/brand/icon.svg&quot;);
+</code></pre>
+<p>Without one the shell names an empty icon (<code>data:,</code>), so a browser does not ask for a <code>/favicon.ico</code> the application never
+serves.</p>
+<p>Every response except the hub's carries <code>X-Content-Type-Options: nosniff</code> — the hub is mapped outside that
+filter. The two POSTs (upload and staged value) and the hub — its negotiate and every transport, a WebSocket handshake
+included — refuse a request from any other origin with <code>403</code> before the session check even runs: <code>Sec-Fetch-Site</code> must be
+<code>same-origin</code> or <code>none</code> (a sibling subdomain's <code>same-site</code> is refused too), and without it an <code>Origin</code>, when one is sent,
+must be this one — scheme, host and port, a port left out read as its scheme's default. So a page elsewhere can neither fill
+a session's storage by making the visitor's browser post to it nor attach to the session's views over a WebSocket, which no
+CORS rule stops. The staged-value POST also takes only <code>application/json</code> and answers anything else <code>415</code>, since a
+plain-text body is a request any page may send without asking. A download is answered <code>Cache-Control: no-store</code>, and a
+page <code>private, no-cache</code>: both carry one session's data.</p>
+<p><strong>Behind a TLS-terminating proxy, forward the scheme.</strong> The <code>Origin</code> fallback compares the scheme, so a proxy that takes
+<code>https</code> and passes plain <code>http</code> on makes every page's own <code>Origin</code> look foreign: a browser that sends no <code>Sec-Fetch-Site</code>
+gets <code>403</code> from the hub and both POSTs. Let the host read the proxy's <code>X-Forwarded-Proto</code> before the framework's endpoints:</p>
+<pre><code class="language-csharp">builder.Services.Configure&lt;ForwardedHeadersOptions&gt;(options =&gt;
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Name the proxy in options.KnownProxies / KnownNetworks unless it is on the loopback.
+});
+
+app.UseForwardedHeaders();
+app.UseStaticFiles();
+app.UseRouting();
+await app.MapStandardUIWebAsync();
+</code></pre>
+<p>A page that fails — the view cannot be resolved, or a getter throws while this reader's values are rendered — is
+answered with the error route (<code>UIErrorHandlingOptions.ErrorRoute</code>) in place rather than a bare 500. That page carries the real
+exception text in its <code>message</code> navigation parameter only when <code>IncludeExceptionDetail</code> is on — the same switch
+that gates a failed command's reported message (see <a href="interactions-and-effects.html">interactions and effects</a>).
+Off, it carries <code>UIErrorHandlingOptions.ErrorPageMessage</code> instead, translated like any other framework string.</p>
+<h2 id="response-compression">Response compression</h2>
+<p><code>WebResponseCompressionOptions</code>, on by default:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Enabled</code></td>
+<td>whether the framework installs the middleware at all (default <code>true</code>)</td>
+</tr>
+<tr>
+<td><code>Level</code></td>
+<td>the level the per-response middleware runs Brotli and Gzip at (default <code>Optimal</code>)</td>
+</tr>
+<tr>
+<td><code>EnableForHttps</code></td>
+<td>whether compression also applies over HTTPS (default <code>true</code>) — turn it off if a page renders a secret beside text an attacker controls (BREACH)</td>
+</tr>
+</tbody>
+</table>
+<p>The framework's own scripts and stylesheets, and a package's, do not go through the middleware: they are compressed
+once, at Brotli's and Gzip's smallest size, in the background after the host starts, and served as they are by
+<code>Accept-Encoding</code> — a font is left out, woff2 being compressed already. <code>Enabled</code> governs both.</p>
+<p>Turn <code>Enabled</code> off where a reverse proxy already compresses. A host that maps endpoints inside <code>UseEndpoints</code>
+hands the framework something that is not an <code>IApplicationBuilder</code>; it logs that it could not install the
+middleware rather than skipping silently.</p>
+<h2 id="the-render-cache">The render cache</h2>
+<p>A page with a controller renders twice per request: once for the view's shared shape — cached — and once with
+this session's own values. <code>WebViewRenderCacheOptions</code>:</p>
+<pre><code class="language-csharp">services.Configure&lt;WebViewRenderCacheOptions&gt;(options =&gt;
+{
+    options.DirectoryPath = &quot;/var/ne-render-cache&quot;;
+    options.ClearOnStartup = true;
+});
+</code></pre>
+<p><code>DirectoryPath</code> is where <code>FileSystemWebViewRenderCache</code> keeps the cached shape, keyed by <code>{ViewKey}:{Language}:{Fingerprint}</code> — the fingerprint of the compile, so a render made before the code changed is never served after it.
+The cache writes only inside a <code>renders</code> folder of its own there — one folder per view and language, one per compile
+beneath it — so it never empties a folder the application keeps anything else in.
+Unset, it is a folder of the application's own in the system temp folder — <code>NE.Standard.UI/&lt;entry assembly&gt;-&lt;hash of the folder it runs from&gt;</code> under <code>Path.GetTempPath()</code> — so a read-only application folder (a container image, run-from-package,
+an IIS pool without write rights) costs nothing, and two applications on one machine never share a cache.
+<code>ClearOnStartup</code> (default <code>true</code>) wipes it on boot, so a deployed change to a view is never served from a stale
+entry left by the previous build. Turned off — what a folder several processes share wants — a start instead removes
+every compile of a view but the newest, and temporary files a stopped process left behind.</p>
+<p>A view without a controller is served from its entry whole: the page's markup and its metadata, kept as UTF-8 and written
+into the response as they are. A view with a controller reads only the bindings its first paint fills off the entry, so
+that is all its entry keeps. The bindings are written last, and a read takes an entry only once they are there. Requests
+that miss the same entry together render it once and write it once.</p>
+<p>The cache is best-effort: a folder that cannot be cleared, read or written costs the cache, never the page or the host.
+Each kind of failure is logged once as a warning, and the page renders without the disk — still held in memory, as below.</p>
+<p>Each entry is also held in memory once it has been read, so a page load does not go back to disk;
+<code>MaxHeldRenders</code> (default 256) bounds how many and <code>MaxHeldBytes</code> (default 128 MB) how much, and the least recently
+read go first past either.</p>
+<h2 id="assets-and-icon-packs">Assets and icon packs</h2>
+<p><code>IWebAssetRegistry</code> collects every <code>WebAssetDescriptor</code> the host serves — the client bundle, stylesheets, icon
+packs — each mapped to its own GET route by <code>MapStandardUIWebAsync</code>, versioned (<code>?v=</code>) and cached <code>immutable</code>
+for a year when the version matches, <code>no-cache</code> with an ETag otherwise; either answers <code>304</code> to a browser that
+revalidates bytes it already holds. The framework's own sit under <code>/_ne/css/</code>, <code>/_ne/js/</code> and <code>/_ne/fonts/</code>; an asset of
+the application's own names whatever path it likes outside <code>/_ne/</code>. <code>AddStandardRenderers()</code> registers an
+<code>IWebComponentRenderer</code> for every built-in component; call it once from <code>ConfigureServices</code>.</p>
+<p>Icons ship as separate packages, Material Symbols:</p>
+<pre><code class="language-csharp">services.AddMaterialWebIcons(MaterialIconStyle.Fill | MaterialIconStyle.Outlined, MaterialIcons.Home, MaterialIcons.Search);
+services.AddMaterialWebIcons(MaterialIcons.Home, MaterialIcons.Search); // MaterialIconStyle.Fill
+services.AddMaterialWebIcons(MaterialIconScope.All, MaterialIconStyle.Fill); // every glyph: the font, and a rule per glyph per style
+</code></pre>
+<p>Call it as many times as suits the application — a feature can register its own icons where it lives, and
+the pack builds one stylesheet from everything registered by the time the host starts. Name a glyph by its <code>MaterialIcons</code>
+constant, the value a component's <code>SetIcon</code> takes too: a bare <code>&quot;home&quot;</code> registers, but <code>SetIcon(&quot;home&quot;)</code> names a glyph no rule
+draws, and an icon no registration covers draws nothing. The page's head preloads every font asset — the icon pack's among
+them — before the stylesheets, so a glyph is not a blank box for an extra round trip; the framework's own text face, Geist, only
+when an entry of the theme's font family list is <code>Geist</code>.</p>
+<h2 id="sessions-on-the-web">Sessions on the web</h2>
+<p>The session's secret travels in an <code>HttpOnly</code> cookie named by <code>UISessionOptions.ClientKey</code> — by default
+<code>ne.ui.session.</code> followed by the application's name, since a browser keeps one set of cookies per host whatever the port and
+two applications under one name would sign each other out — written only by the shell render, and read by the hub off its negotiate request, which is what
+makes both halves of one page load share a session. The edge hashes the secret into the session id (SHA-256, as
+lower-case hex) as it reads the cookie, and nothing past it holds the secret (<a href="security.html">security</a>). With
+<code>ClientKeyLifetime</code> set, the cookie a load presented is written back as the response's headers go out, and only while its
+session still stands with no rotation to a new id pending.</p>
+<p><strong>Only a page load issues a session; the hub never does.</strong> An attach whose cookie names no session the store holds — none,
+an unknown or idle one, one an in-memory store lost to a restart, one removed during the attach — is answered with a reload,
+since a session issued there could never reach the browser: the reload's render writes a new key and the page attaches
+under it. A browser that keeps no cookie therefore cannot run a page with a controller — nor can a cross-site iframe the
+<code>SameSite=Lax</code> cookie does not reach. The page reloads once and then stays as rendered, with an error in the console
+(and it does not reload at all where <code>navigator.cookieEnabled</code> is false).</p>
+<p><strong>A dropped connection is said, and a page whose runtime is gone reloads.</strong> While SignalR reconnects past a grace of two
+seconds — a blip shows nothing — the document element carries <code>data-ui-connection=&quot;reconnecting&quot;</code> and a quiet notice says
+&quot;Reconnecting…&quot;, both gone by themselves once the connection is back; when SignalR gives up the attribute reads <code>lost</code> and
+a notice offers the reload. A reconnect that finds a runtime built since the page attached — the one it held evicted under
+<code>MaxRuntimesTotal</code>, past its retention, or lost to a restart with a session store that kept the session — reloads the page at
+once rather than lay the new runtime's state over what the page shows; what the reader typed during the outage is not sent
+on. A page's first attach never counts, a second tab's included.</p>
+<p>A new session starts in the browser's language: the first <code>Accept-Language</code> entry the translator has, as written or by its
+primary language (<code>nl-BE</code> finds <code>nl</code>), else <code>UILocalizationOptions.DefaultLanguage</code>; <code>NegotiateLanguage = false</code> turns it
+off (<a href="localization.html">localization</a>). The page reports its time zone as it attaches, and the session keeps it
+(<code>UserSessionState.TimeZone</code>, read by a controller as <code>Context.TimeZone</code>).</p>
+<p>What the request says about its connection reaches a controller and the filters as <code>UIConnectionInfo</code>
+(<code>Context.Connection</code>, <code>UIViewFilterContext.Connection</code>, <code>UICommandFilterContext.Connection</code>), captured at the page render
+and at every attach: <code>RemoteAddress</code> — <code>HttpContext.Connection.RemoteIpAddress</code>, so behind a proxy it is the client's only
+once <code>UseForwardedHeaders</code> runs ahead of the framework — <code>UserAgent</code>, and <code>BaseUri</code>, the application's root (scheme, host
+and path base, ending in <code>/</code>) that an absolute link it hands out is built on. Every part is what the client or a proxy said:
+it describes a request and never proves one.</p>
+<p><code>UISecurityOptions.IdentitySource</code> says where identity comes from: <code>Session</code> (the default) means the
+application signs users in itself through <code>Context.SignInAsync</code>; <code>Claims</code> makes the host's <code>ClaimsPrincipal</code> —
+filled from <code>HttpContext.User</code> — authoritative in both directions, mapped by an <code>IUserClaimsMapper</code>. Either
+way, <strong>the framework consumes a principal and never authenticates</strong>: the host owns <code>AddAuthentication()</code> and
+whatever scheme populates <code>HttpContext.User</code>.</p>
+<p>The principal is read at every page render and every hub attach: an authenticated one refreshes the session's user,
+roles and permissions, and an anonymous one signs the session out — in the store the command check reads, not only on
+the page. A command in a tab already attached is checked against what the last of those requests left there. Under
+<code>Claims</code> the setup is the host's authentication plus the source:</p>
+<pre><code class="language-csharp">application.ConfigureSecurity(o =&gt; o.IdentitySource = UIIdentitySource.Claims);
+</code></pre>
+<pre><code class="language-csharp">builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
+builder.Services.AddAuthorization();
+
+WebApplication app = builder.Build();
+
+app.UseStaticFiles();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+await app.MapStandardUIWebAsync();
+</code></pre>
+<p><strong>Call <code>UseAuthentication()</code> and <code>UseAuthorization()</code> by hand, after <code>UseRouting()</code>.</strong> Left to the host, ASP.NET puts
+both ahead of the whole pipeline, and so ahead of the <code>UseRouting()</code> written by hand above: the principal still
+arrives, but authorization runs before any endpoint is matched, and with <code>WebEndpointOptions.RequireAuthorization</code>
+on every page fails with &quot;contains authorization metadata, but a middleware was not found that supports
+authorization&quot;.</p>
+<h2 id="the-page-lifecycle">The page lifecycle</h2>
+<p>A request renders the page server-side — markup, theme CSS and a metadata blob describing every binding,
+property, event and interaction — and that markup <em>is</em> the finished page; nothing the client does afterwards
+changes what the reader is looking at. The browser then attaches over SignalR. The page whose render built its runtime
+presents where that render stood, and its first attach carries only what changed since; any other attach — a reconnect,
+a second tab, a reload that found the runtime already there — carries the whole initial change set (scalar values plus
+every bound collection), which the page reconciles against what it holds. From then on two channels
+apply changes: the invoke return value of a command, and the pushed <code>&quot;ui.changes&quot;</code>/<code>&quot;ui.commandResult&quot;</code>
+messages the runtime's flush loop drives. A reload re-renders from scratch; state survives it if and only if it
+lives in the controller — nothing client-side is replayed onto a fresh page.</p>
+<h2 id="running-in-production">Running in production</h2>
+<h3 id="several-servers-need-sticky-sessions">Several servers need sticky sessions</h3>
+<p>A page's controller and its state live in the memory of the process that built the page. Everything that page
+does afterwards has to reach that same process: the SignalR connection, the upload POST whose selection the
+controller then reads, and the staged-value POST and GET that carry a value too large for the hub — a staged
+value is held in that process's memory and redeemed by that session's hub update. Behind a load balancer, turn
+on session affinity (a cookie-based one is simplest); without it, a page works until its first request lands on
+the wrong server.</p>
+<h3 id="defaults-that-are-single-process">Defaults that are single-process</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Default</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IUserSessionStore</code></td>
+<td><code>UserSessionMemoryStore</code></td>
+<td>sessions, and whoever is signed in, are lost on restart and not shared between servers</td>
+</tr>
+<tr>
+<td><code>IUIFileStore</code></td>
+<td><code>FileSystemUIFileStore</code></td>
+<td>metadata in process memory, content on local disk under <code>UIFileOptions.StorageRoot</code></td>
+</tr>
+<tr>
+<td>value staging</td>
+<td>in process memory</td>
+<td>not replaceable; this is what sticky sessions cover</td>
+</tr>
+</tbody>
+</table>
+<p>For a farm, register your own session store (<code>services.AddUserSessionStore&lt;TStore&gt;()</code>, or
+<code>AddSignedInUserSessionStore&lt;TStore&gt;()</code> to keep only signed-in sessions there) and <code>IUIFileStore</code> (a database, a shared
+cache, blob storage) in <code>ConfigureServices</code>; the framework's defaults only fill what is still empty. Under the split store an
+anonymous session lives in each process's memory, so it is affinity, not the store, that keeps it. Affinity is still required either way —
+the runtimes themselves never leave their process.</p>
+<h3 id="limits">Limits</h3>
+<p>Each session is bounded in what it can make the server hold, and so is every session together where a session's share
+would not bound the disk or the memory:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>At the limit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UIPersistenceOptions.MaxRuntimesPerSession</code></td>
+<td>64</td>
+<td>the session's longest-idle disconnected runtime is evicted for the new page; when every runtime it holds has a page connected, the new page is refused</td>
+</tr>
+<tr>
+<td><code>UIPersistenceOptions.MaxUnclaimedRuntimesPerSession</code></td>
+<td>4</td>
+<td>runtimes a page render built that no tab has presented yet — a crawler's or a script's page loads; past it the session's longest-idle one of those is evicted, never one a tab presented</td>
+</tr>
+<tr>
+<td><code>UIPersistenceOptions.MaxRuntimesTotal</code></td>
+<td>4096</td>
+<td>every session's runtimes together; the runtime that has been without a page longest (by when its last tab left), of any session, is evicted for the new page, one running a command passed over; when none can go, the new page's runtime is refused before its controller is built and the first refusal of a burst is logged as a warning — a page render then shows the error route (a <code>500</code> without one), an attach retries and then shows the page's connection-lost notice</td>
+</tr>
+<tr>
+<td><code>WebHubOptions.MaxCallsPerSecond</code> / <code>MaxCallBurst</code></td>
+<td>100 / 400</td>
+<td>a token bucket per hub connection — one tab — refilled at the first and holding at most the second; a call past it fails alone (a <code>HubException</code>) and the connection stays open, its first refusal logged as a warning</td>
+</tr>
+<tr>
+<td><code>UIFileOptions.MaxUploadBytesPerSession</code></td>
+<td>256 MB</td>
+<td>an upload that would cross it is answered <code>413</code></td>
+</tr>
+<tr>
+<td><code>UIFileOptions.MaxFileSize</code></td>
+<td>32 MB</td>
+<td>a single file past it is stopped as it arrives and answered <code>413</code></td>
+</tr>
+<tr>
+<td><code>UIFileOptions.MaxUploadBytesTotal</code></td>
+<td>4 GB</td>
+<td>every session's uploads together; an upload that would cross it is answered <code>413</code>, and the first refusal of a burst is logged as a warning</td>
+</tr>
+<tr>
+<td><code>WebValueOptions.MaxValueSize</code></td>
+<td>16 MB</td>
+<td>a staged value past it is answered <code>413</code></td>
+</tr>
+<tr>
+<td><code>WebValueOptions.MaxStagedBytesPerSession</code></td>
+<td>64 MB</td>
+<td>what one session may have staged at once; a value that would cross it is answered <code>413</code></td>
+</tr>
+<tr>
+<td><code>WebValueOptions.MaxStagedBytesTotal</code></td>
+<td>512 MB</td>
+<td>every session's staged values together; a value that would cross it is answered <code>503</code>, since the server is full rather than the request too large</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>UIPersistenceOptions</code> and <code>UIFileOptions</code> limits are set in the <code>UIStartupBase</code> subclass, <code>WebValueOptions</code> and
+<code>WebHubOptions</code> through <code>services.Configure&lt;…&gt;</code>:</p>
+<pre><code class="language-csharp">protected override void ConfigureApplication(UIApplicationBuilder application)
+{
+    application.ConfigurePersistence(persistence =&gt; persistence.MaxRuntimesPerSession = 32);
+    application.ConfigureFiles(files =&gt; files.MaxUploadBytesPerSession = 64 * 1024 * 1024);
+}
+</code></pre>
+<p>The totals and <code>MaxCallsPerSecond</code> take zero or <code>null</code> for no limit. The default <code>MaxRuntimesTotal</code> is about 5 GB of the
+demo's pages (a runtime measured at about 1.2 MB); a process serving more open pages than that raises it to what its memory
+affords.</p>
+<p>A page load without the cookie gets a new session, so a client can open many sessions, each with its runtimes, a page
+load at a time — which is what <code>MaxRuntimesTotal</code> holds. The hub cannot: it never issues a session (<em>Sessions on the
+web</em>), and one connection attaches to one page — a second attach on it to another page is refused, while an attach to
+the page it already holds goes through, since the page attaches again on the same connection for a full resync. The hub
+also caps what one call may ask for: an item window at most 1000 rows (<code>UIItemWindowClientRequest.MaxCount</code>), a lookup of
+words at most 256 keys. Socket counts and request rates stay the reverse proxy's job (or ASP.NET Core's rate limiter) —
+page loads (<code>GET /{**route}</code>), hub connections (<code>/_ne/hub</code>), and the upload and staged-value POSTs in particular;
+everything of the framework's is under <code>/_ne/</code>, so one prefix names it.</p>
+<h3 id="metrics-and-tracing">Metrics and tracing</h3>
+<p>The framework's meter and activity source are both named <code>UIDiagnostics.Name</code> (<code>&quot;NE.Standard.UI&quot;</code>). With
+OpenTelemetry:</p>
+<pre><code class="language-csharp">builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics =&gt; metrics.AddMeter(UIDiagnostics.Name))
+    .WithTracing(tracing =&gt; tracing.AddSource(UIDiagnostics.Name));
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Instrument</th>
+<th>What it reports</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ne.ui.runtimes</code></td>
+<td>the runtimes held now: open pages and the ones kept for a while after they closed</td>
+</tr>
+<tr>
+<td><code>ne.ui.runtimes.attached</code></td>
+<td>the connections attached to a runtime: the pages open now</td>
+</tr>
+<tr>
+<td><code>ne.ui.runtimes.created</code></td>
+<td>runtimes created, one per page a controller was built for</td>
+</tr>
+<tr>
+<td><code>ne.ui.runtime.start.duration</code></td>
+<td>how long a new runtime took to initialize and start its controller, in seconds</td>
+</tr>
+<tr>
+<td><code>ne.ui.updates.pending</code></td>
+<td>change sets waiting to be sent, over every client — a slow client shows here before its queue overflows</td>
+</tr>
+<tr>
+<td><code>ne.ui.sessions</code></td>
+<td>the sessions the in-memory session store holds</td>
+</tr>
+<tr>
+<td><code>ne.ui.files</code>, <code>ne.ui.files.size</code></td>
+<td>the files the default file store keeps on disk, and their bytes</td>
+</tr>
+<tr>
+<td><code>ne.ui.command.duration</code></td>
+<td>how long a command took, in seconds, tagged <code>ne.ui.route</code> (the route template) and <code>ne.ui.command.outcome</code> (<code>ok</code> or <code>failed</code>)</td>
+</tr>
+<tr>
+<td><code>ne.ui.flush.duration</code></td>
+<td>how long one scheduled flush pass over every runtime took, in seconds</td>
+</tr>
+<tr>
+<td><code>ne.ui.flush.failures</code></td>
+<td>runtimes whose scheduled flush failed</td>
+</tr>
+<tr>
+<td><code>ne.ui.web.connections</code></td>
+<td>the hub connections open now</td>
+</tr>
+<tr>
+<td><code>ne.ui.web.render.duration</code>, <code>ne.ui.web.render.length</code></td>
+<td>how long a page render took, in seconds, and how long the page is, in characters before compression, tagged <code>ne.ui.route</code></td>
+</tr>
+<tr>
+<td><code>ne.ui.web.render_cache.held</code>, <code>ne.ui.web.render_cache.held.size</code></td>
+<td>the renders the render cache holds in memory, and the bytes they take</td>
+</tr>
+<tr>
+<td><code>ne.ui.web.render_cache.disk.io</code></td>
+<td>bytes the render cache read from and wrote to its folder, tagged <code>ne.ui.io.direction</code></td>
+</tr>
+<tr>
+<td><code>ne.ui.web.values.staged</code>, <code>ne.ui.web.values.staged.size</code></td>
+<td>the values staged beside the hub now, and their bytes</td>
+</tr>
+<tr>
+<td><code>ne.ui.web.files.transferred</code></td>
+<td>bytes uploaded to and downloaded from the file endpoints, tagged <code>ne.ui.io.direction</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each command also runs inside a <code>ui.command</code> span. The sizes a gauge reports are read only when a listener collects.</p>
+<h3 id="logs">Logs</h3>
+<p>The framework logs through the host's <code>ILogger</code>. A log line carries a short fingerprint of the session id rather than
+the id, which still tells one session's lines from another's; the id itself is a hash of the cookie's secret and opens no
+session.</p>
+<h2 id="extending-the-platform">Extending the platform</h2>
+<p>A custom component's HTML comes from an <code>IWebComponentRenderer</code> (<code>ComponentTypeKey</code>, <code>Render(WebRenderContext)</code>),
+registered with <code>services.TryAddEnumerable(ServiceDescriptor.Singleton&lt;IWebComponentRenderer, MyRenderer&gt;())</code> —
+the same pattern <code>AddStandardRenderers()</code> uses for every built-in.</p>
+<p>On the client, <code>window.NEStandardUI</code> exposes eight <code>register*</code> extension points, six of them keyed by a plain string:
+<code>ConverterRegistry</code> (a named convert function), <code>EventCatalog</code> (a native DOM event name and/or a custom
+<code>attach</code>), <code>DomOperationRegistry</code> (a <code>WebDomOperationKind</code> → DOM mutation, and it can override a built-in one),
+<code>ValueReaderRegistry</code> (<code>data-ui-value-kind</code> → how a written value is read off an element), the effect registry
+for <code>ClientEffect</code> kinds, and <code>client-strings.ts</code> for words the client writes itself; <code>registerCollectionSink</code> hands a
+component its bound collection as values, and <code>registerEngine</code> starts a package's own engine with the framework's services.</p>
+<p>A custom client effect names its own <code>ClientEffect.Kind</code> (prefix it — the client keys handlers by this string)
+and registers a handler with <code>NEStandardUI.registerEffect</code>; nothing needs registering on the server side, since an
+effect travels by <code>value.GetType()</code> and nothing in the framework reads one back.</p>
+<p>This is a pointer, not a tutorial: read the client's sources under <code>src/Platforms/Web/NE.Standard.UI.Web/Client</code> before
+adding to any of these.</p>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <span class="version">Documents 1.7.2</span> ·
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>

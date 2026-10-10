@@ -1,0 +1,454 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Theming — NE.Standard</title>
+    <meta name="description" content="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">
+    <link rel="stylesheet" href="site.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <script src="site.js" defer></script>
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <button class="pages-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Pages</button>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <input class="nav-filter" type="search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" hidden>
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up a new ASP.NET Core project, register the web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="extensions.html" title="One-call shorthands over the built-in components for the page parts, inline messages, form rows, button pairs, text roles and show-when rules a screen writes again and again.">Presets</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, validation on inputs, and forms.">Binding</a></li>
+                <li><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation keys and content, UIPhrase and plurals, switching the page&#39;s language in place, the framework&#39;s own words, and missing translations.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command or page is reported.">Dialogs and notifications</a></li>
+                <li class="current"><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="testing.html" title="Test a view and its controller together without a browser — boot the application&#39;s startup, open a page, act on its components and read what it shows.">Testing an application</a></li>
+                <li><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums and value types</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line unless it is told to wrap.">Text</a></li>
+                <li><a href="components/timestamp.html" title="A moment shown in the reader&#39;s own time zone and language, formatted by the page.">Timestamp</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/language-switcher.html" title="A button that switches the page to another language in place, and tells the session.">Language switcher</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/calendar.html" title="A month&#39;s calendar drawn in place, whose press on a day chooses it.">Calendar</a></li>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/multi-select.html" title="A dropdown input that holds several options out of a bound list.">Multi select</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A select whose open list carries a search field pinned over its options.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value, or a band of two, by dragging handles along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/pager.html" title="The pages of a paged items view or table.">Pager</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-header.html" title="One caption in a TabsComponent&#39;s strip.">Tab header</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Theming</h1>
+<p>A theme is a fixed set of tokens configured once on the application builder; a component never invents its own
+way of being themed. There are three vocabularies for &quot;what does this look like&quot;, and every component uses the
+one its kind is entitled to.</p>
+<h2 id="configuring-the-theme">Configuring the theme</h2>
+<p><code>ConfigureTheme</code> on the application builder, through <code>UIApplicationThemeBuilder</code>:</p>
+<pre><code class="language-csharp">application.ConfigureTheme(theme =&gt; theme
+    .ConfigureLightPalette(palette =&gt; palette with { Primary = new ColorVariant(ColorName.AstralTeal) })
+    .ConfigureDarkPalette(palette =&gt; palette with { Primary = new ColorVariant(ColorName.AstralTeal, ColorAdjustment.Tint, 2) })
+    .ConfigureTypography(typography =&gt; typography with { FontFamily = &quot;Georgia&quot;, CapHeight = 0.69 })
+    .ConfigureShape(shape =&gt; shape with { CardRadius = UICornerRadius.Uniform(12d) })
+);
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UseTheme(UITheme)</code></td>
+<td>replaces the whole theme</td>
+</tr>
+<tr>
+<td><code>UseLightPalette</code>/<code>UseDarkPalette(UIColorPalette)</code></td>
+<td>replaces one palette</td>
+</tr>
+<tr>
+<td><code>ConfigureLightPalette</code>/<code>ConfigureDarkPalette(Func&lt;UIColorPalette, UIColorPalette&gt;)</code></td>
+<td>edits one palette from its current value</td>
+</tr>
+<tr>
+<td><code>UseTypography</code>/<code>ConfigureTypography</code></td>
+<td>replaces or edits <code>UITypography</code></td>
+</tr>
+<tr>
+<td><code>UseShape</code>/<code>ConfigureShape</code></td>
+<td>replaces or edits <code>UIShape</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every token type is a record with init-only members, so <code>ConfigureXxx</code> is always <code>x =&gt; x with { ... }</code> over
+the value passed in. <code>UseTheme</code>/<code>UseLightPalette</code>/etc. validate what they are given and throw if it is invalid.</p>
+<h2 id="uitheme"><code>UITheme</code></h2>
+<p><code>Light</code> and <code>Dark</code> (<code>UIColorPalette</code>, both required), <code>Typography</code> (<code>UITypography</code>), <code>Shape</code> (<code>UIShape</code>),
+<code>FocusRing</code> (<code>bool</code>, off by default — a keyboard-navigated application turns it on for the whole theme; off
+because it can land oddly over a control that already shows its own &quot;current&quot; state; on, it rings the keyboard's focus only,
+never a focus a press of the pointer gave; the keyboard's own frame — a 2 px line on a row, an entry, a cell, a button, a link, a
+toggle — is drawn either way), and <code>PressRipple</code>
+(<code>bool</code>, on by default — a wave from the pointer's own position that fills a button, an action, a menu or list entry, a tab or a
+row whose press does something while it is held, and fades on release; an icon-only button's icon gives a little under it;
+the web writes <code>data-ui-press-ripple</code> on <code>&lt;html&gt;</code> only while it is on, and respects <code>prefers-reduced-motion</code>,
+so a theme that wants presses drawn another way turns it off). <code>UIThemeDefaults.Default</code>
+is the starting point <code>ConfigureTheme</code> edits from, with <code>LightPalette</code>/<code>DarkPalette</code>/<code>Typography</code>/<code>Shape</code> also
+reachable individually. The page's head preloads the fonts it draws with — the framework's glyph face, an icon pack's font,
+and Geist only while the theme's <code>FontFamily</code> names it.</p>
+<h2 id="uicolorpalette"><code>UIColorPalette</code></h2>
+<p>One palette per mode. The roles: <code>Primary</code>, <code>Accent</code>, <code>Background</code>, <code>Surface</code>, <code>Info</code>, <code>Warning</code>, <code>Success</code>,
+<code>Danger</code>, each with an <code>On*</code> counterpart meant to sit on top of it (<code>OnPrimary</code>, <code>OnAccent</code>, <code>OnBackground</code>,
+<code>OnSurface</code>, <code>OnInfo</code>, <code>OnWarning</code>, <code>OnSuccess</code>, <code>OnDanger</code>); plus <code>Selected</code>, <code>FocusRing</code>, <code>Border</code>, <code>Mark</code>, <code>Shadow</code>,
+<code>Overlay</code>, and <code>DisabledOpacity</code> (a <code>byte</code>, 0–255, applied to disabled interactive elements). <code>Series</code>
+(<code>IReadOnlyList&lt;ColorVariant&gt;</code>) is the run of colours a chart's series take in turn, cycled when there are more
+series than colours; the default eight leave out the warning and danger colours, so a series never reads as a warning or an error.
+Unset, each of the eight is moved toward the page's text — lifted on a dark palette, deepened on a light one — by the fewest tenths
+that read 3:1 on that palette's <code>Background</code> and <code>Surface</code>, so a line, a bar or a sector stands off the page and a card in either
+mode; a palette with grounds of its own draws the run for them, and a <code>Series</code> an application sets is used as given.</p>
+<p><code>Mark</code> is the edge that says a control is there — a Filled field's line, an Outline field's border, an Underline field's rule, an
+unchecked checkbox's, radio's or switch's ring, a slider's track — where <code>Border</code> only parts one region from another. Unset, it is
+<code>OnSurface</code> at the least opacity that reads 3:1 (WCAG's floor for a control's edge) laid over <code>Background</code>, <code>Surface</code> and a raised
+card, so it stands off whichever ground the control is on; a palette with grounds or text of its own draws its own, and an
+application may set it. <code>UIThemeColor.Mark</code> names it for an author's own colour. A reader who asks the system for more contrast
+(<code>prefers-contrast: more</code>) gets every border — a card's edge, a divider, a table's rule — in the mark too.</p>
+<p>Six roles also carry an <strong>ink</strong> variant — <code>PrimaryInk</code>, <code>AccentInk</code>, <code>InfoInk</code>, <code>WarningInk</code>, <code>SuccessInk</code>,
+<code>DangerInk</code>. The fill (<code>Primary</code>, <code>Info</code>, ...) is what a background or a filled control paints; the ink is what
+that same colour looks like as <em>text on the page</em> — a label, an icon, a badge's text — read against the page's
+own ground rather than against the fill's <code>On*</code> counterpart. A status ink (<code>InfoInk</code>, <code>WarningInk</code>, <code>SuccessInk</code>,
+<code>DangerInk</code>) reads 4.5:1 on a badge tinted with its own colour, over the page and over a card. In the default light
+palette <code>PrimaryInk</code>, <code>AccentInk</code> and <code>InfoInk</code> equal their fills; <code>WarningInk</code>, <code>SuccessInk</code> and <code>DangerInk</code> are
+shades of theirs, since a gold light enough to carry dark text is too light to read as text on a light page, and the
+green and red fell just short on their tinted badges. In the default dark palette it is the other way round: most
+inks are lighter tints of their fills, so they read on the dark page, and <code>WarningInk</code> equals its fill. A tinted or outlined
+badge writes its words in <code>--ui-color-&lt;role&gt;-ink-on-tint</code> — the ink pulled toward the text colour, a brand ink 44 % of the
+way and a status ink 20 % — so the badge reads on its own tint over the page, a card and a raised card while the ink
+everywhere else keeps its colour. Change the ink along with the fill when a palette's colour changes.</p>
+<h2 id="uitypography-and-uishape"><code>UITypography</code> and <code>UIShape</code></h2>
+<p><code>UITypography</code>: <code>FontFamily</code> (<code>string</code>, default <code>&quot;Geist&quot;</code> — the web platform ships that face, Latin and Cyrillic, so the default reads the same on every machine; another family is the page's own to provide), <code>CapHeight</code> (<code>double</code>, default <code>0.71</code>, Geist's — the face's capital height over its size, its OS/2 <code>sCapHeight / unitsPerEm</code>; a theme naming another face sets that face's, between 0 and 1) and six <code>UITextStyle</code> roles — <code>Display</code>, <code>Title</code>,
+<code>Subtitle</code>, <code>Body</code>, <code>Caption</code>, <code>Overline</code>. Each <code>UITextStyle</code> is <code>FontSize</code>, <code>LineHeight</code>, <code>FontWeight</code>
+(default <code>400</code>) and an optional <code>LetterSpacing</code>, all in device-independent pixels (CSS px on the web). The web writes each role's size as the nearest whose capitals
+stand an even number of whole pixels tall (<code>2 × round(FontSize × CapHeight / 2) / CapHeight</code>: Body 14 is drawn at 14.085 px,
+10 px capitals; Caption 12 at 11.268 px, 8 px capitals), so words centred in a control share the middle of the icons beside them;
+the line height stays as authored.</p>
+<p><code>UIShape</code>: five <code>UICornerRadius</code> tokens — <code>CardRadius</code>, <code>ButtonRadius</code>, <code>InputRadius</code>, <code>RowRadius</code> (square by
+default — a key/value list or an action row), <code>NotificationRadius</code> (square by default, like a row).</p>
+<h2 id="naming-a-colour">Naming a colour</h2>
+<p><code>UIThemeColor</code> is what a component property takes wherever a colour is themeable — a semantic role tracked
+live, or a fixed override:</p>
+<pre><code class="language-csharp">new TextComponent().SetDescriptionColor(UIThemeColor.Muted);
+new BadgeComponent().SetColor(UIThemeColor.FromColorVariant(ColorName.AstralTeal, ColorAdjustment.Tint, 2));
+</code></pre>
+<p><code>UIThemeColor.FromStyle(UIColorStyle)</code> tracks a semantic role (<code>Primary</code>, <code>Danger</code>, <code>Muted</code>, ...) live across a
+theme change; the static properties (<code>UIThemeColor.Primary</code>, <code>UIThemeColor.Danger</code>, <code>UIThemeColor.Muted</code>, ...)
+are shorthand for exactly that. <code>FromColorVariant</code> fixes a colour from <code>NE.Colors</code> — a <code>ColorName</code> plus an
+optional <code>ColorAdjustment</code>, factor and opacity — used identically in both modes; <code>Create(light, dark)</code> gives
+each mode its own fixed colour. <code>UIColorStyle</code> itself is the full set of semantic roles a <code>UIThemeColor</code> or a
+palette member can name. <code>UIThemeColor.Transparent</code> is no fill — a colour of no opacity, the same in both modes: a background
+written it shows what is behind it, and what stands on it takes the page's ink, so a bound background can switch a surface's fill
+off (a chat's sticker standing without its bubble), and a binding that comes back <code>null</code> returns the component's default.</p>
+<p><code>Muted</code> is measured from the text colour of the ground an element sits on, not from the element's own colour, so
+muted text inside a region that is already muted does not fade a second time. A component given a <code>Background</code> sets
+<code>--ui-faint-base</code> to the text colour that reads on that colour, so muted text on a filled panel fades the panel's own ink —
+less than on the page, so it still reads 4.5:1 on every default fill; a custom surface with a text colour of its own sets
+<code>--ui-faint-base</code> to it, and muted text on that surface follows. The same component writes <code>--ui-ground</code> to the colour
+itself, so a part cut out of the ground (a chart's hollow marker, the edge between two pie sectors) paints the panel's
+colour; a custom surface that paints a ground of its own sets <code>--ui-ground</code> to it beside <code>--ui-faint-base</code>. On such a
+panel a link and the words of a Ghost or Outline button take the panel's text colour too, a link keeping its underline so
+it still reads as one; a <code>Background</code> of <code>Surface</code> or <code>Background</code> is the page's own ground, and changes none of this.</p>
+<p>A component that takes a <code>BackgroundImage</code> (a container, a scroll container, a surface, a card, a button…) can also dim and
+blur it: <code>BackgroundImageDim</code> from 0 to 1, <code>BackgroundImageBlur</code> in pixels, and <code>BackgroundImageDimMode</code> — <code>Uniform</code>, the
+default, or <code>Vignette</code>, the edges dimmed and the middle clear, which frames a card or a hero picture rather than giving words a
+ground to read on. The dim is that same <code>--ui-ground</code> laid over the picture, not black: darker in a dark theme, lighter in a
+light one, so the text reads in both and one number holds across a theme switch. The blur softens the picture alone, under the
+content and inside the component's edge and corners. All three are drawn by the browser over the picture it already has, so a
+bound value — a reader's slider for a chat's wallpaper — sends its number and nothing else; a value written in the view outside
+its range is refused, a bound one held to it.</p>
+<pre><code class="language-csharp">new ContainerComponent()
+    .BindBackgroundImage(nameof(ChatController.Wallpaper))
+    .BindBackgroundImageDim(nameof(ChatController.WallpaperDim))
+    .BindBackgroundImageBlur(nameof(ChatController.WallpaperBlur))
+    .AddChild(messages);
+</code></pre>
+<h2 id="the-colour-vocabulary">The colour vocabulary</h2>
+<p>The names themselves come from <a href="https://github.com/AkiEvansDev/NE.Colors"><code>NE.Colors</code></a>, a package of its own
+with no dependencies: thirty-two colours in nine families, each adjustable by a tint or a shade in ten steps and by
+an opacity.</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Names</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Neutral</td>
+<td><code>IronFog</code> <code>SilverNight</code> <code>BronzeDusk</code></td>
+</tr>
+<tr>
+<td>Red / Pink</td>
+<td><code>StellarRed</code> <code>NebulaRose</code> <code>LunarPink</code> <code>PulsarMagenta</code></td>
+</tr>
+<tr>
+<td>Orange / Yellow</td>
+<td><code>SolarAmber</code> <code>NebulaLemon</code> <code>LunarYellow</code> <code>SolarGold</code></td>
+</tr>
+<tr>
+<td>Olive / Lime</td>
+<td><code>EclipseOlive</code> <code>NebulaLime</code> <code>LunarSage</code></td>
+</tr>
+<tr>
+<td>Green</td>
+<td><code>AuroraGreen</code> <code>NebulaMint</code> <code>LunarFern</code></td>
+</tr>
+<tr>
+<td>Teal / Cyan</td>
+<td><code>AstralTeal</code> <code>NebulaCyan</code> <code>LunarMoss</code></td>
+</tr>
+<tr>
+<td>Blue</td>
+<td><code>QuantumBlue</code> <code>NebulaAqua</code> <code>LunarAzure</code></td>
+</tr>
+<tr>
+<td>Purple</td>
+<td><code>NovaPurple</code> <code>NebulaViolet</code> <code>LunarLavender</code></td>
+</tr>
+<tr>
+<td>Accent</td>
+<td><code>Comet</code> <code>Flare</code> <code>Ember</code> <code>Photon</code> <code>Vortex</code> <code>Halo</code></td>
+</tr>
+</tbody>
+</table>
+<p>A <code>ColorVariant</code> is a name plus an optional <code>ColorAdjustment</code> — <code>Tint</code> towards white, <code>Shade</code> towards black, a
+factor from <code>0</code> to <code>10</code> — and an opacity. That is the whole model: <code>new ColorVariant(ColorName.AstralTeal, ColorAdjustment.Tint, 2)</code> is the same colour two steps lighter.</p>
+<p>Every colour with its full ramp is rendered in that package's own
+<a href="https://github.com/AkiEvansDev/NE.Colors/blob/main/examples/palette.html"><code>examples/palette.html</code></a>, generated
+from the palette itself. What each name means is documented there rather than here, since the palette is used
+outside this framework as well.</p>
+<h2 id="the-three-looks">The three looks</h2>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Property</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Containers and content-bearing surfaces</td>
+<td><code>Surface</code> (<code>UISurfaceStyle</code>)</td>
+<td><code>Background</code> — the page's own ground inside a border; <code>Raised</code> — a panel lifted off it, with its own fill and shadow; <code>Tinted</code> — the surface's own colour mixed into the page</td>
+</tr>
+<tr>
+<td>Inputs with a field of their own</td>
+<td><code>Appearance</code> (<code>UIInputAppearance</code>)</td>
+<td><code>Filled</code> (default) — one fill and a line under it in the mark, on square bottom corners; <code>Tonal</code> — the fill alone; <code>Outline</code> — no fill, a border all round in the mark; <code>Underline</code> — no fill, one rule under the text in the mark; <code>Ghost</code> — no box until touched, for a field standing in a row. Filled for long forms whose fields stack; Tonal for a field a card, a row or separators already frame, a lone field beside its own button, a short form on a centred card (a sign-in) and editing in place; Ghost for a field in a list row. A focus draws the field's edge in the brand's colour (Ghost a wash instead); <code>SetShowFocusEdge(false)</code> leaves it out for a field its container and its caret already frame — a composer that is a bubble's whole content — and the hover still answers</td>
+</tr>
+<tr>
+<td>Buttons and badges</td>
+<td><code>Type</code> (<code>UIButtonType</code>) on a button, <code>Type</code> (<code>UIBadgeType</code>) and <code>Fill</code> (<code>UIBadgeFill</code>) on a badge</td>
+<td>Buttons: <code>Primary</code>, <code>Accent</code>, <code>Danger</code>, <code>Outline</code>, <code>Ghost</code>, <code>Link</code>, <code>Surface</code>. Badges: <code>Primary</code>, <code>Accent</code>, <code>Info</code>, <code>Warning</code>, <code>Success</code>, <code>Danger</code>, <code>Surface</code>, <code>Plain</code>; filled as <code>Filled</code>, <code>Tinted</code> or <code>Outline</code> — unset, a type fills and a colour tints</td>
+</tr>
+<tr>
+<td>How much room a button takes</td>
+<td><code>Size</code> (<code>UIButtonSize</code>)</td>
+<td><code>Small</code> — inside a row, a toolbar, a list; <code>Medium</code> — a button standing on its own; <code>Large</code> — a call to action</td>
+</tr>
+</tbody>
+</table>
+<p><code>Surface</code> is for things that <em>are</em> a surface — a card, an expander, a dialog. A layout panel draws nothing by
+default and takes an arbitrary <code>Background</code> colour instead where a page genuinely wants one there. What stands on a surface
+steps off that surface, not off the page: a <code>Filled</code> field in a <code>Raised</code> card or a dialog mixes its fill into the card's or the
+dialog's, and a popup — a list, a picker, a menu, a tooltip — opened from inside a <code>Raised</code> surface or a dialog is lifted one step
+above it (the neutral raised fill with 8 % more of the text colour — on a <code>Raised</code> surface with a colour of its own too, since the
+popup's entries keep the page's ink). A <code>Background</code> or <code>Tinted</code> surface is the page's level again, and a popup opened there is the
+page's. A colour a person picked through a colour input is not judged as a theme role: what reads on top of it is decided by
+<code>UIColorContrast.IsLightOverWhite</code> — the colour laid over white, so its opacity counts — not by the ambient theme.</p>
+<h2 id="selection">Selection</h2>
+<p><code>ISelectionStyleComponent.SelectionStyle</code> (<code>UISelectionStyle?</code>) says what a chosen row or item looks like, on
+<code>ItemsViewComponent</code>, <code>TableComponent</code>, <code>TreeComponent</code>, <code>ButtonGroupComponent</code>, <code>MenuComponent</code>,
+<code>TabsComponent</code> and <code>TabsViewComponent</code>. <code>UISelectionStyle</code> carries <code>Background</code>, <code>Foreground</code>, <code>Mark</code> (<code>UISelectionMark</code>), <code>MarkColor</code>
+and <code>Bold</code> — any part left unset keeps the control's own default. <code>UISelectionStyle.Ground(background)</code> marks a
+choice by its fill alone; <code>UISelectionStyle.Marked(mark, markColor)</code> marks it with a line on one edge instead.</p>
+<h2 id="theme-mode">Theme mode</h2>
+<p><code>UIThemeMode</code> is <code>Light</code> or <code>Dark</code> — no <code>System</code> member; <code>null</code> means &quot;inherit&quot; on a component and &quot;follow the
+platform&quot; on a session.</p>
+<p>A component subtree can be forced into one mode regardless of the session's: <code>IVisualComponent.Theme</code>
+(<code>UIThemeMode?</code>), on every visual component, <code>null</code> by default to inherit the ambient theme.</p>
+<p>For the whole session, the simplest route from a controller is to return <code>SetThemeEffect</code> (below): it repaints
+the open page at once and stores the mode in the session, so the next page load agrees.</p>
+<pre><code class="language-csharp">[UICommand]
+public UICommandResult UseDarkTheme()
+    =&gt; UICommandResult.Ok([new SetThemeEffect(UIThemeMode.Dark)]);
+</code></pre>
+<p><code>Context.UpdateSessionAsync(session =&gt; session with { ThemeMode = UIThemeMode.Dark }, cancellationToken)</code> stores the
+mode and switches the page before it returns, as the language does; either way, every other page open under the session
+switches too.</p>
+<p><code>UIControllerBase.OnThemeChangedAsync(previousMode, cancellationToken)</code> runs once per change, wherever it was made — the
+switcher, a <code>SetThemeEffect</code>, an update — as <code>OnLanguageChangedAsync</code> does (<a href="localization.html">localization</a>). It is the place
+to keep the mode on the reader's account; the way back is the sign-in command writing the account's mode into the session
+beside its language.</p>
+<p><a href="components/theme-switcher.html"><code>ThemeSwitcherComponent</code></a> is the built-in control for a person to flip it
+themselves — a button that renders both glyphs (<code>LightIcon</code>, <code>DarkIcon</code>, sized by <code>IconSize</code>) and lets the
+stylesheet pick which one shows, since the page's shell markup is cached across themes; the switch itself runs
+entirely on the client. <code>SetThemeEffect(UIThemeMode? mode)</code> is the effect behind it, and has a server side: besides
+putting the client into the theme, it reports back to the session (<code>WebUIHub.SetThemeAsync</code>) so the <em>next</em> render agrees — a
+theme is a session setting, not just a client update, and <code>Mode = null</code> follows the platform's preference again. A switch the
+server pushes for a session that already holds the mode is marked so, and is not reported back.</p>
+<h2 id="a-readers-own-colours">A reader's own colours</h2>
+<p>A reader may keep a primary and an accent of their own over the application's palette, on the session beside the theme mode.
+<code>UIThemeColors</code> holds them — <code>LightPrimary</code>, <code>LightAccent</code>, <code>DarkPrimary</code>, <code>DarkAccent</code>, each a <code>ColorVariant</code> and each left
+unset meaning the application's; <code>UIThemeColors.Create(primary, accent)</code> gives both themes the same — and <code>SetThemeColorsEffect</code>
+applies them, from a command or an interaction:</p>
+<pre><code class="language-csharp">[UICommand]
+public UICommandResult ApplyColours()
+    =&gt; UICommandResult.Ok([new SetThemeColorsEffect(UIThemeColors.Create(new ColorVariant(ColorName.NovaPurple)))]);
+
+[UICommand]
+public UICommandResult ResetColours()
+    =&gt; UICommandResult.Ok([new SetThemeColorsEffect()]);
+</code></pre>
+<p>The page hands the colours to its session (<code>UserSessionState.ThemeColors</code>) and draws the stylesheet the server derives from them;
+every other page of the session switches with it, and every page the session renders from then on carries the same block after
+the theme's cached stylesheet. What stands on a colour, writes in it or shares its hue follows by one rule,
+<code>UIColorPalette.WithPrimary</code>/<code>WithAccent</code>: the colour's <code>On*</code> stays where it reads 4.5:1, else it becomes whichever of the page's
+ground and ink reads better, moved on until it reads; its ink is the colour moved toward the page's text until it reads 4.5:1 on
+the page; the selection and the focus ring, where drawn from the old hue, follow the new one. The same rule serves an application
+that changes its own palette's primary. <code>Context.UpdateSessionAsync(s =&gt; s with { ThemeColors = … })</code> does the same from a command.
+A session store that keeps a session field by field keeps the colours as one JSON text; one that keeps none reads as the
+application's palette.</p>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <span class="version">Documents 1.7.2</span> ·
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>
