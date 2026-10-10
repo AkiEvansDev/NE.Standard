@@ -70,6 +70,10 @@
 @import "./styles/components/ui-dialog.less";
 @import "./styles/components/ui-notification.less";
 @import "./styles/components/ui-tooltip.less";
+// After every list popup: a list shown as a phone's sheet outweighs its own placement by coming later.
+@import "./styles/components/ui-sheet.less";
+// After every component: the keyboard's frame on a plain pressable wins the tie with a component's own `outline: none`.
+@import "./styles/core/keyboard.less";
 // After every component: the press ripple's layer is a pseudo-element some of them draw a mark on, and it wins the tie while it plays.
 @import "./styles/core/press.less";
 // Last: the reader's system preferences (less motion, forced colours) win the ties with every component's rules.

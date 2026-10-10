@@ -42,6 +42,8 @@ export type ValueReading = {
     release(element: Element): void;
     /** Writes a value into a bound element the way its binding writes a push, on that element's component alone. */
     write(element: Element, value: unknown): boolean;
+    /** Resolves once the value the element's component sent last has been answered and its changes applied; at once with none in flight. */
+    whenSettled(element: Element): Promise<void>;
 };
 
 export type ValueReaderRegistration = {

@@ -1,13 +1,20 @@
 // A command bar that does not fit its room: the commands past it go into a "…" list, so every label left on the bar stays whole
 // rather than each shrinking to an ellipsis. The fitting and the list are the tab strips' (`strip-overflow.ts`); what is here is
-// which parts of the bar take part, and what a pick from the list does.
+// which parts of the bar take part, and what a pick from the list does. From the keyboard the bar is a toolbar: one Tab stop, the
+// arrows along it (round past its ends) and Home and End over its commands' controls and the "…", a field or a menu button in it
+// keeping the keys it takes itself.
 
-import { ComponentSelector, GroupHeaderAttribute, HiddenClass } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, GroupHeaderAttribute, HiddenClass, TabOutAttribute } from "../addressing/dom-attributes.ts";
 import { setAnchorStandIn } from "./anchored-popup.ts";
+import { isFieldKey } from "./caret-fields.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isLaidOut } from "./element-visibility.ts";
 import { isInert } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { isOwnControlOf } from "./own-control.ts";
 import { FocusableSelector } from "./popup-focus.ts";
+import { isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
+import { bringBackToTabOrder, isOwnTabStop, takeOutOfTabOrder } from "./tab-out.ts";
 import type { StripOverflowEntry } from "./strip-overflow.ts";
 import { StripFitter } from "./strip-overflow.ts";
 
@@ -17,7 +24,10 @@ const ItemClass = "ui-command-bar__item";
 const OverflowButtonClass = "ui-command-bar__overflow";
 const OverflowingModifier = "ui-command-bar--overflowing";
 const OverflowedClass = "ui-command-bar__overflowed";
+const VerticalClass = "ui-orientation--vertical";
 const TitleClass = "ui-text__title";
+// What a toolbar's walk lands on inside a command: its controls, and the ones the walk took out of the Tab order for now.
+const StopSelector = `${FocusableSelector}, [${TabOutAttribute}]`;
 
 export type CommandBarEngineOptions = {
     readonly root?: ParentNode;
@@ -45,6 +55,9 @@ export class CommandBarEngine {
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
+        // Bubbling: a menu button's or a select's own Down, and a field's caret keys, are theirs first.
+        this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent));
+        this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
 
         // Commands arriving, leaving or regrouped. A label or a Visibility changing moves a command's own width, which the fitter
         // watches; the fit's own classes are not watched here, or every fit would ask for the next.
@@ -75,6 +88,14 @@ export class CommandBarEngine {
         // the bar, at itself again.
         for (const part of parts)
             setAnchorStandIn(part, part.classList.contains(OverflowedClass) ? button : null);
+
+        // The arrows follow the bar's orientation, which a reader is told; a toolbar is horizontal unless it says otherwise.
+        if (root.classList.contains(VerticalClass))
+            root.setAttribute("aria-orientation", "vertical");
+        else
+            root.removeAttribute("aria-orientation");
+
+        applyStop(root, null);
     }
 
     private handleClick(domEvent: Event): void {
@@ -89,6 +110,36 @@ export class CommandBarEngine {
 
         domEvent.preventDefault();
         this.fitter.toggleList(root, button, () => this.entriesOf(root));
+    }
+
+    /** The arrows walk the bar's controls, one stop of the Tab order, round past either end as a toolbar's do. */
+    private handleKeyDown(domEvent: Event): void {
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof HTMLElement) || !isPlainKey(domEvent) || isFieldKey(domEvent))
+            return;
+
+        const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const stops = root === null ? [] : stopsOf(root);
+
+        if (root === null || !stops.includes(domEvent.target))
+            return;
+
+        const next = resolveRovingTarget({ key: domEvent.key, items: stops, current: domEvent.target, axis: root.classList.contains(VerticalClass) ? "vertical" : "horizontal" });
+
+        if (next === null)
+            return;
+
+        domEvent.preventDefault();
+        applyStop(root, next);
+        next.focus();
+    }
+
+    /** A control of the bar the focus came to — pressed, or picked from the "…" — is where Tab comes back in. */
+    private handleFocusIn(domEvent: Event): void {
+        const target = domEvent.target instanceof HTMLElement ? domEvent.target : null;
+        const root = target?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+
+        if (target !== null && root !== null && stopsOf(root).includes(target))
+            applyStop(root, target);
     }
 
     /** The commands the fit hid, in the bar's order, each by the words its button shows. */
@@ -116,6 +167,49 @@ export class CommandBarEngine {
 
 function hostOf(root: HTMLElement): HTMLElement | null {
     return root.querySelector<HTMLElement>(`:scope > .${HostClass}`);
+}
+
+/**
+ * Leaves one of the bar's controls in the Tab order: `current`, else the one the keyboard is on, else the one it was left on, else the
+ * first on offer; the rest are taken out for now and put back as the walk comes to them.
+ */
+function applyStop(root: HTMLElement, current: HTMLElement | null): void {
+    const stops = stopsOf(root);
+    const kept = stops.find(stop => stop.tabIndex >= 0 && isRovingCandidate(stop));
+    const stop = current ?? stops.find(candidate => candidate === document.activeElement) ?? kept ?? stops.find(isRovingCandidate) ?? null;
+
+    for (const candidate of stops) {
+        if (candidate === stop)
+            bringBackToTabOrder(candidate);
+        else
+            takeOutOfTabOrder(candidate);
+    }
+}
+
+/**
+ * The controls the keyboard walks, in the bar's order: each shown command's own — both parts of a split button, a field — and the
+ * "…" while it shows; not what a command's popup holds, nor a part a control keeps out of the Tab order itself (a field's stepper).
+ */
+function stopsOf(root: HTMLElement): HTMLElement[] {
+    const host = hostOf(root);
+    const stops: HTMLElement[] = [];
+
+    for (const part of host === null ? [] : partsOf(host)) {
+        if (!part.classList.contains(ItemClass) || part.classList.contains(OverflowedClass))
+            continue;
+
+        for (const control of part.querySelectorAll<HTMLElement>(StopSelector)) {
+            if (isOwnTabStop(control) && isOwnControlOf(part, control))
+                stops.push(control);
+        }
+    }
+
+    const button = root.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`);
+
+    if (button !== null && root.classList.contains(OverflowingModifier))
+        stops.push(button);
+
+    return stops;
 }
 
 /** Whether the bar lays its commands on one line — horizontal and not wrapping, by its stylesheet — which is the only bar fitted. */

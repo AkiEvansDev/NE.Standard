@@ -23,6 +23,11 @@ export type GridSplitRuns = {
     readonly after: readonly number[];
 };
 
+/** A big step, PageUp's or PageDown's: a tenth of the room the bar moves in, never less than an arrow's step. */
+export function bigStep(step: number, room: number): number {
+    return Math.max(step, Math.round(room / 10));
+}
+
 /** Reads a template the renderer (`repeat()`, `minmax()`, `fit-content()`, `auto`, `px`) or a drag wrote; null when unreadable. */
 export function parseGridTracks(template: string): GridTrack[] | null {
     const tracks: GridTrack[] = [];

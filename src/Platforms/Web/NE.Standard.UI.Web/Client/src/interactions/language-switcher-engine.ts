@@ -2,16 +2,16 @@
 // whoever made it. A page in a language the switcher does not offer shows that language as a label only, and no choice as current.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { LanguageAttribute, LanguageSwitcherAttribute } from "../addressing/dom-attributes.ts";
+import { LanguageAttribute, LanguageSwitcherAttribute, TooltipAttribute } from "../addressing/dom-attributes.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import type { EffectRegistry } from "../effects/effect-registry.ts";
 import { ClientEffectKinds } from "../metadata/metadata-index.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import type { ClientStringKey } from "../runtime/client-strings.ts";
 import { isInert } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import { OwnedPopups } from "./owned-popup.ts";
-import { focusByPointer, focusOpenedList } from "./popup-focus.ts";
-import { isRovingKey, resolveRovingTarget } from "./roving-focus.ts";
+import { followPointer, handleChoiceListKey, openChoiceList } from "./popup-list.ts";
 
 export type LanguageSwitcherEngineOptions = {
     readonly root?: ParentNode;
@@ -40,7 +40,9 @@ export class LanguageSwitcherEngine {
     private readonly menus = new OwnedPopups({
         show: ({ owner }) => owner.classList.add(OpenClass),
         hide: ({ owner }) => owner.classList.remove(OpenClass),
-        closesWhenReadOnly: false
+        closesWhenReadOnly: false,
+        closesOnTab: true,
+        sheetOnPhone: true
     });
 
     public constructor(options: LanguageSwitcherEngineOptions) {
@@ -108,23 +110,14 @@ export class LanguageSwitcherEngine {
         const choices = choicesOf(switcher);
         const trigger = event.target.closest<HTMLElement>(`.${TriggerClass}`);
 
-        if (trigger !== null && choices.length > 2 && !this.menus.isOpen(switcher) && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+        if (trigger !== null && choices.length > 2 && !this.menus.isOpen(switcher) && (event.key === "ArrowDown" || event.key === "ArrowUp") && isPlainKey(event)) {
             event.preventDefault();
             this.openMenu(switcher, trigger, event.key === "ArrowUp");
             return;
         }
 
-        if (!this.menus.isOpen(switcher) || !isRovingKey(event.key, "vertical"))
-            return;
-
-        const current = event.target instanceof HTMLElement && choices.includes(event.target) ? event.target : null;
-        const next = resolveRovingTarget({ key: event.key, items: choices, current, axis: "vertical" });
-
-        if (next === null)
-            return;
-
-        event.preventDefault();
-        next.focus();
+        if (this.menus.isOpen(switcher))
+            handleChoiceListKey(event, choices);
     }
 
     /** The pointer moves the open list's current language, as in a native menu, so the arrows go on from it. */
@@ -134,13 +127,10 @@ export class LanguageSwitcherEngine {
 
         const choice = event.target.closest<HTMLElement>(`.${ChoiceClass}`);
 
-        if (choice === null || choice === document.activeElement || isInert(choice))
-            return;
+        const switcher = choice?.closest<HTMLElement>(SwitcherSelector) ?? null;
 
-        const switcher = choice.closest<HTMLElement>(SwitcherSelector);
-
-        if (switcher !== null && this.menus.isOpen(switcher))
-            focusByPointer(choice);
+        if (choice !== null && switcher !== null && this.menus.isOpen(switcher))
+            followPointer(choice, choicesOf(switcher));
     }
 
     /** Opens the list on the page's language, as a select's opens on its value; the page in none of them, as any menu opens. */
@@ -151,19 +141,9 @@ export class LanguageSwitcherEngine {
             return;
 
         const choices = choicesOf(switcher);
-        const checked = choices.find(choice => choice.getAttribute("aria-checked") === "true");
+        const checked = choices.find(choice => choice.getAttribute("aria-checked") === "true") ?? null;
 
-        const opened = this.menus.open({
-            owner: switcher,
-            popup: menu,
-            anchor: switcher,
-            placement: { placement: "bottom-end" },
-            openers: [trigger],
-            focus: checked ?? false
-        });
-
-        if (opened && checked === undefined)
-            focusOpenedList(menu, choices, fromEnd);
+        openChoiceList(this.menus, { owner: switcher, popup: menu, anchor: switcher, placement: { placement: "bottom-end" }, openers: [trigger] }, choices, checked, fromEnd);
     }
 
     /** Closes the list and asks the page to switch to the chosen language. */
@@ -204,15 +184,19 @@ export class LanguageSwitcherEngine {
                     text.toggleAttribute("hidden", !current);
             }
 
-            // By its name and the code the button shows, as the renderer writes it (the label in the name).
-            if (choices.length === 2) {
-                const other = choices.find(choice => choice.getAttribute(LanguageAttribute) !== language) ?? choices[0];
-                const otherLanguage = other.getAttribute(LanguageAttribute) ?? "";
+            // By its name and the code the button shows, as the renderer writes it (the label in the name); a tooltip saying the same,
+            // the renderer's where the author gave none, follows it.
+            const named = switcher.getAttribute(TooltipAttribute) === trigger.getAttribute("aria-label");
+            const other = choices.find(choice => choice.getAttribute(LanguageAttribute) !== language) ?? choices[0];
+            const otherLanguage = other.getAttribute(LanguageAttribute) ?? "";
+            const [key, args] = choices.length === 2
+                ? [SwitchKey, { language: nameOf(choices, language), code: codeOf(language), other: nameOf(choices, otherLanguage), otherCode: codeOf(otherLanguage) }]
+                : [CurrentKey, { language: nameOf(choices, language), code: codeOf(language) }];
 
-                clientStrings.write(trigger, "aria-label", SwitchKey, { language: nameOf(choices, language), code: codeOf(language), other: nameOf(choices, otherLanguage), otherCode: codeOf(otherLanguage) });
-            }
-            else
-                clientStrings.write(trigger, "aria-label", CurrentKey, { language: nameOf(choices, language), code: codeOf(language) });
+            clientStrings.write(trigger, "aria-label", key, args);
+
+            if (named)
+                clientStrings.write(switcher, TooltipAttribute, key, args);
         }
     }
 }

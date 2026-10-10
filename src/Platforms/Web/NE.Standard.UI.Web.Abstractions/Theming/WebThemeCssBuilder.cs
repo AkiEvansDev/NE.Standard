@@ -16,6 +16,13 @@ public static class WebThemeCssBuilder
     private const string BrandInkOnTintShare = "56%";
     private const string StatusInkOnTintShare = "80%";
 
+    // ui-badge.less's tint, a raised card's share of the text (surface-raised, below) and the ratio words read at: what a raw
+    // colour's ink is bounded against.
+    private const double BadgeTintShare = 0.16;
+    private const double RaisedShare = 0.08;
+    private static readonly string RaisedCss = string.Create(CultureInfo.InvariantCulture, $"color-mix(in srgb, var(--ui-color-surface) {(1 - RaisedShare) * 100:0.##}%, var(--ui-color-on-surface) {RaisedShare * 100:0.##}%)");
+    private const double ReadableRatio = 4.5;
+
     // What UIColorPalette.WithPrimary and WithAccent move: in the application's stylesheet with the rest, and alone in a reader's.
     private static readonly (string Name, Func<UIColorPalette, ColorVariant> Read)[] BrandColors =
     [
@@ -47,6 +54,9 @@ public static class WebThemeCssBuilder
         // The two text colours a *colour* is judged against, not the page; emitted once at root, independent of the live theme.
         AppendOnColorVariables(builder, theme);
 
+        // Once for both modes, so the server's first frame and every package's redraw cycle by one count.
+        _ = builder.Append(":root { --ui-color-series-count: ").Append(SeriesCount(theme).ToString(CultureInfo.InvariantCulture)).AppendLine("; }");
+
         // Re-emitted for every [data-ui-theme] element, not only :root: an overriding subtree must re-resolve them against its own palette.
         AppendTheme(builder, $"[{WebAttributes.Theme}]", palette: null, typography: null, shape: null, includeSemantic: true, dark: false);
 
@@ -57,6 +67,17 @@ public static class WebThemeCssBuilder
         AppendMediaTheme(builder, "(prefers-color-scheme: dark)", theme.Dark, AppendDarkTheme);
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// The count a series colour cycles by (<c>--ui-color-series-count</c>): the shorter of the two modes' runs, so a series keeps
+    /// its colour as the mode changes.
+    /// </summary>
+    public static int SeriesCount(UITheme theme)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+
+        return Math.Max(1, Math.Min(theme.Light.Series.Count, theme.Dark.Series.Count));
     }
 
     private static void AppendLightTheme(StringBuilder builder, string selector, UIColorPalette palette)
@@ -134,16 +155,15 @@ public static class WebThemeCssBuilder
         Append(builder, "color-shadow", palette.Shadow);
         Append(builder, "color-overlay", palette.Overlay);
 
-        // The series run, one variable per position, and the count a package cycles by.
+        // The series run, one variable per position; the count a package cycles by is the theme's, on :root.
         for (var i = 0; i < palette.Series.Count; i++)
             Append(builder, $"color-series-{i + 1}", palette.Series[i]);
-
-        Append(builder, "color-series-count", palette.Series.Count.ToString(CultureInfo.InvariantCulture));
 
         Append(builder, "disabled-opacity", WebCssValues.Opacity(palette.DisabledOpacity));
 
         // Set on both palettes, or a light subtree under a dark page would inherit the dark one's, resolved there.
         AppendModeVariables(builder, dark);
+        AppendRawInkBounds(builder, palette);
     }
 
     /// <summary>
@@ -166,6 +186,34 @@ public static class WebThemeCssBuilder
         Append(builder, "tint-share", dark ? "28%" : "20%");
     }
 
+    /// <summary>
+    /// How light or dark a raw colour's words may be (<c>.ui-raw-ink()</c>, a badge's): the luminance that reads 4.5:1 over the
+    /// deepest tint any colour lays on the page, a card or a raised card of this palette — black's under dark words, white's under
+    /// light ones — so it holds for every colour and every palette, an application's own included.
+    /// </summary>
+    private static void AppendRawInkBounds(StringBuilder builder, UIColorPalette palette)
+    {
+        ColorVariant raised = UIColorContrast.Composite(palette.OnSurface.ToColor(), RaisedShare, palette.Surface);
+        var darkWords = UIColorContrast.Luminance(palette.OnSurface) < UIColorContrast.Luminance(palette.Surface);
+        System.Drawing.Color end = darkWords ? System.Drawing.Color.Black : System.Drawing.Color.White;
+        var max = 1d;
+        var min = 0d;
+
+        foreach (ColorVariant ground in (ReadOnlySpan<ColorVariant>)[palette.Background, palette.Surface, raised])
+        {
+            var tint = UIColorContrast.Luminance(UIColorContrast.Composite(end, BadgeTintShare, ground));
+
+            if (darkWords)
+                max = Math.Min(max, ((tint + 0.05) / ReadableRatio) - 0.05);
+            else
+                min = Math.Max(min, (ReadableRatio * (tint + 0.05)) - 0.05);
+        }
+
+        // Rounded toward the text, so the written number still reads.
+        Append(builder, "ink-luminance-max", (Math.Floor(Math.Max(max, 0) * 10000) / 10000).ToString("0.####", CultureInfo.InvariantCulture));
+        Append(builder, "ink-luminance-min", (Math.Ceiling(Math.Min(min, 1) * 10000) / 10000).ToString("0.####", CultureInfo.InvariantCulture));
+    }
+
     private static void AppendBrandVariables(StringBuilder builder, UIColorPalette palette)
     {
         foreach ((var name, Func<UIColorPalette, ColorVariant> read) in BrandColors)
@@ -176,24 +224,36 @@ public static class WebThemeCssBuilder
     {
         Append(builder, "font-family", WebCssValues.FontFamily(typography.FontFamily));
 
-        AppendTextStyle(builder, "display", typography.Display);
-        AppendTextStyle(builder, "title", typography.Title);
-        AppendTextStyle(builder, "subtitle", typography.Subtitle);
-        AppendTextStyle(builder, "body", typography.Body);
-        AppendTextStyle(builder, "caption", typography.Caption);
-        AppendTextStyle(builder, "overline", typography.Overline);
+        AppendTextStyle(builder, "display", typography.Display, typography.CapHeight);
+        AppendTextStyle(builder, "title", typography.Title, typography.CapHeight);
+        AppendTextStyle(builder, "subtitle", typography.Subtitle, typography.CapHeight);
+        AppendTextStyle(builder, "body", typography.Body, typography.CapHeight);
+        AppendTextStyle(builder, "caption", typography.Caption, typography.CapHeight);
+        AppendTextStyle(builder, "overline", typography.Overline, typography.CapHeight);
     }
 
-    private static void AppendTextStyle(StringBuilder builder, string name, UITextStyle style)
+    private static void AppendTextStyle(StringBuilder builder, string name, UITextStyle style, double capHeight)
     {
         style.Validate();
 
-        Append(builder, $"text-{name}-font-size", WebCssValues.Pixels(style.FontSize));
+        Append(builder, $"text-{name}-font-size", WebCssValues.Pixels(WholeCapitalsFontSize(style.FontSize, capHeight)));
         Append(builder, $"text-{name}-line-height", WebCssValues.Pixels(style.LineHeight));
         Append(builder, $"text-{name}-font-weight", style.FontWeight.ToString(CultureInfo.InvariantCulture));
 
         if (style.LetterSpacing is double letterSpacing)
             Append(builder, $"text-{name}-letter-spacing", WebCssValues.Pixels(letterSpacing));
+    }
+
+    /// <summary>
+    /// The size nearest the authored one whose capitals stand an even number of whole pixels tall: capitals a fraction of a pixel
+    /// tall cannot be centred in a box, and an odd number stands half a pixel off the middle of the even boxes, lines and icons
+    /// beside them. Line heights stay as authored.
+    /// </summary>
+    private static double WholeCapitalsFontSize(double fontSize, double capHeight)
+    {
+        var capitals = Math.Max(2d, 2d * Math.Round(fontSize * capHeight / 2d, MidpointRounding.AwayFromZero));
+
+        return Math.Round(capitals / capHeight, 3, MidpointRounding.AwayFromZero);
     }
 
     private static void AppendShapeVariables(StringBuilder builder, UIShape shape)
@@ -209,7 +269,7 @@ public static class WebThemeCssBuilder
     {
         // The one absolute level: what a panel lifted off the page is made of; UIColorPalette's mark reads 3:1 on it by the same share. The same step lifts a popup off a raised panel or a
         // dialog (`.ui-popup-ground-lifted` in mixins/lift.less); the two keep one number.
-        Append(builder, "surface-raised", "color-mix(in srgb, var(--ui-color-surface) 92%, var(--ui-color-on-surface) 8%)");
+        Append(builder, "surface-raised", RaisedCss);
         // The wash a control with no fill shows when pressed; translucent since it may sit on the page or a surface. The pointer's
         // and the chosen one's differ by mode (AppendModeVariables).
         Append(builder, "wash-active", "color-mix(in srgb, var(--ui-color-on-surface) 16%, transparent)");

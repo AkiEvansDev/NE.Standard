@@ -60,7 +60,8 @@
     --ui-validation-marker-host: ui-key-value-action__value;
 }
 
-:is(.ui-invalid, .ui-validation--warning, .ui-validation--info):has(> .ui-validation-message--marker) {
+// A field speaking in a mark (`data-ui-tooltip-mark`, validation-engine.ts) is the mark's containing block.
+:is(.ui-invalid, .ui-validation--warning, .ui-validation--info)[data-ui-tooltip-mark] {
     position: relative;
 }
 

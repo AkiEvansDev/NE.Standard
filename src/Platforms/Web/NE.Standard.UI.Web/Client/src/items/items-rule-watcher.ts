@@ -13,7 +13,7 @@ import { ItemValuePath, readItemValuePath } from "./binding-template-evaluator";
 import { syncItemsHost } from "./items-host-sync";
 import { resolveHostMode } from "./items-host-mode";
 import { ItemsTemplateRegistry } from "./items-template-registry";
-import { ItemAbilityAttributes, ItemsTemplateRenderer, applyItemAbilityAttributes, applyItemGroupAttribute } from "./items-template-renderer";
+import { ItemAbilityAttributes, ItemsTemplateRenderer, applyItemGroupAttribute, restampItemMarks } from "./items-template-renderer";
 import { ItemsVirtualizationEngine } from "./items-virtualization-engine";
 
 /** The item property a host groups by; not an authored rule, so no metadata matches it. */
@@ -234,7 +234,14 @@ export class ItemsRuleWatcher {
         if (host !== null && hostComponentId !== null && resolveHostMode(host) === "virtualized") {
             const key = item.getAttribute(ComponentKeyAttribute);
 
-            if (key !== null && this.options.virtualization.updateValue(host, key, path.steps, value) && this.redrawsVirtualized(hostComponentId, path))
+            if (key === null || !this.options.virtualization.updateValue(host, key, path.steps, value))
+                return;
+
+            // The drawn row was drawn from the host's value, which the write just changed in place.
+            if (item.isConnected)
+                this.restampAbilities(item, path);
+
+            if (this.redrawsVirtualized(hostComponentId, path))
                 this.sync(host, hostComponentId);
 
             return;
@@ -248,9 +255,7 @@ export class ItemsRuleWatcher {
         if (movesBetweenGroups)
             applyItemGroupAttribute(item, this.options.renderer.getItemValue(item));
 
-        // An ability the engines read off the row: a flag flipped on the item re-stamps the row's mark.
-        if (ItemAbilityAttributes.some(([propertyName]) => affectsRule(propertyName, path)))
-            applyItemAbilityAttributes(item, this.options.renderer.getItemValue(item));
+        this.restampAbilities(item, path);
 
         if (host === null || hostComponentId === null)
             return;
@@ -260,6 +265,12 @@ export class ItemsRuleWatcher {
             return;
 
         this.sync(host, hostComponentId);
+    }
+
+    /** An ability the engines read off the row: a flag flipped on the item re-stamps its marks. */
+    private restampAbilities(item: Element, path: ItemValuePath): void {
+        if (ItemAbilityAttributes.some(([propertyName]) => affectsRule(propertyName, path)))
+            restampItemMarks(item, this.options.renderer.getItemValue(item));
     }
 
     /** The item the patched value belongs to: the scope the binding's `Dynamic` parameter names, as `resolveStackItem` reads it. */

@@ -17,8 +17,20 @@ public static class WebDomConverters
     public const string TextAppearanceClass = "textAppearanceClass";
     public const string TextAlignmentClass = "textAlignmentClass";
     public const string TextWrapClass = "textWrapClass";
-    public const string TextBadgePlacementClass = "textBadgePlacementClass";
+
+    /// <summary>A button's label alignment as the button's own modifier (<c>ui-button--align-start</c>), which places its label box.</summary>
+    public const string ButtonAlignmentClass = "buttonAlignmentClass";
+
+    /// <summary>A badge's placement as its text body's modifier (<c>ui-text--badge-trailing</c>), which the body's layout rules read.</summary>
+    public const string TextBadgePlacementHostClass = "textBadgePlacementHostClass";
+
+    /// <summary>A description's role as its text body's modifier (<c>ui-text--description-body</c>); nothing for a sized description.</summary>
+    public const string TextDescriptionTypeClass = "textDescriptionTypeClass";
     public const string BadgeStyleClass = "badgeStyleClass";
+    public const string BadgeFillClass = "badgeFillClass";
+
+    /// <summary>A badge's <c>ui-badge--colored</c> while its colour draws one (<c>WebCssValues.ThemeColor</c> is not empty); otherwise none.</summary>
+    public const string BadgeColoredClass = "badgeColoredClass";
 
     /// <summary>
     /// How much room a badge's text needs: <c>compact</c> for a count, nothing for a word.
@@ -40,9 +52,6 @@ public static class WebDomConverters
     public const string ButtonSizeClass = "buttonSizeClass";
     public const string ButtonGroupSizeClass = "buttonGroupSizeClass";
     public const string InputAppearanceClass = "inputAppearanceClass";
-
-    /// <summary>A search field's appearance as its <c>ui-search__field--*</c> modifier.</summary>
-    public const string SearchFieldAppearanceClass = "searchFieldAppearanceClass";
     public const string InputSizeClass = "inputSizeClass";
     public const string TextInputTypeAttribute = "textInputTypeAttribute";
 
@@ -71,6 +80,9 @@ public static class WebDomConverters
 
     /// <summary>A colour spent on words as inline CSS: a semantic role as its ink (<c>WebCssValues.ThemeInk</c>), anything else as itself.</summary>
     public const string ThemeInkCss = "themeInkCss";
+
+    /// <summary>A theme colour spent on words as inline CSS (<c>WebCssValues.RoleInk</c>); nothing for a raw colour, which the stylesheet shades.</summary>
+    public const string RoleInkCss = "roleInkCss";
 
     /// <summary>
     /// The text colour that reads on a filled ground of this colour (<c>WebCssValues.ThemeOnColor</c>); <c>initial</c> for the page's
@@ -124,6 +136,18 @@ public static class WebDomConverters
     /// <summary>A count of rows or lines as its text while it is above zero, as the first paint writes it; otherwise nothing.</summary>
     public const string PositiveCount = "positiveCount";
 
+    /// <summary>A whole number as its text while it is zero or more (a pause in milliseconds); otherwise nothing.</summary>
+    public const string NonNegativeCount = "nonNegativeCount";
+
+    /// <summary>A whole number as its text unless it is zero (a stacking order); otherwise nothing.</summary>
+    public const string NonZeroCount = "nonZeroCount";
+
+    /// <summary>A number as its text while it is above zero (a step); otherwise nothing.</summary>
+    public const string PositiveNumber = "positiveNumber";
+
+    /// <summary>A number as its text while it is zero or more (an indent); otherwise nothing.</summary>
+    public const string NonNegativeNumber = "nonNegativeNumber";
+
     /// <summary>Present, and empty, while a count is above zero; otherwise removed.</summary>
     public const string PositiveFlagAttribute = "positiveFlagAttribute";
 
@@ -134,6 +158,12 @@ public static class WebDomConverters
 
     /// <summary>Inline markup as the plain text a reader sees — for an attribute that repeats a tooltip's words (<c>aria-label</c>).</summary>
     public const string InlineMarkupPlainText = "inlineMarkupPlainText";
+
+    /// <summary><c>true</c> for true and <c>false</c> for anything else, null included: for an attribute operation that converts null.</summary>
+    public const string AriaBooleanAttribute = "ariaBooleanAttribute";
+
+    /// <summary>A field's placeholder, or one blank for none so <c>:placeholder-shown</c> still says the field is empty; converts null.</summary>
+    public const string PlaceholderText = "placeholderText";
     public const string TextAreaResizeCss = "textAreaResizeCss";
     public const string FlyoutPlacementClass = "flyoutPlacementClass";
 

@@ -57,6 +57,11 @@ class FakeTarget {
     public hasAttribute(): boolean {
         return false;
     }
+
+    // A rename field holds no popup of its own.
+    public contains(): boolean {
+        return false;
+    }
 }
 
 // The open dialogs, as the document answers for them: none, unless a test puts a modal one up.

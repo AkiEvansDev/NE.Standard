@@ -30,6 +30,7 @@ export type ClientStringKey =
     | "ui.picker.letter.minute"
     | "ui.picker.letter.second"
     | "ui.notification.close"
+    | "ui.notification.open"
     | "ui.file.uploading"
     | "ui.file.count"
     | "ui.file.failed"
@@ -63,6 +64,8 @@ export type ClientStringKey =
     | "ui.pager.rows"
     | "ui.pager.size"
     | "ui.language.current"
+    | "ui.side.panel"
+    | "ui.sheet.back"
     | "ui.language.switch";
 
 /** A language's words as `/_ne/words/{language}.json` serves them. */

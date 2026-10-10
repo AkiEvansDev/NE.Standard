@@ -1,15 +1,16 @@
 // TimeInput edits its value in place, as one focusable span per clock unit, which cannot produce an invalid value.
 
 import { componentParts } from "../addressing/dom-registry";
-import { formatTemporal, matchTemporalToken, TemporalCulturePack } from "../rendering/temporal-format";
+import { clockHour12, formatTemporal, matchTemporalToken, TemporalCulturePack } from "../rendering/temporal-format";
 import { clientStrings } from "../runtime/client-strings";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import {
     clampToRange, defaultMoment, isEndPart, orderPeriod, PickerAttributes, readCulturePack, readFormat, readMode,
-    readStep, readValueOf, RootClass, stepFor, TimeUnit, writeValueOf
+    readStep, readValueOf, RootClass, stepFor, TimeUnit, unitValue, withUnit, writeValueOf
 } from "./temporal-dom";
 import { observeComponents } from "./dom-mutations";
 import { isReadOnly } from "./interactive-state";
+import { isPlainKey } from "./keyboard-shortcut";
 import { resolveRovingTarget } from "./roving-focus";
 import { turnWheel, wheelPixels } from "./wheel-notches";
 
@@ -121,7 +122,8 @@ export class TimeSegmentEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented)
+        // Shift is a meridiem's capital; any other chord is the browser's (Alt+Left its Back, Ctrl+digit a tab).
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !isPlainKey(domEvent, { shift: true }))
             return;
 
         const segment = editableSegment(domEvent.target);
@@ -255,10 +257,12 @@ export class TimeSegmentEngine {
     }
 
     private applyStep(root: HTMLElement, unit: SegmentUnit, direction: number, end: boolean): void {
+        // Held inside Min and Max as every other step is; a typed A or P, as typed digits, may go past them and is refused in words.
         if (unit === "meridiem") {
             const current = readValueOf(root, end);
+            const meridiem = current !== null && current.getHours() >= 12 ? "am" : "pm";
 
-            this.applyMeridiem(root, current !== null && current.getHours() >= 12 ? "am" : "pm", end);
+            this.write(root, clampToRange(root, withMeridiem(this.baseValue(root, end), meridiem)), end);
             return;
         }
 
@@ -302,9 +306,7 @@ export class TimeSegmentEngine {
     }
 
     private applyMeridiem(root: HTMLElement, meridiem: "am" | "pm", end: boolean): void {
-        const base = this.baseValue(root, end);
-
-        this.write(root, withUnit(base, "hour", toHour24(base.getHours() % 12 === 0 ? 12 : base.getHours() % 12, meridiem === "pm")), end);
+        this.write(root, withMeridiem(this.baseValue(root, end), meridiem), end);
     }
 
     /** The value edits start from. An empty control seeds the whole clock from now, then edits one unit. */
@@ -425,7 +427,7 @@ function renderSegment(unit: SegmentUnit, width: number, value: Date | null, cul
         return value.getHours() < 12 ? culture.amDesignator : culture.pmDesignator;
 
     const raw = unit === "hour12"
-        ? (value.getHours() % 12 === 0 ? 12 : value.getHours() % 12)
+        ? clockHour12(value.getHours())
         : unitValue(value, clockUnit(unit));
 
     return String(raw).padStart(width, "0");
@@ -445,9 +447,7 @@ function writeAria(segment: HTMLElement, unit: SegmentUnit, value: Date | null, 
     }
 
     // A 12-hour dial reads its own number, not the 24-hour hour beneath it.
-    const hour = value.getHours();
-
-    segment.setAttribute("aria-valuenow", String(unit === "hour12" ? (hour % 12 === 0 ? 12 : hour % 12) : unitValue(value, clockUnit(unit))));
+    segment.setAttribute("aria-valuenow", String(unit === "hour12" ? clockHour12(value.getHours()) : unitValue(value, clockUnit(unit))));
 }
 
 /** Whether a segment belongs to the period's end clock rather than its start. */
@@ -497,21 +497,9 @@ function clockUnit(unit: SegmentUnit): TimeUnit {
     return unit === "hour12" || unit === "meridiem" ? "hour" : unit;
 }
 
-function unitValue(value: Date, unit: TimeUnit): number {
-    return unit === "hour" ? value.getHours() : unit === "minute" ? value.getMinutes() : value.getSeconds();
-}
-
-function withUnit(value: Date, unit: TimeUnit, next: number): Date {
-    const result = new Date(value);
-
-    if (unit === "hour")
-        result.setHours(next);
-    else if (unit === "minute")
-        result.setMinutes(next);
-    else
-        result.setSeconds(next);
-
-    return result;
+/** A moment moved to the half of the day `meridiem` names, its 12-hour reading kept. */
+function withMeridiem(value: Date, meridiem: "am" | "pm"): Date {
+    return withUnit(value, "hour", toHour24(clockHour12(value.getHours()), meridiem === "pm"));
 }
 
 function toHour24(hour12: number, pm: boolean): number {

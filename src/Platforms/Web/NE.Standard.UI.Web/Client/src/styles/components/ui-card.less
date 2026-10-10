@@ -2,9 +2,6 @@
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 
-// A badge counts by the mark its renderer writes while its icon draws — a glyph or a picture alike.
-@ui-card-empty-header: ~'.ui-card__header:not(:has(> .ui-card__header-action)):not(:has(.ui-text[data-ui-text-title], .ui-text[data-ui-text-description], .ui-text[data-ui-text-icon], .ui-badge__text:not(:empty), .ui-badge[data-ui-badge-icon]))';
-
 // A column of bands with no padding of its own: each band brings its inset, so a header's rule reaches the edge.
 .ui-card {
     display: flex;
@@ -35,14 +32,16 @@
         margin-left: @ui-space-3;
     }
 
-    // A header that is only a control is not a band: the control's own padding is the inset and the separating rule is dropped.
-    .ui-card__header:not(:has(> .ui-card__header-content)) {
+    // A header that is only a control is not a band: the control's own padding is the inset and the separating rule is dropped. The
+    // header says what it holds (CardComponentRenderer).
+    .ui-card__header:not(.ui-card__header--content) {
         padding: @ui-space-2 @ui-space-2 0 @ui-space-2;
         border-bottom: 0;
     }
 
-    // A header with nothing in it — no title, description, icon or badge, and no control — is no band at all.
-    @{ui-card-empty-header} {
+    // A header with nothing in it — no title, description, icon or badge, and no control — is no band at all; its text's own
+    // operations keep the mark as the text changes (card-header.ts).
+    .ui-card__header--empty:not(.ui-card__header--action) {
         display: none;
     }
 

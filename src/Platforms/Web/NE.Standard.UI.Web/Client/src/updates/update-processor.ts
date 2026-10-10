@@ -4,11 +4,13 @@ import { ItemStackEntry, onNotCarried } from "../items/binding-template-evaluato
 import { findSlotRoots } from "../items/composite-slots";
 import { HeldCollections } from "../items/held-collections";
 import { ItemProjections, readItemProjections } from "../items/item-projections";
+import { itemsHostOf } from "../items/item-reveal";
 import { getRealItemElements } from "../items/items-empty-renderer";
 import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
+import { focusedElement, handFocusOnIfHidden } from "../interactions/focus-handoff";
 import { unmarkDraggedRow } from "../interactions/items-reorder-engine";
-import { planRowRemoval } from "../interactions/row-cursor";
-import { SelectionRootSelector } from "../interactions/row-selection";
+import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, takeRowCursor } from "../interactions/row-cursor";
+import type { HeldRowCursor } from "../interactions/row-cursor";
 import { resolveHostMode, windowOffset } from "../items/items-host-mode";
 import { syncItemsHost } from "../items/items-host-sync";
 import { renderItemRow } from "../items/items-row-renderer";
@@ -249,6 +251,8 @@ export class UpdateProcessor {
             return;
 
         const started = isDebugEnabled() ? performance.now() : -1;
+        // A set hiding what holds the focus (a pushed Visibility) hands it on, as an interaction's write does; asked once, after the whole set.
+        const focused = focusedElement();
 
         for (let index = 0; index < updates.length; index++) {
             const update = updates[index];
@@ -271,6 +275,9 @@ export class UpdateProcessor {
                 logError("applying an update failed.", { update, error });
             }
         }
+
+        if (focused !== null)
+            handFocusOnIfHidden(focused);
 
         if (started >= 0)
             logElapsed(`applied ${updates.length} server update(s)`, started);
@@ -326,6 +333,8 @@ export class UpdateProcessor {
         const ordered: Element[] = [];
         // A row redrawn or gone takes its recorded values with it, as a remove or a replace does.
         const forgotten: string[] = [];
+        // A redrawn row's keyboard cursor, given to its new row once that stands in the host.
+        let cursor: { readonly row: Element; readonly held: HeldRowCursor } | null = null;
 
         for (const change of refill.items) {
             const key = change.key ?? null;
@@ -349,6 +358,11 @@ export class UpdateProcessor {
 
             // Taken out here: the leftovers below only see keys the new list did not claim, and this one was.
             if (previous !== null) {
+                const held = takeRowCursor(previous);
+
+                if (held !== null && element !== null)
+                    cursor = { row: element, held };
+
                 previous.remove();
                 forgotten.push(key);
             }
@@ -357,13 +371,28 @@ export class UpdateProcessor {
                 ordered.push(element);
         }
 
+        const windowed = resolveHostMode(host) === "windowed";
+
         for (const [key, leftover] of existing) {
+            // A window read elsewhere takes the cursor's row off the page, not out of the source: its key waits on the root, as a
+            // virtualized host's does, for the window that draws it again.
+            const held = windowed ? takeRowCursor(leftover) : null;
+
             leftover.remove();
+            giveRowCursor(host, null, held);
             forgotten.push(key);
         }
 
         this.state.forgetRows(refill.componentId, refill.dynamicParameters, forgotten);
         placeItemsInOrder(host, ordered);
+
+        if (cursor !== null)
+            giveRowCursor(host, cursor.row, cursor.held);
+
+        if (windowed) {
+            for (const row of ordered)
+                restoreWaitingCursor(host, row);
+        }
 
         this.syncItemsHost(host, refill.componentId);
         this.dom.invalidate();
@@ -685,14 +714,12 @@ export class UpdateProcessor {
     private findItemsHosts(componentId: number, dynamicParameters: readonly unknown[]): Element[] {
         const hosts: Element[] = [];
 
+        // The component's own host, not a nested component's under it (a select in a grid's filter row).
         for (const root of this.dom.findAllComponents(componentId, dynamicParameters)) {
-            for (const host of root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
-                // The component's own host, not a nested component's under it (a select in a grid's filter row).
-                if (findOwningComponentId(host) === componentId) {
-                    hosts.push(host);
-                    break;
-                }
-            }
+            const host = itemsHostOf(root);
+
+            if (host !== null)
+                hosts.push(host);
         }
 
         return hosts;
@@ -717,6 +744,8 @@ export class UpdateProcessor {
                 continue;
 
             host.insertBefore(element, insertSourceItem(order, element, change.index ?? null));
+            // A window growing toward the row the cursor waits for draws it here.
+            restoreWaitingCursor(host, element);
         }
     }
 
@@ -748,8 +777,12 @@ export class UpdateProcessor {
             rows.set(key, element);
 
             if (existing !== null) {
+                // A row redrawn (its variant or group changed) keeps the keyboard's cursor and focus, as a removal hands them on.
+                const held = takeRowCursor(existing);
+
                 replaceSourceItem(order, existing, element);
                 existing.replaceWith(element);
+                giveRowCursor(host, element, held);
             } else {
                 host.insertBefore(element, insertSourceItem(order, element, change.index ?? null));
             }
@@ -788,14 +821,6 @@ function applyCollectionRemove(host: Element, items: readonly ServerCollectionIt
 
         restoreCursor?.();
     }
-}
-
-/** The element holding a host's focus and cursor row: the items view, tree or table around it, else its parent. */
-function rowCursorRoot(host: Element): HTMLElement | null {
-    const parent = host.parentElement;
-    const owner = parent?.closest<HTMLElement>(SelectionRootSelector) ?? null;
-
-    return owner !== null && (owner === parent || owner === parent?.parentElement) ? owner : parent;
 }
 
 /** The keys a Move moves. */

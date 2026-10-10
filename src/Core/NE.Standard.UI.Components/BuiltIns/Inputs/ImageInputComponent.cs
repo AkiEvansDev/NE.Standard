@@ -5,7 +5,6 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -16,7 +15,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// local preview shown until the controller replies — under <see cref="Crop"/>, once the reader has framed it. Nothing removes the picture on its own — offer a button that clears
 /// <c>Value</c>. With <see cref="Multiple"/>, or in the <see cref="UIImageInputShape.Shelf"/> shape, the control becomes a shelf of
 /// pictures whose handles arrive in <see cref="SelectionIds"/>, and <c>Value</c>, <c>Caption</c> and <see cref="SelectionId"/> go unused.
+/// Only the <see cref="UIImageInputShape.Inline"/> shape, whose row has a line of text, reads <c>Placeholder</c>.
 /// </remarks>
+[UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 public abstract partial class ImageInputComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IMaxFileSizeComponent
     where T : ImageInputComponent<T>, IUIComponentDefinition
 {
@@ -93,12 +94,6 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     /// <remarks>Render-time only: the component is looked up in the same view as the page is drawn.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? DropTargetId { get; set; }
-
-    /// <inheritdoc/>
-    /// <remarks>Read by the <see cref="UIImageInputShape.Inline"/> shape, whose row has a line of text.</remarks>
-    [Translatable]
-    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public UIPhrase? Placeholder { get; set; }
 
     /// <summary>
     /// Gets or sets how the picture fills its box.

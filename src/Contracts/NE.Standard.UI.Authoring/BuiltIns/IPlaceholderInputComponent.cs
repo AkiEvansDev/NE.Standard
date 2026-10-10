@@ -1,5 +1,6 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
@@ -17,5 +18,7 @@ public interface IPlaceholderInputComponent : IInputComponent
     /// <summary>
     /// Gets the hint shown while the input has no value.
     /// </summary>
+    [Translatable]
+    [UIComponentProperty(DefaultValue = null)]
     UIPhrase? Placeholder { get; }
 }

@@ -317,7 +317,8 @@ public sealed class UIContext
     /// A no-op when the session is gone. What was stored is this connection's <see cref="UIHandle.Session"/> for the rest of the
     /// command. A new language or theme mode runs the controller's hook, and a new language, theme mode or set of colours switches
     /// this page, before it returns; the session's other pages open under a controller are switched too, their controllers told as a
-    /// command runs, and a page kept for later is told at its next attach.
+    /// command runs, and a page kept for later is told at its next attach. Every page of the session holds the new session, and one
+    /// whose route it no longer passes ends as a change made from outside ends it — this page once its command answered.
     /// </remarks>
     public async ValueTask UpdateSessionAsync(Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken = default)
     {
@@ -336,7 +337,7 @@ public sealed class UIContext
 
         handle.RefreshSession(written);
 
-        if (UISessionMoves.Any(previous, written) && _runtime is IUISessionChangeListener listener)
+        if (_runtime is IUISessionChangeListener listener)
             await listener.SessionChangedAsync(handle, previous, cancellationToken).ConfigureAwait(false);
     }
 

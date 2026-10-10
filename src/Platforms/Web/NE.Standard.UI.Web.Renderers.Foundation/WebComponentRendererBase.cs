@@ -38,18 +38,36 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     // Every rendered component registers these same lists, so they are built once rather than per component.
     private static readonly WebDomOperation[] ThemeOperations = [WebDomOperation.Attribute(WebAttributes.Theme, converter: WebDomConverters.ThemeNameCss)];
 
-    private static readonly WebDomOperation[] VisibilityOperations = ResponsiveRenderer.TierOperations(WebAttributes.Visibility, WebDomConverters.VisibilityAttribute, WebDomOperation.Attribute);
+    private static readonly WebDomOperation[] VisibilityOperations = ResponsiveRenderer.TierOperations(WebAttributes.Visibility, WebDomConverters.VisibilityAttribute, static (name, target, converter) => WebDomOperation.Attribute(name, target, converter));
+
+    /// <summary>
+    /// The operation that keeps an item's row in step with its template root's Enabled and Loading (<c>row-idle.ts</c>), run after the
+    /// root's own class: the row marked <see cref="WebAttributes.RowIdle"/> answers no pointer.
+    /// </summary>
+    public const string RowIdleOperationKind = "row-idle";
+
+    private static readonly WebDomOperation RowIdleOperation = WebDomOperation.Custom(RowIdleOperationKind);
+
+    /// <summary>
+    /// The operation that keeps the root's <c>data-ui-content-fills</c> in step with the content region's root <c>Height</c>
+    /// (<c>content-fills.ts</c>), run after its tiers: the shell renders the mark from the first value, a live height moves it.
+    /// </summary>
+    public const string ContentFillsOperationKind = "content-fills";
+
+    private static readonly WebDomOperation ContentFillsOperation = WebDomOperation.Custom(ContentFillsOperationKind);
 
     private static readonly WebDomOperation[] EnabledOperations =
     [
         WebDomOperation.ToggleClass(WebClassNames.Disabled, condition: WebValueCondition.IsFalse),
-        WebDomOperation.ToggleAttribute("aria-disabled", condition: WebValueCondition.IsFalse, value: "true")
+        WebDomOperation.ToggleAttribute("aria-disabled", condition: WebValueCondition.IsFalse, value: "true"),
+        RowIdleOperation
     ];
 
     private static readonly WebDomOperation[] LoadingOperations =
     [
         WebDomOperation.ToggleClass(WebClassNames.Loading),
-        WebDomOperation.ToggleAttribute("aria-busy", condition: WebValueCondition.IsTrue, value: "true")
+        WebDomOperation.ToggleAttribute("aria-busy", condition: WebValueCondition.IsTrue, value: "true"),
+        RowIdleOperation
     ];
 
     private static readonly WebDomOperation[] ShowContextMenuOperations = [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)];
@@ -63,7 +81,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         WebDomOperation.Style("--ui-align-v-stretch-fallback", converter: WebDomConverters.AlignmentStretchFallbackCss)
     ];
 
-    private static readonly WebDomOperation[] ZIndexOperations = [WebDomOperation.Style("z-index", target: "root")];
+    private static readonly WebDomOperation[] ZIndexOperations = [WebDomOperation.Style("z-index", target: "root", converter: WebDomConverters.NonZeroCount)];
 
     private static readonly WebDomOperation[] PlacementOperations =
     [
@@ -193,7 +211,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.WidthProperty, WebResponsiveCss.WidthVariable, UIOrientation.Horizontal);
         ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinWidthProperty, WebResponsiveCss.MinWidthVariable, UIOrientation.Horizontal);
         ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxWidthProperty, WebResponsiveCss.MaxWidthVariable, UIOrientation.Horizontal);
-        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HeightProperty, WebResponsiveCss.HeightVariable, UIOrientation.Vertical);
+        ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HeightProperty, WebResponsiveCss.HeightVariable, UIOrientation.Vertical, ContentFillsOperation);
         ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MinHeightProperty, WebResponsiveCss.MinHeightVariable, UIOrientation.Vertical);
         ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MaxHeightProperty, WebResponsiveCss.MaxHeightVariable, UIOrientation.Vertical);
 

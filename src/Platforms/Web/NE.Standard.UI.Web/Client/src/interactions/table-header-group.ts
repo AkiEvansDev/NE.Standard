@@ -1,10 +1,11 @@
 // A table's header row as the keyboard's group of its own: no stop of the Tab order, reached by Up from the first row, walked by Left
 // and Right (Home and End) in the order the columns stand, left by Down back to the rows. What a caption does on a key — a grid's sort
-// on Enter, a column moved by Ctrl with an arrow, one sized by Shift with an arrow — is its own engine's.
+// on Enter, a column moved by Alt with an arrow, one sized by Shift with an arrow — is its own engine's.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { TableHeaderClass, TableResizerClass, TableScrollClass } from "../addressing/dom-attributes.ts";
+import { TableColumnAttribute, TableHeaderClass, TableResizerClass, TableScrollClass } from "../addressing/dom-attributes.ts";
 import { isRovingCandidate, isRovingKey, resolveRovingTarget } from "./roving-focus.ts";
+import { readColumnLayout } from "./table-column-layout.ts";
 
 const TableSelector = ".ui-table";
 const HeaderCellSelector = `:scope > .${TableScrollClass} > .${TableHeaderClass} > [role='columnheader']`;
@@ -43,11 +44,14 @@ function headerStopOf(cell: HTMLElement): HTMLElement | null {
     return resizer !== null && resizer.getClientRects().length > 0 ? cell : null;
 }
 
-/** Puts the keyboard on the header: the stop it was last left on, else the first; false where the header has none to stand on. */
-export function enterHeader(table: HTMLElement): boolean {
+/**
+ * Puts the keyboard on the header: the stop of `column` (a grid's cursor column, by its authored index) where it has one, else the stop
+ * it was last left on, else the first; false where the header has none to stand on.
+ */
+export function enterHeader(table: HTMLElement, column: string | null = null): boolean {
     const stops = headerStops(table);
     const last = lastStops.get(table);
-    const stop = last !== undefined && stops.includes(last) ? last : stops[0];
+    const stop = stops.find(candidate => column !== null && columnOf(candidate) === column) ?? (last !== undefined && stops.includes(last) ? last : stops[0]);
 
     if (stop === undefined)
         return false;
@@ -57,19 +61,24 @@ export function enterHeader(table: HTMLElement): boolean {
     return true;
 }
 
-/** The header's stops the keyboard can stand on, in the order they are seen: a moved column stands elsewhere than its cell in the markup. */
+/**
+ * The header's stops the keyboard can stand on, in the order the viewer sees the columns (`readColumnLayout`, as a row's cells are
+ * walked): a moved column stands elsewhere than its cell in the markup.
+ */
 function headerStops(table: HTMLElement): HTMLElement[] {
-    const stops: { readonly stop: HTMLElement; readonly left: number }[] = [];
+    const layout = readColumnLayout(table);
+    const stops: { readonly stop: HTMLElement; readonly place: number }[] = [];
 
     for (const cell of table.querySelectorAll<HTMLElement>(HeaderCellSelector)) {
         const stop = headerStopOf(cell);
+        const index = Number(cell.getAttribute(TableColumnAttribute) ?? Number.NaN);
 
-        // Placed by its cell: a control inside one stands wherever the cell's alignment puts it.
-        if (stop !== null && isRovingCandidate(stop))
-            stops.push({ stop, left: cell.getBoundingClientRect().left });
+        // Placed by its cell: a control inside one stands in its cell's column.
+        if (stop !== null && Number.isInteger(index) && isRovingCandidate(stop))
+            stops.push({ stop, place: layout.place(index) });
     }
 
-    return stops.sort((a, b) => a.left - b.left).map(entry => entry.stop);
+    return stops.sort((a, b) => a.place - b.place).map(entry => entry.stop);
 }
 
 function focusStop(table: HTMLElement, stop: HTMLElement): void {
@@ -79,6 +88,11 @@ function focusStop(table: HTMLElement, stop: HTMLElement): void {
 
     lastStops.set(table, stop);
     stop.focus();
+}
+
+/** The authored index of the column a header stop stands in. */
+function columnOf(stop: HTMLElement): string | null {
+    return stop.closest("[role='columnheader']")?.getAttribute(TableColumnAttribute) ?? null;
 }
 
 /** The table whose header stop a key landed on, or null for a key anywhere else — a caption's resize handle included. */
@@ -92,15 +106,16 @@ export function headerTableOf(target: Element): HTMLElement | null {
 
 /**
  * A key on a header stop: Left and Right walk the stops, Home and End go to the ends, Down hands the keyboard back to the rows through
- * `toRows`; true when the key was the group's. A modified key is the caption's own (Ctrl moves the column, Shift sizes it).
+ * `toRows`, with the stop's column; true when the key was the group's. A modified key is the caption's own (Alt moves the column, Shift
+ * sizes it).
  */
-export function handleHeaderKey(domEvent: KeyboardEvent, table: HTMLElement, toRows: () => void): boolean {
+export function handleHeaderKey(domEvent: KeyboardEvent, table: HTMLElement, toRows: (column: string | null) => void): boolean {
     if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey || domEvent.shiftKey || !(domEvent.target instanceof HTMLElement))
         return false;
 
     switch (domEvent.key) {
         case "ArrowDown":
-            toRows();
+            toRows(columnOf(domEvent.target));
             return true;
         case "ArrowUp":
             // Nothing of the table's stands above its header; the key must not scroll the page either.

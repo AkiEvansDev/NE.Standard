@@ -10,6 +10,7 @@ namespace DemoApp;
 public static class DemoIcons
 {
     public const string Add = MaterialIcons.Add;
+    public const string Remove = MaterialIcons.Remove;
     public const string Check = MaterialIcons.Check;
     public const string Copy = MaterialIcons.ContentCopy;
     public const string Code = MaterialIcons.Code;

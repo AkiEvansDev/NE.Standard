@@ -1,6 +1,7 @@
 @import "./color.less";
 @import "./focus.less";
 @import "./interactive.less";
+@import "./popup.less";
 
 // Reads the --ui-selected-* properties on a control's root; they inherit, so each control fences its own with .ui-selected-scope().
 
@@ -59,9 +60,9 @@
     .ui-selected-mark();
 }
 
-// A row that answers the pointer: neither it nor its template root (as `isItemDisabled` reads it) disabled or loading. In :where(),
-// so the chosen row's ground still wins; never inside another `:has()`, which the browser drops whole.
-@ui-row-live: ~":where(:not(.ui-disabled, .ui-loading):not(:has(> [data-ui-id]:is(.ui-disabled, .ui-loading), > :not([data-ui-id]) > [data-ui-id]:is(.ui-disabled, .ui-loading))))";
+// A row that answers the pointer: neither it nor its template root (as `isItemDisabled` reads it; `data-ui-row-idle`, which the render
+// writes and row-idle.ts keeps) disabled or loading. In :where(), so the chosen row's ground still wins.
+@ui-row-live: ~":where(:not(.ui-disabled, .ui-loading, [data-ui-row-idle]))";
 
 // A row at rest: its wash fenced from nested hosts and faded both ways (`--ui-row-wash` is registered, ui-table.less); a row may be
 // a component's root, so the root's fade leads the list.
@@ -71,40 +72,45 @@
     transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease, --ui-row-wash @ui-motion-fast @ui-motion-ease, --ui-row-cursor-wash @ui-motion-fast @ui-motion-ease;
 }
 
+// The floating layers a row may hold — its action bar, a right-click menu, a control's popup in its template. They stand on their own
+// ground, so the row's quiet-button rules stop at them: reaching in, they took every hover off a chosen row's bar and menu.
+@ui-row-floating: ~".ui-action-bar, .ui-context-menu, .ui-split-button__menu, .ui-menu__submenu, .ui-flyout__content, .ui-select__popup, .ui-temporal-input__popup, .ui-color-input__popup";
+@ui-row-own: ~":not(:is(@{ui-row-floating}) *)";
+
 // A row under the pointer: a wash, since the host may have no surface of its own. A quiet button in it brightens instead of a second
 // wash (a filter: its ink is already the row's); its press, stronger than any hover, takes the pressed wash.
 .ui-row-hover() {
     background-color: var(--ui-wash-hover);
     --ui-row-wash: var(--ui-wash-hover);
 
-    .ui-button--ghost {
+    .ui-button--ghost@{ui-row-own} {
         .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
     }
 
-    .ui-button--outline {
+    .ui-button--outline@{ui-row-own} {
         .ui-reveal-hover-off({ border-color: color-mix(in srgb, currentColor 48%, transparent); });
     }
 
-    .ui-button--link {
+    .ui-button--link@{ui-row-own} {
         .ui-reveal-hover-off();
     }
 
-    @media @ui-can-hover {
-        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover,
-        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+    @media @{ui-can-hover} {
+        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-row-own}@{ui-button-live}:hover,
+        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             background-color: transparent;
         }
 
         // The parts, never a root (a split button's hovered part alone): a filter makes the root the containing block of a popup
         // inside it, which would jump.
-        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
-        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-row-own}@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
+        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             .ui-brighten-hover();
         }
     }
 
-    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-button-live}:active,
-    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
+    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-row-own}@{ui-button-live}:active,
+    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
         background-color: var(--ui-wash-active);
     }
 }
@@ -119,7 +125,7 @@
 .ui-entry-hover(@current: ~"[aria-selected='true']") {
     transition: background-color @ui-motion-fast @ui-motion-ease;
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &:not(@{current}):hover {
             background-color: var(--ui-wash-hover);
         }
@@ -130,16 +136,41 @@
     }
 }
 
-// The keyboard's row washes like the pointer's (not under a single choice, whose chosen row is the cursor); on a chosen row, as a
-// layer, so it still reads as chosen. It also wears the keyboard's frame (`.ui-keyboard-frame()`), which the pointer's row never has.
+// An entry of a short list of choices (a language, a page size): one line at the list's row height, the pointer's and the keyboard's
+// marks a list's, and the chosen one (`aria-checked`) on the chosen ground.
+.ui-choice-entry() {
+    display: flex;
+    align-items: center;
+    min-height: @ui-list-row-height;
+    padding: @ui-space-1 @ui-space-2;
+    border: 0;
+    border-radius: @ui-list-entry-radius;
+    background: none;
+    color: inherit;
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    .ui-interactive-base();
+    .ui-entry-hover(~"[aria-checked='true']");
+    .ui-entry-keyboard(~"[aria-checked='true']");
+
+    &[aria-checked="true"] {
+        .ui-selected-ground();
+        .ui-selected-ink();
+    }
+}
+
+// The keyboard's row washes like the pointer's; on a chosen row, as a layer, so it still reads as chosen. It also wears the keyboard's
+// frame (`.ui-keyboard-frame()`), which the pointer's row never has — under a single choice too, whose chosen row the arrows move: left
+// out there, a list holding the keyboard looked the same as one a pointer had chosen in.
 // `@via` the path from host to items host when not direct (a table's scroll box), ending in " > ".
 .ui-row-cursor(@host; @row; @via: ~"") {
-    @{host}@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]:not([data-ui-selected]) {
+    @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]:not([data-ui-selected]) {
         .ui-row-hover();
         .ui-keyboard-frame();
     }
 
-    @{host}@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
+    @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
         .ui-row-cursor-layer();
         .ui-keyboard-frame();
     }
@@ -150,18 +181,17 @@
     }
 }
 
-// The row an action bar stands over (action-bar-engine.ts) washes as the keyboard's row does, so the bar says whose it is when no
-// pointer is on the row — a finger lifted, the keyboard; on a chosen row, as the cursor's layer. `SelectionStyle.ActionBarBackground`
-// (`--ui-selected-bar-ground`) gives it another ground, or none for a row its own card covers. `@bar` is the path from the row to the
-// bar, which stands in its host: the row itself or a part of it.
-.ui-row-bar(@host; @row; @via: ~""; @bar: ~"> [data-ui-action-bar] > .ui-action-bar") {
-    @{host} > @{via}[data-ui-items-host] > @{row}:not([data-ui-selected]):has(@{bar}) {
+// The row an action bar stands over (`data-ui-row-bar`, which action-bar-engine.ts writes as it shows the bar) washes as the keyboard's
+// row does, so the bar says whose it is when no pointer is on the row — a finger lifted, the keyboard; on a chosen row, as the cursor's
+// layer. `SelectionStyle.ActionBarBackground` (`--ui-selected-bar-ground`) gives it another ground, or none for a row its own card covers.
+.ui-row-bar(@host; @row; @via: ~"") {
+    @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-row-bar]:not([data-ui-selected]) {
         .ui-row-hover();
         background-color: var(--ui-selected-bar-ground, var(--ui-wash-hover));
         --ui-row-wash: var(--ui-selected-bar-ground, var(--ui-wash-hover));
     }
 
-    @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-selected]:has(@{bar}) {
+    @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-row-bar][data-ui-selected] {
         --ui-row-cursor-wash: var(--ui-selected-bar-ground, var(--ui-wash-hover));
     }
 }

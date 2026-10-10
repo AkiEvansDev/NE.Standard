@@ -46,6 +46,8 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    private static readonly byte[] Utf8ByteOrderMark = [0xEF, 0xBB, 0xBF];
+
     // Far past any write: a temporary file this old was left by a process that stopped mid-write.
     private static readonly TimeSpan AbandonedTemporaryAge = TimeSpan.FromMinutes(10);
 
@@ -93,11 +95,8 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
     /// <summary>How many renders are held in memory, for the web meter.</summary>
     public long HeldCount => _renders.Count;
 
-    /// <summary>How many bytes of markup and metadata the held renders take, as <see cref="WebViewRenderCacheOptions.MaxHeldBytes"/> counts them.</summary>
+    /// <summary>How many bytes the held renders take, as <see cref="WebViewRenderCacheOptions.MaxHeldBytes"/> counts them.</summary>
     public long HeldBytes => Interlocked.Read(ref _heldBytes);
-
-    /// <summary>How many characters of markup and metadata the held renders take, for the web meter.</summary>
-    public long HeldLength => HeldBytes / sizeof(char);
 
     /// <summary>How many bytes this process has read from the folder, for the web meter.</summary>
     public long DiskBytesRead => Interlocked.Read(ref _diskBytesRead);
@@ -254,32 +253,28 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
         var directory = ResolveDirectory(key);
         var htmlPath = Path.Combine(directory, HtmlFileName);
         var metadataPath = Path.Combine(directory, MetadataFileName);
-
-        if (!File.Exists(htmlPath) || !File.Exists(metadataPath))
-            return null;
-
         var started = Stopwatch.GetTimestamp();
 
-        // All three files or a miss: an entry whose write stopped short would otherwise give a controller page no init bindings,
-        // and so no values, until the cache is cleared.
+        // The init bindings are written last, so without them the entry's write stopped short: a miss rather than a controller
+        // page given no values until the cache is cleared.
         if (await ReadInitBindingIdsAsync(key, cancellationToken).ConfigureAwait(false) is not { } initBindingIds)
             return null;
 
-        var html = await ReadAllTextSharedAsync(htmlPath, cancellationToken).ConfigureAwait(false);
-        var metadataJson = await ReadAllTextSharedAsync(metadataPath, cancellationToken).ConfigureAwait(false);
+        // A view with a controller keeps only its init bindings, the one thing its page reads off the entry.
+        if (!File.Exists(htmlPath) || !File.Exists(metadataPath))
+            return WebCachedViewRender.InitBindingsOnly(initBindingIds);
 
         WebCachedViewRender render = new()
         {
-            Html = html,
-            MetadataJson = metadataJson,
+            Html = await ReadAllBytesSharedAsync(htmlPath, cancellationToken).ConfigureAwait(false),
+            MetadataJson = await ReadAllBytesSharedAsync(metadataPath, cancellationToken).ConfigureAwait(false),
             InitBindingIds = initBindingIds
         };
 
         render.Validate();
 
         TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
-        // The files' own lengths: counting the text again would be a second pass over the whole page.
-        var bytes = new FileInfo(htmlPath).Length + new FileInfo(metadataPath).Length;
+        var bytes = (long)render.Html.Length + render.MetadataJson.Length;
 
         _ = Interlocked.Add(ref _diskBytesRead, bytes);
         Log.RenderRead(_logger, key, elapsed.TotalMilliseconds, bytes);
@@ -345,8 +340,8 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
     }
 
     /// <summary>
-    /// Writes a render into the cache; each of the three files is written atomically, and a read takes the set only when all three
-    /// are there.
+    /// Writes a render into the cache; each file is written atomically, the init bindings last, and a read takes the entry only
+    /// when they are there.
     /// </summary>
     public async ValueTask SetRenderAsync(string key, WebCachedViewRender render, CancellationToken cancellationToken)
     {
@@ -376,8 +371,14 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
 
         _ = Directory.CreateDirectory(directory);
 
-        var bytes = await WriteAllTextAtomicAsync(Path.Combine(directory, HtmlFileName), render.Html, cancellationToken).ConfigureAwait(false);
-        bytes += await WriteAllTextAtomicAsync(Path.Combine(directory, MetadataFileName), render.MetadataJson, cancellationToken).ConfigureAwait(false);
+        long bytes = 0;
+
+        if (render.HasPage)
+        {
+            bytes += await WriteAllBytesAtomicAsync(Path.Combine(directory, HtmlFileName), render.Html, cancellationToken).ConfigureAwait(false);
+            bytes += await WriteAllBytesAtomicAsync(Path.Combine(directory, MetadataFileName), render.MetadataJson, cancellationToken).ConfigureAwait(false);
+        }
+
         bytes += await SetInitBindingIdsAsync(key, render.InitBindingIds, cancellationToken).ConfigureAwait(false);
 
         TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
@@ -427,9 +428,9 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
             BindingIds = [.. bindingIds]
         };
 
-        var json = JsonSerializer.Serialize(entry, JsonOptions);
+        var json = JsonSerializer.SerializeToUtf8Bytes(entry, JsonOptions);
 
-        return await WriteAllTextAtomicAsync(Path.Combine(directory, InitBindingsFileName), json, cancellationToken).ConfigureAwait(false);
+        return await WriteAllBytesAtomicAsync(Path.Combine(directory, InitBindingsFileName), json, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -456,12 +457,16 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
     private static string SanitizeKey(string key)
         => UIApplicationStorage.ToSegment(key, "view");
 
-    private static async Task<string> ReadAllTextSharedAsync(string path, CancellationToken cancellationToken)
+    private static async Task<ReadOnlyMemory<byte>> ReadAllBytesSharedAsync(string path, CancellationToken cancellationToken)
     {
         using FileStream stream = OpenShared(path);
-        using StreamReader reader = new(stream, Encoding.UTF8);
 
-        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        var bytes = new byte[stream.Length];
+
+        await stream.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
+
+        // A file written as text before the cache kept bytes starts with a byte order mark the page must not carry.
+        return bytes.AsSpan().StartsWith(Utf8ByteOrderMark) ? bytes.AsMemory(Utf8ByteOrderMark.Length) : bytes;
     }
 
     // A reader shares delete and write: on Windows, the atomic replace below fails against a reader holding the file with less.
@@ -469,7 +474,7 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
         => new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
 
     /// <summary>Writes the file through a temporary one moved over it, and returns the bytes written.</summary>
-    private static async ValueTask<long> WriteAllTextAtomicAsync(string path, string content, CancellationToken cancellationToken)
+    private static async ValueTask<long> WriteAllBytesAtomicAsync(string path, ReadOnlyMemory<byte> content, CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(path) ?? throw new InvalidOperationException("Cache file path must include a directory.");
         var tempPath = Path.Combine(
@@ -479,9 +484,9 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
 
         try
         {
-            await File.WriteAllTextAsync(tempPath, content, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllBytesAsync(tempPath, content, cancellationToken).ConfigureAwait(false);
 
-            var bytes = new FileInfo(tempPath).Length;
+            long bytes = content.Length;
 
             try
             {
@@ -523,8 +528,7 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
     {
         public WebCachedViewRender Render { get; } = render;
 
-        // What the two strings take in memory, UTF-16; the init bindings are small beside them.
-        public long Bytes { get; } = ((long)render.Html.Length + render.MetadataJson.Length) * sizeof(char);
+        public long Bytes { get; } = (long)render.Html.Length + render.MetadataJson.Length + ((long)render.InitBindingIds.Count * sizeof(int));
 
         public long Stamp { get; private set; } = stamp;
 

@@ -12,7 +12,9 @@
 .ui-split-button__toggle,
 .ui-action,
 .ui-language-switcher__choice,
-.ui-pager__size-choice {
+.ui-pager__size-choice,
+.ui-color-input__swatch--button,
+.ui-expander__header {
     .ui-press-ripple(after);
 }
 
@@ -31,7 +33,7 @@
 }
 
 // The wave stands on the element's frame, so an element not positioned of its own is while it plays.
-:is(.ui-split-button__main, .ui-split-button__toggle, .ui-language-switcher__choice, .ui-pager__size-choice, .ui-select__option, .ui-items-view__item, .ui-items-view__item > [data-ui-id], .ui-table__row, .ui-tree__row, .ui-key-value-action__row).ui-pressing {
+:is(.ui-split-button__main, .ui-split-button__toggle, .ui-language-switcher__choice, .ui-pager__size-choice, .ui-expander__header, .ui-select__option, .ui-items-view__item, .ui-items-view__item > [data-ui-id], .ui-table__row, .ui-tree__row, .ui-key-value-action__row).ui-pressing {
     position: relative;
 }
 

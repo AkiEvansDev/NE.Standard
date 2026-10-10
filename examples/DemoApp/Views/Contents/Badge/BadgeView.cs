@@ -1,6 +1,7 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Contents.Badge;
 using DemoApp.Views.Base;
+using NE.Colors;
 
 namespace DemoApp.Views.Contents.Badge;
 
@@ -12,6 +13,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string BadgeGroup = nameof(BadgeController.BadgeGroup);
+
+    private static readonly UIBadgeType[] FillRowTypes = [UIBadgeType.Primary, UIBadgeType.Accent, UIBadgeType.Info, UIBadgeType.Warning, UIBadgeType.Success, UIBadgeType.Danger, UIBadgeType.Surface];
 
     public static string ViewKey => "demo.contents.badge";
 
@@ -33,6 +36,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindType($"{BadgeGroup}.{nameof(BadgeGroupContext.Type)}")
             .BindColor($"{BadgeGroup}.{nameof(BadgeGroupContext.Color)}")
+            .BindFill($"{BadgeGroup}.{nameof(BadgeGroupContext.Fill)}")
             .BindIcon($"{BadgeGroup}.{nameof(BadgeGroupContext.Icon)}")
             .BindIconColor($"{BadgeGroup}.{nameof(BadgeGroupContext.IconColor)}")
             .BindIconSize($"{BadgeGroup}.{nameof(BadgeGroupContext.IconSize)}")
@@ -50,7 +54,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateCarriedGroup(), CreateCountGroup()], [CreateStatusGroup(), CreateCategoryGroup()]);
+        => DemoUI.CreateColumns([CreateCarriedGroup(), CreateCountGroup()], [CreateStatusGroup(), CreateCategoryGroup(), CreateFillGroup()]);
 
     /// <summary>
     /// The badge as a property of something else: a <c>BadgeText</c> laid out with the words it qualifies.
@@ -317,5 +321,34 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                     )
                 )
         );
+    }
+
+    /// <summary>
+    /// The three fills across the styles: the colour as the ground, a tint of it, or its edge alone.
+    /// </summary>
+    private static ContainerComponent CreateFillGroup()
+    {
+        return DemoUI.CreateExample("Filled, tinted or outlined",
+            // Unset, a Type fills and a Color tints; Fill names one for either, so a tag can be outlined and a status tinted.
+            new SurfaceComponent()
+                .SetHorizontalAlignment(UIAlignment.Start)
+                .SetContent(UILayout.Stack(10)
+                    .AddChild(CreateFillRow(UIBadgeFill.Filled))
+                    .AddChild(CreateFillRow(UIBadgeFill.Tinted))
+                    .AddChild(CreateFillRow(UIBadgeFill.Outline))
+                )
+        );
+    }
+
+    private static StackPanelComponent CreateFillRow(UIBadgeFill fill)
+    {
+        StackPanelComponent row = UILayout.Row(6).SetWrap(true);
+
+        foreach (UIBadgeType type in FillRowTypes)
+            _ = row.AddChild(new BadgeComponent().SetType(type).SetFill(fill).SetText(type.ToString()));
+
+        return row
+            .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromColorVariant(ColorName.NebulaRose)).SetFill(fill).SetText("Tag"))
+            .AddChild(new BadgeComponent().SetType(UIBadgeType.Danger).SetFill(fill).SetText("12"));
     }
 }

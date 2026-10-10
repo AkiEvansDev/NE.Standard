@@ -79,7 +79,7 @@
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &@{ui-adornment-live}:hover {
             color: var(--ui-color-on-surface);
         }
@@ -203,7 +203,8 @@
     // Gives back most of the field's right padding: the stepper's ruled edge doesn't need the breathing room text does. A step from
     // the box's outer edge, its border inside the step, so each arrow's half is even and its glyph centres on whole pixels: a step
     // inside the border left both glyphs half a pixel off, rounded the same way, and the pair stood a pixel off the field's middle.
-    margin: calc(@ui-space-1 - var(--ui-border-width, 1px)) -0.5em calc(@ui-space-1 - var(--ui-border-width, 1px)) 0;
+    // An underlined field has no top edge (`--ui-field-top-edge`), so its step starts from the box's top itself.
+    margin: calc(@ui-space-1 - var(--ui-field-top-edge, var(--ui-border-width, 1px))) -0.5em calc(@ui-space-1 - var(--ui-border-width, 1px)) 0;
     border-left: 1px solid var(--ui-color-border);
     padding-left: 0.4em;
 }
@@ -224,10 +225,16 @@
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &:hover {
             color: var(--ui-color-on-surface);
         }
+    }
+
+    // Stronger than the hover, and the one answer a finger sees: the ink and the pressed wash under the arrow.
+    &:active {
+        color: var(--ui-color-on-surface);
+        background-color: var(--ui-wash-active);
     }
 
     &::before {
@@ -268,7 +275,7 @@
 
 // The states of an own field-shaped control on `.ui-field-ground()`: hover, and the active edge on a field's focus or an open popup.
 .ui-field-states(@hover: var(--ui-field-hover)) {
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &@{ui-button-live}:hover {
             .ui-field-edge-hover(@hover);
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Shell.Localization;
 
@@ -67,9 +68,9 @@ public static class UIPluralRules
         };
     }
 
-    /// <summary>The lower-case name a plural key's form ends in.</summary>
-    internal static string Suffix(UIPluralCategory category)
-        => Forms[category is >= UIPluralCategory.Zero and <= UIPluralCategory.Other ? (int)category : (int)UIPluralCategory.Other];
+    /// <summary>The key of a plural's form: its stem, a dot and the form's name (<c>files.few</c>); <see cref="TryReadForm"/> reads one back.</summary>
+    public static string FormKey(string stem, UIPluralCategory category)
+        => string.Concat(stem, ".", Forms[category is >= UIPluralCategory.Zero and <= UIPluralCategory.Other ? (int)category : (int)UIPluralCategory.Other]);
 
     /// <summary>
     /// Whether <see cref="Select"/> ever answers <paramref name="category"/> for <paramref name="language"/>: a form the language never
@@ -116,7 +117,7 @@ public static class UIPluralRules
         if (value == Math.Truncate(value))
             return 0;
 
-        UIWords.ShortestDigits(value, out var digits, out var point);
+        UIScriptNumber.ShortestDigits(value, out var digits, out var point);
 
         return Math.Max(0, digits.Length - point);
     }

@@ -252,7 +252,7 @@ test("a host whose window is not a page — a bound Paging turned off — leaves
     assert.equal(pager.hasAttribute("hidden"), true);
 });
 
-test("the pager is one stop of the Tab order — previous or next — and the arrows walk its buttons without wrapping", () => {
+test("the pager is one stop of the Tab order — previous or next — and the arrows walk its buttons round, as a toolbar's", () => {
     const { pager } = scene(40, 100);
     const stops = pager.querySelectorAll(".ui-pager__button, .ui-pager__size-trigger");
 
@@ -267,7 +267,11 @@ test("the pager is one stop of the Tab order — previous or next — and the ar
     assert.deepEqual(stops.filter(stop => stop.tabIndex === 0), [pager.querySelector(".ui-pager__size-trigger")]);
 
     fakeDocument.activeElement!.dispatchEvent(new FakeKeyboardEvent("ArrowRight"));
-    assert.equal(fakeDocument.activeElement, pager.querySelector(".ui-pager__size-trigger"));
+    assert.equal(fakeDocument.activeElement, end(pager, "first"));
+
+    // Alt+Left is the browser's Back, not a step along the pager.
+    end(pager, "first").dispatchEvent(Object.assign(new FakeKeyboardEvent("ArrowLeft"), { altKey: true }));
+    assert.equal(fakeDocument.activeElement, end(pager, "first"));
 });
 
 test("the size's button says the page's size and its list checks it; a size chosen asks for the page holding the first row", () => {

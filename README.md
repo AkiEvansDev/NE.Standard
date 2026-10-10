@@ -61,8 +61,8 @@ version and on their own between them, each in a repository of its own:
   syntax highlighting, line numbers, several carets and find and replace.
 - [`NE.Standard.UI.DataGrid`](https://github.com/AkiEvansDev/NE.Standard.UI.DataGrid) — a data grid over the
   table: typed columns, editing in place, filters, paging, totals, pinned columns, a detail row and CSV export.
-- [`NE.Standard.UI.Charts`](https://github.com/AkiEvansDev/NE.Standard.UI.Charts) — line, area, bar, pie and
-  scatter charts, a sparkline and a gauge, as SVG the browser keeps.
+- [`NE.Standard.UI.Charts`](https://github.com/AkiEvansDev/NE.Standard.UI.Charts) — line, area, bar, pie,
+  scatter and radar charts, a sparkline and a gauge, as SVG the browser keeps.
 - [`NE.Standard.UI.Graph`](https://github.com/AkiEvansDev/NE.Standard.UI.Graph) — a canvas of typed nodes, and
   the layered graph of an application's own nodes or of its resources and crafts; a calculator's node kinds come
   ready made in `NE.Standard.UI.Graph.Calculator`, picture kinds in `NE.Standard.UI.Graph.Image`.
@@ -125,19 +125,19 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application, 75 routes in all: screens that compose many components into a piece of an
+`examples/DemoApp` is the reference application, 78 routes in all: screens that compose many components into a piece of an
 application (a sign-up, a checkout, a chat, a file editor, the sign-in, account, admin and forbidden pages of the security
 mechanism), pages for what the framework does across components (words, commands, values and validation, large lists, colours),
 and one page per component — a preview beside every bindable property, each row stepping its value, then examples of it in use,
 each with its source.
 
 ```
-dotnet run --project examples/DemoApp.Web    # http://localhost:5000
+dotnet run --project examples/DemoApp.Web    # http://localhost:5100
 ```
 
 ## Building
 
-Requires the .NET 10 SDK, 10.0.400 or later (`global.json`; an older 10.0.1xx SDK's analyzers report false build errors), and
+Requires the .NET 10 SDK, 10.0.400 or a later 10.0.4xx patch (`global.json`; an older 10.0.1xx SDK's analyzers report false build errors), and
 Node 24 or later for the TypeScript client — which builds **as part of** `dotnet build`, so
 a TypeScript type error fails the .NET build.
 

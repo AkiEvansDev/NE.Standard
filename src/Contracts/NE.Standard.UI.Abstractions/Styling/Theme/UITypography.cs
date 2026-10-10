@@ -10,7 +10,13 @@ public sealed record UITypography
     /// <summary>
     /// The font family used by all text roles.
     /// </summary>
-    public string FontFamily { get; init; } = "Inter";
+    public string FontFamily { get; init; } = "Geist";
+
+    /// <summary>
+    /// The face's capital height as a share of its size (OS/2 <c>sCapHeight / unitsPerEm</c>), Geist's by default: a role's size
+    /// is drawn so its capitals stand an even number of whole pixels tall. A theme naming another face sets that face's.
+    /// </summary>
+    public double CapHeight { get; init; } = 0.71d;
 
     /// <summary>
     /// The typography style for prominent display text.
@@ -79,6 +85,9 @@ public sealed record UITypography
     public void Validate()
     {
         ValidateFontFamily(FontFamily);
+
+        if (CapHeight is not (> 0d and < 1d))
+            throw new InvalidOperationException("A cap height is a share of the font size, above 0 and below 1.");
 
         Display.Validate();
         Title.Validate();

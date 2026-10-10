@@ -3,6 +3,7 @@
 import { BindSelectedKeyAttribute, ButtonClass, ComponentKeyAttribute, SelectedAttribute, SelectedKeyAttribute } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";
 import { isInert } from "./interactive-state";
+import { isPlainKey } from "./keyboard-shortcut";
 import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus";
 import { writeSelectedKey } from "./selected-key";
@@ -86,7 +87,7 @@ export class ButtonGroupEngine {
         const button = domEvent.target.closest<HTMLElement>(`.${ItemClass} > .${ButtonClass}`);
         const root = button?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-        if (button === null || root === null)
+        if (button === null || root === null || !isPlainKey(domEvent))
             return;
 
         const buttons = this.ownItems(root).map(buttonOf).filter((candidate): candidate is HTMLElement => candidate !== null);

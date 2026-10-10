@@ -1,10 +1,9 @@
 import { ValueBindingAttribute } from "../addressing/dom-attributes";
+import { RadioInputClass } from "../items/radio-row-decorator";
 import { isItemDisabled } from "./interactive-state";
 import { ownDescendants } from "./own-descendants";
 
 const RadioValueAttribute = "data-ui-radio-value";
-const RadioInputClass = "ui-radio-group__input";
-const RadioDotClass = "ui-radio-group__dot";
 const RadioGroupClass = "ui-radio-group";
 const ItemWrapperClass = "ui-radio-group__item";
 const GroupNameAttribute = "data-ui-radio-group-name";
@@ -48,11 +47,12 @@ export class RadioGroupSyncEngine {
                 }
             }
 
-            // Groups first and all at once: claiming reads every group on the page, and an item takes its group's name.
+            // Groups first and all at once: claiming reads every group on the page, and a row's radio takes its group's name.
             this.claimGroupNames(added.flatMap(groupsIn));
 
-            for (const node of added)
-                this.decorateAddedItems(node);
+            // A row the client built carries its radio already (`RadioRowDecorator`); the group gives it its name and binding.
+            for (const group of new Set(added.map(node => node.closest<HTMLElement>(`.${RadioGroupClass}`))))
+                this.sync(group);
         });
 
         observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute, "class"], childList: true, subtree: true });
@@ -112,8 +112,18 @@ export class RadioGroupSyncEngine {
         // No value is a group with nothing chosen, not one to skip: its radios still follow their options' Enabled.
         const value = group.getAttribute(RadioValueAttribute);
 
+        const name = group.getAttribute(GroupNameAttribute);
+        const bindValueId = group.getAttribute(BindValueIdAttribute);
+
         // A read-only group keeps its radios focusable and readable; the refusal engine turns their change away.
         for (const radio of ownDescendants(group, `.${RadioInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[]) {
+            // A row the client built has no name or binding of its own until here: one name makes the radios one choice.
+            if (name !== null && radio.name !== name)
+                radio.name = name;
+
+            if (bindValueId !== null && radio.getAttribute(ValueBindingAttribute) !== bindValueId)
+                radio.setAttribute(ValueBindingAttribute, bindValueId);
+
             radio.checked = radio.value === value;
 
             // The native radio sits beside the item template, so the template's own disabled state never reaches it.
@@ -124,48 +134,6 @@ export class RadioGroupSyncEngine {
         }
     }
 
-    private decorateAddedItems(node: HTMLElement): void {
-        const wrappers = node.classList.contains(ItemWrapperClass)
-            ? [node]
-            : [...node.querySelectorAll<HTMLElement>(`.${ItemWrapperClass}`)];
-
-        for (const wrapper of wrappers)
-            this.decorateItem(wrapper);
-    }
-
-    private decorateItem(wrapper: HTMLElement): void {
-        if (wrapper.querySelector(`.${RadioInputClass}`) !== null)
-            return;
-
-        const group = wrapper.closest<HTMLElement>(`.${RadioGroupClass}`);
-        const groupName = group?.getAttribute(GroupNameAttribute);
-
-        if (group === null || group === undefined || groupName === null || groupName === undefined)
-            return;
-
-        const input = document.createElement("input");
-
-        input.className = RadioInputClass;
-        input.type = "radio";
-        input.name = groupName;
-
-        const optionId = wrapper.dataset.uiKey;
-
-        if (optionId !== undefined)
-            input.value = optionId;
-
-        const bindValueId = group.getAttribute(BindValueIdAttribute);
-
-        if (bindValueId !== null)
-            input.setAttribute(ValueBindingAttribute, bindValueId);
-
-        const dot = document.createElement("span");
-
-        dot.className = RadioDotClass;
-
-        wrapper.prepend(input, dot);
-        this.sync(group);
-    }
 }
 
 /** The node itself when it is a group, and the groups under it. */

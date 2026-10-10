@@ -1,23 +1,24 @@
 // Which of a menu's groups is open — the viewer's own choice, kept in the browser, and re-resolved whenever the menu folds or unfolds.
 
 import { observeComponents } from "./dom-mutations.ts";
-import { ownDescendants } from "./own-descendants.ts";
+import { isInert } from "./interactive-state.ts";
+import { ownMenuEntries } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FlyoutContentClass, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemKindAttribute, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, PassiveMenuEntrySelector, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
-import { motion } from "../rendering/motion.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MarkedMenuEntrySelector, MenuControlEntrySelector, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuPopupSelector, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, NestedMenuClass as NestedClass, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
+import { afterTransitions, motion } from "../rendering/motion.ts";
 import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
 import { ClientStore } from "../state/client-store.ts";
+import { markMenuCurrent } from "../updates/menu-current.ts";
+import { markMenuIcons } from "../updates/menu-icons.ts";
 
-// A submenu's nested menu has no authored name to keep state under: only a menu the server named remembers its open group.
-const NestedClass = "ui-menu--nested";
 const SubmenuClass = "ui-menu__submenu";
 
 const GroupAttribute = MenuGroupAttribute;
 const OpenAttribute = MenuOpenAttribute;
 const FlyoutAttribute = "data-ui-menu-flyout";
-// The popups a menu's entry can stand in: a submenu, a context menu, a flyout's content (a menu button's list).
-const PopupMenuSelector = `[${FlyoutAttribute}], .ui-context-menu, .${FlyoutContentClass}`;
+// The popups a menu's entry can stand in: a submenu, or any popup a menu fills.
+const PopupMenuSelector = `[${FlyoutAttribute}], ${MenuPopupSelector}`;
 // On a menu once the reader has unfolded a section of it by hand: only then does a section slide open, never as the page arrives.
 const UnfoldedAttribute = "data-ui-menu-unfolded";
 const SelectAttribute = MenuSelectAttribute;
@@ -25,6 +26,9 @@ const SelectAttribute = MenuSelectAttribute;
 const RailAsListAttribute = "data-ui-menu-rail-list";
 
 const OpenGroupSlot = "menu-open-group";
+
+// The longest a closed flyout keeps its mark waiting for its exit, for a page that stopped drawing meanwhile.
+const FlyoutExitLimit = motion.normal * 5;
 
 // A group's own entry raises no click of the menu's: its press opens or closes the group, never picks it (event-pipeline.ts).
 const NoClickAttribute = eventSuppressAttribute("click");
@@ -47,17 +51,20 @@ export class MenuGroupEngine {
             owner.setAttribute(OpenAttribute, "");
             popup.setAttribute(FlyoutAttribute, "");
         },
-        // The group closes at once and the flyout fades out; the submenu keeps its flyout mark, and its place as a popup, until then.
+        // The group closes at once and the flyout fades out, or a sheet slides out; the submenu keeps its flyout mark, and its place
+        // as a popup, until then — read from the exit itself once the release has started it, never a timer a slow phone outruns.
         hide: ({ owner, popup }) => {
             owner.removeAttribute(OpenAttribute);
-            window.setTimeout(() => {
+            queueMicrotask(() => afterTransitions(popup, FlyoutExitLimit, () => {
                 if (!this.flyouts.isOpen(owner))
                     popup.removeAttribute(FlyoutAttribute);
-            }, motion.fast);
+            }));
         },
         closesWhenReadOnly: false,
         onPress: true,
-        onWindowBlur: true
+        onWindowBlur: true,
+        closesOnTab: true,
+        sheetOnPhone: true
     });
 
     public constructor(options: MenuGroupEngineOptions = {}) {
@@ -71,9 +78,20 @@ export class MenuGroupEngine {
         fitDrawerRails(menus);
         this.reconcileEach(menus);
 
+        // Rows drawn here before the engine started, and any that come or go later, may move the current entry into a group or out.
+        for (const menu of menus) {
+            markMenuCurrent(menu);
+            markMenuIcons(menu);
+        }
+
         observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [CollapsedAttribute] }, changed => {
             fitDrawerRails(changed);
             this.reconcileEach(changed);
+
+            for (const menu of changed) {
+                markMenuCurrent(menu);
+                markMenuIcons(menu);
+            }
         });
 
         // Whoever opens or closes a group — this engine, the search, a server-rendered start — the entry tells the reader so.
@@ -160,6 +178,7 @@ export class MenuGroupEngine {
             return;
         }
 
+        // A submenu's nested menu has no authored name to keep state under: only a menu the server named remembers its open group.
         const storedKey = menu.classList.contains(NestedClass) ? null : this.store.read(menu, OpenGroupSlot);
         const stored = storedKey === null ? null : this.findGroup(menu, storedKey);
 
@@ -178,7 +197,7 @@ export class MenuGroupEngine {
 
         // An entry in an open flyout navigates and takes the flyout with it; a check toggles in place, so the list stays.
         if (entry !== null && submenu !== null && submenu.contains(entry)) {
-            if (entry.getAttribute(MenuItemKindAttribute) !== "check")
+            if (choosesMenuEntry(entry))
                 this.flyouts.close();
 
             return;
@@ -200,7 +219,7 @@ export class MenuGroupEngine {
             return;
 
         // A select's choices fly out beside it whatever the fold: they are a list to choose from, not a section of the menu.
-        if (isCollapsed(menu) || group.hasAttribute(SelectAttribute))
+        if (isFlyoutGroup(group))
             this.toggleFlyout(menu, group, entry);
         else
             this.toggleInline(menu, group);
@@ -277,7 +296,7 @@ export class MenuGroupEngine {
         const list = submenu.querySelector<HTMLElement>(`:scope > .${RootClass}`);
 
         if (list !== null && !isPointerLast())
-            focusOpenedList(list, ownDescendants(list, `.${ItemClass}:not(${PassiveMenuEntrySelector})`, `.${RootClass}`));
+            focusOpenedList(list, menuWalk(list));
     }
 
     private findGroup(menu: HTMLElement, key: string): HTMLElement | null {
@@ -308,7 +327,6 @@ export class MenuGroupEngine {
 /** Writes on a group's own entry whether its block is open, and whether it opens as a popup — a select's, or any in a folded menu or a rail. */
 function describeGroup(group: HTMLElement): void {
     const entry = group.querySelector<HTMLElement>(`:scope > .${ItemClass}`);
-    const menu = group.closest<HTMLElement>(`.${RootClass}`);
 
     if (entry === null)
         return;
@@ -318,7 +336,7 @@ function describeGroup(group: HTMLElement): void {
     entry.setAttribute(EventBoundaryAttribute, "");
     entry.setAttribute("aria-expanded", group.hasAttribute(OpenAttribute) ? "true" : "false");
 
-    if (group.hasAttribute(SelectAttribute) || (menu !== null && isCollapsed(menu)))
+    if (isFlyoutGroup(group))
         entry.setAttribute("aria-haspopup", "menu");
     else
         entry.removeAttribute("aria-haspopup");
@@ -373,6 +391,59 @@ function fitDrawerRails(menus: Iterable<HTMLElement>): void {
         menu.classList.toggle(MenuRailClass, !narrow);
         menu.toggleAttribute(RailAsListAttribute, narrow);
     }
+}
+
+/**
+ * Whether a press on `target` chooses a menu's entry and so puts its menu away — a context menu, a split button's list, a flyout, a
+ * drawer: an entry that runs something. A caption, a rule or the menu's padding is no choice; a group's entry opens its block and a
+ * check turns in place, both keeping the menu up; a disabled entry runs nothing.
+ */
+export function choosesMenuEntry(target: Element): boolean {
+    const entry = target.closest<HTMLElement>(`.${ItemClass}`);
+
+    return entry !== null && entry.matches(MenuControlEntrySelector) && !entry.matches(MarkedMenuEntrySelector) && !isInert(entry);
+}
+
+/**
+ * What a menu's arrows walk: its own entries, and after a group's own entry the entries of its block while it stands open inline —
+ * one walk and one Tab stop for the whole menu, as a tree's rows are. A flyout's entries are its own popup's walk.
+ */
+export function menuWalk(menu: HTMLElement): HTMLElement[] {
+    const walk: HTMLElement[] = [];
+
+    for (const entry of ownMenuEntries(menu)) {
+        walk.push(entry);
+
+        const group = entry.matches(MenuGroupEntrySelector) ? entry.parentElement : null;
+        const block = group === null || !group.hasAttribute(OpenAttribute) || isFlyoutGroup(group) ? null : group.querySelector<HTMLElement>(`:scope > .${SubmenuClass} > .${RootClass}`);
+
+        if (block !== null)
+            walk.push(...menuWalk(block));
+    }
+
+    return walk;
+}
+
+/** The menu whose walk an entry of this one is in: the menu itself, or for a group's inline block the menu around the group. */
+export function walkRootOf(menu: HTMLElement): HTMLElement {
+    const group = submenuGroupOf(menu);
+    const outer = group?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+
+    return group === null || outer === null || isFlyoutGroup(group) ? menu : walkRootOf(outer);
+}
+
+/** The group whose submenu this menu is, or null for a menu of its own. */
+export function submenuGroupOf(menu: HTMLElement): HTMLElement | null {
+    const submenu = menu.parentElement;
+
+    return submenu !== null && submenu.classList.contains(SubmenuClass) && submenu.parentElement?.hasAttribute(GroupAttribute) === true ? submenu.parentElement : null;
+}
+
+/** Whether a group opens as a popup beside its entry — a select's, or any in a folded menu or a rail — rather than inline. */
+export function isFlyoutGroup(group: HTMLElement): boolean {
+    const menu = group.closest<HTMLElement>(`.${RootClass}`);
+
+    return group.hasAttribute(SelectAttribute) || (menu !== null && isCollapsed(menu));
 }
 
 /** Whether the menu's groups fly out: folded to its icons, or a rail, which is never unfolded. */

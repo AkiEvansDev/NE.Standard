@@ -8,8 +8,9 @@ import test from "node:test";
 
 import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
-// `ink` and `onColor`, where a case carries them: the colour spent on words, and the text colour that reads on it as a ground.
-type ThemeColorCase = { readonly name: string; readonly value: unknown; readonly css: string; readonly class: string; readonly ink?: string; readonly onColor?: string };
+// `ink`, `onColor` and `roleInk`, where a case carries them: the colour spent on words, the text colour that reads on it as a ground,
+// and the ink a badge writes inline (none for a raw colour).
+type ThemeColorCase = { readonly name: string; readonly value: unknown; readonly css: string; readonly class: string; readonly ink?: string; readonly onColor?: string; readonly roleInk?: string };
 type TextAppearanceCase = {
     readonly name: string;
     readonly value: unknown;
@@ -47,6 +48,9 @@ for (const testCase of corpus.themeColors) {
 
         if (testCase.onColor !== undefined)
             assert.equal(convert("themeOnColorCss", testCase.value), testCase.onColor);
+
+        if (testCase.roleInk !== undefined)
+            assert.equal(convert("roleInkCss", testCase.value), testCase.roleInk);
     });
 }
 

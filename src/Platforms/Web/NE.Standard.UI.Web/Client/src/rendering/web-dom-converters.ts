@@ -174,6 +174,7 @@ const buttonSizeTokens = ["small", "medium", "large"];
 const inputSizeTokens = ["small", "medium", "large"];
 const buttonTokens = ["primary", "accent", "danger", "outline", "ghost", "link", "surface"];
 const badgeTypeTokens = ["primary", "accent", "info", "warning", "success", "danger", "surface", "plain"];
+const badgeFillTokens = ["filled", "tinted", "outline"];
 const themeTokens = ["light", "dark"];
 const alignmentTokens = ["start", "center", "end", "stretch"];
 const overflowTokens = ["clip", "visible"];
@@ -254,14 +255,24 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["safeImageSource", value => toSafeImageSource(value)],
     // Nothing stays nothing, so the attribute it writes is removed rather than emptied.
     ["inlineMarkupPlainText", value => value === null || value === undefined ? undefined : inlineMarkupToPlainText(String(value))],
+    // A two-state ARIA attribute the first paint writes for no value too: anything but true is "false".
+    ["ariaBooleanAttribute", value => value === true ? "true" : "false"],
+    // One blank where there is none, so `:placeholder-shown` still says the field is empty (TextInputComponentRenderer).
+    ["placeholderText", value => typeof value === "string" && value.length > 0 ? value : " "],
     tokenClass("iconSizeClass", "ui-icon-size--", iconSizeTokens),
     familyClass("iconShapeClass", toClassFamily(["ui-icon--circle"]), value => toToken(value, iconShapeTokens) === "circle" ? "ui-icon--circle" : ""),
     tokenClass("textTypeClass", "ui-text-type--", textTypeTokens),
-    familyClass("textAppearanceClass", toTokenClassFamily("ui-text-type--", textTypeTokens), value => toTextAppearanceClass(value)),
+    familyClass("textAppearanceClass", toTokenClassFamily("ui-text-type--", textTypeTokens), value => toTextAppearanceClass(value, "ui-text-type--")),
+    // The description's role again on its text body, as TextAppearanceRenderer writes it: nothing for a sized description.
+    familyClass("textDescriptionTypeClass", toTokenClassFamily("ui-text--description-", textTypeTokens), value => toTextAppearanceClass(value, "ui-text--description-")),
     tokenClass("textAlignmentClass", "ui-text--align-", textAlignmentTokens),
     tokenClass("textWrapClass", "ui-text--", textWrapTokens),
-    tokenClass("textBadgePlacementClass", "ui-text__badge--", badgePlacementTokens),
+    tokenClass("buttonAlignmentClass", "ui-button--align-", textAlignmentTokens),
+    tokenClass("textBadgePlacementHostClass", "ui-text--badge-", badgePlacementTokens),
     tokenClass("badgeStyleClass", "ui-badge-style--", badgeTypeTokens),
+    tokenClass("badgeFillClass", "ui-badge-fill--", badgeFillTokens),
+    // Mirrors BadgeRenderer: coloured only by a colour that draws, never by one with no variable of its own (default, muted).
+    familyClass("badgeColoredClass", toClassFamily(["ui-badge--colored"]), value => toThemeColor(value).length > 0 ? "ui-badge--colored" : ""),
     ["badgeTextFit", value => toBadgeTextFit(value)],
     tokenClass("buttonClass", "ui-button--", buttonTokens),
     tokenClass("surfaceStyleClass", "ui-surface--", surfaceStyleTokens),
@@ -281,7 +292,6 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["hostViewport", value => toHostViewport(value)],
     tokenClass("scrollSnapClass", "ui-scroll-snap--", scrollSnapTokens),
     tokenClass("inputAppearanceClass", "ui-input--", inputAppearanceTokens),
-    tokenClass("searchFieldAppearanceClass", "ui-search__field--", inputAppearanceTokens),
     tokenClass("inputSizeClass", "ui-input--", inputSizeTokens),
     tokenClass("buttonSizeClass", "ui-button--", buttonSizeTokens),
     tokenClass("buttonGroupSizeClass", "ui-button-group--", buttonSizeTokens),
@@ -303,6 +313,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["colorVariantCss", value => toColorVariant(value)],
     ["themeColorCss", value => toThemeColor(value)],
     ["themeInkCss", value => toThemeInk(value)],
+    ["roleInkCss", value => toRoleInk(value)],
     ["themeOnColorCss", value => toThemeOnColor(value)],
     // Mirrors ThemeColorRenderer: a style colour is a class (an ink), so it writes no inline colour that would override the class.
     ["themeColorInlineCss", value => isStyleOnlyThemeColor(value) ? "" : toThemeColor(value)],
@@ -334,6 +345,10 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["backgroundImageBlurCss", value => isBackgroundImageBlurred(value) ? `${Number(value)}px` : ""],
     ["backgroundImageBlurAttribute", value => isBackgroundImageBlurred(value) ? "" : undefined],
     ["positiveCount", value => toPositiveCount(value)?.toString()],
+    ["nonNegativeCount", value => toCount(value, count => count >= 0)?.toString()],
+    ["nonZeroCount", value => toCount(value, count => count !== 0)?.toString()],
+    ["positiveNumber", value => toFiniteNumber(value, number => number > 0)?.toString()],
+    ["nonNegativeNumber", value => toFiniteNumber(value, number => number >= 0)?.toString()],
     ["positiveFlagAttribute", value => toPositiveCount(value) === undefined ? undefined : ""],
     familyClass("maxLinesClass", toClassFamily(["ui-text--max-lines"]), value => toPositiveCount(value) === undefined ? "" : "ui-text--max-lines"),
     tokenClass("progressVariantClass", "ui-progress--", progressVariantTokens),
@@ -344,6 +359,13 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["tabMenuEntriesAttribute", value => toTabMenuTokens(value)],
     ["markedDaysAttribute", value => toDayTokens(value)]
 ]);
+
+/** The Surface word an element's class names, or null: what `menu-surface.ts` marks the popup a menu fills with. */
+export function surfaceStyleWord(element: Element): string | null {
+    const toClass = webDomConverters.get("surfaceStyleClass");
+
+    return surfaceStyleTokens.find((_, index) => element.classList.contains(toClass?.(index) ?? "")) ?? null;
+}
 
 // UITabMenuEntries by token and flag bit, in the order WebClassNames.TabMenuEntries writes them.
 const tabMenuTokens: readonly (readonly [string, number])[] = [["rename", 1], ["pin", 2], ["close", 4], ["delete", 8]];
@@ -384,6 +406,20 @@ function toPositiveCount(value: unknown): number | undefined {
     const count = typeof value === "number" ? value : Number(value ?? Number.NaN);
 
     return Number.isInteger(count) && count > 0 ? count : undefined;
+}
+
+/** A whole number a pushed value names, when the first paint's guard takes it; else none. */
+function toCount(value: unknown, accepts: (count: number) => boolean): number | undefined {
+    const count = typeof value === "number" ? value : Number(value ?? Number.NaN);
+
+    return Number.isInteger(count) && accepts(count) ? count : undefined;
+}
+
+/** A finite number a pushed value names, when the first paint's guard takes it; else none. */
+function toFiniteNumber(value: unknown, accepts: (number: number) => boolean): number | undefined {
+    const number = typeof value === "number" ? value : Number(value ?? Number.NaN);
+
+    return Number.isFinite(number) && accepts(number) ? number : undefined;
 }
 
 /** Whether a surface's picture's blur draws anything, as `WebCssValues.IsBackgroundImageBlurred` judges it: finite and above zero. */
@@ -439,7 +475,8 @@ const colorVariantNamesByValue = new Map<number, string>(
 
 // Where a member name means something else in one table than in another: `Hidden` is `hidden` for UIVisibility, `clip` for UIOverflow.
 const tokenNameOverrides = new Map<readonly string[], ReadonlyMap<string, string>>([
-    [overflowTokens, new Map([["Hidden", "clip"]])]
+    [overflowTokens, new Map([["Hidden", "clip"]])],
+    [imageFitSizeTokens, new Map([["Fill", "100% 100%"], ["None", "auto"]])]
 ]);
 
 function toToken(value: unknown, numericTokens?: readonly string[]): string {
@@ -791,6 +828,16 @@ function toThemeInk(value: unknown): string {
     return toThemeColor(value);
 }
 
+// Mirrors WebCssValues.RoleInk: a theme colour's words are its ink; a raw colour's are the stylesheet's (`.ui-raw-ink()`), so none inline.
+function toRoleInk(value: unknown): string {
+    if (value === null || value === undefined || typeof value !== "object" || isColorVariantModel(value))
+        return "";
+
+    const model = value as { light?: unknown; dark?: unknown };
+
+    return model.light == null && model.dark == null ? toThemeInk(value) : "";
+}
+
 // The page's own grounds: no filled ground, so they take back the page's ink from one around them rather than name an on-colour.
 const pageGroundTokens = new Set(["background", "surface"]);
 
@@ -932,7 +979,7 @@ export function writeBadgeCount(badge: Element, count: number): void {
     badge.setAttribute(BadgeSetAttribute, "");
 }
 
-function toTextAppearanceClass(value: unknown): string {
+function toTextAppearanceClass(value: unknown, prefix: string): string {
     if (value === null || value === undefined || typeof value !== "object") {
         return "";
     }
@@ -944,7 +991,7 @@ function toTextAppearanceClass(value: unknown): string {
     }
 
     const role = model.role;
-    return role == null ? "" : `ui-text-type--${toToken(role, textTypeTokens)}`;
+    return role == null ? "" : `${prefix}${toToken(role, textTypeTokens)}`;
 }
 
 function toTextAppearanceField(value: unknown, field: "size" | "weight" | "lineHeight" | "letterSpacing"): string {

@@ -26,14 +26,13 @@ public abstract class DefaultTabItemTemplate<TTemplate> : TabItemComponent<TTemp
 
         _ = ConfigureDefaultCaption(caption => _ = caption.BindTextBase());
 
-        _ = Bind(VisibilityProperty, nameof(ITextBaseModel.Visibility), UIBindingScope.Relative);
-        _ = Bind(EnabledProperty, nameof(ITextBaseModel.Enabled), UIBindingScope.Relative);
+        _ = this.BindItemState();
         _ = this.BindItemAbilities();
 
         // What the strip writes back — a rename, a drop, a pin: the raw Bind takes each property's own default mode, two-way.
-        _ = Bind(RenamedTitleProperty, nameof(ITextBaseModel.Title), UIBindingScope.Relative);
-        _ = Bind(OrderProperty, nameof(ITabItemModel.Order), UIBindingScope.Relative);
-        _ = Bind(PinnedProperty, nameof(ITabItemModel.Pinned), UIBindingScope.Relative);
+        _ = Bind(RenamedTitleProperty, nameof(ITextBaseModel.Title), UIBindingScope.Relative, optional: true);
+        _ = Bind(OrderProperty, nameof(ITabItemModel.Order), UIBindingScope.Relative, optional: true);
+        _ = Bind(PinnedProperty, nameof(ITabItemModel.Pinned), UIBindingScope.Relative, optional: true);
     }
 }
 

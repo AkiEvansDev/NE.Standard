@@ -4,6 +4,8 @@ import { RowPressEventName } from "../interactions/row-cursor";
 export type EventAttachContext = {
     readonly root: ParentNode;
     readonly dispatch: (domEvent: Event) => void;
+    /** The listener options the event's registration names; capturing unless they say otherwise. */
+    readonly options?: AddEventListenerOptions;
 };
 
 export type EventDefinition = {
@@ -32,7 +34,7 @@ export class EventCatalog {
         this.definitions.set(name, {
             name,
             domEventName,
-            attach: registration.attach ?? (context => context.root.addEventListener(domEventName, context.dispatch, true))
+            attach: registration.attach ?? (context => context.root.addEventListener(domEventName, context.dispatch, { capture: true, ...context.options }))
         });
     }
 

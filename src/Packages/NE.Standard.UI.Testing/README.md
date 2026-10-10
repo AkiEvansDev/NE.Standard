@@ -48,7 +48,8 @@ runs: what a command answered and what waits for the flush are told apart withou
 `app.OpenAsync(address, session)` resolves the address through the view filters and the route's authorization — a
 refusal lands on the sign-in or the forbidden page, as in a browser, and `page.Route` says where — then attaches a
 runtime and starts the page from the snapshot a connecting page is sent. An address may carry a query
-(`"/catalogue?role=db"`); `page.Address` is what the address bar shows, after every address effect the page received.
+(`"/catalogue?role=db"`), read as the host reads one (`+` a space, a repeated key a list); `page.Address` is what the
+address bar shows, after every address effect the page received.
 
 The session is the application's own: `session.SignIn(userId, roles, permissions)`, `InLanguage("ru")` and
 `InTimeZone(...)` are stored in its session store before the page opens and presented as a cookie would present them,
@@ -70,12 +71,13 @@ A list's rows are `component.Rows` and `component.Row(key)`; a row's components 
 
 What a component shows is read off the change sets the page received, applied the way the client applies them:
 `Value`, `Title`, `Get(property)`, `Text(property)`, `IsVisible` and `IsEnabled` (an ancestor collapsed, disabled or
-loading counts, as does a dialog not open), and `ValidationMessage` — the strongest of the field's failing rules, the
-controller's bound message and the server's refusal, as the page shows it. A row's binding is read off the row's item.
+loading counts, as does a dialog not open), and `ValidationMessage` — the strongest of the field's failing rules, a value
+past its bounds, the controller's bound message and the server's refusal, as the page shows it. A row's binding is read off
+the row's item; a reset and its inserts keep what the page held under the rows they resend unchanged.
 The client interactions a view declares run too: a part shown while a switch is on appears when the switch is written.
 
 `page.Effects` and `page.EffectsOf<ShowNotificationEffect>()` are every effect the page received; dialogs open and close
-with theirs (`page.IsDialogOpen(key)`). `page.Downloads` holds the files sent to it. `page.Controller<T>()` is the
+with theirs, the dialog service's too (`page.IsDialogOpen(key)`). `page.Downloads` holds the files sent to it. `page.Controller<T>()` is the
 controller, for what the screen does not show.
 
 ## Acting on it
@@ -84,10 +86,13 @@ Each act goes through the host's own entry points, the ones the web hub calls �
 filters and authorization all run:
 
 - `SetValueAsync(value)` types and leaves a field: its change rules, the interactions reading it, the write to the
-  server (or, under `OnSubmit`, held for its form), its change command, its blur rules.
+  server (or, under `OnSubmit`, held for its form — a push waits behind the edit until a `DiscardFormEffect`), its change
+  command, its blur rules. A number or a date past its `Min`/`Max` stays in the field, refused in words, and is not sent;
+  a value no reader could give — a slider past its bounds, a negative where none is taken — throws.
 - `ClickAsync()` presses: a button submitting a form is refused while a field of the form is in error, as the browser
   refuses it, and the result says so (`Sent` false).
-- `DispatchAsync(eventName, eventKeys)` raises any event a component declares.
+- `DispatchAsync(eventName, eventKeys)` raises any event a component declares; one that submits its field's form (a
+  code field's save, `IFormSubmittingComponent`) sends the form's held values first.
 - `row.ClickAsync()` and `row.ChooseAsync()` press or choose a row.
 - `page.PressNotificationActionAsync(toast)` presses a notification's action — its Undo.
 - `page.HideAsync()` / `ShowAsync()` take the page off screen and back (`HasVisibleViewers`), and

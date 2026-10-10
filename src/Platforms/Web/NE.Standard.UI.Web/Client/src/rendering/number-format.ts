@@ -252,8 +252,23 @@ function applyPattern(pattern: string, number: string, symbol: string, negativeS
     return result;
 }
 
-/** What a package's engine formats with, off the plugin context: the pack off an element, and the number by a format. */
+// What `double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture)` reads: .NET's own blanks either side (not `\s`,
+// which takes a no-break space, U+2028 and a byte-order mark), a sign, digits with one point, an exponent.
+const InvariantNumberText = /^[\t\n\v\f\r ]*[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?[\t\n\v\f\r ]*$/;
+
+/** The number a text writes as the server's invariant reading takes it; null for any other text — a hex, a grouping, `Infinity` — or one past a double. */
+function parseInvariantNumber(text: string): number | null {
+    if (!InvariantNumberText.test(text))
+        return null;
+
+    const value = Number(text);
+
+    return Number.isFinite(value) ? value : null;
+}
+
+/** What a package's engine formats with, off the plugin context: the pack off an element, the number by a format, and a text read as one. */
 export const numberFormatting = {
     readCulture: readNumberCulture,
-    format: formatNumber
+    format: formatNumber,
+    parseInvariant: parseInvariantNumber
 } as const;

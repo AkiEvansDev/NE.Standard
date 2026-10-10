@@ -1,8 +1,8 @@
-// Marks a trail's last step as the current page, and writes on each wrapper the tiers its step is collapsed in, so the stylesheet
-// drops the separator before a collapsed tail with one `:has()` — a `:has()` inside a `:has()` is dropped whole by the browser.
+// Marks a trail's last step as the current page, and writes on each wrapper the tiers its step is collapsed in and the tiers no shown
+// step follows it in, which the stylesheet hides the wrapper and drops its separator by; the render writes both for the first paint.
 // A step Visibility collapses keeps its place and mark (the step before it is still a page above); only `ui-hidden` takes one out.
 
-import { VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { StepCollapsedAttribute, StepEndAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import { responsiveTiers } from "../rendering/responsive-tier.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
@@ -12,8 +12,6 @@ const ItemClass = "ui-breadcrumbs__item";
 const StepClass = "ui-breadcrumb";
 const CurrentModifier = "ui-breadcrumb--current";
 const HiddenClass = "ui-hidden";
-/** Client-only: on a step's wrapper, the tiers its step is collapsed in — `base`, `sm`, `md`, `xl`, `xxl`. */
-const CollapsedTiersAttribute = "data-ui-step-collapsed";
 
 export type BreadcrumbsEngineOptions = {
     readonly root?: ParentNode;
@@ -42,8 +40,7 @@ export class BreadcrumbsEngine {
     private apply(root: HTMLElement): void {
         const items = ownDescendants(root, `.${ItemClass}`, `.${RootClass}`);
 
-        for (const item of items)
-            markCollapsedTiers(item);
+        markSteps(items);
 
         const steps = items
             .filter(item => !item.classList.contains(HiddenClass))
@@ -70,13 +67,44 @@ export class BreadcrumbsEngine {
     }
 }
 
-/** Writes the tiers a wrapper's step is collapsed in; written only when they change, since the engine watches the trail. */
-function markCollapsedTiers(item: HTMLElement): void {
-    const step = item.querySelector<HTMLElement>(`:scope > .${StepClass}`);
-    const tiers = step === null ? "" : responsiveTiers.filter((_, index) => step.getAttribute(VisibilityTierAttributes[index]) === "collapsed").join(" ");
+/**
+ * Writes on each wrapper the tiers its step is collapsed in, and the tiers in which no step after it shows — neither taken out nor
+ * collapsed there — walking the trail from its end.
+ */
+function markSteps(items: readonly HTMLElement[]): void {
+    const shownAfter = responsiveTiers.map(() => false);
 
-    if (tiers.length === 0)
-        item.removeAttribute(CollapsedTiersAttribute);
-    else if (item.getAttribute(CollapsedTiersAttribute) !== tiers)
-        item.setAttribute(CollapsedTiersAttribute, tiers);
+    for (let index = items.length - 1; index >= 0; index--) {
+        const item = items[index];
+        const collapsed = responsiveTiers.map((_, tier) => isCollapsedAt(item, tier));
+
+        writeTiers(item, StepCollapsedAttribute, responsiveTiers.filter((_, tier) => collapsed[tier]));
+        writeTiers(item, StepEndAttribute, responsiveTiers.filter((_, tier) => !shownAfter[tier]));
+
+        if (item.classList.contains(HiddenClass))
+            continue;
+
+        for (let tier = 0; tier < responsiveTiers.length; tier++)
+            shownAfter[tier] ||= !collapsed[tier];
+    }
+}
+
+/** Whether the step in a wrapper is collapsed at a tier, read off whatever the wrapper holds — a step, or a template's own root. */
+function isCollapsedAt(item: HTMLElement, tier: number): boolean {
+    for (const child of item.children) {
+        if (child.getAttribute(VisibilityTierAttributes[tier]) === "collapsed")
+            return true;
+    }
+
+    return false;
+}
+
+/** Written only when they change, since the engine watches the trail. */
+function writeTiers(item: HTMLElement, attribute: string, tiers: readonly string[]): void {
+    const value = tiers.join(" ");
+
+    if (value.length === 0)
+        item.removeAttribute(attribute);
+    else if (item.getAttribute(attribute) !== value)
+        item.setAttribute(attribute, value);
 }

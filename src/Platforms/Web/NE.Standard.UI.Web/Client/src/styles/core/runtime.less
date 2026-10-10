@@ -46,10 +46,10 @@
 // Below the medium breakpoint the document scrolls rather than the content region: the sticky header and the bottom bar stay where
 // they are, and the phone's browser folds its own toolbar away as the reader scrolls, which it does for the document alone. Never
 // shorter than the window as it stands, so a short page does not scroll by the toolbar's height. A screen whose content fills the
-// height — its root's `Fill`, written `--ui-height: var(--ui-fill-height, 100%)`: a messenger whose panes scroll inside themselves —
-// keeps the regions' own scroll, since a filled height needs a page as tall as the window and no taller.
+// height — its root's `Fill`, which the shell marks and its Height's patch keeps: a messenger whose panes scroll inside themselves — keeps the regions'
+// own scroll, since a filled height needs a page as tall as the window and no taller.
 @media (max-width: (@ui-breakpoint-md - 0.02px)) {
-    [data-ui-root][data-ui-scroll-content]:not(:has(> [data-ui-region="content"] > [data-ui-id][style*="--ui-height: var(--ui-fill-height"])) {
+    [data-ui-root][data-ui-scroll-content]:not([data-ui-content-fills]) {
         height: auto;
         min-height: 100dvh;
         overflow: visible;
@@ -102,30 +102,6 @@
 [data-ui-region="footer"] {
     grid-column: 1 / 4;
     grid-row: 3;
-}
-
-// The skip link (WebViewRenderer, on a page with a left side): out of sight and out of the grid, but the page's first stop; holding
-// the keyboard, a primary chip at the page's top-left corner. Not on a focus the pointer gave, so no tap ever shows it.
-.ui-shell__skip-link {
-    .ui-visually-hidden();
-}
-
-.ui-shell__skip-link@{ui-keyboard-focus} {
-    position: fixed;
-    top: @ui-space-2;
-    left: @ui-space-2;
-    z-index: @ui-z-skip-link;
-    width: auto;
-    height: auto;
-    margin: 0;
-    padding: @ui-space-2 @ui-space-4;
-    overflow: visible;
-    clip: auto;
-    border-radius: var(--ui-radius-button);
-    background: var(--ui-color-primary);
-    color: var(--ui-color-on-primary);
-    text-decoration: none;
-    .ui-elevation-3();
 }
 
 // UIShellLayout.FullHeightSides: the sides run from the top of the page to its bottom, the header and footer between them.
@@ -184,6 +160,12 @@
 
 :where([data-ui-id]) {
     color: inherit;
+}
+
+// A component clipping its children (`Overflow` Hidden, written inline as `overflow: clip`) leaves them the keyboard frame's reach past
+// its edge: a frame drawn round a link's words or a toggle's row stood cut on the side where it met the panel.
+[data-ui-id][style*="overflow: clip"] {
+    overflow-clip-margin: @ui-keyboard-frame-reach;
 }
 
 // A lifted popup is a manual popover whose default box (centred, bordered, padded) would fill in what its rules leave unset;

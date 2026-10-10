@@ -27,3 +27,24 @@ export function finishTransitions(element: Element): void {
             animation.finish();
     }
 }
+
+/**
+ * Runs `then` once the transitions an element has running now are over, ended or cancelled — read from the transitions themselves, as
+ * a phone may start them a frame or more late — or after `limit` ms at most, for a page that stopped drawing.
+ */
+export function afterTransitions(element: Element, limit: number, then: () => void): void {
+    let done = false;
+    const finish = (): void => {
+        if (done)
+            return;
+
+        done = true;
+        clearTimeout(timer);
+        then();
+    };
+    const timer = setTimeout(finish, limit);
+    // Asked at once, the element's style is brought up to date first, so a change made just now has started its transitions.
+    const transitions = typeof element.getAnimations === "function" ? element.getAnimations().filter(animation => typeof CSSTransition !== "function" || animation instanceof CSSTransition) : [];
+
+    void Promise.allSettled(transitions.map(transition => transition.finished)).then(finish);
+}

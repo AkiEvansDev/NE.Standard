@@ -42,6 +42,7 @@ internal static class DemoButtonBindings
             .BindBadgePlacement($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
             .BindBadgeStyle($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
             .BindBadgeColor($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
+            .BindBadgeFill($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
             .BindBadgeIcon($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
             .BindBadgeIconColor($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
             .BindBadgeIconSize($"{badgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")

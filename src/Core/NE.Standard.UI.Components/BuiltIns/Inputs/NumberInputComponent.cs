@@ -3,7 +3,6 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
@@ -11,14 +10,10 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// A numeric input with configurable step, sign, and decimal/formatting constraints.
 /// </summary>
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
+[UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 public abstract partial class NumberInputComponent<T>(string? id = null) : MinMaxInputComponentBase<T, decimal?>(id), IPlaceholderInputComponent, IAffixTextInputComponent
     where T : NumberInputComponent<T>, IUIComponentDefinition
 {
-    /// <inheritdoc/>
-    [Translatable]
-    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public UIPhrase? Placeholder { get; set; }
-
     /// <summary>
     /// Gets or sets the increment between selectable values.
     /// </summary>

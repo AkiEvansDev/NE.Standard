@@ -87,6 +87,26 @@ test("one group's flyout swapped for another's goes at once, not fading under th
     assert.equal(inputs.element.hasAttribute("data-ui-menu-open"), true);
 });
 
+test("a press on a flyout's entry puts it away; one on a caption or a check keeps it up", () => {
+    const caption = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "header" });
+    const check = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "check" });
+
+    layouts.parts.entries[0].parentElement?.append(caption, check);
+    openByPress(layouts.parts);
+
+    caption.dispatchEvent(new FakeEvent("click"));
+    assert.equal(layouts.element.hasAttribute("data-ui-menu-open"), true);
+
+    check.dispatchEvent(new FakeEvent("click"));
+    assert.equal(layouts.element.hasAttribute("data-ui-menu-open"), true);
+
+    layouts.parts.entries[1].dispatchEvent(new FakeEvent("click"));
+    assert.equal(layouts.element.hasAttribute("data-ui-menu-open"), false);
+
+    caption.remove();
+    check.remove();
+});
+
 test("a submenu from a context menu's entry stands the popup gap off the menu, its first entry level with the entry", () => {
     const color = group("color");
     const menu = FakeElement.of("ui-context-menu").append(FakeElement.of("ui-menu").append(FakeElement.of("ui-menu__host").append(color.element)));

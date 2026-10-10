@@ -80,7 +80,7 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
                     .SetVerticalAlignment(UIAlignment.Center)
                     .BindTitle(nameof(WordsController.Files))
                 )
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("−").SetAccessibleName("demo.language.remove-file").OnClick(nameof(WordsController.RemoveFile)))
+                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Remove).SetTooltip("demo.language.remove-file").OnClick(nameof(WordsController.RemoveFile)))
                 .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Add).SetTooltip("demo.language.add-file").OnClick(nameof(WordsController.AddFile))),
             note: Words + "note.count",
             controller: [DemoCode.Of<WordsController>("_files", nameof(WordsController.Files), nameof(WordsController.AddFile), nameof(WordsController.RemoveFile), "FilesPhrase")]

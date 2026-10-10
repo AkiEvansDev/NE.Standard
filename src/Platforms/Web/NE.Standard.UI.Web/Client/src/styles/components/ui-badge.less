@@ -1,8 +1,15 @@
 ﻿@import "../core/tokens.less";
+@import "../mixins/color.less";
 @import "../mixins/responsive.less";
 @import "../mixins/text.less";
 
-// Sized in `em` of its own text, so an Overline badge stays small; padding rounded, or a half pixel softens the border.
+// About 1.5em of its own text, so an Overline badge stays small, held to the parity of its capitals' height, the height at which the
+// whole-pixel baseline below lands on their true centre (15 around 7 px capitals, not 16). Whole pixels, or a half pixel softens
+// the edge.
+@ui-badge-height: ~"calc(round(nearest, 1cap, 1px) + 2 * round(nearest, (1.5em - 1cap) / 2, 1px))";
+// The capitals' baseline, from the badge's top: the whole pixel nearest the centre of capitals between its edges.
+@ui-badge-baseline: ~"round(nearest, (@{ui-badge-height} + 1cap) / 2, 1px)";
+
 .ui-badge {
     // .ui-badge is worn by both a component root and a nested __badge part; a --ui-* custom property must be gated on [data-ui-id].
     display: inline-flex;
@@ -10,8 +17,9 @@
     justify-content: center;
     gap: 0.25em;
     max-width: 100%;
-    min-height: 1.5em;
-    padding: ~"round(nearest, 0.125em, 1px)" 0.5em;
+    min-height: @ui-badge-height;
+    // No block padding: the height above sets it, and a default icon (14 px) plus a padding would make it even again.
+    padding: 0 0.5em;
     border-radius: 999px;
     overflow: hidden;
     vertical-align: middle;
@@ -20,7 +28,7 @@
 
 .ui-badge[data-ui-id] {
     .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(min-height, --ui-min-height, 1.5em);
+    .ui-responsive-property(min-height, --ui-min-height, @ui-badge-height);
 }
 
 .ui-badge__icon,
@@ -49,6 +57,15 @@
     // A round figure overshoots the trimmed box: clipped across only, so the ellipsis stays and a 6 or a 0 keeps its top.
     overflow: visible;
     overflow-x: clip;
+}
+
+// The browser rounds the baseline and the badge's edges to device pixels each on its own, so a centred baseline a fraction of a pixel
+// below the top fell a whole pixel lower or not by where the badge stood. Held a whole pixel below it, the words stand alike everywhere;
+// a CSS pixel is a device one only at an integer ratio, so another ratio keeps the centring.
+@media (resolution: 1dppx), (resolution: 2dppx), (resolution: 3dppx), (resolution: 4dppx) {
+    .ui-badge__text {
+        margin-block: ~"calc(@{ui-badge-baseline} - 1cap) calc(@{ui-badge-height} - @{ui-badge-baseline})";
+    }
 }
 
 .ui-badge[data-ui-badge-icon] > .ui-badge__icon {
@@ -81,46 +98,72 @@
     aspect-ratio: 1;
 }
 
+// An ink reads on the page but not on every card (a raised one is darker: the brand's 3.5:1 in dark), with a tint under it or none,
+// so a tinted or outlined badge takes the one lifted for it (the theme's -ink-on-tint, resolved on the theme element, so no cycle
+// here); the page's own inks stay.
+.ui-badge-lifted-inks() {
+    --ui-color-primary-ink: var(--ui-color-primary-ink-on-tint);
+    --ui-color-accent-ink: var(--ui-color-accent-ink-on-tint);
+    --ui-color-info-ink: var(--ui-color-info-ink-on-tint);
+    --ui-color-warning-ink: var(--ui-color-warning-ink-on-tint);
+    --ui-color-success-ink: var(--ui-color-success-ink-on-tint);
+    --ui-color-danger-ink: var(--ui-color-danger-ink-on-tint);
+}
+
+// A colour style names its colour, the words that read on it and its ink; a raw colour names the same three inline (BadgeRenderer).
+// The fill decides which of them the badge wears: unset, a style fills and a colour tints.
 .ui-badge-style--primary {
-    background: var(--ui-color-primary);
-    color: var(--ui-color-on-primary);
-    --ui-faint-base: var(--ui-color-on-primary);
-    --ui-ground: var(--ui-color-primary);
+    --ui-badge-color: var(--ui-color-primary);
+    --ui-badge-on: var(--ui-color-on-primary);
+    --ui-badge-ink: var(--ui-color-primary-ink);
 }
 
 .ui-badge-style--accent {
-    background: var(--ui-color-accent);
-    color: var(--ui-color-on-accent);
-    --ui-faint-base: var(--ui-color-on-accent);
-    --ui-ground: var(--ui-color-accent);
+    --ui-badge-color: var(--ui-color-accent);
+    --ui-badge-on: var(--ui-color-on-accent);
+    --ui-badge-ink: var(--ui-color-accent-ink);
 }
 
 .ui-badge-style--info {
-    background: var(--ui-color-info);
-    color: var(--ui-color-on-info);
-    --ui-faint-base: var(--ui-color-on-info);
-    --ui-ground: var(--ui-color-info);
+    --ui-badge-color: var(--ui-color-info);
+    --ui-badge-on: var(--ui-color-on-info);
+    --ui-badge-ink: var(--ui-color-info-ink);
 }
 
 .ui-badge-style--warning {
-    background: var(--ui-color-warning);
-    color: var(--ui-color-on-warning);
-    --ui-faint-base: var(--ui-color-on-warning);
-    --ui-ground: var(--ui-color-warning);
+    --ui-badge-color: var(--ui-color-warning);
+    --ui-badge-on: var(--ui-color-on-warning);
+    --ui-badge-ink: var(--ui-color-warning-ink);
 }
 
 .ui-badge-style--success {
-    background: var(--ui-color-success);
-    color: var(--ui-color-on-success);
-    --ui-faint-base: var(--ui-color-on-success);
-    --ui-ground: var(--ui-color-success);
+    --ui-badge-color: var(--ui-color-success);
+    --ui-badge-on: var(--ui-color-on-success);
+    --ui-badge-ink: var(--ui-color-success-ink);
 }
 
 .ui-badge-style--danger {
-    background: var(--ui-color-danger);
-    color: var(--ui-color-on-danger);
-    --ui-faint-base: var(--ui-color-on-danger);
-    --ui-ground: var(--ui-color-danger);
+    --ui-badge-color: var(--ui-color-danger);
+    --ui-badge-on: var(--ui-color-on-danger);
+    --ui-badge-ink: var(--ui-color-danger-ink);
+}
+
+// A raw colour names no ink (BadgeRenderer): its words are shaded from it, so they read on its tint or with none under it whatever
+// the colour and the theme. Over a style's class, as the raw colour itself is; a theme colour's ink, written inline, still wins.
+.ui-badge.ui-badge--colored {
+    .ui-raw-ink(--ui-badge-ink; var(--ui-badge-color));
+}
+
+// Filled: the colour as the ground, the words that read on it.
+.ui-badge-style--primary,
+.ui-badge-style--accent,
+.ui-badge-style--info,
+.ui-badge-style--warning,
+.ui-badge-style--success,
+.ui-badge-style--danger,
+.ui-badge--colored.ui-badge-fill--filled {
+    .ui-filled-ground(var(--ui-badge-color); var(--ui-badge-on));
+    box-shadow: none;
 }
 
 // The one style that can sit on a surface ground, so it draws its own edge, from currentColor.
@@ -130,29 +173,57 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
 }
 
-// The ground mixes the raw colour; the words are its ink (BadgeRenderer), which on a semantic colour is darker or lighter than it.
-.ui-badge--tinted {
-    background: color-mix(in srgb, var(--ui-badge-tint, currentColor) 16%, transparent);
-    // An ink reads on the page but not on a ground of its own colour over every card (a raised one is darker), so a tinted badge
-    // takes the one lifted for it (the theme's -ink-on-tint, resolved on the theme element, so no cycle here); the page's own inks
-    // stay.
-    --ui-color-primary-ink: var(--ui-color-primary-ink-on-tint);
-    --ui-color-accent-ink: var(--ui-color-accent-ink-on-tint);
-    --ui-color-info-ink: var(--ui-color-info-ink-on-tint);
-    --ui-color-warning-ink: var(--ui-color-warning-ink-on-tint);
-    --ui-color-success-ink: var(--ui-color-success-ink-on-tint);
-    --ui-color-danger-ink: var(--ui-color-danger-ink-on-tint);
+// Tinted: the ground mixed from the colour, the words its ink, which on a semantic colour is darker or lighter than it. After the
+// filled rules, so a fill named wins over a style's own look by order alone.
+.ui-badge--colored:not(.ui-badge-fill--filled, .ui-badge-fill--outline),
+.ui-badge-fill--tinted {
+    background: color-mix(in srgb, var(--ui-badge-color, currentColor) 16%, transparent);
+    color: var(--ui-badge-ink);
+    box-shadow: none;
+    --ui-faint-base: inherit;
+    --ui-ground: inherit;
+    .ui-badge-lifted-inks();
 }
 
-// Its content alone, as tall as its glyph or its capitals, in the muted ink a caption's icon wears; after the tint, so a colour writes
-// the words and draws no ground. The radius stays, to round the focus ring of a reachable one.
+// Outline: no ground, an edge drawn inside so the size does not change, the words in the ink.
+.ui-badge-fill--outline {
+    background: none;
+    color: var(--ui-badge-ink);
+    box-shadow: inset 0 0 0 1px var(--ui-badge-color);
+    --ui-faint-base: inherit;
+    --ui-ground: inherit;
+    .ui-badge-lifted-inks();
+}
+
+// Surface names no colour: tinted or outlined it takes the words around it, its ground or edge mixed from them as its filled edge is.
+.ui-badge-style--surface:not(.ui-badge--colored) {
+    &.ui-badge-fill--tinted {
+        background: color-mix(in srgb, currentColor 10%, transparent);
+        color: inherit;
+    }
+
+    &.ui-badge-fill--outline {
+        color: inherit;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
+    }
+}
+
+// Its content alone, as tall as its glyph or its capitals, in the muted ink a caption's icon wears, whatever the fill; a colour writes
+// the words in its ink and draws no ground. The radius stays, to round the focus ring of a reachable one.
 .ui-badge.ui-badge-style--plain {
     min-height: 0;
     padding: 0;
     background: none;
-    color: @ui-text-muted;
+    color: var(--ui-badge-ink, @ui-text-muted);
+    box-shadow: none;
+    --ui-faint-base: inherit;
+    --ui-ground: inherit;
 }
 
 .ui-badge-style--plain[data-ui-id] {
     .ui-responsive-property(min-height, --ui-min-height, 0);
 }
+
+    .ui-badge.ui-badge-style--plain > .ui-badge__text {
+        margin-block: 0;
+    }

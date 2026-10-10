@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Hosting;
+using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Runtime;
@@ -110,7 +110,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
             sessionId = state.SessionId;
         }
 
-        return await OpenAsync(ParseAddress(address), sessionId, described, cancellationToken).ConfigureAwait(false);
+        return await OpenAsync(UINavigationAddress.Parse(address), sessionId, described, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Opens a page in the session <paramref name="sessionId"/> names, or a new anonymous one.</summary>
@@ -165,27 +165,6 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
         }
 
         return page;
-    }
-
-    /// <summary>A route with its query as the request's parameters, each a string as an address carries it.</summary>
-    internal static UINavigationRequest ParseAddress(string address)
-    {
-        var query = address.IndexOf('?', StringComparison.Ordinal);
-
-        if (query < 0)
-            return new UINavigationRequest { Route = address };
-
-        Dictionary<string, object?> parameters = new(StringComparer.Ordinal);
-
-        foreach (var pair in address[(query + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var equals = pair.IndexOf('=', StringComparison.Ordinal);
-            var key = Uri.UnescapeDataString(equals < 0 ? pair : pair[..equals]);
-
-            parameters[key] = equals < 0 ? string.Empty : Uri.UnescapeDataString(pair[(equals + 1)..]);
-        }
-
-        return new UINavigationRequest { Route = address[..query], Parameters = parameters };
     }
 
     /// <summary>Stops the host and every runtime it holds.</summary>

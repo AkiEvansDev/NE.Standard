@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
@@ -26,17 +27,20 @@ public interface IFieldInputComponent : ISizedInputComponent
     /// <summary>
     /// Gets where the caption stands, decided once at render; a multi-line field's box always keeps it on top.
     /// </summary>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIInputTitlePlacement.Top)]
     UIInputTitlePlacement? TitlePlacement { get; }
 
     /// <summary>
     /// Gets or sets how the field surface is drawn; settable so a host can override the shape, as the key-value list does
     /// for an unset editor.
     /// </summary>
+    [UIComponentProperty(DefaultValue = UIInputAppearance.Filled)]
     UIInputAppearance? Appearance { get; set; }
 
     /// <summary>
     /// Gets or sets whether the field's edge takes the brand's colour while it holds the focus; off for a field its container and its
     /// caret already frame, as a composer that is a bubble's whole content. The hover and an open list still answer.
     /// </summary>
+    [UIComponentProperty(DefaultValue = true)]
     bool? ShowFocusEdge { get; set; }
 }

@@ -4,29 +4,30 @@
 // itself, as a menu button opens its list, without the bar's own entries where the host asks for the rest alone.
 
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentKeyAttribute, ContextMenuAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MarkedMenuEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentSelector, ContextMenuAttribute, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { ActionBarMoreClass, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAtPoint } from "./anchored-popup.ts";
-import { isInert } from "./interactive-state.ts";
+import { takesTyping } from "./caret-fields.ts";
+import { isInert, isItemRefused } from "./interactive-state.ts";
 import { isLongPressOpening, LongPress } from "./long-press.ts";
+import { choosesMenuEntry, menuWalk } from "./menu-group-engine.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { shownRules } from "./tab-menu.ts";
 import type { MenuRow } from "./tab-menu.ts";
-import { FocusableSelector, focusBeforePress, focusOpenedList, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
+import { FocusableSelector, focusBeforePress, focusOpenedList, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
+import { cursorRowOf, rowKeyTarget } from "./row-cursor.ts";
+import { rowBox, SelectionRowSelector } from "./row-selection.ts";
+import type { ComponentIndex } from "./popup-focus.ts";
 import { finishTransitions } from "../rendering/motion.ts";
 
-const OwnerAttribute = "data-ui-context-menu-owner";
 const MenuAttribute = ContextMenuAttribute;
 
 // On a menu while it is open; the action bar reads it to keep "more" standing under the menu it opened.
 export const OpenClass = "ui-context-menu--open";
-const EntrySelector = `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`;
 const StripClass = `${ActionBarClass}--strip`;
 // "More" on a bar standing over its host, not in the row atop a menu.
 const MoreSelector = `.${ActionBarClass}:not(.${StripClass}) > .${ActionBarMoreClass}`;
-// A long press in a field is the field's: its caret, its selection, the system's own menu for its text.
-const TypingSelector = "input, textarea, select, [contenteditable=''], [contenteditable='true']";
 
 /** Raised on a menu just before it opens, with the pressed element: an engine sets its entries here, or cancels to keep it shut. */
 export const ContextMenuOpeningEventName = "ui-context-menu-opening";
@@ -37,15 +38,16 @@ export type ContextMenuOpeningDetail = {
     readonly actionBar?: boolean;
 };
 
-/** An entry whose click keeps the menu up: a group's own entry opens its block, a check turns in place. */
-const StayingEntrySelector = MarkedMenuEntrySelector;
 
 export type ContextMenuEngineOptions = {
     readonly root?: ParentNode;
+    /** The page's components by id (the runtime's `DomRegistry`), through which an opener the page redrew away is found again. */
+    readonly dom?: ComponentIndex;
 };
 
 export class ContextMenuEngine {
     private readonly root: ParentNode;
+    private readonly components: ComponentIndex | null;
 
     // The menu last put away, whose fade a new menu cuts short.
     private closed: HTMLElement | null = null;
@@ -63,15 +65,25 @@ export class ContextMenuEngine {
         closesWhenReadOnly: false,
         isInside: ({ popup }, path) => path.includes(popup),
         onPress: true,
-        onWindowBlur: true
+        onWindowBlur: true,
+        closesOnTab: true,
+        sheetOnPhone: true
     });
 
     public constructor(options: ContextMenuEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.components = options.dom ?? null;
 
         // A finger held still asks for the menu too, where iOS Safari raises no `contextmenu` for it; before the listener below, so
         // the browser's own one for a press already answered never reaches it.
-        new LongPress({ root: this.root, first: typeof window === "undefined" ? undefined : window, opensMenu: target => target.closest(`[${OwnerAttribute}]`) !== null && target.closest(TypingSelector) === null });
+        // A long press in a field is the field's: its caret, its selection, the system's own menu for its text. A checkbox's or a slider's
+        // is the row's, as a right press there is. A finger that moves on to drag what it held puts the menu away as a press outside would.
+        new LongPress({
+            root: this.root,
+            first: typeof window === "undefined" ? undefined : window,
+            opensMenu: target => target.closest(`[${ContextMenuOwnerAttribute}]`) !== null && !takesTyping(target),
+            closeMenu: () => this.menus.close(this.menus.current, "outside")
+        });
 
         this.root.addEventListener("contextmenu", domEvent => this.handleContextMenu(domEvent), true);
 
@@ -89,7 +101,10 @@ export class ContextMenuEngine {
         if (!(domEvent instanceof MouseEvent) || !(domEvent.target instanceof Element))
             return;
 
-        const target = domEvent.target;
+        // From the keyboard (Shift+F10, the Menu key) the event names what holds the focus — a host of rows itself: the menu is asked
+        // for where the keyboard is, the cursor's row, and opens at its box rather than at a point the browser made up.
+        const keyboard = !isPointerLast() && !isLongPressOpening(domEvent);
+        const target = (keyboard ? keyboardPlace() : null) ?? domEvent.target;
 
         // A right press on the open menu is the menu's own: nothing opens over it, the browser's menu included.
         if (this.openMenu !== null && domEvent.composedPath().includes(this.openMenu)) {
@@ -105,10 +120,10 @@ export class ContextMenuEngine {
         domEvent.preventDefault();
 
         // A finger's long press: the bar's icons stand atop the menu, its frequent entries one press away.
-        this.open(opened.owner, opened.menu, domEvent.clientX, domEvent.clientY, isTouchOpening(domEvent) ? target : null, target.closest<HTMLElement>(MoreSelector));
+        this.open(opened.owner, opened.menu, domEvent.clientX, domEvent.clientY, isTouchOpening(domEvent) ? target : null, target.closest<HTMLElement>(MoreSelector), keyboard ? boxOf(target) : null);
     }
 
-    private open(owner: HTMLElement, menu: HTMLElement, x: number, y: number, touched: Element | null, more: HTMLElement | null): void {
+    private open(owner: HTMLElement, menu: HTMLElement, x: number, y: number, touched: Element | null, more: HTMLElement | null, box: Element | null): void {
         this.menus.close();
 
         // The row of a bar's icons a long press put atop it last time, and what a bar's "more" left out; this opening draws its own,
@@ -133,15 +148,16 @@ export class ContextMenuEngine {
         const held = active ?? focusBeforePress();
 
         // Under "more" as a menu button's list stands under the button, flipping where there is no room, and as far off the bar as a
-        // list is off its field; else at the pointer.
+        // list is off its field; under the box the keyboard asked from; else at the pointer.
+        const anchor = more ?? box;
         const placement: AnchoredPopupOptions = { placement: "bottom-start", surface: more?.closest(`.${ActionBarClass}`) ?? undefined };
-        const placed = more === null ? {} : { anchor: more, placement };
+        const placed = anchor === null ? {} : { anchor, placement };
 
         // What held the focus, else the owner, else the component around it made focusable for the return: never the body.
-        if (!this.menus.open({ owner, popup: menu, ...placed, returnFocus: () => (held === null ? null : liveFocusReturn(held)) ?? liveFocusReturn(owner) }))
+        if (!this.menus.open({ owner, popup: menu, ...placed, returnFocus: () => (held === null ? null : liveFocusReturn(held, this.components)) ?? liveFocusReturn(owner, this.components) }))
             return;
 
-        if (more === null)
+        if (anchor === null)
             placeAtPoint(menu, x, y);
 
         focusOpening(menu);
@@ -151,10 +167,8 @@ export class ContextMenuEngine {
         if (this.openMenu === null || !domEvent.composedPath().includes(this.openMenu))
             return;
 
-        if (domEvent.target instanceof Element && domEvent.target.closest(StayingEntrySelector) !== null)
-            return;
-
-        this.menus.close();
+        if (domEvent.target instanceof Element && choosesMenuEntry(domEvent.target))
+            this.menus.close();
     }
 }
 
@@ -165,7 +179,7 @@ export class ContextMenuEngine {
 export function contextMenuAt(target: Element): { readonly owner: HTMLElement; readonly menu: HTMLElement } | null {
     const refusing = target.closest(`[${NoContextMenuAttribute}]`);
 
-    for (let owner = target.closest<HTMLElement>(`[${OwnerAttribute}]`); owner !== null; owner = owner.parentElement?.closest<HTMLElement>(`[${OwnerAttribute}]`) ?? null) {
+    for (let owner = target.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`); owner !== null; owner = owner.parentElement?.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`) ?? null) {
         // A part of the owner that refuses a menu — a panel standing over a canvas — keeps the owner's menu off it, as a row does.
         if (refusing !== null && owner.contains(refusing))
             return null;
@@ -190,7 +204,48 @@ export function contextMenuAt(target: Element): { readonly owner: HTMLElement; r
 }
 
 /** Where a context menu's owner is: the attribute the renderer writes on it, for a part looking for its own. */
-export const ContextMenuOwnerSelector = `[${OwnerAttribute}]`;
+const ContextMenuOwnerSelector = `[${ContextMenuOwnerAttribute}]`;
+
+/**
+ * Where the keyboard is, for a context menu's entry chord and a menu asked for from the keyboard: the focused element, or — where a
+ * host of rows holds the focus itself — the row its cursor is on, else its chosen row, else the host (whose rows' menus are then out
+ * of reach).
+ */
+export function keyboardPlace(): Element | null {
+    const active = document.activeElement;
+
+    if (active === null || active === document.body)
+        return null;
+
+    const found = rowKeyTarget(active);
+
+    if (found === null || (found.row !== null && found.row !== active))
+        return active;
+
+    const row = found.row ?? cursorRowOf(found.root);
+
+    return row === null ? found.root : ownerInRow(row);
+}
+
+/** The box a menu asked for from the keyboard opens under: the row the place is in, else the place itself. */
+function boxOf(place: Element): Element {
+    const row = place.closest<HTMLElement>(SelectionRowSelector);
+
+    return row === null ? place : rowBox(row) ?? row;
+}
+
+/** The part of a row its context menu belongs to: the row where it is the owner, else the first owner inside it that is not a nested row's. */
+function ownerInRow(row: HTMLElement): Element {
+    if (row.matches(ContextMenuOwnerSelector))
+        return row;
+
+    for (const owner of row.querySelectorAll(ContextMenuOwnerSelector)) {
+        if (owner.closest(SelectionRowSelector) === row)
+            return owner;
+    }
+
+    return row;
+}
 
 /**
  * The menus a press on `target` inside `owner` may open, in the order they are asked: the pressed part's named one, then the owner's
@@ -215,7 +270,7 @@ function prepareMenu(menu: HTMLElement, target: Element, actionBar: boolean): bo
  * opening asks it; null where that owner opens none for it. `actionBar` asks for the bar's showing rather than for an opening.
  */
 export function actionBarMenuOf(target: Element, actionBar: boolean): HTMLElement | null {
-    const owner = target.closest<HTMLElement>(`[${OwnerAttribute}]`);
+    const owner = target.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`);
     const refusing = target.closest(`[${NoContextMenuAttribute}]`);
 
     if (owner === null || isInert(owner) || isRefused(owner) || (refusing !== null && owner.contains(refusing)))
@@ -323,7 +378,7 @@ function focusOpening(host: HTMLElement): void {
 
     // The stop laid out while the menu was hidden may be an entry this opening left out, or one disabled for it.
     if (menu !== null)
-        focusOpenedList(host, ownDescendants(menu, EntrySelector, `.${MenuRootClass}`));
+        focusOpenedList(host, menuWalk(menu));
 }
 
 /** Swallows the closing press where it lands on nothing focusable, so the keyboard stays where the menu gave it back, not on the body. */
@@ -341,20 +396,30 @@ function keepFocusThroughPress(): void {
 /** This owner's own menu of that name: a renderer may nest menus, but a nested owner's menu must not open for the outer one. */
 function ownMenu(owner: HTMLElement, name: string): HTMLElement | null {
     for (const menu of owner.querySelectorAll<HTMLElement>(`[${MenuAttribute}]`)) {
-        if ((menu.getAttribute(MenuAttribute) ?? "") === name && menu.closest(`[${OwnerAttribute}]`) === owner)
+        if ((menu.getAttribute(MenuAttribute) ?? "") === name && menu.closest(`[${ContextMenuOwnerAttribute}]`) === owner)
             return menu;
     }
 
     return null;
 }
 
-/** Refused where the owner says so, where its row says so, or where the row's host says so for every row. */
+/**
+ * Refused where the owner says so, where its row says so (the item's word or its template's, `isItemRefused`), or where the row's host
+ * says so for every row — the component the items host belongs to, wherever its box puts the host (a table's, under its scroll box).
+ */
 function isRefused(owner: HTMLElement): boolean {
     if (owner.hasAttribute(NoContextMenuAttribute))
         return true;
 
-    const row = owner.closest<HTMLElement>(`[${ComponentKeyAttribute}]`);
-    const host = row?.parentElement?.hasAttribute(ItemsHostAttribute) === true ? row.parentElement : null;
+    const host = owner.closest<HTMLElement>(`[${ItemsHostAttribute}]`);
 
-    return row !== null && (row.hasAttribute(NoContextMenuAttribute) || host?.parentElement?.hasAttribute(NoContextMenuAttribute) === true);
+    if (host === null)
+        return false;
+
+    let row: HTMLElement = owner;
+
+    while (row.parentElement !== null && row.parentElement !== host)
+        row = row.parentElement;
+
+    return isItemRefused(row, NoContextMenuAttribute) || host.closest(ComponentSelector)?.hasAttribute(NoContextMenuAttribute) === true;
 }

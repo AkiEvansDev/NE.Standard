@@ -32,10 +32,12 @@ internal abstract partial class UIRuntimeBase
 
         ArgumentNullException.ThrowIfNull(takeChanges);
 
-        return await InSendOrderAsync(() => PublishExternalControllerChangesCoreAsync(takeChanges, cancellationToken), cancellationToken).ConfigureAwait(false);
+        (ServerChangeSet changeSet, List<UIComponentId>? staleWindows) = await InSendOrderAsync(() => TakeExternalControllerChangesTurnAsync(takeChanges, cancellationToken), cancellationToken).ConfigureAwait(false);
+
+        return await AppendItemWindowReloadsAsync(changeSet, staleWindows, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<ServerChangeSet> PublishExternalControllerChangesCoreAsync(Func<RecursiveChange[]> takeChanges, CancellationToken cancellationToken)
+    private async Task<(ServerChangeSet Changes, List<UIComponentId>? StaleWindows)> TakeExternalControllerChangesTurnAsync(Func<RecursiveChange[]> takeChanges, CancellationToken cancellationToken)
     {
         ServerChangeSet changeSet;
         List<UIComponentId>? staleWindows;
@@ -44,7 +46,7 @@ internal abstract partial class UIRuntimeBase
         try
         {
             if (!IsStarted || IsStopped)
-                return ServerChangeSet.Empty;
+                return (ServerChangeSet.Empty, null);
 
             QueueExternalChangesNoLock(takeChanges());
 
@@ -57,9 +59,7 @@ internal abstract partial class UIRuntimeBase
             _ = _stateLock.Release();
         }
 
-        changeSet = await AppendItemWindowReloadsAsync(changeSet, staleWindows, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
-
-        return await PublishChangesAsync(changeSet, cancellationToken).ConfigureAwait(false);
+        return (await PublishChangesAsync(changeSet, cancellationToken).ConfigureAwait(false), staleWindows);
     }
 
     /// <summary>Queues changes made outside a command — what a background write left for the pump, or for a snapshot to take first.</summary>

@@ -344,6 +344,7 @@ test("a file dragged over the drop target marks it, not the empty shelf, and dro
     area.dispatchEvent(new FakeDragEvent("dragover", area, files));
 
     assert.equal(composer.getAttribute("data-ui-file-drop-over"), "");
+    assert.equal(composer.hasAttribute("data-ui-drop-boxed"), false);
     assert.equal(input.hasAttribute("data-ui-image-dragging"), false);
 
     area.dispatchEvent(new FakeDragEvent("drop", area, files));
@@ -351,6 +352,39 @@ test("a file dragged over the drop target marks it, not the empty shelf, and dro
 
     assert.equal(composer.hasAttribute("data-ui-file-drop-over"), false);
     assert.equal(tiles.children.length, 1);
+});
+
+test("a drop target drawing its field on a box says so beside its mark, so the box wears the drop's edge alone", async () => {
+    const { composer, area } = shelfWithComposer();
+    const files = [fileOf("photo.png", 10)];
+
+    composer.append(FakeElement.of("ui-field-box"));
+    area.dispatchEvent(new FakeDragEvent("dragover", area, files));
+
+    assert.equal(composer.getAttribute("data-ui-file-drop-over"), "");
+    assert.equal(composer.hasAttribute("data-ui-drop-boxed"), true);
+
+    area.dispatchEvent(new FakeDragEvent("drop", area, files));
+    await settle();
+
+    assert.equal(composer.hasAttribute("data-ui-drop-boxed"), false);
+});
+
+test("a shelf says while a square stands on it, and taking the last square off takes the mark with it", async () => {
+    const { input, tiles, native } = shelfWithComposer();
+
+    assert.equal(input.hasAttribute("data-ui-image-tiles"), false);
+
+    pick(native, fileOf("cat.png", 10), fileOf("dog.png", 10));
+    await settle();
+
+    assert.equal(input.hasAttribute("data-ui-image-tiles"), true);
+
+    for (const tile of [...tiles.children])
+        tile.querySelector(".ui-image-input__remove")?.dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(tiles.children.length, 0);
+    assert.equal(input.hasAttribute("data-ui-image-tiles"), false);
 });
 
 test("a read-only input's drop target refuses a file in place", () => {

@@ -21,6 +21,10 @@
     line-clamp: var(--ui-text-max-lines);
     -webkit-line-clamp: var(--ui-text-max-lines);
     -webkit-box-orient: vertical;
+    // Room for the keyboard's frame round a link on an edge line, which the clip cut, given back by the margin so nothing moves: the
+    // clip is the padding box. Two pixels, the frame's reach round running words, within the next line's empty leading.
+    padding: 2px;
+    margin: -2px;
 }
 
 // The quote line runs the block's full height, in a transparent border, as padding would shadow the root's Padding. A pseudo-element,

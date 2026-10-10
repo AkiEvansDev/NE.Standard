@@ -16,7 +16,7 @@ using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
 
-internal sealed partial class UIDirectRuntime(UIHandle handle, CompiledView view, IUIController controller, UIClientServices clientServices, UIApplication application) : UIRuntimeBase(handle, view, controller, clientServices, application)
+internal sealed partial class UIDirectRuntime(UIHandle handle, CompiledView view, IUIController controller, UIClientServices clientServices, UIApplication application, UIHost host) : UIRuntimeBase(handle, view, controller, clientServices, application, host)
 {
     private static partial class Log
     {
@@ -192,11 +192,7 @@ internal sealed partial class UIDirectRuntime(UIHandle handle, CompiledView view
             return result;
 
         // Effects are stripped here so the invoke's own return value does not apply them a second time.
-        return new UICommandExecutionResult
-        {
-            Command = new UICommandResult(result.Command.Success, effects: null, result.Command.Error),
-            Changes = result.Changes
-        };
+        return result with { Command = new UICommandResult(result.Command.Success, effects: null, result.Command.Error) };
     }
 
     protected override void DisposeRuntimeResources()

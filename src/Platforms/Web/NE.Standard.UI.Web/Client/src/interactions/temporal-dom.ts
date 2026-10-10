@@ -1,9 +1,10 @@
 // What every temporal control reads off its own root: the wire contract the C# renderers write, so a name changed here changes there too.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { dateTimePattern, formatTemporal, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
+import { clockHour12, dateTimePattern, formatTemporal, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
 import type { TemporalCulturePack, TemporalLanguage, TemporalPatterns } from "../rendering/temporal-format.ts";
 import type { Phrase } from "../runtime/words.ts";
+import { orderPeriod as orderedPeriod } from "./temporal-range.ts";
 
 export const RootClass = "ui-temporal-input";
 /** A calendar drawn in place (`CalendarComponent`): its root carries the attributes a temporal input's does, and its grid is the popup's. */
@@ -82,6 +83,25 @@ export function stepFor(step: TimeStep, unit: TimeUnit): number {
     return unit === "hour" ? step.hour : unit === "minute" ? step.minute : step.second;
 }
 
+/** A moment's reading of one clock unit. */
+export function unitValue(value: Date, unit: TimeUnit): number {
+    return unit === "hour" ? value.getHours() : unit === "minute" ? value.getMinutes() : value.getSeconds();
+}
+
+/** A moment with one clock unit set and the rest kept: what a segment's step, a typed digit and a clock cell write. */
+export function withUnit(value: Date, unit: TimeUnit, next: number): Date {
+    const result = new Date(value);
+
+    if (unit === "hour")
+        result.setHours(next);
+    else if (unit === "minute")
+        result.setMinutes(next);
+    else
+        result.setSeconds(next);
+
+    return result;
+}
+
 export function readCulturePack(root: HTMLElement): TemporalCulturePack {
     return {
         monthNames: readList(root, MonthsAttribute),
@@ -137,7 +157,7 @@ export function hourLabel(hour: number, twelveHour: boolean, culture: TemporalCu
         return String(hour).padStart(2, "0");
 
     const designator = hour < 12 ? culture.amDesignator : culture.pmDesignator;
-    const counted = String(hour % 12 === 0 ? 12 : hour % 12);
+    const counted = String(clockHour12(hour));
 
     return designator.length === 0 ? counted : `${counted} ${designator}`;
 }
@@ -244,14 +264,14 @@ export function orderPeriod(root: HTMLElement): void {
     if (!isRange(root))
         return;
 
-    const start = readValueOf(root, false);
-    const end = readValueOf(root, true);
+    const period = { start: readValueOf(root, false), end: readValueOf(root, true) };
+    const ordered = orderedPeriod(period);
 
-    if (start === null || end === null || end.getTime() >= start.getTime())
+    if (ordered === period)
         return;
 
-    writeValueOf(root, end, false);
-    writeValueOf(root, start, true);
+    writeValueOf(root, ordered.start, false);
+    writeValueOf(root, ordered.end, true);
 }
 
 /**

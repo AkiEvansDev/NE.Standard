@@ -41,7 +41,7 @@ internal sealed class WebUIMetrics : IDisposable
         _filesTransferred = _meter.CreateCounter<long>("ne.ui.web.files.transferred", "By", "Bytes of files uploaded to and downloaded from the file endpoints.");
 
         _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held", () => ObserveHeld(services, static cache => cache.HeldCount), "{render}", "The renders the render cache holds in memory.");
-        _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held.length", () => ObserveHeld(services, static cache => cache.HeldLength), "{char}", "The characters of markup and metadata the render cache holds in memory.");
+        _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held.size", () => ObserveHeld(services, static cache => cache.HeldBytes), "By", "The bytes the renders the render cache holds in memory take.");
         _ = _meter.CreateObservableCounter("ne.ui.web.render_cache.disk.io", () => ObserveDisk(services), "By", "Bytes the render cache read from and wrote to its folder.");
         _ = _meter.CreateObservableUpDownCounter("ne.ui.web.values.staged", () => values.Count, "{value}", "Values too large for the hub staged beside it now.");
         _ = _meter.CreateObservableUpDownCounter("ne.ui.web.values.staged.size", () => values.Size, "By", "The bytes the staged values hold now.");

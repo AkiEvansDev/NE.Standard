@@ -26,8 +26,8 @@ html {
 }
 
 // A shell that scrolls its own regions never scrolls the document, and a reserved gutter there only cuts every fixed layer —
-// the backdrop, a sheet, the toasts — short of the window's edge; the regions keep their own gutters.
-html:has(> body > [data-ui-root][data-ui-scroll-content]) {
+// the backdrop, a sheet, the toasts — short of the window's edge; the regions keep their own gutters. The shell marks the document too.
+html[data-ui-scroll-content] {
     scrollbar-gutter: auto;
 }
 
@@ -69,9 +69,10 @@ video {
     .ui-focus-ring();
 }
 
-// A layer holding the keyboard (popup-focus.ts), a list opened by the pointer, whose container holds it until an arrow, and the region
-// the skip link put it on are no controls: no ring, as on a dialog's surface.
-:is([data-ui-focus-holder], .ui-context-menu, .ui-split-button__menu > .ui-menu, .ui-language-switcher__menu, [data-ui-region]):focus {
+// A layer holding the keyboard (popup-focus.ts's `FocusHolderSelector`: a dialog's surface, a flyout's content, a marked holder), a
+// list opened by the pointer, whose container holds it until an arrow, and a region the keyboard was handed to (focus-handoff.ts)
+// are no controls: no ring.
+:is(.ui-dialog__surface, .ui-flyout__content, [data-ui-focus-holder], .ui-context-menu, .ui-split-button__menu > .ui-menu, .ui-language-switcher__menu, [data-ui-region]):focus {
     outline: none;
 }
 

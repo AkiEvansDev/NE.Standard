@@ -106,24 +106,13 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
             _ => null
         };
 
-        if (region is null || !view.Options.SideDrawers || !HasRegion(view, region))
+        if (region is null || !view.Options.SideDrawers || view.FindRegion(region) is null)
             return;
 
         _ = root
             .Attribute(WebAttributes.DrawerToggle, region)
             .Attribute("aria-expanded", "false")
             .Attribute("aria-controls", WebAttributes.DrawerId(region));
-    }
-
-    private static bool HasRegion(CompiledView view, string key)
-    {
-        foreach (CompiledRegion region in view.Regions)
-        {
-            if (string.Equals(region.Key, key, StringComparison.Ordinal))
-                return true;
-        }
-
-        return false;
     }
 
     /// <summary>
@@ -137,6 +126,10 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
     /// The same label inside <paramref name="host"/> — the press a composite control draws inside its root, which is what takes the name.
     /// </summary>
     protected static void RenderButtonLabel(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder host)
+        => RenderButtonLabel(context, root, host, null);
+
+    /// <summary>The label with <paramref name="partsShown"/> run after its parts' own operations, as a text body's.</summary>
+    protected static void RenderButtonLabel(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder host, WebDomOperation? partsShown)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -150,7 +143,9 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
             {
                 IncludeTextLayout = true,
                 DefaultBadgePlacement = UITextBadgePlacement.Trailing,
-                TooltipNamesHost = true
+                TooltipNamesHost = true,
+                AlignsRoot = true,
+                PartsShownOperation = partsShown
             });
         });
 

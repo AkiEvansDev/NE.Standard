@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Items;
 using NE.Standard.UI.Abstractions.Recursive;
@@ -60,7 +59,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
     private readonly Dictionary<string, string?> _parentByComponentId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<UIComponentSlot>> _slotsByOwnerComponentId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UIComponentSlot> _slotByRootComponentId = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, UIPropertyDefinition[]> _propertyDefinitionsCache = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UIComponentTypeState> _typeStates = new(StringComparer.Ordinal);
     private readonly List<CompiledRegion> _regions = [];
     private readonly List<CompiledDialog> _dialogs = [];
 

@@ -18,3 +18,14 @@ export function writeSelectedKey(root: HTMLElement, key: string, options: Select
     if (root.hasAttribute(options.bindingAttribute))
         root.dispatchEvent(new Event("change", { bubbles: true }));
 }
+
+/**
+ * The tab a strip shows, of its shown tabs: the selected key where one carries it, else the first one's — a stale or missing key and a
+ * hidden tab alike, as the server's first paint decides it — or null where no tab is shown.
+ */
+export function resolveShownKey<T>(shown: readonly T[], selected: string, keyOf: (tab: T) => string): string | null {
+    if (shown.length === 0)
+        return null;
+
+    return shown.some(tab => keyOf(tab) === selected) ? selected : keyOf(shown[0]);
+}

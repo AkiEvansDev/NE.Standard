@@ -100,7 +100,7 @@ test("a select's option the arrows made current wears the keyboard's frame; the 
 
 test("a list's keyboard entry is lit only under a focus a key gave, and stays as it is while the pointer crosses it", () => {
     // @ui-button-live as it compiles: not disabled or loading, nor the owner of a popup the pointer is in.
-    const live = ":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not(:has([role='menu']:hover, [role='listbox']:hover)))";
+    const live = ":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not([data-ui-popup-hover]))";
 
     for (const entry of [`.ui-menu-item${live}`, `.ui-tab-overflow__entry${live}`, ".ui-temporal-input__day"]) {
         const focus = `${entry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:focus-visible:not\\(\\[data-ui-pointer-focus\\]\\)`;
@@ -113,8 +113,19 @@ test("a list's keyboard entry is lit only under a focus a key gave, and stays as
     }
 });
 
+test("a resting pointer's entry stays quiet, and a chip wears the frame, by the keyboard's mark on the list, not by a :has()", () => {
+    const keyboard = "[data-ui-focus-within='keyboard']";
+    const lists = [`> .ui-menu${keyboard} .ui-menu-item`, `.ui-pager__sizes${keyboard} > .ui-pager__size-choice`, `.ui-tab-overflow__menu${keyboard} > .ui-tab-overflow__entry`, `.ui-language-switcher__menu${keyboard} > .ui-language-switcher__choice`, `.ui-temporal-input__days${keyboard} > .ui-temporal-input__day`, `.ui-temporal-input__time-columns${keyboard} > .ui-temporal-input__time-column > .ui-temporal-input__time-cell`];
+
+    for (const list of lists)
+        assert.match(css, new RegExp(`${list.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:[^{]*:hover:not\\(:active\\) \\{\\s*background-color: transparent;`), `${list} keeps its resting pointer's wash`);
+
+    assert.match(css, new RegExp(`\\.ui-multi-select__chip\\[data-ui-focus-within='keyboard'\\] ${KeyboardFrame}`), "a chip the keyboard walked onto wears no frame");
+    assert.doesNotMatch(css, /:has\([^)]*:focus/, "a focus is read through a :has()");
+});
+
 test("a field lights its edge for no focus the pointer handed back, and a field with a message keeps its edge through any focus", () => {
-    const handedBack = ":focus-within:where(:not([data-ui-pointer-focus], :has([data-ui-pointer-focus]:focus)))";
+    const handedBack = ":focus-within:where(:not([data-ui-pointer-focus], [data-ui-focus-within='pointer']))";
 
     assert.doesNotMatch(css, /:focus-within \{\s*border-color: var\(--ui-color-primary\)/, "a field's edge lights on a bare :focus-within");
     assert.ok(css.includes(`${handedBack} {\n  border-color: var(--ui-color-primary);`), "a field's edge does not skip a focus the pointer handed back");

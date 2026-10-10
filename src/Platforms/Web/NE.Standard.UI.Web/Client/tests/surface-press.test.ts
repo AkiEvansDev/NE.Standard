@@ -1,11 +1,12 @@
 // A clickable surface is a press target for the keyboard: a Tab stop, Enter and Space raising its click (Space on its release), a
 // button to a screen reader while it holds no control of its own and a group once it does; a disabled or loading one is no stop, and
-// a key from a control inside it is that control's.
+// a key from a control inside it is that control's. Under the pointer it washes and presses only where no control of its own takes the
+// pointer, which the engine marks on it.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FakeElement, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({
     MutationObserver: class {
@@ -125,4 +126,81 @@ test("a picture of a surface, with no id, is left alone", () => {
     start(copy);
 
     assert.equal(copy.hasAttribute("tabindex"), false);
+});
+
+/** A pointer event on `target`, as the root hears it bubbling up. */
+function pointer(type: string, target: FakeElement, init: Readonly<Record<string, unknown>> = {}): void {
+    target.dispatchEvent(Object.assign(new FakeEvent(type), { button: 0, relatedTarget: null }, init));
+}
+
+const Mark = "data-ui-inner-pointer";
+
+test("the pointer over a control inside marks every clickable surface around it, and off it on the surface's own ground", () => {
+    const glyph = FakeElement.of("ui-icon");
+    const button = FakeElement.of("ui-button", {}, "button").append(glyph);
+    const words = FakeElement.of("ui-text");
+    const card = surface("ui-card ui-surface--clickable", words, button);
+    const outer = surface(undefined, card);
+    const plain = surface("ui-surface", FakeElement.of("ui-button", {}, "button"));
+
+    start(outer, plain);
+
+    pointer("pointerover", glyph);
+    assert.deepEqual([card.getAttribute(Mark), outer.getAttribute(Mark)], ["hover", "hover"]);
+
+    pointer("pointerover", words);
+    assert.deepEqual([card.hasAttribute(Mark), outer.hasAttribute(Mark)], [false, false]);
+
+    pointer("pointerover", plain.children[0]);
+    assert.equal(plain.hasAttribute(Mark), false);
+});
+
+test("a press on a control inside holds its mark until the release, wherever the pointer goes meanwhile", () => {
+    const button = FakeElement.of("ui-button", {}, "button");
+    const words = FakeElement.of("ui-text");
+    const card = surface("ui-card ui-surface--clickable", words, button);
+
+    start(card);
+
+    pointer("pointerover", button);
+    pointer("pointerdown", button);
+    assert.equal(card.getAttribute(Mark), "hover press");
+
+    pointer("pointerout", button, { relatedTarget: words });
+    pointer("pointerover", words);
+    assert.equal(card.getAttribute(Mark), "press");
+
+    pointer("pointerup", words);
+    assert.equal(card.hasAttribute(Mark), false);
+
+    // A press that becomes a drag holds `:active` through it: the browser's cancel at the drag's start leaves the mark, its end takes it.
+    pointer("pointerdown", button);
+    pointer("dragstart", button);
+    pointer("pointercancel", button);
+    assert.equal(card.getAttribute(Mark), "press");
+
+    pointer("dragend", button);
+    assert.equal(card.hasAttribute(Mark), false);
+
+    // A press the browser cancels with no drag (a finger turning into a scroll) is over.
+    pointer("pointerdown", button);
+    pointer("pointercancel", button);
+    assert.equal(card.hasAttribute(Mark), false);
+
+    // A press on the surface's own ground is the surface's; a secondary button presses nothing.
+    pointer("pointerdown", words);
+    pointer("pointerdown", button, { button: 2 });
+    assert.equal(card.hasAttribute(Mark), false);
+});
+
+test("the pointer leaving the page takes the hover mark off", () => {
+    const button = FakeElement.of("ui-button", {}, "button");
+    const card = surface("ui-card ui-surface--clickable", button);
+
+    start(card);
+
+    pointer("pointerover", button);
+    pointer("pointerout", button);
+
+    assert.equal(card.hasAttribute(Mark), false);
 });

@@ -89,6 +89,7 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "local-filter.title",
             UILayout.Stack(8)
                 .AddChild(new TextInputComponent(LocalFilterId)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetTitle("demo.mechanisms.lists.filter")
                     .SetDebounceMilliseconds(150)
                 )
@@ -155,6 +156,7 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "server-filter.title",
             UILayout.Stack(8)
                 .AddChild(new TextInputComponent(ServerFilterId)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetTitle("demo.mechanisms.lists.filter")
                     .BindValue(nameof(ListsController.RowsFilter))
                 )
@@ -256,6 +258,7 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
                         )
                     )
                     .AddChild(new TextAreaComponent()
+                        .SetAppearance(UIInputAppearance.Ghost)
                         .SetSize(UIInputSize.Small)
                         .SetRows(1)
                         .SetAutoGrow(4)

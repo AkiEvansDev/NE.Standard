@@ -134,10 +134,14 @@ test("the indicator look stands nothing in the host while older rows are read: t
     engine.reconsider();
 
     assert.equal(host.getAttribute("data-ui-window-pending"), "after");
+    // The view's root draws the indicator, so it carries the edge too: the stylesheet reads no child's mark.
+    assert.equal(host.parentElement?.getAttribute("data-ui-window-pending"), "after");
     assert.deepEqual([...host.children], before);
 
     reads.release();
     await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(host.parentElement?.hasAttribute("data-ui-window-pending"), false);
 });
 
 test("a host read from its end says the top is the edge older rows come in at", async () => {
@@ -159,4 +163,14 @@ test("a host read from its end says the top is the edge older rows come in at", 
 
     reads.release();
     await new Promise(resolve => setImmediate(resolve));
+});
+
+test("attached again, a host whose next rows a dropped connection cut asks for them again rather than wait for a scroll", () => {
+    const { engine, reads } = scene({ boxes: [[0, 0], [0, 30], [0, 60]] });
+
+    assert.deepEqual(reads.anchors, []);
+
+    engine.start();
+
+    assert.deepEqual(reads.anchors, ["After"]);
 });

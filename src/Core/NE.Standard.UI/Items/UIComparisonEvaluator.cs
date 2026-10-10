@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Items;
 
@@ -52,9 +53,8 @@ public static class UIComparisonEvaluator
             null => string.Empty,
             string text => text,
             bool flag => flag ? "true" : "false",
-            double number => FormatNumber(number.ToString("R", CultureInfo.InvariantCulture)),
-            float number => FormatNumber(number.ToString("R", CultureInfo.InvariantCulture)),
-            decimal number => FormatNumber(number.ToString(CultureInfo.InvariantCulture)),
+            // As the page holds a number, a double, and writes it: a decimal's or a long's digits past a double's read as the page's.
+            _ when UIScriptNumber.TryRead(value, out var number) => UIScriptNumber.Format(number),
             // A moment as the wire writes it, which is the text the client compares and the shape that orders as the moments do.
             DateTime moment => moment.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture),
             DateTimeOffset moment => moment.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", CultureInfo.InvariantCulture),
@@ -64,50 +64,6 @@ public static class UIComparisonEvaluator
             IEnumerable elements => JoinElements(elements),
             _ => value.ToString() ?? string.Empty
         };
-
-    /// <summary>
-    /// Formats a number the way JavaScript's <c>String(n)</c> would, so text comparisons agree with the client.
-    /// </summary>
-    private static string FormatNumber(string roundTrip)
-    {
-        var negative = roundTrip.StartsWith('-');
-        var text = negative ? roundTrip[1..] : roundTrip;
-
-        if (text is "NaN" or "Infinity" or "∞")
-            return negative && text != "NaN" ? "-Infinity" : text == "NaN" ? "NaN" : "Infinity";
-
-        var exponentIndex = text.IndexOfAny(['E', 'e']);
-        var mantissa = exponentIndex < 0 ? text : text[..exponentIndex];
-        var exponent = exponentIndex < 0 ? 0 : int.Parse(text[(exponentIndex + 1)..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
-        var pointIndex = mantissa.IndexOf('.', StringComparison.Ordinal);
-        var digits = pointIndex < 0 ? mantissa : mantissa.Remove(pointIndex, 1);
-        var integerDigits = pointIndex < 0 ? mantissa.Length : pointIndex;
-
-        var leadingZeros = 0;
-
-        while (leadingZeros < digits.Length - 1 && digits[leadingZeros] == '0')
-            leadingZeros++;
-
-        digits = digits[leadingZeros..].TrimEnd('0');
-        integerDigits -= leadingZeros;
-
-        if (digits.Length == 0)
-            return "0";
-
-        // ECMAScript Number::toString: n is where the point sits relative to the digits, k how many there are.
-        var n = integerDigits + exponent;
-        var k = digits.Length;
-
-        var result = n switch
-        {
-            <= 21 when k <= n => digits + new string('0', n - k),
-            > 0 and <= 21 => digits[..n] + "." + digits[n..],
-            > -6 and <= 0 => "0." + new string('0', -n) + digits,
-            _ => (k == 1 ? digits : digits[..1] + "." + digits[1..]) + "e" + (n < 1 ? "-" : "+") + Math.Abs(n - 1).ToString(CultureInfo.InvariantCulture)
-        };
-
-        return negative ? "-" + result : result;
-    }
 
     /// <summary>
     /// Joins elements the way JavaScript's <c>String(array)</c> would — comma-separated, empty for an empty array.

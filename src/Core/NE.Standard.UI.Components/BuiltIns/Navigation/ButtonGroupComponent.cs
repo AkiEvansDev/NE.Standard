@@ -1,6 +1,8 @@
+using System;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -18,7 +20,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IButtonModel, IButtonComponent>, ISurfaceComponent, IBorderedComponent, ISelectionStyleComponent, IButtonTemplatedItemsComponent
+public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IButtonModel, IButtonComponent>, ISurfaceComponent, IBorderedComponent, ISelectionStyleComponent, IItemClickComponent
     where T : ButtonGroupComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -46,6 +48,12 @@ public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IB
 
         _ = SetTemplate(new DefaultButtonTemplate(binds: true).SetType(UIButtonType.Ghost));
     }
+
+    /// <summary>
+    /// Writes a click registration on the item template, now and on every one set later.
+    /// </summary>
+    public void OnClickableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(register);
 }
 
 /// <summary>

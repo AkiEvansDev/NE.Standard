@@ -24,8 +24,6 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// </summary>
 public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string OptionRole = "option";
-
     public override string ComponentTypeKey => MultiSelectComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-multi-select";
@@ -54,7 +52,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         WebRenderValueKind valueKind = RenderChosenKeys(context, root, out IReadOnlyList<string> chosenKeys, out CompiledUIBinding? valueBinding);
 
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, SelectComponentRenderer.OptionWrapperElementName, SelectComponentRenderer.OptionWrapperClassName, itemWrapperRole: OptionRole, announcesSelection: true);
+        RegisterItemsTemplateMetadata(context, SelectComponentRenderer.OptionWrapperElementName, SelectComponentRenderer.OptionWrapperClassName, itemWrapperRole: SelectComponentRenderer.OptionRole, announcesSelection: true);
         RegisterItemsFilterSortMetadata(context);
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
@@ -71,7 +69,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is int max && max > 0)
                 _ = target.Attribute(WebAttributes.SelectMax, max.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SelectMax, target: "root")]);
+        }, [WebDomOperation.Attribute(WebAttributes.SelectMax, target: "root", converter: WebDomConverters.PositiveCount)]);
 
     /// <summary>
     /// The chosen keys live in one root-level attribute, as the select's one key does; a key given twice is taken once, since the
@@ -156,10 +154,15 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
                     }
                 }
 
-                SelectComponentRenderer.RenderPlaceholder(context, chips, hidden: drawn > 0);
+                // The clear reads it, as the client keeps it once it draws the chips.
+                if (drawn > 0)
+                    _ = chips.Attribute(WebAttributes.SelectChips);
 
                 if (freeText)
                     _ = chips.Element("input", entry => RenderEntry(context, root, entry));
+
+                // After the entry, whose `:placeholder-shown` hides it as a sibling once text is typed; placed over it, so the order shows nothing.
+                SelectComponentRenderer.RenderPlaceholder(context, chips, hidden: drawn > 0);
             });
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: true));
@@ -188,7 +191,6 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
     private static void RenderEntry(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder entry)
     {
         _ = entry.Class("ui-multi-select__entry");
-        _ = entry.Attribute(WebAttributes.Draft);
         _ = entry.Attribute("type", "text");
         _ = entry.Attribute("autocomplete", "off");
         _ = entry.Attribute("enterkeyhint", "enter");

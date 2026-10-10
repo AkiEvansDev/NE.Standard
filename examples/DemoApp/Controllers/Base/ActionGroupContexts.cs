@@ -106,6 +106,9 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
     public partial UIThemeColor? Color { get; set; }
 
     [RecursiveMember]
+    public partial UIBadgeFill? Fill { get; set; }
+
+    [RecursiveMember]
     public partial string? Icon { get; set; }
 
     [RecursiveMember]
@@ -124,6 +127,7 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
     {
         AddOption(nameof(Type), CycleType, () => Type);
         AddOption(nameof(Color), CycleColor, () => Color);
+        AddOption(nameof(Fill), CycleFill, () => Fill);
         AddOption(nameof(Icon), CycleIcon, () => Icon);
         AddOption(nameof(IconColor), CycleIconColor, () => IconColor);
         AddOption(nameof(IconSize), CycleIconSize, () => IconSize);
@@ -138,6 +142,10 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
     // Color overrides Type: set, the pill carries that colour tinted rather than the type's own paint.
     public void CycleColor()
         => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.FromStyle(UIColorStyle.Accent), UIThemeColor.FromStyle(UIColorStyle.Warning), null));
+
+    // Unset, a Type fills and a Color tints; set, either one wears the fill named.
+    public void CycleFill()
+        => SetLastChange(nameof(Fill), Fill = CycleEnum(Fill));
 
     public void CycleIcon()
         => SetLastChange(nameof(Icon), Icon = CycleIconValue(Icon, DemoIcons.Clock));

@@ -161,6 +161,12 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnNodeClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
 
     /// <summary>
+    /// Registers the command a press on a node runs, with literal argument values.
+    /// </summary>
+    public T OnNodeClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRowClickLiteral(command, arguments);
+
+    /// <summary>
     /// Registers the command a double click or Enter on a node runs, with the node's key as an argument.
     /// </summary>
     public T OnNodeOpenWithItemKey(string command, string argumentName = "id")

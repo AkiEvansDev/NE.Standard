@@ -6,6 +6,8 @@ import {
     SelectedKeysAttribute, SelectionAttribute, TableRowClass, TreeRootClass, TreeRowClass, UnselectableAttribute
 } from "../addressing/dom-attributes.ts";
 import { isItemDisabled, isItemRefused } from "./interactive-state.ts";
+import { parseChosenKeys } from "./multi-select-keys.ts";
+import { ownDescendants } from "./own-descendants.ts";
 import { writeSelectedKey } from "./selected-key.ts";
 
 const SelectedKeysBindingAttribute = "data-ui-bind-selected-keys";
@@ -110,7 +112,13 @@ export function selectedRows(rows: readonly HTMLElement[]): HTMLElement[] {
 }
 
 /** Chooses the row the way the mode and the gesture say; answers false when the host chooses nothing or the row refuses. */
-export function chooseRow(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, gesture: SelectionGesture): boolean {
+/**
+ * The keys a Shift range takes between two keys, rows drawn or not, in the host's order — a virtualized host's (`HeldRows.rangeKeysOf`);
+ * null where the host holds its rows whole, or does not show both.
+ */
+export type HeldRange = (from: string, to: string) => readonly string[] | null;
+
+export function chooseRow(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, gesture: SelectionGesture, heldRange?: HeldRange): boolean {
     const key = rowKey(row);
 
     if (!isChoosable(row))
@@ -121,14 +129,14 @@ export function chooseRow(root: HTMLElement, rows: readonly HTMLElement[], row: 
             writeSelectedKey(root, key, { attribute: SelectedKeyAttribute, bindingAttribute: BindSelectedKeyAttribute, apply: target => markSelectedRows(target, rows) });
             return true;
         case "many":
-            chooseMany(root, rows, row, key, gesture);
+            chooseMany(root, rows, row, key, gesture, heldRange);
             return true;
         default:
             return false;
     }
 }
 
-function chooseMany(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, key: string, gesture: SelectionGesture): void {
+function chooseMany(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, key: string, gesture: SelectionGesture, heldRange?: HeldRange): void {
     const host = hostOf(root);
 
     if (host === null)
@@ -138,8 +146,10 @@ function chooseMany(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLEl
     let next: string[];
 
     if (gesture.shift) {
-        const anchor = rows.find(candidate => rowKey(candidate) === anchors.get(root)) ?? row;
-        const range = rangeBetween(rows, anchor, row).map(rowKey);
+        const anchorKey = anchors.get(root);
+        const held = anchorKey === undefined ? null : heldRange?.(anchorKey, key) ?? null;
+        const anchor = rows.find(candidate => rowKey(candidate) === anchorKey) ?? row;
+        const range = held === null ? rangeBetween(rows, anchor, row).map(rowKey) : choosableOf(held, rows);
 
         // Ctrl+Shift keeps what was chosen outside the range; Shift alone replaces it.
         next = gesture.ctrl ? [...keys.filter(existing => !range.includes(existing)), ...range] : range;
@@ -178,6 +188,17 @@ function isChoosable(row: Element): boolean {
     return rowKey(row).length > 0 && !isItemRefused(row, UnselectableAttribute) && !isItemDisabled(row);
 }
 
+/** A held range's keys less the rows drawn that cannot be chosen: one not drawn answered for itself as the range was read. */
+function choosableOf(keys: readonly string[], rows: readonly HTMLElement[]): string[] {
+    const drawn = new Map(rows.map(row => [rowKey(row), row]));
+
+    return keys.filter(key => {
+        const row = drawn.get(key);
+
+        return row === undefined || (rowBox(row) !== null && isChoosable(row));
+    });
+}
+
 /** The rows from one to the other, in the host's order, that can be chosen: drawn, enabled, not refusing. */
 function rangeBetween(rows: readonly HTMLElement[], from: HTMLElement, to: HTMLElement): HTMLElement[] {
     const start = rows.indexOf(from);
@@ -189,19 +210,9 @@ function rangeBetween(rows: readonly HTMLElement[], from: HTMLElement, to: HTMLE
     return rows.slice(Math.min(start, end), Math.max(start, end) + 1).filter(row => rowBox(row) !== null && isChoosable(row));
 }
 
+/** A host's chosen keys, read as a multi-select's are: each once, an empty or unreadable one none. */
 function readKeyList(host: HTMLElement | null): string[] {
-    const text = host?.getAttribute(SelectedKeysAttribute) ?? null;
-
-    if (text === null || text.length === 0)
-        return [];
-
-    try {
-        const parsed: unknown = JSON.parse(text);
-
-        return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === "string") : [];
-    } catch {
-        return [];
-    }
+    return parseChosenKeys(host?.getAttribute(SelectedKeysAttribute) ?? null);
 }
 
 /**
@@ -247,7 +258,7 @@ function toggleSelectedRow(row: Element): void {
     const host = row.closest<HTMLElement>(SelectionRootSelector);
 
     if (host !== null && row instanceof HTMLElement)
-        chooseRow(host, selectableRows(host), row, { shift: false, ctrl: true });
+        chooseRow(host, ownRows(host), row, { shift: false, ctrl: true });
 }
 
 function setRowsSelected(root: Element, rows: Iterable<Element>, selected: boolean): void {
@@ -266,7 +277,7 @@ function setKeysSelected(root: Element, keys: Iterable<string>, selected: boolea
     if (!(root instanceof HTMLElement))
         return;
 
-    const rows = selectableRows(root);
+    const rows = ownRows(root);
     // A drawn row that refuses a choice keeps what it was; a key with no row drawn (a virtualized host's) is taken as named.
     const refusing = new Set(rows.filter(row => !isChoosable(row)).map(rowKey));
     const named = new Set<string>();
@@ -281,7 +292,7 @@ function setKeysSelected(root: Element, keys: Iterable<string>, selected: boolea
     writeSelectedKeys(root, rows, selected ? [...kept, ...named] : kept);
 }
 
-/** The host's own rows, a nested list's left to it. */
-function selectableRows(root: HTMLElement): HTMLElement[] {
-    return [...root.querySelectorAll<HTMLElement>(SelectionRowSelector)].filter(row => row.closest(SelectionRootSelector) === root);
+/** A host's own rows, a nested list's left to it. */
+export function ownRows(root: HTMLElement): HTMLElement[] {
+    return ownDescendants(root, SelectionRowSelector, SelectionRootSelector);
 }

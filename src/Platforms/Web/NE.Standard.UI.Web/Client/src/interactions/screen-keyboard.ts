@@ -4,7 +4,7 @@
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { KeyboardUpAttribute } from "../addressing/dom-attributes.ts";
-import { isCaretField } from "./caret-fields.ts";
+import { takesTyping } from "./caret-fields.ts";
 
 /** Shorter than the tallest the window has stood at this width by more than this, the viewport has a keyboard over it. */
 const KeyboardPixels = 120;
@@ -19,11 +19,6 @@ type ScreenKeyboardReading = {
 /** Whether the keyboard is up: a field takes typing and the window has lost more than a bar's height to something over it. */
 export function isKeyboardUp(reading: ScreenKeyboardReading): boolean {
     return reading.typing && reading.tallest - reading.height > KeyboardPixels;
-}
-
-/** Whether the focused element takes typing, which is what brings a phone's keyboard up. */
-export function takesTyping(element: Element | null): boolean {
-    return isCaretField(element) || (element instanceof HTMLElement && element.isContentEditable);
 }
 
 export class ScreenKeyboardEngine {

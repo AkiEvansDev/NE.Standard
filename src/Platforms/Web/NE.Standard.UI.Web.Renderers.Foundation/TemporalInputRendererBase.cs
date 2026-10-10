@@ -146,6 +146,10 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         {
             _ = row.Class($"{SharedClassName}__row");
 
+            // The row holding the calendar's toggle says so, which a period's row keeps the room at its end for.
+            if (HasPicker)
+                _ = row.Class($"{SharedClassName}__row--picker");
+
             // A period's two parts are one answer to one caption: the row is the group the caption names.
             if (isRange)
             {

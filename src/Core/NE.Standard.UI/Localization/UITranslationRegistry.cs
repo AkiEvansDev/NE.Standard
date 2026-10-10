@@ -237,9 +237,9 @@ internal sealed class UITranslationRegistry : ITranslator
 
     private string LookupPlural(string language, string key, double count)
     {
-        var form = string.Concat(key, ".", UIPluralRules.Suffix(UIPluralRules.Select(language, count)));
+        var form = UIPluralRules.FormKey(key, UIPluralRules.Select(language, count));
 
-        if (TryLookup(language, form, out var value, out var inLanguage) || TryLookup(language, key + ".other", out value, out inLanguage))
+        if (TryLookup(language, form, out var value, out var inLanguage) || TryLookup(language, UIPluralRules.FormKey(key, UIPluralCategory.Other), out value, out inLanguage))
         {
             if (!inLanguage)
                 RecordMissing(language, key, fellToKey: false);
@@ -354,7 +354,7 @@ internal sealed class UITranslationRegistry : ITranslator
     private static bool IsFormNeverPicked(string language, string key, Dictionary<string, string> words)
         => UIPluralRules.TryReadForm(key, out var stem, out UIPluralCategory category)
             && !UIPluralRules.HasForm(language, category)
-            && (words.ContainsKey(stem + ".other") || words.ContainsKey(stem));
+            && (words.ContainsKey(UIPluralRules.FormKey(stem, UIPluralCategory.Other)) || words.ContainsKey(stem));
 
     /// <summary>
     /// Records each plural form the language picks and no table holds — ru's <c>files.few</c> beside English's <c>.one</c>/<c>.other</c>:
@@ -362,14 +362,10 @@ internal sealed class UITranslationRegistry : ITranslator
     /// </summary>
     private static void RecordMissingForms(UIMissingWords missing, string language, Dictionary<string, string> words)
     {
-        const string OtherSuffix = ".other";
-
         foreach (var key in words.Keys)
         {
-            if (!key.EndsWith(OtherSuffix, StringComparison.Ordinal))
+            if (!UIPluralRules.TryReadForm(key, out var stem, out UIPluralCategory listed) || listed != UIPluralCategory.Other)
                 continue;
-
-            var stem = key[..^OtherSuffix.Length];
 
             for (UIPluralCategory category = UIPluralCategory.Zero; category < UIPluralCategory.Other; category++)
             {
@@ -377,7 +373,7 @@ internal sealed class UITranslationRegistry : ITranslator
                     continue;
 
                 // A form some table lists is the loop above's to judge.
-                var form = string.Concat(stem, ".", UIPluralRules.Suffix(category));
+                var form = UIPluralRules.FormKey(stem, category);
 
                 if (!words.ContainsKey(form))
                     missing.Record(language, form);

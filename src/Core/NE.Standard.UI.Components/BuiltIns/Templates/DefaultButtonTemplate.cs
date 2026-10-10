@@ -24,12 +24,11 @@ public abstract class DefaultButtonTemplate<TTemplate> : ButtonComponent<TTempla
         {
             _ = this.BindText();
 
-            _ = Bind(VisibilityProperty, nameof(ITextModel.Visibility), UIBindingScope.Relative);
-            _ = Bind(EnabledProperty, nameof(ITextModel.Enabled), UIBindingScope.Relative);
+            _ = this.BindItemState();
 
             // Safe to bind unconditionally: every item this template renders is IButtonModel-shaped.
-            _ = Bind(TypeProperty, nameof(IButtonModel.Type), UIBindingScope.Relative);
-            _ = Bind(SizeProperty, nameof(IButtonModel.Size), UIBindingScope.Relative);
+            _ = Bind(TypeProperty, nameof(IButtonModel.Type), UIBindingScope.Relative, optional: true);
+            _ = Bind(SizeProperty, nameof(IButtonModel.Size), UIBindingScope.Relative, optional: true);
         }
     }
 }

@@ -9,10 +9,12 @@
     display: flex;
 }
 
+// Wrapped lines stand together in the middle, as one line does: left `normal`, a bar taller than its lines spread them over its height.
 .ui-command-bar__host {
     display: flex;
     flex: 1 1 auto;
     align-items: center;
+    align-content: center;
     .ui-responsive-property(gap, --ui-command-bar-spacing, @ui-space-2);
 }
 
@@ -24,12 +26,12 @@
     }
 
 // A bar on one line keeps every label whole: it does not shrink its commands to fit, command-bar-engine.ts moves the ones past its
-// room into the "…" list. The host gives way to the bar instead, so the room measured is the bar's own.
-.ui-command-bar:has(> .ui-command-bar__overflow) > .ui-command-bar__host {
+// room into the "…" list, which every bar renders. The host gives way to the bar instead, so the room measured is the bar's own.
+.ui-command-bar > .ui-command-bar__host {
     min-width: 0;
 }
 
-    .ui-command-bar:has(> .ui-command-bar__overflow) > .ui-command-bar__host > .ui-command-bar__item {
+    .ui-command-bar > .ui-command-bar__host > .ui-command-bar__item {
         flex-shrink: 0;
     }
 

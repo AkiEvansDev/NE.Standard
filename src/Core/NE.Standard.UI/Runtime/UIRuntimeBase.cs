@@ -89,15 +89,19 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
 
     private readonly UIApplication _application;
 
+    // The host that built this runtime: the one way to its session's other runtimes.
+    private readonly UIHost _host;
+
     // The service scope the controller was built from, disposed after it.
     private IServiceScope? _services;
 
-    protected UIRuntimeBase(UIHandle handle, CompiledView view, IUIController controller, UIClientServices clientServices, UIApplication application)
+    protected UIRuntimeBase(UIHandle handle, CompiledView view, IUIController controller, UIClientServices clientServices, UIApplication application, UIHost host)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(controller);
         ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(host);
 
         clientServices.Validate();
         handle.Instance.Validate();
@@ -110,6 +114,7 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         View = view;
         Controller = controller;
         _application = application;
+        _host = host;
         _commandRelease = new CommandRelease(this);
     }
 
@@ -232,9 +237,15 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         }
         finally
         {
-            _services?.Dispose();
-
-            _disposed = true;
+            // Marked whatever the scope's dispose throws: a scope holding a service that is only IAsyncDisposable refuses this one.
+            try
+            {
+                _services?.Dispose();
+            }
+            finally
+            {
+                _disposed = true;
+            }
         }
     }
 

@@ -258,7 +258,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 RenderChips(context, palette, BrightChips);
             });
 
-            RenderSlider(context, pane, UIStrings.ColorFactor, WebAttributes.ColorFactor, -ColorVariant.MaxFactor, ColorVariant.MaxFactor, 0);
+            RenderSlider(context, pane, "ui-color-input__slider", UIStrings.ColorFactor, WebAttributes.ColorFactor, -ColorVariant.MaxFactor, ColorVariant.MaxFactor, 0);
 
             RenderOpacitySlider(context, pane);
         });
@@ -323,14 +323,15 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         });
     }
 
+    /// <summary>The opacity slider, named on its row, which the stylesheet hides without <c>ShowOpacity</c>.</summary>
     private static void RenderOpacitySlider(WebRenderContext context, IHtmlElementBuilder pane)
-        => RenderSlider(context, pane, UIStrings.ColorOpacity, WebAttributes.ColorOpacity, 0, 255, 255);
+        => RenderSlider(context, pane, "ui-color-input__slider ui-color-input__slider--opacity", UIStrings.ColorOpacity, WebAttributes.ColorOpacity, 0, 255, 255);
 
-    private static void RenderSlider(WebRenderContext context, IHtmlElementBuilder pane, string labelKey, string attribute, int min, int max, int value)
+    private static void RenderSlider(WebRenderContext context, IHtmlElementBuilder pane, string rowClass, string labelKey, string attribute, int min, int max, int value)
     {
         _ = pane.Element("label", row =>
         {
-            _ = row.Class("ui-color-input__slider");
+            _ = row.Class(rowClass);
             _ = row.Element("span", caption => WebWords.Write(context, caption.Class("ui-color-input__field-label"), null, labelKey));
             _ = row.Element("input", input =>
             {

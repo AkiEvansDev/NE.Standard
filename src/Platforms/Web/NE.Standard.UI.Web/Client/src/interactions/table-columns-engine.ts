@@ -12,9 +12,12 @@ import { OnceWarner } from "../runtime/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { observeSize } from "./element-size.ts";
-import { applyGridTrackLimits, formatGridTracks, moveSplit, parseGridTrackLimits, parseGridTracks, pinOffsets, zeroTracks } from "./grid-tracks.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { applyGridTrackLimits, bigStep, formatGridTracks, moveSplit, parseGridTrackLimits, parseGridTracks, pinOffsets, zeroTracks } from "./grid-tracks.ts";
 import type { GridTrack } from "./grid-tracks.ts";
-import { PointerDrag } from "./pointer-drag.ts";
+import { PointerDrag, swallowReleaseClick } from "./pointer-drag.ts";
+import { trackInnerPointer } from "./surface-press-engine.ts";
+import { OrderVariablePrefix, stampColumnIndices } from "./table-column-layout.ts";
 
 const RootClass = "ui-table";
 const ReorderableClass = "ui-table--reorderable";
@@ -37,8 +40,6 @@ const StickyBottomVariable = "--ui-table-sticky-bottom";
 const SizedVariable = "--ui-table-sized-columns";
 /** Where a pinned column after the first sticks, one variable per column (TableComponentRenderer.PinVariablePrefix). */
 const PinVariablePrefix = "--ui-table-pin-";
-/** Where the viewer put each column, one variable per column, which the stylesheet hands its cells as `order`. */
-const OrderVariablePrefix = "--ui-table-order-";
 
 /** The column indices ui-table.less has rules for; a column past them is written on its own cells, which the boot patch cannot paint. */
 const StyledColumns = 64;
@@ -124,11 +125,10 @@ export class TableColumnsEngine {
     // Each table's column state as last laid out, and the one last written onto the cells of its columns past the styled ones.
     private readonly columnStates = new WeakMap<Element, ColumnState>();
     private readonly stampedStates = new WeakMap<Element, string>();
+    private readonly indexedStates = new WeakMap<Element, string>();
     private readonly warner = new OnceWarner();
     private readonly drag: PointerDrag<ResizeContext>;
     private readonly reorder: PointerDrag<ReorderContext>;
-    // A drag that moved a column swallows the click that follows it, or a grid would sort by the caption it was dropped on.
-    private moved = false;
 
     public constructor(options: TableColumnsEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -151,12 +151,16 @@ export class TableColumnsEngine {
             end: (handle, context) => this.endReorder(handle, context)
         });
 
-        this.root.addEventListener("pointerdown", () => { this.moved = false; }, true);
-        // On the window: on the root the event pipeline, added first, would reach the sort before the click is swallowed.
-        window.addEventListener("click", domEvent => this.swallowClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
         this.root.addEventListener("scroll", domEvent => this.handleScroll(domEvent), true);
+
+        // The edge overhangs the next caption and is its own caption's child: a package's caption wash stays off under it by this mark.
+        trackInnerPointer(this.root, ["hover", "press"], target => {
+            const caption = target.closest(ResizerSelector)?.parentElement ?? null;
+
+            return caption === null ? [] : [caption];
+        });
 
         // A column hidden below a tier comes and goes with the viewport; the stylesheet's own queries judge the same edges.
         if (typeof matchMedia === "function") {
@@ -171,8 +175,10 @@ export class TableColumnsEngine {
         // A table arriving is restored; rows arriving bring cells past the styled columns to write; a cell's content brings neither.
         observeComponents(this.root, `.${RootClass}`, { childList: true, relevant: addsTableParts }, tables => {
             for (const table of tables) {
-                if (this.restored.has(table))
+                if (this.restored.has(table)) {
                     this.stampUnstyledColumns(table, true);
+                    this.indexColumns(table, true);
+                }
             }
 
             this.restoreEach(tables);
@@ -311,6 +317,7 @@ export class TableColumnsEngine {
 
         this.columnStates.set(table, { places, hidden, last: last ?? -1 });
         this.stampUnstyledColumns(table, false);
+        this.indexColumns(table, false);
 
         // A column the viewer may move is a control the keyboard reaches through the header's group, not the Tab order; one the table
         // already made a stop keeps what it has.
@@ -350,6 +357,23 @@ export class TableColumnsEngine {
             cell.toggleAttribute(CellHiddenAttribute, state.hidden.has(index));
             cell.toggleAttribute(CellLastAttribute, index === state.last);
         }
+    }
+
+    /** Writes where each cell stands among the columns shown; rows arriving under the same layout are written alone. */
+    private indexColumns(table: HTMLElement, rowsArrived: boolean): void {
+        const state = this.columnStates.get(table);
+
+        if (state === undefined)
+            return;
+
+        const signature = `${state.places.join(",")}|${[...state.hidden].join(",")}`;
+        const same = this.indexedStates.get(table) === signature;
+
+        if (same && !rowsArrived)
+            return;
+
+        this.indexedStates.set(table, signature);
+        stampColumnIndices(table, columnsInOrder(state.places), state.hidden, same);
     }
 
     /** The columns as the header describes them: index, key, where the author hides each, and whether it ever moves. */
@@ -518,42 +542,50 @@ export class TableColumnsEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
             return;
 
-        if (domEvent.ctrlKey && (domEvent.key === "ArrowLeft" || domEvent.key === "ArrowRight")) {
+        // Alt with an arrow moves the thing, as a row's or a node's does.
+        if (domEvent.altKey && isPlainKey(domEvent, { alt: true }) && (domEvent.key === "ArrowLeft" || domEvent.key === "ArrowRight")) {
             this.stepColumn(domEvent, domEvent.key === "ArrowLeft" ? -1 : 1);
             return;
         }
 
         // The handle itself, or Shift with an arrow on its caption: the header's keyboard stands on the captions (table-header-group.ts).
-        const handle = domEvent.target.closest<HTMLElement>(ResizerSelector) ?? (domEvent.shiftKey ? captionHandle(domEvent.target) : null);
+        const own = domEvent.target.closest<HTMLElement>(ResizerSelector);
+        const handle = own ?? (domEvent.shiftKey ? captionHandle(domEvent.target) : null);
 
-        if (handle === null || this.drag.active)
+        if (handle === null || this.drag.active || !isPlainKey(domEvent, { shift: own === null }))
             return;
 
-        let delta: number;
-
-        switch (domEvent.key) {
-            case "ArrowLeft":
-                delta = -Step;
-                break;
-            case "ArrowRight":
-                delta = Step;
-                break;
-            default:
-                return;
+        // The double-click's twin: Enter on the handle, and on its caption — whose Enter is its sort — Shift with Backspace, the sizing
+        // chord's "take it back".
+        if ((own !== null && domEvent.key === "Enter") || (own === null && domEvent.key === "Backspace")) {
+            domEvent.preventDefault();
+            this.reset(handle);
+            return;
         }
+
+        const page = domEvent.key === "PageUp" || domEvent.key === "PageDown";
+
+        if (!page && domEvent.key !== "ArrowLeft" && domEvent.key !== "ArrowRight")
+            return;
 
         const context = this.resolveContext(handle);
 
         if (context === null)
             return;
 
+        // PageUp widens, as it raises a range's value.
+        const size = page ? bigStep(Step, context.sizes.reduce((total, width) => total + width, 0)) : Step;
+
         domEvent.preventDefault();
 
-        if (this.apply(context, delta))
+        if (this.apply(context, domEvent.key === "ArrowRight" || domEvent.key === "PageUp" ? size : -size))
             this.remember(context.table);
     }
 
-    /** Ctrl and an arrow on a draggable caption moves its column one place, the keyboard staying on the caption. */
+    /**
+     * Alt and an arrow on a draggable caption moves its column one place, the keyboard staying on the caption; taken at the row's end
+     * too, where it moves nothing, or Alt+Left would take the page back.
+     */
     private stepColumn(domEvent: KeyboardEvent, step: number): void {
         const cell = domEvent.target instanceof Element ? this.resolveCaption(domEvent.target) : null;
         const table = cell?.closest<HTMLElement>(`.${RootClass}`) ?? null;
@@ -566,23 +598,29 @@ export class TableColumnsEngine {
         const from = movable.findIndex(column => column.index === index);
         const to = from + step;
 
-        if (from < 0 || to < 0 || to >= movable.length)
+        if (from < 0)
             return;
 
         domEvent.preventDefault();
+
+        if (to < 0 || to >= movable.length)
+            return;
 
         // A step to the right lands before the column after the one it passes, which is the end of the row when there is none.
         this.moveColumn(table, index, step < 0 ? movable[to].index : movable[to + 1]?.index ?? null);
         cell.focus({ preventScroll: true });
     }
 
-    /** A double-click on a handle puts the authored widths back and forgets the viewer's. */
     private handleDoubleClick(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
-            return;
+        const handle = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(ResizerSelector) : null;
 
-        const handle = domEvent.target.closest<HTMLElement>(ResizerSelector);
-        const table = handle?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        if (handle !== null)
+            this.reset(handle);
+    }
+
+    /** Puts the authored widths back and forgets the viewer's. */
+    private reset(handle: HTMLElement): void {
+        const table = handle.closest<HTMLElement>(`.${RootClass}`);
 
         if (table === null)
             return;
@@ -765,7 +803,8 @@ export class TableColumnsEngine {
 
         const rest = context.places.filter((_, place) => place !== context.from);
 
-        this.moved = true;
+        // A drag that moved a column is no press of the caption it was dropped on, which a grid would sort by.
+        swallowReleaseClick();
         this.moveColumn(context.table, context.index, rest[context.target]?.index ?? null);
     }
 
@@ -801,16 +840,6 @@ export class TableColumnsEngine {
         this.store.write(table, OrderSlot, authored ? null : JSON.stringify(arranged));
         this.layout(table);
         this.rememberBoot(table);
-    }
-
-    /** The click a drag ends with is the drag's, not the caption's: a grid would otherwise sort by the column just dropped. */
-    private swallowClick(domEvent: Event): void {
-        if (!this.moved)
-            return;
-
-        this.moved = false;
-        domEvent.preventDefault();
-        domEvent.stopPropagation();
     }
 }
 

@@ -1,3 +1,25 @@
+// A filled ground (a filled button, a badge, a chosen day or segment): its fill, its ink, and both handed on — `--ui-faint-base`, so
+// muted words and a link read in the ink rather than the page's, and `--ui-ground`, which a part cut out of it paints (STYLING.md).
+// `@property` is `background-color` where a picture under the ground must stay.
+.ui-filled-ground(@fill; @on; @property: background) {
+    @{property}: @fill;
+    color: @on;
+    --ui-faint-base: @on;
+    --ui-ground: @fill;
+}
+
+// A raw colour as words that read on its own tint (a badge's, tinted or outlined), its hue kept: in linear light, scaled down to the
+// theme's `--ui-ink-luminance-max`, or up to its `-min` as far as the colour goes and on toward white for the rest. WebThemeCssBuilder
+// works the two out per palette, from its own grounds, against the deepest tint any colour lays; no theme around, the colour stays.
+.ui-raw-ink(@property; @color) {
+    @y: ~"(0.2126 * r + 0.7152 * g + 0.0722 * b)";
+    // The scale: down to the max, or up to the min until a channel is full.
+    @f: ~"min(1 / max(r, g, b, 0.0001), max(min(1, var(--ui-ink-luminance-max, 1) / max(@{y}, 0.0001)), var(--ui-ink-luminance-min, 0) / max(@{y}, 0.0001)))";
+    // What the scale leaves short of the min, made up toward white.
+    @t: ~"clamp(0, (var(--ui-ink-luminance-min, 0) - @{y} * @{f}) / max(1 - @{y} * @{f}, 0.0001), 1)";
+    @{property}: ~"color(from @{color} srgb-linear calc(r * @{f} + (1 - r * @{f}) * @{t}) calc(g * @{f} + (1 - g * @{f}) * @{t}) calc(b * @{f} + (1 - b * @{f}) * @{t}))";
+}
+
 // Hover brightens via a filter, not a mix: currentColor in a color declaration reads the inherited value, so color-mix produced grey.
 .ui-brighten-hover() {
     filter: brightness(1.25);

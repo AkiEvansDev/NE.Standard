@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
-using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Compiled.Models;
@@ -39,14 +38,20 @@ internal sealed partial class UIViewCompilationContext
     // A menu button's whole face opens the menu, so a click of its own would never run: refused here rather than left to fail silently.
     private static void ValidateSplitButton(IVisualComponent component)
     {
-        if (component is not ISplitButtonComponent { Mode: UISplitButtonMode.Menu })
-            return;
+        if (component is ISplitButtonComponent { Mode: UISplitButtonMode.Menu } && HasEvent(component, EventNames.Click))
+            throw new InvalidOperationException($"'{component.Id}' is a Menu-mode split button with its own click command, which would never run; register the command on the entries with OnItemClick.");
+    }
 
-        foreach (UIEvent uiEvent in component.Events)
+    /// <summary>Whether a component registers a command on the event of the given name.</summary>
+    private static bool HasEvent(IVisualComponent component, string name)
+    {
+        for (var i = 0; i < component.Events.Count; i++)
         {
-            if (string.Equals(uiEvent.Name, EventNames.Click, StringComparison.Ordinal))
-                throw new InvalidOperationException($"'{component.Id}' is a Menu-mode split button with its own click command, which would never run; register the command on the entries with OnItemClick.");
+            if (string.Equals(component.Events[i].Name, name, StringComparison.Ordinal))
+                return true;
         }
+
+        return false;
     }
 
     // Editing makes the rows' one action the pencil, so a click of the author's would land on it: the edit or the command, never both.
@@ -65,32 +70,22 @@ internal sealed partial class UIViewCompilationContext
 
     private void AddComponentContent(IVisualComponent component)
     {
-        if (component is IContainerComponent container && container.HasChildren)
+        foreach (UIComponentTreeSlot slot in UIComponentTree.EnumerateSlots(component))
         {
-            foreach (IVisualComponent child in container.Children)
-            {
-                if (container is IGridTracksComponent tracks && child is IGridSplitterComponent splitter)
-                    ValidateGridSplitter(tracks, splitter);
+            if (slot.Kind == UIComponentSlotKind.Child && component is IGridTracksComponent tracks && slot.Root is IGridSplitterComponent splitter)
+                ValidateGridSplitter(tracks, splitter);
 
-                AddSlot(component, child, UIComponentSlotKind.Child, null);
-            }
+            AddSlot(component, slot.Root, slot.Kind, slot.Key, slot.Kind == UIComponentSlotKind.TemplateVariant ? GetCompositeKeyProperty((ITemplatedComponent)component, slot.Key!) : null);
         }
+    }
 
-        if (component is IRegionContainerComponent regionContainer && regionContainer.HasRegions)
-        {
-            foreach (KeyValuePair<string, IVisualComponent> region in regionContainer.Regions)
-                AddSlot(component, region.Value, UIComponentSlotKind.Region, region.Key);
-        }
+    /// <summary>A composite's variant carries the property its typed keys are read from: "node" and "node:folder" alike.</summary>
+    private static string? GetCompositeKeyProperty(ITemplatedComponent templated, string key)
+    {
+        var colon = key.IndexOf(':', StringComparison.Ordinal);
+        var baseKey = colon < 0 ? key : key[..colon];
 
-        if (component is ITemplatedComponent templated)
-            AddTemplates(component, templated);
-
-        if (component is IGroupedItemsComponent groupedItems && groupedItems.HasGroupTemplate)
-            AddSlot(component, groupedItems.GroupTemplate!, UIComponentSlotKind.GroupTemplate, null);
-
-        // Unlike every slot above, this one is not gated on a capability interface: any component may carry a context menu.
-        if (component.ContextMenu is IVisualComponent contextMenu)
-            AddSlot(component, contextMenu, UIComponentSlotKind.ContextMenu, null);
+        return templated.CompositeSlotKeyProperties.GetValueOrDefault(baseKey);
     }
 
     private void AddSlot(IVisualComponent owner, IVisualComponent root, UIComponentSlotKind kind, string? key, string? keyProperty = null)
@@ -119,27 +114,6 @@ internal sealed partial class UIViewCompilationContext
 
         if (!_slotByRootComponentId.TryAdd(root.Id, slot))
             throw new InvalidOperationException($"Slot for root component '{root.Id}' is already registered.");
-    }
-
-    private void AddTemplates(IVisualComponent owner, ITemplatedComponent templated)
-    {
-        if (templated.HasTemplate)
-            AddSlot(owner, templated.Template!, UIComponentSlotKind.Template, null);
-
-        if (templated.HasTemplates)
-        {
-            foreach (KeyValuePair<string, IVisualComponent> template in templated.Templates)
-            {
-                // A composite's variant carries the property its typed keys are read from: "node" and "node:folder" alike.
-                var colon = template.Key.IndexOf(':', StringComparison.Ordinal);
-                var baseKey = colon < 0 ? template.Key : template.Key[..colon];
-
-                AddSlot(owner, template.Value, UIComponentSlotKind.TemplateVariant, template.Key, templated.CompositeSlotKeyProperties.GetValueOrDefault(baseKey));
-            }
-        }
-
-        if (templated.HasEmptyTemplate)
-            AddSlot(owner, templated.EmptyTemplate!, UIComponentSlotKind.EmptyTemplate, null);
     }
 
     private UIComponentNode[] BuildNodes(Dictionary<string, ResolvedComponentContext> componentContexts)

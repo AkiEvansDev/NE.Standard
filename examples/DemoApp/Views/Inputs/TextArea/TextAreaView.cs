@@ -58,6 +58,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
             .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
             .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
+            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
             .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
             .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
             .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
@@ -89,7 +90,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
     /// The two places it lives: a labelled box of prose that is saved with the page, and a small box that is sent, kept small so the
     /// thread above it stays readable.
     /// </summary>
-    /// <remarks>The saved one outlined, as a record's fields are; the composer filled, as a box in a card's band is.</remarks>
+    /// <remarks>The saved one outlined, as a record's fields are; the composer Tonal, as a field its card already frames is.</remarks>
     private static ContainerComponent CreateFormGroup()
     {
         return DemoUI.CreateExample("Where it is used",
@@ -109,6 +110,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
                         .SetDescription("Everyone watching the incident is notified")
                     )
                     .SetContent(new TextAreaComponent()
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetPlaceholder("What did you find?")
                         .SetRows(3)
                         .SetMaxLength(280)

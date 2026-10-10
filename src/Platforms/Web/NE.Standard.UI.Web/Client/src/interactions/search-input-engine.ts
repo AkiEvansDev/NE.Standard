@@ -2,7 +2,8 @@
 // static options. A list the server answers `OnSearch` with stands as it is until the answer, and shows that answer whole.
 
 import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, SelectClass } from "../addressing/dom-attributes.ts";
-import { foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
+import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
 const DebounceAttribute = "data-ui-search-debounce";
 const MinLengthAttribute = "data-ui-search-min-length";
@@ -13,7 +14,6 @@ const SearchInputClass = "ui-search__input";
 // The listbox the options stand in, under the field.
 const ListClass = "ui-select__list";
 const OptionClass = "ui-select__option";
-const TitleClass = "ui-text__title";
 const DefaultDebounceMilliseconds = 300;
 
 export type SearchInputEngineOptions = {
@@ -57,7 +57,7 @@ export class SearchInputEngine {
 
     /** Enter no option took asks at once: a manual search's way to ask, an automatic one's past its debounce; the list stays open. */
     private handleEnter(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Enter" || domEvent.defaultPrevented || domEvent.isComposing)
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Enter" || domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
         if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SearchInputClass))
@@ -83,14 +83,21 @@ export class SearchInputEngine {
         if (!asked && input.hasAttribute(ManualAttribute))
             return;
 
-        const minLengthText = input.getAttribute(MinLengthAttribute);
-        const minLength = minLengthText === null ? 0 : Number(minLengthText);
-
-        if (input.value.length < minLength)
+        if (!meetsMinLength(input))
             return;
 
         input.dispatchEvent(new Event("search", { bubbles: true }));
     }
+}
+
+/**
+ * Whether a field's term is long enough to search by, as the server's search and the field's own narrowing both read it: trimmed, and
+ * against a least length that reads as a number, none otherwise.
+ */
+function meetsMinLength(input: HTMLInputElement): boolean {
+    const minLength = Number(input.getAttribute(MinLengthAttribute) ?? 0);
+
+    return !Number.isFinite(minLength) || input.value.trim().length >= minLength;
 }
 
 /** Narrows a search's own options to the term its field holds; a list the server answers stands as it is. */
@@ -105,17 +112,10 @@ export function narrowToTerm(input: HTMLInputElement): void {
     if (select === null || select === undefined || list === null || list === undefined)
         return;
 
-    const minLengthText = input.getAttribute(MinLengthAttribute);
-    const minLength = minLengthText === null ? 0 : Number(minLengthText);
-    const terms = input.value.trim().length >= minLength ? searchTerms(input.value, input) : [];
-    const shown = narrow(list, option => terms.length === 0 || matchesTerms(foldWords(optionWords(option), option), terms));
+    const terms = meetsMinLength(input) ? searchTerms(input.value, input) : [];
+    const shown = narrow(list, option => terms.length === 0 || matchesTerms(foldWords(entryWords(option), option), terms));
 
     toggleNoMatchPlaceholder(select, list, terms.length > 0 && shown === 0);
-}
-
-/** The words an option shows as its name: its title where it has one, else all it draws — what the menu's search reads too. */
-function optionWords(option: HTMLElement): string {
-    return option.querySelector(`.${TitleClass}`)?.textContent ?? option.textContent ?? "";
 }
 
 /** Shows the options `keep` keeps and hides the rest, a group's header standing while an option after it does; answers how many stayed. */

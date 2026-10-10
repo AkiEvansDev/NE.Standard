@@ -12,11 +12,9 @@ import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import { isCaretInput } from "./caret-fields.ts";
 import { dropWaiting } from "./debounced-commit-engine.ts";
 import { isCancellingField } from "./field-escape.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
 import { isInert } from "./interactive-state.ts";
-import { ownDescendants } from "./own-descendants.ts";
-import { focusAsLastInput, focusHolderAround } from "./popup-focus.ts";
-import { rowKeyTarget, setRowFocus } from "./row-cursor.ts";
-import { SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
+import { focusHolderAround, giveKeyboardBack } from "./popup-focus.ts";
 
 // On a text area whose Enter submits its form (`TextAreaComponent.SubmitOnEnter`); Shift+Enter still breaks the line.
 const SubmitOnEnterAttribute = "data-ui-submit-on-enter";
@@ -24,8 +22,6 @@ const SubmitOnEnterAttribute = "data-ui-submit-on-enter";
 const RunsOnEnterAttribute = "data-ui-runs-on-enter";
 const EnterEventName = "enter";
 const EscapeEventName = "escape";
-// What Safari's Enter that ends a composition carries in place of `isComposing`.
-const ComposingKeyCode = 229;
 
 /** How the pipeline reads a field's `enter`: its command waits for the value the Enter committed, as a code field's `save` does. */
 export const FieldEnterEvent: { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } = {
@@ -185,7 +181,7 @@ export class FieldKeysEngine {
         const holder = focusHolderAround(field);
 
         field.blur();
-        this.keepKeyboard(field, holder);
+        giveKeyboardBack(field, holder);
         field.dispatchEvent(new Event(EscapeEventName, { bubbles: true }));
     }
 
@@ -220,7 +216,7 @@ export class FieldKeysEngine {
         if (this.changes === changesBefore)
             this.commit(field);
 
-        this.keepKeyboard(field, holder);
+        giveKeyboardBack(field, holder);
     }
 
     /** Raises the change a leave would for a value not yet committed, so it is sent before the command a submit runs. */
@@ -236,27 +232,6 @@ export class FieldKeysEngine {
         else
             this.commit(field);
     }
-
-    /** Gives the keyboard to the holder around the field (a row host's cursor moved to its row), else leaves it blurred. */
-    private keepKeyboard(field: HTMLInputElement | HTMLTextAreaElement, holder: HTMLElement | null): void {
-        const active = document.activeElement;
-
-        // Nothing moves where the blur or the change already put the focus; with no holder, Tab carries on from the field's place.
-        if (holder?.isConnected !== true || (active !== null && active !== document.body))
-            return;
-
-        const row = rowKeyTarget(field);
-
-        if (row?.root === holder && row.row !== null)
-            setRowFocus(holder, ownDescendants(holder, SelectionRowSelector, SelectionRootSelector), row.row);
-
-        focusAsLastInput(holder);
-    }
-}
-
-function isComposing(domEvent: KeyboardEvent): boolean {
-    // oxlint-disable-next-line typescript/no-deprecated -- Safari's composing Enter is told by nothing else.
-    return domEvent.isComposing || domEvent.keyCode === ComposingKeyCode;
 }
 
 /** Enter alone, in a field with `OnEnter`: Shift+Enter is a text area's line break, and a chord keeps a field's ordinary rule. */

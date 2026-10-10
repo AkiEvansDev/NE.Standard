@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -19,6 +20,7 @@ public abstract class RenameEffect : TargetedClientEffect
     }
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>
@@ -73,6 +75,7 @@ internal sealed class CompiledRenameEffect(string kind, UIComponentAddress targe
     public override string Kind { get; } = kind;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     public string Key { get; } = key;

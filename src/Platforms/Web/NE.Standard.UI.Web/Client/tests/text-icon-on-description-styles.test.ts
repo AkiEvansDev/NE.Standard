@@ -1,6 +1,7 @@
 // A text in Title mode with an icon and no title stands the icon on its description's first line, read back from the compiled
 // stylesheet: the box is that line's height, yet never shorter than the glyph it draws, which keeps the title's size — a shorter box
-// spilled the glyph out of the text, and a scroller around it scrolled by the spill.
+// spilled the glyph out of the text, and a scroller around it scrolled by the spill. The description's role is read off the text body
+// (`ui-text--description-<role>`), never off the description below it.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -14,9 +15,9 @@ const css = (await less.render(readFileSync(source, "utf8"), { filename: source 
 
 test("the icon on a description's line is that line's height, never shorter than its glyph nor drawing past it", () => {
     for (const role of ["display", "title", "subtitle", "body", "caption", "overline"]) {
-        const rule = new RegExp(`\\.ui-text__description\\.ui-text-type--${role}\\) > \\.ui-text__icon \\{\\s*height: ([^;]+);`).exec(css);
+        const rule = new RegExp(`:not\\(\\.ui-text--icon-content\\)\\.ui-text--description-${role} > \\.ui-text__icon \\{\\s*height: ([^;]+);`).exec(css);
 
         assert.equal(rule?.[1], `max(var(--ui-text-${role}-line-height), 1em)`, role);
-        assert.match(css, new RegExp(`\\.ui-text__description\\.ui-text-type--${role}\\) > \\.ui-text__icon::before \\{\\s*overflow: clip;`), role);
+        assert.match(css, new RegExp(`:not\\(\\.ui-text--icon-content\\)\\.ui-text--description-${role} > \\.ui-text__icon::before \\{\\s*overflow: clip;`), role);
     }
 });

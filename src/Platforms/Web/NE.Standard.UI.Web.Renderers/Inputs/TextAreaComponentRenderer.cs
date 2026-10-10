@@ -109,14 +109,14 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
             {
                 if (value is int milliseconds and >= 0)
                     _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-            }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
+            }, [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)]);
 
             // Read by `readBoundElementValue` off whichever element carries it, textarea or input alike.
             RenderFlagAttribute(context, textarea, TextAreaComponent.TrimInputProperty, WebAttributes.TrimInput);
 
             NativeInputRendererBase.RenderPlaceholder(context, textarea);
             NativeInputRendererBase.RenderRunsOnEnter(context, textarea);
-            NativeInputRendererBase.RenderRunsOnEscape(context, textarea);
+            NativeInputRendererBase.RenderRunsOnEscape(context, textarea, TextAreaComponent.CancelOnEscapeProperty);
             NativeInputRendererBase.RenderFormId(context, textarea);
             NativeInputRendererBase.RenderFieldName(context, textarea);
             NativeInputRendererBase.RenderIsReadOnly(context, root, textarea);

@@ -17,14 +17,32 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
     private const string ShortcutClass = "ui-menu-item__shortcut";
     private const string ValueClass = "ui-menu-item__value";
 
+    // On the entry while a select's value shows at its end: read by the stylesheet alone, which keeps a check or a chevron beside it.
+    private const string ValueShownAttribute = "data-ui-menu-item-value";
+
+    /// <summary>
+    /// The operation that keeps the groups around an entry marked by whether they hold the current entry (<c>menu-current.ts</c>), run
+    /// after Selected's own: a folded group holding it wears the mark of a current page inside.
+    /// </summary>
+    public const string MenuCurrentOperationKind = "menu-current";
+
+    /// <summary>
+    /// The operation that keeps an entry's host marked by whether an entry of its carries an icon (<c>menu-icons.ts</c>), run after the
+    /// label's parts' own: an entry without one keeps the icon's room while a sibling has one.
+    /// </summary>
+    public const string MenuIconsOperationKind = "menu-icons";
+
+    private static readonly WebDomOperation MenuIconsOperation = WebDomOperation.Custom(MenuIconsOperationKind);
+
     private static readonly WebDomOperation[] SelectedOperations =
     [
         WebDomOperation.ToggleClass(WebClassNames.MenuItemSelected, condition: WebValueCondition.IsTrue),
-        WebDomOperation.ToggleAttribute("aria-current", condition: WebValueCondition.IsTrue, value: "page")
+        WebDomOperation.ToggleAttribute("aria-current", condition: WebValueCondition.IsTrue, value: "page"),
+        WebDomOperation.Custom(MenuCurrentOperationKind)
     ];
 
-    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Text(target: "." + ValueClass)];
-    private static readonly WebDomOperation[] CheckedOperations = [WebDomOperation.ToggleClass(WebClassNames.MenuItemChecked, condition: WebValueCondition.IsTrue), WebDomOperation.Attribute("aria-checked")];
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Text(target: "." + ValueClass), WebDomOperation.ToggleAttribute(ValueShownAttribute, condition: WebValueCondition.HasText)];
+    private static readonly WebDomOperation[] CheckedOperations = [WebDomOperation.ToggleClass(WebClassNames.MenuItemChecked, condition: WebValueCondition.IsTrue), WebDomOperation.Attribute("aria-checked", converter: WebDomConverters.AriaBooleanAttribute, convertsNull: true)];
 
     public override string ComponentTypeKey => MenuItemComponent.ComponentTypeKey;
 
@@ -67,7 +85,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         // Read by the action bar, which shows the marked entries of its owner's menu as icons.
         RenderFlagAttribute(context, root, MenuItemComponent.InActionBarProperty, WebAttributes.InActionBar);
 
-        RenderButtonLabel(context, root);
+        RenderButtonLabel(context, root, root, MenuIconsOperation);
         RenderShortcut(context, root);
         RenderValue(context, root);
         RenderChecked(context, root, kind, popup);
@@ -104,8 +122,14 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
             value = span;
         });
 
-        _ = RenderProperty<string?>(context, root, MenuItemComponent.ValueProperty, (target, text) => _ = value!.Text(text ?? string.Empty),
-            ValueOperations);
+        // The mark keeps a check or a chevron beside the words rather than splitting the row's free space with them.
+        _ = RenderProperty<string?>(context, root, MenuItemComponent.ValueProperty, (target, text) =>
+        {
+            _ = value!.Text(text ?? string.Empty);
+
+            if (!string.IsNullOrWhiteSpace(text))
+                _ = target.Attribute(ValueShownAttribute);
+        }, ValueOperations);
     }
 
     /// <summary>
@@ -138,5 +162,8 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 
         // Emitted even when empty: the client fills it, and never adds an element.
         _ = root.Element("span", span => span.Class(ShortcutClass).Text(value ?? string.Empty));
+
+        if (!string.IsNullOrWhiteSpace(value))
+            _ = root.Attribute(WebAttributes.MenuItemShortcut);
     }
 }

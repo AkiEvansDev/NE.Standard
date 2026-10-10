@@ -8,7 +8,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Commands;
 
 namespace NE.Standard.UI.Controllers;
@@ -214,15 +213,6 @@ internal sealed class UICommandInvoker
                 : throw new InvalidOperationException($"Command '{commandName}' argument '{parameterName}' cannot be null.");
         }
 
-        // A phrase read off an item (its title) to a text parameter: the coercion's one rule, its text or its key.
-        if (value is UIPhrase && targetType == typeof(string) && RecursiveValueCoercion.TryCoerce(value, targetType, out var text))
-            return text;
-
-        Type valueType = value.GetType();
-
-        if (targetType.IsAssignableFrom(valueType))
-            return value;
-
         // A drop travels as one text among the event's keys, which carry nothing but text and numbers.
         if (targetType == typeof(UIDrop) && value is string drop)
         {
@@ -236,72 +226,14 @@ internal sealed class UICommandInvoker
             }
         }
 
-        Type conversionType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        // The one coercion every bound value takes: an argument read off a row reads as the row's own property would.
+        if (RecursiveValueCoercion.TryCoerce(value, targetType, out var coerced))
+            return coerced;
 
-        try
-        {
-            if (conversionType.IsEnum)
-            {
-                var converted = value is string stringValue
-                    ? Enum.Parse(conversionType, stringValue, ignoreCase: false)
-                    : Enum.ToObject(conversionType, value);
+        // A key that arrived as a number, to a text parameter: the coercion keeps a text property's value as written.
+        if (targetType == typeof(string) && value is IConvertible convertible)
+            return convertible.ToString(CultureInfo.InvariantCulture);
 
-                if (!IsDefinedEnumValue(conversionType, converted))
-                    throw new InvalidOperationException($"Cannot convert command '{commandName}' argument '{parameterName}' from '{valueType.FullName}' to '{targetType.FullName}'.");
-
-                return converted;
-            }
-
-            if (conversionType == typeof(Guid))
-            {
-                return value is string guidString
-                    ? (object)Guid.Parse(guidString)
-                    : throw new InvalidOperationException($"Cannot convert '{valueType.FullName}' to '{targetType.FullName}'.");
-            }
-
-            if (conversionType == typeof(DateTime))
-            {
-                if (value is string dateTimeString)
-                    return DateTime.Parse(dateTimeString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-            }
-
-            if (conversionType == typeof(DateTimeOffset))
-            {
-                if (value is string dateTimeOffsetString)
-                    return DateTimeOffset.Parse(dateTimeOffsetString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
-            }
-
-            if (value is IConvertible)
-                return Convert.ChangeType(value, conversionType, CultureInfo.InvariantCulture);
-        }
-        catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException or ArgumentException)
-        {
-            throw new InvalidOperationException($"Cannot convert command '{commandName}' argument '{parameterName}' from '{valueType.FullName}' to '{targetType.FullName}'.", exception);
-        }
-
-        throw new InvalidOperationException($"Cannot convert command '{commandName}' argument '{parameterName}' from '{valueType.FullName}' to '{targetType.FullName}'.");
+        throw new InvalidOperationException($"Cannot convert command '{commandName}' argument '{parameterName}' from '{value.GetType().FullName}' to '{targetType.FullName}'.");
     }
-
-    /// <summary>Whether an enum value is one of its named members, or, for a <c>[Flags]</c> enum, a union of them.</summary>
-    private static bool IsDefinedEnumValue(Type enumType, object value)
-    {
-        if (Enum.IsDefined(enumType, value))
-            return true;
-
-        if (enumType.GetCustomAttribute<FlagsAttribute>() is null)
-            return false;
-
-        var mask = 0UL;
-
-        foreach (var defined in Enum.GetValues(enumType))
-            mask |= ToBits(defined);
-
-        return (ToBits(value) & ~mask) == 0;
-    }
-
-    // Signed underlying types are widened through long, or a negative member would overflow the conversion to ulong.
-    private static ulong ToBits(object value)
-        => Type.GetTypeCode(value.GetType().IsEnum ? Enum.GetUnderlyingType(value.GetType()) : value.GetType()) is TypeCode.SByte or TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64
-            ? unchecked((ulong)Convert.ToInt64(value, CultureInfo.InvariantCulture))
-            : Convert.ToUInt64(value, CultureInfo.InvariantCulture);
 }

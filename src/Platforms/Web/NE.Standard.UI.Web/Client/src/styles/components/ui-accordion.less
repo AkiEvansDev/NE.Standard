@@ -25,6 +25,7 @@
 // each through the chain, so a section's authored BorderThickness or BorderRadius still wins.
 .ui-accordion > .ui-expander {
     .ui-responsive-property(border-radius, --ui-border-radius, 0);
+    .ui-responsive-property(--ui-expander-corners, --ui-border-radius, 0);
 }
 
 .ui-accordion > .ui-expander + .ui-expander {
@@ -33,12 +34,15 @@
 
 .ui-accordion > .ui-expander:first-child {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-card) var(--ui-radius-card) 0 0");
+    .ui-responsive-property(--ui-expander-corners, --ui-border-radius, ~"var(--ui-radius-card) var(--ui-radius-card) 0 0");
 }
 
 .ui-accordion > .ui-expander:last-child {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"0 0 var(--ui-radius-card) var(--ui-radius-card)");
+    .ui-responsive-property(--ui-expander-corners, --ui-border-radius, ~"0 0 var(--ui-radius-card) var(--ui-radius-card)");
 }
 
 .ui-accordion > .ui-expander:only-child {
     .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
+    .ui-responsive-property(--ui-expander-corners, --ui-border-radius, var(--ui-radius-card));
 }

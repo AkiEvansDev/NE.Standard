@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Navigation;
@@ -25,17 +24,11 @@ internal abstract partial class UIRuntimeBase
         ArgumentNullException.ThrowIfNull(navigation);
         navigation.Validate();
 
-        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
-        ThrowIfAskedToGo();
-
-        using IDisposable invocation = BeginInvocation(invoker);
-
         // In a command's turn, as a leave is: the hook reads and writes the controller as a command does.
-        await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        return await InCommandTurnAsync(invoker, async cancellation =>
         {
-            UICommandResult result = await RunNavigatedAsync(navigation, cancellationToken).ConfigureAwait(false);
-            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
+            UICommandResult result = await RunNavigatedAsync(navigation, cancellation).ConfigureAwait(false);
+            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellation).ConfigureAwait(false);
 
             // Answered, never pushed: the page applies it as the answer to its own going back.
             return new UICommandExecutionResult
@@ -43,11 +36,7 @@ internal abstract partial class UIRuntimeBase
                 Command = result,
                 Changes = changes
             };
-        }
-        finally
-        {
-            _ = _exclusiveCommandLock.Release();
-        }
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The controller's navigation hook; one that fails is reported as a failed command is.</summary>

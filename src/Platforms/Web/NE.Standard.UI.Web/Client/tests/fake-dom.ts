@@ -1,6 +1,7 @@
 // A small stand-in for the DOM, for the tests of engines that read the focus, containment, a few attributes and classes, and
 // events bubbling up a tree: enough selectors for the framework's own lists (classes, attributes, roles, `:not()`, `:is()`,
-// `:disabled`, `:scope`, `:active`, `:focus-visible`, the child and descendant combinators), and nothing laid out but what a test says.
+// `:disabled`, `:scope`, `:active`, `:focus-visible`, `:modal`, `:popover-open`, the child and descendant combinators), and nothing
+// laid out but what a test says.
 
 type Listener = (domEvent: FakeEvent) => void;
 
@@ -20,12 +21,19 @@ export class FakeEvent {
     /** Set by `stopImmediatePropagation`: no listener after the current one hears the event, here or above. */
     public stopped = false;
 
+    /** Set by `stopPropagation`: the listeners here still hear it, none above. */
+    public stoppedHere = false;
+
     public preventDefault(): void {
         this.defaultPrevented = true;
     }
 
     public stopImmediatePropagation(): void {
         this.stopped = true;
+    }
+
+    public stopPropagation(): void {
+        this.stoppedHere = true;
     }
 }
 
@@ -49,6 +57,10 @@ export class FakeElement {
     /** Laid out but `visibility: hidden` (a fade not yet begun): it keeps its box and refuses the focus. */
     public visible = true;
     public disabled = false;
+    /** A `<dialog>` shown by `showModal()`, which `:modal` matches. */
+    public modal = false;
+    /** A popover shown by `showPopover()`, which `:popover-open` matches. */
+    public popoverOpen = false;
     public id = "";
     /** The box it is laid out in, where a test places it. */
     public rect = { left: 0, top: 0, width: 0, height: 0 };
@@ -248,6 +260,14 @@ export class FakeElement {
         this.dispatchEvent(new FakeEvent("blur"));
     }
 
+    public showPopover(): void {
+        this.popoverOpen = true;
+    }
+
+    public hidePopover(): void {
+        this.popoverOpen = false;
+    }
+
     public scrollIntoView(): void {
     }
 
@@ -385,7 +405,7 @@ export class FakeElement {
             listener(domEvent);
         }
 
-        if (!domEvent.stopped)
+        if (!domEvent.stopped && !domEvent.stoppedHere)
             this.parent?.bubble(domEvent);
     }
 
@@ -487,6 +507,15 @@ export const fakeDocument = {
     body: new FakeElement("body"),
     documentElement: new FakeElement("html"),
     createElement: (tagName: string): FakeElement => tagName === "input" ? new FakeInput() : new FakeElement(tagName),
+    /** A fragment and a text node as elements of their own: what inline markup builds before it replaces an element's content. */
+    createDocumentFragment: (): FakeElement => new FakeElement("#fragment"),
+    createTextNode: (text: string): FakeElement => {
+        const node = new FakeElement("#text");
+
+        node.textContent = text;
+
+        return node;
+    },
     addEventListener: (type: string, listener: Listener): void => fakeDocument.documentElement.addEventListener(type, listener),
     removeEventListener: (type: string, listener: Listener): void => fakeDocument.documentElement.removeEventListener(type, listener),
     querySelectorAll: (selector: string): FakeElement[] => fakeDocument.body.querySelectorAll(selector),
@@ -616,7 +645,7 @@ function matchesComplex(element: FakeElement, compounds: readonly string[], comb
     return false;
 }
 
-const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:=['"]?([^'"\]]*)['"]?)?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope|active|focus-visible))/;
+const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:=['"]?([^'"\]]*)['"]?)?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope|active|focus-visible|modal|popover-open))/;
 
 function matchesCompound(element: FakeElement, compound: string, scope: FakeElement | null): boolean {
     let rest = compound.trim();
@@ -654,6 +683,12 @@ function matchesCompound(element: FakeElement, compound: string, scope: FakeElem
             return false;
 
         if (pseudo === "scope" && element !== scope)
+            return false;
+
+        if (pseudo === "modal" && !element.modal)
+            return false;
+
+        if (pseudo === "popover-open" && !element.popoverOpen)
             return false;
 
         // Nothing is ever pressed here, and the focus a test gives is the keyboard's.

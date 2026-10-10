@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/field.less";
 @import "../mixins/focus.less";
 @import "../mixins/popup.less";
 @import "../mixins/range.less";
@@ -205,24 +206,6 @@
     opacity: 1;
 }
 
-// Where the keyboard stands: the framework's keyboard frame, around the handle — inside it, in place of the rim, it was lost on the light
-// palette, the ink being the handle's own colour there. A band has two handles, so the arrows' one must be told apart; one prefix per
-// rule, since a browser drops a rule naming a pseudo-element it lacks.
-.ui-slider__input@{ui-keyboard-focus}::-webkit-slider-thumb {
-    .ui-keyboard-frame();
-
-    @media (forced-colors: none) {
-        outline-offset: 2px;
-    }
-}
-
-.ui-slider__input@{ui-keyboard-focus}::-moz-range-thumb {
-    .ui-keyboard-frame();
-
-    @media (forced-colors: none) {
-        outline-offset: 2px;
-    }
-}
 
 // A band: two native ranges stacked on one track, the start's drawing the track and the band, the end's only its handle. Neither takes the
 // pointer itself — the track does and moves the nearer handle (range-value-engine.ts) — so the page still scrolls under a finger across it.
@@ -255,7 +238,7 @@
     background-image: linear-gradient(
         var(--ui-range-fill-angle, 90deg),
         transparent 0 calc(@ui-slider-thumb / 2 + var(--ui-slider-fraction, 0) * (100% - @ui-slider-thumb)),
-        var(--ui-color-primary) 0 calc(@ui-slider-thumb / 2 + var(--ui-slider-end-fraction, 1) * (100% - @ui-slider-thumb)),
+        @ui-range-fill-color 0 calc(@ui-slider-thumb / 2 + var(--ui-slider-end-fraction, 1) * (100% - @ui-slider-thumb)),
         transparent 0
     );
 }
@@ -268,7 +251,7 @@
     .ui-range-band();
 }
 
-// Weighed above the invalid track's colour, which would otherwise paint the end's own track over the band.
+// The end's own track draws nothing: the start's carries the band.
 .ui-slider.ui-slider--range .ui-slider__input.ui-slider__input--end::-webkit-slider-runnable-track {
     background: none;
 }
@@ -279,11 +262,11 @@
 
 // The handle the pointer holds wears the ring a single slider's wears under the pointer.
 .ui-slider__input--held::-webkit-slider-thumb {
-    box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+    .ui-range-halo();
 }
 
 .ui-slider__input--held::-moz-range-thumb {
-    box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
+    .ui-range-halo();
 }
 
 .ui-slider__min,
@@ -300,13 +283,23 @@
     display: inline-block;
 }
 
-// The colour alone, not the shorthand: the fill is the track's background-image (range.less), and a shorthand wiped the value off it.
-.ui-slider.ui-invalid .ui-slider__input::-webkit-slider-runnable-track {
-    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger-ink)) 35%, var(--ui-surface-raised));
+// A message colours the fill and the handle, the free track keeping its own, and draws an edge round the whole track in its colour,
+// which shows at the minimum too, where nothing is filled.
+.ui-slider:is(@{ui-validation-marked}) {
+    --ui-range-fill-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 
-.ui-slider.ui-invalid .ui-slider__input::-moz-range-track {
-    background-color: color-mix(in srgb, var(--ui-validation-color, var(--ui-color-danger-ink)) 35%, var(--ui-surface-raised));
+.ui-slider:is(@{ui-validation-marked}) .ui-slider__input::-webkit-slider-runnable-track {
+    box-shadow: inset 0 0 0 1px var(--ui-range-fill-color);
+}
+
+.ui-slider:is(@{ui-validation-marked}) .ui-slider__input::-moz-range-track {
+    box-shadow: inset 0 0 0 1px var(--ui-range-fill-color);
+}
+
+// Under the slider where its title starts: a slider has no field box whose text the message would line up with.
+.ui-slider > .ui-validation-message {
+    padding-inline: 0;
 }
 
 // A size steps the track, the handle and the text ui-input.less sizes; the handle stays centred on the track by its own margin.

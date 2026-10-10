@@ -1,6 +1,6 @@
 // A control of its own inside a row or a clickable surface: a press or key in it is the control's, never the row's or the surface's.
 // One list for both, naming the framework's popups, field boxes and a row's grip beside native tags, since a select's option is a div,
-// not a <select>; `@ui-surface-inner-control` in ui-surface.less is its twin (surface-controls.test.ts).
+// not a <select>; a clickable surface's wash and press stay off such a control by it (surface-press-engine.ts).
 
 import { ActionBarClass, ListTriggerClass, NoRowOpenAttribute, PopupRoleSelector, RowGripClass } from "../addressing/dom-attributes.ts";
 

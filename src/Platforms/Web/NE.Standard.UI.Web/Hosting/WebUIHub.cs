@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -111,6 +112,25 @@ internal sealed partial class WebUIHub : Hub
 
         /// <summary>The token of a value staged beside the hub, carried instead of <see cref="Value"/> when the value is large.</summary>
         public string? ValueToken { get; init; }
+    }
+
+    /// <summary>
+    /// A command the page raised, as <see cref="UICommandRequest"/> carries it, or with its keys staged beside the hub when they are too
+    /// large for it (a drop of many rows): <see cref="DynamicParametersToken"/> in place of <see cref="DynamicParameters"/>.
+    /// </summary>
+    internal sealed class WebUICommandRequest
+    {
+        public UIEventId EventId { get; init; }
+
+        public string? Action { get; init; }
+
+        [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
+        public object?[] DynamicParameters { get; init; } = [];
+
+        /// <summary>The token of the command's keys staged beside the hub, carried instead of <see cref="DynamicParameters"/>.</summary>
+        public string? DynamicParametersToken { get; init; }
+
+        public int? RequestId { get; init; }
     }
 
     internal sealed class WebUILeaveRequest
@@ -408,12 +428,20 @@ internal sealed partial class WebUIHub : Hub
     /// <summary>Whether this connection may attach: one holding no handle may, one holding a handle only to that handle's runtime from its tab.</summary>
     private bool MayAttach(UIViewResolution view, string clientWindowId)
     {
-        if (!Context.Items.TryGetValue(HandleContextItemKey, out var value) || value is not UIHandle held)
+        if (!TryGetHandle(out UIHandle? held))
             return true;
 
         return _host is UIHost host
             ? host.NamesRuntimeOf(held, view, clientWindowId)
             : string.Equals(held.Instance.WindowId, clientWindowId, StringComparison.Ordinal);
+    }
+
+    /// <summary>The handle the attach left on this connection, if it attached.</summary>
+    private bool TryGetHandle([NotNullWhen(true)] out UIHandle? handle)
+    {
+        handle = Context.Items.TryGetValue(HandleContextItemKey, out var value) ? value as UIHandle : null;
+
+        return handle is not null;
     }
 
     /// <summary>
@@ -457,7 +485,7 @@ internal sealed partial class WebUIHub : Hub
         UIClientState state = request.ToClientState();
 
         // A page with no controller holds no handle, and nothing reads what it reports.
-        if (_host is UIHost host && Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle)
+        if (_host is UIHost host && TryGetHandle(out UIHandle? handle))
             host.ReportClientState(handle, state);
 
         return Task.CompletedTask;
@@ -476,8 +504,8 @@ internal sealed partial class WebUIHub : Hub
             ? value
             : request.Theme == WebCssValues.RootThemeName(null) ? null : throw new InvalidOperationException($"Theme '{request.Theme}' is not light, dark or auto.");
 
-        var sessionId = ReadSessionId(Context.GetHttpContext());
-        UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
+        var sessionId = await ReadLiveSessionIdAsync().ConfigureAwait(false);
+        UserSessionState? written = sessionId is null
             ? null
             : await _sessions.SetThemeModeAsync(sessionId, mode, Context.ConnectionAborted).ConfigureAwait(false);
 
@@ -494,6 +522,22 @@ internal sealed partial class WebUIHub : Hub
     }
 
     /// <summary>
+    /// The session the page's cookie names, where the store holds it and it has not gone idle — the reading every other one of the
+    /// session makes, so a page's own switch cannot bring back an unclaimed session past its short timeout.
+    /// </summary>
+    private async ValueTask<string?> ReadLiveSessionIdAsync()
+    {
+        var sessionId = ReadSessionId(Context.GetHttpContext());
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return null;
+
+        UserSessionState? stored = await _sessions.TryGetAsync(sessionId, Context.ConnectionAborted).ConfigureAwait(false);
+
+        return stored is null || stored.IsIdle(_application.Sessions, DateTime.UtcNow) ? null : sessionId;
+    }
+
+    /// <summary>
     /// Makes a session the page stored its connection's — its controller told, where it has one — and reaches the session's other
     /// pages, which follow as the page did.
     /// </summary>
@@ -502,7 +546,7 @@ internal sealed partial class WebUIHub : Hub
         if (_host is not UIHost host)
             return;
 
-        if (Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle)
+        if (TryGetHandle(out UIHandle? handle))
             await host.ApplySessionChangeAsync(handle, written, Context.ConnectionAborted).ConfigureAwait(false);
         else
             await host.ReachSessionAsync(written, origin: null, originRuntime: null, Context.ConnectionAborted).ConfigureAwait(false);
@@ -519,8 +563,8 @@ internal sealed partial class WebUIHub : Hub
 
         request.Colors?.Validate();
 
-        var sessionId = ReadSessionId(Context.GetHttpContext());
-        UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
+        var sessionId = await ReadLiveSessionIdAsync().ConfigureAwait(false);
+        UserSessionState? written = sessionId is null
             ? null
             : await _sessions.SetThemeColorsAsync(sessionId, request.Colors, Context.ConnectionAborted).ConfigureAwait(false);
 
@@ -553,8 +597,8 @@ internal sealed partial class WebUIHub : Hub
 
         EnsureTranslatesInto(request.Language);
 
-        var sessionId = ReadSessionId(Context.GetHttpContext());
-        UserSessionState? written = string.IsNullOrWhiteSpace(sessionId)
+        var sessionId = await ReadLiveSessionIdAsync().ConfigureAwait(false);
+        UserSessionState? written = sessionId is null
             ? null
             : await _sessions.SetLanguageAsync(sessionId, request.Language, Context.ConnectionAborted).ConfigureAwait(false);
 
@@ -629,9 +673,9 @@ internal sealed partial class WebUIHub : Hub
     /// </summary>
     private static void AddPluralForms(ITranslator translator, UIWordTable table, string language, string key, Dictionary<string, string> words)
     {
-        foreach (var suffix in UIPluralRules.Forms)
+        for (UIPluralCategory category = UIPluralCategory.Zero; category <= UIPluralCategory.Other; category++)
         {
-            var form = string.Concat(key, ".", suffix);
+            var form = UIPluralRules.FormKey(key, category);
 
             if (table.Words.TryGetValue(form, out var listed))
                 words[form] = listed;
@@ -640,19 +684,32 @@ internal sealed partial class WebUIHub : Hub
         }
     }
 
-    public async Task<UICommandExecutionResult> ProcessEventAsync(UICommandRequest request)
+    public async Task<UICommandExecutionResult> ProcessEventAsync(WebUICommandRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        request.Validate();
-
         UIHandle handle = RequireHandle();
+        UICommandRequest command = CreateCommandRequest(handle, request);
+
+        command.Validate();
 
         UICommandExecutionResult result = await _host
-            .ProcessEventAsync(handle, request, Context.ConnectionAborted)
+            .ProcessEventAsync(handle, command, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
         return _outgoing.Stage(result, handle.Session.SessionId, [Context.ConnectionId]);
+    }
+
+    /// <summary>The command as the runtime takes it, its keys taken out of the staged value that carried them where they were too large.</summary>
+    private UICommandRequest CreateCommandRequest(UIHandle handle, WebUICommandRequest request)
+    {
+        var parameters = request.DynamicParameters;
+
+        // Staged by this session; one that expired or is not its own fails the command rather than run it with no keys.
+        if (request.DynamicParametersToken is not null && !_stagedValues.TryTakeParameters(handle.Session.SessionId, request.DynamicParametersToken, out parameters))
+            throw new InvalidOperationException("The staged command keys were not found; they may have expired.");
+
+        return new UICommandRequest { EventId = request.EventId, Action = request.Action, DynamicParameters = parameters, RequestId = request.RequestId };
     }
 
     /// <summary>A page holding unsaved work asks before it leaves: answered with what its controller does about it, never pushed.</summary>
@@ -688,9 +745,7 @@ internal sealed partial class WebUIHub : Hub
 
     /// <summary>The handle the attach left on this connection; a connection that never attached has none to act on.</summary>
     private UIHandle RequireHandle()
-        => Context.Items.TryGetValue(HandleContextItemKey, out var value) && value is UIHandle handle
-            ? handle
-            : throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is not attached.");
+        => TryGetHandle(out UIHandle? handle) ? handle : throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is not attached.");
 
     public async Task<ServerChangeSet> ProcessChangeSetAsync(WebUIChangeSetRequest request)
     {
@@ -727,7 +782,8 @@ internal sealed partial class WebUIHub : Hub
         if (update.ValueToken is not null && !_stagedValues.Holds(handle.Session.SessionId, update.ValueToken))
             throw new InvalidOperationException("The staged value was not found; it may have expired.");
 
-        return new UIPropertyAddress(new UIComponentId(update.ComponentId), update.PropertyName);
+        // The keys of the rows the field stands in, as the page reads them off the field; the runtime takes those its binding reads.
+        return new UIPropertyAddress(new UIComponentId(update.ComponentId), update.PropertyName, update.DynamicParameters);
     }
 
     private ClientValueUIUpdate CreateClientValueUpdate(UIHandle handle, WebUIValueChangeRequest update, UIPropertyAddress address)
@@ -741,7 +797,6 @@ internal sealed partial class WebUIHub : Hub
         return new ClientValueUIUpdate
         {
             Address = address,
-            DynamicParameters = update.DynamicParameters ?? [],
             Value = value
         };
     }
@@ -784,8 +839,8 @@ internal sealed partial class WebUIHub : Hub
             ComponentId = new UIComponentId(request.ComponentId),
             DynamicParameters = request.DynamicParameters ?? [],
             Anchor = anchor,
-            // Clamped here, where the number comes off the wire: a hand-made call must not ask a source for its whole table.
-            Count = Math.Clamp(request.Count, 1, UIItemWindowClientRequest.MaxCount),
+            // Not clamped: the runtime refuses a count past the bound, as on every host, and a view cannot declare one (its compile refuses it).
+            Count = request.Count,
             Mode = request.Extend ? UIItemWindowMode.Extend : UIItemWindowMode.Replace
         };
     }

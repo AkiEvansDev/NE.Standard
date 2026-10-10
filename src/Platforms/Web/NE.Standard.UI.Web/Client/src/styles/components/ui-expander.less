@@ -6,6 +6,8 @@
 // Border, radius, fill and padding come from the shared surface block; what is left here is what a `details` is and a surface is not.
 .ui-expander {
     display: block;
+    // Its corners again, for its header: the summary stands in the details' own slot, so `inherit` there read the slot's none.
+    .ui-responsive-property(--ui-expander-corners, --ui-border-radius, var(--ui-radius-card));
 }
 
 // ::details-content transitions height 0 -> auto (needs interpolate-size); allow-discrete keeps content-visibility measurable meanwhile.
@@ -44,28 +46,25 @@
 // Two columns, star and auto, like a card's header — see the note in ui-container.less. The chevron is the control half here.
 .ui-expander__header {
     .ui-control-band();
-    // A pixel short at the bottom, which the separator takes back, or the words sit half a pixel above the middle.
-    padding: @ui-space-3 @ui-space-4 calc(@ui-space-3 - 1px);
-    // Always present and transparent until open, so the border doesn't add a pixel to the box's height when it appears.
-    border-bottom: 1px solid transparent;
+    padding: @ui-space-3 @ui-space-4;
     list-style: none;
+    // The expander's corners, so a press's wave follows them; the keyboard's frame takes the card's all round (core/keyboard.less).
+    border-radius: var(--ui-expander-corners);
     cursor: pointer;
-    transition: border-color @ui-motion-normal @ui-motion-ease;
 }
 
     .ui-expander__header::-webkit-details-marker {
         display: none;
     }
 
-.ui-expander[open] > .ui-expander__header {
-    border-bottom-color: var(--ui-color-border);
-}
-
 // A container, like a card's two bands — see the note in ui-container.less. The air above is padding: a margin would collapse out
 // through ::details-content (clip makes no formatting context), outside the height the fold animates, and jump at its ends.
 .ui-expander__content {
     .ui-placement-host();
-    padding: @ui-space-3 @ui-space-4 @ui-space-4;
+    // The rule under the header is the content's, coming with it as it unfolds: on the header it bent up at the ends wherever the
+    // header's corners were rounded for the keyboard's frame. A pixel of the air above is the rule's.
+    border-top: 1px solid var(--ui-color-border);
+    padding: calc(@ui-space-3 - 1px) @ui-space-4 @ui-space-4;
 }
 
 .ui-expander__header-text {
@@ -93,11 +92,16 @@
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
-// Hover inks the chevron alone, as a tree row's fold mark: a wash would fill the band the surface already frames.
-@media @ui-can-hover {
+// Hover inks the chevron alone, as a tree row's fold mark: a wash would fill the band the surface already frames. A press inks it too
+// and sends the wave across the band (core/press.less), so a finger, which never hovers, sees its press.
+@media @{ui-can-hover} {
     :where(.ui-expander@{ui-button-live} > .ui-expander__header:hover .ui-expander__chevron) {
         color: @ui-text-ink;
     }
+}
+
+:where(.ui-expander@{ui-button-live} > .ui-expander__header:active .ui-expander__chevron) {
+    color: @ui-text-ink;
 }
 
 .ui-expander[open] > .ui-expander__header .ui-expander__chevron::before {

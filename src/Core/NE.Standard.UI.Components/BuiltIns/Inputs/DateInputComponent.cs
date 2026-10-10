@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
@@ -9,18 +8,10 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A date input that lets the user pick a calendar date.
 /// </summary>
+[UIComponentPropertyBlock(typeof(IMarkedDaysComponent))]
 public abstract partial class DateInputComponent<T>(string? id = null) : TemporalInputComponentBase<T, DateOnly?>(id), IMarkedDaysInputComponent
     where T : DateInputComponent<T>, IUIComponentDefinition
 {
-    /// <inheritdoc/>
-    /// <remarks>A bound set is sent whole each time the controller assigns a new one.</remarks>
-    [UIComponentProperty(Contract = typeof(IMarkedDaysComponent), DefaultValue = null, GenerateSetter = false)]
-    public IReadOnlyCollection<DateOnly>? MarkedDays { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IMarkedDaysComponent), DefaultValue = false, GenerateSetter = false)]
-    public bool? MarkedDaysOnly { get; set; }
-
     /// <summary>
     /// Validates that one end of the value or the period sits between the minimum and the maximum, and on a marked day where only
     /// those are on offer.

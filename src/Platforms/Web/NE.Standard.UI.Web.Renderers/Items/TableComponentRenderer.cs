@@ -52,6 +52,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     protected const string CellClassName = "ui-table__cell";
     protected const string PinnedModifier = "--pinned";
     protected const string PinnedEdgeModifier = "--pinned-edge";
+    private const string PinnedClassName = "ui-table--pinned";
 
     public override string ComponentTypeKey => TableComponent.ComponentTypeKey;
 
@@ -77,6 +78,10 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         // Once per render: the same slots draw every server row and tell the client how to draw its own.
         WebRenderItemsCompositeMetadata composite = CreateComposite(columns, cellRole);
 
+        // A row's marks drawn again above its pinned cells, and the grips that stick with them, read it off the root.
+        if (HasPinnedColumn(columns))
+            _ = root.Class(PinnedClassName);
+
         RenderTracks(root, columns);
         RenderHiddenColumns(root, columns);
         RenderTemplates(context, root);
@@ -99,6 +104,17 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         });
 
         RenderUnderTable(context, root, columns);
+    }
+
+    private static bool HasPinnedColumn(IReadOnlyList<UITableColumn> columns)
+    {
+        for (var i = 0; i < columns.Count; i++)
+        {
+            if (columns[i].Pinned)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>What a cell is to a screen reader: a grid's cell where the table acts as one, a table's otherwise — for a package's cells too.</summary>
@@ -124,6 +140,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         RenderFlagClass(context, root, TableComponent.ResizableColumnsProperty, "ui-table--resizable");
         RenderFlagClass(context, root, TableComponent.ReorderableColumnsProperty, "ui-table--reorderable");
         RenderDraggableRows(context, root);
+        RenderRowsRemove(context, root);
         RenderDragSource(context, root);
     }
 
@@ -317,7 +334,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
                 _ = cell.Attribute(WebAttributes.TableFixed);
 
             if (column.HideBelow is UIResponsiveTier tier)
-                _ = cell.Attribute(WebAttributes.TableHideBelow, tier.ToString().ToLowerInvariant());
+                _ = cell.Attribute(WebAttributes.TableHideBelow, WebResponsiveCss.TierWord(tier));
 
             if (column.Hidden)
                 _ = cell.Attribute(WebAttributes.TableStartsHidden);

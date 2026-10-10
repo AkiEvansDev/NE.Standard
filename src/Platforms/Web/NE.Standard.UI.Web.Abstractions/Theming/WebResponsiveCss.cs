@@ -49,6 +49,18 @@ public static class WebResponsiveCss
     // Built once per name: every component writes its sizes and padding through here.
     private static readonly ConcurrentDictionary<string, string[]> TierNamesByName = new(StringComparer.Ordinal);
 
+    // By UIResponsiveTier: the words the stylesheet's bands and the client's engines name the tiers by.
+    private static readonly string[] TierWords = ["base", "sm", "md", "xl", "xxl"];
+
+    /// <summary>A tier's own word — <c>base</c>, <c>sm</c>, <c>md</c>, <c>xl</c> or <c>xxl</c> — as a mark listing tiers writes it.</summary>
+    public static string TierWord(UIResponsiveTier tier)
+    {
+        if (tier is < UIResponsiveTier.Base or > UIResponsiveTier.Xxl)
+            throw new ArgumentOutOfRangeException(nameof(tier), tier, null);
+
+        return TierWords[(int)tier];
+    }
+
     /// <summary>
     /// The name a tier's value is written under: the name itself for the base tier, <c>-sm</c>, <c>-md</c>, <c>-xl</c> or <c>-xxl</c>
     /// after it for the others — a custom property's, or an attribute's (<c>data-ui-visibility-md</c>).

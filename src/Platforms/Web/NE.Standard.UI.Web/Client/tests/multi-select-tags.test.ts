@@ -469,3 +469,18 @@ test("TypedText, the default: typing marks nothing, and Escape is left to the li
     onWindow(escape);
     assert.equal(escape.defaultPrevented, false);
 });
+
+test("the chips' host says while a chip stands, which the field's clear shows by", () => {
+    const at = scene();
+    const host = at.select.querySelector(".ui-multi-select__chips")!;
+
+    type(at, "roadmap");
+    key("Enter");
+    assert.deepEqual(chips(at), ["roadmap"]);
+    assert.equal(host.hasAttribute("data-ui-select-chips"), true);
+
+    type(at, "");
+    key("Backspace");
+    assert.deepEqual(chips(at), []);
+    assert.equal(host.hasAttribute("data-ui-select-chips"), false);
+});

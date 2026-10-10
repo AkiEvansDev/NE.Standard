@@ -5,8 +5,7 @@ using NE.Standard.UI.Shell.Sessions;
 namespace NE.Standard.UI.Shell.Runtime;
 
 /// <summary>
-/// What a runtime does when code running for one of its connections moved that connection's session to another language, theme or
-/// set of colours.
+/// What a runtime does when code running for one of its connections changed that connection's session.
 /// </summary>
 internal interface IUISessionChangeListener
 {

@@ -29,7 +29,15 @@
     flex-direction: row;
     flex-wrap: wrap;
     .ui-responsive-property(gap, --ui-radio-group-spacing, @ui-space-4);
+    // Lines stand as close as a column's options do: a wrapped line, or a group's caption over its options.
+    .ui-responsive-property(row-gap, --ui-radio-group-spacing, @ui-space-2);
 }
+
+    // A group's caption takes a line of its own over its options, which run across under it: as one more item of the row it was cut
+    // off from its options where the row wrapped, and shrank out of its rule.
+    .ui-radio-group.ui-orientation--horizontal > .ui-radio-group__host > [data-ui-group-header] {
+        flex-basis: 100%;
+    }
 
 // An option is the same shape a checkbox is and carries the same text body: its template is a whole TextComponent.
 .ui-radio-group__item {
@@ -38,7 +46,8 @@
     cursor: pointer;
 }
 
-    .ui-radio-group__item:has(.ui-radio-group__input:disabled),
+    // An option whose template is off: its radio is disabled with it (RadioGroupSyncEngine), and its row is idle (`data-ui-row-idle`).
+    .ui-radio-group__item[data-ui-row-idle],
     .ui-radio-group.ui-readonly .ui-radio-group__item {
         cursor: default;
     }
@@ -53,9 +62,8 @@
     border-radius: 999px;
 }
 
-// The input is hidden, so the ring it would wear goes on the dot it stands for.
-.ui-radio-group__input@{ui-keyboard-focus} ~ .ui-radio-group__dot {
-    .ui-focus-ring();
+.ui-radio-group__item {
+    .ui-toggle-keyboard-frame();
 }
 
 .ui-radio-group__input:checked ~ .ui-radio-group__dot {
@@ -80,14 +88,19 @@
     opacity: 1;
 }
 
+// The group's message colours every option's ring, as a checkbox's colours its box.
+.ui-radio-group:is(@{ui-validation-marked}) .ui-radio-group__dot {
+    border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
+}
+
 // The group carries the states; an option off of its own answers nothing. On, the ring and the dot lean, the ground between stays.
-.ui-toggle-answers(~".ui-radio-group@{ui-toggle-live} .ui-radio-group__item:not(:has(> .ui-radio-group__input:disabled))", ~".ui-radio-group__input", ~".ui-radio-group__dot", {
+.ui-toggle-answers(~".ui-radio-group@{ui-toggle-live} .ui-radio-group__item", ~".ui-radio-group__input:not(:disabled)", ~".ui-radio-group__dot", {
     border-color: @ui-toggle-leaned;
 
     &::after {
         background: @ui-toggle-leaned;
     }
-});
+}, ~".ui-radio-group@{ui-toggle-live}:not(@{ui-validation-marked}) .ui-radio-group__item");
 
 // A size steps the dot with the text ui-input.less sizes; the mark inside stays a whole number of pixels.
 .ui-radio-group.ui-input--small .ui-radio-group__dot {

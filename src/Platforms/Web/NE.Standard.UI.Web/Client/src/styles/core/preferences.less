@@ -2,6 +2,7 @@
 @import "../mixins/popup.less";
 @import "../mixins/range.less";
 @import "../mixins/selected.less";
+@import "../mixins/table.less";
 
 // What the reader asked of the system: less motion, more contrast, and a high-contrast mode's forced palette. Imported last, so these
 // win ties.
@@ -10,7 +11,7 @@
 @ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, @{ui-window-indicator}";
 
 // The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
-@ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item:has(> [data-ui-action-bar] > .ui-action-bar), .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:has(> .ui-action-bar, > [data-ui-action-bar] > .ui-action-bar), .ui-tree > [data-ui-items-host] > .ui-tree__row:has(> .ui-tree__node > [data-ui-action-bar] > .ui-action-bar)";
+@ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar], .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-bar], .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-bar]";
 
 // Movement goes, its end state stays. On every element, a package's too, so none keeps a guard of its own; a script's own animation
 // asks rendering/motion.ts, since this reaches no Web Animation.
@@ -86,18 +87,20 @@
     // selection colour when it is one.
     .ui-items-view:not(.ui-items-view--wrap)@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus],
     .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id],
-    .ui-table@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
+    .ui-table:not([role="grid"])@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
+    .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus] > [data-ui-cell-focus],
     .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus],
     @{ui-bar-rows},
     .ui-select__option@{ui-list-current},
-    .ui-multi-select__chip:has(> .ui-multi-select__chip-remove:focus-visible) {
+    .ui-multi-select__chip@{ui-keyboard-within} {
         outline: 2px dashed CanvasText;
         outline-offset: -2px;
     }
 
         .ui-items-view:not(.ui-items-view--wrap)@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected],
         .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id],
-        .ui-table@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected],
+        .ui-table:not([role="grid"])@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected],
+        .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected] > [data-ui-cell-focus],
         .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus][data-ui-selected],
         :is(@{ui-bar-rows})[data-ui-selected],
         .ui-select__option@{ui-list-current}[aria-selected="true"] {
@@ -105,18 +108,15 @@
         }
 
     // A pinned cell's opaque ground covers the row's outline, so such a row draws it again on a layer above its cells.
-    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:has(> .ui-table__cell--pinned) {
+    .ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row {
         position: relative;
     }
 
-        .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row:has(> .ui-table__cell--pinned)::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            outline: inherit;
-            outline-offset: inherit;
-            pointer-events: none;
+        .ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row::after {
+            .ui-table-row-layer({
+                outline: inherit;
+                outline-offset: inherit;
+            });
         }
 
     // The keyboard's entry in a list (.ui-entry-keyboard()), a wash the mode drops: a dashed mark instead; a chosen entry keeps its own.
@@ -133,8 +133,8 @@
     }
 
     // A folded section holding the current page: a thinner mark than the page's entry; not under the dashed mark it would replace.
-    .ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}),
-    @{ui-menu-folded} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}) {
+    .ui-menu__item[data-ui-menu-group][data-ui-menu-holds-current]:not([data-ui-menu-open]) > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}),
+    @{ui-menu-folded} .ui-menu__item[data-ui-menu-group][data-ui-menu-holds-current] > .ui-menu-item:not(.ui-menu-item--selected):not(@{ui-keyboard-focus}) {
         outline: 1px solid Highlight;
         outline-offset: -1px;
     }
@@ -203,7 +203,7 @@
         @ui-forced-selected-cell();
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-temporal-input__day--selected:hover:not(:disabled),
         .ui-temporal-input__month--selected:hover:not(:disabled) {
             @ui-forced-selected-cell();
@@ -250,7 +250,7 @@
         background: CanvasText;
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-grid-splitter@{ui-button-live}:hover::before,
         .ui-table__resizer:hover::before {
             forced-color-adjust: none;
@@ -325,12 +325,12 @@
 
     // A slider's tinted track and gradient fill are dropped, leaving a handle on nothing. One prefix per rule: an unknown one drops it.
     .ui-slider__input::-webkit-slider-runnable-track,
-    .ui-slider.ui-invalid .ui-slider__input::-webkit-slider-runnable-track {
+    .ui-slider:is(@{ui-validation-marked}) .ui-slider__input::-webkit-slider-runnable-track {
         .ui-forced-range-track();
     }
 
     .ui-slider__input::-moz-range-track,
-    .ui-slider.ui-invalid .ui-slider__input::-moz-range-track {
+    .ui-slider:is(@{ui-validation-marked}) .ui-slider__input::-moz-range-track {
         .ui-forced-range-track();
     }
 
@@ -361,13 +361,13 @@
         .ui-forced-range-thumb();
     }
 
-        @media @ui-can-hover {
+        @media @{ui-can-hover} {
             .ui-slider__input@{ui-range-live}:hover::-webkit-slider-thumb {
                 box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
             }
         }
 
-        @media @ui-can-hover {
+        @media @{ui-can-hover} {
             .ui-slider__input@{ui-range-live}:hover::-moz-range-thumb {
                 box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
             }

@@ -36,14 +36,14 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
         _ = RenderProperty<decimal?>(context, root, ProgressComponent.MinProperty, static (target, value) =>
         {
-            var min = (value ?? 0m).ToString(CultureInfo.InvariantCulture);
+            var min = FormatNumber(value ?? 0m);
 
             _ = target.Style("--ui-progress-min", min).Attribute("aria-valuemin", min);
         }, [WebDomOperation.Style("--ui-progress-min"), WebDomOperation.Attribute("aria-valuemin", target: "root")]);
 
         _ = RenderProperty<decimal?>(context, root, ProgressComponent.MaxProperty, static (target, value) =>
         {
-            var max = (value ?? 100m).ToString(CultureInfo.InvariantCulture);
+            var max = FormatNumber(value ?? 100m);
 
             _ = target.Style("--ui-progress-max", max).Attribute("aria-valuemax", max);
         }, [WebDomOperation.Style("--ui-progress-max"), WebDomOperation.Attribute("aria-valuemax", target: "root")]);
@@ -121,10 +121,10 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
         // No reading is an indeterminate bar, which carries no aria-valuenow at all.
         _ = RenderProperty<decimal?>(context, root, ProgressComponent.ValueProperty, static (target, value) =>
         {
-            _ = target.Style("--ui-progress-value", (value ?? 0m).ToString(CultureInfo.InvariantCulture));
+            _ = target.Style("--ui-progress-value", FormatNumber(value ?? 0m));
 
             if (value is decimal reading)
-                _ = target.Attribute("aria-valuenow", reading.ToString(CultureInfo.InvariantCulture));
+                _ = target.Attribute("aria-valuenow", FormatNumber(reading));
         },
         [
             WebDomOperation.Style("--ui-progress-value"),
@@ -150,5 +150,9 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
     /// <summary>The reading is the value itself, never a percentage of the range; unset prints nothing.</summary>
     private static string FormatValue(decimal? value)
-        => value is decimal number ? number.ToString(CultureInfo.InvariantCulture) : string.Empty;
+        => value is decimal number ? FormatNumber(number) : string.Empty;
+
+    // Without its trailing zeros: the wire carries a JSON number, which a push writes as 12.5 where 12.50m would print 12.50.
+    private static string FormatNumber(decimal value)
+        => (value / 1.0000000000000000000000000000m).ToString(CultureInfo.InvariantCulture);
 }

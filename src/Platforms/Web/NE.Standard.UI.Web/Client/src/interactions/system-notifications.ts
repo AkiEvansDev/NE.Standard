@@ -101,7 +101,7 @@ export function followClick(click: NotificationClick, navigate: (url: string) =>
 }
 
 /** Whether the page stands somewhere other than `address`; a fragment counts only where the address names one. */
-function isElsewhere(address: string, here: Pick<Location, "origin" | "pathname" | "search" | "hash">): boolean {
+export function isElsewhere(address: string, here: Pick<Location, "origin" | "pathname" | "search" | "hash"> = window.location): boolean {
     const target = new URL(address, here.origin);
 
     return target.pathname !== here.pathname || target.search !== here.search || (target.hash !== "" && target.hash !== here.hash);

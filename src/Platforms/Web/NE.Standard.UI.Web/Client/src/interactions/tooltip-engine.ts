@@ -1,12 +1,14 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
 import {
-    ActionBarClass, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute,
+    ActionBarClass, ContextMenuOwnerAttribute, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute,
     TooltipSeverityAttribute as SeverityAttribute
 } from "../addressing/dom-attributes.ts";
-import { applyInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
+import { applyInlineMarkup, escapeInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
 import { carryPopupGround, isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
-import { isClippedOut } from "./element-visibility.ts";
+import { takesTyping } from "./caret-fields.ts";
+import { isClippedOut, isLaidOut } from "./element-visibility.ts";
+import { escapeIsClaimed } from "./field-escape.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
 
@@ -14,6 +16,8 @@ import { isClippedOut } from "./element-visibility.ts";
 const TooltipClass = "ui-tooltip";
 const TooltipId = "ui-tooltip";
 const VisibleClass = "ui-tooltip--visible";
+// Words carrying a link, which the pointer may press: any other tooltip lets a press through to the control under it.
+const LinkedClass = "ui-tooltip--linked";
 // A control's own popup trigger while its list or panel is open; a disclosure that is merely expanded names no popup.
 const OpenSelector = "[aria-haspopup][aria-expanded=\"true\"]";
 // What takes a press for itself: a link or a button inside the part a mark speaks for keeps its own press.
@@ -83,10 +87,17 @@ export function startTooltips(root: ParentNode = document): void {
     host.addEventListener("pointerout", onPointerOut, true);
     host.addEventListener("focusin", onFocusIn, true);
     host.addEventListener("focusout", onFocusOut, true);
-    host.addEventListener("keydown", onKeyDown, true);
     host.addEventListener("scroll", onScroll, true);
     host.addEventListener("pointerdown", onPointerDown, true);
+    host.addEventListener("pointermove", onHoldMove, true);
+    host.addEventListener("pointerup", cancelHold, true);
+    host.addEventListener("pointercancel", cancelHold, true);
+    host.addEventListener("contextmenu", onHoldContextMenu, true);
     host.addEventListener("click", onClick, true);
+    // On the window, ahead of every engine's click on the document: a hold's release presses nothing.
+    window.addEventListener("click", onHoldClick, true);
+    // On the window, ahead of every closer on the document: a tooltip on screen is the innermost thing Escape can take away.
+    window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("blur", () => {
         pinned = null;
         hide(true);
@@ -190,9 +201,16 @@ function onFocusOut(event: Event): void {
     hide(true);
 }
 
+/**
+ * Escape takes a tooltip on screen away and is spent on it, the popup or dialog behind waiting for the next; one a field or an editor
+ * claims (its cancel) is left to it, the tooltip going all the same.
+ */
 function onKeyDown(event: KeyboardEvent): void {
-    if (event.key !== "Escape" || anchor === null)
+    if (event.key !== "Escape" || anchor === null || event.defaultPrevented)
         return;
+
+    if (!escapeIsClaimed(event))
+        event.preventDefault();
 
     pinned = null;
     hide(true);
@@ -200,8 +218,13 @@ function onKeyDown(event: KeyboardEvent): void {
 
 // A press outside makes the tooltip stale; a press inside it is the reader following a link.
 function onPointerDown(event: Event): void {
+    cancelHold();
+    heldShown = null;
+
     if (isInsideTooltip(event.target))
         return;
+
+    startHold(event);
 
     const target = pressAnchor(event.target);
 
@@ -221,6 +244,85 @@ function onPointerDown(event: Event): void {
 
     if (pinned === null)
         hide(true);
+}
+
+// A finger held still on a control with words and no context menu asks for them, as Android's long press does: a touch never hovers,
+// and a glyph alone (or a line cut short) named nothing on a phone. A context menu's owner keeps the long press for its menu, a field
+// for its caret. The words stay until the next press, and the release presses nothing.
+const HoldDelayMs = 500;
+// How far the finger may drift, in pixels, and still be held still: past it the press is a scroll.
+const HoldSlop = 10;
+const ContextMenuOwnerSelector = `[${ContextMenuOwnerAttribute}]`;
+
+let hold: { readonly pointerId: number; readonly x: number; readonly y: number; readonly target: Element; readonly timer: number } | null = null;
+// The control a held finger brought the words up for, until the next press: the click its release raises is spent.
+let heldShown: Element | null = null;
+
+function startHold(event: Event): void {
+    const pointer = event as Partial<PointerEvent>;
+
+    if (pointer.pointerType !== "touch" || !(event.target instanceof Element) || event.target.closest(ContextMenuOwnerSelector) !== null || takesTyping(event.target))
+        return;
+
+    const target = findAnchor(event.target);
+
+    if (target === null || target.hasAttribute(PressAttribute))
+        return;
+
+    hold = { pointerId: pointer.pointerId ?? 0, x: pointer.clientX ?? 0, y: pointer.clientY ?? 0, target, timer: window.setTimeout(showHeld, HoldDelayMs) };
+}
+
+function cancelHold(): void {
+    if (hold === null)
+        return;
+
+    window.clearTimeout(hold.timer);
+    hold = null;
+}
+
+function onHoldMove(event: Event): void {
+    const pointer = event as Partial<PointerEvent>;
+
+    if (hold !== null && pointer.pointerId === hold.pointerId && Math.hypot((pointer.clientX ?? hold.x) - hold.x, (pointer.clientY ?? hold.y) - hold.y) > HoldSlop)
+        cancelHold();
+}
+
+function showHeld(): void {
+    const target = hold?.target ?? null;
+
+    hold = null;
+
+    if (target === null)
+        return;
+
+    pinned = null;
+    hide(true);
+    show(target);
+    held = anchor;
+    heldShown = anchor;
+}
+
+// The browser's own menu for the press the finger holds (Android's, at about the same time) is spent, and shows the words if it comes first.
+function onHoldContextMenu(event: Event): void {
+    if (hold !== null && event.target instanceof Node && hold.target.contains(event.target)) {
+        event.preventDefault();
+        window.clearTimeout(hold.timer);
+        showHeld();
+        return;
+    }
+
+    if (heldShown !== null && event.target instanceof Node && heldShown.contains(event.target))
+        event.preventDefault();
+}
+
+// The release of a hold that brought the words up is no press of the control.
+function onHoldClick(event: Event): void {
+    if (heldShown === null || !(event.target instanceof Node) || !heldShown.contains(event.target))
+        return;
+
+    heldShown = null;
+    event.preventDefault();
+    event.stopImmediatePropagation();
 }
 
 // The press on a control whose words are all it holds asked for them and nothing else: a checkbox's label around it would tick the box,
@@ -359,8 +461,9 @@ function schedule(target: Element, words?: string): void {
 function show(target: Element, words?: string): void {
     const text = (words ?? anchorWords(target)).trim();
 
-    // A control scrolled out of its box (a field at the top of a dialog scrolled down) would have its words float outside the box.
-    if (text.length === 0 || !target.isConnected || isOpen(target) || isClippedOut(target))
+    // A control scrolled out of its box (a field at the top of a dialog scrolled down) would have its words float outside the box, and
+    // one not laid out (a mark its host shows only now and then) would have them float at the page's corner.
+    if (text.length === 0 || !target.isConnected || !isLaidOut(target) || isOpen(target) || isClippedOut(target))
         return;
 
     window.clearTimeout(showTimer);
@@ -371,6 +474,7 @@ function show(target: Element, words?: string): void {
 
     // Nothing in a tooltip can be pressed, so a fold in it is written open.
     applyInlineMarkup(element, text, { staticFolds: true });
+    element.classList.toggle(LinkedClass, element.querySelector("a[href]") !== null);
     element.classList.add(VisibleClass);
 
     anchor = target;
@@ -384,6 +488,19 @@ function show(target: Element, words?: string): void {
 
     // Against the control and centred on it, not at the pointer, so the same control always shows it in the same place.
     placeAnchoredPopup(target, element, { placement: readPlacement(target), gap: AnchorGap, arrow: true });
+    watchOrphan();
+}
+
+// The page redrawing the anchor away (a touch's tap that re-rendered it) sends no pointerout and, on a phone, no next pointerover: while
+// the words are on screen, a change in the tree takes them away once their anchor has left it. One check of a flag per change.
+let orphanWatch: MutationObserver | null = null;
+
+function watchOrphan(): void {
+    if (typeof MutationObserver === "undefined")
+        return;
+
+    orphanWatch ??= new MutationObserver(dropOrphan);
+    orphanWatch.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 // A control whose own list or panel is open says nothing, however the tooltip was asked for: it stood over the options just opened.
@@ -444,10 +561,14 @@ function wearSeverity(element: HTMLElement, severity: string | null): void {
 export type TooltipShowOptions = {
     /** Wait as a hover does, for words following a passing pointer (a chart's crosshair); unset opens at once. */
     readonly delay?: boolean;
+    /** The words as written, not inline markup: a name or a value of the package's own (a series called `p*q`). */
+    readonly plain?: boolean;
 };
 
 /** Shows a tooltip of the caller's own words against an element, whatever the element says for itself. */
-function showTooltipWith(target: Element, words: string, options?: TooltipShowOptions): void {
+function showTooltipWith(target: Element, given: string, options?: TooltipShowOptions): void {
+    const words = options?.plain === true ? escapeInlineMarkup(given) : given;
+
     // Already on screen for this target: the words change in place, with no wait.
     if (options?.delay === true && anchor !== target)
         schedule(target, words);
@@ -464,9 +585,11 @@ function closeTooltip(): void {
 export type Tooltips = {
     show(target: Element, words: string, options?: TooltipShowOptions): void;
     hide(): void;
+    /** A caption or a value made safe to stand among words a tooltip reads as inline markup (`UIInlineMarkup.Escape`'s twin). */
+    escape(text: string): string;
 };
 
-export const tooltips: Tooltips = { show: showTooltipWith, hide: closeTooltip };
+export const tooltips: Tooltips = { show: showTooltipWith, hide: closeTooltip, escape: escapeInlineMarkup };
 
 /** Opens an anchor's tooltip until focus leaves its control — for a mark appearing under typing, with no focus event to open on. */
 export function pinTooltip(element: Element): void {
@@ -518,6 +641,7 @@ function hide(immediate: boolean): void {
         undescribe();
         anchor = null;
         held = null;
+        orphanWatch?.disconnect();
 
         if (tooltip !== null) {
             tooltip.classList.remove(VisibleClass);

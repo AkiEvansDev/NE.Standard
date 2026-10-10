@@ -1,5 +1,5 @@
 using System;
-using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;

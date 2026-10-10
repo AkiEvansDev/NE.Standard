@@ -5,11 +5,13 @@ import { DialogEngine } from "../interactions/dialog-engine";
 import { copySelection } from "../interactions/legacy-commands";
 import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine, offeredAction, offeredActionId } from "../interactions/notification-engine";
+import type { NotificationAction } from "../interactions/notification-engine";
 import { dispatchOpenPicker } from "../interactions/picker-events";
-import { showSystemNotification, SystemNotificationServices } from "../interactions/system-notifications";
-import { holdAtEnd, isEndAnchored, letGoOfEnd } from "../interactions/scroll-anchor-engine";
-import { itemsHostOf, letGoOfRow, revealItem } from "../items/item-reveal";
-import { hostOfScrollTarget, viewportOf } from "../items/items-viewport";
+import { isElsewhere, showSystemNotification, SystemNotificationServices } from "../interactions/system-notifications";
+import { focusedElement, handFocusOnIfHidden } from "../interactions/focus-handoff";
+import { holdAtEnd, isEndAnchored, releaseScrollHolds } from "../interactions/scroll-anchor-engine";
+import { itemsHostOf, revealItem } from "../items/item-reveal";
+import { viewportOf } from "../items/items-viewport";
 import {
     AddressClientEffect,
     AnnounceClientEffect,
@@ -204,6 +206,8 @@ export class EffectRegistry {
             if (element === null)
                 return;
 
+            // Focusing brings the element into view, which a list held at its end or on a row would undo.
+            releaseScrollHolds(element);
             focusElement(element);
         });
 
@@ -217,6 +221,7 @@ export class EffectRegistry {
             const behavior = getScrollToBehavior(effect.behavior);
             const block = getScrollToBlock(effect.block);
 
+            releaseScrollHolds(element);
             element.scrollIntoView({
                 behavior: scrollBehavior(behavior),
                 block: block === "Unknown" ? "nearest" : (block.toLowerCase() as ScrollLogicalPosition)
@@ -240,8 +245,8 @@ export class EffectRegistry {
 
             const block = getScrollToBlock(effect.block);
 
-            // The row is where the reader is sent: a list held at its end lets go of the end.
-            letGoOfEnd(viewportOf(host));
+            // The row is where the reader is sent: a list held at its end or on another row lets go of it.
+            releaseScrollHolds(viewportOf(host));
 
             if (!revealItem(host, effect.key, block === "Unknown" ? "Start" : block, scrollBehavior(getScrollToBehavior(effect.behavior))))
                 logWarn("scroll to item effect names a row the host has not drawn.", context.effect);
@@ -285,11 +290,9 @@ export class EffectRegistry {
             next = Math.max(0, Math.min(max, next));
 
             const behavior = scrollBehavior(getScrollToBehavior(effect.behavior));
-            const scrolledHost = hostOfScrollTarget(scroller);
 
-            // A scroll asked for moves the list from a row a jump held in view.
-            if (scrolledHost !== null)
-                letGoOfRow(scrolledHost);
+            // A scroll asked for moves the list from a row a jump held in view, and from its end unless it asks for the end again.
+            releaseScrollHolds(scroller);
 
             // An end-anchored list asked to its end stays there while the window it reads there arrives and lays out.
             if (vertical && position === "End" && isEndAnchored(scroller))
@@ -461,11 +464,13 @@ export class EffectRegistry {
         }
 
         const body = isPhrase(effect.body) || isAuthorText(effect.body) ? effect.body : undefined;
+        // Only a path of this site: a notification is no way to open another.
+        const bringTo = typeof effect.address === "string" && isLocalRoute(effect.address) ? effect.address : undefined;
         const toast = (): void => {
             if (effect.fallback === "None" || this.notifications === undefined)
                 return;
 
-            const action = this.runAction === undefined ? undefined : offeredAction(effect.action, this.runAction);
+            const action = this.fallbackAction(effect, bringTo);
 
             this.notifications.show(body === undefined ? { message: title, action } : { title, message: body, action });
         };
@@ -476,8 +481,6 @@ export class EffectRegistry {
         }
 
         const action = offeredActionId(effect.action);
-        // Only a path of this site: a notification is no way to open another.
-        const bringTo = typeof effect.address === "string" && isLocalRoute(effect.address) ? effect.address : undefined;
 
         void showSystemNotification({
             title: wordsOf(title),
@@ -494,6 +497,22 @@ export class EffectRegistry {
             if (!shown)
                 toast();
         });
+    }
+
+    /**
+     * The fallback toast's button, going where a click on the system's notification goes (`followClick`): to its address, through the
+     * page's own leave, where the page stands elsewhere, else the command it offered.
+     */
+    private fallbackAction(effect: SystemNotificationClientEffect, bringTo: string | undefined): NotificationAction | undefined {
+        const navigate = this.navigate;
+
+        if (bringTo !== undefined && navigate !== undefined && isElsewhere(bringTo)) {
+            const label = isPhrase(effect.addressLabel) || isAuthorText(effect.addressLabel) ? effect.addressLabel : { key: "ui.notification.open" };
+
+            return { label, run: () => navigate(bringTo) };
+        }
+
+        return this.runAction === undefined ? undefined : offeredAction(effect.action, this.runAction);
     }
 }
 
@@ -521,12 +540,18 @@ function applyVisibility(target: Element | null, value: string | null): void {
     if (target === null)
         return;
 
+    // Hiding what holds the focus (a banner's × answering with HideEffect) hands it on, as a bound Visibility's write does.
+    const focused = focusedElement();
+
     for (const attribute of VisibilityTierAttributes) {
         if (value === null)
             target.removeAttribute(attribute);
         else
             target.setAttribute(attribute, value);
     }
+
+    if (focused !== null)
+        handFocusOnIfHidden(focused);
 }
 
 function resolveTarget(context: EffectContext): Element | null {

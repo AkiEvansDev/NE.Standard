@@ -4,6 +4,7 @@
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { ComponentIdAttribute, cssAttributeValue, FileDropTargetIdAttribute } from "../addressing/dom-attributes.ts";
+import { markDropBoxed } from "./drag-marks.ts";
 
 type FileDropTarget = {
     /** The component the files go to, and the mark while a file is over it. */
@@ -123,6 +124,7 @@ function handleDrag(options: FileDropOptions, state: DropState, domEvent: Event)
 
         marked.set(mark, attribute);
         mark.setAttribute(attribute, refused ? RefusedMark : "");
+        markDropBoxed(mark, attribute === DropOverAttribute);
         return;
     }
 
@@ -239,6 +241,8 @@ function unmark(marked: Map<HTMLElement, string>, element: HTMLElement): void {
 
     if (attribute !== undefined)
         element.removeAttribute(attribute);
+
+    markDropBoxed(element, false);
 }
 
 function unmarkAll(marked: Map<HTMLElement, string>): void {

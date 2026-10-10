@@ -81,10 +81,6 @@
     --ui-popup-ground: initial;
 }
 
-.ui-dialog__surface:focus {
-    outline: none;
-}
-
 // On a phone a centred dialog fills the screen less a margin, not a card lost in the middle; an authored width still wins.
 @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
     .ui-dialog:not([data-ui-dialog-placement]) > .ui-dialog__surface {
@@ -109,8 +105,9 @@
 
 .ui-dialog:is([data-ui-dialog-placement="left"], [data-ui-dialog-placement="right"]) > .ui-dialog__surface {
     .ui-responsive-property(width, --ui-width, min(420px, calc(100% - (@ui-space-4 * 2))));
-    // The screen's guard, as a centred dialog's: an authored width wider than a phone stops at its edge.
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
+    // The screen's guard: an authored width wider than a phone stops short of its far edge, as the side drawer does (85%), so a strip
+    // of the page stays to tap beside it; capped at the screen's width it left a modal sheet nothing to be dismissed by.
+    .ui-responsive-property(max-width, --ui-max-width, 85%);
     .ui-responsive-property(max-height, --ui-max-height, 100%);
     align-self: var(--ui-align-v, stretch);
 }
@@ -135,6 +132,7 @@
 
 .ui-dialog[data-ui-dialog-placement="bottom"] > .ui-dialog__surface {
     align-self: var(--ui-align-v, end);
+    .ui-sheet-edge();
 }
 
 .ui-dialog[data-ui-dialog-placement="left"] {
@@ -151,6 +149,23 @@
 
 .ui-dialog[data-ui-dialog-placement="bottom"] {
     --ui-dialog-sheet-from: translateY(100%);
+}
+
+// A bottom sheet the viewer may put away takes a grab handle, and a swipe down puts it away (dialog-engine.ts, sheet-swipe.ts): it
+// follows the finger, springs back, and slides out as it goes.
+.ui-dialog[data-ui-dialog-placement="bottom"]:is([data-ui-dialog-close-backdrop], [data-ui-dialog-close-escape]) > .ui-dialog__surface {
+    transition: transform @ui-motion-normal @ui-motion-enter;
+    .ui-sheet-follow();
+
+    // In the surface's own padding, which keeps the rest.
+    &::before {
+        .ui-sheet-handle(-@ui-space-2 auto @ui-space-2);
+    }
+}
+
+.ui-dialog[hidden][data-ui-dialog-placement="bottom"]:is([data-ui-dialog-close-backdrop], [data-ui-dialog-close-escape]) > .ui-dialog__surface {
+    transform: translateY(100%);
+    transition: transform @ui-motion-fast @ui-motion-exit;
 }
 
 // The framework's own "Leave without saving?" (leave-dialog.ts): a title, a line, and its two answers at the end, Stay first.

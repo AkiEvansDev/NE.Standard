@@ -24,6 +24,14 @@ public abstract partial class ParagraphComponent<T> : TextComponentBase<T>, IPar
     }
 
     /// <summary>
+    /// Gets or sets whether the paragraph is the note under the field before it — what may be typed, what it is for — set back to
+    /// start where that field's words and its message do.
+    /// </summary>
+    /// <remarks>Render-time only: where a note stands is how the form is built.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
+    public bool? FieldNote { get; set; }
+
+    /// <summary>
     /// Sets the maximum number of lines the text can wrap to before truncating.
     /// </summary>
     public T SetMaxLines(int maxLines)

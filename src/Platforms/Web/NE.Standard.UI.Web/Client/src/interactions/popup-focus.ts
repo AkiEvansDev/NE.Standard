@@ -1,12 +1,21 @@
 // Focus into a popup and back out, and the one rule over every focus while the pointer was last: it is marked `data-ui-pointer-focus`,
 // so no keyboard mark is drawn for it — but on an editable text entry, whose edge says where typing goes, as `:focus-visible` does.
-// A key other than a modifier held alone, or the element losing the focus, takes the mark off.
+// A key other than a modifier held alone, or the element losing the focus (but a list's current entry), takes the mark off. The
+// focused element's ancestors up to its component root say whose the focus is (`data-ui-focus-within`), which a field's edge and a
+// list's quiet read in place of a `:has()`: that made Chrome re-check the page on every focus.
 
-import { ComponentIdAttribute, ComponentSelector, DialogSurfaceClass, FlyoutContentClass, FocusHolderAttribute, PointerFocusAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, ComponentSelector, DialogSurfaceClass, FlyoutContentClass, FocusHolderAttribute, FocusWithinAttribute, NestedMenuClass, PointerFocusAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { readComponentId } from "../addressing/dom-registry.ts";
+import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { isFocusable } from "./interactive-state.ts";
+import { FieldBoxSelector } from "./own-control.ts";
 import { applyRovingTabIndex, isRovingCandidate } from "./roving-focus.ts";
-import { rowKeyTarget } from "./row-cursor.ts";
+import { cellOf, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
+import { ownRows } from "./row-selection.ts";
+
+/** A list's current entry, the keyboard's or the pointer's (`@ui-list-keyboard` frames it while it is not the pointer's). */
+const ActiveEntryAttribute = "data-ui-active";
 
 /** What counts as focusable, for every surface that opens a popup. */
 export const FocusableSelector = [
@@ -28,6 +37,9 @@ let focusedBeforePress: Element | null = null;
 // Every element wearing the mark, the focused one or not (a search's current option): the first real key takes it off them all.
 const marked = new Set<Element>();
 
+// The ancestors wearing `data-ui-focus-within`, from the focused element's parent up to its component root.
+let focusChain: readonly Element[] = [];
+
 // The popups whose focus a pointer's opening took: the focus they give back is the pointer's too (restoreFocusTo).
 const openedByPointer = new WeakSet<Element>();
 
@@ -41,7 +53,7 @@ if (typeof window !== "undefined") {
     // makes is marked ahead of it (focusAsLastInput), and a list marks the root a press is about to focus (ItemsSelectionEngine).
     window.addEventListener("focus", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusin", domEvent => noteFocus(domEvent.target), true);
-    window.addEventListener("focusout", domEvent => markPointerFocus(domEvent.target, false), true);
+    window.addEventListener("focusout", domEvent => noteBlur(domEvent), true);
 }
 
 /** Notes a press; one inside the focused element marks it here, since no focusin follows, or unmarks an editable entry. */
@@ -55,6 +67,9 @@ export function notePress(target: EventTarget | null, pointerType = ""): void {
 
     if (active instanceof Element && active !== document.body && target instanceof Node && active.contains(target))
         markPointerFocus(active, !isEditableEntry(active));
+
+    // A focused element taken off the page fires no focusout: its marks go at the next press or key.
+    markFocusWithin(active);
 }
 
 /** A key makes the keyboard the last input and takes every mark off; a modifier held alone changes nothing. */
@@ -66,12 +81,31 @@ export function noteKey(domEvent: Event): void {
 
     for (const element of [...marked])
         markPointerFocus(element, false);
+
+    markFocusWithin(document.activeElement);
 }
 
 /** A focus arriving while the pointer was the last input is the pointer's, but for an editable text entry. */
 export function noteFocus(target: EventTarget | null): void {
     if (pointerLast && !isEditableEntry(target))
         markPointerFocus(target, true);
+
+    if (target === document.activeElement)
+        markFocusWithin(document.activeElement);
+}
+
+/**
+ * The focus leaving an element takes its pointer's mark off; going nowhere, the marks around it follow once the script that moved it is
+ * done: a list drawn again loses its focused entry and focuses the new one, and its marks stand through that rather than go and come back.
+ */
+export function noteBlur(domEvent: FocusEvent): void {
+    // A list's current entry keeps it: a press outside takes the focus while the list fades out, and the entry would wear the keyboard's
+    // frame through the fade. A key takes the mark off, as from every other element.
+    if (!(domEvent.target instanceof Element && domEvent.target.hasAttribute(ActiveEntryAttribute)))
+        markPointerFocus(domEvent.target, false);
+
+    if (domEvent.relatedTarget === null)
+        queueMicrotask(() => markFocusWithin(document.activeElement));
 }
 
 /** Where typing goes: a caret field or a time segment the reader may change, or an editable region. */
@@ -117,18 +151,73 @@ export function markPointerFocus(target: EventTarget | null, pointer: boolean): 
 
     if (target.hasAttribute(PointerFocusAttribute) !== pointer)
         target.toggleAttribute(PointerFocusAttribute, pointer);
+
+    if (target === document.activeElement)
+        markFocusWithin(target);
+}
+
+/**
+ * Marks the focused element's ancestors up to its component root `pointer` while it wears the pointer's mark and `keyboard` otherwise,
+ * and takes the mark off those it no longer stands in; none for an editable entry, whose field's edge always shows. Only what changes is
+ * written: Chrome re-styles a marked element's descendants that a rule reading it names.
+ */
+function markFocusWithin(focused: Element | null): void {
+    const value = focused === null || focused === document.body || isEditableEntry(focused) ? null : focused.hasAttribute(PointerFocusAttribute) ? "pointer" : "keyboard";
+    const chain = focused === null || value === null ? [] : focusWithinChain(focused);
+
+    for (const element of focusChain) {
+        if (!chain.includes(element))
+            element.removeAttribute(FocusWithinAttribute);
+    }
+
+    for (const element of chain) {
+        if (value !== null && element.getAttribute(FocusWithinAttribute) !== value)
+            element.setAttribute(FocusWithinAttribute, value);
+    }
+
+    focusChain = chain;
+}
+
+/**
+ * From an element's parent up to its component root, going on past a component that is part of another — a submenu's menu, one standing
+ * in a field's box (a flyout, a split button beside the caret) — to that one's root; never the region or the body, whose whole content a
+ * mark would re-style.
+ */
+function focusWithinChain(element: Element): Element[] {
+    const chain: Element[] = [];
+
+    for (let current = element.parentElement; current !== null && current !== document.body && !current.hasAttribute(RegionAttribute); current = current.parentElement) {
+        chain.push(current);
+
+        if (current.hasAttribute(ComponentIdAttribute) && !isPartOfAnother(current))
+            break;
+    }
+
+    return chain;
+}
+
+function isPartOfAnother(component: Element): boolean {
+    return component.classList.contains(NestedMenuClass) || (component.parentElement?.closest(FieldBoxSelector) ?? null) !== null;
 }
 
 /** Focuses an element without scrolling the page out from under the pointer, marked first if the pointer was last (the rule above). */
 export function focusAsLastInput(element: HTMLElement): void {
     noteFocus(element);
+    focusMarked(element);
+}
+
+/** Focuses an element with the marks around it already on, since the browser reads the style before the focus event. */
+function focusMarked(element: HTMLElement): void {
+    markFocusWithin(element);
     element.focus({ preventScroll: true });
+    // An element that took no focus leaves the marks with what holds it.
+    markFocusWithin(document.activeElement);
 }
 
 /** Gives an entry the focus the pointer moved onto it — a list's current entry following the pointer, as a native menu's does. */
 export function focusByPointer(element: HTMLElement): void {
     markPointerFocus(element, true);
-    element.focus({ preventScroll: true });
+    focusMarked(element);
 }
 
 /** The first element inside a container the keyboard can stand on: focusable by its markup, laid out, and not inert. */
@@ -144,7 +233,9 @@ export function firstFocusable(container: ParentNode): HTMLElement | null {
 /** The keyboard's reading of a package's container, on the plugin surface as `focus`. */
 export const pluginFocus = {
     first: firstFocusable,
-    stops: (container: ParentNode): HTMLElement[] => tabStops(container, document.activeElement)
+    stops: (container: ParentNode): HTMLElement[] => tabStops(container, document.activeElement),
+    giveBack: (element: Element): void => giveKeyboardBack(element),
+    trapTab
 };
 
 /**
@@ -184,6 +275,24 @@ function isChecked(element: HTMLElement): boolean {
     return element instanceof HTMLInputElement && element.checked;
 }
 
+/** Keeps a Tab inside a modal layer — a dialog, a drawer over its backdrop — round from one end to the other; swallowed where it holds no stop. */
+export function trapTab(container: HTMLElement, domEvent: KeyboardEvent): void {
+    const stops = tabStops(container, document.activeElement);
+
+    if (stops.length === 0) {
+        // Nothing to move focus to, but the key is still swallowed or focus walks out of the layer.
+        domEvent.preventDefault();
+        return;
+    }
+
+    const target = wrappedTabStop(container, stops, document.activeElement, domEvent.shiftKey);
+
+    if (target !== null) {
+        domEvent.preventDefault();
+        target.focus();
+    }
+}
+
 /**
  * Where Tab goes in a modal layer when the browser's own move would leave it: round to the other end, or back in from outside —
  * the focus fallen to the page's body as its element was drawn again, or left there by a press on the layer's padding. Null where
@@ -208,7 +317,7 @@ function isSameStop(element: Element, stop: HTMLElement): boolean {
 
 // A layer that takes the keyboard back from a field in it: a dialog's surface, a flyout's panel, a layer a package marks. A mark
 // rather than `role="application"`, which takes a screen reader out of browse mode for all inside.
-const FocusHolderSelector = `.${DialogSurfaceClass}, .${FlyoutContentClass}, [${FocusHolderAttribute}]`;
+export const FocusHolderSelector = `.${DialogSurfaceClass}, .${FlyoutContentClass}, [${FocusHolderAttribute}]`;
 
 /** What takes the keyboard when a field lets go: the nearest dialog, flyout, marked holder, or row host whose own row holds it. */
 export function focusHolderAround(element: Element): HTMLElement | null {
@@ -220,6 +329,25 @@ export function focusHolderAround(element: Element): HTMLElement | null {
     }
 
     return null;
+}
+
+/**
+ * Gives the keyboard back from a field or an editor let go of to the holder around it, read before the let-go where that may take the
+ * element off the page: a row host's cursor moves to the element's row, a grid's to its cell. Nothing moves where the focus already went
+ * elsewhere; with no holder, Tab carries on from the element's place.
+ */
+export function giveKeyboardBack(element: Element, holder: HTMLElement | null = focusHolderAround(element)): void {
+    const active = document.activeElement;
+
+    if (holder?.isConnected !== true || (active !== null && active !== document.body))
+        return;
+
+    const found = rowKeyTarget(element);
+
+    if (found?.root === holder && found.row !== null)
+        setRowFocus(holder, ownRows(holder), found.row, cellOf(found.row, element));
+
+    focusAsLastInput(holder);
 }
 
 /** Moves the focus into an opened popup — the named element, its first focusable, else the popup itself — and answers what held it, or null if it was inside. */
@@ -235,7 +363,8 @@ export function moveFocusInto(popup: HTMLElement, preferred?: HTMLElement | null
     else
         openedByPointer.delete(popup);
 
-    if (target === null && !popup.hasAttribute("tabindex"))
+    // The popup itself, named or for want of a control: focusable for it.
+    if ((target === null || target === popup) && !popup.hasAttribute("tabindex"))
         popup.tabIndex = -1;
 
     focusAsLastInput(target ?? popup);
@@ -294,10 +423,13 @@ export function focusOpenedList(list: HTMLElement, entries: readonly HTMLElement
     focusAsLastInput(target);
 }
 
+/** The page's components by id, through which an opener the page redrew away is found again. */
+export type ComponentIndex = Pick<DomRegistry, "findEveryComponent">;
+
 /** Where the focus goes back as a surface closes: the opener, the nearest focusable around it, or its component's root — never the body. */
-export function liveFocusReturn(opener: HTMLElement | null | undefined, root: ParentNode = document): HTMLElement | null {
+export function liveFocusReturn(opener: HTMLElement | null | undefined, components: ComponentIndex | null = null): HTMLElement | null {
     // An opener the page redrew away is found again by its component; null where nothing of it is left.
-    const live = opener === null || opener === undefined ? null : opener.isConnected ? opener : redrawnOpener(opener, root);
+    const live = opener === null || opener === undefined ? null : opener.isConnected ? opener : redrawnOpener(opener, components);
 
     for (let current = live; current !== null; current = current.parentElement) {
         if (current.matches(`${FocusableSelector}, [tabindex]`) && isFocusable(current))
@@ -308,12 +440,16 @@ export function liveFocusReturn(opener: HTMLElement | null | undefined, root: Pa
 }
 
 /** The component on the page now standing where a redrawn opener's stood: its own, or the nearest one around it. */
-function redrawnOpener(opener: HTMLElement, root: ParentNode): HTMLElement | null {
-    for (let component = opener.closest(ComponentSelector); component !== null; component = component.parentElement?.closest(ComponentSelector) ?? null) {
-        // An id a template's rows share names no one element: the next component out is a surer place.
-        const matches = root.querySelectorAll<HTMLElement>(`[${ComponentIdAttribute}="${component.getAttribute(ComponentIdAttribute)}"]`);
+function redrawnOpener(opener: HTMLElement, components: ComponentIndex | null): HTMLElement | null {
+    if (components === null)
+        return null;
 
-        if (matches.length === 1)
+    for (let component = opener.closest(ComponentSelector); component !== null; component = component.parentElement?.closest(ComponentSelector) ?? null) {
+        // An id a template's rows share names no one element: the next component out is a surer place. The index may not have seen the
+        // redraw yet, so only what is on the page counts.
+        const matches = components.findEveryComponent(readComponentId(component)).filter(match => match.isConnected);
+
+        if (matches.length === 1 && matches[0] instanceof HTMLElement)
             return matches[0];
     }
 

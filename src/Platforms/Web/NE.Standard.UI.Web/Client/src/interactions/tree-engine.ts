@@ -1,7 +1,7 @@
 // A tree's rows as a flat list in walking order: depth, fold (kept in the browser), keys, lazy children, rename and drag/drop.
 
 import {
-    ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemsHostAttribute, SelectionAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
+    ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemsHostAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
     TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute,
     TreeDropMarkAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UnrenamableAttribute,
     UnselectableAttribute
@@ -21,14 +21,15 @@ import { observeComponents } from "./dom-mutations";
 import { clearDragMarks, giveDragPayload, leftAltogether, markDragStart } from "./drag-marks";
 import { allowedEffect, beginItemsDrag, carriedRows, isDraggableRow, offeredItems } from "./item-drags";
 import { openInlineRename } from "./inline-rename";
-import { enterRow, pressRow, removableRows } from "./items-selection-engine";
+import { chooseOnMove, enterRow, removeRows, spaceRow } from "./items-selection-engine";
 import { ownControlOf } from "./own-control";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state";
 import { raiseItemMove } from "./items-reorder-engine";
-import { focusedRow, litRow, nameRowBy, resolveRowTarget, rowKeyTarget, setRowFocus } from "./row-cursor";
-import { isRovingKey } from "./roving-focus";
+import { isPointerLast } from "./popup-focus";
+import { dispatchRowEvent, enterRowCursor, focusedRow, hostKeyTarget, isRowKey, keepRowCursorShown, litRow, nameRowBy, resolveRowTarget, setRowFocus } from "./row-cursor";
+import { isComposing, isPlainKey } from "./keyboard-shortcut";
 import type { SelectionGesture } from "./row-selection";
-import { chooseRow, ensureAnchor, keyGestureOf, PlainGesture, rowKey } from "./row-selection";
+import { keyGestureOf, PlainGesture, rowKey } from "./row-selection";
 import type { TreeKeyMove, TreeMovePlace, TreeNodePlace } from "./tree-drop";
 import { folderTakesDrop, keyMovePlace, markTreeDrop, nodeOf, placeMoves, siblingAfter, takesDrop } from "./tree-drop";
 
@@ -119,13 +120,18 @@ export class TreeEngine {
         this.root.addEventListener(TreeRulesEventName, domEvent => {
             const tree = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${TreeRootClass}`) : null;
 
-            if (tree !== null)
-                this.layout(tree);
+            if (tree === null)
+                return;
+
+            this.layout(tree);
+            // A filter that left the cursor's node out moves the cursor to the nearest node it shows.
+            keepRowCursorShown(tree, this.rowsOf(tree));
         }, true);
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
+        this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
         this.root.addEventListener("dragstart", domEvent => this.handleDragStart(domEvent), true);
         this.root.addEventListener("dragover", domEvent => this.handleDragOver(domEvent), true);
         this.root.addEventListener("dragleave", domEvent => this.handleDragLeave(domEvent), true);
@@ -433,7 +439,7 @@ export class TreeEngine {
         if (tree.hasAttribute(TreeRenameOnDoubleClickAttribute) && this.canRename(tree, row))
             this.startRename(row);
         else
-            row.dispatchEvent(new Event("open", { bubbles: true }));
+            dispatchRowEvent(row, "open");
     }
 
     /** The row and the tree a pointer event landed in, scoped to the tree that owns the row. */
@@ -450,15 +456,25 @@ export class TreeEngine {
         return { tree, row, target: domEvent.target };
     }
 
+    /** The tree reached from the keyboard shows its cursor at once (`enterRowCursor`); a press places it on the node it lands on. */
+    private handleFocusIn(domEvent: Event): void {
+        const tree = domEvent.target;
+
+        if (!(tree instanceof HTMLElement) || !tree.classList.contains(TreeRootClass) || isInert(tree) || isPointerLast())
+            return;
+
+        enterRowCursor(tree, this.rowsOf(tree));
+    }
+
     private handleKeyDown(domEvent: Event): void {
         // A key another engine took — an open select's arrows — is not the tree's.
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing || !(domEvent.target instanceof Element))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent) || !(domEvent.target instanceof Element))
             return;
 
         // Only keys on the tree or its rows: the rename field, a row's control and a nested list keep theirs.
-        const found = rowKeyTarget(domEvent.target);
+        const found = hostKeyTarget(domEvent);
 
-        if (found === null || (found.row !== null && ownControlOf(domEvent.target, found.row) !== null))
+        if (found === null)
             return;
 
         const tree = found.root;
@@ -466,7 +482,7 @@ export class TreeEngine {
         if (!tree.classList.contains(TreeRootClass) || isInert(tree))
             return;
 
-        const keyMove = domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey && !domEvent.shiftKey ? KeyMoves[domEvent.key] : undefined;
+        const keyMove = domEvent.altKey && isPlainKey(domEvent, { alt: true }) ? KeyMoves[domEvent.key] : undefined;
 
         if (keyMove !== undefined && tree.hasAttribute(TreeDraggableAttribute)) {
             // Taken whether or not the node moves: in a tree whose nodes move, Alt+Left would otherwise take the page back.
@@ -475,7 +491,7 @@ export class TreeEngine {
             return;
         }
 
-        if (!ActionKeys.has(domEvent.key) && !isRovingKey(domEvent.key, "vertical"))
+        if (!ActionKeys.has(domEvent.key) && !isRowKey(domEvent.key, "vertical"))
             return;
 
         const rows = this.rowsOf(tree);
@@ -493,9 +509,7 @@ export class TreeEngine {
 
         switch (domEvent.key) {
             case " ":
-                // Space toggles the node under the cursor and leaves the rest as they are; a tree that chooses nothing presses it, as a list does.
-                if (!chooseRow(tree, rows, current, { shift: false, ctrl: true }))
-                    pressRow(current, null);
+                spaceRow(tree, rows, current, null);
                 break;
             case "ArrowRight":
                 // A folded node unfolds; an unfolded one hands the focus to its first child.
@@ -522,21 +536,12 @@ export class TreeEngine {
 
                 this.startRename(current);
                 break;
-            case "Delete": {
-                // The chosen nodes go together when the cursor is on one; whether one is removed is the controller's answer.
-                if (tree.hasAttribute(TreeUnremovableAttribute))
+            case "Delete":
+                // A tree that removes nothing by key says so on its root, whatever a node says.
+                if (tree.hasAttribute(TreeUnremovableAttribute) || !removeRows(tree, rows, current))
                     return;
-
-                const removable = removableRows(rows, current);
-
-                if (removable.length === 0)
-                    return;
-
-                for (const row of removable)
-                    row.dispatchEvent(new Event("remove", { bubbles: true }));
 
                 break;
-            }
             default:
                 return;
         }
@@ -832,14 +837,8 @@ export class TreeEngine {
 
         setRowFocus(tree, rows, row);
 
-        if (gesture === null || !(tree.getAttribute(SelectionAttribute) === "one" || gesture.shift))
-            return;
-
-        // A range measured from where the cursor stood, which is the anchor when no click has set one.
-        if (gesture.shift)
-            ensureAnchor(tree, from);
-
-        chooseRow(tree, rows, row, gesture);
+        if (gesture !== null)
+            chooseOnMove(tree, rows, from, row, gesture);
     }
 
     private parentOf(tree: HTMLElement, row: HTMLElement): HTMLElement | null {

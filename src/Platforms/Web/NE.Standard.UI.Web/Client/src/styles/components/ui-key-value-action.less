@@ -3,6 +3,7 @@
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
+@import "../mixins/selected.less";
 
 .ui-key-value-action {
     // Column layout lives on the inner __host, one of four template variants (key, value, action, contentless host).
@@ -49,8 +50,9 @@
 }
 
 // Clipped to the padding box, off the separator.
-@media @ui-can-hover {
-    .ui-key-value-action--row-hover .ui-key-value-action__row:hover {
+@media @{ui-can-hover} {
+    // Its own rows, not a nested list's, and not a disabled one (`@ui-row-live`), as an items view's, a table's and a tree's.
+    .ui-key-value-action--row-hover > .ui-key-value-action__host > .ui-key-value-action__row@{ui-row-live}:hover {
         .ui-row-hover();
         background-clip: padding-box;
 
@@ -100,8 +102,9 @@
     color: @ui-text-muted;
 }
 
-// A cell with its field's validation mark becomes a line, so the dot sits after the value, not under it.
-.ui-key-value-action__value:has(> .ui-validation-mark) {
+// A cell with its field's validation mark (`data-ui-tooltip-mark`, validation-engine.ts) becomes a line, so the dot sits after the
+// value, not under it.
+.ui-key-value-action__value[data-ui-tooltip-mark] {
     display: flex;
     align-items: center;
     gap: @ui-space-2;
@@ -169,8 +172,9 @@
         min-height: var(--ui-key-value-line);
     }
 
-    // The field at the line's top, set down by what the line has over the field's height: its message hangs below the line.
-    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input:has(> :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline)) {
+    // The field at the line's top, set down by what the line has over the field's height: its message hangs below the line. Only a
+    // field that draws a box (`data-ui-boxed-editor`, key-value-action-engine.ts).
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input[data-ui-boxed-editor] {
         padding-top: calc((var(--ui-key-value-line) - @ui-button-height-sm) / 2);
     }
 

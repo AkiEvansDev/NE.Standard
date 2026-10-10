@@ -1,6 +1,6 @@
 // The client half of `UIInlineMarkup`, which must read the same markup the same way; nodes are built, never innerHTML.
 
-import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
+import { EventBoundaryAttribute, FoldsAttribute } from "../addressing/dom-attributes.ts";
 import { applyIconValue } from "./icon-value.ts";
 import { isExternalLink, isSafeLink } from "./url-safety.ts";
 
@@ -71,9 +71,16 @@ export function escapeInlineMarkup(text: string): string {
     return escaped;
 }
 
-/** Replaces an element's content with the runs the text parses into; plain text takes the textContent path. */
+/**
+ * Replaces an element's content with the runs the text parses into; plain text takes the textContent path. The element is marked
+ * while it holds a fold, as the server's render marks it.
+ */
 export function applyInlineMarkup(target: Element, text: string | null | undefined, options: InlineMarkupOptions = {}): void {
     const segments = parseInlineMarkup(text);
+    const folds = segments.some(isFold);
+
+    if (target.hasAttribute(FoldsAttribute) !== folds)
+        target.toggleAttribute(FoldsAttribute, folds);
 
     if (segments.length === 0) {
         target.textContent = "";

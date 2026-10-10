@@ -69,12 +69,8 @@
 
 // The list: the context menu's surface, shown while the switcher is open and placed by language-switcher-engine.ts.
 .ui-language-switcher__menu {
-    .ui-popup-surface(@ui-z-list);
-    .ui-popup-scroll();
-    .ui-popup-closed();
+    .ui-popup-list();
     .ui-entry-list();
-    min-width: 10rem;
-    padding: @ui-space-1;
     text-align: start;
     cursor: default;
     // The pointer moves the current language (language-switcher-engine.ts), so it stays quiet while a key holds another.
@@ -87,24 +83,6 @@
 
     // A language as a menu's entry; the list's own height, not the root's MinHeight, which is the button's.
     .ui-language-switcher__choice {
-        display: flex;
-        align-items: center;
-        min-height: @ui-list-row-height;
-        padding: @ui-space-1 @ui-space-2;
-        border: 0;
-        border-radius: @ui-list-entry-radius;
-        background: none;
-        color: inherit;
-        font: inherit;
+        .ui-choice-entry();
         text-align: start;
-        white-space: nowrap;
-        cursor: pointer;
-        .ui-interactive-base();
-        .ui-entry-hover(~"[aria-checked='true']");
-        .ui-entry-keyboard(~"[aria-checked='true']");
-    }
-
-    .ui-language-switcher__choice[aria-checked="true"] {
-        .ui-selected-ground();
-        .ui-selected-ink();
     }

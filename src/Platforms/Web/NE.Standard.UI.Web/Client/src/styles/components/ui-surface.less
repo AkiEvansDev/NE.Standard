@@ -33,34 +33,32 @@
 
 // Deliberately no pointer-events: none on a non-clickable card: it inherits and would block clicks and selection on everything nested.
 
-// The controls a clickable surface may hold, which answer the pointer themselves: own-control.ts's `ControlSelector`, word for word.
-@ui-surface-inner-control: ~"button, a, input, select, textarea, label, summary, [role='button'], [contenteditable=''], [contenteditable='true'], .ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger, .ui-field-box, [role='listbox'], [role='menu'], [role='dialog'], .ui-row__grip";
-
 // Behaviour only: the states below mix into whichever fill Surface chose, so a flat and a raised card both react without a shared look.
 .ui-surface--clickable {
     cursor: pointer;
     transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
 }
 
-    // The ghost wash mixed into the fill, so a tinted surface reacts in its own colour; :hover holds on every ancestor, so not over an inner control.
-    @media @ui-can-hover {
-        .ui-surface--clickable@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
+    // The ghost wash mixed into the fill, so a tinted surface reacts in its own colour; :hover holds on every ancestor, so not over a
+    // control of its own (surface-press-engine.ts marks the surface).
+    @media @{ui-can-hover} {
+        .ui-surface--clickable@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
             background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-fill));
         }
     }
 
-    @media @ui-can-hover {
-        .ui-surface--clickable.ui-surface--raised@{ui-button-live}:hover:not(:has(:is(@{ui-surface-inner-control}):hover)) {
+    @media @{ui-can-hover} {
+        .ui-surface--clickable.ui-surface--raised@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
             .ui-elevation-2();
         }
     }
 
 // :active bubbles to every ancestor, so presses on an inner control are excluded to stop the card animating underneath it.
-.ui-surface--clickable@{ui-button-live}:active:not(:has(:is(@{ui-surface-inner-control}):active)) {
+.ui-surface--clickable@{ui-button-live}:active:not([data-ui-inner-pointer~="press"]) {
     background-color: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-surface-fill));
 }
 
-    .ui-surface--clickable.ui-surface--raised@{ui-button-live}:active:not(:has(:is(@{ui-surface-inner-control}):active)) {
+    .ui-surface--clickable.ui-surface--raised@{ui-button-live}:active:not([data-ui-inner-pointer~="press"]) {
         .ui-elevation-1();
     }
 

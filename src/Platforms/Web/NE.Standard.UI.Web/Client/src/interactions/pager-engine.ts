@@ -20,13 +20,12 @@ import { ClientStore } from "../state/client-store.ts";
 import type { ClientStringKey } from "../runtime/client-strings.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { componentStates, isInert } from "./interactive-state.ts";
-import { ownControlOf } from "./own-control.ts";
-import { ownDescendants } from "./own-descendants.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import { OwnedPopups } from "./owned-popup.ts";
-import { focusByPointer, focusOpenedList } from "./popup-focus.ts";
-import { applyRovingTabIndex, isRovingCandidate, isRovingKey, resolveRovingTarget } from "./roving-focus.ts";
-import { litRow, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
-import { KeyboardRowsRootSelector, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
+import { followPointer, handleChoiceListKey, openChoiceList } from "./popup-list.ts";
+import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
+import { hostKeyTarget, litRow, setRowFocus } from "./row-cursor.ts";
+import { KeyboardRowsRootSelector, ownRows } from "./row-selection.ts";
 
 export type PagerEngineOptions = {
     readonly root?: ParentNode;
@@ -76,7 +75,9 @@ export class PagerEngine {
     private readonly menus = new OwnedPopups({
         show: ({ owner }) => owner.classList.add(SizeOpenClass),
         hide: ({ owner }) => owner.classList.remove(SizeOpenClass),
-        closesWhenReadOnly: false
+        closesWhenReadOnly: false,
+        closesOnTab: true,
+        sheetOnPhone: true
     });
 
     public constructor(options: PagerEngineOptions) {
@@ -274,55 +275,41 @@ export class PagerEngine {
         const current = domEvent.target.closest<HTMLElement>(`.${ButtonClass}, .${SizeTriggerClass}`);
         const stops = stopsOf(pager);
 
-        if (current === null || !stops.includes(current))
+        if (current === null || !stops.includes(current) || !isPlainKey(domEvent))
             return;
 
-        const next = resolveRovingTarget({ key: domEvent.key, items: stops, current, axis: "horizontal", loop: false });
+        // A toolbar: past its last button the walk comes round to the first.
+        const next = resolveRovingTarget({ key: domEvent.key, items: stops, current, axis: "horizontal" });
 
         if (next === null)
             return;
 
         domEvent.preventDefault();
-        applyRovingTabIndex(stops, next);
-        next.focus();
+        moveRovingFocus(stops, next);
     }
 
     /** Down or Up opens the sizes from their button, as a menu button's do; once open, the arrows move among them. */
     private handleSizeKey(domEvent: KeyboardEvent, size: HTMLElement): boolean {
         const trigger = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${SizeTriggerClass}`) : null;
 
-        if (trigger !== null && !this.menus.isOpen(size) && (domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp")) {
+        if (trigger !== null && !this.menus.isOpen(size) && (domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp") && isPlainKey(domEvent)) {
             domEvent.preventDefault();
             this.openSizes(size, trigger, domEvent.key === "ArrowUp");
             return true;
         }
 
-        if (!this.menus.isOpen(size) || !isRovingKey(domEvent.key, "vertical"))
-            return false;
-
-        const choices = choicesOf(size);
-        const current = domEvent.target instanceof HTMLElement && choices.includes(domEvent.target) ? domEvent.target : null;
-        const next = resolveRovingTarget({ key: domEvent.key, items: choices, current, axis: "vertical" });
-
-        if (next !== null) {
-            domEvent.preventDefault();
-            next.focus();
-        }
-
-        return true;
+        // The list's keys are its own even where nothing moved: the pager's arrows must not walk its buttons under an open list.
+        return this.menus.isOpen(size) && handleChoiceListKey(domEvent, choicesOf(size));
     }
 
     /** The pointer moves the open list's current size, as in a native menu, so the arrows go on from it. */
     private handlePointerMove(domEvent: Event): void {
         const choice = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${SizeChoiceClass}`) : null;
 
-        if (choice === null || choice === document.activeElement || isInert(choice))
-            return;
+        const size = choice?.closest<HTMLElement>(`.${SizeClass}`) ?? null;
 
-        const size = choice.closest<HTMLElement>(`.${SizeClass}`);
-
-        if (size !== null && this.menus.isOpen(size))
-            focusByPointer(choice);
+        if (choice !== null && size !== null && this.menus.isOpen(size))
+            followPointer(choice, choicesOf(size));
     }
 
     private toggleSizes(trigger: HTMLElement): void {
@@ -345,19 +332,9 @@ export class PagerEngine {
             return;
 
         const choices = choicesOf(size);
-        const checked = choices.find(choice => choice.getAttribute("aria-checked") === "true");
+        const checked = choices.find(choice => choice.getAttribute("aria-checked") === "true") ?? null;
 
-        const opened = this.menus.open({
-            owner: size,
-            popup: menu,
-            anchor: trigger,
-            placement: { placement: "bottom-end" },
-            openers: [trigger],
-            focus: checked ?? false
-        });
-
-        if (opened && checked === undefined)
-            focusOpenedList(menu, choices, fromEnd);
+        openChoiceList(this.menus, { owner: size, popup: menu, anchor: trigger, placement: { placement: "bottom-end" }, openers: [trigger] }, choices, checked, fromEnd);
     }
 
     /**
@@ -418,16 +395,13 @@ export class PagerEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || (domEvent.key !== "PageDown" && domEvent.key !== "PageUp"))
             return;
 
-        if (domEvent.altKey || domEvent.ctrlKey || domEvent.metaKey || domEvent.shiftKey || !(domEvent.target instanceof Element))
+        if (!isPlainKey(domEvent) || !(domEvent.target instanceof Element))
             return;
 
-        const found = rowKeyTarget(domEvent.target);
+        const found = hostKeyTarget(domEvent);
 
         // A key in a row's own control, or in the host's chrome, is theirs.
         if (found === null || !found.root.matches(KeyboardRowsRootSelector) || isInert(found.root))
-            return;
-
-        if (found.row !== null && ownControlOf(domEvent.target, found.row) !== null)
             return;
 
         const host = windowedHostOf(found.root);
@@ -446,13 +420,13 @@ export class PagerEngine {
 
     /** Turns the page and puts the keyboard's row where it stood on the page before, or on the last row of a shorter one. */
     private async turnFromKeyAsync(root: HTMLElement, host: HTMLElement, offset: number): Promise<void> {
-        const before = rowsOf(root);
+        const before = ownRows(root);
         const lit = litRow(before);
         const index = lit === null ? 0 : Math.max(0, before.indexOf(lit));
 
         await this.options.windows.requestOffsetAsync(host, offset);
 
-        const rows = rowsOf(root);
+        const rows = ownRows(root);
 
         if (rows.length > 0)
             setRowFocus(root, rows, rows[Math.min(index, rows.length - 1)]);
@@ -558,10 +532,6 @@ function windowedHostOf(component: Element): HTMLElement | null {
     return null;
 }
 
-/** A host's own rows, never a nested list's. */
-function rowsOf(root: HTMLElement): HTMLElement[] {
-    return ownDescendants(root, SelectionRowSelector, SelectionRootSelector);
-}
 
 function isItemsHost(node: Node): boolean {
     return node instanceof Element && node.hasAttribute(ItemsHostAttribute);

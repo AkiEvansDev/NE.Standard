@@ -2,10 +2,12 @@
 import { HostModeAttribute, VisibilityAttribute, WindowMoreAfterAttribute, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { letGoOfRowsUnder } from "../items/item-reveal.ts";
+import { readWindowFlag } from "../items/items-host-mode.ts";
 
 /** The end-anchor contract, shared with the virtualization engine, which keeps its own host at the end the same way. */
 const ScrollAnchorAttribute = "data-ui-scroll-anchor";
 const EndAnchor = "End";
+const EndAnchoredSelector = `[${ScrollAnchorAttribute}="${EndAnchor}"]`;
 
 // Slack rather than an exact comparison: fractional scroll positions and sub-pixel row heights fall short of it.
 const EndThreshold = 4;
@@ -22,9 +24,15 @@ export function holdAtEnd(container: Element): void {
     heldAtEnd.add(container);
 }
 
-/** Lets go of a container held at its end, for a scroll the page was asked for elsewhere in it (a row brought into view). */
-export function letGoOfEnd(container: Element): void {
-    heldAtEnd.delete(container);
+/**
+ * Lets go of every hold around an element a scroll the page was asked for moves to — a component or a row brought into view, a container
+ * scrolled: each list around it held at its end, and a row held in view, or the next window or message snaps the list back.
+ */
+export function releaseScrollHolds(element: Element): void {
+    letGoOfRowsUnder(element);
+
+    for (let container = element.closest(EndAnchoredSelector); container !== null; container = container.parentElement?.closest(EndAnchoredSelector) ?? null)
+        heldAtEnd.delete(container);
 }
 
 export type ScrollAnchorEngineOptions = {
@@ -210,7 +218,7 @@ export class ScrollAnchorEngine {
 function letGo(domEvent: Event): void {
     letGoOfRowsUnder(domEvent.target);
 
-    const container = domEvent.target instanceof Element ? domEvent.target.closest(`[${ScrollAnchorAttribute}="${EndAnchor}"]`) : null;
+    const container = domEvent.target instanceof Element ? domEvent.target.closest(EndAnchoredSelector) : null;
 
     if (container !== null)
         heldAtEnd.delete(container);
@@ -228,7 +236,7 @@ export function isEndAnchored(container: Element): boolean {
 
 /** Whether the container is a windowed host whose window has newer items after it, so its end is not the newest content. */
 function holdsOlderWindow(container: Element): boolean {
-    return container.getAttribute(WindowMoreAfterAttribute)?.toLowerCase() === "true";
+    return readWindowFlag(container, WindowMoreAfterAttribute);
 }
 
 export function isAtEnd(container: Element): boolean {

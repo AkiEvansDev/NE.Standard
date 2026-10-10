@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Abstractions.Recursive;
 
@@ -17,6 +18,9 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 public static class RecursiveValueCoercion
 {
     private static readonly ConcurrentDictionary<Type, Func<object, object>?> ResponsiveWrappers = new();
+
+    // The page's clock shapes (temporal-dom.ts's TimePattern), and the fraction a serialized TimeOnly carries.
+    private static readonly string[] WrittenClockFormats = ["H:mm", "H:mm:ss", "H:mm:ss.FFFFFFF"];
 
     // The wire's own conventions read back: a property camel-cased either way, an enum by its name, an `object` as the value it holds.
     private static readonly JsonSerializerOptions ModelOptions = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter(), new ObjectToInferredTypesConverter() } };
@@ -86,11 +90,7 @@ public static class RecursiveValueCoercion
         {
             var converted = underlyingType switch
             {
-                _ when underlyingType == typeof(DateOnly) && value is string dateText => DateOnly.Parse(dateText, CultureInfo.InvariantCulture),
-                _ when underlyingType == typeof(TimeOnly) && value is string timeText => TimeOnly.Parse(timeText, CultureInfo.InvariantCulture),
-                _ when underlyingType == typeof(DateTime) && value is string dateTimeText => DateTime.Parse(dateTimeText, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                // AssumeLocal, not RoundtripKind (.NET rejects combining them): an offset-less string becomes the server's local time.
-                _ when underlyingType == typeof(DateTimeOffset) && value is string dateTimeOffsetText => DateTimeOffset.Parse(dateTimeOffsetText, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal),
+                _ when IsMoment(underlyingType) && value is string momentText => ReadWrittenMoment(momentText, underlyingType),
                 _ when underlyingType == typeof(Guid) && value is string guidText => Guid.Parse(guidText),
                 // A text property takes a plain string (a rename's) as the author's text, and gives back its text or its key (a
                 // command's text argument read off an item) — the one rule for a phrase read as a string.
@@ -153,6 +153,33 @@ public static class RecursiveValueCoercion
         );
 
         return Expression.Lambda<Func<object, object>>(body, parameter).Compile();
+    }
+
+    private static bool IsMoment(Type type)
+        => type == typeof(DateTime) || type == typeof(DateOnly) || type == typeof(TimeOnly) || type == typeof(DateTimeOffset);
+
+    /// <summary>
+    /// A moment in the wire's shapes, read as the page reads it (<see cref="UIWrittenMoment"/>), or null for any other text: one .NET
+    /// reads in another shape is one the page cannot read back.
+    /// </summary>
+    private static object? ReadWrittenMoment(string text, Type type)
+    {
+        if (type == typeof(TimeOnly))
+            return TimeOnly.TryParseExact(text.Trim(), WrittenClockFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out TimeOnly clock) ? clock : null;
+
+        if (!UIWrittenMoment.TryRead(text, out DateTime moment))
+            return null;
+
+        // A picker's canonical moment to a date-only field: its day.
+        if (type == typeof(DateOnly))
+            return DateOnly.FromDateTime(moment);
+
+        // The written offset kept, which names the instant; one written without stands in the server's zone.
+        if (type == typeof(DateTimeOffset))
+            return DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal);
+
+        // The wall clock as written, a zone after it dropped rather than shifting the moment into the server's.
+        return moment;
     }
 
     private static bool IsStringList(Type type)

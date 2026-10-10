@@ -76,6 +76,15 @@ internal sealed class WebPipeTextWriter : TextWriter
         }
     }
 
+    /// <summary>Writes text already encoded as UTF-8 straight into the pipe, after what is buffered.</summary>
+    public void WriteUtf8(ReadOnlySpan<byte> utf8)
+    {
+        Encode(flush: true);
+
+        Length += Utf8.GetCharCount(utf8);
+        _pipe.Write(utf8);
+    }
+
     /// <summary>Hands everything written so far to the pipe, a trailing half of a surrogate pair included; the pipe still needs its flush.</summary>
     public void Complete()
         => Encode(flush: true);

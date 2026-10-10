@@ -18,7 +18,8 @@ installFakeDom({
     }
 });
 
-const { popups } = await import("../src/interactions/popup-service.ts");
+const { createPopups } = await import("../src/interactions/popup-service.ts");
+const popups = createPopups({ findEveryComponent: () => [] });
 
 function scene(ownerClasses = ""): { anchor: FakeElement; popup: FakeElement; outside: FakeElement } {
     const anchor = FakeElement.of(ownerClasses, {}, "button");

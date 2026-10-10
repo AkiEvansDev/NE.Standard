@@ -1,5 +1,4 @@
-import { DomRegistry } from "../addressing/dom-registry";
-import { getIdValue } from "../metadata/metadata-index";
+import { componentParts } from "../addressing/dom-registry";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { OwnedPopups } from "./owned-popup";
 import { observeComponents } from "./dom-mutations";
@@ -66,9 +65,7 @@ type ColorDragContext = {
 
 export type ColorInputEngineOptions = {
     readonly root?: ParentNode;
-
     readonly propertyPatchEngine?: PropertyPatchEngine;
-    readonly dom?: DomRegistry;
 };
 
 /** The colour input's two tabs — a free picker and the palette — both views of the canonical text in the hidden input. */
@@ -91,9 +88,8 @@ export class ColorInputEngine {
 
         // A pushed value is a new colour to read: the swatch, the text and the picker all come from it.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
-            const componentId = getIdValue(change.reference.componentId);
-
-            this.applyAll(this.options.dom?.findComponentParts(componentId, change.dynamicParameters, `.${RootClass}`) ?? []);
+            // The elements the patch landed on, not every one the id names: a package's clone of a template is patched alone.
+            this.applyAll(componentParts(change.components, `.${RootClass}`));
         });
 
         // The text format is an attribute on the root, so a bound change to it arrives as a mutation, not a value change.
@@ -474,15 +470,15 @@ export class ColorInputEngine {
         }
 
         const popup = input.querySelector<HTMLElement>(`.${PopupClass}`);
-        const toggle = input.querySelector<HTMLElement>(`[${ToggleAttribute}]`);
 
         if (popup === null)
             return;
 
         // The showing variant, not the root, which also holds the label and any stretched height; the focus lands on the showing tab.
-        const anchor = input.getAttribute(VariantAttribute) === "swatch"
-            ? input.querySelector<HTMLElement>(`.${SwatchButtonClass}`)
-            : input.querySelector<HTMLElement>(`.${RowClass}`);
+        // Its own toggle says it is open — the swatch, or the field's pipette — never the hidden variant's.
+        const swatch = input.getAttribute(VariantAttribute) === "swatch";
+        const anchor = swatch ? input.querySelector<HTMLElement>(`.${SwatchButtonClass}`) : input.querySelector<HTMLElement>(`.${RowClass}`);
+        const toggle = swatch ? anchor : anchor?.querySelector<HTMLElement>(`[${ToggleAttribute}]`) ?? null;
 
         this.popups.open({
             owner: input,

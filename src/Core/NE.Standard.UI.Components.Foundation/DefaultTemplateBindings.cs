@@ -6,11 +6,20 @@ using NE.Standard.UI.Primitives.Binding;
 namespace NE.Standard.UI.Components.Foundation;
 
 /// <summary>
-/// The two text contracts, bound to a component in one call each.
+/// What a built-in template binds off its item — its state, its abilities and its text — in one call each.
 /// </summary>
-/// <remarks><c>Visible</c> and <c>Enabled</c> are not here: they belong to the component rather than to its text.</remarks>
+/// <remarks>Every binding is optional: a built-in template does not know the item type, so a member the item lacks stays unset quietly.</remarks>
 public static class DefaultTemplateBindings
 {
+    /// <summary>
+    /// Binds the component's <c>Visibility</c> and <c>Enabled</c> to the bound item's, so one row can be hidden or disabled.
+    /// </summary>
+    public static TComponent BindItemState<TComponent>(this VisualComponentBase<TComponent> component)
+        where TComponent : VisualComponentBase<TComponent>, IUIComponentDefinition
+        => component
+            .Bind(IVisualComponent.VisibilityProperty, nameof(ITextBaseModel.Visibility), UIBindingScope.Relative, optional: true)
+            .Bind(IVisualComponent.EnabledProperty, nameof(ITextBaseModel.Enabled), UIBindingScope.Relative, optional: true);
+
     /// <summary>
     /// Binds every <see cref="IItemAbilitiesModel"/> flag relative to the bound item, so a flag flipped on a live item reaches its row.
     /// </summary>
@@ -41,6 +50,7 @@ public static class DefaultTemplateBindings
             .Bind(ITextBaseComponent.BadgePlacementProperty, nameof(ITextBaseModel.BadgePlacement), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeStyleProperty, nameof(IBadgeModel.BadgeStyle), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeColorProperty, nameof(IBadgeModel.BadgeColor), UIBindingScope.Relative, optional: true)
+            .Bind(ITextBaseComponent.BadgeFillProperty, nameof(IBadgeModel.BadgeFill), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeIconProperty, nameof(IBadgeModel.BadgeIcon), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeIconColorProperty, nameof(IBadgeModel.BadgeIconColor), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeIconSizeProperty, nameof(IBadgeModel.BadgeIconSize), UIBindingScope.Relative, optional: true)

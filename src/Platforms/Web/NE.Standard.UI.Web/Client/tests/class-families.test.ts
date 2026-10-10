@@ -44,13 +44,24 @@ function patch(registry: DomOperationRegistry, target: object, converterName: st
 
 test("a badge's first style patch takes off the style the server painted, and leaves its other classes", () => {
     const registry = new DomOperationRegistry();
-    const badge = element("ui-badge", "ui-badge-style--success", "ui-badge--tinted");
+    const badge = element("ui-badge", "ui-badge-style--success", "ui-badge--colored");
 
     patch(registry, badge, "badgeStyleClass", "Warning");
-    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--tinted", "ui-badge-style--warning"]);
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--colored", "ui-badge-style--warning"]);
 
     patch(registry, badge, "badgeStyleClass", "Success");
-    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--tinted", "ui-badge-style--success"]);
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--colored", "ui-badge-style--success"]);
+});
+
+test("a badge's fill and style are families of their own: a fill patched at runtime replaces the fill and leaves the style", () => {
+    const registry = new DomOperationRegistry();
+    const badge = element("ui-badge", "ui-badge-style--danger", "ui-badge-fill--outline");
+
+    patch(registry, badge, "badgeFillClass", "Tinted");
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge-style--danger", "ui-badge-fill--tinted"]);
+
+    patch(registry, badge, "badgeFillClass", null);
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge-style--danger"]);
 });
 
 test("a button's kind and size share a prefix but not a family: a patch to one leaves the other", () => {
@@ -104,7 +115,9 @@ test("every class a converter writes is in its family, and a converter that writ
     for (let style = 0; style < 8; style++)
         assert.ok(badge(convert("badgeStyleClass", style)), String(style));
 
-    assert.equal(badge("ui-badge--tinted"), false);
+    assert.equal(badge("ui-badge--colored"), false);
+    assert.equal(badge("ui-badge-fill--outline"), false);
+    assert.equal(getClassFamily("badgeFillClass")?.("ui-badge-style--danger"), false);
     assert.equal(getClassFamily("buttonClass")?.("ui-button--small"), false);
     assert.equal(getClassFamily("badgeTextFit"), undefined);
     assert.equal(getClassFamily("themeColorCss"), undefined);

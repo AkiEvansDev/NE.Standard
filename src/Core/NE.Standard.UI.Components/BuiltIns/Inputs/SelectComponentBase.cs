@@ -4,7 +4,6 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -14,6 +13,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 /// <remarks><see cref="SelectComponent{T, TItem}"/> holds one key and <see cref="MultiSelectComponent{T, TItem}"/> a list of them.</remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyBlock(typeof(IAffixedInputComponent))]
+[UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IAffixedInputComponent, IPlaceholderInputComponent
     where T : SelectComponentBase<T, TItem, TValue>, IUIComponentDefinition
     where TItem : class, IOptionModel
@@ -36,35 +37,6 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = UIPopupPlacement.BottomStart)]
     public UIPopupPlacement? PopupPlacement { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IFieldInputComponent), DefaultValue = UIInputAppearance.Filled)]
-    public UIInputAppearance? Appearance { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IFieldInputComponent), DefaultValue = true)]
-    public bool? ShowFocusEdge { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
-    public UIInputSize? Size { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IFieldInputComponent), IsBindable = false, DefaultValue = UIInputTitlePlacement.Top)]
-    public UIInputTitlePlacement? TitlePlacement { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IAffixedInputComponent), DefaultValue = null)]
-    public string? PrefixIcon { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IAffixedInputComponent), DefaultValue = null)]
-    public string? SuffixIcon { get; set; }
-
-    /// <inheritdoc/>
-    [Translatable]
-    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public UIPhrase? Placeholder { get; set; }
 
     /// <summary>
     /// Initializes the input with the default item, empty and group templates.

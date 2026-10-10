@@ -57,7 +57,7 @@ function header(key: string, title: string, left: number, width: number): FakeEl
 }
 
 const headers = [header("overview", "Overview", 0, 90), header("activity", "Activity", 90, 98), header("settings", "Settings", 188, 80)];
-const pages = ["overview", "activity", "settings"].map(key => FakeElement.of("ui-tabs__page", { "data-ui-tab-page": key }));
+const pages = ["overview", "activity", "settings"].map(key => FakeElement.of("ui-tabs__page", { "data-ui-tab-page": key }).append(FakeElement.of("ui-text")));
 const root = FakeElement.of("ui-tabs", { "data-ui-tabs-selected": "overview" }).append(FakeElement.of("ui-tabs__strip").append(...headers), FakeElement.of("ui-tabs__pages").append(...pages));
 
 fakeDocument.body.append(root);
@@ -70,10 +70,11 @@ test("every title carries its own words, for the stylesheet to reserve its bold 
     assert.equal(slides.length, 0, "the first fit slid a line from nowhere");
 });
 
-test("choosing another tab slides its line over from the one chosen before, from the line's start, and fades its page in", () => {
+test("choosing another tab slides its line over from the one chosen before, from the line's start, and fades its page's content in", () => {
     headers[1].dispatchEvent(new FakeEvent("click"));
 
-    assert.deepEqual(slides.map(slide => slide.element), [headers[1], pages[1]]);
+    // The content, not the page, whose edge may be the strip's rule (a TabsView page).
+    assert.deepEqual(slides.map(slide => slide.element), [headers[1], pages[1].children[0]]);
     assert.deepEqual(slides[1].keyframes, [{ opacity: 0 }, { opacity: 1 }]);
 
     const [slide] = slides;

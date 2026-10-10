@@ -46,89 +46,29 @@ internal abstract partial class UIRuntimeBase
         await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
         ThrowIfAskedToGo();
 
-        return await InSendOrderAsync(() => ProcessChangeSetFromUICoreAsync(invoker, changeSet, cancellationToken), cancellationToken).ConfigureAwait(false);
+        // A setter or a source sending effects or reading the connection reads the writer's tab, as a command reads its own.
+        using IDisposable invocation = BeginInvocation(invoker);
+
+        return await ProcessChangeSetFromUICoreAsync(invoker, changeSet, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<ServerChangeSet> ProcessChangeSetFromUICoreAsync(UIHandle invoker, ClientChangeSet changeSet, CancellationToken cancellationToken)
     {
         try
         {
-            ServerChangeSet changes;
-            List<PendingSourceWrite>? sourceWrites = null;
-            List<ServerUIUpdate>? refusals = null;
-            List<UIComponentId>? staleWindows;
+            (List<PendingSourceWrite>? sourceWrites, List<ServerUIUpdate>? refusals, List<UIComponentId>? staleWindows) = await InSendOrderAsync(() => ApplyClientValuesTurnAsync(invoker, changeSet, cancellationToken), cancellationToken).ConfigureAwait(false);
 
-            await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                for (var i = 0; i < changeSet.Updates.Length; i++)
-                {
-                    ClientUIUpdate update = changeSet.Updates[i];
-
-                    ArgumentNullException.ThrowIfNull(update);
-
-                    // A value is the only update a client sends.
-                    if (update is not ClientValueUIUpdate valueUpdate)
-                        throw new UnreachableException();
-
-                    ArgumentNullException.ThrowIfNull(valueUpdate.DynamicParameters);
-
-                    // Resolved once, and its text read by the input's format at most once, for the gates and the write alike.
-                    CompiledUIBindingResolution resolution = View.Bindings.Resolve(valueUpdate.Address, valueUpdate.DynamicParameters);
-                    ClientValueRead? read = null;
-
-                    // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
-                    if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read))
-                    {
-                        (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
-
-                        // The field goes back to the server's value, so a refusal of an earlier text no longer speaks for what it shows.
-                        if (ClearRejectionNoLock(valueUpdate) is { } cleared)
-                            refusals.Add(cleared);
-
-                        continue;
-                    }
-
-                    if (TryHoldSourceWriteNoLock(valueUpdate, resolution, out PendingSourceWrite? sourceWrite))
-                    {
-                        (sourceWrites ??= []).Add(sourceWrite.Value);
-                        continue;
-                    }
-
-                    ServerValidationUIUpdate? validation = ApplyValueUpdate(valueUpdate, resolution, read, out ClientValueUIUpdate? applied);
-
-                    // Collected apart from the queue so a refusal always travels and one rejected value cannot abandon the rest.
-                    if (validation is not null)
-                        (refusals ??= []).Add(validation);
-
-                    if (applied is not null)
-                        _heldValues.Add(new HeldValue(applied, invoker.Instance.Id));
-                }
-
-                DrainControllerChangesNoLock();
-
-                staleWindows = DrainDirtyItemWindowsNoLock();
-                changes = TakePendingUpdatesNoLock(DrainTarget.Leave);
-            }
-            finally
-            {
-                _ = _stateLock.Release();
-            }
-
-            // After the lock: a source write runs through its own asynchronous method, once the rest of the change set has applied.
+            // After the turn: a source write runs the source's own code, which may await this runtime, once the rest has applied.
             if (sourceWrites is not null)
             {
-                if (await ApplySourceWritesAsync(sourceWrites, cancellationToken).ConfigureAwait(false) is { } refused)
+                if (await ApplySourceWritesAsync(sourceWrites, invoker.Instance.Id, cancellationToken).ConfigureAwait(false) is { } refused)
                     (refusals ??= []).AddRange(refused);
 
-                changes = AppendUpdates(changes, await FlushCoreAsync(DrainTarget.Leave, publish: false, cancellationToken).ConfigureAwait(false));
+                _ = await DrainAsync(action: null, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
             }
 
-            // Arrives here, not through a flush, so a windowed host's reload rules see what just changed.
-            changes = await AppendItemWindowReloadsAsync(changes, staleWindows, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
-
-            // Every instance's: a runtime that sends as it drains sends them now, one that batches has left them to its flush.
-            _ = await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+            // Here, not through a flush, so a windowed host's reload rules see what just changed.
+            _ = await AppendItemWindowReloadsAsync(ServerChangeSet.Empty, staleWindows, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
 
             // The writer's own, shown to no other instance.
             return refusals is null ? ServerChangeSet.Empty : new ServerChangeSet { Updates = [.. refusals] };
@@ -142,8 +82,87 @@ internal abstract partial class UIRuntimeBase
             _ = await HandleRuntimeExceptionAsync(exception, "ProcessChangeSetFromUI", commandRequest: null, clientChangeSet: changeSet, cancellationToken).ConfigureAwait(false);
 
             // The writer's copy, without the values it just sent: they would otherwise come back over what it is typing.
-            return await AnswerCoreAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
+            return await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// The change set's turn of the send order: every value applied under the state lock — but a source's, held aside for after the
+    /// turn — and what it changed taken and sent; answers the held writes, the writer's refusals and the windows found stale.
+    /// </summary>
+    private async Task<(List<PendingSourceWrite>? SourceWrites, List<ServerUIUpdate>? Refusals, List<UIComponentId>? StaleWindows)> ApplyClientValuesTurnAsync(UIHandle invoker, ClientChangeSet changeSet, CancellationToken cancellationToken)
+    {
+        ServerChangeSet changes;
+        List<PendingSourceWrite>? sourceWrites = null;
+        List<ServerUIUpdate>? refusals = null;
+        List<UIComponentId>? staleWindows;
+
+        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            for (var i = 0; i < changeSet.Updates.Length; i++)
+            {
+                ClientUIUpdate update = changeSet.Updates[i];
+
+                ArgumentNullException.ThrowIfNull(update);
+
+                // A value is the only update a client sends.
+                if (update is not ClientValueUIUpdate valueUpdate)
+                    throw new UnreachableException();
+
+                // Resolved once, and its text read by the input's format at most once, for the gates and the write alike.
+                CompiledUIBindingResolution resolution = View.Bindings.ResolveWrite(valueUpdate.Address);
+                ClientValueRead? read = null;
+
+                // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
+                if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read))
+                {
+                    (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
+
+                    // The field goes back to the server's value, so a refusal of an earlier text no longer speaks for what it shows.
+                    if (ClearRejectionNoLock(valueUpdate) is { } cleared)
+                        refusals.Add(cleared);
+
+                    continue;
+                }
+
+                if (TryHoldSourceWriteNoLock(valueUpdate, resolution, out PendingSourceWrite? sourceWrite))
+                {
+                    // Read as an inline write is: by the input's format, an emptied number or day as no value, unreadable text refused.
+                    ClientValueRead value = read ?? ReadClientValue(resolution.Binding, valueUpdate.Value);
+
+                    if (value.Normalization == UIFormattedValueNormalization.Rejected)
+                        (refusals ??= []).Add(RejectValueNoLock(valueUpdate, resolution.Binding));
+                    else
+                        (sourceWrites ??= []).Add(sourceWrite.Value with { Value = value.Value });
+
+                    continue;
+                }
+
+                ServerValidationUIUpdate? validation = ApplyValueUpdate(valueUpdate, resolution, read, out ClientValueUIUpdate? applied);
+
+                // Collected apart from the queue so a refusal always travels and one rejected value cannot abandon the rest.
+                if (validation is not null)
+                    (refusals ??= []).Add(validation);
+
+                if (applied is not null)
+                    HoldWrittenValueNoLock(applied, resolution.Binding, invoker.Instance.Id);
+            }
+
+            DrainControllerChangesNoLock();
+
+            staleWindows = DrainDirtyItemWindowsNoLock();
+            changes = TakePendingUpdatesNoLock(DrainTarget.Leave);
+        }
+        finally
+        {
+            _ = _stateLock.Release();
+        }
+
+        // Every instance's: a runtime that sends as it drains sends them now, one that batches has left them to its flush.
+        _ = await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
+
+        return (sourceWrites, refusals, staleWindows);
     }
 
     /// <summary>
@@ -231,7 +250,7 @@ internal abstract partial class UIRuntimeBase
 
     private ServerValidationUIUpdate RejectValueNoLock(ClientValueUIUpdate update, CompiledUIBinding binding)
     {
-        UIPropertyAddress address = CreateValidationAddress(update);
+        UIPropertyAddress address = update.Address;
 
         _ = _rejectedValueAddresses.Add(address);
 
@@ -254,19 +273,27 @@ internal abstract partial class UIRuntimeBase
         };
     }
 
-    private static UIPropertyAddress CreateValidationAddress(ClientValueUIUpdate update)
-        => new(update.Address.Component.Id, update.Address.Property, update.DynamicParameters);
-
     private ServerValidationUIUpdate? ClearRejectionNoLock(ClientValueUIUpdate update)
     {
         if (_rejectedValueAddresses.Count == 0)
             return null;
 
-        UIPropertyAddress address = CreateValidationAddress(update);
+        // The field's own address, the row it stands in: a refusal is the one field's, not every row's a Root-scoped binding reaches.
+        UIPropertyAddress address = update.Address;
 
         return _rejectedValueAddresses.Remove(address)
             ? new ServerValidationUIUpdate { Address = address, Message = null }
             : null;
+    }
+
+    /// <summary>
+    /// Keeps a taken write from being echoed to its writer — unless its binding reaches more fields than the one written (a Root-scoped
+    /// binding in a row), whose others on the writer's page must still hear it.
+    /// </summary>
+    private void HoldWrittenValueNoLock(ClientValueUIUpdate update, CompiledUIBinding binding, string instanceId)
+    {
+        if (CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters) == update.Address.Component.DynamicParameters.Length)
+            _heldValues.Add(new HeldValue(update, instanceId));
     }
 
     /// <summary>
@@ -291,13 +318,8 @@ internal abstract partial class UIRuntimeBase
             {
                 ClientValueUIUpdate update = held.Update;
 
-                if (!pending.Address.Component.Id.Equals(update.Address.Component.Id)
-                    || !pending.Address.Property.Equals(update.Address.Property)
-                    || !AreDynamicParametersEqual(pending.Address.Component.DynamicParameters, update.DynamicParameters)
-                    || !Equals(pending.Value, update.Value))
-                {
+                if (!pending.Address.Equals(update.Address) || !Equals(pending.Value, update.Value))
                     continue;
-                }
 
                 _pendingUpdates[i] = _pendingUpdates[i] with { Update = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, Content = pending.Content, ExceptInstanceId = held.InstanceId } };
                 break;

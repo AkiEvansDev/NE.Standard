@@ -24,6 +24,8 @@
 @ui-menu-bottom-bar: ~"[data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] .ui-menu--rail";
 // The narrowest a bar's entry is squeezed to, a press's room for the icon and a short label; past it the bar scrolls sideways.
 @ui-menu-bar-entry-width: var(--ui-menu-bar-entry-width);
+// The popups a menu fills on its own, a right-click menu's host and a split button's list: `MenuHostPopupSelector` (dom-attributes.ts).
+@ui-menu-host-popups: ~".ui-context-menu, .ui-split-button__menu";
 
 // The column, switch and fold come from ui-collapsible.less; what is here is the list, and what a collapsed list keeps.
 .ui-menu {
@@ -90,13 +92,20 @@
     text-align: start;
 }
 
+// Down a list where some entries carry an icon (`data-ui-menu-icons`, menu-icons.ts), one without keeps the icon's room — its 1em glyph
+// and the text body's 0.375em gap — so every entry's words start on one edge: they zigzagged (a column chooser). A caption and a rule
+// stand at the edge, and a folded menu or a rail, whose entries centre, keeps none.
+.ui-menu.ui-orientation--vertical:not([data-ui-collapsed], .ui-menu--rail) > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item:not([data-ui-menu-passive]) > .ui-menu-item:not([data-ui-text-icon]) > .ui-button__content {
+    padding-inline-start: 1.375em;
+}
+
 // Along a bar the entries are square, as a tab strip's captions are: a row of rounded pills reads as buttons, not as a bar.
 .ui-menu.ui-orientation--horizontal .ui-menu-item {
     .ui-menu-entry-corners(0);
 }
 
 // In a popup an entry's corner runs parallel to the popup's, a bar's flyout too (after the bar's rule, which it ties with).
-:is(.ui-context-menu, .ui-split-button__menu, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item {
+:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item {
     .ui-menu-entry-corners(@ui-list-entry-radius);
 }
 
@@ -109,11 +118,12 @@
 
 // The entry the arrows reached, lit only while a key put it there; the current entry is the keyboard's place already.
 .ui-menu-item@{ui-button-live} {
-    .ui-entry-keyboard(~".ui-menu-item--selected");
+    .ui-entry-keyboard(~".ui-menu-item--selected"; chain);
 }
 
-// In a popup the keyboard's entry is the one current entry: the pointer takes its place by moving (menu-engine.ts).
-:is(.ui-context-menu, .ui-split-button__menu, .ui-menu__submenu[data-ui-menu-flyout]) {
+// In a popup the keyboard's entry is the one current entry: the pointer takes its place by moving (menu-engine.ts). Read on the menu,
+// the component root the focus's mark stops at; a flyout's keyboard marks the menu it flies from too.
+:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) > .ui-menu {
     .ui-entry-quiet(~".ui-menu-item"; @ui-button-live; ~".ui-menu-item--selected");
 }
 
@@ -217,12 +227,8 @@
 
 // Collapsed, a group's entries fly out beside the icon; the flyout mark outlasts the open one by the fade (menu-group-engine.ts).
 .ui-menu__submenu[data-ui-menu-flyout] {
-    .ui-popup-surface(@ui-z-list);
-    .ui-popup-scroll();
-    .ui-popup-closed();
+    .ui-popup-list();
     block-size: auto;
-    min-width: 10rem;
-    padding: @ui-space-1;
 }
 
 [data-ui-menu-open] > .ui-menu__submenu[data-ui-menu-flyout] {
@@ -362,8 +368,8 @@
 // A group whose current entry is out of sight carries the mark itself, as a layer over its ground: the pointer's and a press's
 // washes stay that ground, as on its neighbours, so a rule quieting them (a key holding this entry or another) never takes the mark.
 // Its words and icon are the ink, as the current entry's: the brand's ink read 2.9:1 on a tinted rail; the brand is the mark.
-.ui-menu__item[data-ui-menu-group]:not([data-ui-menu-open]):has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected),
-@{ui-menu-folded} .ui-menu__item[data-ui-menu-group]:has(.ui-menu-item--selected) > .ui-menu-item:not(.ui-menu-item--selected) {
+.ui-menu__item[data-ui-menu-group][data-ui-menu-holds-current]:not([data-ui-menu-open]) > .ui-menu-item:not(.ui-menu-item--selected),
+@{ui-menu-folded} .ui-menu__item[data-ui-menu-group][data-ui-menu-holds-current] > .ui-menu-item:not(.ui-menu-item--selected) {
     background-image: linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
 
     // The keyboard's wash over the mark, not in its place.
@@ -401,7 +407,7 @@
     --ui-menu-group-mark-inset: 0 25% auto 25%;
 }
 
-@{ui-menu-folded} .ui-menu__submenu[data-ui-menu-flyout] {
+@{ui-menu-folded} .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
     padding-left: @ui-space-1;
 }
 
@@ -449,8 +455,9 @@
 }
 
 // A select entry's value stands at the row's end as a shortcut does (above); its chevron stays right while open, as the choices fly out.
-// A word and a mark (shortcut+check, value+chevron) would split the free space between two `margin-left: auto`, stranding the word.
-.ui-menu-item:has(> :is(.ui-menu-item__shortcut, .ui-menu-item__value):not(:empty))::after {
+// A word and a mark (shortcut+check, value+chevron) would split the free space between two `margin-left: auto`, stranding the word:
+// the entry says it shows one (a value's operation, shortcut-engine.ts).
+.ui-menu-item:is([data-ui-menu-item-shortcut], [data-ui-menu-item-value])::after {
     margin-left: @ui-space-2;
 }
 
@@ -458,8 +465,9 @@
     .ui-chevron-right();
 }
 
-// The choices are a popup beside the entry in an unfolded menu too; a collapsed menu's flyout rules above already say the rest.
-[data-ui-menu-select] > .ui-menu__submenu[data-ui-menu-flyout] {
+// The choices are a popup beside the entry in an unfolded menu too; a collapsed menu's flyout rules above already say the rest. Not as
+// a phone's sheet, which stands its lists in its own padding, both sides alike (here and above).
+[data-ui-menu-select] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
     padding-left: @ui-space-1;
 }
 
@@ -474,30 +482,32 @@
         flex-direction: column;
     }
 
-// The menu's Surface names the fill of the popup it opens in (context menu, split-button list, flyout).
-.ui-context-menu:has(> .ui-menu.ui-surface--background),
-.ui-split-button__menu:has(> .ui-menu.ui-surface--background),
+// The menu's Surface names the fill of the popup it opens in (context menu, split-button list, flyout); the popup it fills carries
+// that Surface's word, as the render and menu-surface.ts write it.
+:is(@{ui-menu-host-popups})[data-ui-menu-surface="background"],
 .ui-menu.ui-surface--background .ui-menu__submenu[data-ui-menu-flyout] {
     --ui-popup-ground: var(--ui-color-background);
 }
 
-.ui-context-menu:has(> .ui-menu.ui-surface--raised),
-.ui-split-button__menu:has(> .ui-menu.ui-surface--raised),
+:is(@{ui-menu-host-popups})[data-ui-menu-surface="raised"],
 .ui-menu.ui-surface--raised .ui-menu__submenu[data-ui-menu-flyout] {
     --ui-popup-ground: var(--ui-surface-raised);
 }
 
-.ui-context-menu:has(> .ui-menu.ui-surface--tinted),
-.ui-split-button__menu:has(> .ui-menu.ui-surface--tinted),
+:is(@{ui-menu-host-popups})[data-ui-menu-surface="tinted"],
 .ui-menu.ui-surface--tinted .ui-menu__submenu[data-ui-menu-flyout] {
     --ui-popup-ground: @ui-tinted-fill;
 }
 
-// The search takes the entries' width and asks for none: an input's own twenty characters would widen a sidebar.
-// It starts past an entry's 1px border and padding, in the entries' glyph column.
+// What stands beside the switch takes the entries' width and asks for none: a search's own twenty characters would widen a sidebar.
 .ui-menu > .ui-collapsible__bar > .ui-collapsible__bar-content {
     width: 0;
-    padding-inline-start: calc(1px + @ui-space-2);
+}
+
+// The search's box is an entry's (Tonal, MenuComponent.SetSearch), its glyph in the entries' glyph column past the same 1px border and
+// padding; the author's own content stands at the bar's start too, where a button of the page's lines up with the header's.
+.ui-menu[data-ui-menu-search] > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input__row {
+    padding-inline-start: @ui-space-2;
 }
 
     // A small field's glyph, centred in a box an entry's glyph wide, lines up with the glyphs below and its text with their titles.
@@ -506,10 +516,12 @@
         inline-size: var(--ui-text-body-font-size);
     }
 
-    // An empty search has nothing to clear; SetSearch always gives the field a placeholder, so its showing means empty.
-    .ui-menu > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input:has(.ui-text-input__field:placeholder-shown) .ui-text-input__clear {
-        display: none;
-    }
+// A rail has nothing to fold and no row beside its icons: the switch and what stands beside it are the list's that a phone's drawer
+// draws the rail as (UIViewOptions.RailBottomBar off, menu-group-engine.ts), where the switch puts the drawer away.
+.ui-menu--rail > .ui-collapsible__bar,
+.ui-menu--rail > .ui-collapsible__toggle {
+    display: none;
+}
 
 // An entry the menu's search leaves out (menu-search-engine.ts): its own mark, so a filter rule's never meets it.
 .ui-menu__item[data-ui-menu-unmatched] {
@@ -593,7 +605,7 @@
             min-width: @ui-menu-bar-entry-width;
         }
 
-        > .ui-menu__host > .ui-menu__item:has(> .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"])) {
+        > .ui-menu__host > .ui-menu__item[data-ui-menu-passive] {
             flex: 0 0 auto;
             min-width: 0;
         }

@@ -57,22 +57,23 @@ test("a menu's owner shows no callout on a long press, and only a screen with no
 });
 
 test("the row a bar stands over washes as the keyboard's row does, outside the hover query, and as a layer on a chosen row; SelectionStyle may change or drop it", () => {
-    for (const [row, bar] of [
-        [".ui-items-view > [data-ui-items-host] > .ui-items-view__item", "> [data-ui-action-bar] > .ui-action-bar"],
-        [".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row", "> .ui-action-bar, > [data-ui-action-bar] > .ui-action-bar"],
-        [".ui-tree > [data-ui-items-host] > .ui-tree__row", "> .ui-tree__node > [data-ui-action-bar] > .ui-action-bar"]
+    for (const row of [
+        ".ui-items-view > [data-ui-items-host] > .ui-items-view__item",
+        ".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row",
+        ".ui-tree > [data-ui-items-host] > .ui-tree__row"
     ]) {
-        assert.match(rule(`${row}:not([data-ui-selected]):has(${bar})`), /background-color: var\(--ui-selected-bar-ground, var\(--ui-wash-hover\)\);/);
-        assert.match(rule(`${row}[data-ui-selected]:has(${bar})`), /--ui-row-cursor-wash: var\(--ui-selected-bar-ground, var\(--ui-wash-hover\)\);/);
+        assert.match(rule(`${row}[data-ui-row-bar]:not([data-ui-selected])`), /background-color: var\(--ui-selected-bar-ground, var\(--ui-wash-hover\)\);/);
+        assert.match(rule(`${row}[data-ui-row-bar][data-ui-selected]`), /--ui-row-cursor-wash: var\(--ui-selected-bar-ground, var\(--ui-wash-hover\)\);/);
     }
 
-    assert.ok(css.includes("\n.ui-items-view > [data-ui-items-host] > .ui-items-view__item:not([data-ui-selected]):has("), "the row's wash stands inside a media query");
+    assert.ok(css.includes("\n.ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar]:not([data-ui-selected])"), "the row's wash stands inside a media query");
+    assert.doesNotMatch(css, /:has\([^)]*ui-action-bar/, "the row reads its bar off the engine's mark, not through :has()");
 });
 
 test("in forced colours the row a bar stands over is outlined as the keyboard's row is", () => {
     const forced = css.slice(css.indexOf("@media (forced-colors: active)"));
 
-    assert.match(forced, /\.ui-items-view__item:has\(> \[data-ui-action-bar\] > \.ui-action-bar\)[^{]*\{\s*outline: 2px dashed CanvasText;/);
+    assert.match(forced, /\.ui-tree__row\[data-ui-row-bar\][^{]*\{\s*outline: 2px dashed CanvasText;/);
 });
 
 /** The declarations of the rule `selector` heads, wherever it stands — inside a media query too. */
@@ -84,13 +85,13 @@ function nestedRule(selector: string): string {
     return css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
 }
 
-const IconButton = ".ui-action-bar:not(.ui-action-bar--strip) > .ui-action-bar__button:is(:has(> .ui-icon), .ui-action-bar__more)";
+const IconButton = ".ui-action-bar:not(.ui-action-bar--strip) > .ui-action-bar__button:is(.ui-action-bar__button--icon, .ui-action-bar__more)";
 const KeyboardFocus = ":focus-visible:not([data-ui-pointer-focus])";
 
 test("every button of a bar wears the keyboard's frame where the keyboard stands, never after a pointer, whatever the theme's ring", () => {
     for (const selector of [
         `${IconButton}${KeyboardFocus}`,
-        `.ui-action-bar--strip > .ui-action-bar__button${KeyboardFocus},\n  .ui-action-bar > .ui-action-bar__button:not(:has(> .ui-icon), .ui-action-bar__more)${KeyboardFocus}`
+        `.ui-action-bar--strip > .ui-action-bar__button${KeyboardFocus},\n  .ui-action-bar > .ui-action-bar__button:not(.ui-action-bar__button--icon, .ui-action-bar__more)${KeyboardFocus}`
     ]) {
         const frame = nestedRule(selector);
 

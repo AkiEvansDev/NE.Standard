@@ -8,7 +8,6 @@ using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -26,11 +25,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
-public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent
+public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent, IItemClickComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
-    private static readonly UIResponsive<double> DefaultSpacing = 0d;
-
     /// <summary>
     /// Keeps only the rows in view in the document, for a collection the client holds whole.
     /// </summary>
@@ -54,28 +51,10 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     }
 
     /// <summary>
-    /// Registers a click command invoked when an item is clicked, passing the item's key.
+    /// Writes a click registration on the item template, now and on every one set later.
     /// </summary>
-    public T OnItemClickWithItemKey(string command, string argumentName = "id")
-        => OnItemClick(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a click command invoked when an item is clicked, passing the item.
-    /// </summary>
-    public T OnItemClickWithItem(string command, string argumentName = "item")
-        => OnItemClick(command, UIAction.ArgCurrentItem(argumentName));
-
-    /// <summary>
-    /// Registers a click command invoked when an item is clicked, with UI action arguments.
-    /// </summary>
-    public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnItemTemplate(template => _ = template.On(EventNames.Click, command, arguments));
-
-    /// <summary>
-    /// Registers a click command with an argument derived from the specified <paramref name="argumentKind"/>.
-    /// </summary>
-    public T OnItemClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
-        => OnItemClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
+    public void OnClickableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(register);
 
     /// <summary>
     /// Registers a command invoked when an item is opened — Enter on the keyboard's item, or a double click — with the item's key.
@@ -169,7 +148,11 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// <summary>
     /// Gets or sets the spacing between items, optionally overridden per breakpoint.
     /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
+    /// <remarks>
+    /// Unset, the stylesheet decides by the shape: none down a column or across a wrap, whose rows and tiles keep their own air, and a
+    /// step between rows laid across, which would otherwise run their words together.
+    /// </remarks>
+    [UIComponentProperty]
     public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>

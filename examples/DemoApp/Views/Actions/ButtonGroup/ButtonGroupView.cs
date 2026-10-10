@@ -126,12 +126,14 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
     /// <summary>
     /// A strip beside a field, on the field's own ground, so the two read as one row.
     /// </summary>
+    /// <remarks>The field is Tonal: a lone field beside its own controls, not a form whose fields stack.</remarks>
     private static ContainerComponent CreateFieldGroup()
     {
         return DemoUI.CreateExample("Beside a field",
             new ContainerComponent()
                 .SetColumn(24, UIGridUnit.Auto())
                 .AddChild(new TextInputComponent()
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetTitle("Search deploys")
                     .SetPrefixIcon(DemoIcons.Search)
                     .SetPlaceholder("Service, version or region")

@@ -22,11 +22,14 @@ import type { TooltipShowOptions, Tooltips } from "../interactions/tooltip-engin
 import type { componentStates } from "../interactions/interactive-state";
 import type { FieldMarkSeverity, FieldMarkWords, FieldValidation, FieldVerdict, RuleJudging } from "../interactions/validation-engine";
 import type { wheel } from "../interactions/wheel-notches";
-import type { shortcutWords } from "../interactions/keyboard-shortcut";
+import type { seriesColors } from "../rendering/series-colors";
+import type { pluginShortcutWords } from "../interactions/caret-fields";
 import type { pluginDomNames } from "../addressing/dom-attributes";
 import type { InlineRenameOptions, InlineRenames } from "../interactions/inline-rename";
 import type { pluginFocus } from "../interactions/popup-focus";
-import type { PopupOptions, Popups } from "../interactions/popup-service";
+import type { ChoiceListOptions, PopupOptions, Popups } from "../interactions/popup-service";
+import type { pluginTypeAhead } from "../interactions/popup-list";
+import type { PlainKeyAllowance } from "../interactions/keyboard-shortcut";
 import type { rovingFocus } from "../interactions/roving-focus";
 import type { ItemRows } from "../items/item-rows";
 import type { ItemWindows } from "../items/items-window-engine";
@@ -62,12 +65,14 @@ export type HandedOut = [
     Assignable<InlineRenames, Contract.InlineRenames>,
     Assignable<Popups, Contract.Popups>,
     Assignable<typeof rovingFocus, Contract.RovingFocus>,
+    Assignable<typeof pluginTypeAhead, Contract.TypeAhead>,
     Assignable<typeof pluginFocus, Contract.Focus>,
     Assignable<typeof componentStates, Contract.ComponentStates>,
     Assignable<FieldValidation & RuleJudging, Contract.FieldValidation>,
     Assignable<FieldVerdict, Contract.ValidationVerdict>,
     Assignable<typeof wheel, Contract.WheelReading>,
-    Assignable<typeof shortcutWords, Contract.ShortcutWords>,
+    Assignable<typeof seriesColors, Contract.SeriesColors>,
+    Assignable<typeof pluginShortcutWords, Contract.ShortcutWords>,
     Assignable<typeof pluginDomNames, Contract.DomNames>,
     Assignable<FileUploads, Contract.FileUploads>,
     Assignable<TableColumns, Contract.TableColumns>,
@@ -91,6 +96,8 @@ export type HandedIn = [
     Assignable<Contract.ValueConverterRegistration, ValueConverterRegistration>,
     Assignable<Contract.InlineRenameOptions, InlineRenameOptions>,
     Assignable<Contract.PopupOptions, PopupOptions>,
+    Assignable<Contract.ChoiceListOptions, ChoiceListOptions>,
+    Assignable<Contract.PlainKeyAllowance, PlainKeyAllowance>,
     Assignable<Contract.TooltipShowOptions, TooltipShowOptions>,
     Assignable<Contract.ValidationSeverity, FieldMarkSeverity>,
     Assignable<Contract.ValidationWords, FieldMarkWords>,

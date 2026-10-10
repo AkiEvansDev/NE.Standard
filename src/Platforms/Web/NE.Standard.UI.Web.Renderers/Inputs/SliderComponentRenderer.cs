@@ -23,8 +23,8 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
     private static readonly WebDomOperation[] EndValueOperations =
     [
         WebDomOperation.Property("value"),
-        new WebDomOperation { Kind = nameof(WebDomOperationKind.Text), Target = ".ui-slider__value--end", Optional = true },
-        new WebDomOperation { Kind = nameof(WebDomOperationKind.Text), Target = ".ui-slider__bubble--end", Optional = true }
+        WebDomOperation.Text(".ui-slider__value--end", optional: true),
+        WebDomOperation.Text(".ui-slider__bubble--end", optional: true)
     ];
 
     public override string ComponentTypeKey => SliderComponent.ComponentTypeKey;

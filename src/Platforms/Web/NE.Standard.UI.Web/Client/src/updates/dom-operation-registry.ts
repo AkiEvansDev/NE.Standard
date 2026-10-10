@@ -8,7 +8,13 @@ import { applyInlineMarkup } from "../rendering/inline-markup.ts";
 import { getClassFamily } from "../rendering/web-dom-converters.ts";
 import { forgetWords } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
+import { CardHeaderShownOperationKind, writeCardHeaderShown } from "./card-header.ts";
+import { ContentFillsOperationKind, writeContentFills } from "./content-fills.ts";
 import { FormOwnerOperationKind, writeFormOwner } from "./form-owner.ts";
+import { MenuCurrentOperationKind, writeMenuCurrent } from "./menu-current.ts";
+import { MenuIconsOperationKind, writeMenuIcons } from "./menu-icons.ts";
+import { MenuSurfaceOperationKind, writeMenuSurface } from "./menu-surface.ts";
+import { RowIdleOperationKind, writeRowIdle } from "./row-idle.ts";
 import { TooltipNameOperationKind, writeTooltipName } from "./tooltip-name.ts";
 
 export type DomOperationContext = {
@@ -80,8 +86,9 @@ export class DomOperationRegistry {
 
             forgetWords(context.target, name);
 
-            // The raw value decides whether the attribute belongs there at all: an empty attribute is not an absent one.
-            if (isNullishValue(context.value) || isNullishValue(context.convertedValue)) {
+            // The raw value decides whether the attribute belongs there at all: an empty attribute is not an absent one. An operation
+            // that converts null leaves it to its converter, for an attribute the first paint writes for no value.
+            if ((context.operation.convertsNull !== true && isNullishValue(context.value)) || isNullishValue(context.convertedValue)) {
                 removeAttributeIfPresent(context.target, name);
                 return;
             }
@@ -98,8 +105,10 @@ export class DomOperationRegistry {
 
         this.register("ToggleAttribute", context => {
             const name = requireOperationName(context.operation);
-            const enabled = !isNullishValue(context.value) && evaluateCondition(context.value, context.operation.condition ?? "HasValue");
-            const value = context.operation.value ?? (isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue));
+            const condition = context.operation.condition ?? "HasValue";
+            const enabled = !isNullishValue(context.value) && evaluateCondition(context.value, condition);
+            // A flag a boolean switches is written empty, as the first paint writes it, never as the word "true" or "false".
+            const value = context.operation.value ?? (isNullishValue(context.convertedValue) || isBooleanCondition(condition) ? "" : toDomString(context.convertedValue));
 
             toggleTrackedAttribute(context.target, createClassOperationKey(context), name, enabled, value);
         });
@@ -147,6 +156,18 @@ export class DomOperationRegistry {
 
         this.register(FormOwnerOperationKind, context => writeFormOwner(context.target, context.value));
 
+        this.register(CardHeaderShownOperationKind, context => writeCardHeaderShown(context.resolved.component));
+
+        this.register(RowIdleOperationKind, context => writeRowIdle(context.target));
+
+        this.register(ContentFillsOperationKind, context => writeContentFills(context.target));
+
+        this.register(MenuCurrentOperationKind, context => writeMenuCurrent(context.target));
+
+        this.register(MenuIconsOperationKind, context => writeMenuIcons(context.resolved.component));
+
+        this.register(MenuSurfaceOperationKind, context => writeMenuSurface(context.target));
+
         this.register("Property", context => {
             const name = requireOperationName(context.operation);
             const target = context.target as unknown as Record<string, unknown>;
@@ -179,6 +200,12 @@ function evaluateCondition(value: unknown, condition: WebValueCondition): boolea
         default:
             return !isNullishValue(value);
     }
+}
+
+function isBooleanCondition(condition: WebValueCondition): boolean {
+    const name = getValueCondition(condition);
+
+    return name === "IsTrue" || name === "IsFalse";
 }
 
 // An attribute two properties both assert stays until neither wants it.

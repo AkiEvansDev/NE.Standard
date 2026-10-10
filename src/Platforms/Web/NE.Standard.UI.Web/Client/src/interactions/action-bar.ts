@@ -2,16 +2,17 @@
 // The bar over a host and the row of icons atop a menu a long press opened are both drawn here; a press is always the entry's own.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { ActionBarClass, DisabledClass, InActionBarAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, PassiveMenuEntrySelector, SmallGhostButtonClasses } from "../addressing/dom-attributes.ts";
+import { ActionBarClass, DisabledClass, InActionBarAttribute, MenuControlEntrySelector, MenuGroupEntrySelector, MenuItemKindAttribute, MenuLeftOutAttribute, SmallGhostButtonClasses } from "../addressing/dom-attributes.ts";
 import { isInert } from "./interactive-state.ts";
 import { IconMarkAttribute, IconUrlProperty, isIconClassName } from "../rendering/icon-value.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 
 export const ActionBarButtonClass = `${ActionBarClass}__button`;
 export const ActionBarMoreClass = `${ActionBarClass}__more`;
+/** An entry's button that shows its icon, which ui-action-bar.less squares; a title's keeps its frame. */
+const ActionBarIconButtonClass = `${ActionBarButtonClass}--icon`;
 
 
-const EntrySelector = `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`;
 // The entry's own icon and title: an entry holds no other text component.
 const TextIconClass = "ui-text__icon";
 const IconSelector = `.ui-button__content .${TextIconClass}`;
@@ -41,7 +42,7 @@ export function readActionBarEntries(menu: HTMLElement): ActionBarEntries {
     const marked: HTMLElement[] = [];
     let more = false;
 
-    for (const entry of menu.querySelectorAll<HTMLElement>(EntrySelector)) {
+    for (const entry of menu.querySelectorAll<HTMLElement>(MenuControlEntrySelector)) {
         if (!isShownEntry(entry, menu))
             continue;
 
@@ -86,6 +87,7 @@ function drawEntryButton(entry: HTMLElement, drawing: ActionBarDrawing): HTMLEle
     const icon = entryIcon(entry);
 
     if (icon !== null) {
+        button.classList.add(ActionBarIconButtonClass);
         button.append(icon);
         button.setAttribute("aria-label", words);
     }

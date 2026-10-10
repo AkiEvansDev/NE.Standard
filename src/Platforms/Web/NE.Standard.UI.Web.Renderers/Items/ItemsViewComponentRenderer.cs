@@ -62,6 +62,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         if (ReadRenderValue<UIItemsLoadingLook?>(context, ItemsViewComponent.LoadingLookProperty, null) == UIItemsLoadingLook.Indicator)
             _ = root.Class("ui-items-view--indicator");
         RenderDraggableRows(context, root);
+        RenderRowsRemove(context, root);
         RenderDragSource(context, root);
         RenderTemplates(context, root);
 

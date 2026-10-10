@@ -151,7 +151,7 @@ internal abstract partial class UIRuntimeBase
             return false;
 
         UIComponentId componentId = update.Address.Component.Id;
-        var dynamicParameters = update.DynamicParameters;
+        var dynamicParameters = update.Address.Component.DynamicParameters;
 
         if (gates.TryGet(componentId, out UIComponentGates? target)
             && (IsClosedNoLock(target!.Chain, dynamicParameters)
@@ -192,7 +192,7 @@ internal abstract partial class UIRuntimeBase
             return false;
         }
 
-        var dynamicParameters = update.DynamicParameters;
+        var dynamicParameters = update.Address.Component.DynamicParameters;
 
         return IsBeyondNoLock(checks.Min, checks.ValueType, value, dynamicParameters, below: true)
             || IsBeyondNoLock(checks.Max, checks.ValueType, value, dynamicParameters, below: false)
@@ -322,7 +322,7 @@ internal abstract partial class UIRuntimeBase
     /// </summary>
     private bool IsChoiceRefusedNoLock(UIComponentGateIndex gates, UIRowGates rows, ClientValueUIUpdate update, CompiledUIBindingResolution resolution)
     {
-        if (update.DynamicParameters.Length != rows.Abilities.RowParameterCount - 1)
+        if (update.Address.Component.DynamicParameters.Length != rows.Abilities.RowParameterCount - 1)
             return false;
 
         // Rows wearing a template by the item's kind have no one template whose chain answers for every row.
@@ -334,7 +334,7 @@ internal abstract partial class UIRuntimeBase
             if (IsChosen(current, key))
                 continue;
 
-            var rowParameters = AppendDynamicParameter(update.DynamicParameters, key);
+            var rowParameters = AppendDynamicParameter(update.Address.Component.DynamicParameters, key);
 
             if ((template is not null && IsClosedNoLock(template.Chain, rowParameters)) || IsRowRefusedNoLock(rows.Abilities, UIComponentGateKind.CanSelect, rowParameters))
                 return true;
@@ -385,12 +385,12 @@ internal abstract partial class UIRuntimeBase
     private ServerValueUIUpdate AnswerRefusedWriteNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution)
     {
         if (resolution.Source.Kind == CompiledUIBindingSourceKind.Controller)
-            return BuildServerValueNoLock(resolution.Binding, resolution.Path, update.DynamicParameters);
+            return BuildServerValueNoLock(resolution.Binding, resolution.Path, BindingKeys(update, resolution.Binding));
 
         // A static list's row is no value the server holds: the property's fallback answers.
         bool? content = false;
 
-        return BuildServerValueNoLock(resolution.Binding, resolution.Path, update.DynamicParameters, value: null, ref content);
+        return BuildServerValueNoLock(resolution.Binding, resolution.Path, BindingKeys(update, resolution.Binding), value: null, ref content);
     }
 
     private bool IsClosedNoLock(UIComponentGate[] gates, object?[] dynamicParameters)

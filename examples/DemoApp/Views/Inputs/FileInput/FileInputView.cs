@@ -60,6 +60,7 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
             .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
             .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
             .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
+            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
             .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
             .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
             .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
@@ -121,6 +122,7 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
     /// <summary>
     /// The field among the others it is submitted with: one row of a form rather than a page of its own.
     /// </summary>
+    /// <remarks>Its fields are Tonal: a short form its card already frames, not a long one whose fields stack.</remarks>
     private static ContainerComponent CreateFormGroup()
     {
         return DemoUI.CreateExample("In a form",
@@ -132,10 +134,12 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
                 )
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new TextInputComponent()
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetTitle("What it is")
                         .SetValue("Rollback plan")
                     )
                     .AddChild(new FileInputComponent()
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetTitle("The file")
                         .SetIcon(DemoIcons.File)
                         .SetAccept(".md,.pdf")

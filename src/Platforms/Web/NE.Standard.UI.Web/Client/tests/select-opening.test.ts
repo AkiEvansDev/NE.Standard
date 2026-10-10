@@ -174,3 +174,43 @@ test("an arrow on a closed select opens it on its chosen option, else ArrowDown 
     assert.equal(active(chosen), "ashburn");
     close(chosen);
 });
+
+test("Home and End reach the open list's ends, which stop the arrows, and a chord is not the list's", () => {
+    const at = scene({ value: "ashburn" });
+
+    openByKey(at);
+    arrow("End");
+    assert.equal(active(at), "singapore");
+
+    arrow("ArrowDown");
+    assert.equal(active(at), "singapore");
+
+    arrow("Home");
+    assert.equal(active(at), "amsterdam");
+
+    // A chord is not the list's: Ctrl+End leaves the current option where it is.
+    fakeDocument.activeElement?.dispatchEvent(Object.assign(new FakeKeyboardEvent("End", fakeDocument.activeElement), { ctrlKey: true }));
+    assert.equal(active(at), "amsterdam");
+    close(at);
+});
+
+test("the list says while its current option is the keyboard's, so the wash moves without a fade, and not while it is the pointer's", () => {
+    const at = scene();
+    const list = at.select.querySelector(".ui-select__list")!;
+
+    press(at);
+    assert.equal(list.hasAttribute("data-ui-list-keyboard"), false);
+
+    arrow("ArrowDown");
+    assert.equal(list.hasAttribute("data-ui-list-keyboard"), true);
+
+    at.options[2].dispatchEvent(new FakeEvent("pointermove"));
+    assert.equal(active(at), "singapore");
+    assert.equal(list.hasAttribute("data-ui-list-keyboard"), false);
+
+    arrow("ArrowUp");
+    assert.equal(list.hasAttribute("data-ui-list-keyboard"), true);
+
+    close(at);
+    assert.equal(list.hasAttribute("data-ui-list-keyboard"), false);
+});

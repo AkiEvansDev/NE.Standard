@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/field.less";
+@import "../mixins/focus.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 
@@ -21,23 +22,23 @@
     gap: @ui-space-2;
 }
 
-// A file dragged over the row: the edge goes dashed and primary, the image input's cue for the same gesture.
+// A file dragged over the row: every drop target's dashed edge, the image input's cue for the same gesture.
 .ui-file-input[data-ui-file-dragging] > .ui-file-input__row {
-    border-style: dashed;
-    border-color: var(--ui-color-primary);
+    .ui-drop-edge();
 }
 
 // One the field will not take: the same dashed edge, in the colour of a refusal, and the drop is refused with it.
 .ui-file-input[data-ui-file-dragging="refused"] > .ui-file-input__row {
-    border-color: var(--ui-color-danger);
+    .ui-drop-edge(var(--ui-color-danger-ink));
 }
 
 .ui-file-input__native {
     .ui-visually-hidden();
 }
 
-// The row is the pick control: a press anywhere on it opens the dialog, so the name reads as a button's label, not a field.
-.ui-file-input__row:not(:has(.ui-file-input__native:disabled)) {
+// The row is the pick control: a press anywhere on it opens the dialog, so the name reads as a button's label, not a field. Read-only
+// disables the native picker with the mark (FileInputComponentRenderer), so the mark says it.
+.ui-file-input:not(.ui-readonly) > .ui-file-input__row {
     cursor: pointer;
 }
 
@@ -47,10 +48,6 @@
     cursor: inherit;
     text-overflow: ellipsis;
 }
-
-    .ui-file-input__field::placeholder {
-        color: var(--ui-text-muted);
-    }
 
 .ui-file-input__pick {
     .ui-field-pick();
@@ -65,7 +62,7 @@
 }
 
     // Ink alone: the row is the surface that lifts under the pointer.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-file-input__pick:hover:not([aria-disabled='true']) {
             color: var(--ui-color-on-surface);
         }

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -22,6 +23,7 @@ public sealed class OpenPickerEffect(UIComponentReference target) : TargetedClie
     public override string Kind => ClientEffectKinds.OpenPicker;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <inheritdoc />
@@ -34,5 +36,6 @@ internal sealed class CompiledOpenPickerEffect(UIComponentAddress target) : Comp
     public override string Kind => ClientEffectKinds.OpenPicker;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 }

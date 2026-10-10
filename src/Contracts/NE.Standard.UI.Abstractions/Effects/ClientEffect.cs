@@ -55,6 +55,7 @@ public abstract class ClientEffect
     /// <summary>
     /// Whether a <c>UIInteraction</c> may raise this effect on its own, with no command or round trip behind it.
     /// </summary>
+    [JsonIgnore]
     public virtual bool CanRunInInteraction => false;
 
     /// <summary>

@@ -78,6 +78,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "filter.title",
             UILayout.Stack(12)
                 .AddChild(new TextInputComponent()
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetTitle("demo.mechanisms.values.filter.field")
                     .SetPlaceholder("demo.mechanisms.values.filter.placeholder")
                     .SetPrefixIcon(DemoIcons.Outline(DemoIcons.Search))

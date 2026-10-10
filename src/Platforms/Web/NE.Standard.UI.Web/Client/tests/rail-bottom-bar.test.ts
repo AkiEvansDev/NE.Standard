@@ -1,5 +1,6 @@
-// A rail that is the whole of a left side stands as the page's bottom bar on a phone: its groups fly out above it and its cut labels'
-// words stand there too, the arrows across it walk its entries; on a wide screen, or outside such a side, it is the column it always was.
+// A rail that is the whole of a left side stands as the page's bottom bar on a phone: its groups fly out above it — under the small
+// breakpoint as a sheet from the bottom — and its cut labels' words stand there too, the arrows across it walk its entries; on a wide
+// screen, or outside such a side, it is the column it always was.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,7 +11,7 @@ const widthListeners: (() => void)[] = [];
 
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, clearTimeout, innerWidth: 390, innerHeight: 844, localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined } },
-    getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none", direction: "ltr", position: "static", overflowX: "visible", overflowY: "visible" }),
+    getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none", direction: "ltr", position: "static", overflowX: "visible", overflowY: "visible", transitionProperty: "all", transitionDuration: "0s" }),
     // The stylesheet's own question: a `min-width` query answered for the width this test sets.
     matchMedia: (query: string) => ({ matches: width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0), addEventListener: (_: string, listener: () => void) => widthListeners.push(listener) }),
     MutationObserver: class {
@@ -91,6 +92,7 @@ test("a rail outside a marked side, and a list menu inside one, are no bar", () 
 });
 
 test("a group of the bar flies out above it", () => {
+    width = 700;
     notePress(real(moreEntry));
     moreEntry.focus();
     moreEntry.dispatchEvent(new FakeEvent("click"));
@@ -99,9 +101,22 @@ test("a group of the bar flies out above it", () => {
     assert.equal(real<HTMLElement>(moreSubmenu).dataset.uiPlacement, "top-start");
 
     moreEntry.dispatchEvent(new FakeEvent("click"));
+    width = 390;
+});
+
+test("under the small breakpoint a group of the bar opens as a sheet from the bottom", () => {
+    notePress(real(moreEntry));
+    moreEntry.focus();
+    moreEntry.dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(moreSubmenu.hasAttribute("data-ui-menu-flyout"), true);
+    assert.equal(moreSubmenu.getAttribute("data-ui-sheet"), "root");
+
+    moreEntry.dispatchEvent(new FakeEvent("click"));
 });
 
 test("a group's flyout goes when the bar turns into its column", () => {
+    width = 700;
     notePress(real(moreEntry));
     moreEntry.dispatchEvent(new FakeEvent("click"));
 

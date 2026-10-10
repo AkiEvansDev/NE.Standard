@@ -1,6 +1,7 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ValueEndAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, ValueEndAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
+import { resolveValueHolder } from "../extensions/value-readers.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { getIdValue } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
@@ -25,9 +26,11 @@ export class ReactiveSourceRegistry {
     private readonly watchers = new Map<string, Set<ReactiveSourceCallback>>();
     private readonly sourcesByComponent = new Map<number, WebRenderPropertyReferenceMetadata[]>();
     private readonly propertyPatchEngine: PropertyPatchEngine;
+    private readonly edits: ReactiveSourceEdits | undefined;
 
     public constructor(propertyPatchEngine: PropertyPatchEngine, edits?: ReactiveSourceEdits) {
         this.propertyPatchEngine = propertyPatchEngine;
+        this.edits = edits;
         propertyPatchEngine.addValueChangeHandler(change => this.notify(change));
 
         if (edits === undefined)
@@ -50,6 +53,7 @@ export class ReactiveSourceRegistry {
 
             sources.push(source);
             this.sourcesByComponent.set(componentId, sources);
+            this.recordShownValue(source);
         }
 
         callbacks.add(callback);
@@ -57,6 +61,19 @@ export class ReactiveSourceRegistry {
         return () => {
             callbacks?.delete(callback);
         };
+    }
+
+    /**
+     * Records the value a watched source's field shows as the page opens, as an edit of it is recorded: a field set at authoring time
+     * and bound to nothing is never pushed, so a rule reading it — a list's filter — would read no value until the reader edits it.
+     * A bound source's value arrives with the page's snapshot over it, the same.
+     */
+    private recordShownValue(source: WebRenderPropertyReferenceMetadata): void {
+        const component = this.edits?.root.querySelector(`[${ComponentIdAttribute}="${getIdValue(source.componentId)}"]`) ?? null;
+        const holder = component === null ? null : isEndSource(source, this.edits?.metadata) ? component.querySelector(`[${ValueEndAttribute}]`) : resolveValueHolder(component);
+
+        if (this.edits !== undefined && holder !== null)
+            this.propertyPatchEngine.recordValue(source, [], this.edits.valueReaders.readBound(holder));
     }
 
     /**
@@ -79,7 +96,7 @@ export class ReactiveSourceRegistry {
 
         for (const source of sources) {
             // A range's start is no source of its end's rule, nor its end of the start's: a band filters by both at once.
-            if (edits.metadata !== undefined && (edits.metadata.getPropertyDefinition(source.propertyId)?.propertyName === EndValuePropertyName) !== end)
+            if (edits.metadata !== undefined && isEndSource(source, edits.metadata) !== end)
                 continue;
 
             const change = this.propertyPatchEngine.recordValue(source, [], value);
@@ -99,6 +116,11 @@ export class ReactiveSourceRegistry {
         for (const callback of callbacks)
             callback(change);
     }
+}
+
+/** Whether a source is a period's end, which its end field holds; unknown without the metadata, it is not. */
+function isEndSource(source: WebRenderPropertyReferenceMetadata, metadata: ReactiveSourceEdits["metadata"]): boolean {
+    return metadata?.getPropertyDefinition(source.propertyId)?.propertyName === EndValuePropertyName;
 }
 
 function createSourceKey(componentId: number, propertyId: string): string {

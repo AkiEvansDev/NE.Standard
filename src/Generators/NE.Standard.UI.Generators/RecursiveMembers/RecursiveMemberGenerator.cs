@@ -42,9 +42,8 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         if (members.IsDefaultOrEmpty)
             return;
 
-        foreach (List<RecursiveMemberModel> ownerMembers in GroupByOwner(members))
+        foreach ((RecursiveOwnerModel owner, List<RecursiveMemberModel> ownerMembers) in GroupByOwner(members))
         {
-            RecursiveOwnerModel owner = ownerMembers[0].Owner;
             GeneratedTypeModel declaration = owner.Declaration;
 
             var hasErrors = false;
@@ -88,24 +87,14 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
     }
 
     /// <summary>The members by owning type, in the order the types first appear; a type is keyed by its hint name, one per type.</summary>
-    private static List<List<RecursiveMemberModel>> GroupByOwner(ImmutableArray<RecursiveMemberModel> members)
+    private static List<(RecursiveOwnerModel Owner, List<RecursiveMemberModel> Items)> GroupByOwner(ImmutableArray<RecursiveMemberModel> members)
     {
-        Dictionary<string, List<RecursiveMemberModel>> byOwner = [];
-        List<List<RecursiveMemberModel>> grouped = [];
+        HintNameGroups<RecursiveOwnerModel, RecursiveMemberModel> groups = new();
 
         foreach (RecursiveMemberModel member in members)
-        {
-            if (!byOwner.TryGetValue(member.Owner.Declaration.HintName, out List<RecursiveMemberModel> ownerMembers))
-            {
-                ownerMembers = [];
-                byOwner.Add(member.Owner.Declaration.HintName, ownerMembers);
-                grouped.Add(ownerMembers);
-            }
+            groups.GetOrAdd(member.Owner, member.Owner.Declaration).Add(member);
 
-            ownerMembers.Add(member);
-        }
-
-        return grouped;
+        return groups.Groups;
     }
 
     private static string GenerateType(RecursiveOwnerModel owner, List<RecursiveMemberModel> members)

@@ -18,14 +18,15 @@ export function parseChosenKeys(text: string | null): string[] {
     if (!Array.isArray(parsed))
         return [];
 
-    const keys: string[] = [];
+    // A set, not a search of the list: a table's chosen rows run to thousands.
+    const keys = new Set<string>();
 
     for (const key of parsed) {
-        if (typeof key === "string" && key.length > 0 && !keys.includes(key))
-            keys.push(key);
+        if (typeof key === "string" && key.length > 0)
+            keys.add(key);
     }
 
-    return keys;
+    return [...keys];
 }
 
 /** How many keys the field takes at most, or null for any number: a whole number of one or more, anything else no limit. */

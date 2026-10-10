@@ -44,12 +44,7 @@ internal abstract partial class UIRuntimeBase
         if (alone)
             ThrowIfAskedToGo();
 
-        return await InSendOrderAsync(async () =>
-        {
-            ServerChangeSet changes = await DrainAsync(action, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
-
-            return await PublishChangesAsync(changes, cancellationToken).ConfigureAwait(false);
-        }, cancellationToken).ConfigureAwait(false);
+        return await DrainAsync(action, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
     }
 
     private readonly Queue<(string Operation, Func<CancellationToken, Task> Action)> _posted = new();
@@ -192,7 +187,7 @@ internal abstract partial class UIRuntimeBase
     {
         await action(cancellationToken).ConfigureAwait(false);
 
-        _ = await InSendOrderAsync(() => FlushCoreAsync(DrainTarget.Leave, publish: true, cancellationToken), cancellationToken).ConfigureAwait(false);
+        _ = await DrainAsync(action: null, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -338,15 +333,7 @@ internal abstract partial class UIRuntimeBase
 
         ArgumentNullException.ThrowIfNull(effects);
 
-        if (effects.Count == 0)
-            return effects;
-
-        ClientEffect[] resolved = new ClientEffect[effects.Count];
-
-        for (var i = 0; i < resolved.Length; i++)
-            resolved[i] = ResolveRuntimeEffect(effects[i]);
-
-        return resolved;
+        return ResolveRuntimeEffects(effects) ?? effects;
     }
 
     /// <inheritdoc />

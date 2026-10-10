@@ -75,15 +75,14 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
             return;
 
         _ = this.BindText();
-        _ = Bind(VisibilityProperty, nameof(ITreeNodeModel.Visibility), UIBindingScope.Relative);
-        _ = Bind(EnabledProperty, nameof(ITreeNodeModel.Enabled), UIBindingScope.Relative);
-        _ = Bind(ParentIdProperty, nameof(ITreeNodeModel.ParentId), UIBindingScope.Relative);
-        _ = Bind(HasChildrenProperty, nameof(ITreeNodeModel.HasChildren), UIBindingScope.Relative);
-        _ = Bind(IsFolderProperty, nameof(ITreeNodeModel.IsFolder), UIBindingScope.Relative);
-        _ = Bind(ExpandedProperty, nameof(ITreeNodeModel.Expanded), UIBindingScope.Relative);
+        _ = this.BindItemState();
+        _ = Bind(ParentIdProperty, nameof(ITreeNodeModel.ParentId), UIBindingScope.Relative, optional: true);
+        _ = Bind(HasChildrenProperty, nameof(ITreeNodeModel.HasChildren), UIBindingScope.Relative, optional: true);
+        _ = Bind(IsFolderProperty, nameof(ITreeNodeModel.IsFolder), UIBindingScope.Relative, optional: true);
+        _ = Bind(ExpandedProperty, nameof(ITreeNodeModel.Expanded), UIBindingScope.Relative, optional: true);
         // Two-way, as both properties declare, like a tab's caption: a rename shows the new name at once.
-        _ = Bind(RenamedTitleProperty, nameof(ITreeNodeModel.Title), UIBindingScope.Relative);
-        _ = Bind(DropTargetProperty, nameof(ITreeNodeModel.DropTarget), UIBindingScope.Relative);
+        _ = Bind(RenamedTitleProperty, nameof(ITreeNodeModel.Title), UIBindingScope.Relative, optional: true);
+        _ = Bind(DropTargetProperty, nameof(ITreeNodeModel.DropTarget), UIBindingScope.Relative, optional: true);
     }
 }
 

@@ -1,9 +1,11 @@
 // A finger held still on a part with a context menu stands for the right press. iOS Safari sends no `contextmenu` for it, so the press
 // is timed here and a `contextmenu` raised for it; where the browser sends its own as well (Android), whichever comes first opens the
-// menu and the other is spent, so the menu opens once. A long press is never also a click.
+// menu and the other is spent, so the menu opens once. A long press is never also a click. On a part that drags as well, holding still
+// opens the menu and moving on without lifting closes it, the drag going on: the browser's own drag, which starts before the time is
+// up (Android's, at about 400 ms), opens the menu as it starts.
 
 // `.ts` on the value import: `node --test` loads this module as it is.
-import { ContextMenuAttribute } from "../addressing/dom-attributes.ts";
+import { ContextMenuAttribute, SplittingAttribute } from "../addressing/dom-attributes.ts";
 
 const LongPressDelay = 500;
 /** How far the finger may drift, in pixels, and still be held still: past it the press is a scroll, a pan or a drag. */
@@ -31,10 +33,13 @@ export type LongPressOptions = {
     readonly first?: Pick<EventTarget, "addEventListener">;
     /** Whether a press there may open a menu at all: nothing is timed elsewhere. */
     readonly opensMenu: (target: Element) => boolean;
+    /** Closes the menu a long press opened, as a press outside it would: the finger moved on to drag what it held. */
+    readonly closeMenu?: () => void;
 };
 
 export class LongPress {
     private readonly opensMenu: (target: Element) => boolean;
+    private readonly closeMenu: () => void;
     private press: Press | null = null;
 
     // What the press a menu opened for went down on, until the next press: its own `contextmenu` and its click are spent.
@@ -44,8 +49,12 @@ export class LongPress {
     private openedAt: { readonly pointerId: number; readonly x: number; readonly y: number } | null = null;
     private slid = false;
 
+    // The menu opened as the browser's own drag of the held part began: the drag's moves past the slop take it away.
+    private dragging = false;
+
     public constructor(options: LongPressOptions) {
         this.opensMenu = options.opensMenu;
+        this.closeMenu = options.closeMenu ?? (() => undefined);
 
         // Capturing, and registered before the context menu engine's own listener, so a spent `contextmenu` never reaches it.
         options.root.addEventListener("pointerdown", domEvent => this.handleDown(domEvent), true);
@@ -53,6 +62,10 @@ export class LongPress {
         options.root.addEventListener("pointerup", () => this.cancel(), true);
         options.root.addEventListener("pointercancel", () => this.cancel(), true);
         options.root.addEventListener("contextmenu", domEvent => this.handleContextMenu(domEvent), true);
+        options.root.addEventListener("dragstart", domEvent => this.handleDragStart(domEvent), true);
+        options.root.addEventListener("dragover", domEvent => this.handleDragOver(domEvent), true);
+        options.root.addEventListener("dragend", () => this.endDrag(), true);
+        options.root.addEventListener("drop", () => this.endDrag(), true);
         (options.first ?? options.root).addEventListener("click", domEvent => this.handleClick(domEvent), true);
     }
 
@@ -62,6 +75,7 @@ export class LongPress {
         this.answered = null;
         this.openedAt = null;
         this.slid = false;
+        this.dragging = false;
 
         // A second finger is a pinch, not a held press.
         if (this.press !== null) {
@@ -76,7 +90,7 @@ export class LongPress {
         const x = pointer.clientX ?? 0;
         const y = pointer.clientY ?? 0;
 
-        this.press = { pointerId: pointer.pointerId ?? 0, x, y, target, timer: setTimeout(() => this.fire(), LongPressDelay) };
+        this.press = { pointerId: pointer.pointerId ?? 0, x, y, target, timer: setTimeout(() => this.fireHeld(), LongPressDelay) };
     }
 
     private handleMove(domEvent: Event): void {
@@ -84,14 +98,26 @@ export class LongPress {
         const press = this.press;
         const opened = this.openedAt;
 
-        if (opened !== null && pointer.pointerId === opened.pointerId && Math.hypot((pointer.clientX ?? opened.x) - opened.x, (pointer.clientY ?? opened.y) - opened.y) > LongPressSlop)
+        if (opened !== null && pointer.pointerId === opened.pointerId && Math.hypot((pointer.clientX ?? opened.x) - opened.x, (pointer.clientY ?? opened.y) - opened.y) > LongPressSlop) {
             this.slid = true;
+
+            // A handle's drag holds the pointer from its press (pointer-drag.ts): the slide is the drag's, and the menu goes.
+            if ((this.answered?.closest(`[${SplittingAttribute}]`) ?? null) !== null)
+                this.leaveMenuToDrag();
+        }
 
         if (press === null || pointer.pointerId !== press.pointerId)
             return;
 
         if (Math.hypot((pointer.clientX ?? press.x) - press.x, (pointer.clientY ?? press.y) - press.y) > LongPressSlop)
             this.cancel();
+    }
+
+    /** The finger moved on to drag what it held: the menu goes, the drag goes on over the page under it. */
+    private leaveMenuToDrag(): void {
+        this.dragging = false;
+        this.openedAt = null;
+        this.closeMenu();
     }
 
     private cancel(): void {
@@ -103,12 +129,17 @@ export class LongPress {
     }
 
     /** Held long enough: the menu is asked for where the finger went down, as a right press there asks for it. */
-    private fire(): void {
+    private fireHeld(): void {
         const press = this.press;
 
         this.press = null;
 
-        if (press === null || !press.target.isConnected)
+        if (press !== null)
+            this.fire(press);
+    }
+
+    private fire(press: Press): void {
+        if (!press.target.isConnected)
             return;
 
         const opening = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: press.x, clientY: press.y });
@@ -134,6 +165,46 @@ export class LongPress {
         }
 
         this.cancel();
+    }
+
+    /**
+     * The browser's own drag of the part a finger holds still — begun before the time is up, and cancelling the pointer — opens the
+     * menu as it starts; a drag an engine refused leaves the press to its timer. Read once every engine has heard the `dragstart`.
+     */
+    private handleDragStart(domEvent: Event): void {
+        const press = this.press;
+        const dragged = domEvent.target;
+
+        if (press === null || !(dragged instanceof Node) || !(dragged.contains(press.target) || press.target.contains(dragged)))
+            return;
+
+        setTimeout(() => {
+            if (domEvent.defaultPrevented)
+                return;
+
+            if (this.press === press)
+                this.cancel();
+
+            this.fire(press);
+            this.dragging = this.openedAt !== null;
+        });
+    }
+
+    /** The browser's drag moved past the slop from where the menu opened. */
+    private handleDragOver(domEvent: Event): void {
+        const at = domEvent as Partial<DragEvent>;
+        const opened = this.openedAt;
+
+        if (!this.dragging || opened === null || at.clientX === undefined || at.clientY === undefined)
+            return;
+
+        if (Math.hypot(at.clientX - opened.x, at.clientY - opened.y) > LongPressSlop)
+            this.leaveMenuToDrag();
+    }
+
+    /** Let go where it began, the drag leaves the menu open. */
+    private endDrag(): void {
+        this.dragging = false;
     }
 
     /**

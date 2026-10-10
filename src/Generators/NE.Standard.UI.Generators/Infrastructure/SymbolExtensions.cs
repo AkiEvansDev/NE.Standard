@@ -6,6 +6,30 @@ namespace NE.Standard.UI.Generators.Infrastructure;
 
 internal static class SymbolExtensions
 {
+    /// <summary>The first attribute of <paramref name="metadataName"/> on the symbol, or null.</summary>
+    public static AttributeData? FindAttribute(this ISymbol symbol, string metadataName)
+    {
+        foreach (AttributeData candidate in symbol.GetAttributes())
+        {
+            if (candidate.AttributeClass?.ToDisplayString() == metadataName)
+                return candidate;
+        }
+
+        return null;
+    }
+
+    /// <summary>Whether the type declares a member named <paramref name="memberName"/> other than <paramref name="except"/>: a generated one would collide with it.</summary>
+    public static bool DeclaresOtherMember(this INamedTypeSymbol type, string memberName, ISymbol except)
+    {
+        foreach (ISymbol member in type.GetMembers(memberName))
+        {
+            if (!SymbolEqualityComparer.Default.Equals(member, except))
+                return true;
+        }
+
+        return false;
+    }
+
     public static bool IsPartial(this INamedTypeSymbol type)
     {
         foreach (SyntaxReference syntaxReference in type.DeclaringSyntaxReferences)

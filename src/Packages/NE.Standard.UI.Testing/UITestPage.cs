@@ -10,6 +10,7 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
@@ -23,8 +24,9 @@ namespace NE.Standard.UI.Testing;
 /// the ways a reader acts on them, each sent through the host's own entry points.
 /// </summary>
 /// <remarks>
-/// Modelled: values and collections from the change sets, a binding read off its row's item, visibility and enabled state with
-/// their ancestors', the field rules (change, blur, submit), a bound message and the server's refusal, the client interactions a
+/// Modelled: values and collections from the change sets — a refill keeping the rows it resends unchanged — a binding read off its
+/// row's item, visibility and enabled state with their ancestors', the field rules (change, blur, submit), a value past its bounds
+/// refused on the page, a bound message and the server's refusal, a form's held values and its discard, the client interactions a
 /// view declares, dialogs, the address an effect writes, and a submit refused while its form has an error. Not modelled: layout,
 /// a responsive value at any width but the widest, a plain host's own filter and sort rules (rows stand as the server sent them),
 /// item windows read on scroll, popups other than dialogs (a context menu and a flyout stand open), the validation message sent
@@ -43,6 +45,8 @@ public sealed partial class UITestPage
     private readonly Dictionary<UIComponentAddress, List<UITestRowEntry>> _rows = [];
     private readonly Dictionary<UIComponentAddress, UITestField> _fields = [];
     private readonly Dictionary<UIPropertyAddress, object?> _held = [];
+    // The server's latest value of a held address, which a discard puts back.
+    private readonly Dictionary<UIPropertyAddress, object?> _serverValues = [];
     private readonly List<ClientEffect> _effects = [];
     private readonly List<UITestDownload> _downloads = [];
     private readonly HashSet<string> _openDialogs = new(StringComparer.Ordinal);
@@ -185,6 +189,9 @@ public sealed partial class UITestPage
             UIPhrase { IsText: true } text => translator.Translate(language, text.Key),
             UIPhrase phrase => translator.Translate(language, phrase.Key, phrase.Arguments),
             string text => translator.Translate(language, text),
+            // As the page writes them: a number by its shortest digits (1.5, not 1.50), a flag in the wire's words.
+            bool flag => flag ? "true" : "false",
+            _ when UIScriptNumber.TryRead(value, out var number) => UIScriptNumber.Format(number),
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
             _ => value.ToString()
         };
@@ -251,7 +258,7 @@ public sealed partial class UITestPage
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(address);
 
-        return OpenAsync(UITestApp.ParseAddress(address), cancellationToken);
+        return OpenAsync(UINavigationAddress.Parse(address), cancellationToken);
     }
 
     /// <summary>Opens <paramref name="navigation"/> — a <see cref="NavigateEffect"/>'s request — in another page of this page's session.</summary>

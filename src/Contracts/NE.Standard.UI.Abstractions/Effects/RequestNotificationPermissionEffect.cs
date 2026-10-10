@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace NE.Standard.UI.Abstractions.Effects;
 
 /// <summary>
@@ -15,5 +17,6 @@ public sealed class RequestNotificationPermissionEffect : ClientEffect
     public override string Kind => ClientEffectKinds.RequestNotificationPermission;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 }

@@ -89,7 +89,7 @@ public sealed partial class UITestPage
     /// <summary>The rows a component stands in, outermost first: each row template's root, the row's key, and the item the row holds.</summary>
     private List<UIDynamicParameterScope> ScopesNoLock(UIComponentId componentId, object?[] rowKeys)
     {
-        List<UIComponentId> roots = RowRoots(componentId);
+        IReadOnlyList<UIComponentId> roots = View.Graph.GetItemScopes(componentId);
         List<UIDynamicParameterScope> scopes = new(roots.Count);
 
         for (var i = 0; i < roots.Count && i < rowKeys.Length; i++)
@@ -113,25 +113,6 @@ public sealed partial class UITestPage
         return scopes;
     }
 
-    /// <summary>
-    /// The roots of the row templates a component stands in, outermost first, the component itself included: a template's root is
-    /// where a row's key begins, so a host's empty template and its own header stand outside its rows.
-    /// </summary>
-    internal List<UIComponentId> RowRoots(UIComponentId componentId)
-    {
-        List<UIComponentId> roots = [];
-
-        for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
-        {
-            if (node.DefinesContextParameter)
-                roots.Add(node.ComponentId);
-        }
-
-        roots.Reverse();
-
-        return roots;
-    }
-
     /// <summary>The list a row template belongs to.</summary>
     private UIComponentId HostOf(UIComponentId root)
         => View.Graph.GetRequired(root).ParentId ?? throw new InvalidOperationException($"Row template '{View.Graph.GetRequired(root).AuthoringId}' has no list.");
@@ -143,7 +124,7 @@ public sealed partial class UITestPage
         {
             for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
             {
-                var keys = rowKeys[..Math.Min(rowKeys.Length, RowRoots(node.ComponentId).Count)];
+                var keys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(node.ComponentId).Count)];
 
                 if (Widest<UIVisibility>(ReadNoLock(node.ComponentId, keys, IVisualComponent.VisibilityProperty)) is UIVisibility.Collapsed or UIVisibility.Hidden)
                     return false;
@@ -189,7 +170,7 @@ public sealed partial class UITestPage
         {
             for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
             {
-                var keys = rowKeys[..Math.Min(rowKeys.Length, RowRoots(node.ComponentId).Count)];
+                var keys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(node.ComponentId).Count)];
 
                 if (Widest<bool>(ReadNoLock(node.ComponentId, keys, IVisualComponent.EnabledProperty)) is false)
                     return false;
@@ -252,7 +233,7 @@ public sealed partial class UITestPage
     /// <summary>A handle to the component in as many of the caller's rows as it stands in; one deeper in a list is reached through its row.</summary>
     internal UITestComponent At(UIComponentId componentId, object?[] rowKeys)
     {
-        List<UIComponentId> roots = RowRoots(componentId);
+        IReadOnlyList<UIComponentId> roots = View.Graph.GetItemScopes(componentId);
         UIComponentNode node = View.Graph.GetRequired(componentId);
 
         if (roots.Count > rowKeys.Length)
@@ -290,7 +271,7 @@ public sealed partial class UITestPage
 
             UIComponentId componentId = binding.Address.Component.Id;
 
-            if ((scope is UIComponentId root && !IsWithin(componentId, root)) || RowRoots(componentId).Count > rowKeys.Length)
+            if ((scope is UIComponentId root && !IsWithin(componentId, root)) || View.Graph.GetItemScopes(componentId).Count > rowKeys.Length)
                 continue;
 
             found.Add((componentId, binding.Address.Property == IInputComponent.ValueProperty));
@@ -312,12 +293,12 @@ public sealed partial class UITestPage
 
         foreach (UIComponentNode node in View.Graph.All)
         {
-            if ((scope is UIComponentId root && !IsWithin(node.ComponentId, root)) || RowRoots(node.ComponentId).Count > rowKeys.Length)
+            if ((scope is UIComponentId root && !IsWithin(node.ComponentId, root)) || View.Graph.GetItemScopes(node.ComponentId).Count > rowKeys.Length)
                 continue;
 
             foreach (UIProperty property in NameProperties)
             {
-                var value = Read(node.ComponentId, rowKeys[..RowRoots(node.ComponentId).Count], property);
+                var value = Read(node.ComponentId, rowKeys[..View.Graph.GetItemScopes(node.ComponentId).Count], property);
 
                 if (value is not null && (string.Equals(value.ToString(), name, StringComparison.Ordinal) || string.Equals(Words(value), name, StringComparison.Ordinal)))
                 {

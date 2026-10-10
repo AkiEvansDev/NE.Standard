@@ -64,17 +64,11 @@ internal abstract partial class UIRuntimeBase
         if (!UIRoutePath.IsLocal(target))
             throw new ArgumentException("A leave names an address of this site.", nameof(target));
 
-        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
-        ThrowIfAskedToGo();
-
-        using IDisposable invocation = BeginInvocation(invoker);
-
         // In a command's turn: the hook reads and writes the controller as a command does, and a Save pressed meanwhile waits for it.
-        await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        return await InCommandTurnAsync(invoker, async cancellation =>
         {
-            UICommandResult result = await AnswerLeaveAsync(target, cancellationToken).ConfigureAwait(false);
-            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
+            UICommandResult result = await AnswerLeaveAsync(target, cancellation).ConfigureAwait(false);
+            ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellation).ConfigureAwait(false);
 
             // Answered, never pushed: the page runs these effects as the leave's own, so a navigation among them is not asked about again.
             return new UICommandExecutionResult
@@ -82,6 +76,28 @@ internal abstract partial class UIRuntimeBase
                 Command = result,
                 Changes = changes
             };
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs a page's call as an exclusive command's body runs — the runtime held, the call's tab marked, in a command's turn and
+    /// outside the state lock — refusing it as gone where the runtime was asked to go before the call began.
+    /// </summary>
+    /// <remarks>
+    /// Not refused again once its turn comes: counted before the runtime was asked to go, the call is one already running, which
+    /// keeps the runtime until it ends; only posted work, which no page waits for, is dropped there.
+    /// </remarks>
+    private async Task<T> InCommandTurnAsync<T>(UIHandle invoker, Func<CancellationToken, Task<T>> body, CancellationToken cancellationToken)
+    {
+        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
+        ThrowIfAskedToGo();
+
+        using IDisposable invocation = BeginInvocation(invoker);
+
+        await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await body(cancellationToken).ConfigureAwait(false);
         }
         finally
         {

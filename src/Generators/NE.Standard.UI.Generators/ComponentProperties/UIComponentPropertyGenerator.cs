@@ -97,22 +97,21 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
     /// Pairs every component type with its own annotated properties plus what its <c>[UIComponentPropertyBlock]</c> contracts contribute,
     /// reporting what reading the blocks found on the way.
     /// </summary>
-    private static List<(UIComponentTypeModel Type, List<UIComponentPropertyModel> Properties)> GroupByType(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks)
+    private static List<(UIComponentTypeModel Owner, List<UIComponentPropertyModel> Items)> GroupByType(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks)
     {
-        Dictionary<string, List<UIComponentPropertyModel>> byType = [];
-        List<(UIComponentTypeModel Type, List<UIComponentPropertyModel> Properties)> grouped = [];
+        HintNameGroups<UIComponentTypeModel, UIComponentPropertyModel> groups = new();
 
         if (!properties.IsDefaultOrEmpty)
         {
             foreach (UIComponentPropertyModel property in properties)
-                GetOrAddType(byType, grouped, property.Owner).Add(property);
+                groups.GetOrAdd(property.Owner, property.Owner.Declaration).Add(property);
         }
 
         if (!blocks.IsDefaultOrEmpty)
         {
             foreach (UIComponentPropertyBlockModel block in blocks)
             {
-                List<UIComponentPropertyModel> target = GetOrAddType(byType, grouped, block.Owner);
+                List<UIComponentPropertyModel> target = groups.GetOrAdd(block.Owner, block.Owner.Declaration);
 
                 foreach (DiagnosticInfo diagnostic in block.Diagnostics)
                     context.ReportDiagnostic(diagnostic.ToDiagnostic());
@@ -121,21 +120,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             }
         }
 
-        return grouped;
-    }
-
-    /// <summary>A type's group, keyed by its hint name — the fully qualified metadata name, one per type.</summary>
-    private static List<UIComponentPropertyModel> GetOrAddType(Dictionary<string, List<UIComponentPropertyModel>> byType, List<(UIComponentTypeModel Type, List<UIComponentPropertyModel> Properties)> grouped, UIComponentTypeModel type)
-    {
-        if (byType.TryGetValue(type.Declaration.HintName, out List<UIComponentPropertyModel> existing))
-            return existing;
-
-        List<UIComponentPropertyModel> created = [];
-
-        byType.Add(type.Declaration.HintName, created);
-        grouped.Add((type, created));
-
-        return created;
+        return groups.Groups;
     }
 
     private static string GenerateType(UIComponentTypeModel type, List<UIComponentPropertyModel> properties)

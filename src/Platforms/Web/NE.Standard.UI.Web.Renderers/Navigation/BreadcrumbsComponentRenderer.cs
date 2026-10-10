@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -52,7 +56,51 @@ public sealed class BreadcrumbsComponentRenderer : ItemsCollectionRendererBase
     private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
+        List<(IHtmlElementBuilder Row, UIResponsive<UIVisibility>? Visibility)> steps = [];
 
-        RenderItemsHost(context, root, "ui-breadcrumbs__host", items, isBound, ItemClassName);
+        RenderItemsHost(context, root, "ui-breadcrumbs__host", items, isBound, ItemClassName, appendItem: (row, item, _) => steps.Add((row, ReadItemRootValue<UIResponsive<UIVisibility>?>(context, row, item, IVisualComponent.VisibilityProperty))));
+
+        MarkSteps(steps);
     }
+
+    /// <summary>
+    /// Writes on each step's wrapper the tiers its step is collapsed in and the tiers no shown step follows it in, where it draws no
+    /// separator, walking the trail from its end; breadcrumbs-engine.ts keeps both, and takes a filter's hidden steps out too.
+    /// </summary>
+    private static void MarkSteps(List<(IHtmlElementBuilder Row, UIResponsive<UIVisibility>? Visibility)> steps)
+    {
+        Span<bool> shownAfter = stackalloc bool[(int)UIResponsiveTier.Xxl + 1];
+        StringBuilder collapsed = new();
+        StringBuilder end = new();
+
+        for (var index = steps.Count - 1; index >= 0; index--)
+        {
+            (IHtmlElementBuilder row, UIResponsive<UIVisibility>? visibility) = steps[index];
+
+            _ = collapsed.Clear();
+            _ = end.Clear();
+
+            for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+            {
+                var tierCollapsed = visibility?.Resolve(tier) == UIVisibility.Collapsed;
+
+                if (tierCollapsed)
+                    AppendTier(collapsed, tier);
+
+                if (!shownAfter[(int)tier])
+                    AppendTier(end, tier);
+
+                shownAfter[(int)tier] |= !tierCollapsed;
+            }
+
+            if (collapsed.Length > 0)
+                _ = row.Attribute(WebAttributes.StepCollapsed, collapsed.ToString());
+
+            if (end.Length > 0)
+                _ = row.Attribute(WebAttributes.StepEnd, end.ToString());
+        }
+    }
+
+    private static void AppendTier(StringBuilder tiers, UIResponsiveTier tier)
+        => _ = (tiers.Length == 0 ? tiers : tiers.Append(' ')).Append(WebResponsiveCss.TierWord(tier));
 }

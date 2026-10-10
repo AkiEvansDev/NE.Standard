@@ -136,7 +136,7 @@ export function matchTemporalToken(format: string, index: number): string | null
 
 function render(token: string, value: Date, culture: TemporalCulturePack, genitiveMonth: boolean): string {
     const hour = value.getHours();
-    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    const hour12 = clockHour12(hour);
 
     switch (token) {
         case "yyyy": return pad(value.getFullYear(), 4);
@@ -468,3 +468,8 @@ export const temporalFormatting = {
     parse: parseWrittenMoment,
     toDate: writtenMomentDate
 };
+
+/** An hour of the day as a 12-hour clock counts it: 12 for noon and midnight, 1-11 for the rest. */
+export function clockHour12(hour: number): number {
+    return hour % 12 === 0 ? 12 : hour % 12;
+}

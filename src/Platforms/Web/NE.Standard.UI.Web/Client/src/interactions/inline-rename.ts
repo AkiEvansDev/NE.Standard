@@ -2,6 +2,7 @@
 
 // `.ts` on the value import: `node --test` runs this module directly.
 import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
 
 export type InlineRenameOptions = {
     /** The positioned element the field is appended to; the title must be inside it. */
@@ -76,7 +77,7 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
     };
 
     input.addEventListener("keydown", keyEvent => {
-        if (keyEvent.isComposing)
+        if (isComposing(keyEvent))
             return;
 
         if (keyEvent.key === "Enter")

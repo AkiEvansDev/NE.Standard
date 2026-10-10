@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "./responsive.less";
 
 // Ring width is a runtime variable defaulting to 0, so a theme flag enables it everywhere without a second selector.
 .ui-focus-ring() {
@@ -7,13 +8,17 @@
 }
 
 // The predicates every keyboard mark is drawn under: none lights for a focus popup-focus.ts marks as the pointer's (a caret field
-// is never marked). Those with a `:has()` never go inside another `:has()`, which the browser drops whole.
+// is never marked).
 
 // A focus a key gave, on the element itself: a list's keyboard entry, a bar's line, a ring.
 @ui-keyboard-focus: ~":focus-visible:not([data-ui-pointer-focus])";
 
-// A focus a field's edge answers: any in it but a marked one. In :where(), so it weighs a bare `:focus-within` and the ladder stands.
-@ui-field-focus: ~":focus-within:where(:not([data-ui-pointer-focus], :has([data-ui-pointer-focus]:focus)))";
+// A focus a field's edge answers: any in it but a marked one, on the field or below it (`data-ui-focus-within`, up to its component
+// root). In :where(), so it weighs a bare `:focus-within` and the ladder stands.
+@ui-field-focus: ~":focus-within:where(:not([data-ui-pointer-focus], [data-ui-focus-within='pointer']))";
+
+// A focus a key gave below the element, which popup-focus.ts marks up to the focus's component root: a list's entry, a chip's cross.
+@ui-keyboard-within: ~"[data-ui-focus-within='keyboard']";
 
 // The ring (reset.less): any focus but a marked one, weightless, so a component taking it off ties and wins by order.
 @ui-ring-focus: ~":focus-visible:where(:not([data-ui-pointer-focus]))";
@@ -31,11 +36,35 @@
 // inside the entry in the brand's ink, which reads 3:1 on either page (the focus ring's colour is a theme's own), and which the
 // pointer's mark never wears. The washes alone were lost against a stripe or a chosen ground. An outline, not a box-shadow, so a
 // row's separator and a chosen entry's mark stay. Forced colours draw their own dashed mark (core/preferences.less).
-.ui-keyboard-frame() {
+// One shape wherever it is drawn: a 2 px line whose corners are `@ui-keyboard-frame-radius`. An outline's corner is its host's widened
+// by its offset, so the host's corner while it is framed (`@host`) and the offset together keep the one radius: a host whose own corner
+// is smaller or none (a row, a cell, an entry) takes the frame's for the while (`@takes: true`, `chain` through the border chain on a
+// root an author's corners are written on), the frame on its edge; a host whose corner is the frame's (a button) keeps its own
+// (`@takes: false`). `@ink` the words' own colour on a filled ground, where the brand's ink would vanish into the brand's fill.
+.ui-keyboard-frame(@ink: var(--ui-color-primary-ink); @host: @ui-keyboard-frame-radius; @takes: true; @offset: -2px) {
     @media (forced-colors: none) {
-        outline: 2px solid var(--ui-color-primary-ink);
-        outline-offset: -2px;
+        outline: 2px solid @ink;
+        outline-offset: @offset;
     }
+
+    & when (@takes = true) {
+        border-radius: @host;
+    }
+
+    & when (@takes = chain) {
+        .ui-responsive-property(border-radius, --ui-border-radius, @host);
+    }
+}
+
+// Inside a host whose own corner, `@host`, is larger than the frame's (a card's): the frame stands in from it until concentric.
+.ui-keyboard-frame-inside(@host; @ink: var(--ui-color-primary-ink)) {
+    .ui-keyboard-frame(@ink: @ink; @takes: false; @offset: ~"calc(@{ui-keyboard-frame-radius} - @{host} - 2px)");
+}
+
+// Outside a host with no room in it, round a row with no padding (a toggle's) or words with no box of their own (a link): `@gap` off
+// it, 2 px by default, the host taking the corner that keeps the frame's one radius.
+.ui-keyboard-frame-outside(@gap: 2px) {
+    .ui-keyboard-frame(@host: ~"calc(@{ui-keyboard-frame-radius} - 2px - @{gap})"; @offset: @gap);
 }
 
 // What a drop target wears while something it takes is over it (runtime.less, a field's box in ui-input.less): a dashed edge inside

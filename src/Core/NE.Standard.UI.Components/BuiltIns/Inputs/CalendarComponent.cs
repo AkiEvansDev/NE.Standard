@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
@@ -15,6 +14,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 /// <remarks>A press on a day raises the input's change event, so <c>OnChange</c> can be what the day does. Never wider than the
 /// popup's grid, whatever room or width it is given; <c>HorizontalAlignment</c> places it in the rest.</remarks>
+[UIComponentPropertyBlock(typeof(IMarkedDaysComponent))]
 public abstract partial class CalendarComponent<T>(string? id = null) : InputComponentBase<T, DateOnly?>(id), IMarkedDaysInputComponent, IPeriodInputComponent
     where T : CalendarComponent<T>, IUIComponentDefinition
 {
@@ -49,15 +49,6 @@ public abstract partial class CalendarComponent<T>(string? id = null) : InputCom
     /// </summary>
     [UIComponentProperty(Contract = typeof(IPeriodInputComponent), BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource | UIBindingCapabilities.SubmitBufferedTargetToSource, DefaultBindingMode = UIBindingMode.TwoWay, DefaultValue = null, GenerateSetter = false)]
     public DateOnly? EndValue { get; set; }
-
-    /// <inheritdoc/>
-    /// <remarks>A bound set is sent whole each time the controller assigns a new one.</remarks>
-    [UIComponentProperty(Contract = typeof(IMarkedDaysComponent), DefaultValue = null, GenerateSetter = false)]
-    public IReadOnlyCollection<DateOnly>? MarkedDays { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IMarkedDaysComponent), DefaultValue = false, GenerateSetter = false)]
-    public bool? MarkedDaysOnly { get; set; }
 
     /// <summary>
     /// Makes the calendar choose a period.

@@ -12,10 +12,7 @@ internal abstract partial class UIRuntimeBase
             if (_pendingUpdates[i].Update is not ServerValueUIUpdate existing)
                 continue;
 
-            if (!existing.Address.Component.Id.Equals(update.Address.Component.Id) || !existing.Address.Property.Equals(update.Address.Property))
-                continue;
-
-            if (!AreDynamicParametersEqual(existing.Address.Component.DynamicParameters, update.Address.Component.DynamicParameters))
+            if (!existing.Address.Equals(update.Address))
                 continue;
 
             _pendingUpdates.RemoveAt(i);

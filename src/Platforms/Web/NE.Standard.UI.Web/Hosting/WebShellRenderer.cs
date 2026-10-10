@@ -25,6 +25,7 @@ public static class WebShellRenderer
     private const string ScrollContentAttribute = "data-ui-scroll-content";
     private const string FullHeightSidesAttribute = "data-ui-full-height-sides";
     private const string SideDrawersAttribute = "data-ui-side-drawers";
+    private const string LeftBarAttribute = "data-ui-left-bar";
     private const string DrawerBackdropClass = "ui-shell__drawer-backdrop";
 
     // An icon of no bytes: the browser shows its own blank and fetches nothing.
@@ -67,6 +68,10 @@ public static class WebShellRenderer
 
         if (context.Theme.PressRipple)
             _ = document.Attribute(WebAttributes.PressRipple);
+
+        // On the document as on the root: the document's own gutter goes with it.
+        if (context.ScrollContentOnly)
+            _ = document.Attribute(ScrollContentAttribute);
 
         // The address the page registers the framework's worker by, or, where the application's own worker imports it, waits for.
         if (context.ServiceWorker != WebServiceWorkerMode.Off)
@@ -167,12 +172,12 @@ public static class WebShellRenderer
         }
     }
 
-    // Inter is only the default theme's face: a theme naming another never draws with it, and a preload would fetch it for nothing.
+    // Geist is only the default theme's face: a theme naming another never draws with it, and a preload would fetch it for nothing.
     private static bool IsDrawnWith(WebAssetDescriptor font, UITheme theme)
         => !string.Equals(font.Key, StandardWebAssetDescriptors.Font.Key, StringComparison.Ordinal)
-        || NamesFamily(theme.Typography.FontFamily, "Inter");
+        || NamesFamily(theme.Typography.FontFamily, "Geist");
 
-    // An entry of the family list, not a substring: "Interstate" is another face. A theme's family holds no quotes to strip.
+    // An entry of the family list, not a substring: "Geist Mono" is another face. A theme's family holds no quotes to strip.
     private static bool NamesFamily(string families, string family)
     {
         foreach (var entry in families.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
@@ -212,6 +217,13 @@ public static class WebShellRenderer
 
             if (context.SideDrawers)
                 _ = root.Attribute(SideDrawersAttribute);
+
+            // The view's facts the stylesheet reads off the root, written once: neither moves after the first paint.
+            if (context.BottomBar)
+                _ = root.Attribute(LeftBarAttribute);
+
+            if (context.ContentFills)
+                _ = root.Attribute(WebAttributes.ContentFills);
 
             if (context.Content is not null)
                 _ = root.Content(context.Content);
@@ -264,21 +276,20 @@ public static class WebShellRenderer
 
     private static void RenderMetadata(IHtmlElementBuilder body, WebShellContext context)
     {
-        var json = context.MetadataJson;
+        IHtmlContent json;
 
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            if (context.Metadata is null)
-                return;
-
-            json = SerializeMetadata(context.Metadata);
-        }
+        if (!context.MetadataJson.IsEmpty)
+            json = new Utf8HtmlContent(context.MetadataJson);
+        else if (context.Metadata is not null)
+            json = new RawHtmlContent(SerializeMetadata(context.Metadata));
+        else
+            return;
 
         _ = body.Element("script", script =>
         {
             _ = script.Attribute("type", "application/json");
             _ = script.Attribute(WebAttributes.Metadata);
-            _ = script.Raw(json);
+            _ = script.Content(json);
         });
     }
 
@@ -362,7 +373,8 @@ public static class WebShellRenderer
                     ("converter", operation.Converter),
                     ("condition", operation.Condition?.ToString()),
                     ("value", operation.Value),
-                    ("optional", operation.Optional ? true : null)
+                    ("optional", operation.Optional ? true : null),
+                    ("convertsNull", operation.ConvertsNull ? true : null)
                 ))),
                 ("translatable", property.Translatable ? true : null)
             )),

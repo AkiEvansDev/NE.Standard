@@ -36,6 +36,12 @@ public interface IBadgeModel : IBindableItem
     UIThemeColor? BadgeColor { get; }
 
     /// <summary>
+    /// Gets how the badge spends its colour; unset, a style fills and a <see cref="BadgeColor"/> tints. A plain badge ignores it.
+    /// </summary>
+    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
+    UIBadgeFill? BadgeFill { get; }
+
+    /// <summary>
     /// Gets the icon shown beside the badge text, by name from the registered icon font/set.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]

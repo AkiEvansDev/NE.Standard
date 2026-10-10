@@ -1,6 +1,7 @@
 // Whether an element answers the reader at all: the one predicate every refusal reads, for a disabled, loading or read-only component.
 
 import { ComponentIdAttribute, DisabledClass, LoadingClass, ReadOnlyClass } from "../addressing/dom-attributes.ts";
+import { writeRowIdle } from "../updates/row-idle.ts";
 
 /** What takes the reader's press away from everything inside it: a disabled or loading component, or anything inert. */
 const BlockedSelector = `.${DisabledClass}, .${LoadingClass}, [inert]`;
@@ -58,11 +59,13 @@ export function isReadOnly(element: Element): boolean {
     return element.closest(ReadOnlyScopeSelector)?.matches(`.${ReadOnlyClass}`) === true;
 }
 
-/** Turns a control off the framework's way: the disabled mark and `aria-disabled`, which the refusals read. */
+/** Turns a control off the framework's way: the disabled mark and `aria-disabled`, which the refusals read, and its row's mark. */
 function setDisabled(element: Element, disabled: boolean): void {
     // Never the native `disabled`: it drops the focus, where this keeps the control's place for the keyboard and a screen reader.
-    if (element.classList.contains(DisabledClass) !== disabled)
+    if (element.classList.contains(DisabledClass) !== disabled) {
         element.classList.toggle(DisabledClass, disabled);
+        writeRowIdle(element);
+    }
 
     if (disabled)
         element.setAttribute("aria-disabled", "true");

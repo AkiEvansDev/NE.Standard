@@ -2,8 +2,8 @@
 // Escape is one document listener over every dismissal, closing only one popup: the innermost, else the newest. A popup behind an
 // open modal dialog is left alone: a press in the dialog is not outside it, and Escape is the dialog's.
 
-import { isCancellingField } from "./field-escape.ts";
-import { isInRenameField } from "./inline-rename.ts";
+import { escapeClaimant } from "./field-escape.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 
 /** Why a popup closed unasked: a press outside, Escape, the window's blur, the keyboard leaving it, or its owner unable to keep it. */
@@ -39,12 +39,11 @@ function installEscape(): void {
     escapeInstalled = true;
 
     document.addEventListener("keydown", domEvent => {
-        // A key already taken — a drag cancelled by it — is not also a popup's; nor is a rename field's, which cancels the rename, where
-        // closing its popup first would take the focus away and its blur would save it; nor a field's whose Escape is its cancel.
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isInRenameField(domEvent.target) || isCancellingField(domEvent.target))
+        // A key already taken — a drag cancelled by it — is not also a popup's, nor is a composition's.
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
-        if (dismissNewest())
+        if (dismissNewest(escapeClaimant(domEvent.target)))
             domEvent.preventDefault();
     }, true);
 }
@@ -67,8 +66,12 @@ export function dismissOnRefusedClick(domEvent: Event): void {
         instance.hearRefusedClick(domEvent);
 }
 
-/** Closes the most recently opened popup that Escape may close; answers whether one closed. */
-function dismissNewest(): boolean {
+/**
+ * Closes the most recently opened popup that Escape may close; answers whether one closed. Under a claimed key (a rename field, an
+ * editing row) only a popup the claimant holds is closed: closing one around it would take the focus away, and the blur would save
+ * the draft the key lets go of.
+ */
+function dismissNewest(claimant: Element | null): boolean {
     const open: { instance: PopupDismissal; popup: HTMLElement }[] = [];
 
     for (const instance of instances) {
@@ -94,7 +97,7 @@ function dismissNewest(): boolean {
     const ordered = orderForEscape(open, entry => openOrder.get(entry.popup) ?? 0, (outer, inner) => outer.popup.contains(inner.popup));
 
     for (const { instance, popup } of ordered) {
-        if (instance.dismiss(popup, "escape"))
+        if ((claimant === null || claimant.contains(popup)) && instance.dismiss(popup, "escape"))
             return true;
     }
 

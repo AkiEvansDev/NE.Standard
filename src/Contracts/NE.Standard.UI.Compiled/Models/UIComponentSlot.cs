@@ -3,24 +3,6 @@ using NE.Standard.UI.Abstractions.Identity;
 namespace NE.Standard.UI.Compiled.Models;
 
 /// <summary>
-/// Defines the kind of component slot in the compiled component graph.
-/// </summary>
-public enum UIComponentSlotKind
-{
-    Child = 0,
-    Region = 1,
-    Template = 2,
-    TemplateVariant = 3,
-    EmptyTemplate = 4,
-    GroupTemplate = 5,
-
-    /// <summary>
-    /// The component shown when the owner is right-clicked.
-    /// </summary>
-    ContextMenu = 6
-}
-
-/// <summary>
 /// Represents a named or structural component slot in the compiled component graph.
 /// </summary>
 public sealed class UIComponentSlot

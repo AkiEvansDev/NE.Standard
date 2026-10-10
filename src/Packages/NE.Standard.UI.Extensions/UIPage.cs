@@ -15,8 +15,9 @@ public static class UIPage
     /// <summary>
     /// The band a page is headed by: the name, a muted line under it, and whatever stands at the far end (a theme switcher, a
     /// signed-in person, the page's buttons) on the name's row at every width. On a phone the name is a title's size and wraps
-    /// under itself when long, and the line is one line, cut, so the band stays about a title's height and leaves the screen to
-    /// the page; from the medium breakpoint the name is in the display role and the line runs to three lines.
+    /// under itself when long, and the line is one line, cut — its whole words its tooltip, a long press away — so the band
+    /// stays about a title's height and leaves the screen to the page; from the medium breakpoint the name is in the display role and
+    /// the line runs to three lines.
     /// </summary>
     public static ContainerComponent Header(string title, string? description = null, params IVisualComponent[] trailing)
     {
@@ -42,11 +43,12 @@ public static class UIPage
             )
             .AddChild(HeaderTitle(title, span, wide).AsDisplay());
 
-        // A paragraph rather than a text, which has no cap on its lines. On a phone it runs under the far end too.
+        // A paragraph rather than a text, which has no cap on its lines. On a phone it runs under the far end too, its whole words a
+        // long press away (its tooltip), since the one line cuts them.
         if (description is not null)
         {
             _ = header
-                .AddChild(HeaderLine(description, 1, phone).SetPlacement(1, 2, 24, 1))
+                .AddChild(HeaderLine(description, 1, phone).SetTooltip(description).SetPlacement(1, 2, 24, 1))
                 .AddChild(HeaderLine(description, 3, wide).SetPlacement(1, 2, span, 1));
         }
 

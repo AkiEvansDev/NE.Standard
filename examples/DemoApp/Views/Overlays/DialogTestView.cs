@@ -44,6 +44,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 )
             },
             // Wider than a centred dialog's own cap: the width is the dialog's to name, and the fields stretch to it.
+            // Tonal fields: a short form the dialog already frames, not a long one whose fields stack.
             new UIDialog
             {
                 Key = DialogTestController.EditKey,
@@ -51,9 +52,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 Width = UILayoutLength.Absolute(640),
                 Content = CreatePanel(Words + "edit.heading", null,
                     new TextInputComponent()
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetTitle(Words + "edit.name")
                         .BindValue($"{EditGroup}.{nameof(EditGroupContext.DraftName)}"),
                     new TextInputComponent()
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetTitle(Words + "edit.owner")
                         .BindValue($"{EditGroup}.{nameof(EditGroupContext.DraftOwner)}"),
                     CreateButtons(

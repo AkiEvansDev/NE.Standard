@@ -95,7 +95,7 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
                     .SetRowHoverable(true)
                     .SetTemplate(new SurfaceComponent()
                         .SetSurface(UISurfaceStyle.Raised)
-                        .SetWidth(UILayoutLength.Absolute(250))
+                        .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(250)))
                         .SetContent(new TextComponent()
                             .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
                             .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary))

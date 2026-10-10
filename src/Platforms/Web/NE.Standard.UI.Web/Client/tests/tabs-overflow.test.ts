@@ -8,8 +8,11 @@ import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom
 
 const Overflowed = "ui-tab-header--overflowed";
 
+// The window's keydown listeners, which hear a key before the document does: an open list's Tab closes it there.
+const windowKeys: ((domEvent: unknown) => void)[] = [];
+
 installFakeDom({
-    window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
+    window: { addEventListener: (type: string, listener: (domEvent: unknown) => void) => type === "keydown" && windowKeys.push(listener), setTimeout, innerWidth: 1280, innerHeight: 900 },
     // The stylesheet's one rule the fit reads back: a caption past the room is display: none.
     getComputedStyle: (element: FakeElement) => ({ display: element.classes.has(Overflowed) ? "none" : "flex", transform: "none", filter: "none", perspective: "none", getPropertyValue: () => "" }),
     MutationObserver: class {
@@ -102,6 +105,7 @@ test("Tab from the list closes it and gives the focus back to the \"…\", where
 
     const tab = new FakeKeyboardEvent("Tab", entry);
 
+    windowKeys.forEach(listener => listener(tab));
     entry?.dispatchEvent(tab);
 
     assert.equal(menu?.classes.has("ui-tab-overflow__menu--open"), false);

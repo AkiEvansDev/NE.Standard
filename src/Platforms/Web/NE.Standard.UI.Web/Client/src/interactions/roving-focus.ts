@@ -61,6 +61,15 @@ export function applyRovingTabIndex(items: readonly HTMLElement[], active: HTMLE
         item.tabIndex = item === active ? 0 : -1;
 }
 
+/** Moves the keyboard to an item, the walk's one Tab stop with it; nothing for none. */
+export function moveRovingFocus(items: readonly HTMLElement[], next: HTMLElement | null): void {
+    if (next === null)
+        return;
+
+    applyRovingTabIndex(items, next);
+    next.focus();
+}
+
 /** Whether an element can take the caret: rendered, and neither disabled itself nor inside something disabled or loading. */
 export function isRovingCandidate(item: HTMLElement): boolean {
     // Client rects rather than offsetParent, which is also null for the position:fixed of an open context menu.

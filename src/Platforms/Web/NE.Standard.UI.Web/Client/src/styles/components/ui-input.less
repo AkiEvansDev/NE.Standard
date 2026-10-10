@@ -2,7 +2,7 @@
 @import "../mixins/field.less";
 @import "../mixins/loading-ring.less";
 
-// The label row every input draws above its field, hidden until there is something to show; the :has() covers a badge or required marker.
+// The label row every input draws above its field, hidden until there is something to show: a title, an icon or a badge.
 .ui-input__header {
     display: none;
     align-items: center;
@@ -24,8 +24,7 @@
     }
 
 // Grid, so the caption lines up on ui-text.less's tracks; a required marker alone opens no header, having nothing to stand beside.
-:is([data-ui-text-title], [data-ui-text-icon]) > .ui-input__header,
-.ui-input__header:has(:is([data-ui-badge-icon], [data-ui-badge-text])) {
+:is([data-ui-text-title], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-text]) > .ui-input__header {
     display: grid;
 }
 
@@ -78,18 +77,19 @@
     .ui-required-marker();
 }
 
-    // The title stops growing when it carries a required marker, or the marker lands at the far edge of a full-width field.
-    .ui-text__header:has(> .ui-input__required) > .ui-text__title {
+    // The title stops growing when it carries a required marker, or the marker lands at the far edge of a full-width field; the row
+    // says it holds one (TextContentRendererBase).
+    .ui-text__header--required > .ui-text__title {
         flex-grow: 0;
     }
 
 // A caption's badge with words, shown on a press: a tab stop of its own, since the words are for the keyboard too — but the help badge,
-// whose words describe the field instead. Its ground is no mark of the keyboard, so the ring is drawn at a hairline where the theme's is off.
+// whose words describe the field instead. Its ground is no mark of the keyboard: the keyboard's frame goes round it, in its one shape.
 .ui-text__badge[data-ui-tooltip-press][data-ui-tooltip] {
     cursor: help;
 
     // A plain badge has no ground to say it is live, so its muted ink comes up to the text's.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &.ui-badge-style--plain:hover {
             color: @ui-text-ink;
         }
@@ -100,8 +100,7 @@
     }
 
     &@{ui-keyboard-focus} {
-        outline: max(1px, var(--ui-focus-ring-width, 0px)) solid var(--ui-color-focus-ring, var(--ui-color-primary));
-        outline-offset: @ui-focus-ring-offset;
+        .ui-keyboard-frame-outside();
     }
 }
 
@@ -171,9 +170,9 @@
 }
 
 // A file over a field another input takes it for (its DropTarget), or an item of a kind the field takes (`OnDrop`): the mark on the
-// field's box, which covers the root's own edge.
-[data-ui-file-drop-over]:has(> :is(@{ui-input-field-state})),
-[data-ui-item-drop-over]:has(> :is(@{ui-input-field-state})) {
+// field's box, which covers the root's own edge; the drop's marker says the root has such a box (`data-ui-drop-boxed`).
+[data-ui-file-drop-over][data-ui-drop-boxed],
+[data-ui-item-drop-over][data-ui-drop-boxed] {
     outline: none;
 }
 
@@ -208,18 +207,42 @@
     background: none;
 }
 
-// Where the field's text stands, its border and start padding: what its message line and an editor set back in place read.
-// Ghost, Underline and Small restate it below.
-.ui-input--filled,
-.ui-input--tonal,
-.ui-input--outline {
-    --ui-field-inset: calc(@ui-space-3 + var(--ui-border-width, 1px));
+// Where the field's text stands, its border and start padding, by appearance and size: what its message line and an editor set
+// back in place read — and a note under it (`FieldNote`), which stands outside the field's root: `@then` names it as the root's sibling.
+.ui-field-insets(@then: ~"") {
+    :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline)@{then} {
+        --ui-field-inset: calc(@ui-space-3 + var(--ui-border-width, 1px));
+    }
+
+    .ui-input--underline@{then} {
+        --ui-field-inset: 0px;
+    }
+
+    .ui-input--ghost@{then} {
+        --ui-field-inset: calc(@ui-space-2 + var(--ui-border-width, 1px));
+    }
+
+    .ui-input--small@{then} {
+        --ui-field-inset: calc(0.375rem + var(--ui-border-width, 1px));
+    }
+
+    .ui-input--underline.ui-input--small@{then} {
+        --ui-field-inset: 0px;
+    }
+}
+
+.ui-field-insets();
+.ui-field-insets(~" + .ui-paragraph--field-note");
+
+// A note under a field starts where the field's words and its message do: from its edge it stood a step left of the message.
+.ui-paragraph--field-note > .ui-text__body {
+    padding-inline: var(--ui-field-inset, 0px);
 }
 
 // A rule under the text, not a box: the variable zeroes the focus ring, the row's inset shadow and the box's outline alike.
 .ui-input--underline {
     --ui-input-focus-ring: 0;
-    --ui-field-inset: 0px;
+    --ui-field-top-edge: 0px;
 }
 
 .ui-input--underline > :is(@{ui-input-field}),
@@ -253,7 +276,6 @@
 // No ring on focus either (below): the variable is zeroed for the box's outline and the row's inset shadow alike.
 .ui-input--ghost {
     --ui-input-focus-ring: 0;
-    --ui-field-inset: calc(@ui-space-2 + var(--ui-border-width, 1px));
 }
 
 // No box until touched; focus shows as a wash. Sized like a small button, so it fits a row of a list.
@@ -267,13 +289,8 @@
 
 // Small and large move a field's height, its side padding and its text. After Ghost and Underline, whose own heights a size overrides.
 .ui-input--small {
-    --ui-field-inset: calc(0.375rem + var(--ui-border-width, 1px));
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
-}
-
-.ui-input--underline.ui-input--small {
-    --ui-field-inset: 0px;
 }
 
 .ui-input--small > :is(@{ui-input-field}) {
@@ -307,7 +324,7 @@
 }
 
 // States are a ladder by source order, hover weightless so every later state outranks it; its edge alone, since a field is no button.
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     :where(.ui-input--filled@{ui-field-live}, .ui-input--tonal@{ui-field-live}) > :is(@{ui-input-field}):hover,
     :where(.ui-input--filled@{ui-field-live}, .ui-input--tonal@{ui-field-live}) > .ui-field-box:hover {
         .ui-field-edge-hover();
@@ -321,7 +338,7 @@
 }
 
 // Primary but dimmed: full colour is reserved for focus, or Underline's ringless hover would look the same as its focus.
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     :where(.ui-input--outline@{ui-field-live}, .ui-input--underline@{ui-field-live}) > :is(@{ui-input-field}):hover,
     :where(.ui-input--outline@{ui-field-live}, .ui-input--underline@{ui-field-live}) > .ui-field-box:hover {
         .ui-field-edge-hover(var(--ui-field-hover-accent));
@@ -332,12 +349,6 @@
 :is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
     .ui-field-edge-active();
 }
-
-    // Underline's focus is its rule alone; invalid still outranks it.
-    .ui-input--underline:not(.ui-disabled)@{ui-field-edged}@{ui-field-focus} > :is(@{ui-input-field}),
-    .ui-input--underline:not(.ui-disabled)@{ui-field-edged} > .ui-field-box@{ui-field-focus} {
-        border-bottom-color: var(--ui-color-primary);
-    }
 
 // The text-carrying part of a field, stripped of its own chrome so the surrounding box draws border, background and padding.
 .ui-field {
@@ -350,6 +361,19 @@
     background: transparent;
     color: var(--ui-color-on-surface);
     font: inherit;
+}
+
+// Every caret field's placeholder in the one muted ink a select's placeholder wears: left to the browser, a text field's was its own
+// grey (3.2:1) beside a select's. `opacity` too, which Firefox lowers on its own.
+.ui-field::placeholder {
+    color: var(--ui-text-muted);
+    opacity: 1;
+}
+
+// One line tall: an empty field's placeholder takes the browser's `line-height: normal`, which no stylesheet overrides and which
+// stands taller than a small field's line, setting its text a pixel lower than a filled field's.
+input.ui-field {
+    height: 1lh;
 }
 
 // A field that takes no typing offers no caret's place; a box only where it is a real field (`:read-only` holds for any element).
@@ -398,7 +422,7 @@
 }
 
 // A marked field answers the pointer as any other: the faint edge round it, its line kept.
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-input--filled:is(@{ui-validation-marked})@{ui-field-live} > :is(@{ui-input-field-state}):hover {
         border-color: var(--ui-field-hover);
         border-bottom-color: var(--ui-validation-color, var(--ui-color-danger-ink));
@@ -418,6 +442,22 @@
 
 .ui-input--filled:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus},
 .ui-input--filled:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+    --ui-field-line: var(--ui-validation-color, var(--ui-color-danger-ink));
+}
+
+// Underline's focus and open list are its rule alone, doubled inward as Filled's line is: recoloured at one pixel, the brand's rule
+// read dimmer than the mark's at rest on a dark page. A message's colour still outranks the brand's.
+.ui-input--underline:not(.ui-disabled)@{ui-field-edged}@{ui-field-focus} > :is(@{ui-input-field}),
+.ui-input--underline:not(.ui-disabled)@{ui-field-edged} > .ui-field-box@{ui-field-focus},
+.ui-input--underline:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+    --ui-field-line: var(--ui-color-primary);
+    border-bottom-color: var(--ui-field-line);
+    box-shadow: inset 0 calc(-1 * var(--ui-border-width, 1px)) 0 var(--ui-field-line);
+}
+
+.ui-input--underline:is(@{ui-validation-marked}):not(.ui-disabled)@{ui-field-focus} > :is(@{ui-input-field}),
+.ui-input--underline:is(@{ui-validation-marked}):not(.ui-disabled) > .ui-field-box@{ui-field-focus},
+.ui-input--underline:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
     --ui-field-line: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 

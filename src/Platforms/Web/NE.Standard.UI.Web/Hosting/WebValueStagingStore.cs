@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Files;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -21,6 +22,8 @@ namespace NE.Standard.UI.Web.Hosting;
 /// </remarks>
 internal sealed class WebValueStagingStore
 {
+    private static readonly UIDynamicParametersJsonConverter ParametersConverter = new();
+
     private readonly ConcurrentDictionary<string, IncomingValue> _incoming = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, OutgoingValue> _outgoing = new(StringComparer.Ordinal);
     private readonly WebSessionAllowance _allowance = new();
@@ -161,10 +164,39 @@ internal sealed class WebValueStagingStore
     /// </summary>
     public bool TryTake(string sessionId, string token, out object? value)
     {
+        value = null;
+
+        if (!TryTakeJson(sessionId, token, out ReadOnlyMemory<byte> json))
+            return false;
+
+        value = JsonSerializer.Deserialize<object?>(json.Span, _json);
+        return true;
+    }
+
+    /// <summary>
+    /// Takes the keys of a command a token names, read as the hub reads a command's own keys, once, when the token belongs to the session
+    /// and has not expired: a drop of many rows carries more than the hub takes.
+    /// </summary>
+    public bool TryTakeParameters(string sessionId, string token, out object?[] parameters)
+    {
+        parameters = [];
+
+        if (!TryTakeJson(sessionId, token, out ReadOnlyMemory<byte> json))
+            return false;
+
+        Utf8JsonReader reader = new(json.Span);
+
+        _ = reader.Read();
+        parameters = ParametersConverter.Read(ref reader, typeof(object?[]), _json);
+        return true;
+    }
+
+    private bool TryTakeJson(string sessionId, string token, out ReadOnlyMemory<byte> json)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
-        value = null;
+        json = default;
 
         if (!_incoming.TryGetValue(token, out IncomingValue staged))
             return false;
@@ -181,7 +213,7 @@ internal sealed class WebValueStagingStore
         if (staged.ExpiresAt <= _time.GetUtcNow())
             return false;
 
-        value = JsonSerializer.Deserialize<object?>(staged.Json.Span, _json);
+        json = staged.Json;
         return true;
     }
 

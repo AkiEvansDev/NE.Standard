@@ -59,7 +59,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is double indent && indent >= 0)
                 _ = target.Style(IndentVariable, indent.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Style(IndentVariable)]);
+        }, [WebDomOperation.Style(IndentVariable, converter: WebDomConverters.NonNegativeNumber)]);
 
         // The switches: the engine reads the attributes, the stylesheet the classes.
         RenderFlagAttribute(context, root, TreeComponent.RenamableProperty, WebAttributes.TreeRenamable);
@@ -67,6 +67,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         RenderFlagAttribute(context, root, TreeComponent.DraggableProperty, WebAttributes.TreeDraggable);
         RenderDragSource(context, root);
         RenderFlagAttribute(context, root, TreeComponent.RemovableProperty, WebAttributes.TreeUnremovable, WebValueCondition.IsFalse);
+        RenderRowsRemove(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-tree--row-hover");
         RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-tree--no-empty", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, TreeComponent.ShowFoldChevronProperty, "ui-tree--no-chevron", WebValueCondition.IsFalse);

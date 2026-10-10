@@ -1,24 +1,28 @@
-// A key-value row that has become its own editor (the list's EnableEditing): Enter and Escape are its save and cancel, the
-// input takes focus on open, and a client-only open starts from the value's own text. An open row is a form of its own, so an
+// A key-value row that has become its own editor (the list's EnableEditing): F2 opens it as its Edit does, Enter and Escape are its
+// save and cancel, the input takes focus on open, and a client-only open starts from the value's own text; once it closes the keyboard
+// goes back to its Edit (focus-handoff.ts). An open row is a form of its own, so an
 // error in its field stops its save as an error stops a form's submit; a cancel sends nothing of the draft it lets go of. The row's
 // rules judge the value it shows — at load, as it opens and once it closes — so a saved value's warning stays on its dot.
 
-import { FormIdAttribute, PopupRoleSelector, RowEditingAttribute, SubmitFormIdAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import { BoxedEditorAttribute, FormIdAttribute, PopupRoleSelector, RowEditingAttribute, SubmitFormIdAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import { isCaretField, isCaretInput } from "./caret-fields.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { dispatchDraftDropped } from "./draft-events.ts";
+import { editingCellOf, KeyValueActionClass, KeyValueEditActionClass, KeyValueRowClass, KeyValueValueInputClass } from "./field-escape.ts";
+import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
+import { FocusableSelector } from "./popup-focus.ts";
 import { isInert } from "./interactive-state.ts";
 import type { ShownValueValidation } from "./validation-engine.ts";
 
-const RowClass = "ui-key-value-action__row";
 const ValueClass = "ui-key-value-action__value";
-const ValueInputClass = "ui-key-value-action__value-input";
-const EditActionClass = "ui-key-value-action__edit-action";
+const EditableClass = "ui-key-value-action--editable";
 const TitleClass = "ui-text__title";
 // The name of the form an open row is: its fields' and its Save's, so the pipeline weighs the row's rules before the save runs.
 const RowFormPrefix = "ui-row-form-";
+// An editor drawing a field box, by its appearance: the cell sets it down onto the row's line (ui-key-value-action.less).
+const BoxedEditorSelector = ":scope > :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline)";
 
 export type KeyValueActionEngineOptions = {
     readonly root?: ParentNode;
@@ -44,8 +48,8 @@ export class KeyValueActionEngine {
 
         // A row may be rendered already editing — one the server added open — so rows are read as they arrive, and once at the start;
         // a page that loads with rows open takes no focus for them, or the last one would pull the focus and the view down to itself.
-        this.handleRows(this.root.querySelectorAll<HTMLElement>(`.${RowClass}`), false);
-        observeComponents(this.root, `.${RowClass}`, { childList: true, attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows, true));
+        this.handleRows(this.root.querySelectorAll<HTMLElement>(`.${KeyValueRowClass}`), false);
+        observeComponents(this.root, `.${KeyValueRowClass}`, { childList: true, attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows, true));
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent), true);
 
         // Cancel takes no focus on its press: the field keeps it, so no leave commits the draft the press is letting go of.
@@ -74,8 +78,9 @@ export class KeyValueActionEngine {
 
             this.closedRows.delete(row);
 
-            // On every change inside the open row, as a field drawn into it anew has not joined its form yet.
+            // On every change inside the open row, as a field drawn into it anew has not joined its form yet, nor said its box.
             this.joinForm(row);
+            markBoxedEditor(row);
 
             if (!this.openRows.has(row)) {
                 this.openRows.add(row);
@@ -87,7 +92,7 @@ export class KeyValueActionEngine {
 
     /** Names the open row's fields and its Save as one form; a field already in a form of its author's stays in that one. */
     private joinForm(row: HTMLElement): void {
-        const save = row.querySelector<HTMLElement>(`.${EditActionClass} button`);
+        const save = row.querySelector<HTMLElement>(`.${KeyValueEditActionClass} button`);
 
         if (save === null)
             return;
@@ -99,7 +104,7 @@ export class KeyValueActionEngine {
             this.rowForms.set(row, form);
         }
 
-        for (const field of row.querySelectorAll(`.${ValueInputClass} [${ValueBindingAttribute}]:not([${FormIdAttribute}])`))
+        for (const field of row.querySelectorAll(`.${KeyValueValueInputClass} [${ValueBindingAttribute}]:not([${FormIdAttribute}])`))
             field.setAttribute(FormIdAttribute, form);
 
         save.setAttribute(SubmitFormIdAttribute, form);
@@ -122,7 +127,7 @@ export class KeyValueActionEngine {
     private close(row: HTMLElement): void {
         this.leaveForm(row);
 
-        for (const bound of row.querySelectorAll<HTMLElement>(`.${ValueInputClass} [${ValueBindingAttribute}]`)) {
+        for (const bound of row.querySelectorAll<HTMLElement>(`.${KeyValueValueInputClass} [${ValueBindingAttribute}]`)) {
             if (isCaretField(bound)) {
                 // Empty, so the next open starts from the value's text.
                 bound.value = "";
@@ -143,13 +148,13 @@ export class KeyValueActionEngine {
     private judge(row: HTMLElement): void {
         const text = valueText(row);
 
-        for (const bound of row.querySelectorAll<HTMLElement>(`.${ValueInputClass} [${ValueBindingAttribute}]`))
+        for (const bound of row.querySelectorAll<HTMLElement>(`.${KeyValueValueInputClass} [${ValueBindingAttribute}]`))
             this.options.validation.judgeShown(bound, isCaretField(bound) && bound.value.length === 0 ? text : null);
     }
 
     /** Seeds a client-only open's draft with the value's text and, for a row opened after the load, focuses its field. */
     private open(row: HTMLElement, focus: boolean): void {
-        const field = row.querySelector<HTMLElement>(`.${ValueInputClass} :is(input, textarea, select)`);
+        const field = row.querySelector<HTMLElement>(`.${KeyValueValueInputClass} :is(input, textarea, select)`);
 
         if (field === null)
             return;
@@ -174,13 +179,18 @@ export class KeyValueActionEngine {
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {
-        if (domEvent.defaultPrevented || domEvent.isComposing || !(domEvent.target instanceof Element) || (domEvent.key !== "Enter" && domEvent.key !== "Escape"))
+        if (domEvent.key === "F2" && !domEvent.defaultPrevented && isPlainKey(domEvent)) {
+            openByKey(domEvent);
+            return;
+        }
+
+        if (domEvent.defaultPrevented || isComposing(domEvent) || !(domEvent.target instanceof Element) || (domEvent.key !== "Enter" && domEvent.key !== "Escape"))
             return;
 
         // The key is the row's from its editor and from its save and cancel pair alike; Enter on the pair is the button's own press.
         const editing = editingCellOf(domEvent.target);
 
-        if (editing === null || (domEvent.key === "Enter" && editing.cell.classList.contains(EditActionClass)))
+        if (editing === null || (domEvent.key === "Enter" && editing.cell.classList.contains(KeyValueEditActionClass)))
             return;
 
         const { cell, row } = editing;
@@ -192,7 +202,7 @@ export class KeyValueActionEngine {
         if ((popup !== null && cell.contains(popup)) || (openList !== null && openList.getClientRects().length > 0) || (domEvent.key === "Enter" && domEvent.target instanceof HTMLTextAreaElement))
             return;
 
-        const buttons = row.querySelectorAll<HTMLButtonElement>(`.${EditActionClass} button`);
+        const buttons = row.querySelectorAll<HTMLButtonElement>(`.${KeyValueEditActionClass} button`);
         const target = domEvent.key === "Enter" ? buttons[0] : buttons[buttons.length - 1];
 
         if (target === undefined)
@@ -215,6 +225,30 @@ export class KeyValueActionEngine {
     }
 }
 
+/** Marks the open row's input cell whose editor draws a field box (`data-ui-boxed-editor`); one without lays out as it stands. */
+function markBoxedEditor(row: HTMLElement): void {
+    for (const cell of row.querySelectorAll(`:scope > .${KeyValueValueInputClass}`)) {
+        const boxed = cell.querySelector(BoxedEditorSelector) !== null;
+
+        if (cell.hasAttribute(BoxedEditorAttribute) !== boxed)
+            cell.toggleAttribute(BoxedEditorAttribute, boxed);
+    }
+}
+
+/** F2 in a closed row of a list that edits in place opens its editor, as its Edit does: the key the tree's and the tabs' rename takes. */
+function openByKey(domEvent: KeyboardEvent): void {
+    const row = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${KeyValueRowClass}`) : null;
+    const edit = row === null || row.hasAttribute(RowEditingAttribute) || row.closest(`.${EditableClass}`) === null
+        ? null
+        : row.querySelector(`.${KeyValueActionClass}`)?.querySelector<HTMLElement>(FocusableSelector) ?? null;
+
+    if (edit === null || isInert(edit))
+        return;
+
+    domEvent.preventDefault();
+    edit.click();
+}
+
 /** The text a row shows for its value, which a client-only open starts its draft from. */
 function valueText(row: HTMLElement): string {
     return row.querySelector<HTMLElement>(`.${ValueClass} .${TitleClass}`)?.textContent?.trim() ?? "";
@@ -228,7 +262,7 @@ function holdClosedRowChange(domEvent: Event): void {
     if (!domEvent.isTrusted || !(domEvent.target instanceof Element))
         return;
 
-    const row = domEvent.target.closest(`.${ValueInputClass}`)?.closest(`.${RowClass}`) ?? null;
+    const row = domEvent.target.closest(`.${KeyValueValueInputClass}`)?.closest(`.${KeyValueRowClass}`) ?? null;
 
     if (row !== null && !row.hasAttribute(RowEditingAttribute))
         domEvent.stopImmediatePropagation();
@@ -236,24 +270,8 @@ function holdClosedRowChange(domEvent: Event): void {
 
 /** Whether an element is inside a row's Cancel, the last of its save and cancel pair. */
 function isCancel(element: Element): boolean {
-    const button = element.closest(`.${EditActionClass} button`);
-    const buttons = button?.closest(`.${EditActionClass}`)?.querySelectorAll(`button`);
+    const button = element.closest(`.${KeyValueEditActionClass} button`);
+    const buttons = button?.closest(`.${KeyValueEditActionClass}`)?.querySelectorAll(`button`);
 
     return button !== null && buttons !== undefined && buttons[buttons.length - 1] === button;
-}
-
-/** Whether a key landed in a key-value row's open editor, whose Enter and Escape are the row's save and cancel. */
-export function isInEditingRow(target: EventTarget | null): boolean {
-    return editingCellOf(target) !== null;
-}
-
-/** The editor cell a key landed in (the field, or its save and cancel pair) and its row, while the row is editing. */
-function editingCellOf(target: EventTarget | null): { readonly cell: HTMLElement; readonly row: HTMLElement } | null {
-    if (!(target instanceof Element))
-        return null;
-
-    const cell = target.closest<HTMLElement>(`.${ValueInputClass}, .${EditActionClass}`);
-    const row = cell?.closest<HTMLElement>(`.${RowClass}`) ?? null;
-
-    return cell === null || row === null || !row.hasAttribute(RowEditingAttribute) ? null : { cell, row };
 }

@@ -248,10 +248,14 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
     /// <inheritdoc />
     public void Add(T item)
+        => InsertCore(index: null, item);
+
+    /// <summary>Inserts one item at <paramref name="index"/>, or at the end when it is null.</summary>
+    private void InsertCore(int? index, T item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        int index;
+        int at;
         ItemForwarder forwarder;
         RecursiveChange change;
 
@@ -259,13 +263,15 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         {
             EnsureCanAddNoLock(item);
 
-            index = _items.Count;
+            at = index ?? _items.Count;
 
-            _items.Add(item);
-            AddMapsNoLock(item, index);
+            _items.Insert(at, item);
+
+            ReindexRangeNoLock(at);
+            AddIdNoLock(item);
 
             forwarder = GetOrCreateForwarderNoLock(item);
-            change = RecursiveChange.Add(RecursivePath.Empty, index, count: 1, GetItemIdsNoLock(index, count: 1));
+            change = RecursiveChange.Add(RecursivePath.Empty, at, count: 1, GetItemIdsNoLock(at, count: 1));
         }
 
         item.AttachOwner(this, this);
@@ -424,31 +430,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
     /// <inheritdoc />
     public void Insert(int index, T item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-
-        ItemForwarder forwarder;
-        RecursiveChange change;
-
-        lock (_sync)
-        {
-            EnsureCanAddNoLock(item);
-
-            _items.Insert(index, item);
-
-            ReindexRangeNoLock(index);
-            AddIdNoLock(item);
-
-            forwarder = GetOrCreateForwarderNoLock(item);
-            change = RecursiveChange.Add(RecursivePath.Empty, index, count: 1, GetItemIdsNoLock(index, count: 1));
-        }
-
-        item.AttachOwner(this, this);
-        item.SetNotifier(forwarder.Notify);
-
-        Notify(change);
-        NotifyCountChanged();
-    }
+        => InsertCore(index, item);
 
     /// <inheritdoc />
     public bool Remove(T item)
@@ -462,23 +444,36 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             if (!_indicesByItem.TryGetValue(item, out var removedIndex))
                 return false;
 
-            var oldItemIds = GetItemIdsNoLock(removedIndex, count: 1);
-
-            _items.RemoveAt(removedIndex);
-
-            RemoveMapsNoLock(item);
-            ReindexRangeNoLock(removedIndex);
-
-            change = RecursiveChange.Remove(RecursivePath.Empty, removedIndex, count: 1, oldItemIds);
+            change = RemoveAtNoLock(removedIndex);
         }
 
-        item.DetachOwner(this);
-        item.ResetNotifier();
+        NotifyRemoved(item, change);
+
+        return true;
+    }
+
+    /// <summary>Takes the item at <paramref name="index"/> out of the list and its maps; the caller holds the lock.</summary>
+    private RecursiveChange RemoveAtNoLock(int index)
+    {
+        T removedItem = _items[index];
+        var oldItemIds = GetItemIdsNoLock(index, count: 1);
+
+        _items.RemoveAt(index);
+
+        RemoveMapsNoLock(removedItem);
+        ReindexRangeNoLock(index);
+
+        return RecursiveChange.Remove(RecursivePath.Empty, index, count: 1, oldItemIds);
+    }
+
+    /// <summary>Releases a removed item and tells the listeners, outside the lock.</summary>
+    private void NotifyRemoved(T removedItem, RecursiveChange change)
+    {
+        removedItem.DetachOwner(this);
+        removedItem.ResetNotifier();
 
         Notify(change);
         NotifyCountChanged();
-
-        return true;
     }
 
     /// <inheritdoc />
@@ -490,22 +485,10 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         lock (_sync)
         {
             removedItem = _items[index];
-
-            var oldItemIds = GetItemIdsNoLock(index, count: 1);
-
-            _items.RemoveAt(index);
-
-            RemoveMapsNoLock(removedItem);
-            ReindexRangeNoLock(index);
-
-            change = RecursiveChange.Remove(RecursivePath.Empty, index, count: 1, oldItemIds);
+            change = RemoveAtNoLock(index);
         }
 
-        removedItem.DetachOwner(this);
-        removedItem.ResetNotifier();
-
-        Notify(change);
-        NotifyCountChanged();
+        NotifyRemoved(removedItem, change);
     }
 
     /// <summary>

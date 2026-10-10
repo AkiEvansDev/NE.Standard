@@ -72,14 +72,16 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
                 Change("index", "The index rebuild off the deploy path", "What paged us on 481 now runs on its own schedule, hours away from a release.")
             ])
             .SetSpacing(8)
-            // Paragraphs, both lines wrapping: the list is part of the article's prose, and a cut line loses what it says.
-            .SetTemplate(new ParagraphComponent()
+            // A text, not a paragraph, so the description stands under the title, not the glyph; both wrap, as a cut line loses its words.
+            .SetTemplate(new TextComponent()
                 .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
                 .SetIconColor(UIThemeColor.Success)
                 .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                .AsSubtitle()
                 .SetTitleWrap(true)
                 .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
                 .SetDescriptionColor(UIThemeColor.Muted)
+                .SetWrapMode(UITextWrapMode.Wrap)
             );
 
     private static TextItem Change(string id, string title, string description)
@@ -104,13 +106,14 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
             );
 
     /// <summary>One field and one button, with the rules a real box has: a shape checked on blur, a taken address refused.</summary>
+    /// <remarks>The field is Tonal: a lone field beside its own button, in a card that already frames it.</remarks>
     private static CardComponent CreateSubscribe()
         => UIPage.Card("Get the next one by mail", "One note a month, on what Orvane's staff learned.", UILayout.Columns(12,
             new TextInputComponent()
                 .SetPlaceholder("you@bramble.example")
                 .SetType(UITextInputType.Email)
                 .SetAutocomplete(UIAutocomplete.Email)
-                .SetAppearance(UIInputAppearance.Outline)
+                .SetAppearance(UIInputAppearance.Tonal)
                 .SetFormId(SubscribeFormId)
                 .BindValue(nameof(ArticleController.SubscriberEmail))
                 .BindValidation(nameof(ArticleController.SubscriberNotice))
@@ -124,7 +127,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
     /// <summary>The neighbours: links, since they only go somewhere.</summary>
     private static ContainerComponent CreateNeighbours()
         => UILayout.Columns(16,
-            new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ArrowBack)).SetTitle("Why the deploy calendar is on a wall").SetUrl("/screens/inbox"),
+            new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ArrowBack)).SetTitle("Why the deploy calendar is on a wall").SetUrl("/screens/inbox").SetHorizontalAlignment(UIAlignment.Start),
             new LinkComponent().SetTitle("Four plans, and how to pick one").SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight)).SetUrl("/screens/catalogue").SetHorizontalAlignment(UIAlignment.End)
         );
 }

@@ -28,10 +28,13 @@ public sealed record UICommandExecutionResult
     public bool Accepted { get; init; }
 
     /// <summary>
-    /// Gets whether the server turned the command away before its body ran — busy, not allowed, a closed component, an action no
-    /// longer on offer — rather than running it and failing.
+    /// Gets whether the server turned the command away before its body ran — busy, not allowed, a closed component — and spent
+    /// nothing, rather than running it and failing.
     /// </summary>
-    /// <remarks>What a toast's Undo is pressable again after: a refused run spent nothing, a failed one spent its offer.</remarks>
+    /// <remarks>
+    /// What a toast's Undo is pressable again after: a refused run spent nothing. A failed one spent its offer, and so did one its
+    /// filters refused once the offer was taken; an action no longer on offer is not refused either — nothing is left to press.
+    /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Refused { get; init; }
 

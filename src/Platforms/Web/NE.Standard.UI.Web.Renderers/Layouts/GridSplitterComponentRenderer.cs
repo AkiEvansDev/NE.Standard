@@ -36,7 +36,7 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         {
             if (value is double step && step > 0)
                 _ = target.Attribute(WebAttributes.SplitterStep, step.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SplitterStep)]);
+        }, [WebDomOperation.Attribute(WebAttributes.SplitterStep, converter: WebDomConverters.PositiveNumber)]);
 
         ThemeColorRenderer.RenderThemeColor(context, root, GridSplitterComponent.ColorProperty);
     }

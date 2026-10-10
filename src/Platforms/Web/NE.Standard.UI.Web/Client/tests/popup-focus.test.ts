@@ -2,7 +2,8 @@
 // it, except an editable text entry, whose edge says where typing goes; a real key takes every mark off, a modifier held alone
 // does not. The first element a popup's focus may land on, what takes the keyboard back from a field, where the focus goes back as a
 // dialog closes, and where a dialog opened again starts: at its top, on its first field. The focus a closing popup gives back after the
-// pointer opened it is the pointer's, whatever key closed it; after a keyboard's opening it is the keyboard's.
+// pointer opened it is the pointer's, whatever key closed it; after a keyboard's opening it is the keyboard's. The focus's ancestors up
+// to its component root say whose it is, for a field's edge and a list's quiet.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,9 +11,14 @@ import { FakeElement, FakeInput, FakeKeyboardEvent, FakeLabel, FakeTextArea, fak
 
 installFakeDom();
 
-const { firstFocusable, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, moveFocusIntoFromStart, noteFocus, noteKey, notePress, restoreFocusTo, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
+const { firstFocusable, focusByPointer, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, moveFocusIntoFromStart, noteBlur, noteFocus, noteKey, notePress, restoreFocusTo, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
+
+// The runtime's DomRegistry as the focus return reads it; it may still hold an element the page redrew away.
+const stalePeer = FakeElement.of("", { "data-ui-id": "9" }, "button");
+const pageIndex = { findEveryComponent: (componentId: number): Element[] => [stalePeer, ...fakeDocument.body.querySelectorAll(`[data-ui-id='${componentId}']`)].filter(element => element.getAttribute("data-ui-id") === String(componentId)).map(element => real<Element>(element)) };
 
 const Mark = "data-ui-pointer-focus";
+const Within = "data-ui-focus-within";
 
 function focusBy(element: FakeElement): void {
     fakeDocument.activeElement = element;
@@ -211,7 +217,7 @@ test("a dialog's focus goes back to a hidden opener's component root, made focus
     entry.laidOut = false;
     popup.laidOut = false;
 
-    const target = liveFocusReturn(real(entry), real<ParentNode>(fakeDocument.body));
+    const target = liveFocusReturn(real(entry), pageIndex);
 
     assert.equal(target, menu);
     assert.equal(menu.getAttribute("tabindex"), "-1");
@@ -232,7 +238,7 @@ test("an opener the page redrew away is found again by its component, while that
     fakeDocument.body.append(cardAgain);
     card.append(stale);
 
-    assert.equal(liveFocusReturn(real(stale), real<ParentNode>(fakeDocument.body)), redrawn);
+    assert.equal(liveFocusReturn(real(stale), pageIndex), redrawn);
 
     // Two rows of a template share the id: the next component out takes the focus, not either row's.
     const rows = FakeElement.of("", { "data-ui-id": "2" }).append(FakeElement.of("", { "data-ui-id": "9" }, "button"), FakeElement.of("", { "data-ui-id": "9" }, "button"));
@@ -242,7 +248,7 @@ test("an opener the page redrew away is found again by its component, while that
     fakeDocument.body.append(rows);
     stale.parent = staleRows;
 
-    assert.equal(liveFocusReturn(real(stale), real<ParentNode>(fakeDocument.body)), rows);
+    assert.equal(liveFocusReturn(real(stale), pageIndex), rows);
     assert.equal(rows.getAttribute("tabindex"), "-1");
 });
 
@@ -399,5 +405,112 @@ test("a text entry the focus goes back to after a pointer's opening keeps its ed
     restoreFocusTo(real(entry), real(surface));
 
     assert.equal(fakeDocument.activeElement, entry);
+    assert.equal(entry.hasAttribute(Mark), false);
+});
+
+function withins(...elements: FakeElement[]): (string | null)[] {
+    return elements.map(element => element.getAttribute(Within));
+}
+
+test("the focus's ancestors up to its component root say whose it is: the pointer's, then a key's once one comes", () => {
+    const button = new FakeElement("button");
+    const row = FakeElement.of("row").append(button);
+    const field = FakeElement.of("field", { "data-ui-id": "4" }).append(row);
+    const page = FakeElement.of("page", { "data-ui-id": "1" }).append(field);
+
+    fakeDocument.body.append(page);
+    notePress(real(button));
+    focusBy(button);
+
+    assert.deepEqual(withins(button, row, field, page), [null, "pointer", "pointer", null]);
+
+    noteKey(key("ArrowDown"));
+
+    assert.deepEqual(withins(button, row, field, page), [null, "keyboard", "keyboard", null]);
+});
+
+test("an editable entry marks nothing around it, and the marks of the focus before it go", () => {
+    const button = new FakeElement("button");
+    const entry = new FakeInput();
+    const field = FakeElement.of("field", { "data-ui-id": "5" }).append(button, entry);
+
+    fakeDocument.body.append(field);
+    noteKey(key("Tab"));
+    focusBy(button);
+
+    assert.deepEqual(withins(field), ["keyboard"]);
+
+    notePress(real(entry));
+    focusBy(entry);
+
+    assert.deepEqual(withins(field), [null]);
+});
+
+test("a submenu's entry marks on to the menu whose group it stands in, and no further", () => {
+    const entry = FakeElement.of("ui-menu-item", { "data-ui-id": "9" }, "a");
+    const nested = FakeElement.of("ui-menu ui-menu--nested", { "data-ui-id": "8" }).append(FakeElement.of("ui-menu__host").append(FakeElement.of("ui-menu__item").append(entry)));
+    const submenu = FakeElement.of("ui-menu__submenu").append(nested);
+    const menu = FakeElement.of("ui-menu", { "data-ui-id": "7" }).append(FakeElement.of("ui-menu__host").append(FakeElement.of("ui-menu__item").append(submenu)));
+    const card = FakeElement.of("ui-card", { "data-ui-id": "6" }).append(FakeElement.of("ui-context-menu").append(menu));
+
+    fakeDocument.body.append(card);
+    noteKey(key("ArrowDown"));
+    focusBy(entry);
+
+    assert.deepEqual(withins(entry, nested, submenu, menu, card), [null, "keyboard", "keyboard", "keyboard", null]);
+});
+
+test("a component standing in a field's box is the field's: the mark goes on to the field's root, past the split button's", () => {
+    const main = FakeElement.of("ui-split-button__main", {}, "button");
+    const split = FakeElement.of("ui-split-button", { "data-ui-id": "12" }, "span").append(main);
+    const row = FakeElement.of("ui-text-input__row").append(new FakeInput(), FakeElement.of("ui-text-input__action").append(split));
+    const field = FakeElement.of("ui-text-input", { "data-ui-id": "11" }, "label").append(row);
+    const form = FakeElement.of("form", { "data-ui-id": "10" }).append(field);
+
+    fakeDocument.body.append(form);
+    notePress(real(main));
+    focusBy(main);
+
+    assert.deepEqual(withins(split, row, field, form), ["pointer", "pointer", "pointer", null]);
+});
+
+test("an entry the pointer moved onto marks its list the pointer's; a focus gone from the page leaves no marks once a press comes", () => {
+    const entry = new FakeElement("button");
+    const list = FakeElement.of("list", { "data-ui-id": "10" }).append(entry);
+
+    fakeDocument.body.append(list);
+    focusByPointer(real(entry));
+
+    assert.equal(fakeDocument.activeElement, entry);
+    assert.deepEqual(withins(list), ["pointer"]);
+
+    list.remove();
+    fakeDocument.activeElement = fakeDocument.body;
+    notePress(real(fakeDocument.body));
+
+    assert.deepEqual(withins(list), [null]);
+});
+
+test("a list's current entry the pointer stood on stays the pointer's as a press outside takes the focus, until a key", () => {
+    const entry = FakeElement.of("ui-select__option", { "data-ui-active": "" }, "button");
+    const plain = new FakeElement("button");
+    const list = FakeElement.of("list", { "data-ui-id": "11" }).append(entry, plain);
+    const leave = (from: FakeElement): void => noteBlur({ target: real(from), relatedTarget: null } as unknown as FocusEvent);
+
+    fakeDocument.body.append(list);
+    notePress(real(entry));
+    focusBy(entry);
+    notePress(real(plain));
+    focusBy(plain);
+    notePress(real(fakeDocument.body));
+    leave(entry);
+    leave(plain);
+
+    // The list fades out with its entry quiet; an ordinary element loses the mark as before.
+    assert.equal(entry.hasAttribute(Mark), true);
+    assert.equal(plain.hasAttribute(Mark), false);
+
+    noteKey(key("ArrowDown"));
+
     assert.equal(entry.hasAttribute(Mark), false);
 });

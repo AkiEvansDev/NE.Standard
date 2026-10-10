@@ -1,9 +1,14 @@
 @import "../core/tokens.less";
+@import "./field.less";
+@import "./focus.less";
 @import "./responsive.less";
 @import "../core/typography.less";
 
 // The row shape shared by checkbox, switch and radio: centred on the whole label, not its first line, so it does not hang off the top.
+// Positioned, as the box its hidden input stands in: placed by a far ancestor, the input sits off the page, and the focus a press
+// gives it scrolls even the shell's unscrolled root to bring it into view.
 .ui-toggle-row() {
+    position: relative;
     align-items: center;
     gap: @ui-space-1 @ui-space-2;
     min-width: 0;
@@ -18,6 +23,12 @@
     .ui-toggle-row();
     font: inherit;
     cursor: pointer;
+
+    // No words, no gap: a box alone (a grid's select column) stands centred in its room, not ahead of an empty text's gap. A badge
+    // shown alone keeps the gap, as a word would.
+    &:not([data-ui-text-title], [data-ui-text-description], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-text]) {
+        column-gap: 0;
+    }
 
     // Under the label rather than under the box, which is the column the text is in, and starting where its words do: a toggle has
     // no field whose inset the message would keep.
@@ -39,22 +50,27 @@
 }
 
 // A toggle answers a pointer on its box alone, nothing drawn past the box's edge, which a container at the toggle's side would cut:
-// off, the ring goes halfway to the ink and the box takes a shade of it; on, the fill leans toward the ink; a press goes about twice
-// as far as a hover. Halfway, since the full ink is a white ring on a dark theme, which shouts for a hover.
+// off, the ring goes a quarter of the way to the ink and the box takes a shade of it; on, the fill leans toward the ink; a press goes
+// twice as far as a hover. Quietly, since the box is small and dense: halfway read as too bright for a hover on a dark theme.
 // Not in forced colours, where the box keeps the system's. @root is what the pointer is over, carrying the guard; @on draws the on box.
+// A box whose message colours its edge keeps that edge: @unmarked is @root where no message stands (the radio group carries its own).
 @ui-toggle-live: ~":not(.ui-disabled, .ui-readonly, .ui-loading)";
-@ui-toggle-can-hover: ~"(hover: hover) and (forced-colors: none)";
-@ui-toggle-ring: ~"color-mix(in srgb, var(--ui-color-on-surface) 50%, var(--ui-color-mark))";
+@ui-toggle-can-hover: ~"@{ui-can-hover} and (forced-colors: none)";
+@ui-toggle-ring-hover: ~"color-mix(in srgb, var(--ui-color-on-surface) 25%, var(--ui-color-mark))";
+@ui-toggle-ring-press: ~"color-mix(in srgb, var(--ui-color-on-surface) 50%, var(--ui-color-mark))";
 
 .ui-toggle-answers(@root, @input, @box, @on) {
-    @media @ui-toggle-can-hover {
+    .ui-toggle-answers(@root, @input, @box, @on, ~"@{root}:not(@{ui-validation-marked})");
+}
+
+.ui-toggle-answers(@root, @input, @box, @on, @unmarked) {
+    @media @{ui-toggle-can-hover} {
         @{root}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
             background: color-mix(in srgb, var(--ui-color-on-surface) 6%, var(--ui-surface-raised));
         }
 
-        // An invalid box keeps its message's edge.
-        @{root}@{ui-toggle-live}:not(.ui-invalid):hover > @{input}:not(:checked) ~ @{box} {
-            border-color: @ui-toggle-ring;
+        @{unmarked}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
+            border-color: @ui-toggle-ring-hover;
         }
 
         @{root}@{ui-toggle-live}:hover > @{input}:checked ~ @{box} {
@@ -67,19 +83,19 @@
             background: color-mix(in srgb, var(--ui-color-on-surface) 12%, var(--ui-surface-raised));
         }
 
-        @{root}@{ui-toggle-live}:not(.ui-invalid):active > @{input}:not(:checked) ~ @{box} {
-            border-color: @ui-toggle-ring;
+        @{unmarked}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
+            border-color: @ui-toggle-ring-press;
         }
 
         @{root}@{ui-toggle-live}:active > @{input}:checked ~ @{box} {
             @on();
-            --ui-toggle-lean: 82%;
+            --ui-toggle-lean: 90%;
         }
     }
 }
 
-// The primary leaning toward the ink by the answer's share: 90% under a hover, 82% under a press.
-@ui-toggle-leaned: ~"color-mix(in srgb, var(--ui-color-primary) var(--ui-toggle-lean, 90%), var(--ui-color-on-surface))";
+// The primary leaning toward the ink by the answer's share: 95% under a hover, 90% under a press.
+@ui-toggle-leaned: ~"color-mix(in srgb, var(--ui-color-primary) var(--ui-toggle-lean, 95%), var(--ui-color-on-surface))";
 
 // The ring is the mark: unchecked, it is all that says a box is there.
 .ui-toggle-box(@height) {
@@ -91,4 +107,13 @@
     .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
     background: var(--ui-surface-raised);
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
+}
+
+// Where the keyboard stands on a toggle: one frame round its whole row — box, words, badge — 2 px off it, in the frame's one shape.
+// Round the box alone it crowded the box's own edge. The row holds the hidden input, so `data-ui-focus-within` (popup-focus.ts) marks
+// it for a key's focus; a clipping panel leaves the frame its reach (runtime.less).
+.ui-toggle-keyboard-frame() {
+    &@{ui-keyboard-within} {
+        .ui-keyboard-frame-outside();
+    }
 }

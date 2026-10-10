@@ -1,5 +1,6 @@
-// An items view's or a table's rows put in another order by the reader: dragged between rows, or moved a place by Alt+Up and
-// Alt+Down. The row raises `move` with the index it takes and stands there at once; the controller moves it in its collection, and
+// An items view's or a table's rows put in another order by the reader: dragged between rows, or moved a place by Alt with an
+// arrow along the way the rows lie — Up and Down in a list, Left and Right too across a horizontal one, a line by Up and Down in a
+// wrap. The row raises `move` with the index it takes and stands there at once; the controller moves it in its collection, and
 // the answer says where it stays — the collection's Move leaves it there or puts it where the controller did, and a move the answer
 // does not carry puts it back (`PendingMoves`). The tree's drag is the model: the same marks, the same event, the same refusals.
 // A grouped view's row moves within its own group: the group is read off the row, so a move across one would regroup it.
@@ -24,8 +25,9 @@ import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { clearDragMarks, leftAltogether, markDragStart } from "./drag-marks.ts";
 import { isInert } from "./interactive-state.ts";
 import { allowedEffect, beginItemsDrag, carriedRows, isLiftable, offeredItems } from "./item-drags.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import { ownControlOf } from "./own-control.ts";
-import { dispatchRowEvent, focusedRow, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
+import { dispatchRowEvent, focusedRow, hostKeyTarget, lineNeighbour, setRowFocus } from "./row-cursor.ts";
 import { hostOf, KeyboardRowsRootSelector, rowBox, rowKey, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 import { stripHostOf } from "./tab-rows.ts";
 
@@ -34,6 +36,10 @@ const DraggingClass = "ui-row--dragging";
 // Written on the marked row's box: how far out from its edge the drop line's middle stands (ui-items-view.less).
 const RowDropOffsetVariable = "--ui-row-drop-offset";
 const MoveEventName = "move";
+const WrapRootSelector = ".ui-items-view--wrap";
+
+// The arrows Alt moves a row by.
+const KeyMoves = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 /** Where a row lands beside another: before it or after it, along the way the rows run. */
 export type DropSide = "before" | "after";
@@ -346,33 +352,44 @@ export class ItemsReorderEngine {
         markRowDrop(drag.root, null);
     }
 
-    /** Alt+Up and Alt+Down move the keyboard's row one place past the row drawn beside it, as a drop there would. */
+    /**
+     * Alt with an arrow moves the keyboard's row one place past the row drawn beside it, as a drop there would: Up and Down in a list,
+     * Left and Right too where the rows run across; in a wrap Up and Down move it a line, to the place under or over it.
+     */
     private handleKeyDown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !domEvent.altKey || domEvent.ctrlKey || domEvent.metaKey || domEvent.shiftKey)
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !domEvent.altKey || !isPlainKey(domEvent, { alt: true }))
             return;
 
-        if ((domEvent.key !== "ArrowUp" && domEvent.key !== "ArrowDown") || !(domEvent.target instanceof Element))
+        if (!KeyMoves.has(domEvent.key) || !(domEvent.target instanceof Element))
             return;
 
-        const found = rowKeyTarget(domEvent.target);
+        const found = hostKeyTarget(domEvent);
 
-        if (found === null || !found.root.matches(KeyboardRowsRootSelector) || (found.row !== null && ownControlOf(domEvent.target, found.row) !== null))
+        if (found === null || !found.root.matches(KeyboardRowsRootSelector))
             return;
 
         const host = hostOf(found.root);
-        const rows = host === null ? [] : shownRows(host);
+        const flow = host === null ? null : flowOf(found.root, host);
+        const across = domEvent.key === "ArrowLeft" || domEvent.key === "ArrowRight";
+
+        // Left and Right are the browser's Back and Forward in a list running down.
+        if (host === null || flow === null || (across && !flow.across))
+            return;
+
+        const rows = shownRows(host);
         const current = focusedRow(rows);
 
-        if (host === null || current === null || this.liftableRow(current)?.moves !== true)
+        if (current === null || this.liftableRow(current)?.moves !== true)
             return;
 
         // Taken whether or not the row moves: at an end the keys do nothing rather than walk the cursor or leave the page.
         domEvent.preventDefault();
 
-        const at = rows.indexOf(current);
-        const up = domEvent.key === "ArrowUp";
-        const anchor = rows[up ? at - 1 : at + 1];
-        const index = anchor === undefined ? null : this.indexOf({ host, row: current }, anchor, up ? "before" : "after");
+        const forward = domEvent.key === "ArrowDown" || domEvent.key === "ArrowRight";
+        const anchor = !across && found.root.matches(WrapRootSelector)
+            ? lineNeighbour(rows, current, forward)
+            : rows[rows.indexOf(current) + (forward ? 1 : -1)] ?? null;
+        const index = anchor === null ? null : this.indexOf({ host, row: current }, anchor, forward ? "after" : "before");
 
         if (index !== null)
             raiseItemMove(current, index);
@@ -526,7 +543,7 @@ function nearestRow(rows: readonly HTMLElement[], point: { readonly clientX: num
 
 /** The host's rows a reader sees, in the order they are drawn: a row a filter hid or a fold took is no place to land beside. */
 export function shownRows(host: Element): HTMLElement[] {
-    return getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement && row.matches(RowSelector) && rowBox(row) !== null);
+    return getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement && row.matches(SelectionRowSelector) && rowBox(row) !== null);
 }
 
 /** Marks the side of the row the dragged one lands on, on the row's box, and takes the mark off every other row of the root. */

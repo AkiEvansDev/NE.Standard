@@ -31,13 +31,16 @@ internal sealed partial class UIViewCompilationContext
         ValidateItemsView(component);
         EnsureSubmitOnEnterIsSound(component);
         EnsureDropTargetIsInView(component);
+        EnsureWindowFitsARead(component);
         EnsurePagerTargetPages(component);
 
-        UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
-        List<CompiledUIPropertyValue> values = new(definitions.Length);
+        UIComponentTypeState typeState = GetTypeState(component.TypeKey);
+        UIPropertyDefinition[] definitions = typeState.Definitions;
+        CompiledUIPropertyValue[] values = new CompiledUIPropertyValue[definitions.Length];
 
-        foreach (UIPropertyDefinition definition in definitions)
+        for (var slot = 0; slot < definitions.Length; slot++)
         {
+            UIPropertyDefinition definition = definitions[slot];
             UIBinding? sourceBinding = FindBinding(component, definition.Property);
 
             // Content marked on the instance is shown as written, so render, metadata and the page's words agree it is no key.
@@ -78,14 +81,14 @@ internal sealed partial class UIViewCompilationContext
                     isTranslatable
                 );
 
-                values.Add(new CompiledUIPropertyValue
+                values[slot] = new CompiledUIPropertyValue
                 {
                     Property = definition.Property,
                     IsTranslatable = isTranslatable,
                     IsContent = isContent,
                     IsBind = true,
                     BindingId = compiledBinding.Id
-                });
+                };
 
                 continue;
             }
@@ -94,31 +97,38 @@ internal sealed partial class UIViewCompilationContext
             {
                 CompiledUIBinding geometryBinding = AddBinding(bindings, templatesByKey, CompiledUIBindingKind.ComponentProperty, component.Id, definition.Property, UIBindingMode.OneWay, geometryPath, definition.ValueType, isTranslatable: isTranslatable);
 
-                values.Add(new CompiledUIPropertyValue
+                values[slot] = new CompiledUIPropertyValue
                 {
                     Property = definition.Property,
                     IsTranslatable = isTranslatable,
                     IsContent = isContent,
                     IsBind = true,
                     BindingId = geometryBinding.Id
-                });
+                };
 
                 continue;
             }
 
             var value = definition.Getter(component) ?? definition.DefaultValue;
 
-            values.Add(new CompiledUIPropertyValue
+            // Most of a component's properties stay at their default: those share one value per type rather than one each.
+            if (!isContent && typeState.TryGetDefault(slot, value, out CompiledUIPropertyValue? shared))
+            {
+                values[slot] = shared;
+                continue;
+            }
+
+            values[slot] = new CompiledUIPropertyValue
             {
                 Property = definition.Property,
                 IsTranslatable = isTranslatable,
                 IsContent = isContent,
                 IsBind = false,
                 Value = CompilePropertyValue(value)
-            });
+            };
         }
 
-        return new UIComponentState(GetComponentId(component.Id), [.. values]);
+        return new UIComponentState(GetComponentId(component.Id), typeState.Layout, values);
     }
 
     private static UIBinding? FindBinding(IVisualComponent component, UIProperty property)

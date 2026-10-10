@@ -53,17 +53,17 @@ internal static class StandardWebAssetDescriptors
     };
 
     /// <summary>
-    /// Inter, the theme's default face, shipped for machines without it: the variable weight file, upright only, cached for a
-    /// year. OFL 1.1 license in <c>Client/fonts/LICENSE.txt</c>.
+    /// Geist, the theme's default face, shipped for machines without it: the variable weight file, upright only, Latin and
+    /// Cyrillic, cached for a year. OFL 1.1 license in <c>Client/fonts/LICENSE-geist.txt</c>.
     /// </summary>
     public static WebAssetDescriptor Font { get; } = new()
     {
-        Key = "ui-inter.woff2",
+        Key = "ui-geist.woff2",
         Kind = UIWebAssetKind.Font,
         SourceKind = UIWebAssetSourceKind.EmbeddedResource,
-        Source = "NE.Standard.UI.Web.Client.fonts.InterVariable.woff2",
+        Source = "NE.Standard.UI.Web.Client.fonts.GeistVariable.woff2",
         ResourceAssemblyName = "NE.Standard.UI.Web",
-        PublicPath = "/_ne/fonts/inter.woff2",
+        PublicPath = "/_ne/fonts/geist.woff2",
         Order = 0
     };
 
@@ -84,7 +84,7 @@ internal static class StandardWebAssetDescriptors
 
     /// <summary>
     /// Both faces declared on versioned addresses, before <c>ui.css</c>, so the first paint already names faces that load. A theme
-    /// with another <c>FontFamily</c> never asks for Inter; the glyph face is blocked, not swapped, since a fallback glyph draws as a box.
+    /// with another <c>FontFamily</c> never asks for Geist; the glyph face is blocked, not swapped, since a fallback glyph draws as a box.
     /// </summary>
     public static WebAssetDescriptor FontCss { get; } = new()
     {
@@ -92,7 +92,7 @@ internal static class StandardWebAssetDescriptors
         Kind = UIWebAssetKind.Css,
         SourceKind = UIWebAssetSourceKind.Content,
         Source = "ui-fonts",
-        Content = $"@font-face{{font-family:\"Inter\";font-style:normal;font-weight:100 900;font-display:swap;src:url(\"{Font.ResolveVersionedPublicPath()}\") format(\"woff2\");}}"
+        Content = $"@font-face{{font-family:\"Geist\";font-style:normal;font-weight:100 900;font-display:swap;src:url(\"{Font.ResolveVersionedPublicPath()}\") format(\"woff2\");}}"
             + $"@font-face{{font-family:\"NE Glyphs\";font-style:normal;font-weight:400;font-display:block;src:url(\"{GlyphFont.ResolveVersionedPublicPath()}\") format(\"woff2\");}}",
         PublicPath = "/_ne/css/ui-fonts.css",
         Order = -1

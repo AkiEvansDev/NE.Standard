@@ -104,8 +104,8 @@ test("through the list, Enter on the cursor's row presses its card, and Space do
 
     const plain = cards("none");
 
+    // Focused from the keyboard, a list choosing nothing shows its cursor on the first row.
     plain.root.focus();
-    plain.root.dispatchEvent(new FakeKeyboardEvent("ArrowDown", plain.root));
     plain.root.dispatchEvent(new FakeKeyboardEvent(" ", plain.root));
 
     assert.deepEqual(plain.opened, ["a"]);

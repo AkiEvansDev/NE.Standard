@@ -144,12 +144,12 @@ type Scene = {
     readonly outside: FakeElement;
 };
 
-type SceneOptions = { readonly copy?: boolean; readonly hostAttributes?: Readonly<Record<string, string>> };
+type SceneOptions = { readonly copy?: boolean; readonly hostAttributes?: Readonly<Record<string, string>>; readonly iconlessEdit?: boolean };
 
 /** A host, its text and its menu, drawn but not yet on the page. */
 function parts(options: SceneOptions = {}): Scene {
     const pin = entry("Pin", true);
-    const edit = entry("Edit", true);
+    const edit = entry("Edit", true, options.iconlessEdit === true ? null : "edit");
     const remove = entry("Delete", true);
     const entries = [pin, edit, remove, ...(options.copy === false ? [] : [entry("Copy text", false)])];
     const menu = FakeElement.of("ui-context-menu", { "data-ui-context-menu": "", role: "menu" }).append(FakeElement.of("ui-menu").append(...entries));
@@ -538,6 +538,18 @@ test("an icon is named by its entry's title alone, with no tooltip: one would be
     assert.equal(buttonsOf(barOf(at.host))[0].getAttribute("aria-label"), "Pin");
 });
 
+test("an entry's button that shows its icon says so on itself, for the stylesheet's square; a title's and more's do not", () => {
+    const at = scene({ iconlessEdit: true });
+
+    press(at.text);
+
+    const buttons = buttonsOf(barOf(at.host));
+
+    assert.deepEqual(buttons.map(button => button.classes.has("ui-action-bar__button--icon")), [true, false, true, false]);
+    assert.equal(buttons[1].textContent, "Edit");
+    assert.ok(buttons[3].classes.has("ui-action-bar__more"));
+});
+
 test("the keyboard in a host draws its bar, and the keyboard leaving the host takes it away", () => {
     const at = scene();
 
@@ -618,6 +630,18 @@ test("a list holding the focus draws the bar of the row its cursor lights, and t
 
     assert.notEqual(barOf(at.hosts[0]), null, "a key the list took still moved its cursor");
     assert.equal(barOf(at.hosts[1]), null);
+});
+
+test("a list reached by Tab with no cursor yet draws the bar of its chosen row, the row Enter acts on", () => {
+    const at = listScene();
+
+    at.rows[0].removeAttribute("data-ui-row-focus");
+    at.rows[1].setAttribute("data-ui-selected", "");
+    noteKey(real<Event>(new FakeKeyboardEvent("Tab")));
+    at.list.focus();
+
+    assert.equal(barOf(at.hosts[0]), null);
+    assert.notEqual(barOf(at.hosts[1]), null);
 });
 
 test("a press on a row's own edge chooses the host its template draws in it, a press on another row moves the bar there, and one on another component in a row chooses none", () => {
@@ -729,6 +753,48 @@ test("a row drawn anew keeps its bar: replaced in place, or gone from the window
     FakeObserver.changed(at.list);
 
     assert.equal(barOf(later.host), null);
+});
+
+test("the row a bar stands over is marked while it does, the mark moving with the bar and going with it", () => {
+    const at = listScene();
+
+    press(at.texts[0]);
+    assert.equal(at.rows[0].hasAttribute("data-ui-row-bar"), true);
+    assert.equal(at.rows[1].hasAttribute("data-ui-row-bar"), false);
+
+    press(at.texts[1]);
+    assert.equal(at.rows[0].hasAttribute("data-ui-row-bar"), false);
+    assert.equal(at.rows[1].hasAttribute("data-ui-row-bar"), true);
+
+    press(fakeDocument.body);
+    assert.equal(at.rows[1].hasAttribute("data-ui-row-bar"), false);
+});
+
+test("a table's row marks itself as a host, a tree's row its node face's host; a host deeper in a row, or in none, marks nothing", () => {
+    const table = scene();
+
+    table.host.classes.add("ui-table__row");
+    press(table.text);
+    assert.equal(table.host.hasAttribute("data-ui-row-bar"), true);
+
+    const tree = scene();
+    const row = FakeElement.of("ui-tree__row").append(FakeElement.of("ui-tree__node"));
+
+    tree.host.remove();
+    row.children[0].append(tree.host);
+    fakeDocument.body.append(row);
+    press(tree.text);
+    assert.equal(row.hasAttribute("data-ui-row-bar"), true);
+
+    const deep = scene();
+    const item = FakeElement.of("ui-items-view__item").append(FakeElement.of("ui-stack-panel", { "data-ui-id": "9" }));
+
+    deep.host.remove();
+    item.children[0].append(deep.host);
+    fakeDocument.body.append(item);
+    press(deep.text);
+    assert.notEqual(barOf(deep.host), null);
+    assert.equal(item.hasAttribute("data-ui-row-bar"), false);
 });
 
 test("a package's host keyed for its bar keeps the bar when the package draws it anew", () => {

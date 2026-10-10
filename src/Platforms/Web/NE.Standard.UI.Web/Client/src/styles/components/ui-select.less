@@ -130,12 +130,13 @@
     transition: background-color @ui-motion-fast @ui-motion-ease;
 }
 
-    // A small field's list is as dense as the field: caption text, and half the padding.
-    .ui-input--small .ui-select__option {
+    // A small field's list is as dense as the field: caption text, and half the padding. Not as a phone's sheet, whose rows are a
+    // finger's and whose words are the list's own (ui-sheet.less).
+    .ui-input--small .ui-select__popup:where(:not([data-ui-sheet])) .ui-select__option {
         padding: @ui-space-1 @ui-space-2;
     }
 
-        .ui-input--small .ui-select__option > .ui-text {
+        .ui-input--small .ui-select__popup:where(:not([data-ui-sheet])) .ui-select__option > .ui-text {
             font-size: var(--ui-text-caption-font-size);
             line-height: var(--ui-text-caption-line-height);
         }
@@ -156,7 +157,8 @@
 }
 
 // A key moves the mark at once, frame and wash together: the wash's fade trailed the frame, which has none. The pointer's keeps it.
-.ui-select__list:has(> .ui-select__option@{ui-list-keyboard}) > .ui-select__option {
+// The engine marks the list while its current option is the keyboard's.
+.ui-select__list[data-ui-list-keyboard] > .ui-select__option {
     transition: none;
 }
 

@@ -40,6 +40,11 @@ test("an open row stands its cells in its first line, so a message line under th
     assert.match(sides, /display: grid;/);
     assert.match(sides, /align-content: center;/);
     assert.match(sides, /min-height: var\(--ui-key-value-line\);/);
-    assert.match(declarations(`${Editing} > .ui-key-value-action__value-input:has( > ${Appearances})`), /padding-top: calc\(\(var\(--ui-key-value-line\) - 1\.75rem\) \/ 2\);/);
+    assert.match(declarations(`${Editing} > .ui-key-value-action__value-input[data-ui-boxed-editor]`), /padding-top: calc\(\(var\(--ui-key-value-line\) - 1\.75rem\) \/ 2\);/);
     assert.match(declarations(`.ui-key-value-action__value-input > ${Appearances}`), /align-self: flex-start;/);
+});
+
+test("a closed row's dot makes its cell a line, and a field speaking in a mark anchors it, both read off the engine's tooltip mark", () => {
+    assert.match(declarations(".ui-key-value-action__value[data-ui-tooltip-mark]"), /display: flex;\s*align-items: center;/);
+    assert.match(declarations(":is(.ui-invalid, .ui-validation--warning, .ui-validation--info)[data-ui-tooltip-mark]"), /position: relative;/);
 });

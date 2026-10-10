@@ -1,7 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Navigation.Breadcrumbs;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Components.Foundation;
 
 namespace DemoApp.Views.Navigation.Breadcrumbs;
 

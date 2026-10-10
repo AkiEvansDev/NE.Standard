@@ -5,6 +5,7 @@
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports, and types imported as types.
 import { clientStrings } from "../runtime/client-strings.ts";
 import type { DialogEngine } from "./dialog-engine.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
 import { centredView, cropFileName, cropOutputSide, cropOutputType, cropRect, cropScale, MaxCropZoom, panView, workingScale, zoomView } from "./image-crop.ts";
 import type { CropFrame, CropPicture, CropRect, CropView } from "./image-crop.ts";
 import { buildPageDialog, PageDialogParts } from "./page-dialog.ts";
@@ -268,7 +269,7 @@ async function applyAsync(): Promise<void> {
 }
 
 function handleKeyDown(crop: CropParts, domEvent: KeyboardEvent): void {
-    if (domEvent.defaultPrevented || domEvent.isComposing || session === null)
+    if (domEvent.defaultPrevented || isComposing(domEvent) || session === null)
         return;
 
     // Escape is a Cancel from anywhere in the dialog; a drag in progress took it first, to put the picture back.

@@ -14,13 +14,16 @@ const css = (await less.render(readFileSync(source, "utf8"), { filename: source 
 const tokens = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../src/styles/core/tokens.less"), "utf8");
 const Rem = 16;
 
-/** The declarations of the first rule whose selector is exactly `selector`. */
+/** The declarations of every rule whose selector is exactly `selector`. */
 function declarations(selector: string): string {
-    const start = css.indexOf(`\n${selector} {`);
+    let found = "";
 
-    assert.ok(start >= 0, `No rule for ${selector}.`);
+    for (let start = css.indexOf(`\n${selector} {`); start >= 0; start = css.indexOf(`\n${selector} {`, start + 1))
+        found += css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
 
-    return css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
+    assert.ok(found.length > 0, `No rule for ${selector}.`);
+
+    return found;
 }
 
 /** A token's value in pixels, from its rem. */
@@ -34,7 +37,11 @@ function pixels(sheet: string, token: string): number {
 
 test("a number's and a clock's stepper step in from the box's outer edge, the border counted in the step", () => {
     for (const stepper of [".ui-number-input__stepper", ".ui-temporal-input__stepper"])
-        assert.match(declarations(stepper), /margin: calc\(0\.25rem - var\(--ui-border-width, 1px\)\) -0\.5em calc\(0\.25rem - var\(--ui-border-width, 1px\)\) 0;/);
+        assert.match(declarations(stepper), /margin: calc\(0\.25rem - var\(--ui-field-top-edge, var\(--ui-border-width, 1px\)\)\) -0\.5em calc\(0\.25rem - var\(--ui-border-width, 1px\)\) 0;/);
+});
+
+test("an underlined field has no top edge to count, so its stepper stands on the box's middle", () => {
+    assert.match(declarations(".ui-input--underline"), /--ui-field-top-edge: 0px;/);
 });
 
 test("every field height halves into even arrows, whatever the border, so the glyph centres on whole pixels", () => {

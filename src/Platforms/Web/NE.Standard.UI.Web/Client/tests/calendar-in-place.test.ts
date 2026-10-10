@@ -445,3 +445,67 @@ test("a pushed set of days reaches the attribute as the render writes it: in ord
     assert.equal(convert([]), undefined);
     assert.equal(convert(null), undefined);
 });
+
+test("Shift with a page key turns a year, held inside Min and Max; Alt with an arrow is not the grid's", () => {
+    const scene = calendar({ "data-ui-temporal-max": "2027-06-30" }, "2026-02-14");
+    const start = day(scene, "2026-02-14");
+
+    start.focus();
+    start.dispatchEvent(Object.assign(new FakeKeyboardEvent("PageDown", start), { shiftKey: true }));
+    assert.equal(fakeDocument.activeElement?.getAttribute("data-ui-temporal-day"), "2027-02-14");
+
+    const turned = real<FakeElement>(fakeDocument.activeElement);
+
+    turned.dispatchEvent(Object.assign(new FakeKeyboardEvent("PageDown", turned), { shiftKey: true }));
+    assert.equal(fakeDocument.activeElement?.getAttribute("data-ui-temporal-day"), "2027-06-30");
+
+    const held = real<FakeElement>(fakeDocument.activeElement);
+    const back = Object.assign(new FakeKeyboardEvent("ArrowLeft", held), { altKey: true });
+
+    held.dispatchEvent(back);
+    assert.equal(fakeDocument.activeElement, held);
+    assert.equal(back.defaultPrevented, false);
+});
+
+test("the month pane is one stop of the Tab order, its arrows walking a grid of four rows of three that stops at its ends", () => {
+    const scene = calendar({}, "2026-05-14");
+    const month = (index: number) => scene.body.querySelector(`[data-ui-temporal-nav="month:${index}"]`)!;
+    const key = (name: string) => {
+        const target = real<FakeElement>(fakeDocument.activeElement);
+
+        target.dispatchEvent(new FakeKeyboardEvent(name, target));
+
+        return fakeDocument.activeElement?.getAttribute("data-ui-temporal-nav");
+    };
+
+    scene.body.querySelector("[data-ui-temporal-nav='pane']")!.click();
+
+    assert.deepEqual(Array.from({ length: 12 }, (_, index) => month(index).tabIndex === 0 ? index : null).filter(index => index !== null), [4]);
+
+    month(4).focus();
+    assert.equal(key("ArrowDown"), "month:7");
+    // Along the months, as the days run on from one week to the next.
+    assert.equal(key("ArrowRight"), "month:8");
+    assert.equal(key("ArrowRight"), "month:9");
+    assert.equal(key("End"), "month:11");
+    assert.equal(key("ArrowRight"), "month:11");
+    assert.equal(key("ArrowDown"), "month:11");
+    assert.equal(key("Home"), "month:9");
+    assert.equal(month(9).tabIndex, 0);
+    assert.equal(month(4).tabIndex, -1);
+});
+
+test("a month chosen in the month pane opens its days on the day the keyboard was on, held to the month's length and the bounds", () => {
+    const scene = calendar({ "data-ui-temporal-max": "2026-11-20" }, "2026-01-31");
+    const choose = (index: number): string | null | undefined => {
+        scene.body.querySelector("[data-ui-temporal-nav='pane']")!.click();
+        scene.body.querySelector(`[data-ui-temporal-nav="month:${index}"]`)!.click();
+
+        return scene.body.querySelector(".ui-temporal-input__day[tabindex='0']")?.getAttribute("data-ui-temporal-day");
+    };
+
+    assert.equal(choose(1), "2026-02-28");
+    // The day the keyboard was on is the 28th now; the month's own last day would be the 30th.
+    assert.equal(choose(3), "2026-04-28");
+    assert.equal(choose(10), "2026-11-20");
+});

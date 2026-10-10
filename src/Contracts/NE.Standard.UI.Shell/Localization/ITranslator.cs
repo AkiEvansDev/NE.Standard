@@ -73,12 +73,12 @@ public interface ITranslator
 
     private static string TranslatePlural(ITranslator translator, string language, string key, double count)
     {
-        var form = string.Concat(key, ".", UIPluralRules.Suffix(UIPluralRules.Select(language, count)));
+        var form = UIPluralRules.FormKey(key, UIPluralRules.Select(language, count));
 
         if (translator.Translate(language, form) is { } text && !string.Equals(text, form, StringComparison.Ordinal))
             return text;
 
-        var other = key + ".other";
+        var other = UIPluralRules.FormKey(key, UIPluralCategory.Other);
 
         if (translator.Translate(language, other) is { } otherText && !string.Equals(otherText, other, StringComparison.Ordinal))
             return otherText;

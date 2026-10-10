@@ -122,3 +122,47 @@ test("an offered action is sent by its id alone, and the same one is refused whi
     assert.equal(await settlement(dispatch), "result:true");
     assert.equal(dispatcher.isPending(action), false);
 });
+
+test("keys too large for the hub are staged beside it, the command carries their token, and a command after it waits behind it", async () => {
+    const posts: { readonly resolve: (token: string) => void; readonly body: string }[] = [];
+    const realFetch = globalThis.fetch;
+
+    globalThis.fetch = ((_url: string, init: { readonly body: Uint8Array }) => new Promise(resolve => posts.push({
+        body: new TextDecoder().decode(init.body),
+        resolve: token => resolve(new Response(JSON.stringify({ token })))
+    }))) as typeof fetch;
+
+    try {
+        const hub = createHub();
+        const dispatcher = new CommandDispatcher(hub);
+        // A drop of a thousand rows, as one text after the target's keys.
+        const drop = JSON.stringify(Array.from({ length: 1000 }, (_, index) => `00000000-0000-0000-0000-${String(index).padStart(12, "0")}`));
+        const large: UICommandRequest = { eventId: 7, dynamicParameters: ["target", drop] };
+        const first = dispatcher.dispatchAsync(large);
+        const second = dispatcher.dispatchAsync({ eventId: 8, dynamicParameters: [] });
+
+        await new Promise(resolve => setImmediate(resolve));
+
+        assert.equal(posts.length, 1);
+        assert.deepEqual(JSON.parse(posts[0].body), ["target", drop]);
+        assert.equal(hub.invokes.length, 0, "nothing goes onto the hub while the keys are being staged");
+        assert.equal(dispatcher.isPending(large), true);
+
+        posts[0].resolve("t1");
+        await new Promise(resolve => setImmediate(resolve));
+
+        assert.deepEqual(hub.invokes.map(invoke => ({ ...invoke.request, requestId: undefined })), [
+            { eventId: 7, dynamicParameters: [], dynamicParametersToken: "t1", requestId: undefined },
+            { eventId: 8, dynamicParameters: [], requestId: undefined }
+        ]);
+
+        hub.invokes[0].answer({ command: { success: true } });
+        hub.invokes[1].answer({ command: { success: true } });
+
+        assert.equal(await settlement(first), "result:true");
+        assert.equal(await settlement(second), "result:true");
+    }
+    finally {
+        globalThis.fetch = realFetch;
+    }
+});

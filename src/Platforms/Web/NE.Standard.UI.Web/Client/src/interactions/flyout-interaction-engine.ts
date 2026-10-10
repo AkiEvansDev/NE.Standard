@@ -2,7 +2,7 @@ import { ensureElementId, FlyoutContentClass } from "../addressing/dom-attribute
 import { AnchoredPopupPlacement, isAnchoredPopupPlacement } from "./anchored-popup";
 import { observeComponents } from "./dom-mutations";
 import { OwnedPopups } from "./owned-popup";
-import { FocusableSelector } from "./popup-focus";
+import { FocusableSelector, isPointerLast } from "./popup-focus";
 
 const FlyoutClass = "ui-flyout";
 const OpenClass = "ui-flyout--open";
@@ -68,7 +68,9 @@ export class FlyoutInteractionEngine {
             anchor: resolveAnchorBox(anchor) ?? flyout,
             placement: { placement: readPlacement(flyout) },
             openers: opener === null ? [] : [opener],
-            focus: true
+            // A press gives it to the panel itself, as the side drawer does: its first field focused at once lit its edge and raised a
+            // phone's on-screen keyboard unasked. A key gives it to the first control.
+            focus: isPointerLast() ? content : true
         });
 
         if (!open)

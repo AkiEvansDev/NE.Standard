@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -51,6 +52,7 @@ public sealed class InsertTextEffect : TargetedClientEffect
     public override string Kind => ClientEffectKinds.InsertText;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>
@@ -71,6 +73,7 @@ internal sealed class CompiledInsertTextEffect(UIComponentAddress target, string
     public override string Kind => ClientEffectKinds.InsertText;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     public string? Text { get; } = text;

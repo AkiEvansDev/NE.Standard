@@ -81,3 +81,9 @@ test("a rail's entries stand edge to edge, square slices with no rounded hover t
     assert.match(declarations(".ui-menu--rail.ui-orientation--horizontal > .ui-menu__host") ?? "", /gap: var\(--ui-menu-spacing-xxl, [^;]*var\(--ui-menu-spacing, 0\)\)/);
     assert.match(declarations(railEntry) ?? "", /--ui-menu-entry-tl: 0;\s*--ui-menu-entry-tr: 0;\s*--ui-menu-entry-br: 0;\s*--ui-menu-entry-bl: 0;/);
 });
+
+test("a rail hides the switch and toggle row it keeps for its drawer, and a drawer's switch stands over its opener", () => {
+    assert.match(declarations(".ui-menu--rail > .ui-collapsible__bar,\n.ui-menu--rail > .ui-collapsible__toggle") ?? "", /display: none;/);
+    assert.match(css, /\[data-ui-region="left-side"\] \.ui-collapsible\.ui-side--left > \.ui-collapsible__bar > \.ui-collapsible__toggle,[\s\S]*?\{\s*order: -1;/);
+    assert.match(declarations(".ui-menu[data-ui-menu-search] > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input__row") ?? "", /padding-inline-start/, "only a search's glyph is inset to the glyph column");
+});

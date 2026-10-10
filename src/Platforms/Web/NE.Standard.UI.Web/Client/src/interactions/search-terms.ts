@@ -2,6 +2,8 @@
 // word, in any order, case and accents aside in the page's language, must appear in the words an entry shows.
 
 const Marks = /\p{M}/gu;
+// The title an entry's own text component shows, apart from a description or a badge beside it.
+const EntryTitleSelector = ".ui-text__title";
 
 /** The typed words, folded as an entry's words are, in the language of the element they were typed into. */
 export function searchTerms(query: string, context: Element): string[] {
@@ -33,4 +35,9 @@ function fold(text: string, language: string | undefined): string {
         // A language tag the browser does not know: its own lower case is the best left.
         return bare.toLowerCase();
     }
+}
+
+/** The words a list's entry shows: its title, else all its text — a menu's entry, a select's option, a search's suggestion alike. */
+export function entryWords(entry: Element): string {
+    return entry.querySelector(EntryTitleSelector)?.textContent ?? entry.textContent ?? "";
 }

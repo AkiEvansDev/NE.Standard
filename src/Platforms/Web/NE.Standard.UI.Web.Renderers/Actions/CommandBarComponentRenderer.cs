@@ -11,7 +11,7 @@ using NE.Standard.UI.Web.Renderers.Items;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
-/// <summary>Renders a command bar as a flat list of buttons, owning only the flex layout and spacing.</summary>
+/// <summary>Renders a command bar as a flat list of buttons, owning only the flex layout and spacing; a toolbar to the keyboard.</summary>
 public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-command-bar__item";
@@ -32,6 +32,9 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
         }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
 
         RenderFlagClass(context, root, CommandBarComponent.WrapProperty, "ui-command-bar--wrap");
+
+        // One Tab stop walked by the arrows (command-bar-engine.ts), as the action bar and the pager are.
+        _ = root.Attribute("role", "toolbar");
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, CommandBarComponent.SpacingProperty, "--ui-command-bar-spacing");
 

@@ -15,6 +15,9 @@ export function responsiveTierQuery(tier: Exclude<ResponsiveTier, "base">): stri
 /** The drawer breakpoint as a media query, matching at it and above: below it the sides are drawers and a rail alone the bottom bar. */
 export const DrawerBreakpointQuery = responsiveTierQuery("md");
 
+/** The sheet breakpoint as a media query, matching at it and above: below it a list popup is a sheet from the bottom. */
+export const SheetBreakpointQuery = responsiveTierQuery("sm");
+
 /** The tier the viewport is in now, judged the way the stylesheet's own `min-width` queries judge it. */
 export function currentResponsiveTier(matches: (query: string) => boolean = query => matchMedia(query).matches): ResponsiveTier {
     for (const tier of ["xxl", "xl", "md", "sm"] as const) {

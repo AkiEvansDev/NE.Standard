@@ -4,6 +4,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
+using NE.Standard.UI.Shell.Updates.Client;
 
 namespace NE.Standard.UI.Runtime;
 
@@ -47,6 +48,10 @@ internal abstract partial class UIRuntimeBase
     /// <summary>The first <paramref name="count"/> keys: the row's own, or an ancestor's, out of keys that name more.</summary>
     private static object?[] TakeDynamicParameters(object?[] source, int count)
         => source.Length == count ? source : source[..count];
+
+    /// <summary>The keys a write's binding reads it by: the outer ones of the rows its field stands in, none for a Root-scoped binding.</summary>
+    private static object?[] BindingKeys(ClientValueUIUpdate update, CompiledUIBinding binding)
+        => TakeDynamicParameters(update.Address.Component.DynamicParameters, CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters));
 
     private static bool TryBuildDynamicParameters(CompiledUIBinding binding, object[] materializedParameters, out object?[] dynamicParameters)
     {
@@ -119,20 +124,6 @@ internal abstract partial class UIRuntimeBase
         for (var i = 0; i < prefix.Length; i++)
         {
             if (!Equals(prefix[i], value[i]))
-                return false;
-        }
-
-        return true;
-    }
-
-    private static bool AreDynamicParametersEqual(object?[] left, object?[] right)
-    {
-        if (left.Length != right.Length)
-            return false;
-
-        for (var i = 0; i < left.Length; i++)
-        {
-            if (!Equals(left[i], right[i]))
                 return false;
         }
 

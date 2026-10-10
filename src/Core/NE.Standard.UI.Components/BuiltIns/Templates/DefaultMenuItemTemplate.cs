@@ -24,16 +24,15 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
         {
             _ = this.BindText();
 
-            _ = Bind(VisibilityProperty, nameof(ITextBaseModel.Visibility), UIBindingScope.Relative);
-            _ = Bind(EnabledProperty, nameof(ITextBaseModel.Enabled), UIBindingScope.Relative);
+            _ = this.BindItemState();
 
             // Kind is not bound: the menu picks this variant by it, so the variant sets it statically.
-            _ = Bind(UrlProperty, nameof(IMenuItemModel.Url), UIBindingScope.Relative);
-            _ = Bind(SelectedProperty, nameof(IMenuItemModel.Selected), UIBindingScope.Relative);
-            _ = Bind(ShortcutProperty, nameof(IMenuItemModel.Shortcut), UIBindingScope.Relative);
-            _ = Bind(CheckedProperty, nameof(IMenuItemModel.Checked), UIBindingScope.Relative);
-            _ = Bind(ValueProperty, nameof(IMenuItemModel.Value), UIBindingScope.Relative);
-            _ = Bind(InActionBarProperty, nameof(IMenuItemModel.InActionBar), UIBindingScope.Relative);
+            _ = Bind(UrlProperty, nameof(IMenuItemModel.Url), UIBindingScope.Relative, optional: true);
+            _ = Bind(SelectedProperty, nameof(IMenuItemModel.Selected), UIBindingScope.Relative, optional: true);
+            _ = Bind(ShortcutProperty, nameof(IMenuItemModel.Shortcut), UIBindingScope.Relative, optional: true);
+            _ = Bind(CheckedProperty, nameof(IMenuItemModel.Checked), UIBindingScope.Relative, optional: true);
+            _ = Bind(ValueProperty, nameof(IMenuItemModel.Value), UIBindingScope.Relative, optional: true);
+            _ = Bind(InActionBarProperty, nameof(IMenuItemModel.InActionBar), UIBindingScope.Relative, optional: true);
         }
     }
 }

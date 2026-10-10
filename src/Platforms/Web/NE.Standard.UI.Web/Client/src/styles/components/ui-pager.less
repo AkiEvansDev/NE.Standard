@@ -39,8 +39,10 @@
         gap: @ui-space-1;
     }
 
+        // A neutral ground, the one a page under the pointer wears, at rest and hovered alike: a row of numbers is no list whose
+        // chosen entry wears the brand's tint.
         .ui-pager__button[aria-current="page"] {
-            .ui-selected-ground();
+            .ui-selected-ground(@default: var(--ui-wash-hover));
             .ui-selected-ink(@weight: 600);
         }
 
@@ -104,12 +106,8 @@
                 }
 
         .ui-pager__sizes {
-            .ui-popup-surface(@ui-z-list);
-            .ui-popup-scroll();
-            .ui-popup-closed();
+            .ui-popup-list(5rem);
             .ui-entry-list();
-            min-width: 5rem;
-            padding: @ui-space-1;
             text-align: start;
             cursor: default;
             // The pointer moves the current size (pager-engine.ts), so it stays quiet while a key holds another.
@@ -121,24 +119,6 @@
         }
 
             .ui-pager__size-choice {
-                display: flex;
-                align-items: center;
+                .ui-choice-entry();
                 justify-content: flex-end;
-                min-height: @ui-list-row-height;
-                padding: @ui-space-1 @ui-space-2;
-                border: 0;
-                border-radius: @ui-list-entry-radius;
-                background: none;
-                color: inherit;
-                font: inherit;
-                white-space: nowrap;
-                cursor: pointer;
-                .ui-interactive-base();
-                .ui-entry-hover(~"[aria-checked='true']");
-                .ui-entry-keyboard(~"[aria-checked='true']");
-            }
-
-            .ui-pager__size-choice[aria-checked="true"] {
-                .ui-selected-ground();
-                .ui-selected-ink();
             }

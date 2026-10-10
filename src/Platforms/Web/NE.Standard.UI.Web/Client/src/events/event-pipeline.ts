@@ -71,10 +71,16 @@ export class EventPipeline {
             this.addEvent(event.name, event);
     }
 
+    /**
+     * Registers an event and attaches it where the view raises it. A registration saying how the event is heard — a package's, whose
+     * module runs after the view's own events were attached bare — attaches it again, the bare listener left in place but unheard:
+     * attaching the view's events later instead would put them after the engines started since, whose order on the root is load-bearing.
+     */
     public addEvent<TEvent extends Event = Event>(name: string, registration: Omit<EventRegistration<TEvent>, "name"> = {}): void {
         const registered = this.registry.add(name, registration);
+        const hearsAnew = registration.attach !== undefined || registration.domEventName !== undefined || registration.options !== undefined;
 
-        if (this.shouldAttach(registered))
+        if (this.shouldAttach(registered) && (hearsAnew || !this.registry.isAttached(registered.name)))
             this.attachEvent(registered);
     }
 
@@ -92,6 +98,10 @@ export class EventPipeline {
         try {
             await turn.ahead;
             await this.options.valueBinding?.whenSent();
+
+            // Re-checked after the awaits, as an event's is: the same action pressed twice may have gone while this one waited.
+            if (this.options.dispatcher.isPending(request))
+                return false;
 
             const dispatched = this.options.dispatcher.dispatchAsync(request);
 
@@ -117,21 +127,24 @@ export class EventPipeline {
     }
 
     private attachEvent(registered: RegisteredEvent): void {
-        if (!this.registry.markAttached(registered.name))
-            return;
+        const attachment = this.registry.attach(registered.name);
 
         const dispatch = (domEvent: Event): void => {
+            if (!this.registry.isCurrent(registered.name, attachment))
+                return;
+
             void this.handleDomEventAsync(registered.name, domEvent).catch(error => {
                 logError("event pipeline failed.", error);
             });
         };
 
         const definition = this.options.eventCatalog.get(registered.name);
+        const context = { root: this.root, dispatch, options: registered.options };
 
         if (definition !== undefined)
-            definition.attach({ root: this.root, dispatch });
+            definition.attach(context);
         else
-            this.root.addEventListener(registered.domEventName, dispatch, true);
+            this.root.addEventListener(registered.domEventName, dispatch, { capture: true, ...registered.options });
     }
 
     private async handleDomEventAsync(eventName: string, domEvent: Event): Promise<void> {

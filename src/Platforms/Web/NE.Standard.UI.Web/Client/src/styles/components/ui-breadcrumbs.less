@@ -28,8 +28,9 @@
     min-width: 0;
 }
 
-    // Beside the step, not in its anchor (the link would answer its clicks); after it, so a wrapped line ends with the mark.
-    .ui-breadcrumbs__item:has(~ .ui-breadcrumbs__item:not(.ui-hidden))::after {
+    // Beside the step, not in its anchor (the link would answer its clicks); after it, so a wrapped line ends with the mark. Every step
+    // draws one but where no shown step follows it (below).
+    .ui-breadcrumbs__item::after {
         .ui-chevron(@ui-glyph-xs);
         .ui-chevron-right();
         color: @ui-text-muted;
@@ -37,7 +38,7 @@
 
     // The author's own separator is text in the glyph's place, silent as the chevron it replaces, set in the trail's font: the
     // glyph face has no letters, and a "/" in it falls back to the browser's default face.
-    .ui-breadcrumbs--text-separator .ui-breadcrumbs__item:has(~ .ui-breadcrumbs__item:not(.ui-hidden))::after {
+    .ui-breadcrumbs--text-separator .ui-breadcrumbs__item::after {
         content: var(--ui-breadcrumbs-separator) / "";
         width: auto;
         height: auto;
@@ -46,21 +47,22 @@
         transform: none;
     }
 
-    // Hides the wrapper, so its separator goes too; only for "collapsed" — merely hidden keeps its place.
-    // The step before a collapsed tail drops its mark: read off the wrapper's tiers, since a `:has()` inside this one is dropped whole.
-    .ui-breadcrumbs-hide-step(@attribute; @tier) {
-        .ui-breadcrumbs__item:has(> [@{attribute}="collapsed"]) {
+    // Hides the wrapper, so its separator goes too; only for "collapsed" — merely hidden keeps its place. The last step shown, and
+    // the one before a collapsed tail, draw no mark, the text separator's included. Both read off the tiers on the wrapper, which the
+    // render writes and breadcrumbs-engine.ts keeps.
+    .ui-breadcrumbs-hide-step(@tier) {
+        .ui-breadcrumbs__item[data-ui-step-collapsed~="@{tier}"] {
             display: none;
         }
 
-        .ui-breadcrumbs__item:not(:has(~ .ui-breadcrumbs__item:not(.ui-hidden, [data-ui-step-collapsed~="@{tier}"])))::after {
+        .ui-breadcrumbs__item[data-ui-step-end~="@{tier}"]::after {
             content: none;
         }
     }
 
-    // Banded as runtime.less bands Visibility: each tier's attribute means "collapsed" only inside its own width.
+    // Banded as runtime.less bands Visibility: each tier's mark means "collapsed" or "last shown" only inside its own width.
     .ui-responsive-bands(data-ui-visibility data-ui-visibility-sm data-ui-visibility-md data-ui-visibility-xl data-ui-visibility-xxl; {
-        .ui-breadcrumbs-hide-step(@name; @tier);
+        .ui-breadcrumbs-hide-step(@tier);
     });
 
     // The filter's own way of taking an item out, which lands on the wrapper rather than on the step.
@@ -84,7 +86,7 @@
     }
 
     // Under the word only, as on .ui-link: a glyph is not text to underline.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover .ui-text__title {
             text-decoration: underline;
             text-decoration-thickness: 1px;

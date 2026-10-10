@@ -55,6 +55,11 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     static UIProperty BadgeColorProperty { get; } = new(nameof(BadgeColor));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="IBadgeModel.BadgeFill"/>.
+    /// </summary>
+    static UIProperty BadgeFillProperty { get; } = new(nameof(BadgeFill));
+
+    /// <summary>
     /// Gets the registered property key for <see cref="IBadgeModel.BadgeIcon"/>.
     /// </summary>
     static UIProperty BadgeIconProperty { get; } = new(nameof(BadgeIcon));

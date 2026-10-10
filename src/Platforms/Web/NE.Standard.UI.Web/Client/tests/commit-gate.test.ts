@@ -233,3 +233,21 @@ test("a change on a field the focus never reached is left to its listeners", asy
 
     assert.equal(page.heard(), 2);
 });
+
+test("a clear is an edit the Change rules hear, even back to the value last committed, which sends nothing", async () => {
+    const page = createPage();
+    const clear = FakeElement.of("ui-text-input__clear", { "data-ui-clear": "" }, "button");
+    let edits = 0;
+
+    page.component.append(clear);
+    page.component.addEventListener("input", () => edits++);
+    page.field.focus();
+    type(page.field, "abc");
+    clear.dispatchEvent(new FakeEvent("click"));
+    pause();
+    await settle();
+
+    assert.equal(page.field.value, "");
+    assert.equal(edits, 2, "the typing and the clear");
+    assert.deepEqual(page.sent, [], "the field holds what it took the focus with");
+});

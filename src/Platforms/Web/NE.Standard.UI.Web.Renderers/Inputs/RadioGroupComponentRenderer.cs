@@ -22,6 +22,8 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-radio-group__item";
     private const string HostClassName = "ui-radio-group__host";
+    // The client's RadioRowDecorator, which draws the radio and its dot on a row the client builds.
+    private const string RowDecoratorKind = "radio";
 
     // The choice itself says it is read-only; its radios stay focusable and the client refuses their change.
     private static readonly WebDomOperation[] ReadOnlyOperations =
@@ -67,7 +69,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         NativeInputRendererBase.RenderFormId(context, root, joinsForm: false);
 
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, "label", ItemClassName);
+        RegisterItemsTemplateMetadata(context, "label", ItemClassName, rowDecorator: RowDecoratorKind);
         RegisterItemsFilterSortMetadata(context);
 
         // The one name every radio here shares, so the browser treats them as one choice; derived from the
@@ -88,7 +90,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        // Before the option's text, as a checkbox's box is and as RadioGroupSyncEngine prepends it on a row the client builds.
+        // Before the option's text, as a checkbox's box is and as the client's RadioRowDecorator prepends it on a row it builds.
         // The host is the radio group, not the root: the caption and the validation line stand outside the choice itself.
         RenderItemsHost(context, root, HostClassName, items, isBound, ItemClassName, itemElementName: "label",
             configureHost: host =>

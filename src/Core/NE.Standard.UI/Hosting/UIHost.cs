@@ -1055,8 +1055,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             }
 
             UIRuntimeBase runtime = IsDirectRuntime(route)
-                ? new UIDirectRuntime(handle, view, controller, clientServices, _application)
-                : new UIBatchRuntime(handle, view, controller, clientServices, _application);
+                ? new UIDirectRuntime(handle, view, controller, clientServices, _application, this)
+                : new UIBatchRuntime(handle, view, controller, clientServices, _application, this);
 
             runtime.OwnServices(scope);
             runtime.JoinBroadcast(Broadcast);
@@ -1712,9 +1712,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     }
 
     /// <summary>Sends an ended runtime's pages away and disposes it — deferred by the runtime itself while a command still runs for it.</summary>
-    private async Task EndRuntimeAsync(IUIRuntime runtime, bool signIn)
+    private async Task EndRuntimeAsync(IUIRuntime runtime, bool signIn, UIHandle? except = null)
     {
-        await SendViewersAwayAsync(runtime, signIn).ConfigureAwait(false);
+        await SendViewersAwayAsync(runtime, signIn, except).ConfigureAwait(false);
         await DisposeRuntimeAsync(runtime).ConfigureAwait(false);
     }
 
@@ -1741,18 +1741,13 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             // Ahead of the navigation: its runtime is gone, so nothing the page held can be saved, and nothing is asked.
             UICommandExecutionResult result = new()
             {
-                Command = UICommandResult.Ok([new NavigateEffect(signIn && viewer.Session.IsAuthenticated ? SignInOrReload(page) : page)]),
+                Command = UICommandResult.Ok([new NavigateEffect(signIn && viewer.Session.IsAuthenticated && StandardResolveExceptionViewHandler.TryBuildSignIn(_application, page.Route, page, out UINavigationRequest? signInPage) ? signInPage : page)]),
                 Changes = new ServerChangeSet { Updates = [new ServerPageUIUpdate { HoldsUnsavedWork = false }] }
             };
 
             await SendToViewerAsync(updates, viewer, result, Log.SessionEndNoticeFailed, CancellationToken.None).ConfigureAwait(false);
         }
     }
-
-    private UINavigationRequest SignInOrReload(UINavigationRequest page)
-        => _application.Security.SignInRoute is { } signIn && _application.Routes.TryGetEntry(signIn, out _)
-            ? new UINavigationRequest { Route = signIn, Parameters = new Dictionary<string, object?> { ["returnUrl"] = UINavigationAddress.Format(page) } }
-            : page;
 
     /// <inheritdoc />
     public async Task<int> EndUserSessionsAsync(string userId, CancellationToken cancellationToken = default)
@@ -1796,21 +1791,68 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     }
 
     /// <summary>
+    /// A command's code changed its own session: what <see cref="UpdateUserSessionsAsync"/> does for a change from outside — the
+    /// session's pages re-checked against their routes, and reached — but the page that ran it left to its runtime, which answers
+    /// whether its route no longer passes (<see cref="EndIfRefusedAsync"/> then ends it, once the code's answer is built).
+    /// </summary>
+    internal async Task<bool> SessionChangedInCommandAsync(UserSessionState session, UIHandle origin, UIRuntimeBase originRuntime, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(origin);
+        ArgumentNullException.ThrowIfNull(originRuntime);
+
+        UIRuntimeKey own = CreateRuntimeKey(origin);
+
+        await EndRefusedRuntimesAsync(session, except: own).ConfigureAwait(false);
+        await ReachSessionAsync(session, origin, originRuntime, cancellationToken).ConfigureAwait(false);
+
+        return !PassesRoute(own, session);
+    }
+
+    /// <summary>
+    /// Ends a page's runtime where the session as stored now no longer passes its route, answering whether it did; the runtime's other
+    /// pages are sent away, <paramref name="page"/> too unless <paramref name="carriedByAnswer"/> — its command's answer takes it away.
+    /// A session gone is the touch's to end.
+    /// </summary>
+    internal async Task<bool> EndIfRefusedAsync(UIHandle page, bool carriedByAnswer)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+
+        UIRuntimeKey key = CreateRuntimeKey(page);
+        IUserSessionStore store = _services.GetRequiredService<IUserSessionStore>();
+
+        if (await store.TryGetAsync(page.Session.SessionId, CancellationToken.None).ConfigureAwait(false) is not UserSessionState stored
+            || PassesRoute(key, stored)
+            || !RuntimeStore.Remove(key, out IUIRuntime? runtime))
+        {
+            return false;
+        }
+
+        await EndRuntimeAsync(runtime!, signIn: false, carriedByAnswer ? page : null).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
     /// Ends the session's open pages whose route the changed session no longer passes, sending each back to its own address: its
     /// resolution then refuses it the way any request is refused, to sign in or to the forbidden page.
     /// </summary>
-    private async Task EndRefusedRuntimesAsync(UserSessionState session)
+    private async Task EndRefusedRuntimesAsync(UserSessionState session, UIRuntimeKey? except = null)
     {
         UIRuntimeKey[] keys = RuntimeStore.GetSessionKeys(session.SessionId);
 
         for (var i = 0; i < keys.Length; i++)
         {
-            if (!_application.Routes.TryGetEntry(keys[i].Route, out UIRouteEntry? entry) || Passes(entry.Definition, session) || !RuntimeStore.Remove(keys[i], out IUIRuntime? runtime))
+            if (keys[i] == except || PassesRoute(keys[i], session) || !RuntimeStore.Remove(keys[i], out IUIRuntime? runtime))
                 continue;
 
             await EndRuntimeAsync(runtime!, signIn: false).ConfigureAwait(false);
         }
     }
+
+    /// <summary>Whether a runtime's route lets the session open it; a route no longer registered refuses nothing.</summary>
+    private bool PassesRoute(UIRuntimeKey key, UserSessionState session)
+        => !_application.Routes.TryGetEntry(key.Route, out UIRouteEntry? entry) || Passes(entry.Definition, session);
 
     /// <summary>Whether a session may open a route: the check a page's resolution makes, as an answer rather than a refusal.</summary>
     private bool Passes(UIRouteDefinition route, UserSessionState session)

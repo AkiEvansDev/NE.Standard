@@ -27,15 +27,17 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
     /// The note's two fields, each sending its value as the typing pauses — the controller weighs the flag as the value lands, so a
     /// leave pressed within the first pause is asked of the controller behind that value; the line under them says whether it is saved.
     /// </summary>
+    /// <remarks>Both Tonal: the card already frames them.</remarks>
     private static CardComponent CreateNote()
         => UIPage.Card("The note", "Saved only by Save: the controller holds unsaved work while the text differs from what it kept.", UILayout.Stack(16,
             new TextInputComponent()
                 .SetTitle("Title")
-                .SetAppearance(UIInputAppearance.Underline)
+                .SetAppearance(UIInputAppearance.Tonal)
                 .SetDebounceMilliseconds(300)
                 .BindValue(nameof(NoteEditorController.Title)),
             new TextAreaComponent()
                 .SetTitle("Text")
+                .SetAppearance(UIInputAppearance.Tonal)
                 .SetRows(6)
                 .SetDebounceMilliseconds(300)
                 .BindValue(nameof(NoteEditorController.Body)),
@@ -77,12 +79,15 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
                 Label = "Unsaved changes",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
-                Content = UILayout.Stack(12,
-                    new ParagraphComponent()
-                        .SetTitle("Save your changes?")
-                        .SetTitleType(UITextAppearance.Title)
-                        .SetTitleWrap(true)
-                        .BindDescription(nameof(NoteEditorController.LeaveQuestion)),
+                // The framework's own leave dialog's measures: a Subtitle, a Body line 8 px under it, the answers 16 px under that.
+                Content = UILayout.Stack(16,
+                    UILayout.Stack(8,
+                        UIText.Subtitle("Save your changes?").SetTitleWrap(true),
+                        UIText.Paragraph(string.Empty)
+                            .BindDescription(nameof(NoteEditorController.LeaveQuestion))
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetDescriptionColor(UIThemeColor.Default)
+                    ),
                     UILayout.Row(8,
                         UIButtons.Ghost("Cancel").OnClick(nameof(NoteEditorController.StayOnNote)),
                         UIButtons.Secondary("Don't save").OnClick(nameof(NoteEditorController.DiscardAndLeave)),

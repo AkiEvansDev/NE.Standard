@@ -25,7 +25,7 @@ public static class UITemporalPattern
     /// <exception cref="InvalidOperationException">The pattern cannot be shown or read by the subset.</exception>
     public static void Validate(string pattern, bool isTime, string name)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(pattern, name);
+        ValidateTokens(pattern, name);
 
         for (var index = 0; index < pattern.Length;)
         {
@@ -33,14 +33,6 @@ public static class UITemporalPattern
 
             if (token is null)
             {
-                var character = pattern[index];
-
-                if (char.IsAsciiLetter(character))
-                    throw Refused(pattern, name, $"'{character}' is no token of the shared subset ({string.Join(", ", Tokens)})");
-
-                if (character is '\'' or '"' or '\\')
-                    throw Refused(pattern, name, "the shared subset has no quoting; write a literal as it is, with no token's letter in it");
-
                 index++;
                 continue;
             }
@@ -56,6 +48,37 @@ public static class UITemporalPattern
 
         if (!IsComplete(pattern, isTime))
             throw Refused(pattern, name, isTime ? "a time names its hour and its minute, and a 12-hour hour its AM or PM (tt)" : "a date names its year, month and day");
+    }
+
+    /// <summary>
+    /// Refuses a letter no token holds and a quote (the subset has none), which the subset would write as they stand, and nothing
+    /// more: a pattern that is only written, never read back — a chart's axis — may name any part.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The pattern holds a letter or a quote the subset would write as it stands.</exception>
+    public static void ValidateTokens(string pattern, string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pattern, name);
+
+        for (var index = 0; index < pattern.Length;)
+        {
+            var token = Match(pattern, index);
+
+            if (token is not null)
+            {
+                index += token.Length;
+                continue;
+            }
+
+            var character = pattern[index];
+
+            if (char.IsAsciiLetter(character))
+                throw Refused(pattern, name, $"'{character}' is no token of the shared subset ({string.Join(", ", Tokens)})");
+
+            if (character is '\'' or '"' or '\\')
+                throw Refused(pattern, name, "the shared subset has no quoting; write a literal as it is, with no token's letter in it");
+
+            index++;
+        }
     }
 
     /// <summary>A date names its year, month and day; a time its hour and minute, a 12-hour hour its AM or PM, and no part of a date.</summary>

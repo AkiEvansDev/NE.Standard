@@ -4,8 +4,8 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Screens;
 
 /// <summary>
-/// The account form in the outline style: a card in the middle of the page, the rules a real sign-up has, and a switch
-/// that reveals the company part. Every rule but the taken address runs in the browser.
+/// The account form: a card in the middle of the page, its fields Tonal as a short form's on a neat centred card are, the rules a
+/// real sign-up has, and a switch that reveals the company part. Every rule but the taken address runs in the browser.
 /// </summary>
 internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
 {
@@ -29,7 +29,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
         => UIPage.Card("Start with the basics", "Servers from €6 a month, in five regions. No card until the first one.", UILayout.Stack(16,
                 new TextInputComponent()
                     .SetTitle("Full name")
-                    .SetAppearance(UIInputAppearance.Outline)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetAutocomplete(UIAutocomplete.Name)
                     .SetFormId(FormId)
                     .BindValue(nameof(SignUpController.FullName))
@@ -37,7 +37,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                 new TextInputComponent()
                     .SetTitle("Work email")
                     .SetType(UITextInputType.Email)
-                    .SetAppearance(UIInputAppearance.Outline)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetAutocomplete(UIAutocomplete.Email)
                     .SetFormId(FormId)
                     .BindValue(nameof(SignUpController.Email))
@@ -56,14 +56,14 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                 UILayout.Stack(16,
                     new TextInputComponent()
                         .SetTitle("Company name")
-                        .SetAppearance(UIInputAppearance.Outline)
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetPlaceholder("As it goes on the invoice")
                         .SetAutocomplete(UIAutocomplete.Organization)
                         .SetFormId(FormId)
                         .BindValue(nameof(SignUpController.CompanyName)),
                     new SelectComponent()
                         .SetTitle("Country")
-                        .SetAppearance(UIInputAppearance.Outline)
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .SetPlaceholder("Where the company is registered")
                         .SetOptions(
                         [
@@ -107,7 +107,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
         => new TextInputComponent()
             .SetTitle("Password")
             .SetType(UITextInputType.Password)
-            .SetAppearance(UIInputAppearance.Outline)
+            .SetAppearance(UIInputAppearance.Tonal)
             .SetAutocomplete(UIAutocomplete.NewPassword)
             .SetFormId(FormId)
             .BindValue(nameof(SignUpController.Password))

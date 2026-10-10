@@ -187,6 +187,9 @@ export class ValueBindingEngine {
             return;
 
         clearElementValue(target);
+        // An edit as the reader's own: its "input" runs the Change rules even where the change is the value last committed, which
+        // the commit gate keeps from every listener.
+        target.dispatchEvent(new Event("input", { bubbles: true }));
         target.dispatchEvent(new Event("change", { bubbles: true }));
 
         // The caret stays in the field, or arrives there from a clear pressed while it was elsewhere, so typing goes on at once.

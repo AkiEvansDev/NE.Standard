@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -42,6 +43,7 @@ public sealed class CopyToClipboardEffect : ClientEffect
     public override string Kind => ClientEffectKinds.CopyToClipboard;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>
@@ -67,6 +69,7 @@ internal sealed class CompiledCopyToClipboardEffect(string? text, UIComponentAdd
     public override string Kind => ClientEffectKinds.CopyToClipboard;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     public string? Text { get; } = text;

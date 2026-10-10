@@ -25,9 +25,16 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-menu__item";
     private const string SubmenuClassName = "ui-menu__submenu";
-    private const string NestedClassName = "ui-menu--nested";
     // The client's own half of RenderSubmenu, for a row it builds (`menu-row-decorator.ts`).
     private const string RowDecoratorKind = "menu";
+
+    /// <summary>
+    /// The operation that keeps the popup a menu fills — a right-click menu's host, a split button's list — marked with the menu's
+    /// Surface (<see cref="WebAttributes.MenuSurface"/>, <c>menu-surface.ts</c>), run after the Surface's class.
+    /// </summary>
+    public const string MenuSurfaceOperationKind = "menu-surface";
+
+    private static readonly WebDomOperation[] SurfaceOperations = [SurfaceStyleRenderer.SurfaceClassOperation, WebDomOperation.Custom(MenuSurfaceOperationKind)];
 
     public override string ComponentTypeKey => MenuComponent.ComponentTypeKey;
 
@@ -48,7 +55,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         _ = ResolveRenderValue(context, MenuComponent.NestedProperty, out bool? nested, out _);
 
         if (nested == true)
-            _ = root.Class(NestedClassName);
+            _ = root.Class(WebClassNames.MenuNested);
 
         // Render-time only: a rail is a shape of the page, drawn by the stylesheet and read by the group engine to fly its groups out.
         _ = ResolveRenderValue(context, MenuComponent.DisplayProperty, out UIMenuDisplay? display, out _);
@@ -76,7 +83,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         // A rail has nothing left to fold: no fold, no switch.
         CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: !rail);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
-        SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty);
+        SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty, SurfaceOperations);
+        RenderPopupSurface(context);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, rowDecorator: RowDecoratorKind);
@@ -98,9 +106,12 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (OwnerSlot(view, menu) is not (UIComponentNode owner, UIComponentSlot slot))
             return false;
 
-        return (slot.Kind == UIComponentSlotKind.Region && owner.TypeKey == SplitButtonComponent.ComponentTypeKey && slot.Key == RegionNames.Menu)
+        return IsSplitButtonRegion(owner, slot)
             || (slot.Kind == UIComponentSlotKind.TemplateVariant && owner.TypeKey == MenuComponent.ComponentTypeKey && IsSplitButtonList(view, owner));
     }
+
+    private static bool IsSplitButtonRegion(UIComponentNode owner, UIComponentSlot slot)
+        => slot.Kind == UIComponentSlotKind.Region && owner.TypeKey == SplitButtonComponent.ComponentTypeKey && slot.Key == RegionNames.Menu;
 
     /// <summary>The menu a right-click menu's host holds directly, rather than an entry's submenu inside it.</summary>
     private static bool IsContextMenuRoot(WebRenderContext context)
@@ -127,28 +138,73 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         return null;
     }
 
+    /// <summary>
+    /// Marks the popup the menu fills — the right-click menu's host, the split button's list, rendered just above it — with the menu's
+    /// Surface, which names the popup's ground; a submenu stands in its group instead.
+    /// </summary>
+    private static void RenderPopupSurface(WebRenderContext context)
+    {
+        if (!IsContextMenuRoot(context) && !(OwnerSlot(context.ViewResolution.View, context.Node) is (UIComponentNode owner, UIComponentSlot slot) && IsSplitButtonRegion(owner, slot)))
+            return;
+
+        _ = ResolveRenderValue(context, ISurfaceStyleComponent.SurfaceProperty, out UISurfaceStyle? surface, out _);
+
+        if (surface is UISurfaceStyle style)
+            _ = context.Html.Attribute(WebAttributes.MenuSurface, WebClassNames.SurfaceStyleToken(style));
+    }
+
     /// <summary>Renders the entries into an inner host element, which the client's descendant-only host lookup requires.</summary>
     private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
+        var icons = CarriesIcon(items);
 
         RenderItemsHost(context, root, "ui-menu__host", items, isBound, ItemClassName,
-            configureHost: host => host.Class(CollapsibleChromeRenderer.ContentClassName),
+            configureHost: host =>
+            {
+                _ = host.Class(CollapsibleChromeRenderer.ContentClassName);
+
+                if (icons)
+                    _ = host.Attribute(WebAttributes.MenuIcons);
+            },
             appendItem: (itemRoot, item, _) => RenderSubmenu(context, itemRoot, item)
         );
     }
 
+    /// <summary>Whether an entry of these, not a caption or a rule, carries an icon: the others keep its room (<c>menu-icons.ts</c>).</summary>
+    private static bool CarriesIcon(IReadOnlyList<object?> items)
+    {
+        foreach (var item in items)
+        {
+            if (item is IMenuItemModel { Kind: not (UIMenuItemKind.Header or UIMenuItemKind.Separator) } model && IconValueRenderer.Draws(model.Icon))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
-    /// Renders an entry's sub-entries as the nested menu under its wrapper; the client's row decorator builds the same block for
-    /// a live row, so the two must match.
+    /// Marks an entry's wrapper by its kind and renders its sub-entries as the nested menu under it; the client's row decorator builds
+    /// the same row for a live one, so the two must match.
     /// </summary>
     private static void RenderSubmenu(WebRenderContext context, IHtmlElementBuilder itemRoot, object? item)
     {
-        if (item is not IMenuItemModel model || !HasChildren(model))
+        if (item is not IMenuItemModel model)
+            return;
+
+        // A caption's or a rule's row takes its own width along a bar, not an entry's.
+        if (model.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator)
+            _ = itemRoot.Attribute(WebAttributes.MenuPassiveRow);
+
+        if (!HasChildren(model))
             return;
 
         // On the wrapper, not the entry: what opens and closes is the wrapper's whole block.
         _ = itemRoot.Attribute(WebAttributes.MenuGroup);
+
+        // The group's own entry counts too, as the entries render the model's Selected (DefaultMenuItemTemplate).
+        if (HoldsCurrent(model))
+            _ = itemRoot.Attribute(WebAttributes.MenuHoldsCurrent);
 
         // A select's choices never unfold inline: the engine flies them out beside the entry, folded menu or not.
         if (model.Kind == UIMenuItemKind.Select)
@@ -165,6 +221,20 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
     {
         foreach (IMenuItemModel _ in model.Items)
             return true;
+
+        return false;
+    }
+
+    private static bool HoldsCurrent(IMenuItemModel model)
+    {
+        if (model.Selected == true)
+            return true;
+
+        foreach (IMenuItemModel child in model.Items)
+        {
+            if (HoldsCurrent(child))
+                return true;
+        }
 
         return false;
     }

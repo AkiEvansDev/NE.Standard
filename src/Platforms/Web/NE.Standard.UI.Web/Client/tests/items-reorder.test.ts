@@ -1,5 +1,5 @@
 // A row of an items view or a table put in another place by the reader: the index it takes, what a drop between two rows and
-// Alt+Up/Alt+Down raise, the offset a windowed host adds, and the refusals — a row that may not move, a host whose rows do not, a
+// Alt with an arrow raises, the offset a windowed host adds, and the refusals — a row that may not move, a host whose rows do not, a
 // sort that would put the row back, a place in another group — and the row standing in its new place until the command's answer.
 
 import assert from "node:assert/strict";
@@ -27,7 +27,7 @@ class FakeCustomEvent extends FakeEvent {
     }
 }
 
-installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent });
+installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent, getComputedStyle: () => ({ direction: "ltr" }) });
 
 const { ItemsReorderEngine, itemMoveEvent, movedIndex } = await import("../src/interactions/items-reorder-engine.ts");
 const { PendingMoves } = await import("../src/items/pending-moves.ts");
@@ -96,6 +96,58 @@ test("Alt+Down and Alt+Up move the keyboard's row one place past its neighbour, 
 
     assert.equal(altKey(view.root, "ArrowUp").defaultPrevented, true);
     assert.deepEqual(view.moves, [2, 0]);
+});
+
+test("across a horizontal list Alt+Left and Alt+Right move the row a place; down a list they are the browser's Back and Forward", () => {
+    const down = list();
+
+    new ItemsReorderEngine({ root: real(down.root) });
+
+    assert.equal(altKey(down.root, "ArrowRight").defaultPrevented, false);
+    assert.deepEqual(down.moves, []);
+
+    const across = list();
+
+    across.root.classList.add("ui-orientation--horizontal");
+    across.rows.forEach((row, index) => {
+        row.rect = { left: index * 10, top: 0, width: 10, height: 10 };
+    });
+    new ItemsReorderEngine({ root: real(across.root) });
+
+    assert.equal(altKey(across.root, "ArrowRight").defaultPrevented, true);
+    altKey(across.root, "ArrowLeft");
+
+    assert.deepEqual(across.moves, [2, 0]);
+});
+
+test("in a wrap Alt+Down and Alt+Up move the row a line, to the place under or over it, and Alt+Right a place", () => {
+    const host = FakeElement.of("", { "data-ui-items-host": "" });
+    const root = FakeElement.of("ui-items-view ui-items-view--wrap", { "data-ui-id": "5", "data-ui-rows-draggable": "" }).append(host);
+    // Two lines of three tiles: a b c over d e f.
+    const rows = ["a", "b", "c", "d", "e", "f"].map((key, index) => {
+        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key }).append(FakeElement.of("ui-text", { "data-ui-id": "6" }));
+
+        row.rect = { left: (index % 3) * 10, top: Math.floor(index / 3) * 10, width: 10, height: 10 };
+
+        return row;
+    });
+    const moves: number[] = [];
+
+    host.append(...rows);
+    rows[1].setAttribute("data-ui-row-focus", "");
+    fakeDocument.body.replaceChildren(root);
+    root.addEventListener("move", domEvent => moves.push((domEvent as unknown as CustomEvent<{ index: number }>).detail.index));
+    new ItemsReorderEngine({ root: real(root) });
+
+    // b under e: after e in the order without b.
+    altKey(root, "ArrowDown");
+    rows[1].removeAttribute("data-ui-row-focus");
+    rows[4].setAttribute("data-ui-row-focus", "");
+    // e over b: before b in the order without e.
+    altKey(root, "ArrowUp");
+    altKey(root, "ArrowRight");
+
+    assert.deepEqual(moves, [4, 1, 5]);
 });
 
 test("a windowed host's row takes its place in the whole query, the window's offset added", () => {

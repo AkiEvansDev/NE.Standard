@@ -2,15 +2,16 @@
 
 This package embeds and redistributes two font files and one script library.
 
-## Inter
+## Geist
 
-- **What:** `Client/fonts/InterVariable.woff2` — Inter, the variable-weight upright face, as released by the Inter
-  Project (<https://rsms.me/inter/>, <https://github.com/rsms/inter>), unmodified. It is the theme's default
-  `FontFamily`, served at `/_ne/fonts/inter.woff2` and declared by the `ui-fonts.css` asset, so a page reads the same on a
-  machine that has no Inter of its own.
-- **Copyright:** The Inter Project Authors.
-- **Licence:** SIL Open Font License, Version 1.1 — the full text is in `LICENSE-inter.txt`, distributed with this
-  package (`Client/fonts/LICENSE.txt` in the repository). The OFL permits bundling and redistribution with software; it
+- **What:** `Client/fonts/GeistVariable.woff2` — Geist Sans, the variable-weight upright face (Latin and Cyrillic), as
+  released by Vercel in the [`geist`](https://www.npmjs.com/package/geist) package 1.7.2 (`Geist-Variable.woff2`,
+  <https://github.com/vercel/geist-font>), unmodified. It is the theme's default `FontFamily`, served at
+  `/_ne/fonts/geist.woff2` and declared by the `ui-fonts.css` asset, so a page reads the same on a machine that has no Geist
+  of its own.
+- **Copyright:** Vercel, in collaboration with basement.studio (The Geist Project Authors).
+- **Licence:** SIL Open Font License, Version 1.1 — the full text is in `LICENSE-geist.txt`, distributed with this
+  package (`Client/fonts/LICENSE-geist.txt` in the repository). The OFL permits bundling and redistribution with software; it
   forbids selling the font on its own.
 
 ## Material Symbols

@@ -13,13 +13,36 @@ public static class InlineMarkupRenderer
     private const string FoldToggleClass = "ui-text__fold-toggle";
     private const string FoldContentClass = "ui-text__fold-content";
 
-    /// <summary>Replaces the target's content with the parsed text, writing plain runs as text.</summary>
+    /// <summary>
+    /// Replaces the target's content with the parsed text, writing plain runs as text; an element holding a fold is marked
+    /// (<see cref="WebAttributes.Folds"/>), as the client's markup operation marks it.
+    /// </summary>
     public static void Render(IHtmlBuilder target, string? text)
     {
         ArgumentNullException.ThrowIfNull(target);
 
         IReadOnlyList<UIInlineSegment> segments = UIInlineMarkup.Parse(text);
 
+        if (target is IHtmlElementBuilder element && HoldsFold(segments))
+            _ = element.Attribute(WebAttributes.Folds);
+
+        RenderSegments(target, segments);
+    }
+
+    // A fold inside a fold's text is that fold's: the top runs are enough to know.
+    private static bool HoldsFold(IReadOnlyList<UIInlineSegment> segments)
+    {
+        for (var i = 0; i < segments.Count; i++)
+        {
+            if (segments[i].IsFold)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void RenderSegments(IHtmlBuilder target, IReadOnlyList<UIInlineSegment> segments)
+    {
         for (var i = 0; i < segments.Count; i++)
             RenderSegment(target, segments[i]);
     }
@@ -130,7 +153,7 @@ public static class InlineMarkupRenderer
             _ = fold.Element("span", content =>
             {
                 _ = content.Class(FoldContentClass);
-                Render(content, segment.Text);
+                RenderSegments(content, UIInlineMarkup.Parse(segment.Text));
             });
         });
 

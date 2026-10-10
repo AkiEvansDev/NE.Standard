@@ -12,6 +12,25 @@ public static class WebAttributes
     /// <summary>A badge's text given at all, blank included: an empty text is a badge with nothing to say, which a menu's icon corner draws as a dot.</summary>
     public const string BadgeSet = "data-ui-badge-set";
 
+    /// <summary>
+    /// On a text body's component root while its title, its description, its icon, its badge's icon or its badge's text shows
+    /// (<c>TextContentRendererBase</c>, <c>BadgeRenderer</c>): one element says what the body shows, so a host lays out by it alone.
+    /// </summary>
+    public const string TextTitle = "data-ui-text-title";
+
+    public const string TextDescription = "data-ui-text-description";
+
+    public const string TextIcon = "data-ui-text-icon";
+
+    // Two marks, not one both badge properties assert: the client's tally of one mark knows nothing of the first paint, so clearing
+    // one of the two the first paint wrote would take the mark off.
+    public const string TextBadgeIcon = "data-ui-text-badge-icon";
+
+    public const string TextBadgeText = "data-ui-text-badge-text";
+
+    /// <summary>On the element inline markup was written into while it holds a fold (<c>[caption]{text}</c>), which then wraps.</summary>
+    public const string Folds = "data-ui-folds";
+
     /// <summary>The prefix a bound property's attribute carries; the rest is the property name in kebab-case.</summary>
     public const string BindingPrefix = "data-ui-bind-";
 
@@ -87,6 +106,9 @@ public static class WebAttributes
     public const string DialogCloseEscape = "data-ui-dialog-close-escape";
 
     public const string DialogModal = "data-ui-dialog-modal";
+
+    /// <summary>The edge a dialog shown as a sheet stands against; a bottom sheet the viewer may dismiss is swiped down.</summary>
+    public const string DialogPlacement = "data-ui-dialog-placement";
 
     public const string EmptyPlaceholder = "data-ui-empty-placeholder";
 
@@ -178,6 +200,21 @@ public static class WebAttributes
     /// </summary>
     public const string RowEditing = "data-ui-row-editing";
 
+    /// <summary>
+    /// An item's row whose template root — its child, or its grandchild through a wrapper — renders disabled or loading: the row answers
+    /// no pointer. The client keeps it as the root's state changes (<c>row-idle.ts</c>).
+    /// </summary>
+    public const string RowIdle = "data-ui-row-idle";
+
+    /// <summary>On a breadcrumbs step's wrapper: the tiers its step is collapsed in — <c>base sm md xl xxl</c> — where the wrapper goes too.</summary>
+    public const string StepCollapsed = "data-ui-step-collapsed";
+
+    /// <summary>
+    /// On a breadcrumbs step's wrapper: the tiers in which no shown step follows it, where it draws no separator. The client keeps both
+    /// marks as steps come, go and change Visibility (<c>breadcrumbs-engine.ts</c>).
+    /// </summary>
+    public const string StepEnd = "data-ui-step-end";
+
     public const string InputDebounce = "data-ui-input-debounce";
 
     public const string Selection = "data-ui-selection";
@@ -256,6 +293,30 @@ public static class WebAttributes
     public const string MenuOpen = "data-ui-menu-open";
 
     /// <summary>
+    /// On a group wrapper holding the current entry, its own or one below: a folded group wears the mark of a current page inside. The
+    /// client keeps it as an entry's Selected changes and as rows come and go (<c>menu-current.ts</c>).
+    /// </summary>
+    public const string MenuHoldsCurrent = "data-ui-menu-holds-current";
+
+    /// <summary>
+    /// On a menu's host where an entry of its own carries an icon: an entry without one keeps the icon's room, so the words line up. The
+    /// client keeps it as an entry's icon changes and as rows come and go (<c>menu-icons.ts</c>).
+    /// </summary>
+    public const string MenuIcons = "data-ui-menu-icons";
+
+    /// <summary>On a menu row whose entry is a caption or a rule: along a bar it takes its own width, not an entry's.</summary>
+    public const string MenuPassiveRow = "data-ui-menu-passive";
+
+    /// <summary>On a menu entry showing its chord at its end; <c>shortcut-engine.ts</c> keeps it as it writes the words.</summary>
+    public const string MenuItemShortcut = "data-ui-menu-item-shortcut";
+
+    /// <summary>
+    /// On a right-click menu's host or a split button's list whose menu has a Surface: that surface (<c>background</c>, <c>raised</c>,
+    /// <c>tinted</c>), which names the popup's ground. The client keeps it as the Surface changes (<c>menu-surface.ts</c>).
+    /// </summary>
+    public const string MenuSurface = "data-ui-menu-surface";
+
+    /// <summary>
     /// On a button or a menu entry: the key chord that presses it, read by the page's shortcut registry (<c>shortcut-engine.ts</c>).
     /// </summary>
     public const string Shortcut = "data-ui-shortcut";
@@ -295,8 +356,11 @@ public static class WebAttributes
     /// </summary>
     public const string RailDrawer = "data-ui-rail-drawer";
 
-    /// <summary>On the shell's link to the content region, which skip-link-engine.ts moves the keyboard to without touching the address.</summary>
-    public const string SkipLink = "data-ui-skip-link";
+    /// <summary>
+    /// On the root where the content region's root fills the height, which keeps the regions' own scroll on a phone: the shell writes
+    /// it from the first value, <c>content-fills.ts</c> as that root's <c>Height</c> changes.
+    /// </summary>
+    public const string ContentFills = "data-ui-content-fills";
 
     public const string Name = "data-ui-name";
 
@@ -350,6 +414,9 @@ public static class WebAttributes
     /// <summary>On a multi-select's chip: the key of the option it stands for.</summary>
     public const string SelectChip = "data-ui-select-chip";
 
+    /// <summary>On a multi-select's chips host while a chip stands: the render's first paint, the client's after each change.</summary>
+    public const string SelectChips = "data-ui-select-chips";
+
     /// <summary>On a multi-select's root: how many options it takes at most.</summary>
     public const string SelectMax = "data-ui-select-max";
 
@@ -379,6 +446,9 @@ public static class WebAttributes
 
     /// <summary>A split button's mode — <c>split</c> or <c>menu</c> — which says whether the main part opens the menu too.</summary>
     public const string SplitMode = "data-ui-split-mode";
+
+    /// <summary>On a split button whose menu opens anywhere but below from its end: the placement's token.</summary>
+    public const string SplitPlacement = "data-ui-split-placement";
 
     /// <summary>The pixels a splitter moves per arrow press.</summary>
     public const string SplitterStep = "data-ui-splitter-step";
@@ -433,8 +503,14 @@ public static class WebAttributes
     /// <summary>On a tree's root: its nodes may be dragged onto one another.</summary>
     public const string TreeDraggable = "data-ui-tree-draggable";
 
-    /// <summary>On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt+Up and Alt+Down.</summary>
+    /// <summary>
+    /// On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt with an arrow along
+    /// the way they lie.
+    /// </summary>
     public const string RowsDraggable = "data-ui-rows-draggable";
+
+    /// <summary>On an items view's, a table's or a tree's root: a row's removal raises a command, so the Delete key raises it.</summary>
+    public const string RowsRemove = "data-ui-rows-remove";
 
     /// <summary>On an items view's or a table's root: a row is dragged only by its grip (<c>DragHandle</c>), at whichever edge it stands.</summary>
     public const string RowsDragHandle = "data-ui-rows-drag-handle";
@@ -477,6 +553,9 @@ public static class WebAttributes
 
     /// <summary>On a tabs view's root: its tabs cannot be closed at all: no caption shows a close, and the strip keeps no room for one.</summary>
     public const string TabsUnremovable = "data-ui-tabs-unremovable";
+
+    /// <summary>On a tabs view's root while none of its tabs can be closed: the strip keeps no room for a close (<c>tabs-view-engine.ts</c> keeps it).</summary>
+    public const string TabsNoneRemovable = "data-ui-tabs-none-removable";
 
     public const string TabsSelected = "data-ui-tabs-selected";
 
@@ -560,9 +639,6 @@ public static class WebAttributes
 
     /// <summary>Marks the one element a component keeps its value on, where that is not the element the reader starts from.</summary>
     public const string ValueHolder = "data-ui-value-holder";
-
-    /// <summary>On a field whose text is a draft, not its component's value — a free-text multi-select's entry.</summary>
-    public const string Draft = "data-ui-draft";
 
     /// <summary>On the field holding a period's end (<c>EndValue</c>), not its <c>Value</c>: a temporal input's second field, a range slider's end handle.</summary>
     public const string ValueEnd = "data-ui-value-end";

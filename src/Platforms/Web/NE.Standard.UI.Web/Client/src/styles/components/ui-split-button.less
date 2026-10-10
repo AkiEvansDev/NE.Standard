@@ -44,20 +44,20 @@
     }
 
     // The label's alignment, restated: it lives in `.ui-split-button__main`, which ui-button.less's `.ui-button > …` rules never reach.
-    .ui-split-button__main:has(.ui-text--align-start) {
+    .ui-split-button.ui-button--align-start > .ui-split-button__main {
         justify-content: flex-start;
     }
 
-    .ui-split-button__main:has(.ui-text--align-end) {
+    .ui-split-button.ui-button--align-end > .ui-split-button__main {
         justify-content: flex-end;
     }
 
-    .ui-split-button__main:has(.ui-text--align-justify) > .ui-button__content {
+    .ui-split-button__main > .ui-button__content.ui-text--align-justify {
         width: 100%;
         justify-content: stretch;
     }
 
-    .ui-split-button__main > .ui-text--align-center:has(> .ui-text__body > .ui-text__description:not(:empty)) {
+    .ui-split-button[data-ui-text-description] > .ui-split-button__main > .ui-button__content.ui-text--align-center {
         justify-content: flex-start;
         text-align: start;
     }
@@ -107,13 +107,13 @@
     }
 
     // A link's brighter ink on the hovered part alone, as ui-button.less brightens a link's parts rather than its root.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-split-button.ui-button--link@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             .ui-brighten-hover();
         }
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:hover {
             box-shadow: none;
         }
@@ -123,7 +123,7 @@
         box-shadow: none;
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-split-button@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             background-color: var(--ui-wash-hover);
         }
@@ -140,7 +140,7 @@
         padding-right: @ui-space-3;
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-split-button[data-ui-split-mode="menu"]@{ui-button-live}:hover > :is(.ui-split-button__main, .ui-split-button__toggle) {
             background-color: var(--ui-wash-hover);
         }
@@ -148,6 +148,19 @@
 
     .ui-split-button[data-ui-split-mode="menu"]@{ui-button-live}:active > :is(.ui-split-button__main, .ui-split-button__toggle) {
         background-color: var(--ui-wash-active);
+    }
+
+    // A filled split button's parts darken as a filled button does, not by the wash, which lightens them on a dark palette.
+    @media @{ui-can-hover} {
+        .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover,
+        .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)[data-ui-split-mode="menu"]@{ui-button-live}:hover > :is(.ui-split-button__main, .ui-split-button__toggle) {
+            background-color: @ui-filled-hover-shade;
+        }
+    }
+
+    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active,
+    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)[data-ui-split-mode="menu"]@{ui-button-live}:active > :is(.ui-split-button__main, .ui-split-button__toggle) {
+        background-color: @ui-filled-active-shade;
     }
 
     .ui-split-button[data-ui-split-mode="menu"]:not(.ui-split-button--no-chevron) > .ui-split-button__main {
@@ -177,11 +190,7 @@
 
 // The list: the context menu's surface, shown while the button is open and placed by split-button-engine.ts.
 .ui-split-button__menu {
-    .ui-popup-surface(@ui-z-list);
-    .ui-popup-scroll();
-    .ui-popup-closed();
-    min-width: 10rem;
-    padding: @ui-space-1;
+    .ui-popup-list();
     text-align: start;
     cursor: default;
 }

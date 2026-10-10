@@ -38,8 +38,7 @@ public abstract partial class DefaultTextTemplate<TTemplate> : TextComponent<TTe
         {
             _ = this.BindText();
 
-            _ = Bind(VisibilityProperty, nameof(ITextModel.Visibility), UIBindingScope.Relative, optional: true);
-            _ = Bind(EnabledProperty, nameof(ITextModel.Enabled), UIBindingScope.Relative, optional: true);
+            _ = this.BindItemState();
             _ = this.BindItemAbilities();
         }
     }

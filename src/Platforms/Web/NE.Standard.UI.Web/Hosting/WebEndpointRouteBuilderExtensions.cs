@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -337,14 +338,12 @@ public static partial class WebEndpointRouteBuilderExtensions
         // The shared shape carries no bound value; a page with a controller is rendered again with this session's own so the
         // browser gets the finished page, not an empty frame. That render is never kept, so it goes to the response as its tree.
         IHtmlContent content;
-        string metadataJson;
+        WebRenderMetadata? metadata = null;
+        ReadOnlyMemory<byte> metadataJson = default;
 
         if (hydration.Values is null)
         {
-            HtmlContentBuilder cached = new();
-
-            _ = cached.Raw(shape.Html);
-            content = cached;
+            content = new Utf8HtmlContent(shape.Html);
             metadataJson = shape.MetadataJson;
         }
         else
@@ -352,7 +351,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             WebRenderResult page = renderer.Render(resolution, hydration.Values);
 
             content = page.Content;
-            metadataJson = WebShellRenderer.SerializeMetadata(page.Metadata);
+            metadata = page.Metadata;
         }
 
         var painted = Stopwatch.GetTimestamp();
@@ -376,6 +375,9 @@ public static partial class WebEndpointRouteBuilderExtensions
             ScrollContentOnly = resolution.View.Options.ScrollContentOnly,
             ShellLayout = resolution.View.Options.ShellLayout,
             SideDrawers = resolution.View.Options.SideDrawers,
+            BottomBar = WebViewRenderer.HasBottomBar(resolution.View),
+            ContentFills = WebViewRenderer.ContentFills(resolution.View, hydration.Values),
+            Metadata = metadata,
             MetadataJson = metadataJson,
             StringsJson = words.StringsJson,
             HydrationJson = hydration.Json,
@@ -542,7 +544,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         WebCachedViewRender? cached = await renderCache.GetRenderAsync(key, cancellationToken).ConfigureAwait(false);
 
-        if (cached is not null)
+        if (cached is not null && Serves(cached, resolution))
             return cached;
 
         // One render per key however many requests miss it together: the others await the first rather than each rendering the
@@ -558,7 +560,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             // A flight that finished between the miss above and this one starting has already written the entry, so it is not written again.
             WebCachedViewRender? render = await renderCache.GetRenderAsync(key, CancellationToken.None).ConfigureAwait(false);
 
-            if (render is null)
+            if (render is null || !Serves(render, resolution))
             {
                 render = RenderView(resolution, renderer);
 
@@ -585,16 +587,24 @@ public static partial class WebEndpointRouteBuilderExtensions
         }
     }
 
+    /// <summary>Whether an entry answers the view: one without a controller is served from the page the entry carries.</summary>
+    private static bool Serves(WebCachedViewRender render, UIViewResolution resolution)
+        => render.HasPage || resolution.HasController;
+
     private static WebCachedViewRender RenderView(UIViewResolution resolution, IWebViewRenderer renderer)
     {
         WebRenderResult render = renderer.Render(resolution);
 
         int[] initBindingIds = [.. render.Metadata.InitBindingIds.Select(static bindingId => bindingId.Value)];
 
+        // A page with a controller is rendered again with its session's values, so of its shape it keeps only the init bindings.
+        if (resolution.HasController)
+            return WebCachedViewRender.InitBindingsOnly(initBindingIds);
+
         WebCachedViewRender cached = new()
         {
-            Html = RenderToString(render.Content),
-            MetadataJson = WebShellRenderer.SerializeMetadata(render.Metadata),
+            Html = RenderToUtf8(render.Content),
+            MetadataJson = Encoding.UTF8.GetBytes(WebShellRenderer.SerializeMetadata(render.Metadata)),
             InitBindingIds = initBindingIds
         };
 
@@ -603,12 +613,12 @@ public static partial class WebEndpointRouteBuilderExtensions
         return cached;
     }
 
-    private static string RenderToString(IHtmlContent content)
+    private static byte[] RenderToUtf8(IHtmlContent content)
     {
         ArgumentNullException.ThrowIfNull(content);
 
         using StringWriter writer = new();
         content.WriteTo(writer);
-        return writer.ToString();
+        return Encoding.UTF8.GetBytes(writer.ToString());
     }
 }

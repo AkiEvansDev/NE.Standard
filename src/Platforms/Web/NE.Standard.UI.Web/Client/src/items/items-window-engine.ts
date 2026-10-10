@@ -3,14 +3,14 @@ import {
     ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowPagedAttribute, WindowPendingAttribute, WindowSizeAttribute, WindowTotalAttribute
 } from "../addressing/dom-attributes.ts";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
-import { DefaultItemSize, resolveHostMode } from "./items-host-mode.ts";
+import { DefaultItemSize, readWindowFlag, readWindowNumber, resolveHostMode } from "./items-host-mode.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import type { ItemAnchorName, WebUIItemWindowRequest } from "../metadata/metadata-index.ts";
 import { isEndAnchored } from "../interactions/scroll-anchor-engine.ts";
 import { keepHeldRow } from "./item-reveal.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { BottomSpacer, PendingSpacer, TopSpacer, ensureSpacer } from "./items-spacers.ts";
-import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport.ts";
+import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo } from "./items-viewport.ts";
 import { stampRowIndices } from "./table-row-indices.ts";
 
 const DefaultWindowSize = 50;
@@ -85,10 +85,14 @@ export class ItemsWindowEngine {
                 continue;
             }
 
-            if (firstStart)
+            if (firstStart) {
                 this.revealWindow(host);
-            else
-                this.realign(host);
+                continue;
+            }
+
+            // Attached again: a read the dropped connection cut cleared its pending skeleton and was never asked again.
+            this.realign(host);
+            this.considerRequest(host);
         }
     }
 
@@ -98,10 +102,10 @@ export class ItemsWindowEngine {
         if (host.hasAttribute(WindowPagedAttribute))
             return;
 
-        const offset = readOptionalNumber(host, WindowOffsetAttribute);
+        const offset = readWindowNumber(host, WindowOffsetAttribute);
 
         // An end-anchored feed opened on an older window puts that window's last row at the bottom edge, as the newest one would be.
-        if (offset !== null && isEndAnchored(host) && isTrue(host.getAttribute(WindowMoreAfterAttribute))) {
+        if (offset !== null && isEndAnchored(host) && readWindowFlag(host, WindowMoreAfterAttribute)) {
             scrollHostTo(host, Math.max(0, this.windowBottom(host, offset) - readHostScroll(host).height));
             return;
         }
@@ -111,14 +115,14 @@ export class ItemsWindowEngine {
             return;
 
         // At the end of the source there is nothing below to scroll into, so the last row goes to the bottom edge.
-        scrollHostTo(host, isTrue(host.getAttribute(WindowMoreAfterAttribute)) ? offset * this.getState(host).itemSize : host.scrollHeight);
+        scrollHostTo(host, readWindowFlag(host, WindowMoreAfterAttribute) ? offset * this.getState(host).itemSize : host.scrollHeight);
     }
 
     /** Where the window's last row ends, in the host's coordinates: the spacer standing for the rows before it, then the rows. */
     private windowBottom(host: Element, offset: number): number {
         const items = itemElements(host);
         const itemSize = this.getState(host).itemSize;
-        const measured = items.length === 0 ? 0 : boxOf(items[items.length - 1]).bottom - boxOf(items[0]).top;
+        const measured = items.length === 0 ? 0 : itemBox(items[items.length - 1]).bottom - itemBox(items[0]).top;
 
         return offset * itemSize + (measured > 0 ? measured : items.length * itemSize);
     }
@@ -136,7 +140,7 @@ export class ItemsWindowEngine {
 
     /** Puts the viewport back on a window the server moved from under the viewer (a changed rule); nothing while rows are in view. */
     private realign(host: Element): void {
-        const offset = readOptionalNumber(host, WindowOffsetAttribute);
+        const offset = readWindowNumber(host, WindowOffsetAttribute);
         const items = itemElements(host);
 
         if (offset === null || items.length === 0 || host.hasAttribute(WindowPagedAttribute))
@@ -215,9 +219,9 @@ export class ItemsWindowEngine {
             return;
         }
 
-        const offset = readOptionalNumber(host, WindowOffsetAttribute);
-        const hasMoreBefore = isTrue(host.getAttribute(WindowMoreBeforeAttribute));
-        const hasMoreAfter = isTrue(host.getAttribute(WindowMoreAfterAttribute));
+        const offset = readWindowNumber(host, WindowOffsetAttribute);
+        const hasMoreBefore = readWindowFlag(host, WindowMoreBeforeAttribute);
+        const hasMoreAfter = readWindowFlag(host, WindowMoreAfterAttribute);
 
         // With spacers there is no "near the bottom of the content", so the decision is about indices, not pixels.
         if (offset !== null) {
@@ -267,7 +271,7 @@ export class ItemsWindowEngine {
     /** Where a window dropped elsewhere starts: a little above the first visible row, and never so far down that a full window will not fit. */
     private landingOffset(host: Element, firstVisible: number, windowSize: number): number {
         const start = Math.max(0, firstVisible - Math.floor(windowSize / 4));
-        const total = readOptionalNumber(host, WindowTotalAttribute);
+        const total = readWindowNumber(host, WindowTotalAttribute);
 
         return total === null ? start : Math.min(start, Math.max(0, total - windowSize));
     }
@@ -286,12 +290,16 @@ export class ItemsWindowEngine {
         const state = this.getState(host);
 
         state.pending = true;
-        // Which edge the rows come in at, where an indicator stands; busy, as a loading component says it is.
+        // Which edge the rows come in at, where an indicator stands; busy, as a loading component says it is. On the component's root
+        // too, which draws the indicator: the stylesheet reads no child's mark.
+        const owner = host.closest(ComponentSelector);
+
         host.setAttribute(WindowPendingAttribute, anchor.toLowerCase());
+        owner?.setAttribute(WindowPendingAttribute, anchor.toLowerCase());
         host.setAttribute("aria-busy", "true");
 
         // A host that cannot count has no spacer to stand for the rows on their way, so a few skeleton rows follow its last one.
-        if (anchor === "After" && readOptionalNumber(host, WindowTotalAttribute) === null && drawsSkeleton(host))
+        if (anchor === "After" && readWindowNumber(host, WindowTotalAttribute) === null && drawsSkeleton(host))
             ensureSpacer(host, PendingSpacer, PendingRows * this.rowSize(host));
 
         try {
@@ -311,6 +319,7 @@ export class ItemsWindowEngine {
         finally {
             state.pending = false;
             host.removeAttribute(WindowPendingAttribute);
+            owner?.removeAttribute(WindowPendingAttribute);
             host.removeAttribute("aria-busy");
             ensureSpacer(host, PendingSpacer, 0);
             this.layout(host);
@@ -330,8 +339,8 @@ export class ItemsWindowEngine {
     private layout(host: Element): void {
         const state = this.getState(host);
         const items = itemElements(host);
-        const total = readOptionalNumber(host, WindowTotalAttribute);
-        const offset = readOptionalNumber(host, WindowOffsetAttribute);
+        const total = readWindowNumber(host, WindowTotalAttribute);
+        const offset = readWindowNumber(host, WindowOffsetAttribute);
 
         stampRowIndices(host, items.map((item, i) => [item, (offset ?? 0) + i] as const), total);
 
@@ -344,7 +353,7 @@ export class ItemsWindowEngine {
 
         // The window's whole span over its items, so gaps are in the average; a zero reading from an unlaid-out host is ignored.
         if (items.length > 0) {
-            const measured = boxOf(items[items.length - 1]).bottom - boxOf(items[0]).top;
+            const measured = itemBox(items[items.length - 1]).bottom - itemBox(items[0]).top;
 
             if (measured > 0) {
                 // Counted by rows: a wrapping host's row height averaged over every tile would read each item as a fraction of its
@@ -355,9 +364,9 @@ export class ItemsWindowEngine {
                 state.itemSize = Math.max(1, Math.round(measured / (rows * across)));
 
                 // A skeleton row's step is from one row's top to the next, the gap between them in it.
-                const step = rows > 1 ? (boxOf(items[items.length - 1]).top - boxOf(items[0]).top) / (rows - 1) : measured;
+                const step = rows > 1 ? (itemBox(items[items.length - 1]).top - itemBox(items[0]).top) / (rows - 1) : measured;
 
-                writeSkeletonSizes(host, step, across > 1 ? boxOf(items[1]).left - boxOf(items[0]).left : null);
+                writeSkeletonSizes(host, step, across > 1 ? itemBox(items[1]).left - itemBox(items[0]).left : null);
             }
         }
 
@@ -379,7 +388,7 @@ export class ItemsWindowEngine {
     }
 
     private windowSize(host: Element): number {
-        const declared = readOptionalNumber(host, WindowSizeAttribute);
+        const declared = readWindowNumber(host, WindowSizeAttribute);
 
         return declared !== null && declared > 0 ? declared : DefaultWindowSize;
     }
@@ -396,16 +405,12 @@ export class ItemsWindowEngine {
     }
 }
 
-function isTrue(value: string | null): boolean {
-    return value !== null && value.toLowerCase() === "true";
-}
-
 /** How many items stand on a row: one in a list, several in a wrapping host's. */
 function perRow(items: Element[]): number {
-    const top = boxOf(items[0]).top;
+    const top = itemBox(items[0]).top;
     let across = 1;
 
-    while (across < items.length && boxOf(items[across]).top === top)
+    while (across < items.length && itemBox(items[across]).top === top)
         across++;
 
     return across;
@@ -433,14 +438,6 @@ function writeSkeletonSizes(host: Element, row: number, tile: number | null): vo
     }
 }
 
-/** The box an item occupies. */
-function boxOf(item: Element): DOMRect {
-    const box = item.getBoundingClientRect();
-
-    // A wrapping host's row wrapper is `display: contents` and measures as nothing; the template's root takes the cell.
-    return box.height > 0 || item.firstElementChild === null ? box : item.firstElementChild.getBoundingClientRect();
-}
-
 function itemElements(host: Element): Element[] {
     return [...host.children].filter(child => child.hasAttribute(ComponentKeyAttribute));
 }
@@ -457,15 +454,4 @@ function readDynamicParameters(host: Element): unknown[] {
     const owner = host.closest(ComponentSelector);
 
     return owner === null ? [] : collectDynamicParameters(owner, readParameterCount(owner));
-}
-
-function readOptionalNumber(element: Element, name: string): number | null {
-    const raw = element.getAttribute(name);
-
-    if (raw === null || raw.length === 0)
-        return null;
-
-    const value = Number(raw);
-
-    return Number.isFinite(value) ? value : null;
 }

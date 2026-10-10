@@ -39,6 +39,9 @@ public static partial class UIStrings
     public const string PickerLetterSecond = "ui.picker.letter.second";
     public const string NotificationClose = "ui.notification.close";
 
+    /// <summary>The fallback toast's button that leads to a system notification's address, where the effect names no words.</summary>
+    public const string NotificationOpen = "ui.notification.open";
+
     /// <summary>The name of a message's ×, which hides it where it stands (the <c>UIMessage</c> preset).</summary>
     public const string MessageDismiss = "ui.message.dismiss";
     public const string TabsMore = "ui.tabs.more";
@@ -120,8 +123,9 @@ public static partial class UIStrings
     public const string CollapseToggle = "ui.collapse.toggle";
     public const string SideOpen = "ui.side.open";
 
-    /// <summary>The shell's link past the header and the left side to the page's content, seen only while it holds the keyboard.</summary>
-    public const string SkipToContent = "ui.shell.skip-to-content";
+    /// <summary>The name of a side open as a drawer over the page, a dialog of its own, where nothing in it names it.</summary>
+    public const string SidePanel = "ui.side.panel";
+
     public const string MenuSearch = "ui.menu.search";
     public const string ThemeSwitch = "ui.theme.switch";
     public const string LanguageSwitch = "ui.language.switch";
@@ -160,6 +164,9 @@ public static partial class UIStrings
     public const string ActionBarLabel = "ui.actionbar.label";
     public const string ActionBarMore = "ui.actionbar.more";
 
+    /// <summary>The row atop a list opened from a phone's sheet, back to the list under it: <c>{entry}</c> is the entry it opened from.</summary>
+    public const string SheetBack = "ui.sheet.back";
+
     private const string ColorNamePrefix = "ui.color.name.";
 
     // Before English, which lists them: static initializers run in the order they are written.
@@ -192,6 +199,7 @@ public static partial class UIStrings
         [PickerLetterMinute] = "m",
         [PickerLetterSecond] = "s",
         [NotificationClose] = "Close",
+        [NotificationOpen] = "Open",
         [MessageDismiss] = "Dismiss",
         [TabsMore] = "More tabs",
         [CommandBarMore] = "More commands",
@@ -254,7 +262,7 @@ public static partial class UIStrings
         [ItemsEmpty] = "Nothing to show.",
         [CollapseToggle] = "Expand or collapse",
         [SideOpen] = "Open the side panel",
-        [SkipToContent] = "Skip to content",
+        [SidePanel] = "Side panel",
         [MenuSearch] = "Search",
         [ThemeSwitch] = "Switch theme",
         [LanguageSwitch] = "Language: {language} ({code}), switch to {other} ({otherCode})",
@@ -281,7 +289,8 @@ public static partial class UIStrings
         [LeaveConfirm] = "Leave",
         [LeaveStay] = "Stay",
         [ActionBarLabel] = "Actions",
-        [ActionBarMore] = "More actions"
+        [ActionBarMore] = "More actions",
+        [SheetBack] = "Back from {entry}"
     }).ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

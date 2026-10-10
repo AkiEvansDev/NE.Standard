@@ -10,6 +10,7 @@ import { clientStrings } from "../runtime/client-strings.ts";
 import type { Phrase } from "../runtime/words.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import { displayNumberText, editNumberText, parseNumberText, sanitizeNumberText, trimTrailingZeros } from "./number-text.ts";
 
 const RootClass = "ui-number-input";
@@ -22,6 +23,9 @@ const StepAttribute = "data-ui-number-step";
 const MinAttribute = "data-ui-number-min";
 const MaxAttribute = "data-ui-number-max";
 const StepDirectionAttribute = "data-ui-number-step-direction";
+
+// The steps a key takes: an arrow one, a page key the big step.
+const StepKeys: ReadonlyMap<string, number> = new Map([["ArrowUp", 1], ["ArrowDown", -1], ["PageUp", 10], ["PageDown", -10]]);
 
 export type NumberInputEngineOptions = {
     readonly root?: ParentNode;
@@ -218,9 +222,14 @@ export class NumberInputEngine {
         this.step(input, button.getAttribute(StepDirectionAttribute) === "down" ? -1 : 1);
     }
 
-    /** ArrowUp and ArrowDown step the field under the caret, as a native number field's do, whether or not it shows a stepper. */
+    /**
+     * ArrowUp and ArrowDown step the field under the caret, as a native number field's do, whether or not it shows a stepper; PageUp
+     * and PageDown take a big step of ten, as a slider's do.
+     */
     private handleStepKey(domEvent: KeyboardEvent): void {
-        if ((domEvent.key !== "ArrowUp" && domEvent.key !== "ArrowDown") || domEvent.altKey || domEvent.ctrlKey || domEvent.metaKey || domEvent.defaultPrevented)
+        const steps = StepKeys.get(domEvent.key);
+
+        if (steps === undefined || !isPlainKey(domEvent, { shift: true }) || domEvent.defaultPrevented)
             return;
 
         const input = asField(domEvent.target);
@@ -229,18 +238,18 @@ export class NumberInputEngine {
             return;
 
         domEvent.preventDefault();
-        this.step(input, domEvent.key === "ArrowDown" ? -1 : 1);
+        this.step(input, steps);
     }
 
     /**
      * Moves the field one step up or down from what it shows, held inside Min and Max as a slider's handle is — a step is never past
      * them, where a typed value may be and is refused in words — and reports it as a typed value is reported.
      */
-    private step(input: HTMLInputElement, direction: 1 | -1): void {
+    private step(input: HTMLInputElement, steps: number): void {
         const step = Number(input.getAttribute(StepAttribute) ?? "1");
         const current = Number(this.showsOwnText(input) ? this.valueOf(input) : readTyped(input) ?? "0") || 0;
 
-        let next = current + (step * direction);
+        let next = current + (step * steps);
 
         const min = input.getAttribute(MinAttribute);
         const max = input.getAttribute(MaxAttribute);

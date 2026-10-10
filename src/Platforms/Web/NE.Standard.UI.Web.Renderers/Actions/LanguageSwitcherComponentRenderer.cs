@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -82,32 +83,34 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
 
         var opensList = languages.Count > 2;
 
+        // The page's language by its name and the code the button shows (WCAG 2.5.3, the label in the name), and with two the one a
+        // press switches to, the same way.
+        var nameKey = opensList ? UIStrings.LanguageCurrent : UIStrings.LanguageSwitch;
+        Dictionary<string, object?> nameArguments = new(StringComparer.Ordinal)
+        {
+            ["language"] = NativeName(current),
+            ["code"] = Code(current)
+        };
+
+        if (!opensList)
+        {
+            nameArguments["other"] = NativeName(ToggleTarget(languages, current));
+            nameArguments["otherCode"] = Code(ToggleTarget(languages, current));
+        }
+
+        // Named on hover by the button's own words where the author gives it no tooltip; the engine keeps the two level as it switches.
+        if (ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _) != WebRenderValueKind.Binding && string.IsNullOrWhiteSpace(tooltip))
+            WebWords.Write(context, root, WebAttributes.Tooltip, nameKey, nameArguments);
+
         _ = root.Element("button", trigger =>
         {
             _ = trigger.Class(TriggerClassName);
             _ = trigger.Attribute("type", "button");
 
-            // The page's language by its name and the code the button shows (WCAG 2.5.3, the label in the name), and with two the one a
-            // press switches to, the same way.
+            WebWords.Write(context, trigger, "aria-label", nameKey, nameArguments);
+
             if (opensList)
-            {
-                WebWords.Write(context, trigger, "aria-label", UIStrings.LanguageCurrent, new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["language"] = NativeName(current),
-                    ["code"] = Code(current)
-                });
                 RenderPopupTrigger(trigger, "menu");
-            }
-            else
-            {
-                WebWords.Write(context, trigger, "aria-label", UIStrings.LanguageSwitch, new Dictionary<string, object?>(StringComparer.Ordinal)
-                {
-                    ["language"] = NativeName(current),
-                    ["code"] = Code(current),
-                    ["other"] = NativeName(ToggleTarget(languages, current)),
-                    ["otherCode"] = Code(ToggleTarget(languages, current))
-                });
-            }
 
             _ = trigger.Element("span", icon =>
             {

@@ -6,8 +6,7 @@ import { ComponentKeyAttribute, DisabledClass, SmallGhostButtonClasses } from ".
 import { carryPopupGround } from "./anchored-popup.ts";
 import { isInert } from "./interactive-state.ts";
 import { OwnedPopups } from "./owned-popup.ts";
-import { focusByPointer, focusOpenedList } from "./popup-focus.ts";
-import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
+import { followPointer, handleChoiceListKey, openChoiceList } from "./popup-list.ts";
 
 export const OverflowButtonClass = "ui-tab-overflow";
 
@@ -269,7 +268,9 @@ class StripOverflowMenu {
         },
         closesWhenReadOnly: false,
         isInside: ({ popup }, path) => path.includes(popup) || (this.button !== null && path.includes(this.button)),
-        onWindowBlur: true
+        onWindowBlur: true,
+        closesOnTab: true,
+        sheetOnPhone: true
     });
 
     private readonly pick: (strip: HTMLElement, key: string) => void;
@@ -300,27 +301,13 @@ class StripOverflowMenu {
         // A list of tabs opens on the current one; a list with none (the commands) as every popup list does, by what opened it.
         const current = this.menu.querySelector<HTMLElement>(`.${EntryCurrentClass}`);
 
-        // One tab stop, as in any menu: the arrows walk the list, and a Tab leaves it.
-        if (current !== null)
-            applyRovingTabIndex(this.entries(), current);
-
         this.button = button;
         carryPopupGround(button, this.menu);
 
-        const opened = this.list.open({
-            owner: strip,
-            popup: this.menu,
-            anchor: button,
-            placement: { placement: "bottom-end" },
-            openers: [button],
-            focus: current ?? false,
-            returnFocus: () => button
-        });
+        const opening = { owner: strip, popup: this.menu, anchor: button, placement: { placement: "bottom-end" }, openers: [button], returnFocus: () => button } as const;
 
-        if (!opened)
+        if (!openChoiceList(this.list, opening, this.entries(), current))
             this.button = null;
-        else if (current === null)
-            focusOpenedList(this.menu, this.entries());
     }
 
     public close(): void {
@@ -342,38 +329,17 @@ class StripOverflowMenu {
         this.pick(strip, key);
     }
 
-    /** The arrows, Home and End walk the list, as they walk any menu; Tab closes it and goes on from the "…" control. */
+    /** The arrows, Home and End walk the list, a letter reaches an entry; Tab goes on from the "…" control, the list hanging at the body's end. */
     private handleKeydown(domEvent: KeyboardEvent): void {
-        if (domEvent.defaultPrevented || !(domEvent.target instanceof HTMLElement))
-            return;
-
-        // The list hangs at the body's end, where Tab would leave the page: closing returns the focus, and the browser's Tab goes on.
-        if (domEvent.key === "Tab") {
-            this.close();
-            return;
-        }
-
-        const entries = this.entries();
-        const next = resolveRovingTarget({ key: domEvent.key, items: entries, current: domEvent.target, axis: "vertical" });
-
-        if (next === null)
-            return;
-
-        domEvent.preventDefault();
-
-        applyRovingTabIndex(entries, next);
-        next.focus();
+        if (!domEvent.defaultPrevented)
+            handleChoiceListKey(domEvent, this.entries());
     }
 
-    /** The pointer takes the keyboard's place in the list, as in a native menu, so one entry is current and the arrows go on from it. */
     private handlePointerMove(domEvent: PointerEvent): void {
         const entry = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${EntryClass}`) : null;
 
-        if (entry === null || entry === document.activeElement || isInert(entry))
-            return;
-
-        applyRovingTabIndex(this.entries(), entry);
-        focusByPointer(entry);
+        if (entry !== null)
+            followPointer(entry, this.entries());
     }
 
     private entries(): HTMLElement[] {

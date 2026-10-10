@@ -2,8 +2,8 @@
 // filter, sort, grouping and patches work on, and rows are drawn from them as they scroll in.
 
 import { isAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine";
-import { planRowRemoval } from "../interactions/row-cursor";
-import { ComponentKeyAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes";
+import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, setRowFocus, takeRowCursor, waitingCursorKey } from "../interactions/row-cursor";
+import { ComponentKeyAttribute, GroupHeaderAttribute, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass } from "../addressing/dom-attributes";
 import { DomRegistry, findOwningComponentAddress } from "../addressing/dom-registry";
 import { MetadataIndex } from "../metadata/metadata-index";
 import { PropertyStateStore } from "../state/property-state-store";
@@ -12,14 +12,14 @@ import { ItemStackEntry, ItemValueStep, tryReadItemProperty } from "./binding-te
 import { placeInOrder } from "./items-dom-order";
 import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
 import { compareItems, getActiveSorts, itemMatchesFilters, readItemsQuery } from "./items-filter-sort";
-import { markGroupHeader } from "./items-group-runs";
+import { bucketByGroup, drawGroupHeader, markGroupHeader } from "./items-group-runs";
 import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
 import { renderItemRow } from "./items-row-renderer";
 import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
 import { stampRowIndices } from "./table-row-indices";
 import { ItemsTemplateRegistry } from "./items-template-registry";
 import { ItemsTemplateRenderer, writeItemValuePath } from "./items-template-renderer";
-import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "./items-viewport";
+import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo } from "./items-viewport";
 import { logWarn } from "../runtime/logger";
 
 // How many rows beyond the visible ones are kept drawn on each side, so a short scroll has nothing to do.
@@ -27,6 +27,9 @@ const Overscan = 6;
 
 // Milliseconds between two passes over the same host.
 const PassInterval = 60;
+
+/** Where along the viewport a row brought in by `reveal` stands: at its top, at its bottom, or wherever shows it with the least scroll. */
+export type RevealEdge = "start" | "end" | "nearest";
 
 export type ItemsVirtualizationEngineOptions = {
     readonly root?: ParentNode;
@@ -129,6 +132,77 @@ export class ItemsVirtualizationEngine {
         return state === undefined ? null : state.entries.map(entry => entry.key);
     }
 
+    /**
+     * The keys of the rows the host shows from one key to the other, both included, drawn or not, less the items refusing to be chosen
+     * (`CanSelect`): a Shift range; null for a host this engine does not hold, or a key it does not show.
+     */
+    public rangeKeysOf(host: Element, from: string, to: string): readonly string[] | null {
+        const rows = this.states.get(host)?.projected.filter(row => !row.header);
+        const start = rows?.findIndex(row => row.entry.key === from) ?? -1;
+        const end = rows?.findIndex(row => row.entry.key === to) ?? -1;
+
+        if (rows === undefined || start < 0 || end < 0)
+            return null;
+
+        return rows.slice(Math.min(start, end), Math.max(start, end) + 1).filter(row => refusesChoice(row.entry) === false).map(row => row.entry.key);
+    }
+
+    /** The keys of the rows the host shows, top to bottom once its rules have run, drawn or not; null for a host this engine does not hold. */
+    public shownKeysOf(host: Element): readonly string[] | null {
+        const state = this.states.get(host);
+
+        if (state === undefined)
+            return null;
+
+        const keys: string[] = [];
+
+        for (const row of state.projected) {
+            if (!row.header)
+                keys.push(row.entry.key);
+        }
+
+        return keys;
+    }
+
+    /**
+     * Scrolls the host so the row of `key` stands at `edge` of the viewport and draws it there and then: what the keyboard's Home, End
+     * and page keys reach past the rows drawn. Null where the host shows no row of that key.
+     */
+    public reveal(host: Element, key: string, edge: RevealEdge): Element | null {
+        const state = this.states.get(host);
+        const index = state === undefined ? -1 : state.projected.findIndex(row => !row.header && row.entry.key === key);
+
+        if (state === undefined || index < 0)
+            return null;
+
+        const entry = state.projected[index].entry;
+
+        // A horizontal host draws every row, which the browser scrolls to itself.
+        if (!isWrap(host) && !isColumn(host))
+            return entry.element;
+
+        const style = getComputedStyle(host);
+        const gap = readGap(style);
+        const pitches = state.projected.map(row => this.pitchOf(state, row) + gap);
+        const lines = isWrap(host) ? wrapLines(state.projected, pitches, state.across) : null;
+        const line = lines === null ? index : lineIndexOf(lines.starts, index);
+        const linePitches = lines?.pitches ?? pitches;
+        // In the host's coordinates: the view's Padding stands above the first row inside the scroll.
+        const top = readPixels(style.paddingTop) + sum(linePitches, 0, line);
+        const bottom = top + linePitches[line] - gap;
+        const scroll = readHostScroll(host);
+        const target = edge === "start" || (edge === "nearest" && top < scroll.top)
+            ? top
+            : edge === "end" || bottom > scroll.top + scroll.height ? bottom - scroll.height : null;
+
+        if (target !== null)
+            scrollHostTo(host, Math.max(0, target));
+
+        this.layout(host, state);
+
+        return entry.element;
+    }
+
     /** Runs the rules over the values and lays the host out again; the entry point after anything changed. */
     public sync(host: Element): void {
         const state = this.getState(host);
@@ -137,8 +211,10 @@ export class ItemsVirtualizationEngine {
             return;
 
         const atEnd = isEndAnchored(host) && isAtEnd(host);
+        const shown = state.projected;
 
         this.project(host, state);
+        this.keepCursorShown(host, state, shown);
         this.layout(host, state);
 
         // Growth that stays outside the drawn range touches no child, so the anchor engine never hears of it.
@@ -172,7 +248,7 @@ export class ItemsVirtualizationEngine {
             }
 
             if (kept !== undefined) {
-                kept.element?.remove();
+                this.dropRow(host, kept.element);
                 renewed.push(key);
             }
 
@@ -187,6 +263,60 @@ export class ItemsVirtualizationEngine {
         state.entries = next;
 
         return renewed;
+    }
+
+    /**
+     * Takes a row off the page — to be drawn anew, or scrolled out of the range drawn: a focus inside it goes to the host's root, its
+     * cursor waits on the root for the row of its key to be drawn again.
+     */
+    private dropRow(host: Element, element: Element | null): void {
+        if (element === null)
+            return;
+
+        const held = takeRowCursor(element);
+
+        element.remove();
+        giveRowCursor(host, null, held);
+    }
+
+    /**
+     * A rule that left out the cursor's row — drawn, or waiting to be — moves the cursor to the nearest row it still shows, in the
+     * order the reader last saw (`before`): the next below, else the last above.
+     */
+    private keepCursorShown(host: Element, state: VirtualHostState, before: readonly ProjectedRow[]): void {
+        const root = rowCursorRoot(host);
+        const marked = state.entries.find(entry => entry.element?.hasAttribute(RowFocusAttribute) === true) ?? null;
+        const key = marked?.key ?? (root === null ? null : waitingCursorKey(root));
+
+        if (root === null || key === null)
+            return;
+
+        const shown = new Set<string>();
+
+        for (const row of state.projected) {
+            if (!row.header)
+                shown.add(row.entry.key);
+        }
+
+        if (shown.has(key))
+            return;
+
+        const order = before.filter(row => !row.header).map(row => row.entry);
+        const at = order.findIndex(entry => entry.key === key);
+        const target = at < 0 ? undefined : order.slice(at + 1).find(entry => shown.has(entry.key)) ?? order.slice(0, at).reverse().find(entry => shown.has(entry.key));
+
+        marked?.element?.removeAttribute(RowFocusAttribute);
+
+        if (target === undefined) {
+            root.removeAttribute(RowCursorWaitsAttribute);
+            root.removeAttribute("aria-activedescendant");
+            return;
+        }
+
+        if (target.element instanceof HTMLElement)
+            setRowFocus(root, getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement), target.element, null, false);
+        else
+            root.setAttribute(RowCursorWaitsAttribute, target.key);
     }
 
     public insert(host: Element, key: string, item: unknown, index: number | null): void {
@@ -209,9 +339,7 @@ export class ItemsVirtualizationEngine {
             return;
 
         const element = state.entries[index].element;
-
-        // The host's parent is the row-cursor's root: rows are its direct children, drawn or not.
-        const root = host.parentElement;
+        const root = rowCursorRoot(host);
         const rows = getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement);
         const restoreCursor = root !== null && element instanceof HTMLElement ? planRowRemoval(root, rows, element) : null;
 
@@ -232,7 +360,7 @@ export class ItemsVirtualizationEngine {
             return;
         }
 
-        state.entries[at].element?.remove();
+        this.dropRow(host, state.entries[at].element);
         state.entries[at] = { key, item, element: null, height: state.entries[at].height };
     }
 
@@ -273,7 +401,7 @@ export class ItemsVirtualizationEngine {
 
         // A whole new item is a new row; a property written into the old one already reached the drawn row through its own patch.
         if (path.length === 0 && entry.element !== null) {
-            entry.element.remove();
+            this.dropRow(host, entry.element);
             entry.element = null;
         }
 
@@ -303,25 +431,7 @@ export class ItemsVirtualizationEngine {
             return;
         }
 
-        const buckets = new Map<string, VirtualEntry[]>();
-
-        for (const entry of entries) {
-            const group = groupOf(entry);
-            const bucket = buckets.get(group);
-
-            if (bucket === undefined)
-                buckets.set(group, [entry]);
-            else
-                bucket.push(entry);
-        }
-
-        // Groups keep the order they first appeared in; a new one goes last, as on a plain host.
-        const order = state.groupOrder.filter(group => buckets.has(group));
-
-        for (const group of buckets.keys()) {
-            if (!order.includes(group))
-                order.push(group);
-        }
+        const { buckets, order } = bucketByGroup(entries, groupOf, state.groupOrder);
 
         state.groupOrder = order;
 
@@ -439,19 +549,26 @@ export class ItemsVirtualizationEngine {
 
         const ancestors = this.options.renderer.getAncestorStack(host);
         const drawn: Element[] = [];
-        // Each drawn row with its place among them all, for a table's reader (table-row-indices.ts).
+        // Each drawn row with its place among the rows alone, for a table's reader (table-row-indices.ts): a header is not a table row,
+        // and a windowed host, which cannot count the headers of rows it never read, counts the rows alone too.
         const placed: (readonly [Element, number])[] = [];
+        let place = -1;
         let changed = false;
 
         for (let i = 0; i < total; i++) {
             const row = rows[i];
+
+            if (!row.header)
+                place++;
+
             const inRange = i >= first && i < last;
             const slot = row.header ? state.headers.get(groupOf(row.entry)) ?? null : row.entry;
             const element = slot?.element ?? null;
 
             if (!inRange) {
                 if (element !== null) {
-                    element.remove();
+                    // A row scrolled away keeps the keyboard's cursor waiting for it, as a row drawn anew does.
+                    this.dropRow(host, element);
                     setElement(state, row, null);
                     changed = true;
                 }
@@ -465,18 +582,27 @@ export class ItemsVirtualizationEngine {
                     markGroupHeader(element, row.entry.key);
 
                 drawn.push(element);
-                placed.push([element, i]);
+
+                if (!row.header)
+                    placed.push([element, place]);
+
                 continue;
             }
 
-            const rendered = row.header ? this.renderHeader(state, row.entry) : this.renderRow(state, row.entry, ancestors);
+            const rendered = row.header ? this.renderHeader(state, row.entry, ancestors) : this.renderRow(state, row.entry, ancestors);
 
             if (rendered === null)
                 continue;
 
+            if (!row.header)
+                restoreWaitingCursor(host, rendered);
+
             setElement(state, row, rendered);
             drawn.push(rendered);
-            placed.push([rendered, i]);
+
+            if (!row.header)
+                placed.push([rendered, place]);
+
             changed = true;
         }
 
@@ -485,7 +611,7 @@ export class ItemsVirtualizationEngine {
         // An entry the rules left out lets its row go for good: kept, it would come back with the values it had when it left.
         for (const entry of state.entries) {
             if (entry.element !== null && !kept.has(entry.element)) {
-                entry.element.remove();
+                this.dropRow(host, entry.element);
                 entry.element = null;
                 changed = true;
             }
@@ -494,7 +620,7 @@ export class ItemsVirtualizationEngine {
         // Anything drawn by nobody here — a server row past the range, a header of an old pass — goes.
         for (const child of getRealItemElements(host)) {
             if (!kept.has(child)) {
-                child.remove();
+                this.dropRow(host, child);
                 changed = true;
             }
         }
@@ -519,7 +645,7 @@ export class ItemsVirtualizationEngine {
         ensureSpacer(host, TopSpacer, before > 0 ? before - gap : 0);
         ensureSpacer(host, BottomSpacer, after > 0 ? after - gap : 0);
         ensureEmptyState(host, state.componentId, this.options.templates, this.options.renderer, total > 0);
-        stampRowIndices(host, placed, total);
+        stampRowIndices(host, placed, place + 1);
 
         if (changed || state.first !== first || state.last !== last) {
             state.first = first;
@@ -549,18 +675,10 @@ export class ItemsVirtualizationEngine {
         return renderItemRow(state.componentId, entry.item, entry.key, ancestors, this.options);
     }
 
-    private renderHeader(state: VirtualHostState, anchor: VirtualEntry): Element | null {
+    private renderHeader(state: VirtualHostState, anchor: VirtualEntry, ancestors: readonly ItemStackEntry[]): Element | null {
         const template = this.options.templates.getGroupTemplate(state.componentId);
 
-        if (template === undefined)
-            return null;
-
-        const header = this.options.renderer.renderFromTemplate(template, anchor.item);
-
-        if (header !== null)
-            markGroupHeader(header, anchor.key);
-
-        return header;
+        return template === undefined ? null : drawGroupHeader(template, this.options.renderer, anchor.item, anchor.key, ancestors);
     }
 
     private measure(state: VirtualHostState, rows: readonly ProjectedRow[], first: number, last: number): void {
@@ -574,7 +692,7 @@ export class ItemsVirtualizationEngine {
             if (slot === undefined || slot === null || element === null || element === undefined)
                 continue;
 
-            const box = cellBox(element);
+            const box = itemBox(element);
 
             if (box.height <= 0)
                 continue;
@@ -730,16 +848,34 @@ function setElement(state: VirtualHostState, row: ProjectedRow, element: Element
         slot.element = element;
 }
 
+/** Whether the item says it may not be chosen (`IItemAbilitiesModel.CanSelect`), as its drawn row would be marked. */
+function refusesChoice(entry: VirtualEntry): boolean {
+    const ability = tryReadItemProperty(entry.item, "CanSelect");
+
+    return ability.ok && ability.value === false;
+}
+
 function groupOf(entry: VirtualEntry): string {
     const group = tryReadItemProperty(entry.item, "Group");
 
     return group.ok && typeof group.value === "string" ? group.value : "";
 }
 
+/** Whether the host's rows stand one under another down the page: a vertical stack's, or a table's. */
 function isColumn(host: Element): boolean {
     const view = host.parentElement;
 
-    return view !== null && view.classList.contains("ui-items-view--stack") && view.classList.contains("ui-orientation--vertical");
+    return view !== null && (view.classList.contains(TableScrollClass) || (view.classList.contains("ui-items-view--stack") && view.classList.contains("ui-orientation--vertical")));
+}
+
+/** The line a wrapping host's row stands on, by the row each line starts at. */
+function lineIndexOf(starts: readonly number[], index: number): number {
+    let line = 0;
+
+    while (line + 1 < starts.length && starts[line + 1] <= index)
+        line++;
+
+    return line;
 }
 
 function isWrap(host: Element): boolean {
@@ -783,13 +919,6 @@ function tilesAcross(host: Element, style: CSSStyleDeclaration, tileWidth: numbe
 
     // Half a pixel of slack: a line the tiles fill exactly measures a fraction short of it.
     return Math.max(1, Math.floor((room + gap + 0.5) / (tileWidth + gap)));
-}
-
-/** The box a row stands in; a wrapping host's row is `display: contents` and measures as nothing, so its template's root is measured. */
-function cellBox(element: Element): DOMRect {
-    const box = element.getBoundingClientRect();
-
-    return box.height > 0 || element.firstElementChild === null ? box : element.firstElementChild.getBoundingClientRect();
 }
 
 function readGap(style: CSSStyleDeclaration): number {

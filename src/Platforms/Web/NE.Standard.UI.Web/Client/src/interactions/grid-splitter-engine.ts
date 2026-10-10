@@ -7,9 +7,11 @@ import { OnceWarner } from "../runtime/logger";
 import { ClientBootPatch, ClientStore } from "../state/client-store";
 import { observeComponents } from "./dom-mutations";
 import { isInert } from "./interactive-state";
+import { isPlainKey } from "./keyboard-shortcut";
 import { PointerDrag } from "./pointer-drag";
 import {
     applyGridTrackLimits,
+    bigStep,
     coversNoRoom,
     formatGridTracks,
     GridSplitRuns,
@@ -168,13 +170,20 @@ export class GridSplitterEngine {
     }
 
     private handleKeyDown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element) || !isPlainKey(domEvent))
             return;
 
         const splitter = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
 
         if (splitter === null || this.drag.active || isInert(splitter))
             return;
+
+        // The double-click's twin, so no gesture is the pointer's alone.
+        if (domEvent.key === "Enter") {
+            domEvent.preventDefault();
+            this.reset(splitter);
+            return;
+        }
 
         const context = this.resolveContext(splitter);
 
@@ -191,6 +200,10 @@ export class GridSplitterEngine {
                 break;
             case context.axis.increase:
                 delta = step;
+                break;
+            case "PageUp":
+            case "PageDown":
+                delta = bigStep(step, room) * pageDirection(domEvent.key, context.axis);
                 break;
             case "Home":
                 delta = -room;
@@ -210,15 +223,11 @@ export class GridSplitterEngine {
         }
     }
 
-    /** A double-click puts the authored layout back on this axis, at every width, and forgets the viewer's division. */
-    private handleDoubleClick(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
-            return;
+    /** Puts the authored layout back on this axis, at every width, and forgets the viewer's division. */
+    private reset(splitter: HTMLElement): void {
+        const container = containerOf(splitter);
 
-        const splitter = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
-        const container = splitter === null ? null : containerOf(splitter);
-
-        if (splitter === null || container === null)
+        if (container === null)
             return;
 
         const axis = axisOf(splitter);
@@ -228,6 +237,13 @@ export class GridSplitterEngine {
 
         this.store.write(container, axis.slot, null);
         this.reportPosition(splitter);
+    }
+
+    private handleDoubleClick(domEvent: Event): void {
+        const splitter = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${RootClass}`) : null;
+
+        if (splitter !== null)
+            this.reset(splitter);
     }
 
     /** Writes the division `delta` pixels from where the gesture began; answers whether anything moved. */
@@ -394,6 +410,14 @@ function ownSplitters(container: HTMLElement, axis: SplitAxis): HTMLElement[] {
     }
 
     return splitters;
+}
+
+/** Which way a page key moves the bar: up or down as its name says across rows, PageUp toward the end across columns, as a range's. */
+function pageDirection(key: string, axis: SplitAxis): number {
+    if (axis.increase === "ArrowDown")
+        return key === "PageDown" ? 1 : -1;
+
+    return key === "PageUp" ? 1 : -1;
 }
 
 function readStep(splitter: HTMLElement): number {

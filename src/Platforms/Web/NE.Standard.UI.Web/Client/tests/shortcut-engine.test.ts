@@ -220,17 +220,38 @@ test("a context menu's entry chord presses nothing where no row is under the cur
 test("a menu entry's chord is written at its end, and a control's tooltip carries it after its words", () => {
     const words = FakeElement.of("ui-menu-item__shortcut", {}, "span");
     const entry = FakeElement.of("ui-menu-item", { "data-ui-shortcut": "ctrl+shift+e" }, "a").append(words);
+    // A blank chord shows no words: the mark the entry came with goes.
+    const blank = FakeElement.of("ui-menu-item", { "data-ui-shortcut": " ", "data-ui-menu-item-shortcut": "" }, "a").append(FakeElement.of("ui-menu-item__shortcut", {}, "span"));
     const title = FakeElement.of("ui-text__title", {}, "span");
     const save = FakeElement.of("ui-button", { "data-ui-shortcut": "Ctrl+S" }, "button").append(FakeElement.of("ui-button__content").append(title));
 
     title.textContent = "Save";
-    page([FakeElement.of("ui-menu").append(entry), save]);
+    page([FakeElement.of("ui-menu").append(entry, blank), save]);
 
     // Not a Mac here: keyboard-shortcut.test.ts holds the Mac's words.
     assert.equal(words.textContent, "Ctrl+Shift+E");
+    // The entry says it shows them, which keeps a check beside the words; a button carries no such mark.
+    assert.equal(entry.hasAttribute("data-ui-menu-item-shortcut"), true);
+    assert.equal(blank.hasAttribute("data-ui-menu-item-shortcut"), false);
+    assert.equal(save.hasAttribute("data-ui-menu-item-shortcut"), false);
     assert.equal(ChordTooltipWords.anchor(real<Element>(title)), real<Element>(save));
     assert.equal(ChordTooltipWords.anchor(real<Element>(entry)), null);
     // Inline markup, as every tooltip's words are, so the brackets are written as plain ones.
     assert.equal(inlineMarkupToPlainText(ChordTooltipWords.words(real<Element>(save)) ?? ""), "Save (Ctrl+S)");
     assert.equal(inlineMarkupToPlainText(ChordTooltipWords.after?.(real<Element>(save)) ?? ""), "(Ctrl+S)");
+});
+
+test("a caret's chord in a field is the field's, a page chord on the same key firing only outside it", () => {
+    const next = button("Ctrl+ArrowRight");
+    const field = new FakeInput("text");
+    const checkbox = new FakeInput("checkbox");
+
+    page([next.element, field, checkbox]);
+
+    // Ctrl+Right jumps the caret a word: the page's chord leaves it alone.
+    assert.equal(press(field, "ArrowRight", "ArrowRight", { ctrl: true }), false);
+    assert.equal(next.presses, 0);
+
+    assert.equal(press(checkbox, "ArrowRight", "ArrowRight", { ctrl: true }), true);
+    assert.equal(next.presses, 1);
 });

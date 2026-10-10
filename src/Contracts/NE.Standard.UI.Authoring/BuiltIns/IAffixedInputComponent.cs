@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
@@ -20,10 +21,12 @@ public interface IAffixedInputComponent : IFieldInputComponent
     /// <summary>
     /// Gets the icon shown at the start of the field.
     /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
     string? PrefixIcon { get; }
 
     /// <summary>
     /// Gets the icon shown at the end of the field, before whatever control the input keeps there.
     /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
     string? SuffixIcon { get; }
 }

@@ -1,11 +1,12 @@
 // `.ts` on the value imports, and the rest kept as `import type`: `node --test` runs this module directly.
-import { TreeRootClass, TreeRowClass, TreeRowFilteredClass } from "../addressing/dom-attributes.ts";
+import { ComponentKeyAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass } from "../addressing/dom-attributes.ts";
 import type { MetadataIndex } from "../metadata/metadata-index";
 import type { PropertyStateStore } from "../state/property-state-store";
-import { ensureEmptyState } from "./items-empty-renderer.ts";
+import { keepRowCursorShown, rowCursorRoot } from "../interactions/row-cursor.ts";
+import { ensureEmptyState, getRealItemElements } from "./items-empty-renderer.ts";
 import { applyItemFilters } from "./items-filter-sort.ts";
-import { createGroupHeader, regroupHost } from "./items-group-renderer.ts";
-import { regroupWindow } from "./items-group-runs.ts";
+import { regroupHost } from "./items-group-renderer.ts";
+import { drawGroupHeader, regroupWindow } from "./items-group-runs.ts";
 import { resolveHostMode } from "./items-host-mode.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
@@ -46,15 +47,28 @@ export function syncItemsHost(host: Element, componentId: number, context: Items
             return;
         default:
             applyItemFilters(host, componentId, context.metadata, context.renderer, context.state);
+            keepCursorShown(host);
             ensureEmptyState(host, componentId, context.templates, context.renderer);
             regroupHost(host, componentId, context.templates, context.renderer, context.metadata, context.state);
             return;
     }
 }
 
+/** A filter that hid the cursor's row moves the cursor to the nearest row it shows. */
+function keepCursorShown(host: Element): void {
+    const root = rowCursorRoot(host);
+
+    if (root !== null)
+        keepRowCursorShown(root, getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement));
+}
+
 function regroupWindowHost(host: Element, componentId: number, context: ItemsHostSyncContext): void {
     const template = context.templates.getGroupTemplate(componentId);
 
-    if (template !== undefined)
-        regroupWindow(host, row => createGroupHeader(template, context.renderer, row));
+    if (template === undefined)
+        return;
+
+    const ancestors = context.renderer.getAncestorStack(host);
+
+    regroupWindow(host, row => drawGroupHeader(template, context.renderer, context.renderer.getItemValue(row), row.getAttribute(ComponentKeyAttribute), ancestors));
 }

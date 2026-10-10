@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 
 public sealed class ButtonComponentRenderer : ButtonRendererBase
 {
-    private static readonly WebDomOperation[] PressedOperations = [WebDomOperation.Attribute("aria-pressed")];
+    private static readonly WebDomOperation[] PressedOperations = [WebDomOperation.Attribute("aria-pressed", converter: WebDomConverters.AriaBooleanAttribute, convertsNull: true)];
 
     public override string ComponentTypeKey => ButtonComponent.ComponentTypeKey;
 

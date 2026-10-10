@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
@@ -9,6 +10,7 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Shell.Commands;
@@ -64,18 +66,24 @@ public sealed partial class UITestPage
 
     private void ApplyNoLock(ServerChangeSet changes)
     {
-        foreach (ServerUIUpdate update in changes.Updates)
+        ServerUIUpdate[] updates = changes.Updates;
+
+        for (var i = 0; i < updates.Length; i++)
         {
-            switch (update)
+            switch (updates[i])
             {
                 case ServerValueUIUpdate value:
-                    WriteValueNoLock(value.Address, value.Value, local: false, depth: 0, writes: []);
+                    ApplyValueNoLock(value);
+                    break;
+                case ServerCollectionChangeUIUpdate { Action: CollectionUpdateAction.Reset } reset when ReadRefill(updates, i) is { Count: > 0 } refill:
+                    RefillNoLock(reset.Component, refill);
+                    i += refill.Count;
                     break;
                 case ServerCollectionChangeUIUpdate collection:
                     ApplyCollectionNoLock(collection);
                     break;
                 case ServerValidationUIUpdate refusal:
-                    FieldNoLock(refusal.Address.Component).Refusal = refusal.Message is null ? null : new UITestRefusal(refusal.Message, refusal.Severity);
+                    FieldNoLock(refusal.Address.Component).Refusal = refusal.Message is null ? null : new UITestRefusal(refusal.Message, refusal.Severity, refusal.Address.Property);
                     FieldNoLock(refusal.Address.Component).Touched |= refusal.Message is not null;
                     break;
                 case ServerPageUIUpdate page:
@@ -89,6 +97,99 @@ public sealed partial class UITestPage
             }
         }
     }
+
+    /// <summary>
+    /// A value the server gave, as the page takes it: a held field keeps the reader's edit and the value waits aside for a discard;
+    /// any other is written, and what was said of the value it replaced goes — a refusal of that property, a bound's of the value.
+    /// </summary>
+    private void ApplyValueNoLock(ServerValueUIUpdate update)
+    {
+        UIPropertyAddress address = update.Address;
+
+        if (_held.ContainsKey(address))
+        {
+            _serverValues[address] = update.Value;
+            return;
+        }
+
+        WriteValueNoLock(address, update.Value, local: false, depth: 0, writes: []);
+
+        if (!_fields.TryGetValue(address.Component, out UITestField? field))
+            return;
+
+        if (field.Refusal?.Property == address.Property)
+            field.Refusal = null;
+
+        // Bounds that moved judge the reader's value again.
+        if (address.Property == IInputComponent.ValueProperty || address.Property == IPeriodInputComponent.EndValueProperty)
+            field.BoundRefusal = null;
+        else if (field.BoundRefusal is not null && (address.Property == IBoundedInputComponent.MinProperty || address.Property == IBoundedInputComponent.MaxProperty))
+            field.BoundRefusal = BoundRefusalNoLock(address.Component);
+    }
+
+    /// <summary>
+    /// The inserts right after a reset on the same host — a controller's <c>Clear()</c> and its <c>Add</c>s — read as one "the list is now
+    /// exactly this", as the page reads them (<c>readCollectionRefill</c>); none where no insert follows.
+    /// </summary>
+    private static List<ServerCollectionChangeUIUpdate> ReadRefill(ServerUIUpdate[] updates, int reset)
+    {
+        UIComponentAddress host = ((ServerCollectionChangeUIUpdate)updates[reset]).Component;
+        List<ServerCollectionChangeUIUpdate> inserts = [];
+
+        for (var i = reset + 1; i < updates.Length && updates[i] is ServerCollectionChangeUIUpdate { Action: CollectionUpdateAction.Insert } insert && insert.Component == host; i++)
+            inserts.Add(insert);
+
+        return inserts;
+    }
+
+    /// <summary>
+    /// Reconciles a host's rows with a refill by key: a row resent with the same item keeps what the page holds under it — values,
+    /// lists, fields — and one redrawn or gone forgets it.
+    /// </summary>
+    private void RefillNoLock(UIComponentAddress host, List<ServerCollectionChangeUIUpdate> inserts)
+    {
+        List<UITestRowEntry> rows = RowsForChangeNoLock(host);
+        Dictionary<string, UITestRowEntry> previous = new(StringComparer.Ordinal);
+
+        foreach (UITestRowEntry row in rows)
+            previous[row.Key] = row;
+
+        List<UITestRowEntry> refilled = [];
+
+        // The first insert's rows as they came; each later one's at its index in the list the ones before it left, else last.
+        for (var i = 0; i < inserts.Count; i++)
+        {
+            foreach (ServerCollectionItemChange change in inserts[i].Items)
+            {
+                UITestRowEntry row = new(change.Key ?? KeyOf(change.Item), change.Item);
+
+                refilled.Insert(i > 0 && change.Index is int at && at >= 0 && at < refilled.Count ? at : refilled.Count, row);
+            }
+        }
+
+        for (var i = 0; i < refilled.Count; i++)
+        {
+            if (!previous.Remove(refilled[i].Key, out UITestRowEntry? kept))
+                continue;
+
+            if (IsSameItem(kept.Item, refilled[i].Item))
+                refilled[i] = kept;
+            else
+                DropRowNoLock(host, kept.Key);
+        }
+
+        foreach (var gone in previous.Keys)
+            DropRowNoLock(host, gone);
+
+        rows.Clear();
+        rows.AddRange(refilled);
+    }
+
+    /// <summary>Whether a row's item is the one it was: the same object, or one that writes the same JSON, as the page compares the items it was sent.</summary>
+    private static bool IsSameItem(object? kept, object? item)
+        => ReferenceEquals(kept, item) || Equals(kept, item) || JsonSerializer.Serialize(kept, ItemJsonOptions) == JsonSerializer.Serialize(item, ItemJsonOptions);
+
+    private static readonly JsonSerializerOptions ItemJsonOptions = new(JsonSerializerDefaults.Web);
 
     private void ApplyCollectionNoLock(ServerCollectionChangeUIUpdate update)
     {
@@ -128,9 +229,10 @@ public sealed partial class UITestPage
                     var at = IndexOf(rows, change.OldKey ?? change.Key, change.Index);
                     UITestRowEntry row = new(change.Key ?? KeyOf(change.Item), change.Item);
 
+                    // A row it replaces no longer there is drawn where the change places it, as an insert is.
                     if (at < 0)
                     {
-                        rows.Add(row);
+                        rows.Insert(Math.Clamp(change.Index ?? rows.Count, 0, rows.Count), row);
                         continue;
                     }
 
@@ -254,7 +356,10 @@ public sealed partial class UITestPage
         return field;
     }
 
-    /// <summary>Runs the effects the page was sent, as the client does: dialogs open and close, an address effect rewrites the address.</summary>
+    /// <summary>
+    /// Runs the effects the page was sent, as the client does: dialogs open and close, an address effect rewrites the address, a
+    /// discard lets a form's held edits go.
+    /// </summary>
     private void ApplyEffectsNoLock(IReadOnlyList<ClientEffect> effects)
     {
         foreach (ClientEffect effect in effects)
@@ -275,21 +380,42 @@ public sealed partial class UITestPage
                 case PushAddressEffect push:
                     _navigation = new UINavigationRequest { Route = _navigation.Route, Parameters = push.Parameters };
                     break;
+                case DiscardFormEffect discard:
+                    DiscardFormNoLock(discard.FormId);
+                    break;
                 default:
                     break;
             }
         }
     }
 
-    /// <summary>A dialog the controller opened or closed through the dialog service.</summary>
-    internal void SetDialogOpen(string key, bool open)
+    /// <summary>
+    /// Lets a form's held edits go, as the page's discard does: each field shows the server's latest value again, and what was said of
+    /// the form's fields — the rules', the bounds' and the server's words, and that they were visited — goes with them. The controller's
+    /// bound message stays its author's to take off.
+    /// </summary>
+    private void DiscardFormNoLock(string formId)
     {
-        lock (_sync)
+        foreach (UIPropertyAddress address in _held.Keys.ToArray())
         {
-            if (open)
-                _ = _openDialogs.Add(key);
-            else
-                _ = _openDialogs.Remove(key);
+            if (!IsInFormNoLock(address.Component, formId))
+                continue;
+
+            _ = _held.Remove(address);
+            _ = _serverValues.Remove(address, out var server);
+            WriteValueNoLock(address, server, local: false, depth: 0, writes: []);
+        }
+
+        // After the values: their restore judged the fields again, and that goes too.
+        foreach (KeyValuePair<UIComponentAddress, UITestField> field in _fields)
+        {
+            if (!IsInFormNoLock(field.Key, formId))
+                continue;
+
+            field.Value.Touched = false;
+            field.Value.Failing.Clear();
+            field.Value.Refusal = null;
+            field.Value.BoundRefusal = null;
         }
     }
 
@@ -308,6 +434,4 @@ public sealed partial class UITestPage
 
         await StartAsync(_resolution, cancellationToken).ConfigureAwait(false);
     }
-
-
 }

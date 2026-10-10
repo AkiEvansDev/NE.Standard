@@ -108,7 +108,8 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            return await AnswerTurnedAwayAsync(invoker, request, exception, "ResolveCommand", cancellationToken).ConfigureAwait(false);
+            // An action no longer on offer never comes back: nothing is left for its button to press again.
+            return await AnswerTurnedAwayAsync(invoker, request, exception, "ResolveCommand", refused: request.Action is null && IsRefusal(exception), cancellationToken).ConfigureAwait(false);
         }
 
         if (metadata.ConcurrencyMode == UICommandConcurrencyMode.Background)
@@ -125,8 +126,11 @@ internal abstract partial class UIRuntimeBase
         }
     }
 
-    /// <summary>Answers a press that failed before its command ran — unresolved, closed, not admitted — and publishes the answer.</summary>
-    private async Task<UICommandExecutionResult> AnswerTurnedAwayAsync(UIHandle invoker, UICommandRequest request, Exception exception, string step, CancellationToken cancellationToken)
+    /// <summary>
+    /// Answers a press that failed before its command ran — unresolved, closed, not admitted — and publishes the answer;
+    /// <paramref name="refused"/> where it spent nothing a later press could use.
+    /// </summary>
+    private async Task<UICommandExecutionResult> AnswerTurnedAwayAsync(UIHandle invoker, UICommandRequest request, Exception exception, string step, bool refused, CancellationToken cancellationToken)
     {
         RuntimeExceptionResult error = await HandleRuntimeExceptionAsync(exception, step, request, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
 
@@ -136,11 +140,11 @@ internal abstract partial class UIRuntimeBase
         {
             Command = ResolveCommandResult(error, exception),
             Changes = changes,
-            Refused = IsRefusal(exception)
+            Refused = refused
         }, invoker, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Whether a failure turned the command away rather than failed it: busy, not allowed, closed, no longer on offer.</summary>
+    /// <summary>Whether a failure turned the command away rather than failed it: busy, not allowed, closed.</summary>
     private static bool IsRefusal(Exception exception)
         => exception is UnauthorizedAccessException;
 
@@ -203,19 +207,20 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            return await AnswerTurnedAwayAsync(invoker, request, exception, step, cancellationToken).ConfigureAwait(false);
+            // Another press spent the offer: this one is no longer on offer, and never will be again.
+            return await AnswerTurnedAwayAsync(invoker, request, exception, step, refused: step is not "TakeOffer" && IsRefusal(exception), cancellationToken).ConfigureAwait(false);
         }
 
         var run = maxRuns > 0 ? command : null;
 
         if (detach)
-            return Detach(invoker, request, command, arguments, operation, run, cancellationToken);
+            return Detach(invoker, request, command, arguments, operation, run, offerTaken: offered is not null, cancellationToken);
 
         UICommandExecutionResult result;
 
         try
         {
-            result = await ExecuteCommandAsync(invoker, request, command, arguments, operation, cancellationToken).ConfigureAwait(false);
+            result = await ExecuteCommandAsync(invoker, request, command, arguments, operation, offerTaken: offered is not null, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -267,7 +272,7 @@ internal abstract partial class UIRuntimeBase
             return FrozenDictionary<string, object?>.Empty;
 
         Dictionary<string, object?> result = new(compiledEvent.Arguments.Length, StringComparer.Ordinal);
-        List<UIComponentId> scopes = EventScopes(compiledEvent);
+        IReadOnlyList<UIComponentId> scopes = View.Graph.GetItemScopes(compiledEvent.Address.ComponentId);
 
         for (var i = 0; i < compiledEvent.Arguments.Length; i++)
         {
@@ -288,22 +293,6 @@ internal abstract partial class UIRuntimeBase
         }
 
         return result;
-    }
-
-    /// <summary>The item scopes the event's component stands in, outermost first: which scope each key of the event's chain belongs to.</summary>
-    private List<UIComponentId> EventScopes(CompiledUIEvent compiledEvent)
-    {
-        List<UIComponentId> scopes = [];
-
-        for (UIComponentNode? node = View.Graph.TryGet(compiledEvent.Address.ComponentId, out UIComponentNode? own) ? own : null; node is not null; node = node.ParentId is UIComponentId parent && View.Graph.TryGet(parent, out UIComponentNode? above) ? above : null)
-        {
-            if (node.DefinesContextParameter)
-                scopes.Add(node.ComponentId);
-        }
-
-        scopes.Reverse();
-
-        return scopes;
     }
 
     /// <summary>A bound argument's value: off the controller, or off the component for a row of a static items view.</summary>
@@ -420,7 +409,7 @@ internal abstract partial class UIRuntimeBase
     /// reads the state its tab pressed it on before its first await, as an awaited one does. It keeps the invoke's token, which
     /// the hub ties to the connection: a closed connection cancels it, and a runtime asked to go waits for it.
     /// </remarks>
-    private UICommandExecutionResult Detach(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, CancellationToken cancellationToken)
+    private UICommandExecutionResult Detach(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, bool offerTaken, CancellationToken cancellationToken)
     {
         // The run holds the runtime as a command of its own, taken before the invoke lets go of its hold.
         _ = Interlocked.Increment(ref _commandsInFlight);
@@ -430,7 +419,7 @@ internal abstract partial class UIRuntimeBase
             Command = AcceptedCommand,
             Changes = ServerChangeSet.Empty,
             Accepted = true,
-            Completion = RunDetachedAsync(invoker, request, command, arguments, operation, run, cancellationToken)
+            Completion = RunDetachedAsync(invoker, request, command, arguments, operation, run, offerTaken, cancellationToken)
         };
     }
 
@@ -438,7 +427,7 @@ internal abstract partial class UIRuntimeBase
     /// Runs an accepted command to its end and pushes its result to the tab that raised it, answering whether it succeeded;
     /// never faults, so nothing it throws goes unobserved; <paramref name="run"/> is the counted run it lets go of at its end.
     /// </summary>
-    private async Task<bool> RunDetachedAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, CancellationToken cancellationToken)
+    private async Task<bool> RunDetachedAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, bool offerTaken, CancellationToken cancellationToken)
     {
         var succeeded = false;
         var pushed = false;
@@ -447,15 +436,10 @@ internal abstract partial class UIRuntimeBase
         {
             using IDisposable invocation = BeginInvocation(invoker);
 
-            UICommandExecutionResult result = await ExecuteCommandAsync(invoker, request, command, arguments, operation, cancellationToken).ConfigureAwait(false);
+            UICommandExecutionResult result = await ExecuteCommandAsync(invoker, request, command, arguments, operation, offerTaken, cancellationToken).ConfigureAwait(false);
             succeeded = result.Command.Success;
 
-            await PushCommandResultAsync(invoker, new UICommandExecutionResult
-            {
-                Command = result.Command,
-                Changes = result.Changes,
-                RequestId = request.RequestId
-            }, cancellationToken).ConfigureAwait(false);
+            await PushCommandResultAsync(invoker, result with { RequestId = request.RequestId }, cancellationToken).ConfigureAwait(false);
 
             pushed = true;
         }
@@ -490,9 +474,42 @@ internal abstract partial class UIRuntimeBase
 
     /// <summary>
     /// Runs the command and gathers what it changed for the invoker; a failure goes through the controller's exception handler
-    /// and comes back as a failed result.
+    /// and comes back as a failed result; <paramref name="offerTaken"/> where the run spent an offered action.
     /// </summary>
-    private async Task<UICommandExecutionResult> ExecuteCommandAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, CancellationToken cancellationToken)
+    private async Task<UICommandExecutionResult> ExecuteCommandAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, bool offerTaken, CancellationToken cancellationToken)
+    {
+        CommandAnswer answer = new(this, invoker.Instance.Id);
+
+        AnsweringCommand.Value = answer;
+
+        UICommandExecutionResult result = await RunCommandAsync(invoker, request, command, arguments, operation, offerTaken, cancellationToken).ConfigureAwait(false);
+
+        // Answered: a session change from here on is no longer this answer's to carry.
+        if (Interlocked.Exchange(ref answer.State, CommandAnswer.Answered) != CommandAnswer.SendsAway || !await _host.EndIfRefusedAsync(invoker, carriedByAnswer: true).ConfigureAwait(false))
+            return result;
+
+        // Its own navigation goes first: the page leaves for it, and that load is re-checked as any is.
+        if (Navigates(result.Command.Effects))
+            return result;
+
+        return result with
+        {
+            Command = new UICommandResult(result.Command.Success, [.. result.Command.Effects, new NavigateEffect(invoker.Instance.Navigation)], result.Command.Error),
+            Changes = AppendUpdates(result.Changes, new ServerChangeSet { Updates = [new ServerPageUIUpdate { HoldsUnsavedWork = false }] })
+        };
+    }
+
+    /// <summary>
+    /// Whether the command whose answer this flow builds is the page's, here, and takes the page away with that answer; false where no
+    /// answer follows the code that asked — a hook, posted work — or it has gone already.
+    /// </summary>
+    private bool TrySendAwayWithAnswer(UIHandle page)
+        => AnsweringCommand.Value is { } answer
+            && ReferenceEquals(answer.Runtime, this)
+            && string.Equals(answer.InstanceId, page.Instance.Id, StringComparison.Ordinal)
+            && Interlocked.CompareExchange(ref answer.State, CommandAnswer.SendsAway, CommandAnswer.Open) != CommandAnswer.Answered;
+
+    private async Task<UICommandExecutionResult> RunCommandAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, bool offerTaken, CancellationToken cancellationToken)
     {
         try
         {
@@ -522,14 +539,35 @@ internal abstract partial class UIRuntimeBase
             ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellationToken).ConfigureAwait(false);
             UICommandResult failed = ResolveCommandResult(error, exception);
 
-            // The command's filters refuse with the same exception before its body runs: turned away, not failed.
+            // The command's filters refuse with the same exception before its body runs: turned away, not failed — unless the run
+            // spent its offer, which a refusal must not leave pressable for nothing.
             return new UICommandExecutionResult
             {
                 Command = failed,
                 Changes = WithPageStateAhead(changes, failed),
-                Refused = IsRefusal(exception)
+                Refused = IsRefusal(exception) && !offerTaken
             };
         }
+    }
+
+    /// <summary>
+    /// The answer one run of a command builds, which a session change in its body marks to take the page away: its result is the one
+    /// thing certain to reach the page before anything pushed after it. Static, as the flow it marks is the command's, not the runtime's.
+    /// </summary>
+    private static readonly AsyncLocal<CommandAnswer?> AnsweringCommand = new();
+
+    private sealed class CommandAnswer(UIRuntimeBase runtime, string instanceId)
+    {
+        public const int Open = 0;
+        public const int SendsAway = 1;
+        public const int Answered = 2;
+
+        // A field for Interlocked: the body's mark and the answer's close may race, and one of them wins.
+        public int State;
+
+        public UIRuntimeBase Runtime { get; } = runtime;
+
+        public string InstanceId { get; } = instanceId;
     }
 
     /// <summary>Sends a command's result to the tab that raised it, through the sink every pushed result takes.</summary>

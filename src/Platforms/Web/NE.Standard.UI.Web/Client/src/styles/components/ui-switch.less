@@ -20,9 +20,8 @@
     .ui-responsive-property(border-radius, --ui-border-radius, 999px);
 }
 
-// The input is hidden, so the ring it would wear goes on the track it stands for.
-.ui-switch__input@{ui-keyboard-focus} ~ .ui-switch__box {
-    .ui-focus-ring();
+.ui-switch {
+    .ui-toggle-keyboard-frame();
 }
 
 .ui-switch__input:checked ~ .ui-switch__box {
@@ -30,7 +29,7 @@
     border-color: var(--ui-color-primary);
 }
 
-.ui-toggle-answers(~".ui-switch:not(:has(> .ui-switch__input:disabled))", ~".ui-switch__input", ~".ui-switch__box", {
+.ui-toggle-answers(~".ui-switch", ~".ui-switch__input:not(:disabled)", ~".ui-switch__box", {
     background: @ui-toggle-leaned;
     border-color: @ui-toggle-leaned;
 });
@@ -92,6 +91,6 @@
     .ui-required-marker();
 }
 
-.ui-switch.ui-invalid > .ui-switch__box {
+.ui-switch:is(@{ui-validation-marked}) > .ui-switch__box {
     border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }

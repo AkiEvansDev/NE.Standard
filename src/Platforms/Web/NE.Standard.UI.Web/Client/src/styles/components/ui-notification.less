@@ -101,7 +101,10 @@
     justify-self: end;
 }
 
+// On the first line, the title's where there is one: placed by the flow, it took the message's row, the second.
 .ui-notification__close {
+    grid-column: 2;
+    grid-row: 1;
     .ui-glyph-host();
     // A body line tall: the toast aligns it with the message at their tops, so it sits on the first line's centre.
     height: var(--ui-text-body-line-height);
@@ -120,7 +123,7 @@
         .ui-cross-glyph(@ui-glyph-md);
     }
 
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-notification__close:hover {
         opacity: 1;
     }

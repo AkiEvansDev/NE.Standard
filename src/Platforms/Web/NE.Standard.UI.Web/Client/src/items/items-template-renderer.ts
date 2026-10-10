@@ -1,5 +1,5 @@
 import {
-    BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, GroupAttribute, NoContextMenuAttribute, UndraggableAttribute, UnremovableAttribute,
+    BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, GroupAttribute, ItemsHostAttribute, NoContextMenuAttribute, UndraggableAttribute, UnremovableAttribute,
     UnrenamableAttribute, UnselectableAttribute, cssAttributeValue, toKebabCase
 } from "../addressing/dom-attributes";
 import { resolveOperationElements } from "../addressing/operation-targets";
@@ -410,11 +410,30 @@ export const ItemAbilityAttributes: readonly (readonly [propertyName: string, at
 ];
 
 /** Marks a row whose item refuses to be chosen, dragged, removed or renamed, as the server marks its own rows. */
-export function applyItemAbilityAttributes(root: Element, item: unknown): void {
+function applyItemAbilityAttributes(root: Element, item: unknown): void {
     for (const [propertyName, attribute] of ItemAbilityAttributes) {
         const ability = tryReadItemProperty(item, propertyName);
 
         root.toggleAttribute(attribute, ability.ok && ability.value === false);
+    }
+}
+
+/**
+ * Re-stamps a drawn row's refusals on every element carrying its key — the row, a composite's cells, a menu's submenu — since a
+ * reader finds the nearest one; a nested list's rows under the same key are not this row's.
+ */
+export function restampItemMarks(row: Element, item: unknown): void {
+    const key = row.getAttribute(ComponentKeyAttribute);
+    const host = row.closest(`[${ItemsHostAttribute}]`);
+
+    applyItemAbilityAttributes(row, item);
+
+    if (key === null)
+        return;
+
+    for (const carrier of row.querySelectorAll(`[${ComponentKeyAttribute}="${cssAttributeValue(key)}"]`)) {
+        if (carrier.closest(`[${ItemsHostAttribute}]`) === host)
+            applyItemAbilityAttributes(carrier, item);
     }
 }
 

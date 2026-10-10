@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "./color.less";
+@import "./interactive.less";
 
 // One mixin, not three lines repeated: overflow: hidden, text-overflow: ellipsis and white-space: nowrap only work together.
 .ui-text-nowrap() {
@@ -32,9 +33,27 @@
     text-underline-offset: 0.15em;
     transition: filter @ui-motion-fast @ui-motion-ease;
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &:hover {
             .ui-brighten-hover();
+        }
+    }
+}
+
+// A link's words, a Link's and a Link button's alike: underlined under the pointer, the line always there and only its colour coming,
+// so it fades in with the ink; on a filled ground, where the word is the ground's ink, the line stays (`@ui-link-rest-underline`).
+.ui-link-underline(@root) {
+    @{root} .ui-text__title {
+        text-decoration-line: underline;
+        text-decoration-color: @ui-link-rest-underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 0.15em;
+        transition: text-decoration-color @ui-motion-fast @ui-motion-ease;
+    }
+
+    @media @{ui-can-hover} {
+        @{root}@{ui-button-live}:hover .ui-text__title {
+            text-decoration-color: currentColor;
         }
     }
 }

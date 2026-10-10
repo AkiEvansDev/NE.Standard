@@ -4,7 +4,7 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Screens;
 
 /// <summary>
-/// Settings the way they are actually edited: no submit button anywhere. Underlined fields save as the viewer leaves them,
+/// Settings the way they are actually edited: no submit button anywhere. Filled fields save as the viewer leaves them,
 /// switches on the flip, the security rows in place, and the danger zone is unlocked by typing the account's name.
 /// </summary>
 internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
@@ -28,7 +28,8 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             .SetPadding(UIThickness.All(0, 8, 0, 0))
             .SetPlacement(1, 1, 24, 1);
 
-    /// <summary>Underlined fields, each committing on blur through the same command; the note under the card names the save.</summary>
+    /// <summary>Filled fields, each committing on blur through the same command; the note under the card names the save.</summary>
+    /// <remarks>Filled, as a long form whose fields stack is; the danger zone's one field beside its button is Tonal.</remarks>
     private static CardComponent CreateProfile()
         => UIPage.Card("Profile", "How you appear to the rest of the staff.", UILayout.Stack(16,
             new ImageInputComponent()
@@ -38,13 +39,11 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 .SetFormId(ProfileFormId),
             new TextInputComponent()
                 .SetTitle("Display name")
-                .SetAppearance(UIInputAppearance.Underline)
                 .SetFormId(ProfileFormId)
                 .BindValue(nameof(WorkspaceSettingsController.DisplayName))
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
             UIForm.Field(new TextAreaComponent()
                 .SetTitle("About you")
-                .SetAppearance(UIInputAppearance.Underline)
                 .SetRows(2)
                 .SetMaxLength(160)
                 .SetFormId(ProfileFormId)
@@ -54,7 +53,6 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             UIForm.Row(
                 new SelectComponent()
                     .SetTitle("Time zone")
-                    .SetAppearance(UIInputAppearance.Underline)
                     .SetFormId(ProfileFormId)
                     .SetOptions(
                     [
@@ -67,7 +65,6 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                     .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
                 new SelectComponent()
                     .SetTitle("Language")
-                    .SetAppearance(UIInputAppearance.Underline)
                     .SetFormId(ProfileFormId)
                     .SetOptions(
                     [
@@ -102,12 +99,10 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             UIForm.Row(
                 new TimeInputComponent()
                     .SetTitle("From")
-                    .SetAppearance(UIInputAppearance.Underline)
                     .BindValue(nameof(WorkspaceSettingsController.QuietFrom))
                     .OnChange(nameof(WorkspaceSettingsController.SaveNotifications)),
                 new TimeInputComponent()
                     .SetTitle("Until")
-                    .SetAppearance(UIInputAppearance.Underline)
                     .BindValue(nameof(WorkspaceSettingsController.QuietUntil))
                     .OnChange(nameof(WorkspaceSettingsController.SaveNotifications))
             )
@@ -155,7 +150,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             UIText.Paragraph("Type the account's name to unlock the button."),
             UIForm.Row(
                 new TextInputComponent(DeleteConfirmationId)
-                    .SetAppearance(UIInputAppearance.Outline)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetPlaceholder(WorkspaceSettingsController.AccountName)
                     .SetTrimInput()
                     .SetDebounceMilliseconds(150)

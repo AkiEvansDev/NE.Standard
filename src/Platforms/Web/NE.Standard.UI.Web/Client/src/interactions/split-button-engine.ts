@@ -1,7 +1,9 @@
 // A split button's menu: opened from its end part (or its whole, as a menu button), placed under it, closed by the chosen entry.
 
-import { MarkedMenuEntrySelector, MenuItemClass, MenuRootClass as ListClass, PassiveMenuEntrySelector, SplitModeAttribute } from "../addressing/dom-attributes.ts";
-import { ownDescendants } from "./own-descendants.ts";
+import { MenuItemClass, MenuRootClass as ListClass, SplitModeAttribute, SplitPlacementAttribute } from "../addressing/dom-attributes.ts";
+import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { choosesMenuEntry, menuWalk } from "./menu-group-engine.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList } from "./popup-focus.ts";
 
@@ -22,7 +24,9 @@ export class SplitButtonEngine {
     private readonly menus = new OwnedPopups({
         show: ({ owner }) => owner.classList.add(OpenClass),
         hide: ({ owner }) => owner.classList.remove(OpenClass),
-        closesWhenReadOnly: false
+        closesWhenReadOnly: false,
+        closesOnTab: true,
+        sheetOnPhone: true
     });
 
     public constructor(options: SplitButtonEngineOptions = {}) {
@@ -58,7 +62,7 @@ export class SplitButtonEngine {
 
     /** The arrows open the menu from either opener the way they open a select: ArrowDown on its first entry, ArrowUp on its last. */
     private handleKeyDown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || (domEvent.key !== "ArrowDown" && domEvent.key !== "ArrowUp"))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || (domEvent.key !== "ArrowDown" && domEvent.key !== "ArrowUp") || !isPlainKey(domEvent))
             return;
 
         const opener = resolveOpener(domEvent.target);
@@ -80,13 +84,8 @@ export class SplitButtonEngine {
         const menu = menuOf(open);
         const entry = domEvent.target.closest<HTMLElement>(`.${MenuItemClass}`);
 
-        if (menu === null || entry === null || !menu.contains(entry))
-            return;
-
-        if (entry.matches(`${PassiveMenuEntrySelector}, ${MarkedMenuEntrySelector}`))
-            return;
-
-        this.menus.close(open);
+        if (menu !== null && entry !== null && menu.contains(entry) && choosesMenuEntry(entry))
+            this.menus.close(open);
     }
 
     /** Opens the list afresh — from its first entry (its last for `fromEnd`) for a key, from none for a press — not where it was left. */
@@ -97,18 +96,20 @@ export class SplitButtonEngine {
         if (menu === null || list === null)
             return;
 
-        // Under the whole pill, its end at the button's end: the list belongs to the button, not to the part that opened it.
+        // Against the whole pill — under it, its end at the button's end, unless the author placed it otherwise (`MenuPlacement`): the
+        // list belongs to the button, not to the part that opened it.
+        const token = button.getAttribute(SplitPlacementAttribute) ?? "";
         const opened = this.menus.open({
             owner: button,
             popup: menu,
             anchor: button,
-            placement: { placement: "bottom-end" },
+            placement: { placement: isAnchoredPopupPlacement(token) ? token : "bottom-end" },
             openers: openersOf(button)
         });
 
         // Once shown: a hidden entry is no candidate for the keyboard.
         if (opened)
-            focusOpenedList(list, ownDescendants(list, `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`, `.${ListClass}`), fromEnd);
+            focusOpenedList(list, menuWalk(list), fromEnd);
     }
 }
 

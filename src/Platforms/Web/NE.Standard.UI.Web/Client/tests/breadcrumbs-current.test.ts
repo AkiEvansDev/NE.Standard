@@ -57,3 +57,28 @@ test("a last step a filter takes out leaves the mark to the step before it", () 
     assert.equal(parent.getAttribute("tabindex"), "-1");
     assert.equal(isCurrent(page), false);
 });
+
+/** The tiers each wrapper of the trail draws no separator in. */
+function ends(root: FakeElement): (string | null)[] {
+    return root.querySelectorAll(".ui-breadcrumbs__item").map(item => item.getAttribute("data-ui-step-end"));
+}
+
+test("only the last step shown draws no separator, at every tier", () => {
+    const root = trail(step(), step(), step());
+
+    new BreadcrumbsEngine({ root: real<ParentNode>(fakeDocument.body) });
+
+    assert.deepEqual(ends(root), [null, null, "base sm md xl xxl"]);
+});
+
+test("the step before a tail collapsed at some tiers drops its separator there, and a step a filter took out counts for nothing", () => {
+    const tail = step({ "data-ui-visibility": "collapsed", "data-ui-visibility-sm": "collapsed" });
+    const root = trail(step(), step(), step(), tail);
+
+    root.querySelectorAll(".ui-breadcrumbs__item")[2]?.classes.add("ui-hidden");
+    new BreadcrumbsEngine({ root: real<ParentNode>(fakeDocument.body) });
+
+    // The hidden third step is no step shown after the second; the collapsed tail is one only where it shows.
+    assert.deepEqual(ends(root), [null, "base sm", "base sm", "base sm md xl xxl"]);
+    assert.equal(tail.parent?.getAttribute("data-ui-step-collapsed"), "base sm");
+});

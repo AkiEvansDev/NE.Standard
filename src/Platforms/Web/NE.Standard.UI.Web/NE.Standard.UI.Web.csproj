@@ -50,35 +50,22 @@
     <WebClientWorker>$(WebClientDist)\ui-worker.js</WebClientWorker>
   </PropertyGroup>
 
-  <!-- Installed again whenever the lockfile is newer than the install, not only when there is none: a dependency added
-       later (a linter, a bumped tool) would otherwise be missing from a clone that had restored before it. -->
-  <Target Name="RestoreWebClientPackages" Condition="'$(SkipWebClientBuild)' != 'true'" Inputs="$(MSBuildProjectDirectory)\Client\package-lock.json" Outputs="$(MSBuildProjectDirectory)\Client\node_modules\.package-lock.json">
-    <Exec WorkingDirectory="$(MSBuildProjectDirectory)\Client" Command="npm install" />
-    <Touch Files="$(MSBuildProjectDirectory)\Client\node_modules\.package-lock.json" AlwaysCreate="true" />
-  </Target>
+  <!-- The client builds as part of dotnet build (WebClient.targets, imported from Directory.Build.targets). -->
+  <PropertyGroup>
+    <BuildsWebClient>true</BuildsWebClient>
+  </PropertyGroup>
 
-  <Target Name="BuildWebClientAssets" BeforeTargets="PrepareResources" DependsOnTargets="RestoreWebClientPackages" Condition="'$(SkipWebClientBuild)' != 'true'">
-    <!-- The client's tests read the parity corpora under eng/, which is never mirrored, so they run here and
-         not from `npm run build` - the same rule the .NET tests follow: a mirror builds, it does not test. -->
-    <Exec
-      WorkingDirectory="$(MSBuildProjectDirectory)\Client"
-      Command="npm test"
-      Condition="'$(InMonorepo)' == 'true'" />
-
-    <Exec
-      WorkingDirectory="$(MSBuildProjectDirectory)\Client"
-      Command="npm run build" />
-
-    <Error Condition="!Exists('$(WebClientCss)')" Text="Web client CSS was not generated: $(WebClientCss)" />
-    <Error Condition="!Exists('$(WebClientJs)')" Text="Web client JavaScript was not generated: $(WebClientJs)" />
-    <Error Condition="!Exists('$(WebClientBoot)')" Text="Web client boot script was not generated: $(WebClientBoot)" />
-    <Error Condition="!Exists('$(WebClientWorker)')" Text="Web client service worker was not generated: $(WebClientWorker)" />
-  </Target>
+  <ItemGroup>
+    <WebClientOutput Include="$(WebClientCss)" />
+    <WebClientOutput Include="$(WebClientJs)" />
+    <WebClientOutput Include="$(WebClientBoot)" />
+    <WebClientOutput Include="$(WebClientWorker)" />
+  </ItemGroup>
 
   <!-- OFL 1.1 asks that the licence travel with the font, so it does. -->
   <ItemGroup>
     <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" />
-    <None Include="Client\fonts\LICENSE.txt" Pack="true" PackagePath="\LICENSE-inter.txt" />
+    <None Include="Client\fonts\LICENSE-geist.txt" Pack="true" PackagePath="\LICENSE-geist.txt" />
     <None Include="Client\fonts\LICENSE-material-symbols.txt" Pack="true" PackagePath="\LICENSE-material-symbols.txt" />
   </ItemGroup>
 
@@ -87,7 +74,7 @@
     <EmbeddedResource Include="$(WebClientJs)" LogicalName="NE.Standard.UI.Web.Client.dist.ui.js" />
     <EmbeddedResource Include="$(WebClientBoot)" LogicalName="NE.Standard.UI.Web.Client.dist.ui-boot.js" />
     <EmbeddedResource Include="$(WebClientWorker)" LogicalName="NE.Standard.UI.Web.Client.dist.ui-worker.js" />
-    <EmbeddedResource Include="Client\fonts\InterVariable.woff2" LogicalName="NE.Standard.UI.Web.Client.fonts.InterVariable.woff2" />
+    <EmbeddedResource Include="Client\fonts\GeistVariable.woff2" LogicalName="NE.Standard.UI.Web.Client.fonts.GeistVariable.woff2" />
     <EmbeddedResource Include="Client\fonts\NEGlyphs.woff2" LogicalName="NE.Standard.UI.Web.Client.fonts.NEGlyphs.woff2" />
   </ItemGroup>
 

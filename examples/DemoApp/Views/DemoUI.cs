@@ -748,26 +748,13 @@ internal static class DemoUI
             .SetPlacement(1, 1, 24, 1);
     }
 
-    public static StackPanelComponent CreateTabs((string Label, string Url)[] tabs, string currentUrl)
-    {
-        StackPanelComponent row = new StackPanelComponent()
+    /// <summary>A strip of sibling pages, each its own address: a horizontal menu, which marks the current one as the sidebar does.</summary>
+    /// <remarks>Not the Tabs component: its captions switch panes in place, and these pages are routes of their own.</remarks>
+    public static MenuComponent CreateTabs((string Label, string Url)[] tabs, string currentUrl)
+        => new MenuComponent()
             .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(10)
-            .SetPlacement(1, 1, 24, 1, xl: UIGridPlacement.At(1, 1, 24, 1));
-
-        foreach ((var label, var url) in tabs)
-        {
-            _ = row.AddChild(new LinkComponent()
-                .SetTitle(label)
-                .SetUrl(url)
-                .SetTitleType(UITextAppearance.Body)
-                // The brand colour marks the page you are on; the rest stay quiet.
-                .SetTitleColor(UIThemeColor.FromStyle(url == currentUrl ? UIColorStyle.Primary : UIColorStyle.Muted))
-            );
-        }
-
-        return row;
-    }
+            .SetItems([.. tabs.Select(tab => CreateNavEntry(tab.Url, tab.Label, currentUrl))])
+            .SetPlacement(1, 1, 24, 1);
 
     /// <summary>
     /// The rows of a group's action panel — one <see cref="ActionComponent"/> per command.

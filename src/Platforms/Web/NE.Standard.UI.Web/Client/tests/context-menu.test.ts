@@ -45,16 +45,25 @@ installFakeDom({
     MouseEvent: FakeMouseEvent,
     CustomEvent: FakeCustomEvent,
     CSSTransition: FakeTransition,
+    // A menu asked for from the keyboard is placed under the box it was asked from, as an anchored popup.
+    getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr" }),
     MutationObserver: class {
         public observe(): void {
         }
 
         public disconnect(): void {
         }
+    },
+    ResizeObserver: class {
+        public observe(): void {
+        }
+
+        public unobserve(): void {
+        }
     }
 });
 
-const { ContextMenuEngine } = await import("../src/interactions/context-menu-engine.ts");
+const { ContextMenuEngine, contextMenuAt } = await import("../src/interactions/context-menu-engine.ts");
 const { MenuEngine } = await import("../src/interactions/menu-engine.ts");
 const { noteKey, notePress } = await import("../src/interactions/popup-focus.ts");
 
@@ -208,4 +217,25 @@ test("a menu opened over one still fading out ends that fade at once", () => {
     assert.equal(fade.finished, true);
     assert.equal(at.host.classes.has("ui-context-menu--open"), true);
     escape();
+});
+
+test("a table refusing menus refuses a nested component's in its rows, wherever its scroll box puts the host; so does a template's word", () => {
+    const words = new FakeElement("p");
+    const menu = FakeElement.of("ui-context-menu", { "data-ui-context-menu": "", role: "menu" }).append(FakeElement.of("ui-menu").append(FakeElement.of("ui-menu-item", { role: "menuitem", tabindex: "-1" })));
+    const nested = FakeElement.of("", { "data-ui-id": "7", "data-ui-context-menu-owner": "" }).append(words, menu);
+    const template = FakeElement.of("", { "data-ui-id": "5" }).append(nested);
+    const row = FakeElement.of("ui-table__row", { "data-ui-key": "r1" }).append(FakeElement.of("ui-table__cell").append(template));
+    const table = FakeElement.of("ui-table", { "data-ui-id": "4", "data-ui-no-context-menu": "" }).append(FakeElement.of("ui-table__scroll").append(FakeElement.of("", { "data-ui-items-host": "" }).append(row)));
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(table);
+
+    assert.equal(contextMenuAt(real(words)), null);
+
+    table.removeAttribute("data-ui-no-context-menu");
+    assert.equal(contextMenuAt(real(words))?.menu, menu);
+
+    // `CanShowContextMenu = false` on the row's template, rather than on the item.
+    template.setAttribute("data-ui-no-context-menu", "");
+    assert.equal(contextMenuAt(real(words)), null);
 });

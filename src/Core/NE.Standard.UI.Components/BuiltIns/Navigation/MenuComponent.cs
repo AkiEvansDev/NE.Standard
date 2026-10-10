@@ -1,17 +1,16 @@
 using System;
 using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -25,7 +24,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent
+public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent
     where T : MenuComponent<T>, IUIComponentDefinition
 {
     // UIStrings.MenuSearch: the Shell's key, written out, as the components reference no Shell.
@@ -152,7 +151,8 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     {
         _ = SetToggleContent(new TextInputComponent()
             .SetType(UITextInputType.Search)
-            .SetAppearance(UIInputAppearance.Underline)
+            // Tonal, by the field rule: the menu's band already frames it.
+            .SetAppearance(UIInputAppearance.Tonal)
             .SetSize(UIInputSize.Small)
             .SetPlaceholder(placeholder ?? SearchKey)
             .SetPrefixIcon(UIGlyphs.Search)
@@ -193,59 +193,17 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     }
 
     /// <summary>
-    /// Registers a click command invoked when an entry is clicked.
-    /// </summary>
-    public T OnItemClick(string command)
-    {
-        OnClickableTemplates(template => _ = template.OnClick(command));
-
-        _ = Submenu?.OnItemClick(command);
-
-        return Self;
-    }
-
-    /// <summary>
     /// Writes a click on the entry and check templates, now and whenever either is set again; captions and rules take no click, and
     /// a select's own click only opens its choices.
     /// </summary>
-    private void OnClickableTemplates(Action<IButtonComponent> register)
+    public void OnClickableItemTemplates(Action<IVisualComponent> register)
     {
         _ = OnItemTemplate(register);
-        _ = OnTemplate(CheckTemplateKey, register);
-    }
-
-    /// <summary>The nested menu an entry's sub-entries are shown through; null on a nested menu itself.</summary>
-    private MenuComponent? Submenu => GetTemplateVariant(SubmenuTemplateKey) as MenuComponent;
-
-    /// <summary>
-    /// Registers a click command that passes the clicked item as an argument.
-    /// </summary>
-    public T OnItemClickWithItem(string command, string argumentName = "item")
-        => OnItemClick(command, UIAction.ArgCurrentItem(argumentName));
-
-    /// <summary>
-    /// Registers an entry click command that passes the clicked entry's key as an argument.
-    /// </summary>
-    public T OnItemClickWithItemKey(string command, string argumentName = "id")
-        => OnItemClick(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a click command with an argument derived from the specified <paramref name="argumentKind"/>.
-    /// </summary>
-    public T OnItemClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
-        => OnItemClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
-
-    /// <summary>
-    /// Registers a click command invoked when an entry is clicked, with UI action arguments.
-    /// </summary>
-    public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        OnClickableTemplates(template => _ = template.OnClick(command, arguments));
+        _ = OnTemplate<IButtonComponent>(CheckTemplateKey, register);
 
         // A sub-entry runs the same command: its own key as the current item, its entry as the parent.
-        _ = Submenu?.OnItemClick(command, arguments);
-
-        return Self;
+        if (GetTemplateVariant(SubmenuTemplateKey) is IItemClickComponent submenu)
+            submenu.OnClickableItemTemplates(register);
     }
 }
 

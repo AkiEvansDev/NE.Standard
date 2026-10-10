@@ -166,7 +166,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                         .SetTitle("Duplicate")
-                        .SetTrailingText("⌘D")
+                        .SetTrailingText("Ctrl+D")
                     )
                     .AddChild(new ActionComponent()
                         .SetType(UIButtonType.Ghost)

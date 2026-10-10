@@ -2,10 +2,11 @@
 // package's mark — in the page's language: each kept as it came and written with its mark, so a language switch writes it again.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
-import { cssAttributeValue, DraftAttribute, FormIdAttribute, InvalidClass as ErrorClass, ListTriggerClass, PopupRoleSelector, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute, TooltipSeverityAttribute, ValidationMessageAttribute as MessageAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
+import { cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, ListTriggerClass, PopupRoleSelector, TooltipAttribute, TooltipMarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute, TooltipSeverityAttribute, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
 import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
+import { resolveValueHolder } from "../extensions/value-readers.ts";
 import { getIdValue, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata, WebValidationSeverityName } from "../metadata/metadata-index.ts";
 import { prefersReducedMotion } from "../rendering/motion.ts";
@@ -147,10 +148,14 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         this.root.addEventListener("blur", domEvent => this.applyBlurTrigger(domEvent), true);
         this.root.addEventListener("input", domEvent => this.applyInputTrigger(domEvent), true);
 
-        // Every field's, bound or not; the value engine asks the same before it sends, whichever listener runs first.
+        // Every field's, bound or not; the value engine asks the same before it sends, whichever listener runs first. The Change rules
+        // hear it too: a step or a clear gives a value with no "input", and the writer hears no echo of it.
         this.root.addEventListener("change", domEvent => {
-            if (domEvent.target instanceof Element)
-                this.refusesBounds(domEvent.target);
+            if (!(domEvent.target instanceof Element))
+                return;
+
+            this.refusesBounds(domEvent.target);
+            this.applyEventTrigger(domEvent, "Change");
         }, true);
 
         // A message that came rendered has never been through applyPresentation, so nothing has asked the stylesheet whether it is a mark.
@@ -192,7 +197,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         const { componentId, element } = resolved;
         const said = this.forgetJudgement(element);
         const rules = this.options.metadata.getValidationsForComponent(componentId);
-        const value = text ?? (holdsOwnValue(field) ? this.options.valueReaders.readBound(field) : this.options.valueReaders.readHeld(element));
+        const value = text ?? this.readRuleValue(element);
 
         // An empty value is judged too, as `judge` judges a grid's cell: it is what the row holds, and `Required` says it may not be.
         if (rules.length > 0) {
@@ -393,6 +398,16 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         return this.options.readValue?.(field) ?? this.options.valueReaders.readBound(field);
     }
 
+    /**
+     * The value a component's rules judge: its value holder's, read as the binding sends it — a number field's invariant text, a
+     * temporal field's canonical moment, a range's or a period's start — never the text a control shows or the part an event left.
+     */
+    private readRuleValue(component: Element): unknown {
+        const holder = resolveValueHolder(component);
+
+        return holder === null ? null : this.readValue(holder);
+    }
+
     private forgetBoundRefusal(element: Element): void {
         this.boundRefusalByElement.delete(element);
         this.boundRefused.delete(element);
@@ -461,7 +476,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         this.judgeBounds(componentId, element);
 
         if (rules.length > 0)
-            this.evaluateAndApply(componentId, element, rules, holdsOwnValue(field) ? this.options.valueReaders.readBound(field) : this.options.valueReaders.readHeld(element));
+            this.evaluateAndApply(componentId, element, rules, this.readRuleValue(element));
 
         return this.hasError(componentId, element);
     }
@@ -580,26 +595,29 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         if (rules.length === 0)
             return;
 
-        // A control holding no value of its own — a select's trigger, a multi-select's box, a free-text entry's draft — is read
-        // through its component's value holder: read as itself, a chosen value was nothing on its blur.
-        const value = holdsOwnValue(domEvent.target)
-            ? this.options.valueReaders.readBound(domEvent.target)
-            : this.options.valueReaders.readHeld(resolved.element);
-
-        this.evaluateAndApply(resolved.componentId, resolved.element, rules, value);
+        // The component's value, whichever of its controls the event came from: a select's trigger holds none, a free-text entry a
+        // draft, a number field its culture's text, a range's end part the end.
+        this.evaluateAndApply(resolved.componentId, resolved.element, rules, this.readRuleValue(resolved.element));
     }
 
     /** Evaluates every rule in a form up front, so submit reports all failures rather than the first; only an error stops it. */
     public runSubmitValidation(formId: string): boolean {
         let allValid = true;
+        // Once per component: a range's or a period's two parts both carry the form, and the second judged would clear the first.
+        const judged = new Set<Element>();
 
-        for (const { field, component: resolved } of this.formFields(formId)) {
+        for (const { component: resolved } of this.formFields(formId)) {
+            if (judged.has(resolved.element))
+                continue;
+
+            judged.add(resolved.element);
+
             const rules = this.options.metadata.getValidationsForComponent(resolved.componentId)
                 .filter(rule => getValidationTrigger(rule.trigger) === "Submit");
 
             if (rules.length > 0) {
                 this.touchedElements.add(resolved.element);
-                this.evaluateAndApply(resolved.componentId, resolved.element, rules, this.options.valueReaders.readBound(field));
+                this.evaluateAndApply(resolved.componentId, resolved.element, rules, this.readRuleValue(resolved.element));
             }
 
             if (this.hasError(resolved.componentId, resolved.element)) {
@@ -714,11 +732,6 @@ function isSameWords(standing: unknown, words: Phrase | null): boolean {
     return isPhrase(standing) && standing.key === words.key && JSON.stringify(standing.args) === JSON.stringify(words.args);
 }
 
-/** Whether an event's target is itself the value a rule reads: a native field or a kind's own element, never a draft. */
-function holdsOwnValue(element: Element): boolean {
-    return !element.hasAttribute(DraftAttribute) && (element.hasAttribute(ValueKindAttribute) || element.matches("input, textarea, select"));
-}
-
 function renderedSeverity(element: Element): WebValidationSeverityName {
     if (element.classList.contains(WarningClass))
         return "Warning";
@@ -788,7 +801,7 @@ function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
         message.setAttribute(TooltipAttribute, message.textContent ?? "");
         message.setAttribute(PlacementAttribute, MarkerPlacement);
         message.setAttribute(TooltipSeverityAttribute, TooltipSeverity[display.severity]);
-        root.setAttribute(MarkAttribute, "");
+        root.setAttribute(TooltipMarkAttribute, "");
 
         // A mark appearing as the reader types has no focus event coming to open it: it speaks straight away.
         if (root.contains(document.activeElement))
@@ -802,7 +815,7 @@ function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
     message.removeAttribute(TooltipAttribute);
     message.removeAttribute(PlacementAttribute);
     message.removeAttribute(TooltipSeverityAttribute);
-    root.removeAttribute(MarkAttribute);
+    root.removeAttribute(TooltipMarkAttribute);
 
     // The mark may be the one on screen: with nothing left to say it closes rather than standing over the field with a stale line.
     updateTooltip(message);
@@ -837,7 +850,7 @@ function applyMarkerMirror(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
     }
 
     // The whole value speaks through its dot, so the dot need not be aimed at: a hover anywhere on it, and a press, a touch's one way.
-    host.setAttribute(MarkAttribute, "");
+    host.setAttribute(TooltipMarkAttribute, "");
     mirrors.set(root, mirror);
     updateTooltip(mirror);
 }
@@ -849,7 +862,7 @@ function removeMarkerMirror(mirror: HTMLElement): void {
     mirror.remove();
 
     if (host !== null && host.querySelector(`:scope > .${MirrorClass}`) === null)
-        host.removeAttribute(MarkAttribute);
+        host.removeAttribute(TooltipMarkAttribute);
 }
 
 /** The cell stands beside one of the field's own ancestors — a row of the same list — which is as far up as the search goes. */

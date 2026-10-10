@@ -7,7 +7,8 @@ import { FakeElement, FakeInput, FakeTextArea, installFakeDom, real } from "./fa
 
 installFakeDom();
 
-const { isKeyboardUp, takesTyping } = await import("../src/interactions/screen-keyboard.ts");
+const { isKeyboardUp } = await import("../src/interactions/screen-keyboard.ts");
+const { takesTyping } = await import("../src/interactions/caret-fields.ts");
 
 test("the keyboard is up while a field takes typing and the window lost more than a bar's height", () => {
     assert.equal(isKeyboardUp({ height: 420, tallest: 780, typing: true }), true);

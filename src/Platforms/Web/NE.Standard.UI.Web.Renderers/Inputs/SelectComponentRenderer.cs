@@ -26,6 +26,9 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     public const string OptionWrapperElementName = "div";
     public const string OptionWrapperClassName = "ui-select__option";
 
+    /// <summary>What every option row is to assistive technology, the server's and the client's alike.</summary>
+    public const string OptionRole = "option";
+
     // The floating panel, and the listbox the options stand in: one element in a select, two in a search, whose field stands between.
     private const string PopupClassName = "ui-select__popup";
     private const string ListClassName = "ui-select__list";
@@ -50,7 +53,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         WebRenderValueKind valueKind = RenderSelectValue(context, root, out var currentValue, out CompiledUIBinding? valueBinding);
 
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, OptionWrapperElementName, OptionWrapperClassName);
+        RegisterItemsTemplateMetadata(context, OptionWrapperElementName, OptionWrapperClassName, itemWrapperRole: OptionRole);
         RegisterItemsFilterSortMetadata(context);
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
@@ -276,8 +279,9 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
                 _ = list.Attribute("aria-multiselectable", "true");
         }, OptionWrapperElementName, decorateItem: (optionRoot, item, index) =>
         {
-            _ = optionRoot.Attribute("role", "option");
-            _ = optionRoot.Attribute("tabindex", "0");
+            _ = optionRoot.Attribute("role", OptionRole);
+            // Out of the Tab order, as the client's own options are: the list's roving index gives the one stop as it opens.
+            _ = optionRoot.Attribute("tabindex", "-1");
 
             if (chosenKeys is not null)
                 _ = optionRoot.Attribute("aria-selected", item is IBindableItem option && chosenKeys.Contains(option.Id) ? "true" : "false");

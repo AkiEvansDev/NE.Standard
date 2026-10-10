@@ -29,6 +29,11 @@ public static class WebClassNames
     /// <summary>A button's root, and the root of every control drawn as one: a menu entry, a tab's caption, a breadcrumb, an action, a switcher.</summary>
     public const string Button = "ui-button";
 
+    /// <summary>A card's header band, which <see cref="CardHeaderEmpty"/> marks while its text shows nothing (<c>card-header.ts</c>).</summary>
+    public const string CardHeader = "ui-card__header";
+
+    public const string CardHeaderEmpty = "ui-card__header--empty";
+
     /// <summary>A select's root, a multi-select's and a search's: the field whose list the reader picks from.</summary>
     public const string Select = "ui-select";
 
@@ -49,6 +54,9 @@ public static class WebClassNames
 
     /// <summary>On a menu's root drawn as a navigation rail (<c>UIMenuDisplay.Rail</c>).</summary>
     public const string MenuRail = "ui-menu--rail";
+
+    /// <summary>On a menu's root standing in another's group, as its submenu.</summary>
+    public const string MenuNested = "ui-menu--nested";
 
     /// <summary>A menu entry's root.</summary>
     public const string MenuItem = "ui-menu-item";
@@ -164,11 +172,36 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    public static string TextBadgePlacement(UITextBadgePlacement value)
+    /// <summary>A button's label alignment on the button, beside <see cref="TextAlignment"/> on the label.</summary>
+    public static string ButtonAlignment(UITextAlignment value)
         => value switch
         {
-            UITextBadgePlacement.Inline => "ui-text__badge--inline",
-            UITextBadgePlacement.Trailing => "ui-text__badge--trailing",
+            UITextAlignment.Start => "ui-button--align-start",
+            UITextAlignment.Center => "ui-button--align-center",
+            UITextAlignment.End => "ui-button--align-end",
+            UITextAlignment.Justify => "ui-button--align-justify",
+            _ => string.Empty
+        };
+
+    /// <summary>A badge's placement on the text body that holds it, whose layout rules read it.</summary>
+    public static string TextBadgePlacementHost(UITextBadgePlacement value)
+        => value switch
+        {
+            UITextBadgePlacement.Inline => "ui-text--badge-inline",
+            UITextBadgePlacement.Trailing => "ui-text--badge-trailing",
+            _ => string.Empty
+        };
+
+    /// <summary>A description's role on the text body that holds it, beside <see cref="TextType"/> on the description.</summary>
+    public static string TextDescriptionType(UITextType value)
+        => value switch
+        {
+            UITextType.Display => "ui-text--description-display",
+            UITextType.Title => "ui-text--description-title",
+            UITextType.Subtitle => "ui-text--description-subtitle",
+            UITextType.Body => "ui-text--description-body",
+            UITextType.Caption => "ui-text--description-caption",
+            UITextType.Overline => "ui-text--description-overline",
             _ => string.Empty
         };
 
@@ -199,6 +232,15 @@ public static class WebClassNames
             UIBadgeType.Danger => "ui-badge-style--danger",
             UIBadgeType.Surface => "ui-badge-style--surface",
             UIBadgeType.Plain => "ui-badge-style--plain",
+            _ => string.Empty
+        };
+
+    public static string BadgeFill(UIBadgeFill value)
+        => value switch
+        {
+            UIBadgeFill.Filled => "ui-badge-fill--filled",
+            UIBadgeFill.Tinted => "ui-badge-fill--tinted",
+            UIBadgeFill.Outline => "ui-badge-fill--outline",
             _ => string.Empty
         };
 
@@ -248,14 +290,20 @@ public static class WebClassNames
     private static bool IsNone(UIThickness value)
         => value is { Left: 0, Top: 0, Right: 0, Bottom: 0 };
 
+    private const string SurfaceStylePrefix = "ui-surface--";
+
     public static string SurfaceStyle(UISurfaceStyle value)
         => value switch
         {
-            UISurfaceStyle.Background => "ui-surface--background",
-            UISurfaceStyle.Raised => "ui-surface--raised",
-            UISurfaceStyle.Tinted => "ui-surface--tinted",
+            UISurfaceStyle.Background => $"{SurfaceStylePrefix}background",
+            UISurfaceStyle.Raised => $"{SurfaceStylePrefix}raised",
+            UISurfaceStyle.Tinted => $"{SurfaceStylePrefix}tinted",
             _ => string.Empty
         };
+
+    /// <summary>A surface's word, as its class ends: what a popup a menu fills is marked with (<c>WebAttributes.MenuSurface</c>).</summary>
+    public static string SurfaceStyleToken(UISurfaceStyle value)
+        => SurfaceStyle(value) is { Length: > 0 } className ? className[SurfaceStylePrefix.Length..] : string.Empty;
 
     public static string Orientation(UIOrientation value)
         => value switch
@@ -334,18 +382,6 @@ public static class WebClassNames
             UIButtonSize.Small => "ui-menu--small",
             UIButtonSize.Medium => "ui-menu--medium",
             UIButtonSize.Large => "ui-menu--large",
-            _ => string.Empty
-        };
-
-    /// <summary>The search field's look in its open list (<c>SearchComponent.SearchFieldAppearance</c>).</summary>
-    public static string SearchFieldAppearance(UIInputAppearance value)
-        => value switch
-        {
-            UIInputAppearance.Filled => "ui-search__field--filled",
-            UIInputAppearance.Outline => "ui-search__field--outline",
-            UIInputAppearance.Underline => "ui-search__field--underline",
-            UIInputAppearance.Ghost => "ui-search__field--ghost",
-            UIInputAppearance.Tonal => "ui-search__field--tonal",
             _ => string.Empty
         };
 

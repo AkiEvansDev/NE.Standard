@@ -1,6 +1,6 @@
 // A popup a component owns opens and closes the one way — its openers told, the focus given back before it hides — and goes away by
 // itself once its owner leaves the page or turns disabled or read-only, or once the keyboard takes the focus out of it, saying why;
-// over a small stand-in for the DOM, since only classes, attributes, containment and the focus are read.
+// the pointer in it marks what stands above it up to its owner; over a small stand-in for the DOM, since only classes, attributes, containment and the focus are read.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -25,6 +25,14 @@ class FakeElement {
 
     public get parentNode(): FakeElement | null {
         return this.parent;
+    }
+
+    public get parentElement(): FakeElement | null {
+        return this.parent;
+    }
+
+    public get classList(): { contains(name: string): boolean } {
+        return { contains: name => this.classes.has(name) };
     }
 
     public matches(selectors: string): boolean {
@@ -82,6 +90,11 @@ class FakeElement {
         this.listeners.get("focusout")?.({ target: this });
     }
 
+    /** An event on this element alone, as the pointer's enter and leave are. */
+    public fire(type: string): void {
+        this.listeners.get(type)?.({ target: this });
+    }
+
     public toggleAttribute(name: string, force: boolean): void {
         if (force)
             this.attributes.set(name, "");
@@ -115,12 +128,42 @@ class FakeElement {
 
 const fakeDocument = { activeElement: null as FakeElement | null, body: null, addEventListener: () => undefined, querySelectorAll: (): FakeElement[] => [] };
 
+/** A key as the window hears it, ahead of the document. */
+class FakeKey {
+    public readonly type = "keydown";
+    public readonly key: string;
+    public readonly target: FakeElement;
+    public readonly isComposing = false;
+    public defaultPrevented = false;
+
+    public constructor(key: string, target: FakeElement) {
+        this.key = key;
+        this.target = target;
+    }
+
+    public preventDefault(): void {
+        this.defaultPrevented = true;
+    }
+}
+
+// No fake is a native field: the focus module asks before it marks the focus's ancestors.
+class NoNativeField {
+    public readonly native = false;
+}
+
+// The window's keydown listeners, where a list's Tab closes it.
+const windowKeys: ((domEvent: FakeKey) => void)[] = [];
+
 // Set before the modules load: the focus module listens on the window as it is imported, and the dismissal on the document.
 Object.assign(globalThis, {
     document: fakeDocument,
-    window: { addEventListener: () => undefined, setTimeout },
+    window: { addEventListener: (type: string, listener: (domEvent: FakeKey) => void) => type === "keydown" && windowKeys.push(listener), setTimeout },
     Element: FakeElement,
-    HTMLElement: FakeElement
+    HTMLElement: FakeElement,
+    HTMLInputElement: NoNativeField,
+    HTMLTextAreaElement: NoNativeField,
+    Node: FakeElement,
+    KeyboardEvent: FakeKey
 });
 
 const { canKeepPopup, OwnedPopups } = await import("../src/interactions/owned-popup.ts");
@@ -359,4 +402,134 @@ test("a popup behind an open modal dialog stays open while the focus goes into t
     }
 
     assert.equal(popups.current, html(at.owner));
+});
+
+test("Tab in a list closes it and the list it flew out of, the innermost first, the focus back on the opener for the browser's Tab", () => {
+    const log: string[] = [];
+    const heard = windowKeys.length;
+    const lists = new OwnedPopups({
+        show: () => undefined,
+        hide: ({ owner }) => log.push(`hide ${String(owner.getAttribute("id"))} focus=${String(fakeDocument.activeElement?.getAttribute("id"))}`),
+        single: false,
+        closesOnTab: true
+    });
+    const tabListeners = windowKeys.slice(heard);
+    const menu = scene();
+    const group = element(menu.popup);
+    const submenu = element(group);
+    const choice = element(submenu);
+
+    menu.owner.setAttribute("id", "menu");
+    menu.trigger.setAttribute("id", "trigger");
+    group.setAttribute("id", "group");
+    menu.option.setAttribute("id", "option");
+    lists.open({ owner: html(menu.owner), popup: html(menu.popup), focus: html(menu.option), returnFocus: () => html(menu.trigger) });
+    lists.open({ owner: html(group), popup: html(submenu), focus: html(choice), returnFocus: () => html(menu.option) });
+
+    const tab = new FakeKey("Tab", choice);
+
+    tabListeners.forEach(listener => listener(tab));
+
+    assert.deepEqual(log, ["hide group focus=option", "hide menu focus=trigger"]);
+    assert.equal(fakeDocument.activeElement, menu.trigger);
+    assert.equal(tab.defaultPrevented, false);
+});
+
+test("Tab in a panel walks its own controls: a popup that is no list stays open", () => {
+    const at = scene();
+    const popups = popupsFor(at.log);
+
+    at.owner.setAttribute("id", "panel");
+    open(popups, at);
+    windowKeys.forEach(listener => listener(new FakeKey("Tab", at.option)));
+
+    assert.equal(popups.current, html(at.owner));
+    popups.close();
+});
+
+test("an engine whose popups are lists and panels both closes on Tab only the ones it names: a package's list of choices", () => {
+    const log: string[] = [];
+    const named = new Set<unknown>();
+    const popups = new OwnedPopups({
+        show: () => undefined,
+        hide: ({ owner }) => log.push(`hide ${String(owner.getAttribute("id"))}`),
+        single: false,
+        closesOnTab: ({ popup }) => named.has(popup)
+    });
+    const list = scene();
+    const panel = scene();
+
+    list.owner.setAttribute("id", "list");
+    panel.owner.setAttribute("id", "panel");
+    named.add(html(list.popup));
+    open(popups, list);
+    open(popups, panel);
+
+    windowKeys.forEach(listener => listener(new FakeKey("Tab", panel.option)));
+    assert.deepEqual(log, []);
+
+    windowKeys.forEach(listener => listener(new FakeKey("Tab", list.option)));
+    assert.deepEqual(log, ["hide list"]);
+    popups.close(html(panel.owner));
+});
+
+test("the pointer in an open popup marks everything from it up to its owner, until it leaves or the popup closes", () => {
+    const at = scene();
+    const popups = popupsFor(at.log);
+    const holder = element(at.owner);
+    const marked = (): boolean[] => [at.page, at.owner, holder, at.popup, at.option].map(each => each.hasAttribute("data-ui-popup-hover"));
+
+    at.popup.parent = holder;
+
+    // Shut, a popup the pointer crosses marks nothing.
+    open(popups, at);
+    popups.close();
+    at.popup.fire("pointerenter");
+    assert.deepEqual(marked(), [false, false, false, false, false]);
+
+    open(popups, at);
+    at.popup.fire("pointerenter");
+    assert.deepEqual(marked(), [false, true, true, false, false]);
+
+    at.popup.fire("pointerleave");
+    assert.deepEqual(marked(), [false, false, false, false, false]);
+
+    at.popup.fire("pointerenter");
+    popups.close();
+    assert.deepEqual(marked(), [false, false, false, false, false]);
+});
+
+test("a popup hung outside its owner marks nothing", () => {
+    const at = scene();
+    const popups = popupsFor(at.log);
+
+    at.popup.parent = at.page;
+    open(popups, at);
+    at.popup.fire("pointerenter");
+
+    assert.equal([at.page, at.owner].some(each => each.hasAttribute("data-ui-popup-hover")), false);
+    popups.close();
+});
+
+test("a popup flown out of another keeps the outer one's mark when the pointer goes back from it", () => {
+    const outer = scene();
+    const inner = scene();
+    const popups = new OwnedPopups({ show: () => undefined, hide: () => undefined, single: false });
+
+    inner.page.parent = outer.option;
+    open(popups, outer);
+    open(popups, inner);
+
+    outer.popup.fire("pointerenter");
+    inner.popup.fire("pointerenter");
+    assert.equal(inner.owner.hasAttribute("data-ui-popup-hover"), true);
+
+    inner.popup.fire("pointerleave");
+    assert.equal(inner.owner.hasAttribute("data-ui-popup-hover"), false);
+    assert.equal(outer.owner.hasAttribute("data-ui-popup-hover"), true);
+
+    outer.popup.fire("pointerleave");
+    popups.close(html(inner.owner));
+    popups.close(html(outer.owner));
+    assert.equal(outer.owner.hasAttribute("data-ui-popup-hover"), false);
 });

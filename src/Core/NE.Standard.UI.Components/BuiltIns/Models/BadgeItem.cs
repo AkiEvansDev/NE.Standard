@@ -36,6 +36,10 @@ public partial class BadgeItem : RecursiveObservable, IBadgeModel, IContentItem
 
     /// <inheritdoc />
     [RecursiveMember]
+    public partial UIBadgeFill? BadgeFill { get; set; }
+
+    /// <inheritdoc />
+    [RecursiveMember]
     public partial string? BadgeIcon { get; set; }
 
     /// <inheritdoc />

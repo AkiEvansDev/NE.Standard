@@ -3,24 +3,27 @@
 import {
     BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, PassiveMenuEntrySelector,
     TabCaptionAttribute, TabPinnedAttribute, TabsMenuAttribute, TabsRemovesAttribute, TabsRenamableAttribute, TabsSelectedAttribute,
-    UndraggableAttribute, TabsDraggableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
+    UndraggableAttribute, TabsDraggableAttribute, TabsNoneRemovableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
 } from "../addressing/dom-attributes";
 import { EffectRegistry } from "../effects/effect-registry";
 import { aheadOfAnswer } from "../events/ahead-of-answer";
 import { EventRegistration } from "../events/event-descriptor";
 import { getIdValue, RenameTabClientEffect } from "../metadata/metadata-index";
 import { logWarn } from "../runtime/logger";
+import { isFieldKey } from "./caret-fields";
 import { ContextMenuOpeningDetail, ContextMenuOpeningEventName } from "./context-menu-engine";
 import { happenedInside, observeComponents } from "./dom-mutations";
 import { markDragStart } from "./drag-marks";
 import { isLaidOut } from "./element-visibility";
 import { isInRenameField, openInlineRename } from "./inline-rename";
 import { isInert } from "./interactive-state";
+import { isPlainKey } from "./keyboard-shortcut";
 import { ownDescendants } from "./own-descendants";
 import { focusAsLastInput } from "./popup-focus";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
-import { writeSelectedKey } from "./selected-key";
+import { resolveShownKey, writeSelectedKey } from "./selected-key";
 import { OverflowButtonClass, StripFitter } from "./strip-overflow";
+import { trackInnerPointer } from "./surface-press-engine";
 import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch";
 import {
     MenuRow, PinEntry, RemoveSeparatorEntry, RenameEntry, SeparatorEntry, TabMenuName, TabMenuPrefix, UnpinEntry, readTabMenuChoice, shownRules, tabMenuEntries
@@ -90,6 +93,9 @@ export class TabsViewEngine {
     // The strip and tab the menu was opened on: a key, since the tab's row may be drawn again while the menu stands open.
     private menuTab: { readonly root: HTMLElement; readonly key: string } | null = null;
 
+    // The tab Delete closed while it held the keyboard: once it is gone, the keyboard goes on from the strip's current tab.
+    private closed: { readonly root: HTMLElement; readonly item: HTMLElement } | null = null;
+
     public constructor(options: TabsViewEngineOptions = {}) {
         this.root = options.root ?? document;
         this.fitter = new StripFitter({
@@ -134,12 +140,20 @@ export class TabsViewEngine {
         this.root.addEventListener("dragend", domEvent => this.handleDragEnd(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // Tabs arrive with the collection, and a live Draggable switch rewrites every caption's flag.
-        // What happens inside a page is its own: a table patched there must not force a strip layout on every push.
+        // A press on a tab's close is the close's: `:active` holds on the caption around it, which takes no pressed wash under it — through
+        // a drag of the tab too, whose start cancels the pointer while `:active` holds until the drag ends.
+        trackInnerPointer(this.root, ["press"], target => {
+            const caption = target.closest(`.${CloseClass}`)?.closest<HTMLElement>(`.${CaptionClass}`) ?? null;
+
+            return caption === null ? [] : [caption];
+        });
+
+        // Tabs arrive with the collection, a live Draggable switch rewrites every caption's flag, and a tab's CanRemove may leave the
+        // strip none to close. What happens inside a page is its own: a table patched there must not force a strip layout on every push.
         observeComponents(
             this.root,
             `.${RootClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `.${PageClass}`, `.${RootClass}`) },
+            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, UnremovableAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `.${PageClass}`, `.${RootClass}`) },
             views => {
                 for (const view of views)
                     this.apply(view);
@@ -155,15 +169,18 @@ export class TabsViewEngine {
     /** Marks the current caption and shows its page; a selection naming no shown tab falls back to the first and writes that back. */
     private apply(root: HTMLElement): void {
         const items = this.ownItems(root);
-        const shown = items.filter(isLaidOut);
 
-        if (shown.length === 0)
+        markNoneRemovable(root, items);
+
+        const shown = items.filter(isLaidOut);
+        const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
+        const shownKey = resolveShownKey(shown, selected, tabKey);
+
+        if (shownKey === null)
             return;
 
-        const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
-
-        if (!shown.some(item => tabKey(item) === selected)) {
-            this.select(root, tabKey(shown[0]));
+        if (shownKey !== selected) {
+            this.select(root, shownKey);
             return;
         }
 
@@ -225,6 +242,20 @@ export class TabsViewEngine {
         }
 
         applyRovingTabIndex(labels, current);
+        this.focusAfterClose(root, current);
+    }
+
+    /** A tab Delete closed took the keyboard with it: the strip's current tab takes it, rather than the page's body. */
+    private focusAfterClose(root: HTMLElement, current: HTMLElement | null): void {
+        const closed = this.closed;
+
+        if (closed === null || closed.root !== root || closed.item.isConnected)
+            return;
+
+        this.closed = null;
+
+        if (current !== null && (document.activeElement === null || document.activeElement === document.body))
+            focusAsLastInput(current);
     }
 
     /** Writes the strip's height on the host, so a page — a line of one wrapping flex with it — can fill what's left. */
@@ -498,7 +529,7 @@ export class TabsViewEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element) || isFieldKey(domEvent))
             return;
 
         const label = domEvent.target.closest<HTMLElement>(`.${LabelClass}`);
@@ -517,6 +548,30 @@ export class TabsViewEngine {
             return;
         }
 
+        const item = label.closest<HTMLElement>(`.${ItemClass}`);
+
+        if (item === null || item.closest(`.${RootClass}`) !== root)
+            return;
+
+        // Delete closes the tab as its cross does, where the cross is offered: a removal the application wired, on a tab that allows it.
+        if (domEvent.key === "Delete" && isPlainKey(domEvent)) {
+            if (!isClosable(root, item))
+                return;
+
+            domEvent.preventDefault();
+            this.closed = { root, item };
+            item.dispatchEvent(new Event("remove", { bubbles: true }));
+            return;
+        }
+
+        if ((domEvent.key === "ArrowLeft" || domEvent.key === "ArrowRight") && domEvent.altKey && isPlainKey(domEvent, { alt: true })) {
+            this.moveByKey(root, item, domEvent);
+            return;
+        }
+
+        if (!isPlainKey(domEvent))
+            return;
+
         const labels = this.ownItems(root)
             .map(item => item.querySelector<HTMLElement>(`.${LabelClass}`))
             .filter((candidate): candidate is HTMLElement => candidate !== null);
@@ -528,13 +583,38 @@ export class TabsViewEngine {
 
         domEvent.preventDefault();
 
-        const item = next.closest<HTMLElement>(`.${ItemClass}`);
+        const nextItem = next.closest<HTMLElement>(`.${ItemClass}`);
 
         // A strip selects as the caret moves, the same rule the plain variant follows.
-        if (item !== null)
-            this.select(root, tabKey(item));
+        if (nextItem !== null)
+            this.select(root, tabKey(nextItem));
 
         next.focus();
+    }
+
+    /**
+     * Alt+Left and Alt+Right move a tab a place along the strip, as a drag does: an unpinned tab the strip lets move, never into the
+     * pinned head. Taken whether or not it moves, or Alt+Left would take the page back.
+     */
+    private moveByKey(root: HTMLElement, item: HTMLElement, domEvent: KeyboardEvent): void {
+        if (!root.hasAttribute(TabsDraggableAttribute) || isTabRefused(item, UndraggableAttribute) || isInert(item) || item.hasAttribute(TabPinnedAttribute))
+            return;
+
+        domEvent.preventDefault();
+
+        const items = this.ownItems(root);
+        const neighbour = items[items.indexOf(item) + (domEvent.key === "ArrowLeft" ? -1 : 1)];
+
+        if (neighbour === undefined || neighbour.hasAttribute(TabPinnedAttribute))
+            return;
+
+        // The neighbour steps round the tab, which holds the keyboard: a focused element taken out of the page and back loses the focus.
+        if (domEvent.key === "ArrowLeft")
+            rowOf(item).after(rowOf(neighbour));
+        else
+            rowOf(item).before(rowOf(neighbour));
+
+        raiseItemMove(item, this.ownItems(root).indexOf(item));
     }
 
     /** Reordering moves the tab at once and reports afterwards, the way switching does. */
@@ -672,9 +752,22 @@ function lastPinnedRow(root: HTMLElement, draggingRow: HTMLElement): HTMLElement
     return last;
 }
 
+/** Marks a strip none of whose tabs can be closed, which keeps no room for a close; the render marked the first paint. */
+function markNoneRemovable(root: HTMLElement, items: readonly HTMLElement[]): void {
+    const none = !items.some(item => !isTabRefused(item, UnremovableAttribute));
+
+    if (root.hasAttribute(TabsNoneRemovableAttribute) !== none)
+        root.toggleAttribute(TabsNoneRemovableAttribute, none);
+}
+
 /** Whether a tab may be closed: neither the strip nor the tab's item refuses it. */
 function isRemovable(root: HTMLElement, item: HTMLElement): boolean {
     return !root.hasAttribute(TabsUnremovableAttribute) && !isTabRefused(item, UnremovableAttribute);
+}
+
+/** Whether Delete closes a tab: one the cross closes — removable, its close raising a command — and not pinned, as a browser keeps one. */
+function isClosable(root: HTMLElement, item: HTMLElement): boolean {
+    return root.hasAttribute(TabsRemovesAttribute) && isRemovable(root, item) && !item.hasAttribute(TabPinnedAttribute) && !isInert(item);
 }
 
 /** The built-in tab-menu entries a tab is offered: what the strip chose, as the tab allows. */

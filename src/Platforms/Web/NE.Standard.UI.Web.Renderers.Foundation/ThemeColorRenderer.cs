@@ -44,7 +44,8 @@ public static class ThemeColorRenderer
 
     /// <summary>
     /// The colour a series takes by its place in the theme's categorical run — <c>--ui-color-series-{n}</c>, cycled by
-    /// <c>--ui-color-series-count</c>; an author's own <see cref="UIThemeColor"/> outranks it.
+    /// <see cref="WebThemeCssBuilder.SeriesCount"/>, the page's <c>--ui-color-series-count</c>; an author's own
+    /// <see cref="UIThemeColor"/> outranks it.
     /// </summary>
     public static string SeriesColorCss(WebRenderContext context, int index, UIThemeColor? own = null)
     {
@@ -54,8 +55,7 @@ public static class ThemeColorRenderer
         if (own is UIThemeColor color && WebCssValues.ThemeColor(color) is { Length: > 0 } css)
             return css;
 
-        // The shorter run of the two palettes: a series past it would change colour with the theme's mode.
-        var count = Math.Max(1, Math.Min(context.Theme.Light.Series.Count, context.Theme.Dark.Series.Count));
+        var count = WebThemeCssBuilder.SeriesCount(context.Theme);
 
         return $"var(--ui-color-series-{((index % count) + 1).ToString(CultureInfo.InvariantCulture)})";
     }

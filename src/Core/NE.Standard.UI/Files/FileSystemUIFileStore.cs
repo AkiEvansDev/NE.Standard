@@ -84,25 +84,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         var fileId = CreateId();
         var path = Path.Combine(_root, $"{fileId}.upload");
-
-        long size;
-
-        // A failed copy leaves an unregistered file the sweep would never find, so it is deleted here instead.
-        try
-        {
-            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-
-            await using (destination.ConfigureAwait(false))
-            {
-                await content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
-                size = destination.Length;
-            }
-        }
-        catch
-        {
-            Delete(path);
-            throw;
-        }
+        var size = await CopyToNewFileAsync(content, path, cancellationToken).ConfigureAwait(false);
 
         UIUploadFile file = new()
         {
@@ -117,6 +99,28 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         AddUpload(sessionId, fileId, new StoredUpload(file, selectionId, path, DateTime.UtcNow));
 
         return file;
+    }
+
+    /// <summary>Copies content into a new file, answering its size, for an upload or a download not registered yet.</summary>
+    /// <remarks>A failed copy leaves an unregistered file the sweep would never find, so it is deleted here instead.</remarks>
+    private static async Task<long> CopyToNewFileAsync(Stream content, string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+
+            await using (destination.ConfigureAwait(false))
+            {
+                await content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+
+                return destination.Length;
+            }
+        }
+        catch
+        {
+            Delete(path);
+            throw;
+        }
     }
 
     /// <summary>Registers an upload and counts it to its session.</summary>
@@ -230,25 +234,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         var token = CreateId();
         var path = Path.Combine(_root, $"{token}.download");
-
-        long size;
-
-        // Same as the upload path: until the token is registered, the file is known to nothing.
-        try
-        {
-            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-
-            await using (destination.ConfigureAwait(false))
-            {
-                await content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
-                size = destination.Length;
-            }
-        }
-        catch
-        {
-            Delete(path);
-            throw;
-        }
+        var size = await CopyToNewFileAsync(content, path, cancellationToken).ConfigureAwait(false);
 
         _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, path, size, DateTime.UtcNow);
 
@@ -264,15 +250,23 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         // Removed on read, so the same URL cannot be fetched twice.
-        if (!_downloads.TryRemove((sessionId, token), out StoredDownload? stored) || !File.Exists(stored.Path))
+        if (!_downloads.TryRemove((sessionId, token), out StoredDownload? stored))
             return Task.FromResult<UIStagedDownload?>(null);
 
-        return Task.FromResult<UIStagedDownload?>(new UIStagedDownload
+        // Opened rather than checked first, as an upload is: once its entry is gone the orphan sweep may delete the file meanwhile.
+        try
         {
-            FileName = stored.FileName,
-            ContentType = stored.ContentType,
-            Content = new FileStream(stored.Path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, FileOptions.DeleteOnClose)
-        });
+            return Task.FromResult<UIStagedDownload?>(new UIStagedDownload
+            {
+                FileName = stored.FileName,
+                ContentType = stored.ContentType,
+                Content = new FileStream(stored.Path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, FileOptions.DeleteOnClose)
+            });
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return Task.FromResult<UIStagedDownload?>(null);
+        }
     }
 
     /// <inheritdoc />

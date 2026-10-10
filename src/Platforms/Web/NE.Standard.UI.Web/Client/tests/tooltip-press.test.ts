@@ -1,7 +1,8 @@
 // A caption's badge whose words are all it holds shows them on a press (a touch has no hover to ask with) and keeps them through the
 // pointer leaving, until a second press on it or a press anywhere else; the press is not the label's around it, and a keyboard focus
 // shows and describes them too. The help badge, no tab stop, shows them on a press all the same, and a focus on its field shows
-// nothing of it. An ordinary control's tooltip still closes on a press.
+// nothing of it. An ordinary control's tooltip still closes on a press, and shows on a finger held still where no context menu takes
+// the long press.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -148,6 +149,62 @@ test("the help badge, no tab stop, shows its words on a press all the same, and 
     raise("pointerout", mark);
 
     assert.equal(shows(mark), true);
+
+    tooltips.hide();
+});
+
+/** Raises a finger's pointer event on an element, at a point. */
+function touch(type: string, target: FakeElement, x = 10, y = 10): boolean {
+    const domEvent = Object.assign(new FakeEvent(type), { pointerType: "touch", pointerId: 1, clientX: x, clientY: y });
+
+    domEvent.target = target;
+    fakeDocument.documentElement.dispatchEvent(domEvent);
+
+    return !domEvent.defaultPrevented;
+}
+
+const held = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 550));
+
+test("a finger held still on a control with words and no context menu shows them, and they stay as it lifts", async () => {
+    const { button } = page();
+
+    touch("pointerdown", button);
+    await held();
+    touch("pointerup", button);
+    touch("pointerout", button);
+
+    assert.equal(shows(button), true);
+
+    tooltips.hide();
+});
+
+test("a held finger shows nothing on a context menu's owner, nor once it slid into a scroll, nor for a quick tap", async () => {
+    const { button } = page();
+
+    button.setAttribute("data-ui-context-menu-owner", "");
+    touch("pointerdown", button);
+    await held();
+    assert.equal(shows(button), false);
+
+    button.removeAttribute("data-ui-context-menu-owner");
+    touch("pointerdown", button);
+    touch("pointermove", button, 10, 40);
+    await held();
+    assert.equal(shows(button), false);
+
+    touch("pointerdown", button);
+    touch("pointerup", button);
+    await held();
+    assert.equal(shows(button), false);
+});
+
+test("the browser's own menu for the held press is spent, and shows the words if it comes first", () => {
+    const { button } = page();
+
+    touch("pointerdown", button);
+
+    assert.equal(raise("contextmenu", button), false);
+    assert.equal(shows(button), true);
 
     tooltips.hide();
 });

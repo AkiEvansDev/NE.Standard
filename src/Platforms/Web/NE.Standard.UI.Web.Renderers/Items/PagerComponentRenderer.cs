@@ -93,7 +93,7 @@ public sealed class PagerComponentRenderer : WebComponentRendererBase
         {
             _ = button.Class(ButtonLookClassNames);
             _ = button.Attribute("type", "button");
-            _ = button.Attribute(TextContentRendererBase.IconOnlyButtonAttribute);
+            _ = button.Attribute(WebAttributes.TextIcon);
             _ = button.Attribute(WebAttributes.PagerPage, page);
             WebWords.Write(context, button, "aria-label", wordKey);
             WebWords.Write(context, button, WebAttributes.Tooltip, wordKey);
@@ -119,8 +119,7 @@ public sealed class PagerComponentRenderer : WebComponentRendererBase
             {
                 _ = trigger.Class($"{SizeTriggerClassName} {WebClassNames.Button} ui-button--ghost ui-button--small");
                 _ = trigger.Attribute("type", "button");
-                _ = trigger.Attribute("aria-haspopup", "menu");
-                _ = trigger.Attribute("aria-expanded", "false");
+                RenderPopupTrigger(trigger, "menu");
                 _ = trigger.Element("span", label => label.Class(SizeLabelClassName));
                 _ = trigger.Element("span", chevron => chevron.Class("ui-pager__size-chevron").Attribute("aria-hidden", "true"));
             });

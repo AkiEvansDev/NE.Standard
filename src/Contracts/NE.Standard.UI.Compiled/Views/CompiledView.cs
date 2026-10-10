@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Primitives.Styling;
@@ -92,4 +93,16 @@ public sealed class CompiledView
     /// so pages from different compiles of the same view are told apart.
     /// </summary>
     public required string Fingerprint { get; init; }
+
+    /// <summary>The view's region under <paramref name="key"/>, or <see langword="null"/> where the view declares none.</summary>
+    public CompiledRegion? FindRegion(string key)
+    {
+        foreach (CompiledRegion region in Regions)
+        {
+            if (string.Equals(region.Key, key, StringComparison.Ordinal))
+                return region;
+        }
+
+        return null;
+    }
 }

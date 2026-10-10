@@ -33,10 +33,16 @@ export function slideCaptionMark(previous: Element | null, current: Element | nu
     current.animate([{ transform: `translateX(${from.left - to.left}px) scaleX(${from.width / to.width})` }, { transform: "none" }], { duration: motion.normal, easing: motion.ease, pseudoElement: "::after" });
 }
 
-/** Fades in the page a moved choice shows, rather than swapping it in at once; nothing on the first fit or under reduced motion. */
+/**
+ * Fades in what the page a moved choice shows holds, rather than swapping it in at once; nothing on the first fit or under reduced
+ * motion. The content, not the page: a TabsView page draws the strip's rule as its top edge, and fading it blinked the whole strip.
+ */
 export function fadeInPage(page: Element | null): void {
-    if (page === null || typeof page.animate !== "function" || prefersReducedMotion())
+    if (page === null || prefersReducedMotion())
         return;
 
-    page.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.fast, easing: motion.enter });
+    for (const content of page.children) {
+        if (typeof content.animate === "function")
+            content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: motion.fast, easing: motion.enter });
+    }
 }

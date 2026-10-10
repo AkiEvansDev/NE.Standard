@@ -37,7 +37,7 @@
 // The same for what the popup offers: the pane and its caption are there and hidden, not absent.
 .ui-color-input[data-ui-color-no-picker] :is([data-ui-color-tab="picker"], [data-ui-color-pane="picker"]),
 .ui-color-input[data-ui-color-no-palette] :is([data-ui-color-tab="palette"], [data-ui-color-pane="palette"]),
-.ui-color-input[data-ui-color-no-opacity] .ui-color-input__slider:has([data-ui-color-opacity]) {
+.ui-color-input[data-ui-color-no-opacity] .ui-color-input__slider--opacity {
     display: none;
 }
 
@@ -100,11 +100,23 @@
     box-shadow: inset 0 0 0 var(--ui-border-width, 1px) var(--ui-color-border);
     font: inherit;
     cursor: pointer;
+    transition: box-shadow @ui-motion-fast @ui-motion-ease;
 }
 
     .ui-color-input:not([data-ui-color-no-opacity]) > .ui-color-input__swatch--button {
         min-width: calc(10ch + 2 * @ui-space-3);
     }
+
+// The picked colour is a filled ground, so the swatch answers as a filled button does: shaded, never washed, more under a press.
+@media @{ui-can-hover} {
+    .ui-color-input@{ui-field-live} > .ui-color-input__swatch--button:hover {
+        box-shadow: inset 0 0 0 var(--ui-border-width, 1px) var(--ui-color-border), inset 0 0 0 999px @ui-filled-hover-shade;
+    }
+}
+
+.ui-color-input@{ui-field-live} > .ui-color-input__swatch--button:active {
+    box-shadow: inset 0 0 0 var(--ui-border-width, 1px) var(--ui-color-border), inset 0 0 0 999px @ui-filled-active-shade;
+}
 
 // min-width: 0 lets the text shrink instead of the toggle; without it a flex child refuses to shrink below its own string.
 .ui-color-input__text {
@@ -186,13 +198,13 @@
         .ui-tab-caption-mark();
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-color-input__tab:hover {
             .ui-tab-caption-hover-ink();
         }
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-color-input__tab:hover::after {
             .ui-tab-caption-hover-mark();
         }
@@ -207,7 +219,7 @@
         .ui-tab-caption-selected-mark();
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-color-input__tab[data-ui-color-tab-selected]:hover::after {
             .ui-tab-caption-selected-mark();
         }
@@ -293,6 +305,7 @@
 
 .ui-color-input__field-input {
     .ui-field-ground();
+    .ui-field-states();
     min-width: 0;
     padding: 2px @ui-space-1;
     color: inherit;
@@ -327,6 +340,12 @@
 .ui-color-input__chip[data-ui-color-name-selected] {
     outline: 2px solid var(--ui-color-primary);
     outline-offset: 1px;
+}
+
+// Where the keyboard stands among the chips, and on the swatch that opens the picker: the framework's keyboard frame.
+.ui-color-input__chip@{ui-keyboard-focus},
+.ui-color-input__swatch--button@{ui-keyboard-focus} {
+    .ui-keyboard-frame-inside(var(--ui-radius-input));
 }
 
 .ui-color-input__slider {
@@ -378,13 +397,13 @@
     }
 
     // Through the mixin's own guard, which its hover spells: without it the mixin's primary halo outranks this one.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &@{ui-range-live}:hover::-webkit-slider-thumb {
-            box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-input-solid, var(--ui-color-primary)) 22%, transparent);
+            .ui-range-halo(var(--ui-color-input-solid, var(--ui-color-primary)));
         }
 
         &@{ui-range-live}:hover::-moz-range-thumb {
-            box-shadow: 0 1px 2px var(--ui-color-shadow), 0 0 0 4px color-mix(in srgb, var(--ui-color-input-solid, var(--ui-color-primary)) 22%, transparent);
+            .ui-range-halo(var(--ui-color-input-solid, var(--ui-color-primary)));
         }
     }
 }

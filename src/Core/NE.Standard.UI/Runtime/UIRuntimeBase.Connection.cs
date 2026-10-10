@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -352,51 +350,46 @@ internal abstract partial class UIRuntimeBase
     /// </remarks>
     private async Task RunLifecycleHookAsync(UIHandle handle, string operation, Func<CancellationToken, Task> hook, CancellationToken cancellationToken)
     {
-        await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
-        ThrowIfAskedToGo();
-
-        using IDisposable invocation = BeginInvocation(handle);
-
         // A reload's hooks redraw the page while the old connection's command may still be writing it.
-        await _exclusiveCommandLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        _ = await InCommandTurnAsync(handle, async cancellation =>
         {
-            await RunInTurnAsync(hook, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _exclusiveCommandLock.Release();
-        }
+            try
+            {
+                await RunInTurnAsync(hook, cancellation).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, cancellation).ConfigureAwait(false);
+            }
+
+            // A hook answers nothing; the turn's shape is a call's, which does.
+            return true;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// A command's code moved its connection's session: the controller told inline — the command already runs outside the lock, and
-    /// waits for it — then the page told to switch, then the session's other pages reached.
+    /// A command's code changed its connection's session: where its language, theme or colours moved, the controller told inline — the
+    /// command already runs outside the lock, and waits for it — and the page told to switch; then the session's pages re-checked
+    /// against their routes and reached, as a change from outside reaches them. This page, where its route no longer passes, goes
+    /// with its command's answer; code no answer follows — a hook, posted work — ends it once its turn is over.
     /// </summary>
     async Task IUISessionChangeListener.SessionChangedAsync(UIHandle handle, IUserSessionContext previous, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(previous);
 
-        await HearSessionAsync(handle, cancellationToken).ConfigureAwait(false);
-
-        await PushCommandResultAsync(handle, new UICommandExecutionResult
+        if (UISessionMoves.Any(previous, handle.Session))
         {
-            Command = UICommandResult.Ok(UISessionMoves.Effects(previous, handle.Session)),
-            Changes = ServerChangeSet.Empty
-        }, cancellationToken).ConfigureAwait(false);
+            await HearSessionAsync(handle, cancellationToken).ConfigureAwait(false);
+            await PushCommandResultAsync(handle, OutsideCommand(UISessionMoves.Effects(previous, handle.Session)), cancellationToken).ConfigureAwait(false);
+        }
 
-        // Found where the host registers itself, as a sign-out finds it: a runtime has no other way to its session's other runtimes.
-        if (handle.Session is UserSessionState session && Controller is IUIContextController contextController && contextController.Context.Services.GetService(typeof(IUISessions)) is UIHost host)
-            await host.ReachSessionAsync(session, handle, this, cancellationToken).ConfigureAwait(false);
+        if (handle.Session is UserSessionState session && await _host.SessionChangedInCommandAsync(session, handle, this, cancellationToken).ConfigureAwait(false) && !TrySendAwayWithAnswer(handle))
+            Post(_ => _host.EndIfRefusedAsync(handle, carriedByAnswer: false));
     }
 
     /// <summary>

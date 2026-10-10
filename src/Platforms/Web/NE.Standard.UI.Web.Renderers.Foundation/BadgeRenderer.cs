@@ -19,6 +19,9 @@ public sealed record WebBadgeRenderOptions
     /// <summary>Optional raw-color override, rendered instead of <see cref="StyleProperty"/> when set.</summary>
     public UIProperty? ColorProperty { get; init; }
 
+    /// <summary>How the badge spends its colour (<c>UIBadgeFill</c>); unset, a style fills and a colour tints.</summary>
+    public UIProperty? FillProperty { get; init; }
+
     public required UIProperty IconProperty { get; init; }
 
     public required UIProperty IconColorProperty { get; init; }
@@ -43,6 +46,16 @@ public sealed record WebBadgeRenderOptions
     public ReadOnlyMemory<WebDomOperation> TooltipOperations { get; init; }
 
     public string ContentStateTarget { get; init; } = "root";
+
+    /// <summary>
+    /// The element that says the badge shows, for the layout around it: a text body's component root, which wears
+    /// <see cref="WebAttributes.TextBadgeIcon"/> and <see cref="WebAttributes.TextBadgeText"/> beside the body's other marks; null for a
+    /// badge nothing lays out by.
+    /// </summary>
+    public string? ShownMarkTarget { get; init; }
+
+    /// <summary>One more operation after the icon's and the text's own, as a text body's other parts run it (<c>WebTextBodyOptions.PartsShownOperation</c>).</summary>
+    public WebDomOperation? PartsShownOperation { get; init; }
 }
 
 /// <summary>Renders a badge — its style or raw colour, icon and text — into an element, whichever component owns it.</summary>
@@ -50,27 +63,41 @@ public static class BadgeRenderer
 {
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string IconShownAttribute = "data-ui-badge-icon";
-    private const string TintVariable = "--ui-badge-tint";
+    private const string ColorVariable = "--ui-badge-color";
+    private const string InkVariable = "--ui-badge-ink";
+    private const string OnColorVariable = "--ui-badge-on";
+    private const string ColoredClassName = "ui-badge--colored";
 
     private static readonly WebDomOperation[] StyleOperations = [WebDomOperation.Class(converter: WebDomConverters.BadgeStyleClass)];
+    private static readonly WebDomOperation[] FillOperations = [WebDomOperation.Class(converter: WebDomConverters.BadgeFillClass)];
 
-    // Tinted by a colour: the words in its ink, the ground mixed from the raw colour in --ui-badge-tint.
+    // A colour names the three a style's class names (ui-badge.less): itself, its ink and the words that read on it; the fill picks
+    // which of them the badge wears, so a fill changed later needs nothing rewritten here. A raw colour names no ink: the stylesheet
+    // shades one from the colour against the theme's grounds.
     private static readonly WebDomOperation[] ColorOperations =
     [
-        WebDomOperation.Style("color", converter: WebDomConverters.ThemeInkCss),
-        WebDomOperation.Style(TintVariable, converter: WebDomConverters.ThemeColorCss),
-        WebDomOperation.ToggleClass("ui-badge--tinted", condition: WebValueCondition.HasValue)
+        WebDomOperation.Style(ColorVariable, converter: WebDomConverters.ThemeColorCss),
+        WebDomOperation.Style(InkVariable, converter: WebDomConverters.RoleInkCss),
+        WebDomOperation.Style(OnColorVariable, converter: WebDomConverters.ThemeOnColorCss),
+        WebDomOperation.Class(converter: WebDomConverters.BadgeColoredClass)
     ];
 
     // The content-state marks land on the badge's own element, which differs by host: per target, built once.
-    private static readonly ConcurrentDictionary<string, BadgeStateOperations> StateOperations = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<(string Target, string? ShownTarget, WebDomOperation? Then), BadgeStateOperations> StateOperations = new();
 
     public static void RenderBadge(WebRenderContext context, IHtmlElementBuilder componentRoot, IHtmlElementBuilder badgeRoot, WebBadgeRenderOptions options)
+        => RenderBadge(context, componentRoot, badgeRoot, options, shownMarkHost: null);
+
+    /// <summary>A badge whose showing <paramref name="shownMarkHost"/> wears: the element <see cref="WebBadgeRenderOptions.ShownMarkTarget"/> names.</summary>
+    public static void RenderBadge(WebRenderContext context, IHtmlElementBuilder componentRoot, IHtmlElementBuilder badgeRoot, WebBadgeRenderOptions options, IHtmlElementBuilder? shownMarkHost)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(componentRoot);
         ArgumentNullException.ThrowIfNull(badgeRoot);
         ArgumentNullException.ThrowIfNull(options);
+
+        if ((options.ShownMarkTarget is null) != (shownMarkHost is null))
+            throw new ArgumentException("A badge's shown mark needs both its target and the element the first paint writes it on.", nameof(shownMarkHost));
 
         if (!options.TooltipOperations.IsEmpty)
             WebComponentRendererBase.RenderTooltip(context, badgeRoot, options.TooltipProperty, options.TooltipPlacementProperty, options.TooltipOperations.Span);
@@ -89,18 +116,35 @@ public static class BadgeRenderer
             {
                 if (value is UIThemeColor color && WebCssValues.ThemeColor(color) is { Length: > 0 } css)
                 {
-                    // A semantic colour spent on words is its ink: the raw warning on its own 16 % ground is about 1.6:1.
-                    _ = target.Style("color", WebCssValues.ThemeInk(color));
-                    _ = target.Style(TintVariable, css);
-                    _ = target.Class("ui-badge--tinted");
+                    _ = target.Style(ColorVariable, css);
+
+                    // A semantic colour spent on words is its ink: the raw warning on its own 16 % ground is about 1.6:1. A raw colour's
+                    // is the stylesheet's (.ui-raw-ink()), which holds against whichever theme the badge stands in.
+                    if (WebCssValues.RoleInk(color) is { Length: > 0 } ink)
+                        _ = target.Style(InkVariable, ink);
+
+                    // A raw colour's by its lightness, so a filled one reads whatever the author picked.
+                    if (WebCssValues.ThemeOnColor(color) is { Length: > 0 } onColor)
+                        _ = target.Style(OnColorVariable, onColor);
+
+                    _ = target.Class(ColoredClassName);
                 }
             }, ColorOperations);
+        }
+
+        if (options.FillProperty is UIProperty fillProperty)
+        {
+            _ = WebComponentRendererBase.RenderProperty<UIBadgeFill?>(context, badgeRoot, fillProperty, static (target, value) =>
+            {
+                if (value is UIBadgeFill fill)
+                    _ = target.Class(WebClassNames.BadgeFill(fill));
+            }, FillOperations);
         }
 
         // On the badge, not only its text, so an icon with no size of its own inherits the text's height.
         TextAppearanceRenderer.RenderTextAppearance(context, badgeRoot, options.TextTypeProperty);
 
-        BadgeStateOperations state = StateOperations.GetOrAdd(options.ContentStateTarget, static target => new BadgeStateOperations(target));
+        BadgeStateOperations state = StateOperations.GetOrAdd((options.ContentStateTarget, options.ShownMarkTarget, options.PartsShownOperation), static key => new BadgeStateOperations(key.Target, key.ShownTarget, key.Then));
 
         _ = badgeRoot.Element("span", icon =>
         {
@@ -117,6 +161,7 @@ public static class BadgeRenderer
                 if (IconValueRenderer.Draws(value))
                 {
                     _ = badgeRoot.Attribute(IconShownAttribute);
+                    _ = shownMarkHost?.Attribute(WebAttributes.TextBadgeIcon);
                     IconValueRenderer.RenderIconValue(target, value);
                 }
             }, state.Icon);
@@ -136,6 +181,7 @@ public static class BadgeRenderer
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     _ = badgeRoot.Attribute(WebAttributes.BadgeText, BadgeTextFit(value));
+                    _ = shownMarkHost?.Attribute(WebAttributes.TextBadgeText);
                     _ = target.Text(value);
                 }
             }, state.Text);
@@ -146,7 +192,7 @@ public static class BadgeRenderer
     /// A bare count badge with no component behind it, whose figure a package's own script writes and hides; <paramref name="configure"/>
     /// adds the package's own class or mark.
     /// </summary>
-    public static void RenderCountBadge(IHtmlElementBuilder parent, UIBadgeType style, string? count = null, Action<IHtmlElementBuilder>? configure = null)
+    public static void RenderCountBadge(IHtmlElementBuilder parent, UIBadgeType style, string? count = null, Action<IHtmlElementBuilder>? configure = null, UIBadgeFill fill = UIBadgeFill.Filled)
     {
         ArgumentNullException.ThrowIfNull(parent);
 
@@ -154,6 +200,10 @@ public static class BadgeRenderer
         {
             _ = badge.Class("ui-badge");
             _ = badge.Class(WebClassNames.BadgeStyle(style));
+
+            // A style fills by itself, so the default writes no class.
+            if (fill != UIBadgeFill.Filled)
+                _ = badge.Class(WebClassNames.BadgeFill(fill));
 
             if (!string.IsNullOrWhiteSpace(count))
                 _ = badge.Attribute(WebAttributes.BadgeText, BadgeTextFit(count));
@@ -170,16 +220,31 @@ public static class BadgeRenderer
         });
     }
 
-    private sealed class BadgeStateOperations(string target)
+    private sealed class BadgeStateOperations(string target, string? shownTarget, WebDomOperation? then)
     {
-        public WebDomOperation[] Icon { get; } = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(IconShownAttribute, target: target, condition: WebValueCondition.DrawsIcon)];
+        public WebDomOperation[] Icon { get; } =
+        [
+            .. IconValueRenderer.Operations,
+            WebDomOperation.ToggleAttribute(IconShownAttribute, target: target, condition: WebValueCondition.DrawsIcon),
+            .. ShownMark(WebAttributes.TextBadgeIcon, shownTarget, WebValueCondition.DrawsIcon),
+            .. Then(then)
+        ];
 
         public WebDomOperation[] Text { get; } =
         [
             WebDomOperation.Text(),
             WebDomOperation.ToggleAttribute(WebAttributes.BadgeText, target: target, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit),
-            WebDomOperation.ToggleAttribute(WebAttributes.BadgeSet, target: target, condition: WebValueCondition.HasValue)
+            WebDomOperation.ToggleAttribute(WebAttributes.BadgeSet, target: target, condition: WebValueCondition.HasValue),
+            .. ShownMark(WebAttributes.TextBadgeText, shownTarget, WebValueCondition.HasText),
+            .. Then(then)
         ];
+
+        // Written empty, as the first paint writes it: a flag, not the badge's words.
+        private static WebDomOperation[] ShownMark(string attribute, string? shownTarget, WebValueCondition condition)
+            => shownTarget is null ? [] : [WebDomOperation.ToggleAttribute(attribute, target: shownTarget, condition: condition, value: string.Empty)];
+
+        private static WebDomOperation[] Then(WebDomOperation? then)
+            => then is null ? [] : [then];
     }
 
     // Two cells fit a circle without touching its edge: a narrow character is one, an East Asian wide one or an emoji two, so two

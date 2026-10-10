@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Numerics;
+using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
@@ -93,6 +95,46 @@ public static class WebNumberFormat
     }
 
     /// <summary>
+    /// Formats <paramref name="value"/> as the client formats a number: by the shortest digits that read back as it (0.285, not
+    /// its binary 0.28499…), so a value past a decimal's range, a logarithmic axis's, writes as the page writes it.
+    /// </summary>
+    public static string Format(double value, string? format, WebNumberCulturePack culture)
+    {
+        ArgumentNullException.ThrowIfNull(culture);
+
+        if (!double.IsFinite(value))
+            return double.IsNaN(value) ? "NaN" : value > 0 ? "Infinity" : "-Infinity";
+
+        // No negative zero: the client writes -0 as 0.
+        var digits = (value == 0 ? 0d : value).ToString("R", CultureInfo.InvariantCulture);
+
+        if (string.IsNullOrWhiteSpace(format))
+            return Plain(value, culture);
+
+        if (decimal.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
+            return Format(number, format, culture);
+
+        if (!IsSupported(format))
+            throw new ArgumentException($"Number format '{format}' is outside the shared subset ({Kinds}, with an optional precision).", nameof(format));
+
+        // Past a decimal's range a double is a whole number, so its digits are exact as an integer.
+        NumberFormatInfo info = culture.ToNumberFormatInfo();
+        BigInteger whole = BigInteger.Parse(digits, NumberStyles.Float, CultureInfo.InvariantCulture);
+        var kind = char.ToUpperInvariant(format[0]);
+
+        // The precision always written out: a BigInteger's own default for P is not the culture's.
+        var precision = format.Length > 1 ? format[1..] : kind switch
+        {
+            'C' => info.CurrencyDecimalDigits.ToString(CultureInfo.InvariantCulture),
+            'P' => info.PercentDecimalDigits.ToString(CultureInfo.InvariantCulture),
+            'D' => "",
+            _ => info.NumberDecimalDigits.ToString(CultureInfo.InvariantCulture)
+        };
+
+        return whole.ToString(kind + precision, info);
+    }
+
+    /// <summary>
     /// <c>D</c>, which a decimal refuses: the integer's digits, rounded half away from zero as the client rounds, padded with zeros
     /// to the precision, the culture's sign before them.
     /// </summary>
@@ -104,6 +146,18 @@ public static class WebNumberFormat
         var digits = decimal.Abs(rounded).ToString("F0", CultureInfo.InvariantCulture).PadLeft(width, '0');
 
         return rounded < 0 ? info.NegativeSign + digits : digits;
+    }
+
+    /// <summary>A number's shortest digits as they are — no grouping, never an exponent — in the culture's separator and sign.</summary>
+    private static string Plain(double value, WebNumberCulturePack culture)
+    {
+        UIScriptNumber.ShortestDigits(Math.Abs(value), out var digits, out var point);
+
+        var text = point <= 0 ? $"0{culture.DecimalSeparator}{new string('0', -point)}{digits}"
+            : point >= digits.Length ? digits + new string('0', point - digits.Length)
+            : $"{digits[..point]}{culture.DecimalSeparator}{digits[point..]}";
+
+        return value < 0 ? culture.NegativeSign + text : text;
     }
 
     /// <summary>Whether the format is one letter of the subset followed by at most two digits of precision.</summary>

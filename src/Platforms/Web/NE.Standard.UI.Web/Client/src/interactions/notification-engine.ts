@@ -10,7 +10,9 @@ import type { AuthorText, Phrase } from "../runtime/words.ts";
 import { LiveAnnouncer } from "./live-announcer.ts";
 import type { Politeness } from "./live-announcer.ts";
 import { bottomBarTop } from "./anchored-popup.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
 import { liveFocusReturn, restoreFocusTo } from "./popup-focus.ts";
+import type { ComponentIndex } from "./popup-focus.ts";
 
 const HostClass = "ui-notification-host";
 const NotificationClass = "ui-notification";
@@ -35,6 +37,8 @@ const AccentedSeverities = new Set(["info", "success", "warning", "danger", "pri
 
 export type NotificationEngineOptions = {
     readonly root?: ParentNode;
+    /** The page's components by id (the runtime's `DomRegistry`), through which an opener the page redrew away is found again. */
+    readonly dom?: ComponentIndex;
     readonly durationMs?: number;
 };
 
@@ -58,13 +62,14 @@ export type NotificationRequest = {
  * A button under the message that does the one thing the notice asks for, its words written as the message's are; `run` may answer
  * whether the server took it, and one answered false (refused, a busy command among them) is left to press again.
  */
-type NotificationAction = {
+export type NotificationAction = {
     readonly label: string | Phrase | AuthorText;
     readonly run: () => void | Promise<boolean>;
 };
 
 export class NotificationEngine {
     private readonly root: ParentNode;
+    private readonly components: ComponentIndex | null;
     private readonly durationMs: number;
     private host: HTMLElement | null = null;
     private readonly announcer: LiveAnnouncer;
@@ -74,6 +79,7 @@ export class NotificationEngine {
 
     public constructor(options: NotificationEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.components = options.dom ?? null;
         this.durationMs = options.durationMs ?? DefaultDurationMs;
 
         // Up before the first toast: the host is the live region, and one inserted along with its words is not reliably read.
@@ -132,6 +138,15 @@ export class NotificationEngine {
         // A passing toast is done once its action went through; a sticky one is a state still true, and stays.
         if (request.action !== undefined)
             element.append(createAction(request.action, request.sticky === true ? null : () => this.dismiss(element)));
+
+        // Escape on a toast holding the keyboard closes it, as its cross does, the keyboard going back where it came from.
+        element.addEventListener("keydown", domEvent => {
+            if (domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent))
+                return;
+
+            domEvent.preventDefault();
+            this.dismiss(element);
+        });
 
         element.addEventListener("focusin", domEvent => {
             const from = domEvent.relatedTarget;
@@ -224,7 +239,7 @@ export class NotificationEngine {
             return;
 
         const next = [...element.parentElement?.children ?? []].find(other => other !== element && !other.classList.contains(LeavingClass));
-        const target = liveFocusReturn(this.focusOrigins.get(element), this.root) ?? next?.querySelector<HTMLElement>(`.${CloseClass}`) ?? null;
+        const target = liveFocusReturn(this.focusOrigins.get(element), this.components) ?? next?.querySelector<HTMLElement>(`.${CloseClass}`) ?? null;
 
         restoreFocusTo(target, element);
     }

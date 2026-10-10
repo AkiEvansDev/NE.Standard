@@ -61,8 +61,14 @@ internal sealed partial class SyncGroupContext : DemoGroupContext
 /// <summary>
 /// One message preset drawn in each severity, and every property that can be bound to it.
 /// </summary>
-internal sealed partial class MessageController() : DemoStandardController
+internal sealed partial class MessageController : DemoStandardController
 {
+    // Centred in its pane to begin with: stretched to the pane's floor, its words kept to the top over an empty band.
+    public MessageController()
+    {
+        MainGroup.VerticalAlignment = UIAlignment.Center;
+    }
+
     [RecursiveMember]
     public partial MessageGroupContext MessageGroup { get; set; } = new();
 

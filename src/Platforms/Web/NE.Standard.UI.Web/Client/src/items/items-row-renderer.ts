@@ -1,4 +1,5 @@
 import { MetadataIndex, WebRenderItemsTemplateMetadata } from "../metadata/metadata-index";
+import { markRowIdle } from "../updates/row-idle";
 import { ItemStackEntry } from "./binding-template-evaluator";
 import { renderCompositeItem } from "./items-composite-renderer";
 import { ItemsTemplateRegistry } from "./items-template-registry";
@@ -16,7 +17,7 @@ export function renderItemRow(componentId: number, item: unknown, key: string, a
     const composite = itemsTemplate?.composite;
 
     if (composite === null || composite === undefined)
-        return announceSelection(renderers.renderer.renderItem(componentId, item, key, ancestors), itemsTemplate);
+        return finishRow(renderers.renderer.renderItem(componentId, item, key, ancestors), itemsTemplate);
 
     const row = renderCompositeItem(composite, componentId, item, key, ancestors, renderers.templates, renderers.renderer);
 
@@ -24,13 +25,21 @@ export function renderItemRow(componentId: number, item: unknown, key: string, a
     if (row !== null && itemsTemplate?.rowDecorator)
         renderers.renderer.decorateRow(itemsTemplate.rowDecorator, row, item, key, componentId, ancestors);
 
-    return announceSelection(row, itemsTemplate);
+    return finishRow(row, itemsTemplate);
 }
 
-/** A row whose host announces selection starts unchosen, as the server writes an unchosen row; the selection engine marks the chosen. */
-function announceSelection(row: Element | null, itemsTemplate: Pick<WebRenderItemsTemplateMetadata, "announcesSelection"> | undefined): Element | null {
-    if (row !== null && itemsTemplate?.announcesSelection === true && !row.hasAttribute("aria-selected"))
+/**
+ * What the server writes on a row besides its template: unchosen where the host announces selection (the selection engine marks the
+ * chosen), and idle where its template's root is disabled or loading (row-idle.ts).
+ */
+function finishRow(row: Element | null, itemsTemplate: Pick<WebRenderItemsTemplateMetadata, "announcesSelection"> | undefined): Element | null {
+    if (row === null)
+        return null;
+
+    if (itemsTemplate?.announcesSelection === true && !row.hasAttribute("aria-selected"))
         row.setAttribute("aria-selected", "false");
+
+    markRowIdle(row);
 
     return row;
 }

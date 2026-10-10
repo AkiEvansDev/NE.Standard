@@ -31,7 +31,7 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
 
         if (context.Exception is UIRouteNotFoundException notFound
             && !RouteEquals(notFound.Route, _application.ErrorHandling.NotFoundRoute)
-            && TryBuildRedirect(_application.ErrorHandling.NotFoundRoute, "route", context.Navigation.Route, out UINavigationRequest? notFoundRedirect))
+            && TryBuildRedirect(_application, _application.ErrorHandling.NotFoundRoute, "route", context.Navigation.Route, out UINavigationRequest? notFoundRedirect))
         {
             return ValueTask.FromResult<UINavigationRequest?>(notFoundRedirect);
         }
@@ -45,7 +45,7 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
 
         if (context.Exception is not UnauthorizedAccessException
             && !RouteEquals(context.Route?.Route, _application.ErrorHandling.ErrorRoute)
-            && TryBuildRedirect(_application.ErrorHandling.ErrorRoute, "message", ResolveErrorMessage(context), out UINavigationRequest? errorRedirect))
+            && TryBuildRedirect(_application, _application.ErrorHandling.ErrorRoute, "message", ResolveErrorMessage(context), out UINavigationRequest? errorRedirect))
         {
             return ValueTask.FromResult<UINavigationRequest?>(errorRedirect);
         }
@@ -70,34 +70,45 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
     /// </summary>
     private bool TryBuildRefusalRedirect(ResolveExceptionViewContext context, [NotNullWhen(true)] out UINavigationRequest? request)
     {
-        var signInRoute = _application.Security.SignInRoute;
-
         if (context.Exception is UIForbiddenAccessException)
         {
             var forbiddenRoute = _application.Security.ForbiddenRoute;
 
             if (forbiddenRoute is not null
                 && !RouteEquals(context.Route?.Route, forbiddenRoute)
-                && TryBuildRedirect(forbiddenRoute, "deniedUrl", UINavigationAddress.Format(context.Navigation), out request))
+                && TryBuildRedirect(_application, forbiddenRoute, "deniedUrl", UINavigationAddress.Format(context.Navigation), out request))
             {
                 return true;
             }
         }
 
-        if (!RouteEquals(context.Route?.Route, signInRoute)
-            && TryBuildRedirect(signInRoute, "returnUrl", UINavigationAddress.Format(context.Navigation), out request))
+        return TryBuildSignIn(_application, context.Route?.Route, context.Navigation, out request);
+    }
+
+    /// <summary>
+    /// The sign-in page with <paramref name="page"/> as its return address — the one way a refused or ended page is sent to sign in;
+    /// false with no sign-in route registered, or on the sign-in route itself, which would return to itself.
+    /// </summary>
+    internal static bool TryBuildSignIn(UIApplication application, string? currentRoute, UINavigationRequest page, [NotNullWhen(true)] out UINavigationRequest? request)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(page);
+
+        var signInRoute = application.Security.SignInRoute;
+
+        if (RouteEquals(currentRoute, signInRoute))
         {
-            return true;
+            request = null;
+            return false;
         }
 
-        request = null;
-        return false;
+        return TryBuildRedirect(application, signInRoute, "returnUrl", UINavigationAddress.Format(page), out request);
     }
 
     [SuppressMessage("Usage", "CA2234:Pass system uri objects instead of strings", Justification = "Route paths are opaque route-table keys, not URIs.")]
-    private bool TryBuildRedirect(string? targetRoute, string parameterKey, string parameterValue, [NotNullWhen(true)] out UINavigationRequest? request)
+    private static bool TryBuildRedirect(UIApplication application, string? targetRoute, string parameterKey, string parameterValue, [NotNullWhen(true)] out UINavigationRequest? request)
     {
-        if (targetRoute is null || !_application.RouteRegistry.TryGet(targetRoute, out _))
+        if (targetRoute is null || !application.RouteRegistry.TryGet(targetRoute, out _))
         {
             request = null;
             return false;

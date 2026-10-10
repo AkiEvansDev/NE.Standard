@@ -31,7 +31,8 @@ test("an expander's air above its content is inside the fold", () => {
     const content = declarations(".ui-expander__content") ?? "";
 
     assert.doesNotMatch(content, /margin/, "a margin collapses out of ::details-content and jumps at the fold's ends");
-    assert.match(content, /padding: 0\.75rem 1rem 1rem;/);
+    assert.match(content, /padding: calc\(0\.75rem - 1px\) 1rem 1rem;/);
+    assert.match(content, /border-top: 1px solid/, "the rule under the header comes with the content");
 });
 
 test("a validation line with no words takes no room, whatever marks the field", () => {
@@ -63,7 +64,8 @@ test("a quote paragraph's line is its own box, out of the reach of a tile's wash
 test("a chosen row with pinned cells draws its mark once, above them", () => {
     const row = ".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]";
 
-    assert.match(declarations(`${row}:has(> .ui-table__cell--pinned)::after`) ?? "", /z-index: 1;\s*box-shadow: var\(--ui-selected-mark, inset 2px 0 0 0 var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\)\);/);
-    assert.match(declarations(`${row} > .ui-table__cell--pinned`) ?? "", /box-shadow: none;/, "each pinned cell draws the mark again");
+    assert.match(declarations(".ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]::after") ?? "", /z-index: 1;\s*box-shadow: var\(--ui-selected-mark, inset 2px 0 0 0 var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\)\);/);
+    // In one list with a pinned start grip, which drops its line the same way.
+    assert.match(css, new RegExp(`\\n${`${row} > .ui-table__cell--pinned`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},[^{]*\\.ui-row__grip \\{\\s*box-shadow: none;`), "each pinned cell draws the mark again");
     assert.doesNotMatch(css, /\.ui-table \[data-ui-items-host\] > \.ui-table__row/, "a table row rule reaches a nested table's rows");
 });

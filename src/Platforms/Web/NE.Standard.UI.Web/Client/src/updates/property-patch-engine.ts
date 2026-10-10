@@ -1,12 +1,12 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import type { AddressResolver } from "../addressing/address-resolver.ts";
+import type { AddressResolver, ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
 import { resolveOperationElements } from "../addressing/operation-targets.ts";
 import { ComponentKeyAttribute, ComponentSelector, IntoAttributePrefix, ValueBindingAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ExtensionRegistry } from "../extensions/extension-registry.ts";
-import type { WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
+import type { WebDomOperation, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import { shownValue } from "../runtime/client-strings.ts";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { logDebug, logError, logWarn } from "../runtime/logger.ts";
@@ -187,14 +187,18 @@ export class PropertyPatchEngine {
         if (resolved === null)
             return;
 
-        const shown = this.shownValue(reference, value);
         // The element the render marked for the value: the component's own, never a component's inside it of the same property.
         const marked = `[${IntoAttributePrefix}${toKebabCase(resolved.propertyName)}]`;
 
+        this.applyOperations(resolved, this.shownValue(reference, value), operation => resolveOperationElements(component, operation, () => ownMarkedElements(component, marked)));
+    }
+
+    /** Writes a shown value on one component, every operation converted once, onto the targets `targetsOf` names for it. */
+    private applyOperations(resolved: ResolvedPropertyAddress, shown: unknown, targetsOf: (operation: WebDomOperation) => Iterable<Element>): void {
         for (const operation of resolved.definition.operations) {
             const convertedValue = this.extensions.converters.convert(operation.converter, shown);
 
-            for (const target of resolveOperationElements(component, operation, () => ownMarkedElements(component, marked)))
+            for (const target of targetsOf(operation))
                 this.operations.apply({ resolved, operation, target, value: shown, convertedValue, local: true });
         }
     }
@@ -207,15 +211,9 @@ export class PropertyPatchEngine {
             return false;
 
         // Local, and not recorded: the state a push restores from is the id's, not the element's.
-
         const shown = this.shownValue(reference, value);
 
-        for (const operation of resolved.definition.operations) {
-            const convertedValue = this.extensions.converters.convert(operation.converter, shown);
-
-            for (const target of this.addressResolver.resolveOperationTargets(resolved, operation))
-                this.operations.apply({ resolved, operation, target, value: shown, convertedValue, local: true });
-        }
+        this.applyOperations(resolved, shown, operation => this.addressResolver.resolveOperationTargets(resolved, operation));
 
         this.notifyValueChanged({ reference, propertyName: resolved.propertyName, dynamicParameters: [], value: shown, local: true, components: [component] });
         return true;

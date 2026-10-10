@@ -21,6 +21,10 @@
 @ui-text-with-title: ~":is([data-ui-text-title] > .ui-text, [data-ui-text-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-title].ui-text)";
 @ui-text-with-description: ~":is([data-ui-text-description] > .ui-text, [data-ui-text-description] > :not([data-ui-id]) > .ui-text, [data-ui-text-description].ui-text)";
 @ui-text-with-both: ~":is([data-ui-text-title][data-ui-text-description] > .ui-text, [data-ui-text-title][data-ui-text-description] > :not([data-ui-id]) > .ui-text, [data-ui-text-title][data-ui-text-description].ui-text)";
+// Whether the badge shows sits on the component root beside the marks above (BadgeRenderer), so a host lays out by one element; where
+// it stands (ui-text--badge-trailing) and the description's role (ui-text--description-<role>) are written on the body itself. No
+// rule reads a part below the body.
+@ui-text-with-badge: ~":is([data-ui-text-badge-icon] > .ui-text, [data-ui-text-badge-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-icon].ui-text, [data-ui-text-badge-text] > .ui-text, [data-ui-text-badge-text] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-text].ui-text)";
 
 // IconAlignment.Title: the icon sits on the title's own line; `1lh` matches a Match-sized icon's line-height exactly.
 .ui-text__icon {
@@ -101,7 +105,7 @@
 // title's (the root carries the title's role), which set it below the words it belongs to. Never shorter than its glyph, which keeps
 // the title's size, nor drawing past it: a spill past the text's own box makes a scroller around the text scroll by the spill.
 .ui-text-icon-on-description(@role) {
-    @{ui-text-with-icon}:not(@{ui-text-with-title}):not(.ui-text--icon-content):has(> .ui-text__body > .ui-text__description.ui-text-type--@{role}) > .ui-text__icon {
+    @{ui-text-with-icon}:not(@{ui-text-with-title}):not(.ui-text--icon-content).ui-text--description-@{role} > .ui-text__icon {
         height: max(var(~"--ui-text-@{role}-line-height"), 1em);
 
         // The glyph's line runs a pixel or two past its em by the font's metrics; here that would be past the text itself.
@@ -143,7 +147,7 @@
 }
 
 // A badge never wraps to its own line: a title's max-content width would claim the row first and only then ellipsise, wasting a second row.
-.ui-text__header:has(> .ui-text__badge:is([data-ui-badge-icon], [data-ui-badge-text])) {
+@{ui-text-with-badge} > .ui-text__body > .ui-text__header {
     flex-wrap: nowrap;
 }
 
@@ -171,18 +175,18 @@
 }
 
 // A trailing badge reaches the far edge only in a block that fills its row; centred or end-aligned, it simply follows the title.
-.ui-text:not(.ui-text--align-center, .ui-text--align-end) .ui-text__badge--trailing {
+.ui-text.ui-text--badge-trailing:not(.ui-text--align-center, .ui-text--align-end) > .ui-text__body > .ui-text__header > .ui-text__badge {
     margin-left: auto;
 }
 
 // A trailing badge is only at the far edge if the row it sits in fills the body.
-.ui-text:not(.ui-text--align-center, .ui-text--align-end):has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) > .ui-text__body > .ui-text__header {
+.ui-text.ui-text--badge-trailing@{ui-text-with-badge}:not(.ui-text--align-center, .ui-text--align-end) > .ui-text__body > .ui-text__header {
     width: 100%;
     min-width: 0;
 }
 
 // BadgeAlignment.Content centres the trailing badge across the block via display: contents on the header, so it can span the body's grid.
-.ui-text--badge-content@{ui-text-with-description}:has(> .ui-text__body > .ui-text__header > .ui-text__badge--trailing:is([data-ui-badge-icon], [data-ui-badge-text])) {
+.ui-text--badge-content.ui-text--badge-trailing@{ui-text-with-badge}@{ui-text-with-description} {
     > .ui-text__body {
         grid-template-columns: minmax(0, 1fr) auto;
         // Rows are named explicitly: `-1` counts explicit grid lines, and left implicit it resolved back to the first row.
@@ -198,7 +202,7 @@
             grid-column: 1;
         }
 
-        > .ui-text__header > .ui-text__badge--trailing {
+        > .ui-text__header > .ui-text__badge {
             grid-row: 1 / -1;
             grid-column: 2;
             align-self: center;
@@ -227,20 +231,21 @@
     display: block;
 }
 
-// A one-line description under a title sits tight against it (.ui-text-description-line()).
-@{ui-text-with-both}:not(.ui-text--wrap) > .ui-text__body > .ui-text__description:not(:has(.ui-text__fold)) {
+// A one-line description under a title sits tight against it (.ui-text-description-line()); one holding a fold is marked by the markup
+// written into it (data-ui-folds, InlineMarkupRenderer and inline-markup.ts).
+@{ui-text-with-both}:not(.ui-text--wrap) > .ui-text__body > .ui-text__description:not([data-ui-folds]) {
     .ui-text-description-line();
 }
 
 // A description that runs on keeps its leading between its lines but not above the first: under a title it stands as close as a
 // one-line description does (a card's and an expander's header, a paragraph, a fold).
 @{ui-text-with-both}.ui-text--wrap > .ui-text__body > .ui-text__description,
-@{ui-text-with-both} > .ui-text__body > .ui-text__description:has(.ui-text__fold) {
+@{ui-text-with-both} > .ui-text__body > .ui-text__description[data-ui-folds] {
     .ui-text-leading-trim-start();
 }
 
 // A description with a fold wraps: a caption behind the ellipsis could never be pressed, and its text needs its own lines.
-@{ui-text-with-description} > .ui-text__body > .ui-text__description:has(.ui-text__fold) {
+@{ui-text-with-description} > .ui-text__body > .ui-text__description[data-ui-folds] {
     overflow: visible;
     white-space: normal;
     text-overflow: clip;
@@ -358,7 +363,7 @@
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-text__fold-toggle:hover {
             color: inherit;
         }

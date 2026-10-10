@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -16,7 +16,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// <see cref="UISplitButtonMode.Menu"/> the whole button does.
 /// </summary>
 /// <remarks>Entries are a <see cref="MenuComponent"/> of <see cref="MenuItem"/>, the same model a sidebar uses, drawn in a popup.</remarks>
-public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IRegionContainerComponent, ISplitButtonComponent
+public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IRegionContainerComponent, ISplitButtonComponent, IItemClickComponent
     where T : SplitButtonComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
@@ -43,6 +43,14 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowChevron { get; set; }
+
+    /// <summary>
+    /// Gets or sets where the menu opens against the button: below it, its end at the button's end, by default — a button at a bar's
+    /// end — flipping where there is no room; a leading button (a composer's quick replies) opens from its start.
+    /// </summary>
+    /// <remarks>Render-time only, as a select's list placement is.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIPopupPlacement.BottomEnd)]
+    public UIPopupPlacement? MenuPlacement { get; set; }
 
     /// <summary>
     /// Gets the menu the button drops — its entries, their template and the command an entry runs.
@@ -83,40 +91,10 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
     }
 
     /// <summary>
-    /// Registers the command an entry runs when clicked.
+    /// Writes an entry's click on the menu's templates: an entry of the split button is an entry of its menu.
     /// </summary>
-    public T OnItemClick(string command)
-    {
-        _ = Menu.OnItemClick(command);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers the command an entry runs when clicked, with UI action arguments.
-    /// </summary>
-    public T OnItemClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-    {
-        _ = Menu.OnItemClick(command, arguments);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers the command an entry runs, passing the entry as an argument.
-    /// </summary>
-    public T OnItemClickWithItem(string command, string argumentName = "item")
-    {
-        _ = Menu.OnItemClickWithItem(command, argumentName);
-        return Self;
-    }
-
-    /// <summary>
-    /// Registers the command an entry runs, passing the entry's key as an argument.
-    /// </summary>
-    public T OnItemClickWithItemKey(string command, string argumentName = "id")
-    {
-        _ = Menu.OnItemClickWithItemKey(command, argumentName);
-        return Self;
-    }
+    public void OnClickableItemTemplates(Action<IVisualComponent> register)
+        => Menu.OnClickableItemTemplates(register);
 }
 
 /// <summary>

@@ -81,8 +81,7 @@ function slider(state: string): { readonly input: FakeInput; readonly changes: F
 
     new RangeValueEngine({
         root: real(component),
-        propertyPatchEngine: real({ addValueChangeHandler: (added: (change: unknown) => void) => { handler = added; } }),
-        dom: real({ findAllComponents: () => [component] })
+        propertyPatchEngine: real({ addValueChangeHandler: (added: (change: unknown) => void) => { handler = added; } })
     });
 
     return {

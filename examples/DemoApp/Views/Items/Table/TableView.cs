@@ -164,7 +164,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                 .SetRowHoverable(true)
                 .SetResizableColumns(true)
                 .OnRowClickWithItemKey(nameof(TableController.OpenPressedRow)),
-            note: "Nothing is chosen here: a click on a row, or Enter or Space on the keyboard's row, runs the row's click. The table is one stop of the Tab order: the arrows, Home, End, Page Up and Page Down walk its rows, Up from the first goes to its captions, where Shift with Left or Right sizes a column, and Down comes back.",
+            note: "Nothing is chosen here: a click on a row, or Enter or Space on the keyboard's cell, runs the row's click. The table is one stop of the Tab order and a grid to the keyboard: the arrows walk its cells, Home and End the row's ends, Ctrl+Home and Ctrl+End the first and last row, Page Up and Page Down a page; Up from the first row goes to the caption of the cell's column, where Shift with Left or Right sizes a column, and Down comes back.",
             context: PressedGroup
         );
     }

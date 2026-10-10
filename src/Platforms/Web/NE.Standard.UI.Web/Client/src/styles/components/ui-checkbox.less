@@ -30,9 +30,8 @@
     .ui-responsive-property(border-radius, --ui-border-radius, 0.25rem);
 }
 
-// The input is hidden, so the ring it would wear goes on the box it stands for.
-.ui-checkbox__input@{ui-keyboard-focus} ~ .ui-checkbox__box {
-    .ui-focus-ring();
+.ui-checkbox {
+    .ui-toggle-keyboard-frame();
 }
 
 .ui-checkbox__input:checked ~ .ui-checkbox__box {
@@ -40,8 +39,8 @@
     border-color: var(--ui-color-primary);
 }
 
-// A box whose input is off of its own (a data grid's row that cannot be chosen) answers nothing either.
-.ui-toggle-answers(~".ui-checkbox:not(:has(> .ui-checkbox__input:is(:disabled, .ui-disabled)))", ~".ui-checkbox__input", ~".ui-checkbox__box", {
+// A box whose input is off of its own (a data grid's row that cannot be chosen) answers nothing either: the guard is on the input.
+.ui-toggle-answers(~".ui-checkbox", ~".ui-checkbox__input:not(:disabled, .ui-disabled)", ~".ui-checkbox__box", {
     background: @ui-toggle-leaned;
     border-color: @ui-toggle-leaned;
 });
@@ -83,6 +82,6 @@
     .ui-required-marker();
 }
 
-.ui-checkbox.ui-invalid > .ui-checkbox__box {
+.ui-checkbox:is(@{ui-validation-marked}) > .ui-checkbox__box {
     border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }

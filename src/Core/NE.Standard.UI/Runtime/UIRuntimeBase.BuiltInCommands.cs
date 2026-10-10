@@ -92,9 +92,13 @@ internal abstract partial class UIRuntimeBase
 
         StripTab moved = strip[from];
 
+        // The page's own rules, held here against a stale or forged page: a pinned tab is not dragged, and the pinned ones are the head.
+        if (index is not null && moved.Pinned)
+            throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' names tab '{key}', which is pinned and moves only as it is pinned or unpinned.");
+
         strip.RemoveAt(from);
 
-        var to = index is int place ? Math.Clamp(place, 0, strip.Count) : PinnedBoundary(strip);
+        var to = index is int place ? Math.Clamp(place, PinnedBoundary(strip), strip.Count) : PinnedBoundary(strip);
 
         strip.Insert(to, moved);
 
@@ -194,12 +198,11 @@ internal abstract partial class UIRuntimeBase
     {
         ClientValueUIUpdate update = new()
         {
-            Address = new UIPropertyAddress(tabId, TabItemComponent.OrderProperty),
-            DynamicParameters = parameters,
+            Address = new UIPropertyAddress(tabId, TabItemComponent.OrderProperty, parameters),
             Value = order
         };
 
-        _ = ApplyValueUpdate(update, View.Bindings.Resolve(update.Address, parameters), read: null, out _);
+        _ = ApplyValueUpdate(update, View.Bindings.ResolveWrite(update.Address), read: null, out _);
     }
 
     /// <summary>

@@ -21,33 +21,58 @@ public static class TextAppearanceRenderer
         WebDomOperation.Style("letter-spacing", converter: WebDomConverters.TextAppearanceLetterSpacingCss)
     ];
 
+    // The role again on the text body, whose icon takes the description's line height when there is no title (ui-text.less).
+    private static readonly WebDomOperation[] DescriptionOperations =
+    [
+        .. Operations,
+        WebDomOperation.Class(target: ".ui-text", converter: WebDomConverters.TextDescriptionTypeClass)
+    ];
+
     public static void RenderTextAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
 
-        _ = WebComponentRendererBase.RenderProperty<UITextAppearance?>(context, target, property, static (t, value) =>
+        _ = WebComponentRendererBase.RenderProperty<UITextAppearance?>(context, target, property, static (t, value) => WriteAppearance(t, value), Operations);
+    }
+
+    /// <summary>A text body's description appearance, its role also written on <paramref name="text"/>, the body around it.</summary>
+    public static void RenderDescriptionAppearance(WebRenderContext context, IHtmlElementBuilder description, IHtmlElementBuilder text, UIProperty property)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(text);
+
+        _ = WebComponentRendererBase.RenderProperty<UITextAppearance?>(context, description, property, (t, value) =>
         {
-            if (value is not UITextAppearance appearance)
-                return;
+            WriteAppearance(t, value);
 
-            if (appearance.Size is double size)
-            {
-                _ = t.Style("font-size", WebCssValues.Pixels(size));
+            if (value is { Size: null, Role: UITextType role })
+                _ = text.Class(WebClassNames.TextDescriptionType(role));
+        }, DescriptionOperations);
+    }
 
-                if (appearance.Weight is int weight)
-                    _ = t.Style("font-weight", weight.ToString(CultureInfo.InvariantCulture));
+    private static void WriteAppearance(IHtmlElementBuilder target, UITextAppearance? value)
+    {
+        if (value is not UITextAppearance appearance)
+            return;
 
-                if (appearance.LineHeight is double lineHeight)
-                    _ = t.Style("line-height", WebCssValues.Pixels(lineHeight));
+        if (appearance.Size is double size)
+        {
+            _ = target.Style("font-size", WebCssValues.Pixels(size));
 
-                if (appearance.LetterSpacing is double letterSpacing)
-                    _ = t.Style("letter-spacing", WebCssValues.Pixels(letterSpacing));
-            }
-            else if (appearance.Role is UITextType role)
-            {
-                _ = t.Class(WebClassNames.TextType(role));
-            }
-        }, Operations);
+            if (appearance.Weight is int weight)
+                _ = target.Style("font-weight", weight.ToString(CultureInfo.InvariantCulture));
+
+            if (appearance.LineHeight is double lineHeight)
+                _ = target.Style("line-height", WebCssValues.Pixels(lineHeight));
+
+            if (appearance.LetterSpacing is double letterSpacing)
+                _ = target.Style("letter-spacing", WebCssValues.Pixels(letterSpacing));
+        }
+        else if (appearance.Role is UITextType role)
+        {
+            _ = target.Class(WebClassNames.TextType(role));
+        }
     }
 }

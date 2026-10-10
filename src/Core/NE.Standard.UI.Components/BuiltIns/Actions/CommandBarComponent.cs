@@ -1,7 +1,9 @@
+using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -13,7 +15,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// A horizontal or vertical bar of button items, typically used for toolbars and action rows.
 /// </summary>
 /// <remarks>Items carrying a <c>Group</c> are set apart by <see cref="GroupSeparator"/>; groups keep the order of their first item.</remarks>
-public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IButtonTemplatedItemsComponent
+public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IItemClickComponent
     where T : CommandBarComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -51,6 +53,12 @@ public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase
         // A boundary, not a heading: the stylesheet draws the separator on the header's box and shows no content.
         _ = SetGroupTemplate(new DefaultGroupTemplate(binds: false));
     }
+
+    /// <summary>
+    /// Writes a click registration on the item template, now and on every one set later.
+    /// </summary>
+    public void OnClickableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(register);
 }
 
 /// <summary>

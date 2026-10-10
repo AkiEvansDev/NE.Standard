@@ -10,8 +10,14 @@
 // all that says a picture may be dropped here, so it reads 3:1 as a control's edge does.
 @ui-image-input-drop-edge: var(--ui-color-mark);
 
+// A root whose picture shows: the controller's (its source, which the render writes and the patch keeps) or the file the viewer chose
+// (the engine's preview) — exactly when ImageInputEngine gives the picture a `src`.
+@ui-image-shown: ~":is([data-ui-image-source], [data-ui-image-preview])";
+
 // A picture the viewer replaces: one button is the whole surface (picture, placeholder, pencil), in one of three shapes.
 .ui-image-input {
+    // The box its hidden file input stands in (`.ui-visually-hidden()`).
+    position: relative;
     display: flex;
     flex-direction: column;
     align-self: var(--ui-align-v, center);
@@ -48,7 +54,7 @@
     }
 
     // Over the picture: the dashed edge is for an empty area, a picture has its own and the edge goes back to the fill's.
-    .ui-image-input__surface:has(> .ui-image-input__picture[src]) {
+    .ui-image-input@{ui-image-shown} > .ui-image-input__surface {
         border-style: solid;
         border-color: var(--ui-field-rest);
     }
@@ -82,7 +88,7 @@
     font-size: 2rem;
 }
 
-    .ui-image-input__surface:not(:has(> .ui-image-input__picture[src])) > .ui-image-input__placeholder {
+    .ui-image-input:not(@{ui-image-shown}) > .ui-image-input__surface > .ui-image-input__placeholder {
         display: block;
     }
 
@@ -107,19 +113,19 @@
     .ui-picture-veil(1.5rem);
 }
 
-    @media @ui-can-hover {
-        .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]):hover > .ui-image-input__edit {
+    @media @{ui-can-hover} {
+        .ui-image-input@{ui-field-live}@{ui-image-shown} > .ui-image-input__surface@{ui-image-surface-live}:hover > .ui-image-input__edit {
             opacity: 1;
         }
     }
 
-    .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src])@{ui-keyboard-focus} > .ui-image-input__edit {
+    .ui-image-input@{ui-field-live}@{ui-image-shown} > .ui-image-input__surface@{ui-image-surface-live}@{ui-keyboard-focus} > .ui-image-input__edit {
         opacity: 1;
     }
 
     // No hover to bring the veil up: the pencil stands in the corner over any picture, saying a press changes it.
-    @media @ui-cannot-hover {
-        .ui-image-input:not(.ui-image-input--avatar)@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]) > .ui-image-input__edit {
+    @media @{ui-cannot-hover} {
+        .ui-image-input:not(.ui-image-input--avatar)@{ui-field-live}@{ui-image-shown} > .ui-image-input__surface@{ui-image-surface-live} > .ui-image-input__edit {
             .ui-picture-corner-mark();
 
             &::before {
@@ -129,7 +135,7 @@
 
         // An avatar wears what a hover brings, always and lighter: a mark in its circle's corner sat on the face, and one on the rim
         // would need the circle unclipped.
-        .ui-image-input--avatar@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:has(> .ui-image-input__picture[src]) > .ui-image-input__edit {
+        .ui-image-input--avatar@{ui-field-live}@{ui-image-shown} > .ui-image-input__surface@{ui-image-surface-live} > .ui-image-input__edit {
             background: color-mix(in srgb, black 30%, transparent);
             opacity: 1;
         }
@@ -205,7 +211,7 @@
     }
 
     // With no picture the row reads its placeholder, which the renderer put on the text as an attribute.
-    .ui-image-input--inline > .ui-image-input__surface:not(:has(> .ui-image-input__picture[src])) > .ui-image-input__text:empty::before {
+    .ui-image-input--inline:not(@{ui-image-shown}) > .ui-image-input__surface > .ui-image-input__text:empty::before {
         content: attr(data-ui-image-placeholder);
         color: var(--ui-text-muted);
     }
@@ -288,7 +294,7 @@
 // focus edges rather than standing below them by weight as ui-input.less's does.
 @ui-image-edge-hover: ~":not(@{ui-validation-marked}) > .ui-image-input__surface@{ui-image-surface-live}:not(@{ui-field-focus}):hover";
 
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-image-input@{ui-field-live}:not(.ui-image-input--inline, [data-ui-image-dragging])@{ui-image-edge-hover},
     .ui-image-input--inline:is(.ui-input--filled, .ui-input--tonal)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
         border-color: var(--ui-field-hover);
@@ -300,21 +306,21 @@
     }
 }
 
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-image-input--inline:is(.ui-input--outline, .ui-input--underline)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
         border-color: var(--ui-field-hover-accent);
     }
 }
 
-// A drag over the surface turns the edge primary in every appearance; not when read-only, since a refused drop keeps its edge.
+// A drag over the surface draws every drop target's dashed edge in every appearance; not when read-only, since a refused drop keeps
+// its edge.
 .ui-image-input[data-ui-image-dragging]@{ui-field-live} > .ui-image-input__surface {
-    border-style: dashed;
-    border-color: var(--ui-color-primary);
+    .ui-drop-edge();
 }
 
 // A file the field does not take: the dashed edge in the refusal's colour.
 .ui-image-input[data-ui-image-dragging="refused"]@{ui-field-live} > .ui-image-input__surface {
-    border-color: var(--ui-color-danger);
+    .ui-drop-edge(var(--ui-color-danger-ink));
 }
 
     // An inline row takes a field's size as a field's row does (ui-input.less), its thumbnail and mark stepping with it.
@@ -364,7 +370,7 @@
     flex-basis: 18rem;
 }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:hover > .ui-image-input__pick {
             color: var(--ui-color-on-surface);
         }
@@ -384,18 +390,18 @@
 }
 
     // The shelf itself does not answer the pointer: its squares do. Spelled as the hover it takes back, so it steps aside for the same edges.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-image-input--multiple@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
             border-color: @ui-image-input-drop-edge;
         }
     }
 
     .ui-image-input--multiple[data-ui-image-dragging] > .ui-image-input__surface {
-        border-color: var(--ui-color-primary);
+        .ui-drop-edge();
     }
 
     .ui-image-input--multiple[data-ui-image-dragging="refused"] > .ui-image-input__surface {
-        border-color: var(--ui-color-danger);
+        .ui-drop-edge(var(--ui-color-danger-ink));
     }
 
 .ui-image-input__tiles {
@@ -454,7 +460,7 @@
     .ui-cross-glyph(@ui-glyph-lg);
 }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-image-input__tile:hover > .ui-image-input__remove {
             opacity: 1;
             pointer-events: auto;
@@ -467,7 +473,7 @@
     }
 
     // No hover to bring the veil up: the cross stands in the corner at all times, a small target that leaves the picture visible.
-    @media @ui-cannot-hover {
+    @media @{ui-cannot-hover} {
         .ui-image-input__remove {
             .ui-picture-corner-mark();
             pointer-events: auto;
@@ -517,7 +523,7 @@
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
 }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-image-input@{ui-field-live} .ui-image-input__add:hover {
             background: var(--ui-field-hover);
             color: var(--ui-color-on-surface);
@@ -546,7 +552,7 @@
         content: attr(data-ui-image-placeholder);
     }
 
-    .ui-image-input--multiple > .ui-image-input__surface:has(> .ui-image-input__tiles > .ui-image-input__tile) > .ui-image-input__text {
+    .ui-image-input--multiple[data-ui-image-tiles] > .ui-image-input__surface > .ui-image-input__text {
         display: none;
     }
 
@@ -558,28 +564,29 @@
     background: none;
 }
 
-    .ui-image-input--shelf > .ui-image-input__surface:not(:has(> .ui-image-input__tiles > .ui-image-input__tile)) {
+    .ui-image-input--shelf:not([data-ui-image-tiles]) > .ui-image-input__surface {
         display: none;
     }
 
     // The root too, and with it its margin, its gap and a caption: an empty shelf is nothing at all, but for a validation line it has
     // to show — a file refused for its size lands on an empty shelf.
-    .ui-image-input--shelf:not(:has(.ui-image-input__tile)):not(@{ui-validation-marked}) {
+    .ui-image-input--shelf:not([data-ui-image-tiles]):not(@{ui-validation-marked}) {
         display: none;
     }
 
-    .ui-image-input--shelf:not(:has(.ui-image-input__tile)) > .ui-input__header {
+    .ui-image-input--shelf:not([data-ui-image-tiles]) > .ui-input__header {
         display: none;
     }
 
-    // The shelf's own drop mark, where a file is let go on the thumbnails themselves.
+    // The shelf's own drop mark, where a file is let go on the thumbnails themselves: every drop target's edge, round them.
     .ui-image-input--shelf[data-ui-image-dragging] > .ui-image-input__surface {
-        outline: var(--ui-border-width, 1px) dashed var(--ui-color-primary);
+        .ui-drop-edge();
         outline-offset: @ui-space-1;
     }
 
     .ui-image-input--shelf[data-ui-image-dragging="refused"] > .ui-image-input__surface {
-        outline-color: var(--ui-color-danger);
+        .ui-drop-edge(var(--ui-color-danger-ink));
+        outline-offset: @ui-space-1;
     }
 
 // The crop dialog (image-crop-dialog.ts), on the framework's dialog: the picture under a fixed frame, the zoom, Cancel and Done.
@@ -646,7 +653,7 @@
 
     // Where nothing hovers the fingers pinch, and a slider under the thumb is one more thing to miss: out of sight, but still the
     // dialog's labelled zoom for a screen reader, which cannot pinch.
-    @media @ui-cannot-hover {
+    @media @{ui-cannot-hover} {
         .ui-image-crop__zoom {
             .ui-visually-hidden();
         }

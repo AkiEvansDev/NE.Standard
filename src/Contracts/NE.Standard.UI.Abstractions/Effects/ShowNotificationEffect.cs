@@ -15,6 +15,8 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// </remarks>
 public sealed class ShowNotificationEffect : ClientEffect
 {
+    private UINotificationAction? _action;
+
     /// <summary>
     /// Creates an effect that shows a notification with the author's text or key and severity.
     /// </summary>
@@ -57,7 +59,11 @@ public sealed class ShowNotificationEffect : ClientEffect
     /// once <see cref="Duration"/> has passed: the page holds the notification open while the reader hovers or focuses it.
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public UINotificationAction? Action { get; init; }
+    public UINotificationAction? Action
+    {
+        get => _action;
+        init => _action = value;
+    }
 
     /// <summary>
     /// Gets how long the notification stands, which is the window its <see cref="Action"/> can be pressed in, or
@@ -93,10 +99,10 @@ public sealed class ShowNotificationEffect : ClientEffect
         if (Action is null || Action.Id is not null)
             return this;
 
-        return new ShowNotificationEffect(Message, Severity)
-        {
-            Action = Action.Offer(resolver),
-            DurationMilliseconds = DurationMilliseconds
-        };
+        // A copy whole, so an option added later is not dropped here.
+        ShowNotificationEffect resolved = (ShowNotificationEffect)MemberwiseClone();
+        resolved._action = Action.Offer(resolver);
+
+        return resolved;
     }
 }

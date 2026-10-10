@@ -62,8 +62,7 @@ export class ClientStore {
             return;
 
         try {
-            const stored = window.localStorage.getItem(key);
-            const patches = stored === null ? {} : JSON.parse(stored) as Record<string, ClientBootPatch>;
+            const patches = readBootPatches(window.localStorage.getItem(key));
 
             if (patch === null)
                 delete patches[slot];
@@ -115,5 +114,20 @@ export class ClientStore {
         }
 
         return `${KeyPrefix}:${name}:${slot}`;
+    }
+}
+
+/** A stored boot record, or an empty one where it is missing or unreadable: the write that follows puts a valid one in its place. */
+function readBootPatches(stored: string | null): Record<string, ClientBootPatch> {
+    if (stored === null)
+        return {};
+
+    try {
+        const parsed: unknown = JSON.parse(stored);
+
+        return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, ClientBootPatch> : {};
+    }
+    catch {
+        return {};
     }
 }

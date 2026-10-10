@@ -101,23 +101,24 @@
 }
 
 // The whole caption is the press (tabs-view-engine.ts), so it takes a fill where a Tabs caption changes only words and line (mixins/tabs.less).
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:hover {
         background: var(--ui-wash-hover);
     }
 }
 
-.ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:active:not(:has(.ui-tab-item__close:active)) {
+// Not under a press on its close, which tabs-view-engine.ts marks on the caption (`data-ui-inner-pointer`, as a surface's control).
+.ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:active:not([data-ui-inner-pointer~="press"]) {
     background: var(--ui-wash-active);
 }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-tab-item__caption:hover .ui-tab-item__label {
             .ui-tab-caption-hover-ink();
         }
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-tab-item__caption:hover::after {
             .ui-tab-caption-hover-mark();
         }
@@ -132,7 +133,7 @@
     .ui-tab-caption-selected-ink();
 }
 
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-tab-item--selected .ui-tab-item__caption:hover .ui-tab-item__label {
         .ui-tab-caption-selected-ink();
     }
@@ -151,7 +152,7 @@
         .ui-tab-caption-selected-mark();
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-tab-item--selected .ui-tab-item__caption:hover::after {
             .ui-tab-caption-selected-mark();
         }
@@ -202,7 +203,7 @@
     transition: opacity @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-tab-item__caption:hover .ui-tab-item__close {
             opacity: 1;
             pointer-events: auto;
@@ -216,7 +217,7 @@
     }
 
     // Ink alone: the caption is the surface that washes under the pointer.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-tab-item__close:hover {
             color: @ui-text-ink;
         }
@@ -228,9 +229,9 @@
         pointer-events: none;
     }
 
-    // A strip where nothing can be removed keeps no room for a close at all.
-    .ui-tabs-view[data-ui-tabs-unremovable] .ui-tab-item__close,
-    .ui-tabs-view:not(:has(.ui-tabs-view__item:not([data-ui-unremovable]) > .ui-tab-item:not([data-ui-unremovable]))) .ui-tab-item__close {
+    // A strip where nothing can be removed keeps no room for a close at all: refused whole, or every tab refusing (the render and
+    // tabs-view-engine.ts mark it).
+    .ui-tabs-view:is([data-ui-tabs-unremovable], [data-ui-tabs-none-removable]) .ui-tab-item__close {
         display: none;
     }
 

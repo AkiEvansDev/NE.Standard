@@ -36,7 +36,7 @@ internal static class UIComponentPropertyModelFactory
         if (containingType.TypeKind == TypeKind.Interface)
             return null;
 
-        AttributeData? attribute = FindComponentPropertyAttribute(propertySymbol);
+        AttributeData? attribute = propertySymbol.FindAttribute(UIComponentPropertyNames.AttributeMetadataName);
 
         if (attribute is null)
             return null;
@@ -44,17 +44,6 @@ internal static class UIComponentPropertyModelFactory
         PropertySymbols symbols = new(propertySymbol, containingType, UIComponentPropertyAttributeValues.From(attribute));
 
         return CreateModel(context.SemanticModel.Compilation, CreateTypeModel(containingType), symbols);
-    }
-
-    private static AttributeData? FindComponentPropertyAttribute(IPropertySymbol property)
-    {
-        foreach (AttributeData candidate in property.GetAttributes())
-        {
-            if (candidate.AttributeClass?.ToDisplayString() == UIComponentPropertyNames.AttributeMetadataName)
-                return candidate;
-        }
-
-        return null;
     }
 
     private static UIComponentTypeModel CreateTypeModel(INamedTypeSymbol type)
@@ -246,14 +235,8 @@ internal static class UIComponentPropertyModelFactory
 
     private static void ValidateGeneratedPropertyMember(PropertySymbols model, string memberName, List<DiagnosticInfo> diagnostics)
     {
-        foreach (ISymbol member in model.ContainingType.GetMembers(memberName))
-        {
-            if (SymbolEqualityComparer.Default.Equals(member, model.Property))
-                continue;
-
+        if (model.ContainingType.DeclaresOtherMember(memberName, model.Property))
             diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, model.Property, memberName, model.ContainingType.ToDisplayString()));
-            return;
-        }
     }
 
     private static void ValidateGeneratedSetterMember(PropertySymbols model, List<DiagnosticInfo> diagnostics)
@@ -517,7 +500,7 @@ internal static class UIComponentPropertyModelFactory
             if (member is not IPropertySymbol property || property.IsStatic)
                 continue;
 
-            AttributeData? attribute = FindComponentPropertyAttribute(property);
+            AttributeData? attribute = property.FindAttribute(UIComponentPropertyNames.AttributeMetadataName);
 
             if (attribute is null)
                 continue;
@@ -617,7 +600,7 @@ internal static class UIComponentPropertyModelFactory
     {
         foreach (ISymbol member in EnumerateContractMembers(contract))
         {
-            if (member is IPropertySymbol candidate && !candidate.IsStatic && candidate.Name == name && FindComponentPropertyAttribute(candidate) is not null)
+            if (member is IPropertySymbol candidate && !candidate.IsStatic && candidate.Name == name && candidate.FindAttribute(UIComponentPropertyNames.AttributeMetadataName) is not null)
                 return true;
         }
 

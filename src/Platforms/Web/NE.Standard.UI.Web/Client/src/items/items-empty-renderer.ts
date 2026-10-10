@@ -38,7 +38,8 @@ export function ensureEmptyState(host: Element, componentId: number, templates: 
     if (template === undefined)
         return;
 
-    const root = renderer.renderFromTemplate(template, null);
+    // Under the host's own row scopes, as the server draws it: a list nested in a row may word its empty state from that row.
+    const root = renderer.renderFromTemplate(template, null, renderer.getAncestorStack(host));
 
     if (root === null)
         return;

@@ -31,13 +31,9 @@
 
 // The list behind it: every tab, the current one in the caption's weight; above the field popups, like a context menu.
 .ui-tab-overflow__menu {
-    .ui-popup-surface(@ui-z-list);
-    .ui-popup-scroll();
-    .ui-popup-closed();
+    .ui-popup-list();
     .ui-entry-list();
-    min-width: 10rem;
     max-width: 20rem;
-    padding: @ui-space-1;
 }
 
 .ui-tab-overflow__menu--open {

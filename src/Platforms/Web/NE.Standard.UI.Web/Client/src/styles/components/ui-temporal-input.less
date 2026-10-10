@@ -50,10 +50,6 @@
     gap: @ui-space-2;
 }
 
-    .ui-temporal-input__field::placeholder {
-        color: var(--ui-text-muted);
-    }
-
 // A period reads as one phrase: each field as wide as its text, so the spare width stays after the second rather than between.
 .ui-temporal-input[data-ui-temporal-range] .ui-temporal-input__field {
     flex: 0 1 auto;
@@ -79,8 +75,8 @@
 }
 
 // The calendar's toggle stands out of the wrap at the row's end, the room for it kept: as the row's last item it was what wrapped
-// first, alone onto a second line, while the period itself still fitted on the first.
-.ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row:has(> .ui-temporal-input__toggle) {
+// first, alone onto a second line, while the period itself still fitted on the first. The row holding it is marked by the render.
+.ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row.ui-temporal-input__row--picker {
     padding-inline-end: calc(@ui-space-3 + 1.25rem + @ui-space-2);
 }
 
@@ -145,10 +141,7 @@
     // A read-only segment is no caret: filled under a key's focus only, as nothing shows a keyboard mark after a pointer action.
     .ui-temporal-input__segment:focus:is(:not([aria-readonly="true"]), @{ui-keyboard-focus}) {
         outline: none;
-        background: var(--ui-color-primary);
-        color: var(--ui-color-on-primary);
-        --ui-faint-base: var(--ui-color-on-primary);
-        --ui-ground: var(--ui-color-primary);
+        .ui-filled-ground(var(--ui-color-primary); var(--ui-color-on-primary));
     }
 
 :where(.ui-temporal-input__segment--empty),
@@ -346,10 +339,7 @@
 
 .ui-temporal-input__day--selected,
 .ui-temporal-input__month--selected {
-    background: var(--ui-color-primary);
-    color: var(--ui-color-on-primary);
-    --ui-faint-base: var(--ui-color-on-primary);
-    --ui-ground: var(--ui-color-primary);
+    .ui-filled-ground(var(--ui-color-primary); var(--ui-color-on-primary));
 }
 
 // The days within a period, paler as a preview so the ends stay strongest; a layer over the ground, so the washes go under it

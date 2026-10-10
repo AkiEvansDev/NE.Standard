@@ -10,12 +10,15 @@ import { applyRovingTabIndex } from "./roving-focus.ts";
 import {
     clampToRange, defaultMoment, FirstDayAttribute, isDayOffered, isRange, parseCanonical, readDayOffer, readValue, readValueOf, RootClass, toCanonical, writeValueOf
 } from "./temporal-dom.ts";
-import { chooseDay as choosePeriodDay, isWithinChosenPeriod, isWithinPeriod, startOfDay } from "./temporal-range.ts";
+import { chooseDay as choosePeriodDay, isWithinChosenPeriod, isWithinPeriod, startOfDay, withTime } from "./temporal-range.ts";
 import type { DayOffer } from "./temporal-dom.ts";
 import type { PeriodEnd } from "./temporal-range.ts";
 
 export const DayClass = "ui-temporal-input__day";
-const MonthClass = "ui-temporal-input__month";
+export const MonthClass = "ui-temporal-input__month";
+
+// The month pane's columns, as its stylesheet lays the twelve out: four rows of three.
+const MonthColumns = 3;
 
 export const NavAttribute = "data-ui-temporal-nav";
 export const DayAttribute = "data-ui-temporal-day";
@@ -197,7 +200,46 @@ function renderMonthGrid(state: CalendarState, culture: TemporalCulturePack, off
         grid.append(cell);
     }
 
+    // One stop of the Tab order, on the month shown, else the first on offer; the arrows walk the rest.
+    const cells = [...grid.children] as HTMLButtonElement[];
+
+    applyRovingTabIndex(cells, cells.find(cell => cell.getAttribute("aria-current") === "true" && !cell.disabled) ?? cells.find(cell => !cell.disabled) ?? null);
+
     return grid;
+}
+
+/**
+ * The month a key moves the month pane's keyboard to, in its grid of four rows of three: Left and Right along the months, Up and Down
+ * a row, Home and End to its row's ends, past a month out of bounds to the next on offer; null past the first or the last, where it
+ * stops rather than wraps, as the days do.
+ */
+export function moveMonthByKey(cell: HTMLElement, key: string): HTMLElement | null {
+    const cells = [...cell.parentElement?.querySelectorAll<HTMLButtonElement>(`.${MonthClass}`) ?? []];
+    const index = cells.indexOf(cell as HTMLButtonElement);
+    const move = index === -1 ? null : monthMove(key, index % MonthColumns);
+
+    if (move === null)
+        return null;
+
+    for (let target = index + move.offset; target >= 0 && target < cells.length; target += move.step) {
+        if (!cells[target].disabled)
+            return cells[target];
+    }
+
+    return null;
+}
+
+/** Where a key lands from a month in the given column, and which way it walks on past one out of bounds. */
+function monthMove(key: string, column: number): { readonly offset: number; readonly step: number } | null {
+    switch (key) {
+        case "ArrowLeft": return { offset: -1, step: -1 };
+        case "ArrowRight": return { offset: 1, step: 1 };
+        case "ArrowUp": return { offset: -MonthColumns, step: -MonthColumns };
+        case "ArrowDown": return { offset: MonthColumns, step: MonthColumns };
+        case "Home": return { offset: -column, step: 1 };
+        case "End": return { offset: MonthColumns - 1 - column, step: -1 };
+        default: return null;
+    }
 }
 
 /** "Start" or "End": which end of the period the next click on the calendar sets. */
@@ -223,6 +265,8 @@ export function navigateCalendar(root: HTMLElement, state: CalendarState, action
         if (isWithinBounds(offer, periodKey(month, 7))) {
             state.view = month;
             state.pane = "days";
+            // The days open on the day the keyboard was on, in the month chosen: not the first day on offer.
+            state.focusedDay = clampDay(offer, sameDayIn(month, state.focusedDay ?? readValue(root) ?? clampToRange(root, new Date())));
         }
 
         return true;
@@ -253,7 +297,7 @@ export function chooseCalendarDay(root: HTMLElement, state: CalendarState, day: 
         return;
     }
 
-    const next = withTimeOf(day, readValue(root) ?? defaultMoment(root));
+    const next = withTime(day, readValue(root) ?? defaultMoment(root));
 
     state.focusedDay = next;
     // A day picked from the fringe of the grid belongs to the month beside it, and the grid turns to that month.
@@ -263,7 +307,7 @@ export function chooseCalendarDay(root: HTMLElement, state: CalendarState, day: 
 
 /** One calendar for both ends: the first click is the start, the second the end, and the clock edits whichever was set last. */
 function choosePeriodEnd(root: HTMLElement, state: CalendarState, day: Date): void {
-    const choice = choosePeriodDay({ start: readValueOf(root, false), end: readValueOf(root, true) }, state.activeEnd, withTimeOf(day, defaultMoment(root)));
+    const choice = choosePeriodDay({ start: readValueOf(root, false), end: readValueOf(root, true) }, state.activeEnd, withTime(day, defaultMoment(root)));
 
     state.focusedDay = choice.end ?? choice.start;
     state.view = startOfMonth(day);
@@ -276,18 +320,13 @@ function choosePeriodEnd(root: HTMLElement, state: CalendarState, day: Date): vo
     writeValueOf(root, choice.start, false);
 }
 
-/** The day at the hour, minute and second another moment holds. */
-function withTimeOf(day: Date, timeOf: Date): Date {
-    return localDate(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
-}
-
 /**
  * The day a key moves the keyboard to. An arrow walks on past the days the grid disables to the next one on offer, and stays where it
  * is when there is none within a year; the page keys and Home and End land where they point, held inside Min/Max.
  */
-export function moveByKey(root: HTMLElement, day: Date, key: string): Date | null {
+export function moveByKey(root: HTMLElement, day: Date, key: string, shift = false): Date | null {
     const step = arrowStep(key);
-    const moved = moveDay(day, key, readFirstDay(root));
+    const moved = moveDay(day, key, readFirstDay(root), shift);
 
     if (moved === null)
         return null;
@@ -309,13 +348,20 @@ export function moveByKey(root: HTMLElement, day: Date, key: string): Date | nul
     return day;
 }
 
+/** The day of the month `day` stands on, in `month` — the month's last where it is shorter — at the time of day it had. */
+function sameDayIn(month: Date, day: Date): Date {
+    const lastDay = localDate(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+
+    return localDate(month.getFullYear(), month.getMonth(), Math.min(day.getDate(), lastDay), day.getHours(), day.getMinutes(), day.getSeconds());
+}
+
 /** A day held inside Min/Max, at the time of day it had. */
 function clampDay(offer: DayOffer, day: Date): Date {
     const canonical = toCanonical(day, "date");
     const bound = offer.min !== null && canonical < offer.min ? offer.min : offer.max !== null && canonical > offer.max ? offer.max : null;
     const held = bound === null ? null : parseCanonical(bound, "date");
 
-    return held === null ? day : withTimeOf(held, day);
+    return held === null ? day : withTime(held, day);
 }
 
 function arrowStep(key: string): number {
@@ -328,8 +374,8 @@ function arrowStep(key: string): number {
     }
 }
 
-/** Home and End are the ends of the row from the culture's first day of the week. */
-function moveDay(day: Date, key: string, firstDay: number): Date | null {
+/** Home and End are the ends of the row from the culture's first day of the week; with Shift a page key turns a year. */
+function moveDay(day: Date, key: string, firstDay: number, shift: boolean): Date | null {
     const column = ((day.getDay() - firstDay) + 7) % 7;
 
     switch (key) {
@@ -337,8 +383,8 @@ function moveDay(day: Date, key: string, firstDay: number): Date | null {
         case "ArrowRight": return addDays(day, 1);
         case "ArrowUp": return addDays(day, -7);
         case "ArrowDown": return addDays(day, 7);
-        case "PageUp": return addMonths(day, -1);
-        case "PageDown": return addMonths(day, 1);
+        case "PageUp": return addMonths(day, shift ? -12 : -1);
+        case "PageDown": return addMonths(day, shift ? 12 : 1);
         case "Home": return addDays(day, -column);
         case "End": return addDays(day, 6 - column);
         default: return null;

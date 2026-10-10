@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
@@ -76,9 +77,24 @@ public sealed class WebShellContext
     /// </summary>
     public bool SideDrawers { get; init; } = true;
 
+    /// <summary>
+    /// Gets whether the left side is a phone's bottom bar rather than a drawer: a rail alone under <see cref="SideDrawers"/>, unless the
+    /// view turns <c>RailBottomBar</c> off.
+    /// </summary>
+    public bool BottomBar { get; init; }
+
+    /// <summary>
+    /// Gets whether the content region's root fills its height (<c>Fill</c>, as compiled), so the regions keep their own scroll on a
+    /// phone too.
+    /// </summary>
+    public bool ContentFills { get; init; }
+
     public WebRenderMetadata? Metadata { get; init; }
 
-    public string? MetadataJson { get; init; }
+    /// <summary>
+    /// Gets <see cref="Metadata"/> already serialized as UTF-8, as a view's cached render keeps it; set, it is written instead.
+    /// </summary>
+    public ReadOnlyMemory<byte> MetadataJson { get; init; }
 
     /// <summary>
     /// Gets the framework's own words resolved for <see cref="Language"/>, for the client to write where it draws chrome itself — see <see cref="UIStrings"/>.

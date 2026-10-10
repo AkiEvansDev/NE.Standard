@@ -155,14 +155,73 @@ function detectMacPlatform(): boolean {
     return /mac/i.test(uaDataPlatform ?? navigator.platform ?? "");
 }
 
-/** An authored chord in the reader's platform's words, for a package that keys its own control and names the chord in its tooltip. */
+/**
+ * A key chord for a package that keys its own control: matched as the framework matches one, written in the reader's platform's
+ * words, and a key an input method is composing told apart.
+ */
 export const shortcutWords = {
     words(chord: string): string | null {
         const shortcut = parseShortcut(chord);
 
         return shortcut === null ? null : formatShortcut(shortcut);
-    }
+    },
+    matches(domEvent: KeyboardEvent, chord: string): boolean {
+        const shortcut = parseShortcut(chord);
+
+        return shortcut !== null && matchesShortcut(shortcut, domEvent);
+    },
+    isComposing
 };
+
+// Safari raises a composition's last keydown with `isComposing` false; the key code still says so.
+const ComposingKeyCode = 229;
+
+/** Whether a key is part of an input method's composition — its Enter confirms a candidate, its Escape cancels it — and nothing else's. */
+export function isComposing(domEvent: KeyboardEvent): boolean {
+    // oxlint-disable-next-line typescript/no-deprecated -- Safari's composing key is told by nothing else.
+    return domEvent.isComposing || domEvent.keyCode === ComposingKeyCode;
+}
+
+/** The modifiers a plain key may carry all the same: Shift where it extends a selection, Alt on a combobox's Down and Up. */
+export type PlainKeyAllowance = {
+    readonly shift?: boolean;
+    readonly alt?: boolean;
+};
+
+/**
+ * Whether a key is one navigation answers: no Ctrl or ⌘, no Alt — Alt+arrows move the thing where it moves, else they are the
+ * browser's Back and Forward — and no Shift, each unless allowed, and not part of a composition.
+ */
+export function isPlainKey(domEvent: KeyboardEvent, allow: PlainKeyAllowance = {}): boolean {
+    return !domEvent.ctrlKey && !domEvent.metaKey && (allow.alt === true || !domEvent.altKey) && (allow.shift === true || !domEvent.shiftKey) && !isComposing(domEvent);
+}
+
+/**
+ * Space presses on its release, as on a native button: the keydown holds the element, the keyup presses it — only where it went down,
+ * since a Space whose focus moved meanwhile presses nothing, and only while `still` holds for it.
+ */
+export class SpaceRelease {
+    private held: HTMLElement | null = null;
+
+    public hold(element: HTMLElement): void {
+        this.held = element;
+    }
+
+    public release(domEvent: Event, still: (element: HTMLElement) => boolean = () => true): void {
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== " " || this.held === null)
+            return;
+
+        const element = this.held;
+
+        this.held = null;
+
+        if (domEvent.target !== element || !still(element))
+            return;
+
+        domEvent.preventDefault();
+        element.click();
+    }
+}
 
 /** The canonical form two authored strings are compared by, so "ctrl+s" and "Ctrl+S" collide. */
 export function shortcutKey(shortcut: KeyboardShortcut): string {

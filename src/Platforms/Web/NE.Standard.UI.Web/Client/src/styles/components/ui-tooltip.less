@@ -24,8 +24,8 @@
 }
 
 // Words with no link in them take no press: a tooltip standing over a control (a row's pencil beside its value's words) let the
-// press land on the words, and the control under them could not be pressed while they showed.
-.ui-tooltip--visible:not(:has(a[href])) {
+// press land on the words, and the control under them could not be pressed while they showed. TooltipEngine marks words with a link.
+.ui-tooltip--visible:not(.ui-tooltip--linked) {
     pointer-events: none;
 }
 

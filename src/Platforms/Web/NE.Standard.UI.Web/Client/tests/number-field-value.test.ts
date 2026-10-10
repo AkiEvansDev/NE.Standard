@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeInput, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({ window: { addEventListener: () => { } } });
 
@@ -45,4 +45,27 @@ test("an element that is no number field is not the number engine's to read", ()
     const { engine } = germanField("1");
 
     assert.equal(engine.readValue(real(new FakeInput("text"))), undefined);
+});
+
+test("an arrow steps the field, a page key takes the big step of ten held inside Max, and a chord steps nothing", () => {
+    const { field, engine } = germanField("10.5");
+    const key = (name: string, init: Readonly<Record<string, unknown>> = {}) => field.dispatchEvent(Object.assign(new FakeKeyboardEvent(name, field), init));
+
+    field.setAttribute("data-ui-number-max", "30");
+    field.focus();
+
+    key("ArrowUp");
+    assert.equal(engine.readValue(real(field)), "11.5");
+
+    key("PageUp");
+    assert.equal(engine.readValue(real(field)), "21.5");
+
+    key("PageUp");
+    assert.equal(engine.readValue(real(field)), "30");
+
+    key("PageDown", { ctrlKey: true });
+    assert.equal(engine.readValue(real(field)), "30");
+
+    key("PageDown");
+    assert.equal(engine.readValue(real(field)), "20");
 });

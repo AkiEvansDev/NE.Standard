@@ -17,7 +17,8 @@
 }
 
 // A page's own button for a drawer (ButtonComponent.OpensDrawer) shows only where its side is one, as the shell's own does: from the
-// breakpoint up, and for a left side that is the bottom bar, it would open nothing. Over the author's Visibility, for the same reason.
+// breakpoint up, and for a left side that is the bottom bar (the shell marks the root), it would open nothing. Over the author's
+// Visibility, for the same reason.
 @media (min-width: @ui-breakpoint-md) {
     [data-ui-id][data-ui-drawer-toggle] {
         display: none !important;
@@ -25,7 +26,7 @@
 }
 
 @media (max-width: (@ui-breakpoint-md - 0.02px)) {
-    [data-ui-root]:has(> [data-ui-region="left-side"][data-ui-bottom-bar]) [data-ui-id][data-ui-drawer-toggle="left-side"] {
+    [data-ui-root][data-ui-left-bar] [data-ui-id][data-ui-drawer-toggle="left-side"] {
         display: none !important;
     }
 }
@@ -62,8 +63,9 @@
 
         // A row of the page's own after the footer, so the content's end and the footer scroll clear of the bar rather than under it;
         // it stands at the viewport's bottom meanwhile, as a sticky header at its top, on the page's own ground (the rail's Surface
-        // over it). Its boxes around the rail step aside: their room and ground were the column's, and the bar is the rail's alone. Its
-        // top hairline is the rail's too (ui-menu.less), so the current entry's line can lie over it.
+        // over it). Its boxes around the rail step aside: their room and ground were the column's, and the bar is the rail's alone (the
+        // bar holds nothing else, WebViewRenderer.IsRailAlone). Its top hairline is the rail's too (ui-menu.less), so the current entry's
+        // line can lie over it.
         [data-ui-root][data-ui-side-drawers] > [data-ui-region="left-side"][data-ui-bottom-bar] {
             position: sticky;
             bottom: 0;
@@ -75,7 +77,7 @@
             .ui-root-ground();
         }
 
-            [data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] [data-ui-id]:has(.ui-menu--rail) {
+            [data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] [data-ui-id]:not(.ui-menu--rail, .ui-menu--rail *) {
                 display: contents;
             }
 
@@ -97,16 +99,42 @@
             transition: transform @ui-motion-normal @ui-motion-enter;
         }
 
-    // The band that carries the buttons lays them in a row with what it holds: the left one before it, the right one after.
-    [data-ui-root][data-ui-side-drawers] > [data-ui-region]:has(> .ui-shell__drawer-toggle) {
+    // The band that carries the buttons (WebViewRenderer names their sides on it) lays them in a row with what it holds: the left one
+    // before it, the right one after.
+    [data-ui-root][data-ui-side-drawers] > [data-ui-region][data-ui-drawer-toggles] {
         flex-direction: row;
         align-items: flex-start;
     }
 
-        [data-ui-root][data-ui-side-drawers] > [data-ui-region]:has(> .ui-shell__drawer-toggle) > [data-ui-id] {
+        [data-ui-root][data-ui-side-drawers] > [data-ui-region][data-ui-drawer-toggles] > [data-ui-id] {
             flex: 1 1 auto;
             min-width: 0;
         }
+
+        // What stands beside a button starts a step after it, whatever room its own padding keeps on that edge: the page's padding,
+        // which lines a header up with the page under it, beside the button only pushed the name away from it.
+        [data-ui-root][data-ui-side-drawers] > [data-ui-region][data-ui-drawer-toggles~="left-side"] > [data-ui-id] {
+            padding-inline-start: @ui-space-2;
+        }
+
+        [data-ui-root][data-ui-side-drawers] > [data-ui-region][data-ui-drawer-toggles~="right-side"] > [data-ui-id] {
+            padding-inline-end: @ui-space-2;
+        }
+
+    // A side's own switch puts its drawer away (side-drawer-engine.ts): it stands at the edge the drawer came from, over the button
+    // that opened it and before what shares its row, not on the inner edge a fold keeps it reachable on.
+    [data-ui-root][data-ui-side-drawers] > [data-ui-region="left-side"] .ui-collapsible.ui-side--left > .ui-collapsible__toggle {
+        align-self: flex-start;
+    }
+
+    [data-ui-root][data-ui-side-drawers] > [data-ui-region="right-side"] .ui-collapsible.ui-side--right > .ui-collapsible__toggle {
+        align-self: flex-end;
+    }
+
+    [data-ui-root][data-ui-side-drawers] > [data-ui-region="left-side"] .ui-collapsible.ui-side--left > .ui-collapsible__bar > .ui-collapsible__toggle,
+    [data-ui-root][data-ui-side-drawers] > [data-ui-region="right-side"] .ui-collapsible.ui-side--right > .ui-collapsible__bar > .ui-collapsible__toggle {
+        order: -1;
+    }
 
     .ui-shell__drawer-toggle {
         display: flex;

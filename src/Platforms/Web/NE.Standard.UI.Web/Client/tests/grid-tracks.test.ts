@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
     applyGridTrackLimits,
+    bigStep,
     coversNoRoom,
     formatGridTracks,
     moveSplit,
@@ -140,4 +141,9 @@ test("a run is never left a sliver: shrunk into one it folds to nothing, grown o
     assert.equal(Math.round(width(moveSplit(tracks, [0, 8, 600], runs, 16), [0, 8, 600])), 120, "one key's step opens it to the sliver's edge");
     assert.equal(Math.round(width(moveSplit(tracks, [300, 8, 300], runs, 280), [300, 8, 300])), 600, "the other run folds the same way");
     assert.equal(Math.round(width(moveSplit(tracks, [300, 8, 300], runs, -100), [300, 8, 300])), 200, "outside the sliver a move is as it was");
+});
+
+test("a big step, a page key's, is a tenth of the room the bar moves in, never less than an arrow's step", () => {
+    assert.equal(bigStep(16, 1200), 120);
+    assert.equal(bigStep(16, 90), 16);
 });

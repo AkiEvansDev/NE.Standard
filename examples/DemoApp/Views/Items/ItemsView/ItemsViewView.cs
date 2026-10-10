@@ -143,18 +143,23 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     /// on another component's value, like a filter, so the order comes back when it is off. A list with nothing left to show says so
     /// through an empty template worded for the screen.
     /// </summary>
-    /// <remarks>The rows are the rich kind — a glyph, two lines and a badge at the end — since a list is rarely a column of names.</remarks>
+    /// <remarks>
+    /// The rows are the rich kind — a glyph, two lines and a badge at the end — since a list is rarely a column of names. The filters
+    /// are Tonal: a toolbar over the list, not a form whose fields stack.
+    /// </remarks>
     private static ContainerComponent CreateFilterGroup()
     {
         return DemoUI.CreateExample("Narrowed and sorted",
             UILayout.Stack(0)
                 .AddChild(UILayout.Columns(12,
                         new TextInputComponent(FilterId)
+                            .SetAppearance(UIInputAppearance.Tonal)
                             .SetPlaceholder("Filter services")
                             .SetPrefixIcon(DemoIcons.Search)
                             .SetShowClearButton()
                             .SetDebounceMilliseconds(150),
                         new SelectComponent(RegionId)
+                            .SetAppearance(UIInputAppearance.Tonal)
                             .SetPlaceholder("Any region")
                             .SetShowClearButton()
                             .SetOptions(
@@ -233,7 +238,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                 .SetRowHoverable(true)
                 .SetTemplate(new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Raised)
-                    .SetWidth(UILayoutLength.Absolute(200))
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(200)))
                     .SetPadding(UIThickness.Uniform(0))
                     .SetContent(UILayout.Stack(0,
                         new ImageComponent()

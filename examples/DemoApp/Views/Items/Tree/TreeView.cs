@@ -88,6 +88,7 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("A bucket's objects",
             UILayout.Stack(0)
                 .AddChild(new TextInputComponent(FilesFilterId)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetPlaceholder("Filter objects")
                     .SetPrefixIcon(DemoIcons.Search)
                     .SetShowClearButton()

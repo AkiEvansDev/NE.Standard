@@ -29,7 +29,6 @@ test("a Filled field draws a line under its ground in the mark, on square bottom
     assert.match(filled, /border-bottom-color: var\(--ui-color-mark\);/);
     assert.match(filled, squareBottom);
     assert.match(declarations(".ui-input--filled.ui-image-input--inline > .ui-image-input__surface") ?? "", squareBottom);
-    assert.match(css, /\.ui-search__field--filled \{[^}]*border-end-start-radius: 0;/);
     assert.doesNotMatch(css, /\.ui-input--tonal[^{,]*\{[^}]*border-end-/);
 
     const hover = /\n {2}:where\(\.ui-input--filled[^,]*\) > [^{]*:hover \{([^}]*)\}/.exec(css)?.[1] ?? "";
@@ -64,7 +63,9 @@ test("a Tonal field is the fill alone: it answers the pointer as Filled does and
     assert.match(hover, /border-color: var\(--ui-field-hover\);/);
     assert.doesNotMatch(hover, /--ui-color-mark/);
     assert.doesNotMatch(css, /\.ui-input--tonal[^{,]*\{[^}]*--ui-color-mark/);
-    assert.match(css, /\.ui-search__field:not\(\.ui-search__field--filled, \.ui-search__field--tonal, /);
+    // A search's field in its list is drawn by the same rules, under a head wearing its appearance; Ghost's line is a divider.
+    assert.match(css, /\.ui-search__head\.ui-input--ghost > \.ui-search__field \{[^}]*border-color: var\(--ui-color-border\);/);
+    assert.doesNotMatch(css, /ui-search__field--/);
 });
 
 test("a range's track and a picture's drop edge read in the mark; a button group's strip draws no field's line", () => {
@@ -89,9 +90,10 @@ test("a warning and an info colour a field's edge in their own colour as an erro
 
 test("a field told to leave out its focus edge draws no brand edge under a focus, and the forced palette still marks it", () => {
     const state = `${fields}, .ui-field-box, .ui-image-input__surface`;
-    const focus = ":focus-within:where(:not([data-ui-pointer-focus], :has([data-ui-pointer-focus]:focus)))";
+    const focus = ":focus-within:where(:not([data-ui-pointer-focus], [data-ui-focus-within='pointer']))";
     const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(match => ({ selector: match[1].trim(), body: match[2] }));
-    const edges = rules.filter(rule => rule.selector.includes(focus) && /var\(--ui-color-primary\)|--ui-input-focus-ring/.test(rule.body) && !rule.selector.includes("ui-search__field"));
+    // A colour picker's own channel fields are its popup's, not the field the author told: they keep their focus edge.
+    const edges = rules.filter(rule => rule.selector.includes(focus) && /var\(--ui-color-primary\)|--ui-input-focus-ring/.test(rule.body) && !rule.selector.startsWith(".ui-color-input__field-input"));
 
     assert.ok(edges.length >= 4, "the field's focus edges were not found");
 

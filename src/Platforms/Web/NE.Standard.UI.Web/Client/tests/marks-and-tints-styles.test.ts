@@ -40,14 +40,14 @@ test("a popup's list marks no line: a folded menu's flyout's current entry is it
     assert.doesNotMatch(declarations(".ui-select__option[aria-selected=\"true\"]") ?? "", /box-shadow/);
 });
 
-test("a folded group holding the current page wears a short, whole piece of the line on the current entry's edge, its words in the ink", () => {
-    const mark = /\.ui-menu__item\[data-ui-menu-group\]:not\(\[data-ui-menu-open\]\):has\(\.ui-menu-item--selected\) > \.ui-menu-item:not\(\.ui-menu-item--selected\):not\(\.ui-pressing\)::before,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+test("a folded group holding the current page wears a short, whole piece of the line on the current entry's edge, its words in the ink, by its mark", () => {
+    const mark = /\.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\]:not\(\[data-ui-menu-open\]\) > \.ui-menu-item:not\(\.ui-menu-item--selected\):not\(\.ui-pressing\)::before,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "";
 
     assert.match(mark, /inset: var\(--ui-menu-group-mark-inset, 25% auto 25% 0\);/);
     assert.match(mark, /width: var\(--ui-menu-group-mark-width, 2px\);/);
     assert.match(mark, /background: var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\);/);
     assert.doesNotMatch(mark, /opacity/);
-    assert.doesNotMatch(/\.ui-menu__item\[data-ui-menu-group\]:not\(\[data-ui-menu-open\]\):has\(\.ui-menu-item--selected\) > \.ui-menu-item:not\(\.ui-menu-item--selected\),[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "", /--ui-color-primary-ink/);
+    assert.doesNotMatch(/\.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\]:not\(\[data-ui-menu-open\]\) > \.ui-menu-item:not\(\.ui-menu-item--selected\),[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "", /--ui-color-primary-ink/);
     assert.match(declarations(".ui-menu.ui-side--right") ?? "", /--ui-menu-group-mark-inset: 25% 0 25% auto;/);
     assert.match(declarations(".ui-menu:is(.ui-side--top, .ui-side--bottom, .ui-orientation--horizontal)") ?? "", /--ui-menu-group-mark-inset: auto 25% 0 25%;/);
 });
@@ -121,5 +121,5 @@ test("a validation mark's tooltip carries its severity's ink down its leading ed
 });
 
 test("a tooltip with no link in it takes no press, so a control it stands over can still be pressed", () => {
-    assert.match(declarations(".ui-tooltip--visible:not(:has(a[href]))") ?? "", /pointer-events: none;/);
+    assert.match(declarations(".ui-tooltip--visible:not(.ui-tooltip--linked)") ?? "", /pointer-events: none;/);
 });

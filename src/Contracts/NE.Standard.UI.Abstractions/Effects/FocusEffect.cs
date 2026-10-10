@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -18,6 +19,7 @@ public sealed class FocusEffect(UIComponentReference target) : TargetedClientEff
     public override string Kind => ClientEffectKinds.Focus;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <inheritdoc />
@@ -30,5 +32,6 @@ internal sealed class CompiledFocusEffect(UIComponentAddress target) : CompiledT
     public override string Kind => ClientEffectKinds.Focus;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 }

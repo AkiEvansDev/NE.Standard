@@ -20,7 +20,7 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// </summary>
 public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 {
-    private static readonly WebDomOperation[] FieldAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.SearchFieldAppearanceClass)];
+    private static readonly WebDomOperation[] FieldAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
 
     public override string ComponentTypeKey => SearchComponent.ComponentTypeKey;
 
@@ -53,26 +53,34 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         RenderValidationMessage(context, root);
     }
 
-    /// <summary>The field the term is typed into, a glyph before it, at the top of the open list.</summary>
+    /// <summary>
+    /// The field the term is typed into, a glyph before it, at the top of the open list: a field's box under a head wearing its
+    /// appearance, as a field's root does, so the stylesheet draws it as every field.
+    /// </summary>
     private static void RenderSearchField(WebRenderContext context, IHtmlElementBuilder popup)
     {
-        _ = popup.Element("div", field =>
+        _ = popup.Element("div", head =>
         {
-            _ = field.Class("ui-search__field");
+            _ = head.Class("ui-search__head");
 
-            _ = RenderProperty<UIInputAppearance?>(context, field, SearchComponent.SearchFieldAppearanceProperty, static (target, value) =>
+            _ = RenderProperty<UIInputAppearance?>(context, head, SearchComponent.SearchFieldAppearanceProperty, static (target, value) =>
             {
                 if (value is UIInputAppearance appearance)
-                    _ = target.Class(WebClassNames.SearchFieldAppearance(appearance));
+                    _ = target.Class(WebClassNames.InputAppearance(appearance));
             }, FieldAppearanceOperations);
 
-            _ = field.Element("span", glyph =>
+            _ = head.Element("div", field =>
             {
-                _ = glyph.Class("ui-search__glyph");
-                _ = glyph.Attribute("aria-hidden", "true");
-            });
+                _ = field.Class("ui-search__field ui-field-box");
 
-            _ = field.Element("input", input => RenderSearchInput(context, input));
+                _ = field.Element("span", glyph =>
+                {
+                    _ = glyph.Class("ui-search__glyph");
+                    _ = glyph.Attribute("aria-hidden", "true");
+                });
+
+                _ = field.Element("input", input => RenderSearchInput(context, input));
+            });
         });
     }
 
@@ -109,13 +117,13 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is int milliseconds && milliseconds >= 0)
                 _ = target.Attribute(WebAttributes.SearchDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SearchDebounce)]);
+        }, [WebDomOperation.Attribute(WebAttributes.SearchDebounce, converter: WebDomConverters.NonNegativeCount)]);
 
         _ = RenderProperty<int?>(context, input, SearchComponent.MinSearchLengthProperty, static (target, value) =>
         {
             if (value is int length && length > 0)
                 _ = target.Attribute(WebAttributes.SearchMinLength, length.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SearchMinLength)]);
+        }, [WebDomOperation.Attribute(WebAttributes.SearchMinLength, converter: WebDomConverters.PositiveCount)]);
 
         RenderFlagAttribute(context, input, SearchComponent.AutoSearchProperty, WebAttributes.SearchManual, WebValueCondition.IsFalse);
 

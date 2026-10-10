@@ -26,39 +26,53 @@ public sealed class WebDomOperation
     /// <remarks>A property registers one operation list per component type; a part missing on some instances is an optional target, not a second list.</remarks>
     public bool Optional { get; init; }
 
-    public static WebDomOperation Text(string? target = null, string? converter = null)
+    /// <summary>Whether an attribute's converter decides a null value too, rather than null removing the attribute before it is asked.</summary>
+    public bool ConvertsNull { get; init; }
+
+    public static WebDomOperation Text(string? target = null, string? converter = null, bool optional = false)
         => new()
         {
             Kind = nameof(WebDomOperationKind.Text),
             Target = target,
-            Converter = converter
+            Converter = converter,
+            Optional = optional
         };
 
     /// <summary>
     /// Replaces the target's content with inline markup (see <c>UIInlineMarkup</c>), rendered as elements rather than assigned HTML.
     /// </summary>
-    public static WebDomOperation Markup(string? target = null, string? converter = null)
+    public static WebDomOperation Markup(string? target = null, string? converter = null, bool optional = false)
         => new()
         {
             Kind = nameof(WebDomOperationKind.Markup),
             Target = target,
-            Converter = converter
+            Converter = converter,
+            Optional = optional
         };
 
-    public static WebDomOperation Attribute(string name, string? target = null, string? converter = null)
+    /// <summary>
+    /// Writes the converted value as an attribute; null removes it, unless <paramref name="convertsNull"/> leaves that to the converter,
+    /// for an attribute whose first paint writes something for no value (<c>aria-pressed="false"</c>).
+    /// </summary>
+    public static WebDomOperation Attribute(string name, string? target = null, string? converter = null, bool optional = false, bool convertsNull = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (convertsNull && converter is null)
+            throw new ArgumentException("An attribute that converts null names its converter.", nameof(convertsNull));
 
         return new()
         {
             Kind = nameof(WebDomOperationKind.Attribute),
             Target = target,
             Name = name,
-            Converter = converter
+            Converter = converter,
+            Optional = optional,
+            ConvertsNull = convertsNull
         };
     }
 
-    public static WebDomOperation RemoveAttribute(string name, string? target = null)
+    public static WebDomOperation RemoveAttribute(string name, string? target = null, bool optional = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -66,7 +80,8 @@ public sealed class WebDomOperation
         {
             Kind = nameof(WebDomOperationKind.RemoveAttribute),
             Target = target,
-            Name = name
+            Name = name,
+            Optional = optional
         };
     }
 
@@ -86,13 +101,14 @@ public sealed class WebDomOperation
         };
     }
 
-    public static WebDomOperation Class(string? target = null, string? converter = null, WebValueCondition condition = WebValueCondition.None)
+    public static WebDomOperation Class(string? target = null, string? converter = null, WebValueCondition condition = WebValueCondition.None, bool optional = false)
         => new()
         {
             Kind = nameof(WebDomOperationKind.Class),
             Target = target,
             Converter = converter,
-            Condition = condition
+            Condition = condition,
+            Optional = optional
         };
 
     public static WebDomOperation ToggleClass(string name, string? target = null, WebValueCondition condition = WebValueCondition.IsTrue, string? converter = null)
@@ -109,7 +125,7 @@ public sealed class WebDomOperation
         };
     }
 
-    public static WebDomOperation Style(string name, string? target = null, string? converter = null)
+    public static WebDomOperation Style(string name, string? target = null, string? converter = null, bool optional = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -118,7 +134,8 @@ public sealed class WebDomOperation
             Kind = nameof(WebDomOperationKind.Style),
             Target = target,
             Name = name,
-            Converter = converter
+            Converter = converter,
+            Optional = optional
         };
     }
 
@@ -134,7 +151,7 @@ public sealed class WebDomOperation
 
     /// <summary>
     /// Sets a live DOM/IDL property (e.g. <c>value</c> or <c>checked</c>) rather than a content attribute, unlike
-    /// <see cref="Attribute(string, string?, string?)"/>.
+    /// <see cref="Attribute(string, string?, string?, bool, bool)"/>.
     /// </summary>
     public static WebDomOperation Property(string name, string? target = null, string? converter = null)
     {

@@ -131,9 +131,12 @@
     }
 
     // The current segment: primary fill, or the author's selection style; no hover brightening, since the fill already says it.
+    // Its words read on the fill: muted ones and a link in its ink, as on any filled ground, not the page's.
     .ui-button-group__item[data-ui-selected] > .ui-button {
         .ui-selected-ground(var(--ui-color-primary));
         .ui-selected-ink(var(--ui-color-on-primary));
+        --ui-faint-base: var(--ui-selected-foreground, var(--ui-color-on-primary));
+        --ui-ground: var(--ui-selected-background, var(--ui-color-primary));
         .ui-reveal-hover-off({
             .ui-selected-ground(var(--ui-color-primary));
         });

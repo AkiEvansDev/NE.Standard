@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Components.Foundation;
 
@@ -60,6 +61,12 @@ public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id 
     /// </summary>
     public TComponent OnRowClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
         => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Click, command, arguments));
+
+    /// <summary>
+    /// Registers a row click command with an argument derived from the specified <paramref name="argumentKind"/>.
+    /// </summary>
+    public TComponent OnRowClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
+        => OnRowClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
 
     /// <summary>
     /// Registers a command invoked when a row is opened — Enter on the keyboard's row, or a double click — with the row's key.

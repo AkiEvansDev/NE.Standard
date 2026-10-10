@@ -150,7 +150,7 @@ test("the bar is a row of the page's own after the footer, standing at the viewp
     assert.match(bar, /grid-column: 1;\s*grid-row: 4;/, "not after the footer, the content's end would scroll under it");
     assert.match(bar, /overflow: visible;/, "a scrolling side's own overflow would clip the bar");
     assert.match(bar, /var\(--ui-color-background\);/);
-    assert.match(declarations(phone, `${shell} > [data-ui-bottom-bar] [data-ui-id]:has(.ui-menu--rail)`) ?? "", /display: contents;/);
+    assert.match(declarations(phone, `${shell} > [data-ui-bottom-bar] [data-ui-id]:not(.ui-menu--rail, .ui-menu--rail *)`) ?? "", /display: contents;/);
 });
 
 test("the rail along the bar is the page's width, its ground under the home bar, its entries in one row", () => {
@@ -183,5 +183,11 @@ test("a page's own drawer button shows only where its side is a drawer: never fr
     const wide = mediaBlocks("@media (min-width: 768px) {");
 
     assert.match(declarations(wide, "[data-ui-id][data-ui-drawer-toggle]") ?? "", /display: none !important;/);
-    assert.match(declarations(phone, '[data-ui-root]:has(> [data-ui-region="left-side"][data-ui-bottom-bar]) [data-ui-id][data-ui-drawer-toggle="left-side"]') ?? "", /display: none !important;/);
+    assert.match(declarations(phone, '[data-ui-root][data-ui-left-bar] [data-ui-id][data-ui-drawer-toggle="left-side"]') ?? "", /display: none !important;/);
+});
+
+test("the document and a filled page are read off the shell's marks: the gutter dropped, the regions' own scroll kept on a phone", () => {
+    assert.match(declarations(css, "html[data-ui-scroll-content]") ?? "", /scrollbar-gutter: auto;/);
+    assert.match(declarations(phone, "[data-ui-root][data-ui-scroll-content]:not([data-ui-content-fills])") ?? "", /height: auto;\s*min-height: 100dvh;\s*overflow: visible;/);
+    assert.match(declarations(phone, '[data-ui-root][data-ui-scroll-content]:not([data-ui-content-fills]) > [data-ui-region="content"]') ?? "", /overflow: visible;\s*scrollbar-gutter: auto;/);
 });

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -213,15 +214,29 @@ public static class WebCssValues
         => bold ? "600" : "400";
 
     /// <summary>
-    /// A font family name as a quoted, escaped CSS string — belt and braces alongside <c>UITypography.Validate</c>, which
-    /// already refuses the risky characters.
+    /// A theme's font family list as CSS: each name a quoted, escaped CSS string, a generic family (<c>sans-serif</c>, <c>system-ui</c>, …)
+    /// bare, as the keyword it is — belt and braces alongside <c>UITypography.Validate</c>, which already refuses the risky characters
+    /// and quotes, so no name holds the comma that parts them.
     /// </summary>
     public static string FontFamily(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
-        return CssString(value);
+        StringBuilder css = new(value.Length + 8);
+
+        foreach (var name in value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (css.Length > 0)
+                _ = css.Append(", ");
+
+            _ = css.Append(GenericFontFamilies.Contains(name) ? name : CssString(name));
+        }
+
+        return css.Length > 0 ? css.ToString() : throw new ArgumentException("A font family list names at least one family.", nameof(value));
     }
+
+    // Quoted, a generic family is a face of that name the browser never finds.
+    private static readonly FrozenSet<string> GenericFontFamilies = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "emoji", "math", "fangsong");
 
     /// <summary>
     /// Any text as a quoted CSS string literal, safe inside a <c>style</c> attribute: a quote and a backslash escaped, and a control
@@ -298,6 +313,13 @@ public static class WebCssValues
         => value.Light is null && value.Dark is null && value.Style is UIColorStyle style && InkVar(style) is string ink
             ? $"var({ink})"
             : ThemeColor(value);
+
+    /// <summary>
+    /// A theme colour spent on words (<see cref="ThemeInk"/>); empty for a raw colour, whose words the stylesheet shades from the colour
+    /// itself to the theme's ink luminance (<c>.ui-raw-ink()</c>), so nothing inline stands over them.
+    /// </summary>
+    public static string RoleInk(UIThemeColor value)
+        => value.Light is null && value.Dark is null ? ThemeInk(value) : string.Empty;
 
     /// <summary>
     /// The text colour that reads on a filled ground of this colour: a role's on-colour, a raw colour's on-light or on-dark by its

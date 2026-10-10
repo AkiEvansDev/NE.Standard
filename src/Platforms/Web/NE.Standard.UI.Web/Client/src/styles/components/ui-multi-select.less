@@ -52,7 +52,7 @@
     height: 1.125rem;
     color: inherit;
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &@{ui-adornment-live}:hover {
             color: inherit;
             background: color-mix(in srgb, currentColor 16%, transparent);
@@ -109,7 +109,8 @@
     height: 1.75rem;
 }
 
-// The field's placeholder stands over the empty entry, and goes once anything is typed; the engine hides it while chips stand.
+// The field's placeholder stands over the empty entry, and goes once anything is typed; the engine hides it while chips stand. It is
+// rendered after the entry, which it reads as a sibling, and placed absolutely, so the order shows nothing.
 .ui-multi-select[data-ui-select-free-text] .ui-multi-select__chips {
     position: relative;
 }
@@ -122,12 +123,12 @@
         pointer-events: none;
     }
 
-    .ui-multi-select__chips:has(> .ui-multi-select__entry:not(:placeholder-shown)) > .ui-select__placeholder {
+    .ui-multi-select__entry:not(:placeholder-shown) ~ .ui-select__placeholder {
         display: none;
     }
 
 // A chip the keyboard walked onto wears the keyboard's frame; its cross, which holds the focus, draws no ring of its own.
-.ui-multi-select__chip:has(> .ui-multi-select__chip-remove@{ui-keyboard-focus}) {
+.ui-multi-select__chip@{ui-keyboard-within} {
     .ui-keyboard-frame();
 }
 
@@ -135,8 +136,8 @@
     outline: none;
 }
 
-// The clear button shows once a chip stands in the field.
-.ui-multi-select.ui-select--clearable:not(.ui-readonly) > .ui-select__trigger:has(.ui-multi-select__chip) > .ui-select__clear {
+// The clear button shows once a chip stands in the field, which the chips' host says (`data-ui-select-chips`, the render and the engine).
+.ui-multi-select.ui-select--clearable:not(.ui-readonly) > .ui-select__trigger > .ui-multi-select__chips[data-ui-select-chips] ~ .ui-select__clear {
     display: inline-flex;
 }
 
@@ -172,7 +173,7 @@
         background: none;
     }
 
-    // A full field refuses the options it does not hold; one disabled by its own item is already dimmed by its template.
-    .ui-multi-select .ui-select__option[aria-disabled="true"]:not(:has(> .ui-disabled)) {
+    // A full field refuses the options it does not hold; one disabled by its own item is already dimmed by its template (its row idle).
+    .ui-multi-select .ui-select__option[aria-disabled="true"]:not([data-ui-row-idle]) {
         opacity: var(--ui-disabled-opacity);
     }

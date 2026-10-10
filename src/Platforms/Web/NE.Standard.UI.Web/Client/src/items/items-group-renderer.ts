@@ -2,7 +2,7 @@
 import { ComponentKeyAttribute, GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes.ts";
 import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort.ts";
 import { findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer.ts";
-import { firstShownRow, markGroupHeader } from "./items-group-runs.ts";
+import { bucketByGroup, drawGroupHeader, firstShownRow } from "./items-group-runs.ts";
 import { placeInOrder } from "./items-dom-order.ts";
 import { getSourceOrder } from "./items-source-order.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
@@ -13,7 +13,8 @@ import type { PropertyStateStore } from "../state/property-state-store";
 const bucketOrderByHost = new WeakMap<Element, string[]>();
 
 function removeGroupHeaders(host: Element): void {
-    for (const header of host.querySelectorAll(`[${GroupHeaderAttribute}]`))
+    // The host's own: a grouped list nested in a row keeps its headers.
+    for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`))
         header.remove();
 }
 
@@ -46,37 +47,15 @@ export function regroupHost(host: Element, componentId: number, templates: Items
 
     removeGroupHeaders(host);
 
-    const buckets = new Map<string, Element[]>();
-
-    for (const item of items) {
-        const key = item.getAttribute(GroupAttribute) ?? "";
-        const bucket = buckets.get(key);
-
-        if (bucket === undefined)
-            buckets.set(key, [item]);
-        else
-            bucket.push(item);
-    }
-
-    const previousOrder = bucketOrderByHost.get(host) ?? [];
-    const order = previousOrder.filter(key => buckets.has(key));
-
-    for (const item of items) {
-        const key = item.getAttribute(GroupAttribute) ?? "";
-
-        if (!order.includes(key))
-            order.push(key);
-    }
+    const { buckets, order } = bucketByGroup(items, item => item.getAttribute(GroupAttribute) ?? "", bucketOrderByHost.get(host) ?? []);
+    const ancestors = renderer.getAncestorStack(host);
 
     bucketOrderByHost.set(host, order);
 
     const orderedNodes: Element[] = [];
 
     for (const key of order) {
-        let bucketItems = buckets.get(key);
-
-        if (bucketItems === undefined || bucketItems.length === 0)
-            continue;
+        let bucketItems = buckets.get(key)!;
 
         if (activeSorts.length > 0)
             bucketItems = sortElements(bucketItems, activeSorts, renderer);
@@ -85,7 +64,7 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         const anchor = key === "" ? undefined : firstShownRow(bucketItems);
 
         if (anchor !== undefined) {
-            const header = createGroupHeader(groupTemplate, renderer, anchor);
+            const header = drawGroupHeader(groupTemplate, renderer, renderer.getItemValue(anchor), anchor.getAttribute(ComponentKeyAttribute), ancestors);
 
             if (header !== null)
                 orderedNodes.push(header);
@@ -95,14 +74,4 @@ export function regroupHost(host: Element, componentId: number, templates: Items
     }
 
     placeInOrder(host, [...orderedNodes, ...toNodes(placeholder)]);
-}
-
-/** A header drawn from the row it heads, standing in that row's key: a command in it takes the row's key and group. */
-export function createGroupHeader(template: HTMLTemplateElement, renderer: ItemsTemplateRenderer, anchor: Element): Element | null {
-    const header = renderer.renderFromTemplate(template, renderer.getItemValue(anchor));
-
-    if (header !== null)
-        markGroupHeader(header, anchor.getAttribute(ComponentKeyAttribute));
-
-    return header;
 }

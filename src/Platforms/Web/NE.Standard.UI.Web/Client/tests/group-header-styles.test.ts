@@ -1,5 +1,5 @@
-// A group header in a column reads its own HorizontalAlignment, as a row does, read back from the compiled stylesheet: the root the page
-// draws as the header is a flex item of the column, aligned across it, and the server's wrapper lays its root out as a row's wrapper does.
+// A group header in a column reads its own HorizontalAlignment, as a row does, read back from the compiled stylesheet: the header's
+// wrapper — the server's and the page's alike — lays its root out as a row's wrapper does.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -19,20 +19,15 @@ function declarations(...selectors: string[]): string | null {
     return match?.[1] ?? null;
 }
 
-test("a header the page draws stands across the column where its own alignment puts it", () => {
+test("a header's wrapper is a grid, so its root's own alignment places it as in a row", () => {
     const rule = declarations(
-        ".ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header][data-ui-id]",
-        ".ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header][data-ui-id]"
-    );
-
-    assert.match(rule ?? "", /align-self: var\(--ui-align-h, normal\);/);
-});
-
-test("the server's header wrapper is a grid, so its root's own alignment places it as in a row", () => {
-    const rule = declarations(
-        ".ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header]:not([data-ui-id])",
-        ".ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header]:not([data-ui-id])"
+        ".ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header]",
+        ".ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header]"
     );
 
     assert.match(rule ?? "", /display: grid;/);
+});
+
+test("no rule places a header drawn without its wrapper", () => {
+    assert.doesNotMatch(css, /\[data-ui-group-header\]\[data-ui-id\]/);
 });

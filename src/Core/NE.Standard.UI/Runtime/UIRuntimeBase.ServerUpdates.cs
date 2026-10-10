@@ -120,7 +120,8 @@ internal abstract partial class UIRuntimeBase
         switch (update)
         {
             case ServerValueUIUpdate valueUpdate:
-                AddPendingValueUpdateNoLock(ResolveServerValueUpdateNoLock(valueUpdate));
+                // Built by BuildServerValueNoLock, which resolved its value already.
+                AddPendingValueUpdateNoLock(valueUpdate);
                 break;
 
             case ServerCollectionChangeUIUpdate collectionUpdate:

@@ -1,0 +1,17 @@
+// A pinned part's opaque ground — a pinned cell's, a start grip's beside a pinned first column — with the row's washes painted over
+// it: the ground the table stands on (`--ui-ground`: a raised table's, a card's or a dialog's), not the page's.
+.ui-table-pinned-ground() {
+    background-color: var(--ui-ground, var(--ui-color-background));
+    background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent)), linear-gradient(var(--ui-row-wash, transparent), var(--ui-row-wash, transparent));
+}
+
+// A row's own mark drawn again on a layer above its pinned cells, whose opaque ground covers the row's: the row is positioned, this is
+// its `::after`, and `@draw` the mark.
+.ui-table-row-layer(@draw) {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    @draw();
+    pointer-events: none;
+}

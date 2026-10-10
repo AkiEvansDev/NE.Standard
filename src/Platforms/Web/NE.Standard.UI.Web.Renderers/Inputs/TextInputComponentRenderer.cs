@@ -24,8 +24,8 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
     private static readonly WebDomOperation[] PlaceholderOperations =
     [
-        WebDomOperation.Attribute("placeholder"),
-        new WebDomOperation { Kind = nameof(WebDomOperationKind.Attribute), Name = "aria-label", Target = $"[{PlaceholderNamesAttribute}]", Optional = true }
+        WebDomOperation.Attribute("placeholder", converter: WebDomConverters.PlaceholderText, convertsNull: true),
+        WebDomOperation.Attribute("aria-label", $"[{PlaceholderNamesAttribute}]", optional: true)
     ];
 
     public override string ComponentTypeKey => TextInputComponent.ComponentTypeKey;
@@ -117,10 +117,10 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 {
                     if (value is int milliseconds and >= 0)
                         _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Attribute(WebAttributes.InputDebounce)]);
+                }, [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)]);
 
                 NativeInputRendererBase.RenderRunsOnEnter(context, input);
-                NativeInputRendererBase.RenderRunsOnEscape(context, input);
+                NativeInputRendererBase.RenderRunsOnEscape(context, input, TextInputComponent.CancelOnEscapeProperty);
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
                 RenderFieldLabel(context, input);

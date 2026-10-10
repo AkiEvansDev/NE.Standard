@@ -1,5 +1,6 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
@@ -18,5 +19,6 @@ public interface ISizedInputComponent : IInputComponent
     /// Gets how much room the input takes: a field's height, side padding and text; a toggle's box and text; a slider's track and
     /// handle.
     /// </summary>
+    [UIComponentProperty(DefaultValue = UIInputSize.Medium)]
     UIInputSize? Size { get; }
 }

@@ -1,7 +1,7 @@
-// The client's half of MenuComponentRenderer.RenderSubmenu: a client-built row gets its sub-entries in the same wrapper under the
-// entry; the two must stay one shape, since the group engine and the stylesheet both read it.
+// The client's half of MenuComponentRenderer.RenderSubmenu: a client-built row gets its kind's mark and its sub-entries in the same
+// wrapper under the entry; the two must stay one shape, since the group engine and the stylesheet both read it.
 
-import { MenuGroupAttribute, MenuOpenAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
+import { MenuGroupAttribute, MenuOpenAttribute, MenuPassiveRowAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
 import { tryReadItemProperty } from "./binding-template-evaluator";
 import { applyItemParameterAttributes } from "./items-template-renderer";
@@ -10,10 +10,15 @@ import { RowDecoratorContext, RowDecoratorRegistration } from "./row-decorators"
 const SubmenuVariantKey = "Submenu";
 const SubmenuClass = "ui-menu__submenu";
 const SelectKind = "Select";
+const PassiveKinds: readonly unknown[] = ["Header", "Separator"];
 
 export const MenuRowDecorator: RowDecoratorRegistration = { kind: "menu", decorate: decorateMenuRow };
 
 function decorateMenuRow(context: RowDecoratorContext): void {
+    // A caption's or a rule's row takes its own width along a bar, not an entry's.
+    if (PassiveKinds.includes(readItemProperty(context.item, "Kind")))
+        context.row.setAttribute(MenuPassiveRowAttribute, "");
+
     if (!hasChildren(context.item))
         return;
 

@@ -18,17 +18,17 @@
     visibility: hidden;
 }
 
-// An icon and no title is a square, as the framework's icon-only button is; a title stands for an entry with no icon. The row atop a
-// menu shares the menu's width instead.
-.ui-action-bar:not(.ui-action-bar--strip) > .ui-action-bar__button:is(:has(> .ui-icon), .ui-action-bar__more) {
+// An icon and no title is a square, as the framework's icon-only button is; a title stands for an entry with no icon (action-bar.ts
+// marks an icon's button). The row atop a menu shares the menu's width instead.
+.ui-action-bar:not(.ui-action-bar--strip) > .ui-action-bar__button:is(.ui-action-bar__button--icon, .ui-action-bar__more) {
     .ui-icon-bar-button();
 }
 
 // The buttons the square leaves out — a title's, the row atop a menu — wear its keyboard frame all the same.
 .ui-action-bar--strip > .ui-action-bar__button,
-.ui-action-bar > .ui-action-bar__button:not(:has(> .ui-icon), .ui-action-bar__more) {
+.ui-action-bar > .ui-action-bar__button:not(.ui-action-bar__button--icon, .ui-action-bar__more) {
     &@{ui-keyboard-focus} {
-        .ui-keyboard-frame();
+        .ui-keyboard-frame(@takes: false);
     }
 }
 

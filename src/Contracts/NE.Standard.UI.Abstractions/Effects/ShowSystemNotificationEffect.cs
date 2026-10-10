@@ -18,6 +18,9 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// </remarks>
 public sealed class ShowSystemNotificationEffect : ClientEffect
 {
+    private string? _tag;
+    private UINotificationAction? _action;
+
     /// <summary>Creates a notification with the author's title and body, texts or keys.</summary>
     public ShowSystemNotificationEffect(string title, string? body = null)
         : this(UIPhrase.Text(title), body is null ? null : UIPhrase.Text(body))
@@ -50,7 +53,11 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     /// </summary>
     /// <remarks>The one replacing is shown and sounded again, unless <see cref="Silent"/>: a second message in a chat is news too.</remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Tag { get; init; }
+    public string? Tag
+    {
+        get => _tag;
+        init => _tag = value;
+    }
 
     /// <summary>Gets the address of the picture it shows, of this site; <see langword="null"/> for the application's icon.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -66,6 +73,13 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Address { get; init; }
+
+    /// <summary>
+    /// Gets the words of the fallback toast's button that leads to <see cref="Address"/>, or <see langword="null"/> for the framework's
+    /// "Open"; the toast of a page already there shows <see cref="Action"/>'s button instead.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public UIPhrase? AddressLabel { get; init; }
 
     /// <summary>Gets whether it shows without a sound or a vibration.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -84,7 +98,11 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     /// A notification sent to a user (<c>IUINotifier</c>) offers none: a command belongs to one page's runtime.
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public UINotificationAction? Action { get; init; }
+    public UINotificationAction? Action
+    {
+        get => _action;
+        init => _action = value;
+    }
 
     /// <summary>Gets when it shows as the system's: by default only while the page is off screen.</summary>
     public UINotificationWhen When { get; init; }
@@ -101,16 +119,11 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
         if (Tag is not null && (Action is null || Action.Id is not null))
             return this;
 
-        return new ShowSystemNotificationEffect(Title, Body)
-        {
-            Tag = Tag ?? Guid.NewGuid().ToString("N"),
-            Icon = Icon,
-            Address = Address,
-            Silent = Silent,
-            RequireInteraction = RequireInteraction,
-            Action = Action is null || Action.Id is not null ? Action : Action.Offer(resolver),
-            When = When,
-            Fallback = Fallback
-        };
+        // A copy whole, so an option added later is not dropped here.
+        ShowSystemNotificationEffect resolved = (ShowSystemNotificationEffect)MemberwiseClone();
+        resolved._tag = Tag ?? Guid.NewGuid().ToString("N");
+        resolved._action = Action is null || Action.Id is not null ? Action : Action.Offer(resolver);
+
+        return resolved;
     }
 }

@@ -40,9 +40,13 @@
     .ui-responsive-property(gap, --ui-items-view-spacing, 0);
 }
 
+// Across, rows stand apart and keep their own height at the top, level with their group's caption: at no spacing a row with no
+// padding ran into the next ("BillingPanel"), and stretched to the host's height each centred its words far under the caption.
 .ui-items-view--stack.ui-orientation--horizontal > .ui-items-view__host,
 .ui-items-view--stack.ui-orientation--horizontal > [data-ui-items-host] {
     flex-direction: row;
+    align-items: flex-start;
+    .ui-responsive-property(gap, --ui-items-view-spacing, @ui-space-4);
 }
 
 .ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host,
@@ -170,7 +174,8 @@
     }
 }
 
-@ui-window-indicator: ~".ui-items-view--indicator:not(.ui-loading):has(> [data-ui-window-pending])::after";
+// Read off the view's root, which items-window-engine.ts marks with its host's edge.
+@ui-window-indicator: ~".ui-items-view--indicator[data-ui-window-pending]:not(.ui-loading)::after";
 
 // `LoadingLook = Indicator` (a conversation): no rows stand in, the spacers stay blank, and a small ring stands over the rows in view
 // at the edge the next ones come in at — the top for older rows, the bottom for newer — positioned on the view, so nothing moves as
@@ -200,7 +205,7 @@
     pointer-events: none;
 }
 
-    .ui-items-view--indicator:not(.ui-loading):has(> [data-ui-window-pending="after"])::after {
+    .ui-items-view--indicator[data-ui-window-pending="after"]:not(.ui-loading)::after {
         top: auto;
         bottom: @ui-space-2;
     }
@@ -211,16 +216,11 @@
     flex-shrink: 0;
 }
 
-// A group header in a column reads its own HorizontalAlignment, as a row does: the server's wraps the template's root in a grid, as a
-// row's wrapper is, and the one the page draws is that root itself, a flex item of the column, which justify-self does not move.
-.ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header]:not([data-ui-id]),
-.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header]:not([data-ui-id]) {
+// A group header in a column reads its own HorizontalAlignment, as a row does: its wrapper lays the template's root out in a grid, as a
+// row's wrapper is.
+.ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header],
+.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header] {
     display: grid;
-}
-
-.ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > [data-ui-group-header][data-ui-id],
-.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > [data-ui-group-header][data-ui-id] {
-    align-self: var(--ui-align-h, normal);
 }
 
 .ui-items-view__host.ui-scroll-x--disabled {
@@ -300,7 +300,7 @@
 }
 
 // The pointer's and the keyboard's wash: a stack's row paints it, a wrap's tile as a layer over its own ground (below).
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-items-view--row-hover > [data-ui-items-host] > .ui-items-view__item@{ui-row-live}:hover {
         .ui-row-hover();
     }
@@ -309,8 +309,9 @@
 .ui-row-cursor(~".ui-items-view", ~".ui-items-view__item");
 
 // A wrap's row is display: contents and draws no outline: its tile wears the keyboard's edge.
-.ui-items-view--wrap@{ui-row-cursor-focus}:not([data-ui-selection="one"]) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
-    .ui-keyboard-frame();
+.ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
+    // Inside the tile's own corner, a card's, as far as keeps the frame's one radius.
+    .ui-keyboard-frame-inside(var(--ui-radius-card));
 }
 .ui-row-bar(~".ui-items-view", ~".ui-items-view__item");
 

@@ -54,6 +54,28 @@ for (const escapeCase of escapeCases) {
     });
 }
 
+test("inline markup: the element written into says while it holds a fold, as the server's render says it", async () => {
+    const { FakeElement, installFakeDom } = await import("./fake-dom.ts");
+
+    installFakeDom({});
+
+    const { applyInlineMarkup } = await import("../src/rendering/inline-markup.ts");
+    const description = new FakeElement("span");
+    const write = (text: string): void => applyInlineMarkup(description as unknown as Element, text);
+
+    write("Frozen. [Why?]{The branch is re-cut.}");
+    assert.equal(description.getAttribute("data-ui-folds"), "");
+
+    write("Frozen.");
+    assert.equal(description.hasAttribute("data-ui-folds"), false);
+
+    write("**Frozen** [Why?]{Because [how]{nested}.}");
+    assert.equal(description.hasAttribute("data-ui-folds"), true);
+
+    write("");
+    assert.equal(description.hasAttribute("data-ui-folds"), false);
+});
+
 test("inline markup: plain text reads a fold unfolded", () => {
     assert.equal(inlineMarkupToPlainText("Frozen. [Why?]{The **branch** is re-cut, [and how]{by the pipeline}.}"), "Frozen. Why? The branch is re-cut, and how by the pipeline.");
 });

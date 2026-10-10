@@ -13,7 +13,7 @@ export const NoContextMenuAttribute = "data-ui-no-context-menu";
 export const NoRowOpenAttribute = "data-ui-no-row-open";
 /** On a part inside a row that is not the row's to lift (a grid's open detail): a press there never drags the row. */
 export const NoRowDragAttribute = "data-ui-no-row-drag";
-/** On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt+Up and Alt+Down. */
+/** On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt with an arrow. */
 export const RowsDraggableAttribute = "data-ui-rows-draggable";
 /** On a drag source's root (`DragKind`): the kind its rows are offered as, dragged or cut out of it (`WebAttributes.DragKind`). */
 export const DragKindAttribute = "data-ui-drag-kind";
@@ -23,6 +23,8 @@ export const DragEffectsAttribute = "data-ui-drag-effects";
 export const DragSourceAttribute = "data-ui-drag-source";
 /** On a component a dragged or pasted item of a kind it takes would land on (not a list, whose rows mark the place); the stylesheet reads it. */
 export const ItemDropOverAttribute = "data-ui-item-drop-over";
+/** Beside a drop's mark on a field that draws a box of its own: the box wears the drop's edge, and the root none (`ui-input.less`). */
+export const DropBoxedAttribute = "data-ui-drop-boxed";
 /** On an items view's or a table's root: a row is dragged only by the grip at its end (`DragHandle`). */
 export const RowsDragHandleAttribute = "data-ui-rows-drag-handle";
 /** On an items view's or a table's root: its rows' grip stands at their start (`UIDragHandlePlacement.Start`). */
@@ -31,10 +33,14 @@ export const DragHandleStartClass = "ui-drag-handle--start";
 export const RowGripClass = "ui-row__grip";
 /** Client-only: on a row's box while another is dragged over it, the side the dragged row would land on. */
 export const RowDropAttribute = "data-ui-row-drop";
+/** On an items view's, a table's or a tree's root: a row's removal raises a command, so Delete raises it; without it the key is the page's. */
+export const RowsRemoveAttribute = "data-ui-rows-remove";
 /** On a tree's root: the Delete key raises nothing, whatever a node says. */
 export const TreeUnremovableAttribute = "data-ui-tree-unremovable";
 /** On a tabs view's root: no tab can be closed, and the strip keeps no room for a close. */
 export const TabsUnremovableAttribute = "data-ui-tabs-unremovable";
+/** On a tabs view's root while none of its tabs can be closed (`WebAttributes.TabsNoneRemovable`): kept by tabs-view-engine.ts. */
+export const TabsNoneRemovableAttribute = "data-ui-tabs-none-removable";
 /** On a tabs view's root: a double click or F2 renames a caption in place. */
 export const TabsRenamableAttribute = "data-ui-tabs-renamable";
 /** On a tabs view's root: its tabs may be reordered by dragging. */
@@ -45,6 +51,8 @@ export const TabsMenuAttribute = "data-ui-tabs-menu";
 export const TabsRemovesAttribute = "data-ui-tabs-removes";
 /** On a context menu's host: the menu's name, empty for its owner's unnamed one. */
 export const ContextMenuAttribute = "data-ui-context-menu";
+/** On a component that owns a context menu (the renderer writes it): a long press there is the menu's. */
+export const ContextMenuOwnerAttribute = "data-ui-context-menu-owner";
 /** On a part of a context menu's owner: the name of the owner's menu a right press there opens. */
 export const ContextMenuUseAttribute = "data-ui-context-menu-use";
 /**
@@ -64,6 +72,17 @@ export const InActionBarAttribute = "data-ui-in-action-bar";
 export const ActionBarClass = "ui-action-bar";
 /** On the row the keyboard is on in a host with rows; the host's engine moves it. */
 export const RowFocusAttribute = "data-ui-row-focus";
+/** Client-only: on a host's cursor root while the cursor's row is not drawn (scrolled out of a virtualized host): that row's key. */
+export const RowCursorWaitsAttribute = "data-ui-row-cursor-waits";
+/**
+ * Client-only: on a control a composite took out of the Tab order for now (a row the cursor is not on, a toolbar's control the keyboard
+ * is not on): the tabindex it had, empty for none (`tab-out.ts`).
+ */
+export const TabOutAttribute = "data-ui-tab-out";
+/** On the cell the keyboard's cursor stands on, in a table acting as a grid (row-cursor.ts). */
+export const CellFocusAttribute = "data-ui-cell-focus";
+/** What the cursor's cell raises before Enter, F2 or a typed character acts on it (`row-cursor.ts`'s `claimCellKey`). */
+export const CellKeyEventName = "ui-cell-key";
 /** The words of a component's tooltip, where it shows them, and a mark inside a control the tooltip belongs to instead. */
 export const TooltipAttribute = "data-ui-tooltip";
 export const TooltipPlacementAttribute = "data-ui-tooltip-placement";
@@ -75,6 +94,8 @@ export const TooltipPressAttribute = "data-ui-tooltip-press";
 /** On a badge: its text shown, "compact" while it fits a circle; and its text given at all, blank included (a menu corner's dot). */
 export const BadgeTextAttribute = "data-ui-badge-text";
 export const BadgeSetAttribute = "data-ui-badge-set";
+/** On an element inline markup was written into while it holds a fold, which then wraps (`InlineMarkupRenderer`'s mark too). */
+export const FoldsAttribute = "data-ui-folds";
 
 /** The author's own name for a component, written only when the author gave it one. */
 export const ComponentNameAttribute = "data-ui-name";
@@ -105,6 +126,8 @@ export const ImageFailedAttribute = "data-ui-image-failed";
 export const SurfaceImageBlurAttribute = "data-ui-surface-image-blur";
 /** A split button's mode: "split" (the end part opens the menu) or "menu" (the whole button does). */
 export const SplitModeAttribute = "data-ui-split-mode";
+/** On a split button whose menu opens anywhere but below from its end: the placement's token (`WebAttributes.SplitPlacement`). */
+export const SplitPlacementAttribute = "data-ui-split-placement";
 export const ItemsHostAttribute = "data-ui-items-host";
 /** A component whose bound collection goes to a registered sink as values rather than into an items host as rows. */
 export const CollectionSinkAttribute = "data-ui-collection-sink";
@@ -135,9 +158,6 @@ export const GroupAttribute = "data-ui-group";
 /** Marks the one element a component keeps its value on, where that is not the element the reader starts from. */
 export const ValueHolderAttribute = "data-ui-value-holder";
 
-/** On a field whose text is a draft, not its component's value — a free-text multi-select's entry: the value is read from the holder. */
-export const DraftAttribute = "data-ui-draft";
-
 /** On the field holding a period's end (`EndValue`), not its `Value`: a temporal input's second field, a range slider's end handle. */
 export const ValueEndAttribute = "data-ui-value-end";
 
@@ -163,7 +183,10 @@ export const SourceLineAttribute = "data-ui-source-line";
 /** Marks a windowed or virtualized host's stand-in for the rows it is not drawing: "top", "bottom", or "pending" for rows on their way. */
 export const WindowSpacerAttribute = "data-ui-window-spacer";
 
-/** On a windowed host while it reads a window, the edge it reads at (`before`, `after`, `offset`, `start`, `end`): a skeleton shimmers, an indicator stands at that edge (`ui-items-view.less`). */
+/**
+ * On a windowed host while it reads a window, the edge it reads at (`before`, `after`, `offset`, `start`, `end`), and on its component's
+ * root as well: a skeleton shimmers, an indicator stands at that edge (`ui-items-view.less`).
+ */
 export const WindowPendingAttribute = "data-ui-window-pending";
 
 /** On a windowed host whose window is a page (`Paging`): the scroll asks for nothing, and a pager asks for a window by offset. */
@@ -190,6 +213,16 @@ export const CollapsedAttribute = "data-ui-collapsed";
 export const MenuGroupAttribute = "data-ui-menu-group";
 export const MenuSelectAttribute = "data-ui-menu-select";
 export const MenuOpenAttribute = "data-ui-menu-open";
+/** On a group wrapper holding the current entry, its own or one below (`WebAttributes.MenuHoldsCurrent`): kept by menu-current.ts. */
+export const MenuHoldsCurrentAttribute = "data-ui-menu-holds-current";
+/** On a menu's host where an entry of its own carries an icon (`WebAttributes.MenuIcons`): kept by menu-icons.ts. */
+export const MenuIconsAttribute = "data-ui-menu-icons";
+/** On a menu row whose entry is a caption or a rule (`WebAttributes.MenuPassiveRow`): along a bar it takes its own width. */
+export const MenuPassiveRowAttribute = "data-ui-menu-passive";
+/** On a menu entry showing its chord at its end (`WebAttributes.MenuItemShortcut`): kept by shortcut-engine.ts. */
+export const MenuItemShortcutAttribute = "data-ui-menu-item-shortcut";
+/** On the popup a menu fills, its Surface's word (`WebAttributes.MenuSurface`): kept by menu-surface.ts. */
+export const MenuSurfaceAttribute = "data-ui-menu-surface";
 /** On a menu with a search beside its switch (MenuComponent.SetSearch), which menu-search-engine.ts narrows the entries by. */
 export const MenuSearchAttribute = "data-ui-menu-search";
 /** On a searchable menu while something is typed into its search, and on an entry the search leaves out. */
@@ -203,8 +236,8 @@ export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
 export const BottomBarAttribute = "data-ui-bottom-bar";
 /** On a left side that is a rail alone kept a drawer (UIViewOptions.RailBottomBar off): below the drawer breakpoint its rail is a list. */
 export const RailDrawerAttribute = "data-ui-rail-drawer";
-/** On the shell's link to the content region, which skip-link-engine.ts follows by moving the keyboard there. */
-export const SkipLinkAttribute = "data-ui-skip-link";
+/** On the root where the content region's root fills the height (WebAttributes.ContentFills): content-fills.ts keeps it. */
+export const ContentFillsAttribute = "data-ui-content-fills";
 /** On each band of the page, naming it: a side's drawer is found by it. */
 export const RegionAttribute = "data-ui-region";
 /** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
@@ -216,10 +249,14 @@ const MenuItemCheckedClass = "ui-menu-item--checked";
 export const MenuItemSelectedClass = "ui-menu-item--selected";
 /** A rail (UIMenuDisplay.Rail): it never folds and has no room inline, so its groups fly out, and a label it cuts shows as a tooltip. */
 export const MenuRailClass = "ui-menu--rail";
+/** A menu standing in another's group: part of that menu, as its submenu. */
+export const NestedMenuClass = "ui-menu--nested";
 /** A menu entry that runs nothing when pressed: a caption or a rule. */
 export const PassiveMenuEntrySelector = `[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"]`;
 /** A group's own entry, which opens its block rather than running anything. */
 export const MenuGroupEntrySelector = `[${MenuGroupAttribute}] > .${MenuItemClass}`;
+/** A menu's entries that are controls: every entry but a header's and a separator's. */
+export const MenuControlEntrySelector = `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`;
 /** A menu entry with a mark of its own (a group's chevron, a check's tick), which a press also leaves the menu open on. */
 export const MarkedMenuEntrySelector = `${MenuGroupEntrySelector}, .${MenuItemClass}[${MenuItemKindAttribute}="check"]`;
 /** On a button or a menu entry: the key chord that presses it (`WebAttributes.Shortcut`), read by the page's one registry. */
@@ -290,6 +327,18 @@ export const TreeDraggableAttribute = "data-ui-tree-draggable";
 export const TreeRenameOnDoubleClickAttribute = "data-ui-tree-rename-dblclick";
 /** A key-value row while it is being edited: its value is the input and its action the save/cancel pair. */
 export const RowEditingAttribute = "data-ui-row-editing";
+/** Client-only: on an open key-value row's input cell whose editor draws a field box, which the cell sets down onto its line. */
+export const BoxedEditorAttribute = "data-ui-boxed-editor";
+/**
+ * On an item's row whose template root — its child, or its grandchild through a wrapper — is disabled or loading: the row answers no
+ * pointer (`@ui-row-live`). The render writes it, `row-idle.ts` keeps it.
+ */
+export const RowIdleAttribute = "data-ui-row-idle";
+/** On a breadcrumbs step's wrapper: the tiers its step is collapsed in, and those no shown step follows it in (`WebAttributes.StepCollapsed`, `StepEnd`). */
+export const StepCollapsedAttribute = "data-ui-step-collapsed";
+export const StepEndAttribute = "data-ui-step-end";
+/** Client-only: on the row an action bar stands over (action-bar-engine.ts), which washes as the keyboard's row does (`.ui-row-bar()`). */
+export const RowBarAttribute = "data-ui-row-bar";
 /** An image input's picture, its Value's URL, on the root. */
 export const ImageSourceAttribute = "data-ui-image-source";
 /** On a file or image input's root: the largest file the server will accept, in bytes; a larger pick is refused on the client. */
@@ -324,6 +373,21 @@ export const ConnectionAttribute = "data-ui-connection";
 export const SplitFoldedAttribute = "data-ui-split-folded";
 /** Client-only: on a handle the pointer focused, so no keyboard focus is drawn for it; a key or a blur takes it off. */
 export const PointerFocusAttribute = "data-ui-pointer-focus";
+/**
+ * Client-only: on the focused element's ancestors up to its component root (popup-focus.ts), `pointer` while the focus wears
+ * `data-ui-pointer-focus` and `keyboard` otherwise; none while an editable entry holds it. What a field's edge and a list's quiet read.
+ */
+export const FocusWithinAttribute = "data-ui-focus-within";
+/**
+ * Client-only: on every element from an open popup up to its owner while the pointer is in the popup (owned-popup.ts), as `:hover` holds
+ * on each of them: `@ui-button-live` leaves such an owner quiet.
+ */
+export const PopupHoverAttribute = "data-ui-popup-hover";
+/**
+ * Client-only: on a clickable surface while the pointer is over a control of its own (`hover`) or pressed one (`press`), space-separated
+ * (surface-press-engine.ts): the surface's wash and press stay off under the control's.
+ */
+export const InnerPointerAttribute = "data-ui-inner-pointer";
 
 /** Choosing rows in an items view: the mode, the chosen key(s), and the mark on a chosen row's wrapper. */
 export const SelectionAttribute = "data-ui-selection";
@@ -366,8 +430,17 @@ export const HiddenClass = "ui-hidden";
 /** A dialog's panel and a flyout's: each takes the keyboard back from a field inside it. */
 export const DialogSurfaceClass = "ui-dialog__surface";
 export const FlyoutContentClass = "ui-flyout__content";
+/** The popups a menu fills as its host draws them: a right-click menu and a split button's list, whose Surface the popup wears. */
+export const MenuHostPopupSelector = ".ui-context-menu, .ui-split-button__menu";
+/** The popups a menu can fill: those of `MenuHostPopupSelector`, and a flyout's content (a menu button's list). */
+export const MenuPopupSelector = `${MenuHostPopupSelector}, .${FlyoutContentClass}`;
 /** On a focusable layer a package draws (a canvas, a panel over it): it takes the keyboard back from a field inside it. */
 export const FocusHolderAttribute = "data-ui-focus-holder";
+/**
+ * On an element whose keys are its own while the focus is inside it (a grid's cell editor): no host around it acts on them — a row
+ * cursor, a list, a menu — and no popup, dialog or drawer closes on its Escape.
+ */
+export const OwnsKeysAttribute = "data-ui-owns-keys";
 /** The roles a field-opened popup wears — a select's list, a menu, a dialog — shared by every host that must yield keys to one. */
 export const PopupRoleSelector = "[role='listbox'], [role='menu'], [role='dialog']";
 /** The control that opens a select's, a multi-select's or a search's list — a button in the first two, the field's row in a search. */
@@ -378,6 +451,15 @@ export const ButtonClass = "ui-button";
 /** A small ghost button's look, as the page draws one of its own (an action bar's icon, a strip's overflow entry). */
 export const SmallGhostButtonClasses = `${ButtonClass} ui-button--ghost ui-button--small`;
 export const SelectClass = "ui-select";
+/** On a text body's component root while its title, its description, its icon, its badge's icon or its badge's text shows. */
+export const TextTitleAttribute = "data-ui-text-title";
+export const TextDescriptionAttribute = "data-ui-text-description";
+export const TextIconAttribute = "data-ui-text-icon";
+export const TextBadgeIconAttribute = "data-ui-text-badge-icon";
+export const TextBadgeTextAttribute = "data-ui-text-badge-text";
+/** A card's header band, and its mark while the text in it shows nothing (`card-header.ts`, `CardComponentRenderer`). */
+export const CardHeaderClass = "ui-card__header";
+export const CardHeaderEmptyClass = "ui-card__header--empty";
 // A list, table or tree whose scroll is switched off (`DisableScroll()`, `WebClassNames.ScrollY`): clipped with `hidden`, scrolling never.
 export const ScrollYDisabledClass = "ui-scroll-y--disabled";
 const TextInputClass = "ui-text-input";
@@ -394,6 +476,8 @@ export const pluginDomNames = {
     selectedKeys: SelectedKeysAttribute,
     unselectable: UnselectableAttribute,
     rowFocus: RowFocusAttribute,
+    cellFocus: CellFocusAttribute,
+    cellKey: CellKeyEventName,
     itemsHost: ItemsHostAttribute,
     valueHolder: ValueHolderAttribute,
     bindValue: ValueBindingAttribute,
@@ -401,6 +485,7 @@ export const pluginDomNames = {
     noRowDrag: NoRowDragAttribute,
     eventBoundary: EventBoundaryAttribute,
     focusHolder: FocusHolderAttribute,
+    ownsKeys: OwnsKeysAttribute,
     tooltip: TooltipAttribute,
     tooltipPlacement: TooltipPlacementAttribute,
     contextMenu: ContextMenuAttribute,
@@ -418,6 +503,7 @@ export const pluginDomNames = {
     invalidClass: InvalidClass,
     validationMessage: ValidationMessageAttribute,
     sourceLine: SourceLineAttribute,
+    textDescription: TextDescriptionAttribute,
     popupSelector: PopupRoleSelector,
     listTriggerSelector: ListTriggerSelector,
     tableRowClass: TableRowClass,
@@ -451,8 +537,9 @@ export function cssAttributeValue(value: string | number): string {
 /** `IsURLValid` to `is-url-valid`; must stay in step with `WebNaming.ToKebabCase` on the C# side. */
 export function toKebabCase(value: string): string {
     return value
-        .replace(/([a-z])([A-Z])/g, "$1-$2")
-        .replace(/([A-Z0-9])([A-Z][a-z])/g, "$1-$2")
+        // Unicode classes, as char.IsLower/IsUpper/IsLetterOrDigit are: an ASCII-only rule split `isÉtat` apart from the server.
+        .replace(/(\p{Ll})(\p{Lu})/gu, "$1-$2")
+        .replace(/([\p{L}\p{Nd}])(\p{Lu}\p{Ll})/gu, "$1-$2")
         .replace(/_/g, "-")
         .toLowerCase();
 }

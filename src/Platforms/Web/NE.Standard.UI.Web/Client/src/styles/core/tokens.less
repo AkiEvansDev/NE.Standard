@@ -45,6 +45,13 @@
 // entries): two thirds of a button's, 4 px to its 6, so a theme's shape scales both and a list reads finer than its buttons.
 @ui-list-entry-radius: ~"calc(var(--ui-radius-button) * 2 / 3)";
 
+// How far past its element the keyboard's frame reaches where it is drawn outside (its 2 px gap and its 2 px line: a link, a toggle's
+// row): the room a clipping panel leaves its children past its edge. A link among running words keeps closer (core/keyboard.less).
+@ui-keyboard-frame-reach: 4px;
+
+// The keyboard's frame's corner, one everywhere it is drawn: a button's, so a theme's shape scales it with the controls.
+@ui-keyboard-frame-radius: var(--ui-radius-button);
+
 // A popup's corner: its entries' widened by the list's padding, so the two curves run parallel — 8 px by default.
 @ui-popup-radius: ~"calc(var(--ui-radius-button) * 2 / 3 + @{ui-space-1})";
 
@@ -64,8 +71,6 @@
 // A side drawer over the page, its veil just under it.
 @ui-z-drawer-veil: 49;
 @ui-z-drawer: 50;
-// The shell's skip link while it holds the keyboard, over the bands and an open drawer.
-@ui-z-skip-link: 55;
 @ui-z-tooltip: 60;
 @ui-z-dialog: 100;
 @ui-z-notification: 200;

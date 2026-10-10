@@ -35,7 +35,8 @@ internal sealed partial class UIViewCompilationContext
                     Id = CreateEventId(),
                     Address = new CompiledUIEventAddress(GetComponentId(component.Id), sourceEvent.Name),
                     Command = sourceEvent.Action.Command,
-                    Arguments = BuildActionArguments(component, sourceEvent.Action, templatesByKey, componentContexts, rootPath)
+                    Arguments = BuildActionArguments(component, sourceEvent.Action, templatesByKey, componentContexts, rootPath),
+                    SubmitsForm = component is IFormSubmittingComponent submitting && submitting.SubmitsForm(sourceEvent.Name)
                 });
             }
         }

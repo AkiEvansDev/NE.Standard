@@ -31,6 +31,7 @@ public static class NativeInputRendererBase
     private static readonly WebDomOperation[] MaxFileSizeOperations = [WebDomOperation.Attribute(WebAttributes.FileMaxSize)];
     private static readonly WebDomOperation[] AcceptOperations = [WebDomOperation.Attribute("accept")];
     private static readonly WebDomOperation[] SelectionOperations = [WebDomOperation.Property("value")];
+    private static readonly WebDomOperation[] RunsOnEscapeOperations = [WebDomOperation.ToggleAttribute(WebAttributes.RunsOnEscape, condition: WebValueCondition.IsTrue)];
 
     /// <summary>
     /// The field's <c>FormId</c>: the framework's form, and the browser's own the field joins by <c>form</c> — the hidden form the
@@ -123,16 +124,23 @@ public static class NativeInputRendererBase
     }
 
     /// <summary>
-    /// Marks a text field whose Escape runs a command or an interaction (<c>OnEscape</c>): the field keys engine puts back its last
-    /// committed value, leaves it and raises <c>escape</c>, rather than committing what was typed.
+    /// Marks a text field whose Escape runs a command or an interaction (<c>OnEscape</c>) while <paramref name="cancelOnEscape"/> holds:
+    /// the field keys engine puts back its last committed value, leaves it and raises <c>escape</c>, rather than committing what was typed.
     /// </summary>
-    public static void RenderRunsOnEscape(WebRenderContext context, IHtmlElementBuilder input)
+    public static void RenderRunsOnEscape(WebRenderContext context, IHtmlElementBuilder input, UIProperty cancelOnEscape)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(input);
 
-        if (HandlesEvent(context, EventNames.Escape))
-            _ = input.Attribute(WebAttributes.RunsOnEscape);
+        if (!HandlesEvent(context, EventNames.Escape))
+            return;
+
+        // Read at every Escape, so a bound switch is in force at once.
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, input, cancelOnEscape, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Attribute(WebAttributes.RunsOnEscape);
+        }, RunsOnEscapeOperations);
     }
 
     /// <summary>Writes the <c>name</c> a native field carries; <paramref name="part"/> separates several fields of one component.</summary>

@@ -1,6 +1,6 @@
 // A split button's list: opened by a press it holds the keyboard itself, the first arrow entering at the near end; opened by a key
 // it starts on its first entry — ArrowUp on a closed opener on its last — and every opening starts afresh, not where the last one
-// was left.
+// was left. It opens under the button from its end, unless the author placed it elsewhere.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -113,4 +113,24 @@ test("a list opened again from the keyboard starts afresh, not on the entry the 
 
     assert.equal(fakeDocument.activeElement, at.entries[0]);
     escape();
+});
+
+test("the list opens under the button from its end, or where the author placed it", () => {
+    const placed = (attribute: string | null): string | undefined => {
+        const at = scene();
+        const menu = at.button.children[2];
+
+        if (attribute !== null)
+            at.button.setAttribute("data-ui-split-placement", attribute);
+
+        press(at);
+        const side = menu.dataset.uiPlacement;
+
+        escape();
+
+        return side;
+    };
+
+    assert.equal(placed(null), "bottom-end");
+    assert.equal(placed("bottom-start"), "bottom-start");
 });

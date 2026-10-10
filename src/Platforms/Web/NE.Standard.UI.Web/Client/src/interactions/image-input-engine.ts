@@ -46,9 +46,13 @@ const SelectionIdProperty = "SelectionId";
 /** On a square while its file is on its way: how much of it has gone, which the stylesheet draws as a bar. */
 const ProgressProperty = "--ui-image-progress";
 
-/** Client-only: on the root while the file the viewer chose stands in for the controller's picture; while a drag is over it. */
+/**
+ * Client-only: on the root while the file the viewer chose stands in for the controller's picture; while a drag is over it; while a
+ * square stands on its shelf.
+ */
 const PreviewAttribute = "data-ui-image-preview";
 const DraggingAttribute = "data-ui-image-dragging";
+const TilesAttribute = "data-ui-image-tiles";
 
 type Tile = {
     readonly element: HTMLElement;
@@ -396,13 +400,17 @@ export class ImageInputEngine {
             }
         }
         catch (error) {
-            writeFailure(root);
-
-            publishSelection(selection, "");
             logWarn("picture upload failed.", error);
+
+            // As above: a failure after a newer picture took the preview's place says nothing of that one, nor clears its handle.
+            if (this.previews.get(root) === preview) {
+                writeFailure(root);
+                publishSelection(selection, "");
+            }
         }
         finally {
-            surface.classList.remove(LoadingClass);
+            if (this.previews.get(root) === preview || !this.previews.has(root))
+                surface.classList.remove(LoadingClass);
         }
     }
 
@@ -479,6 +487,8 @@ export class ImageInputEngine {
             }
         });
 
+        markTiles(root, tiles);
+
         await Promise.all(uploads);
     }
 
@@ -491,6 +501,7 @@ export class ImageInputEngine {
 
         URL.revokeObjectURL(tile.url);
         tile.element.remove();
+        markTiles(root, tiles ?? []);
     }
 
     /** The handles that have landed, in shelf order, on the hidden input the value engine reads; the root's copy is the controller's. */
@@ -529,6 +540,12 @@ export class ImageInputEngine {
 
 function isShelf(root: HTMLElement): boolean {
     return root.classList.contains(MultipleClass);
+}
+
+/** Says on the root whether a square stands on its shelf: the shelf's words and an empty shelf's hiding read it. */
+function markTiles(root: HTMLElement, tiles: readonly Tile[]): void {
+    if (root.hasAttribute(TilesAttribute) !== tiles.length > 0)
+        root.toggleAttribute(TilesAttribute, tiles.length > 0);
 }
 
 function cropFrameOf(root: HTMLElement): CropFrame | null {

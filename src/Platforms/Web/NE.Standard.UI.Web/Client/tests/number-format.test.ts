@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InvariantNumberCulture, formatNumber, readNumberCulture } from "../src/rendering/number-format.ts";
+import { InvariantNumberCulture, formatNumber, numberFormatting, readNumberCulture } from "../src/rendering/number-format.ts";
 import type { NumberCulturePack } from "../src/rendering/number-format.ts";
 
 type NumberCase = { readonly name: string; readonly culture: string; readonly value: string; readonly format: string; readonly expected: string };
@@ -60,4 +60,22 @@ test("an element with no pack above it formats by the invariant culture, and a p
 
     assert.equal(culture.decimalSeparator, ",");
     assert.equal(culture.groupSeparator, InvariantNumberCulture.groupSeparator);
+});
+
+// The server's double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture), which a grid's cell and a chart's row read by.
+test("a text is read as a number as the server's invariant culture reads one", () => {
+    const read = numberFormatting.parseInvariant;
+
+    assert.equal(read(" -12.5	"), -12.5);
+    assert.equal(read("1e3"), 1000);
+    assert.equal(read(".5"), 0.5);
+    assert.equal(read("5."), 5);
+    assert.equal(read(" 12.5"), null);
+    assert.equal(read("12.5 "), null);
+    assert.equal(read("﻿12.5"), null);
+    assert.equal(read("0x10"), null);
+    assert.equal(read("1,234"), null);
+    assert.equal(read("Infinity"), null);
+    assert.equal(read("1e400"), null);
+    assert.equal(read(""), null);
 });

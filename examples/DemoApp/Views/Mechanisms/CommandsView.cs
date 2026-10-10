@@ -195,6 +195,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "address.title",
             UILayout.Row(12)
                 .AddChild(new SelectComponent()
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetWidth(UILayoutLength.Absolute(160))
                     .SetOptions(
                     [

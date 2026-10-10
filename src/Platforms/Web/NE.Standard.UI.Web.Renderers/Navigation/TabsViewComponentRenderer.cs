@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Authoring.BuiltIns.Models;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -80,11 +83,23 @@ public sealed class TabsViewComponentRenderer : ItemsCollectionRendererBase
         RenderContextMenuRegion(context, root, UITabMenu.Name, RegionNames.TabMenu);
     }
 
-    /// <summary>Tabs live in an inner host: the client resolves one with a <c>querySelector</c> over descendants only.</summary>
+    /// <summary>
+    /// Tabs live in an inner host: the client resolves one with a <c>querySelector</c> over descendants only. A strip none of whose tabs
+    /// can be closed is marked, so it keeps no room for a close; tabs-view-engine.ts keeps the mark.
+    /// </summary>
     private static void RenderItems(WebRenderContext context, IHtmlElementBuilder root)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
+        var removable = false;
 
-        RenderItemsHost(context, root, "ui-tabs-view__host", items, isBound, ItemClassName, configureHost: host => host.Attribute("role", "tablist"));
+        RenderItemsHost(context, root, "ui-tabs-view__host", items, isBound, ItemClassName, configureHost: host => host.Attribute("role", "tablist"), appendItem: (row, item, _) => removable |= !RefusesRemoval(context, row, item));
+
+        if (!removable)
+            _ = root.Attribute(WebAttributes.TabsNoneRemovable);
     }
+
+    /// <summary>Whether a tab may not be closed: its item says so, or its template's root does, as each writes it on the row or the tab.</summary>
+    private static bool RefusesRemoval(WebRenderContext context, IHtmlElementBuilder row, object? item)
+        => (item is IItemAbilitiesModel abilities && abilities.CanRemove == false)
+            || ReadItemRootValue<bool?>(context, row, item, IItemAbilitiesComponent.CanRemoveProperty) == false;
 }

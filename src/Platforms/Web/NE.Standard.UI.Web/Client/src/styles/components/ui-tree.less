@@ -155,14 +155,14 @@
     background-color: var(--ui-wash-hover);
 }
 
-@media @ui-can-hover {
+@media @{ui-can-hover} {
     .ui-tree--row-hover > [data-ui-items-host] > .ui-tree__row@{ui-row-live}:hover {
         .ui-row-hover();
     }
 }
 
 .ui-row-cursor(~".ui-tree", ~".ui-tree__row");
-.ui-row-bar(~".ui-tree"; ~".ui-tree__row"; ~""; ~"> .ui-tree__node > [data-ui-action-bar] > .ui-action-bar");
+.ui-row-bar(~".ui-tree", ~".ui-tree__row");
 
 .ui-tree[data-ui-selection="one"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live},
 .ui-tree[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live} {
@@ -220,7 +220,7 @@
     }
 
     // Ink alone: the row is the surface that washes under the pointer.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-tree-node__toggle:hover {
             color: inherit;
         }

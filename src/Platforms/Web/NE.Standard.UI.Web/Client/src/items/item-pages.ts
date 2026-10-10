@@ -1,6 +1,7 @@
 // A paged host's window read as pages: where it stands, which page a pager's button asks for, and which page numbers it shows.
 
 import { ComponentKeyAttribute, WindowMoreAfterAttribute, WindowOffsetAttribute, WindowSizeAttribute, WindowTotalAttribute } from "../addressing/dom-attributes.ts";
+import { readWindowFlag, readWindowNumber } from "./items-host-mode.ts";
 
 // What a page holds when the host names no size — one the author never set — and no rows are on the page to read it off.
 const DefaultPageSize = 50;
@@ -30,14 +31,14 @@ export function readPageState(host: Element): PageState {
             count++;
     }
 
-    const size = readNumber(host, WindowSizeAttribute) ?? 0;
+    const size = readWindowNumber(host, WindowSizeAttribute) ?? 0;
 
     return {
-        offset: readNumber(host, WindowOffsetAttribute) ?? 0,
+        offset: readWindowNumber(host, WindowOffsetAttribute) ?? 0,
         count,
         size: size > 0 ? size : count > 0 ? count : DefaultPageSize,
-        total: readNumber(host, WindowTotalAttribute),
-        moreAfter: host.getAttribute(WindowMoreAfterAttribute) === "true"
+        total: readWindowNumber(host, WindowTotalAttribute),
+        moreAfter: readWindowFlag(host, WindowMoreAfterAttribute)
     };
 }
 
@@ -120,15 +121,4 @@ function range(from: number, to: number): number[] {
         numbers.push(number);
 
     return numbers;
-}
-
-function readNumber(element: Element, name: string): number | null {
-    const raw = element.getAttribute(name);
-
-    if (raw === null || raw.length === 0)
-        return null;
-
-    const value = Number(raw);
-
-    return Number.isFinite(value) ? value : null;
 }

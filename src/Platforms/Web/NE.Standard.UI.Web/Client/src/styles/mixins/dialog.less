@@ -38,3 +38,34 @@
 .ui-dialog-backdrop-exit() {
     .ui-dialog-exit();
 }
+
+// A sheet from the bottom — a list shown as a phone's sheet, a dialog's bottom sheet — has its top corners rounded, so every one looks
+// alike.
+.ui-sheet-edge() {
+    border-radius: var(--ui-radius-card) var(--ui-radius-card) 0 0;
+}
+
+// A sheet a swipe puts away follows the finger (`--ui-sheet-drag`, sheet-swipe.ts), at once while dragged; its own transitions take
+// it back or out.
+.ui-sheet-follow() {
+    transform: translateY(var(--ui-sheet-drag, 0px));
+
+    &[data-ui-sheet-dragging] {
+        transition: none;
+    }
+}
+
+// A sheet's grab handle, drawn as its `::before`: a list shown as a phone's sheet and a dialog's bottom sheet, which sheet-swipe.ts
+// lets a press there drag down; `@margin` the room round it.
+.ui-sheet-handle(@margin: @ui-space-2 auto) {
+    content: "";
+    display: block;
+    flex: none;
+    align-self: center;
+    width: 2rem;
+    height: 0.25rem;
+    margin: @margin;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.3;
+}

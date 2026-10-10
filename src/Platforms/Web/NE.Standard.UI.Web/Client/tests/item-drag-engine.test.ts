@@ -255,6 +255,27 @@ test("a drag over the source's own rows is no drop on the component around it; o
     assert.equal(target.rows[0].getAttribute("data-ui-row-drop"), "after");
 });
 
+test("a field taking the kind wears the drop's mark, and says it draws a box, which then wears the edge alone; the drop takes both off", () => {
+    const source = list("1", ["a"], { "data-ui-rows-draggable": "", ...Cards });
+    const box = FakeElement.of("ui-field-box", {}, "textarea");
+    const field = FakeElement.of("ui-text-area", { "data-ui-id": "5", "data-takes": "card" }).append(box);
+    const { drops } = page(source.root, field);
+    const dataTransfer = new FakeDataTransfer();
+
+    source.rows[0].dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", source.rows[0], dataTransfer);
+    drag("dragover", box, dataTransfer);
+
+    assert.equal(field.getAttribute("data-ui-item-drop-over"), "");
+    assert.equal(field.hasAttribute("data-ui-drop-boxed"), true);
+
+    drag("drop", box, dataTransfer);
+
+    assert.equal(drops.length, 1);
+    assert.equal(field.hasAttribute("data-ui-item-drop-over"), false);
+    assert.equal(field.hasAttribute("data-ui-drop-boxed"), false);
+});
+
 test("a drag that carries none of the page's items, a file from the desktop, is left alone though a drag of items never ended", () => {
     const source = list("1", ["a"], Cards);
     const target = list("2", ["x"], Cards);
@@ -321,4 +342,22 @@ test("a row put back off the page wears no drag mark, nor the tile a wrap draws 
 
     assert.equal(row.classList.contains("ui-row--dragging"), false);
     assert.equal(tile.classList.contains("ui-row--dragging"), false);
+});
+
+test("Escape lets go of the rows taken and is spent on it; with nothing taken it is left to whatever comes after", () => {
+    const source = list("1", ["a", "b"], Cards);
+
+    page(source.root);
+    source.rows[0].setAttribute("data-ui-row-focus", "");
+    chord(source.root, "KeyX");
+
+    const letGo = new FakeKeyboardEvent("Escape", source.root);
+
+    source.root.dispatchEvent(letGo);
+    assert.equal(letGo.defaultPrevented, true);
+
+    const nothing = new FakeKeyboardEvent("Escape", source.root);
+
+    source.root.dispatchEvent(nothing);
+    assert.equal(nothing.defaultPrevented, false);
 });

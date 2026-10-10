@@ -153,6 +153,28 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         return false;
     }
 
+    /// <summary>
+    /// Marks a host whose row template raises <c>remove</c>: the Delete key raises only a removal the application wired, and is the
+    /// page's where none is.
+    /// </summary>
+    protected static void RenderRowsRemove(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        CompiledView view = context.ViewResolution.View;
+
+        foreach (UIComponentSlot slot in context.Node.Slots)
+        {
+            if (slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant
+                && view.Events.TryGet(new CompiledUIEventAddress(slot.RootComponentId, EventNames.Remove), out _))
+            {
+                _ = root.Attribute(WebAttributes.RowsRemove);
+                return;
+            }
+        }
+    }
+
     private static bool RaisesRowCommand(CompiledView view, UIComponentId componentId)
         => view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Click), out _)
             || view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Open), out _)
@@ -711,9 +733,49 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             decorateItem?.Invoke(itemRoot, item, index);
 
             context.Renderer.RenderComponent(itemContext.ForHtml(itemRoot), slot.RootComponentId);
+            MarkRowIdle(itemContext, itemRoot, slot.RootComponentId);
 
             appendItem?.Invoke(itemRoot, item, index);
         });
+    }
+
+    /// <summary>
+    /// Marks the row a template root stands in (<see cref="WebAttributes.RowIdle"/>) when the root renders disabled or loading, by the
+    /// values its own render read; the client keeps the mark from then on.
+    /// </summary>
+    private static void MarkRowIdle(WebRenderContext itemContext, IHtmlElementBuilder row, UIComponentId rootComponentId)
+    {
+        WebRenderContext rootContext = RowRootContext(itemContext, row, rootComponentId);
+
+        _ = ResolveRenderValue(rootContext, IVisualComponent.EnabledProperty, out bool? enabled, out _);
+        _ = ResolveRenderValue(rootContext, IVisualComponent.LoadingProperty, out bool? loading, out _);
+
+        if (enabled == false || loading == true)
+            _ = row.Attribute(WebAttributes.RowIdle);
+    }
+
+    /// <summary>The context a row's template root renders its own properties under: its node, the item's parameter, the row.</summary>
+    private static WebRenderContext RowRootContext(WebRenderContext itemContext, IHtmlElementBuilder row, UIComponentId rootComponentId)
+        => itemContext.ForNode(itemContext.ViewResolution.View.Graph.GetRequired(rootComponentId), row);
+
+    /// <summary>
+    /// A property of the template root an item's row renders, as that render reads it: for a mark a list writes on the row or itself from
+    /// what its rows' roots hold. The default where the item has no template.
+    /// </summary>
+    protected static T? ReadItemRootValue<T>(WebRenderContext context, IHtmlElementBuilder row, object? item, UIProperty property)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(row);
+
+        if (item is null || !TryResolveItemTemplate(context, item, out UIComponentSlot? slot))
+            return default;
+
+        UIDynamicParameterScope parameter = CreateParameterScope(slot.RootComponentId, item);
+        WebRenderContext rootContext = RowRootContext(context.WithParameters([.. context.Parameters, parameter]), row, slot.RootComponentId);
+
+        _ = ResolveRenderValue(rootContext, property, out T? value, out _);
+
+        return value;
     }
 
     // Headers are attribute-marked siblings, not containers: the client re-groups after every change and can then
@@ -793,6 +855,9 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
             context.Renderer.RenderComponent(itemContext.ForHtml(slotRoot), slot.RootComponentId);
         });
+
+        // The slot's wrapper stands in the row: its root is the row's grandchild, which idles the row as a child root does.
+        MarkRowIdle(itemContext, host, slot.RootComponentId);
     }
 
     /// <summary>

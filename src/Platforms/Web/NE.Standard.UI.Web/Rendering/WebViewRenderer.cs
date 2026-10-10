@@ -2,10 +2,13 @@ using System;
 using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Hosting;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
@@ -27,13 +30,10 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 {
     // Read by the stylesheet alone, so named constants here rather than in WebAttributes, which holds what the client script reads.
     private const string StickyAttribute = "data-ui-sticky";
-    private const string DialogPlacementAttribute = "data-ui-dialog-placement";
+    // On the band carrying the drawers' buttons, naming their sides.
+    private const string DrawerTogglesAttribute = "data-ui-drawer-toggles";
     private const string DialogSurfaceAttribute = "data-ui-dialog-surface";
     private const string DrawerToggleClass = "ui-shell__drawer-toggle";
-    private const string SkipLinkClass = "ui-shell__skip-link";
-
-    // The content region's id where a skip link points at it: the link's own address, which the client follows without touching the page's.
-    private const string ContentElementId = "ui-content";
 
     // The plain boxes a side's menu may stand in and still be its whole content: they give it room and ground, nothing of their own.
     private static readonly FrozenSet<string> SideWrapperTypeKeys = new[]
@@ -100,23 +100,16 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         CompiledView view = viewResolution.View;
         // A left side that is a rail alone is a bar along the page's bottom on a phone, not a drawer, so it has no button; unless the
         // view keeps it a drawer, where the rail is drawn as a list.
-        var railAlone = view.Options.SideDrawers && IsRailAlone(view, RegionNames.LeftSide);
-        var bottomBar = railAlone && view.Options.RailBottomBar;
-        var railDrawer = railAlone && !view.Options.RailBottomBar;
-        var leftDrawer = !bottomBar && HasRegion(view, RegionNames.LeftSide);
-        var rightDrawer = HasRegion(view, RegionNames.RightSide);
+        var bottomBar = HasBottomBar(view);
+        var railDrawer = view.Options.SideDrawers && !view.Options.RailBottomBar && IsRailAlone(view, RegionNames.LeftSide);
+        var leftDrawer = !bottomBar && view.FindRegion(RegionNames.LeftSide) is not null;
+        var rightDrawer = view.FindRegion(RegionNames.RightSide) is not null;
         // A side the page opens by a button of its own gets none of the shell's, so a header collapsed on a phone leaves no band for it.
         (var leftOpener, var rightOpener) = OwnOpeners(view);
         var leftToggle = leftDrawer && !leftOpener;
         var rightToggle = rightDrawer && !rightOpener;
         // The band that carries the drawers' buttons: the header, or the content where a page has none.
         var toggles = view.Options.SideDrawers ? ToggleHost(view, leftToggle, rightToggle) : null;
-        // A keyboard reader would otherwise Tab through the whole side, a sidebar menu's every entry, before reaching the page.
-        var skipLink = HasRegion(view, RegionNames.LeftSide);
-
-        if (skipLink)
-            RenderSkipLink(html, viewResolution);
-
         for (var i = 0; i < view.Regions.Length; i++)
         {
             CompiledRegion region = view.Regions[i];
@@ -128,9 +121,6 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                 // A `section`, not `header`/`main`/`nav`, keeps the grid's rules; the role makes it a landmark.
                 if (LandmarkRole(view, region.Key) is string role)
                     _ = section.Attribute("role", role);
-
-                if (skipLink && string.Equals(region.Key, RegionNames.Content, StringComparison.Ordinal))
-                    _ = section.Attribute("id", ContentElementId);
 
                 // On the region rather than on the root: sticking is a property of this band of the page.
                 if (view.Options.StickyHeader && string.Equals(region.Key, RegionNames.Header, StringComparison.Ordinal))
@@ -148,6 +138,10 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
                 var carriesToggles = string.Equals(region.Key, toggles, StringComparison.Ordinal);
 
+                // The stylesheet lays the band in a row with its buttons by this, rather than by looking for a button inside it.
+                if (carriesToggles && (leftToggle || rightToggle))
+                    _ = section.Attribute(DrawerTogglesAttribute, DrawerToggleSides(leftToggle, rightToggle));
+
                 if (carriesToggles && leftToggle)
                     RenderDrawerToggle(section, RegionNames.LeftSide, viewResolution);
 
@@ -159,6 +153,28 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         }
     }
 
+    /// <summary>Whether the left side is a phone's bottom bar: a rail alone under side drawers, unless the view keeps it a drawer.</summary>
+    internal static bool HasBottomBar(CompiledView view)
+        => view.Options.SideDrawers && view.Options.RailBottomBar && IsRailAlone(view, RegionNames.LeftSide);
+
+    /// <summary>
+    /// Whether the content region's root fills its height: its base <c>Height</c> is <c>Fill</c>, a bound one as the session's values
+    /// paint it. The client keeps the mark as the height changes (<c>content-fills.ts</c>).
+    /// </summary>
+    internal static bool ContentFills(CompiledView view, IWebRenderValues? values)
+    {
+        if (view.FindRegion(RegionNames.Content) is not CompiledRegion region || !view.State.TryGetValue(region.RootComponentId, IVisualComponent.HeightProperty, out CompiledUIPropertyValue? height))
+            return false;
+
+        var value = height.Value;
+
+        // The page's root stands in no row, so its bound value is sent under no keys.
+        if (height.IsBind && (values is null || !values.TryGetValue(new UIPropertyAddress(region.RootComponentId, IVisualComponent.HeightProperty), out value)))
+            return false;
+
+        return RecursiveValueCoercion.TryCoerce(value, out UIResponsive<UILayoutLength> length) && length.Base.Kind == UILayoutLengthKind.Fill;
+    }
+
     /// <summary>Whether a side holds a rail and nothing else (<see cref="UIMenuDisplay.Rail"/>).</summary>
     private static bool IsRailAlone(CompiledView view, string side)
         => SideMenu(view, side) is UIComponentNode menu
@@ -168,7 +184,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     /// <summary>The menu a side holds and nothing else: the menu itself, or plain boxes each holding only the next, down to it.</summary>
     private static UIComponentNode? SideMenu(CompiledView view, string side)
     {
-        if (FindRegion(view, side) is not CompiledRegion region)
+        if (view.FindRegion(side) is not CompiledRegion region)
             return null;
 
         UIComponentNode node = view.Graph.GetRequired(region.RootComponentId);
@@ -182,17 +198,6 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         }
 
         return string.Equals(node.TypeKey, MenuComponent.ComponentTypeKey, StringComparison.Ordinal) ? node : null;
-    }
-
-    private static CompiledRegion? FindRegion(CompiledView view, string key)
-    {
-        foreach (CompiledRegion region in view.Regions)
-        {
-            if (string.Equals(region.Key, key, StringComparison.Ordinal))
-                return region;
-        }
-
-        return null;
     }
 
     /// <summary>The one component a box holds, as a child or as its content region; none where it holds more, or anything else.</summary>
@@ -219,9 +224,6 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         return held;
     }
 
-    private static bool HasRegion(CompiledView view, string key)
-        => FindRegion(view, key) is not null;
-
     /// <summary>The sides a button of the view's own opens (<see cref="ButtonComponent{T}.OpensDrawer"/>).</summary>
     private static (bool Left, bool Right) OwnOpeners(CompiledView view)
         => DrawerOpeners.GetValue(view, static view =>
@@ -244,23 +246,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
     private static string? ToggleHost(CompiledView view, bool leftDrawer, bool rightDrawer)
         => !leftDrawer && !rightDrawer ? null
-            : HasRegion(view, RegionNames.Header) ? RegionNames.Header
+            : view.FindRegion(RegionNames.Header) is not null ? RegionNames.Header
             : RegionNames.Content;
-
-    /// <summary>
-    /// The page's first stop where a left side stands before the content: a link to the content region, seen only while it holds the
-    /// keyboard, which skip-link-engine.ts follows by moving the keyboard there.
-    /// </summary>
-    private void RenderSkipLink(HtmlContentBuilder html, UIViewResolution resolution)
-        => _ = html.Element("a", link =>
-        {
-            _ = link
-                .Class(SkipLinkClass)
-                .Attribute("href", "#" + ContentElementId)
-                .Attribute(WebAttributes.SkipLink);
-
-            WebWords.Write(_translator, resolution.Session.Language, link, null, UIStrings.SkipToContent);
-        });
 
     /// <summary>What a region is in a screen reader's list of landmarks.</summary>
     private static string? LandmarkRole(CompiledView view, string key)
@@ -286,6 +273,15 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private static bool IsDrawer(string key, bool leftDrawer, bool rightDrawer)
         => (leftDrawer && string.Equals(key, RegionNames.LeftSide, StringComparison.Ordinal))
             || (rightDrawer && string.Equals(key, RegionNames.RightSide, StringComparison.Ordinal));
+
+    /// <summary>The sides whose buttons a band carries, as its drawer toggles attribute lists them.</summary>
+    private static string DrawerToggleSides(bool left, bool right)
+        => (left, right) switch
+        {
+            (true, true) => RegionNames.LeftSide + " " + RegionNames.RightSide,
+            (true, false) => RegionNames.LeftSide,
+            _ => RegionNames.RightSide
+        };
 
     /// <summary>The button that opens one side as a drawer; the stylesheet shows it only on a narrow screen, and draws its burger.</summary>
     private void RenderDrawerToggle(IHtmlElementBuilder section, string side, UIViewResolution resolution)
@@ -361,7 +357,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
                 // Render-time only, like the surface: the stylesheet lays the panel against the edge named.
                 if (dialog.Placement != UIDialogPlacement.Center)
-                    _ = layer.Attribute(DialogPlacementAttribute, dialog.Placement.ToString().ToLowerInvariant());
+                    _ = layer.Attribute(WebAttributes.DialogPlacement, dialog.Placement.ToString().ToLowerInvariant());
 
                 _ = layer.Element("div", backdrop => _ = backdrop
                     .Class("ui-dialog__backdrop")

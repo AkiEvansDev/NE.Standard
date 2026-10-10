@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatShortcut, matchesShortcut, parseShortcut, shortcutKey, shortcutWords } from "../src/interactions/keyboard-shortcut.ts";
+import { formatShortcut, isPlainKey, matchesShortcut, parseShortcut, shortcutKey, shortcutWords } from "../src/interactions/keyboard-shortcut.ts";
 
 function keyEvent(code: string, modifiers: { ctrl?: boolean; shift?: boolean; alt?: boolean; meta?: boolean } = {}): KeyboardEvent {
     return {
@@ -108,3 +108,36 @@ test("a package's chord is written as the framework writes its own, and a string
     assert.equal(shortcutWords.words("ctrl+b"), "Ctrl+B");
     assert.equal(shortcutWords.words("Ctrl"), null);
 });
+
+test("a package's chord matches with every modifier exact, so a page's Ctrl+Shift+A is not its Ctrl+A", () => {
+    assert.equal(shortcutWords.matches(keyEvent("KeyA", { ctrl: true }), "Ctrl+A"), true);
+    assert.equal(shortcutWords.matches(keyEvent("KeyA", { ctrl: true, shift: true }), "Ctrl+A"), false);
+    assert.equal(shortcutWords.matches(keyEvent("KeyA", { ctrl: true, alt: true }), "Ctrl+A"), false);
+    assert.equal(shortcutWords.matches(keyEvent("KeyZ", { ctrl: true, shift: true }), "Ctrl+Shift+Z"), true);
+    assert.equal(shortcutWords.matches(keyEvent("KeyA", { ctrl: true }), "Ctrl"), false);
+});
+
+test("a key composing a character is the input method's, Safari's Enter told by its key code", () => {
+    assert.equal(shortcutWords.isComposing(composing(true, 13)), true);
+    assert.equal(shortcutWords.isComposing(composing(false, 229)), true);
+    assert.equal(shortcutWords.isComposing(composing(false, 13)), false);
+});
+
+test("navigation answers a plain key: Alt+arrows are the browser's or a move's, Shift only where it is allowed, a composition never", () => {
+    assert.equal(isPlainKey(keyEvent("ArrowLeft")), true);
+    assert.equal(isPlainKey(keyEvent("ArrowLeft", { alt: true })), false);
+    assert.equal(isPlainKey(keyEvent("ArrowLeft", { ctrl: true })), false);
+    assert.equal(isPlainKey(keyEvent("ArrowLeft", { meta: true })), false);
+    assert.equal(isPlainKey(keyEvent("ArrowDown", { shift: true })), false);
+    assert.equal(isPlainKey(keyEvent("ArrowDown", { shift: true }), { shift: true }), true);
+    assert.equal(isPlainKey(keyEvent("ArrowDown", { alt: true }), { alt: true }), true);
+    assert.equal(isPlainKey(keyEvent("ArrowDown", { alt: true, ctrl: true }), { alt: true }), false);
+    assert.equal(isPlainKey(composing(true, 40)), false);
+});
+
+/** A key as an input method raises it: the flag, and the code Safari's last key of a composition carries in its place. */
+function composing(isComposing: boolean, code: number): KeyboardEvent {
+    const event = { isComposing, keyCode: code };
+
+    return event as unknown as KeyboardEvent;
+}

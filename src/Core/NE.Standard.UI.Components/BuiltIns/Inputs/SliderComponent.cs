@@ -14,13 +14,10 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// A slider input that lets the user pick a numeric value by dragging a handle along a track; with <see cref="IsRange"/>, two handles
 /// on one track pick a band, <c>Value</c> its start and <see cref="EndValue"/> its end.
 /// </summary>
+[UIComponentPropertyBlock(typeof(ISizedInputComponent))]
 public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id), IOrderedRangeComponent, ISizedInputComponent, IPeriodInputComponent
     where T : SliderComponent<T>, IUIComponentDefinition
 {
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
-    public UIInputSize? Size { get; set; }
-
     /// <summary>
     /// Gets or sets the minimum selectable value.
     /// </summary>

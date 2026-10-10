@@ -4,6 +4,7 @@
 
 import { SplittingAttribute } from "../addressing/dom-attributes.ts";
 import { isInert } from "./interactive-state.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
 
 type Point = { readonly x: number; readonly y: number };
 
@@ -205,7 +206,7 @@ export class PointerDrag<TContext> {
 
     /** Escape cancels the gesture in progress: the engine's own cancel, else back to the delta the drag began at and an end. */
     private handleKeyDown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || this.drag === null)
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent) || this.drag === null)
             return;
 
         domEvent.preventDefault();
@@ -244,4 +245,25 @@ function pinchStep(firstBefore: Point, secondBefore: Point, first: Point, second
         center,
         shift: { x: center.x - ((firstBefore.x + secondBefore.x) / 2), y: center.y - ((firstBefore.y + secondBefore.y) / 2) }
     };
+}
+
+/**
+ * The click a gesture's release raises is the gesture's, not a press of what it ended over: the next click goes nowhere. On the
+ * window, ahead of every root's listeners; a new press or key first ends the wait, since a release outside the page raises none.
+ */
+export function swallowReleaseClick(): void {
+    const swallow = (domEvent: Event): void => {
+        domEvent.preventDefault();
+        domEvent.stopImmediatePropagation();
+        stop();
+    };
+    const stop = (): void => {
+        window.removeEventListener("click", swallow, true);
+        window.removeEventListener("pointerdown", stop, true);
+        window.removeEventListener("keydown", stop, true);
+    };
+
+    window.addEventListener("click", swallow, true);
+    window.addEventListener("pointerdown", stop, true);
+    window.addEventListener("keydown", stop, true);
 }

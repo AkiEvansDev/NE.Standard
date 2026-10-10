@@ -1,23 +1,30 @@
 import { ComponentSelector, cssAttributeValue, DialogSurfaceClass } from "../addressing/dom-attributes";
 import { logWarn } from "../runtime/logger";
 import { isCaretField } from "./caret-fields";
-import { isCancellingField } from "./field-escape";
-import { isInRenameField } from "./inline-rename";
-import { isInEditingRow } from "./key-value-action-engine";
+import { escapeIsClaimed } from "./field-escape";
+import { isComposing } from "./keyboard-shortcut";
 import { hasOpenPopups } from "./popup-dismissal";
-import { firstFocusable, isTouchLast, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, tabStops, wrappedTabStop } from "./popup-focus";
-import { BackdropAttribute, CloseOnBackdropAttribute, CloseOnEscapeAttribute, DialogAttribute, findTopmostOpenDialog, ModalAttribute } from "./open-dialogs";
+import { firstFocusable, isTouchLast, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, trapTab } from "./popup-focus";
+import { followSwipeDown } from "./sheet-swipe";
+import type { ComponentIndex } from "./popup-focus";
+import { BackdropAttribute, CloseOnBackdropAttribute, CloseOnEscapeAttribute, DialogAttribute, findTopmostOpenDialog, isBehindModal, ModalAttribute, PlacementAttribute } from "./open-dialogs";
 
 export type DialogEngineOptions = {
     readonly root?: ParentNode;
+    /** The page's components by id (the runtime's `DomRegistry`), through which an opener the page redrew away is found again. */
+    readonly dom?: ComponentIndex;
 };
 
 export class DialogEngine {
     private readonly root: ParentNode;
+    private readonly components: ComponentIndex | null;
     private readonly returnFocusByKey = new Map<string, HTMLElement>();
+    // The swipe each open bottom sheet follows, detached as it closes.
+    private readonly swipes = new Map<string, () => void>();
 
     public constructor(options: DialogEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.components = options.dom ?? null;
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent), true);
@@ -53,6 +60,9 @@ export class DialogEngine {
         if (previous !== null)
             this.returnFocusByKey.set(key, previous);
 
+        if (isSwipedSheet(dialog))
+            this.swipes.set(key, followSwipeDown(surface, surface, () => this.closeFromViewer(key)));
+
         return true;
     }
 
@@ -70,11 +80,13 @@ export class DialogEngine {
         const returnFocus = this.returnFocusByKey.get(key);
 
         this.returnFocusByKey.delete(key);
+        this.swipes.get(key)?.();
+        this.swipes.delete(key);
 
         // Before the dialog hides, while the focus is still inside it; the opener may have been re-rendered away or hidden meanwhile.
         // Only then asked, since finding a live return may make a component's root focusable for it.
         if (dialog.contains(document.activeElement))
-            restoreFocusTo(liveFocusReturn(returnFocus, this.root), dialog);
+            restoreFocusTo(liveFocusReturn(returnFocus, this.components), dialog);
         dialog.setAttribute("hidden", "");
 
         return true;
@@ -107,16 +119,17 @@ export class DialogEngine {
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {
-        if (domEvent.defaultPrevented || domEvent.isComposing)
+        if (domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
         const topmost = this.getTopmostOpen();
 
-        if (topmost === null)
+        // A package's own modal `<dialog>` over this one (a chooser) answers Escape and keeps Tab inside itself.
+        if (topmost === null || isBehindModal(topmost))
             return;
 
-        // A popup open inside, or an editor that cancels on Escape (it hears the key after this capture listener), takes the first one.
-        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups() && !isInRenameField(domEvent.target) && !isInEditingRow(domEvent.target) && !isCancellingField(domEvent.target)) {
+        // A popup open inside, or an editor that claims Escape (it hears the key after this capture listener), takes the first one.
+        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups() && !escapeIsClaimed(domEvent)) {
             const key = topmost.getAttribute(DialogAttribute);
 
             if (key !== null) {
@@ -128,7 +141,7 @@ export class DialogEngine {
         }
 
         if (domEvent.key === "Tab" && topmost.hasAttribute(ModalAttribute))
-            this.trapTab(topmost, domEvent);
+            trapTab(topmost, domEvent);
     }
 
     /** Closes on Escape or a backdrop press and raises a bubbling `close` (`OnClose`); the server's own close raises none, as it knows. */
@@ -147,21 +160,9 @@ export class DialogEngine {
     private getTopmostOpen(): HTMLElement | null {
         return findTopmostOpenDialog(this.root);
     }
+}
 
-    private trapTab(dialog: HTMLElement, domEvent: KeyboardEvent): void {
-        const stops = tabStops(dialog, document.activeElement);
-
-        if (stops.length === 0) {
-            // Nothing to move focus to, but the key is still swallowed or focus walks out of the modal.
-            domEvent.preventDefault();
-            return;
-        }
-
-        const target = wrappedTabStop(dialog, stops, document.activeElement, domEvent.shiftKey);
-
-        if (target !== null) {
-            domEvent.preventDefault();
-            target.focus();
-        }
-    }
+/** A bottom sheet the viewer may put away — by its backdrop or Escape — which its handle and a swipe down put away too. */
+function isSwipedSheet(dialog: HTMLElement): boolean {
+    return dialog.getAttribute(PlacementAttribute) === "bottom" && (dialog.hasAttribute(CloseOnBackdropAttribute) || dialog.hasAttribute(CloseOnEscapeAttribute));
 }

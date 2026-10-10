@@ -459,6 +459,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                             .SetType(UIButtonType.Ghost)
                             .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
                             .SetTooltip("Quick replies")
+                            .SetMenuPlacement(UIPopupPlacement.TopStart)
                             .SetItems(ChatController.QuickReplies())
                             .OnItemClickWithItemKey(nameof(ChatController.InsertQuickReply))
                         )

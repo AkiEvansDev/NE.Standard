@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
@@ -62,24 +63,27 @@ internal abstract partial class UIRuntimeBase : IUIReferenceResolver
     {
         ArgumentNullException.ThrowIfNull(result);
 
-        if (result.Effects.Length == 0)
-            return result;
-
-        ClientEffect[] effects = new ClientEffect[result.Effects.Length];
-        var changed = false;
-
-        for (var i = 0; i < effects.Length; i++)
-        {
-            ClientEffect effect = result.Effects[i];
-            ClientEffect resolved = ResolveRuntimeEffect(effect);
-
-            effects[i] = resolved;
-            changed |= !ReferenceEquals(effect, resolved);
-        }
-
-        return changed
+        return ResolveRuntimeEffects(result.Effects) is { } effects
             ? new UICommandResult(result.Success, effects, result.Error)
             : result;
+    }
+
+    /// <summary>The effects resolved, or <see langword="null"/> where none changed, so the caller keeps what it holds.</summary>
+    private ClientEffect[]? ResolveRuntimeEffects(IReadOnlyList<ClientEffect> effects)
+    {
+        if (effects.Count == 0)
+            return null;
+
+        ClientEffect[] resolved = new ClientEffect[effects.Count];
+        var changed = false;
+
+        for (var i = 0; i < resolved.Length; i++)
+        {
+            resolved[i] = ResolveRuntimeEffect(effects[i]);
+            changed |= !ReferenceEquals(effects[i], resolved[i]);
+        }
+
+        return changed ? resolved : null;
     }
 
     private ClientEffect ResolveRuntimeEffect(ClientEffect effect)

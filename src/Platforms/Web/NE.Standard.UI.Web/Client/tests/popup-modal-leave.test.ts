@@ -102,15 +102,17 @@ function pane(): Field {
     return { owner, field: input, popup };
 }
 
-function letGo(from: FakeElement): void {
+/** The focus leaving the element for nothing, judged once the task's work is done. */
+async function letGo(from: FakeElement): Promise<void> {
     fakeDocument.documentElement.dispatchEvent(Object.assign(new FakeEvent("focusout"), { target: from, relatedTarget: null }));
+    await Promise.resolve();
 }
 
-test("a field's Enter letting the keyboard go to nothing takes its open list with it, as a Tab out of it would", () => {
+test("a field's Enter letting the keyboard go to nothing takes its open list with it, as a Tab out of it would", async () => {
     const at = field();
 
     noteKey(real<Event>(new FakeKeyboardEvent("Enter")));
-    letGo(at.field);
+    await letGo(at.field);
 
     assert.deepEqual(log, ["date focus"]);
 
@@ -118,21 +120,21 @@ test("a field's Enter letting the keyboard go to nothing takes its open list wit
     const held = field(true);
 
     noteKey(real<Event>(new FakeKeyboardEvent("Enter")));
-    letGo(held.field);
+    await letGo(held.field);
 
     assert.deepEqual(log, ["date focus"]);
 });
 
-test("the focus lost to a window left, to a press, or to a holder inside the list keeps the list open", () => {
+test("the focus lost to a window left, to a press, or to a holder inside the list keeps the list open", async () => {
     const at = field();
 
     noteKey(real<Event>(new FakeKeyboardEvent("Enter")));
     documentFocused = false;
-    letGo(at.field);
+    await letGo(at.field);
     documentFocused = true;
 
     notePress(real(fakeDocument.body));
-    letGo(at.field);
+    await letGo(at.field);
 
     assert.deepEqual(log, []);
     popups.close(real(at.owner));
@@ -140,21 +142,42 @@ test("the focus lost to a window left, to a press, or to a holder inside the lis
     const colour = pane();
 
     noteKey(real<Event>(new FakeKeyboardEvent("Enter")));
-    letGo(colour.field);
+    await letGo(colour.field);
 
     assert.deepEqual(log, []);
     popups.close(real(colour.owner));
 });
 
-test("a field hidden or taken out under the focus is lost, not let go of: its list stays for its own watch to judge", () => {
+test("a field hidden or taken out under the focus is lost, not let go of: its list stays for its own watch to judge", async () => {
     const at = field();
 
     noteKey(real<Event>(new FakeKeyboardEvent("Enter")));
     at.field.laidOut = false;
-    letGo(at.field);
+    await letGo(at.field);
 
     assert.deepEqual(log, []);
     popups.close(real(at.owner));
+});
+
+test("a focused part a redraw takes off the page, the focus going to the part drawn in its place, is no let-go: the list stays", async () => {
+    const day = new FakeElement("button");
+    const popup = new FakeElement().append(day);
+    const owner = FakeElement.of("", { id: "date" }).append(new FakeElement("input"), popup);
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(owner);
+    open(owner, popup);
+    noteKey(real<Event>(new FakeKeyboardEvent("ArrowDown")));
+
+    // The browser raises the focusout while the day is still on the page, then the redraw puts the next day in its place.
+    fakeDocument.documentElement.dispatchEvent(Object.assign(new FakeEvent("focusout"), { target: day, relatedTarget: null }));
+    const next = new FakeElement("button");
+    popup.replaceChildren(next);
+    next.focus();
+    await Promise.resolve();
+
+    assert.deepEqual(log, []);
+    popups.close(real(owner));
 });
 
 test("a popup closing with the focus outside it never asks where the focus goes back, which may make a root focusable", () => {

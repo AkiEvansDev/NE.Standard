@@ -1,18 +1,19 @@
 // A menu's search, by the one matching rule (`search-terms.ts`) over the words an entry shows — translated, not the keys behind
 // them; one that leaves nothing says so, as a select's does. Emptied, or the menu folded, the menu is as it was.
 
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isRovingCandidate } from "./roving-focus.ts";
 import { toggleNoMatchPlaceholder } from "./search-input-engine.ts";
-import { foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { menuWalk } from "./menu-group-engine.ts";
+import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
 const SearchableSelector = `.${RootClass}[${MenuSearchAttribute}]`;
 const BarSelector = ":scope > .ui-collapsible__bar";
 const HostSelector = ":scope > .ui-menu__host";
 const ItemWrapperClass = "ui-menu__item";
 const EntrySelector = `:scope > .${EntryClass}`;
-const TitleSelector = ".ui-text__title";
 const SubmenuHostSelector = ":scope > .ui-menu__submenu > .ui-menu > .ui-menu__host";
 
 export type MenuSearchEngineOptions = {
@@ -166,14 +167,13 @@ export class MenuSearchEngine {
         }
     }
 
-    /** The arrow down from the field goes on to the first entry left, as it would from an entry above it. */
+    /** The arrow down from the field goes on to the first entry left, as it would from an entry above it; Up from that entry comes back. */
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "ArrowDown" || domEvent.defaultPrevented || !(domEvent.target instanceof HTMLInputElement))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "ArrowDown" || domEvent.defaultPrevented || !isPlainKey(domEvent) || !(domEvent.target instanceof HTMLInputElement))
             return;
 
         const menu = searchableMenuOf(domEvent.target);
-        const entries = menu?.querySelector<HTMLElement>(HostSelector)?.querySelectorAll<HTMLElement>(`.${EntryClass}:not(${PassiveMenuEntrySelector})`) ?? [];
-        const first = [...entries].find(isRovingCandidate);
+        const first = menu === null ? undefined : menuWalk(menu).find(isRovingCandidate);
 
         if (first === undefined)
             return;
@@ -210,7 +210,9 @@ function kindOf(wrapper: HTMLElement): string {
 
 /** The words an entry shows, as the viewer reads them. */
 function wordsOf(wrapper: HTMLElement): string {
-    return foldWords(wrapper.querySelector(EntrySelector)?.querySelector(TitleSelector)?.textContent ?? "", wrapper);
+    const entry = wrapper.querySelector<HTMLElement>(EntrySelector);
+
+    return entry === null ? "" : foldWords(entryWords(entry), wrapper);
 }
 
 function mark(wrapper: HTMLElement, shown: boolean): void {

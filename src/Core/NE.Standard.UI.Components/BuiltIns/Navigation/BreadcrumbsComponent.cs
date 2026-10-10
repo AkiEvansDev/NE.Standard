@@ -1,7 +1,9 @@
+using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -12,7 +14,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// The trail back to where the current page sits, one step per entry of a collection.
 /// </summary>
 /// <remarks>Fed by the controller, not the router; the last step is the current page, marked by position rather than by a flag.</remarks>
-public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel, IButtonComponent>, IButtonTemplatedItemsComponent
+public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel, IButtonComponent>, IItemClickComponent
     where T : BreadcrumbsComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 2d;
@@ -39,6 +41,12 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
 
         TemplateKeyProperty = null;
     }
+
+    /// <summary>
+    /// Writes a click registration on the item template, now and on every one set later.
+    /// </summary>
+    public void OnClickableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(register);
 }
 
 /// <summary>

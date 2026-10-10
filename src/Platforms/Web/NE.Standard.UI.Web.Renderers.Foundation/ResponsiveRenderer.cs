@@ -33,12 +33,16 @@ public static class ResponsiveRenderer
     /// but <c>Fill</c> takes the parent's room less the component's margins on <paramref name="axis"/> (<see cref="ApplyResponsiveMargin"/>).
     /// </summary>
     public static void ApplyResponsiveSize(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName, UIOrientation axis)
+        => ApplyResponsiveSize(context, target, propertyOwnerTypeKey, property, cssVariableName, axis, after: null);
+
+    /// <summary>As <see cref="ApplyResponsiveSize(WebRenderContext, IHtmlElementBuilder, string, UIProperty, string, UIOrientation)"/>, a patch running <paramref name="after"/> once the tiers are written.</summary>
+    internal static void ApplyResponsiveSize(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName, UIOrientation axis, WebDomOperation? after)
         => ApplyResponsive(context, target, propertyOwnerTypeKey, property, cssVariableName, WebResponsiveCss.SizeFormatter(axis),
-            axis == UIOrientation.Horizontal ? WebDomConverters.ResponsiveWidthCss : WebDomConverters.ResponsiveHeightCss);
+            axis == UIOrientation.Horizontal ? WebDomConverters.ResponsiveWidthCss : WebDomConverters.ResponsiveHeightCss, after);
 
     /// <summary>
     /// A component's margin as <c>--ui-margin</c>'s tiers, beside each tier's sides summed across and down, which is what a <c>Fill</c>
-    /// size leaves out (<see cref="ApplyResponsiveSize"/>).
+    /// size leaves out (<see cref="ApplyResponsiveSize(WebRenderContext, IHtmlElementBuilder, string, UIProperty, string, UIOrientation)"/>).
     /// </summary>
     public static void ApplyResponsiveMargin(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property)
         => _ = WebComponentRendererBase.RenderProperty<UIResponsive<UIThickness>?>(context, target, propertyOwnerTypeKey, property, static (element, value) =>
@@ -74,24 +78,24 @@ public static class ResponsiveRenderer
     public static void ApplyResponsiveSpacing(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName)
         => ApplyResponsive<double>(context, target, propertyOwnerTypeKey, property, cssVariableName, WebCssValues.Pixels, WebDomConverters.ResponsivePixelsCss);
 
-    private static void ApplyResponsive<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName, Func<T, string> formatter, WebResponsiveConverters converters)
+    private static void ApplyResponsive<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName, Func<T, string> formatter, WebResponsiveConverters converters, WebDomOperation? after = null)
         where T : struct
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentException.ThrowIfNullOrWhiteSpace(cssVariableName);
         ArgumentNullException.ThrowIfNull(formatter);
 
-        // Built once per variable and its converters, since a size and a plain length may share a name: every component renders its
-        // sizes and padding through here.
-        ResponsiveProperty<T> responsive = ResponsiveProperty<T>.ByVariable.GetOrAdd((cssVariableName, converters), static (key, formatter)
-            => new ResponsiveProperty<T>(key.Variable, formatter, TierOperations(key.Variable, key.Converters)), formatter);
+        // Built once per variable, its converters and what runs after, since a size and a plain length may share a name: every
+        // component renders its sizes and padding through here.
+        ResponsiveProperty<T> responsive = ResponsiveProperty<T>.ByVariable.GetOrAdd((cssVariableName, converters, after), static (key, formatter)
+            => new ResponsiveProperty<T>(key.Variable, formatter, key.After is null ? TierOperations(key.Variable, key.Converters) : [.. TierOperations(key.Variable, key.Converters), key.After]), formatter);
 
         _ = WebComponentRendererBase.RenderProperty(context, target, propertyOwnerTypeKey, property, responsive.Write, responsive.Operations);
     }
 
     /// <summary>The patch operations of one responsive value: a custom property per tier, each through its tier's converter.</summary>
     internal static WebDomOperation[] TierOperations(string cssVariableName, WebResponsiveConverters converters)
-        => TierOperations(cssVariableName, converters, WebDomOperation.Style);
+        => TierOperations(cssVariableName, converters, static (name, target, converter) => WebDomOperation.Style(name, target, converter));
 
     /// <summary>As <see cref="TierOperations(string, WebResponsiveConverters)"/>, but each tier through <paramref name="operation"/>: an attribute per tier.</summary>
     internal static WebDomOperation[] TierOperations(string name, WebResponsiveConverters converters, Func<string, string?, string?, WebDomOperation> operation)
@@ -110,7 +114,7 @@ public static class ResponsiveRenderer
     private sealed class ResponsiveProperty<T>(string cssVariableName, Func<T, string> formatter, WebDomOperation[] operations)
         where T : struct
     {
-        public static readonly ConcurrentDictionary<(string Variable, WebResponsiveConverters Converters), ResponsiveProperty<T>> ByVariable = new();
+        public static readonly ConcurrentDictionary<(string Variable, WebResponsiveConverters Converters, WebDomOperation? After), ResponsiveProperty<T>> ByVariable = new();
 
         public WebDomOperation[] Operations { get; } = operations;
 

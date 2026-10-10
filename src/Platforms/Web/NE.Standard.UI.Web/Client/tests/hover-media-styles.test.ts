@@ -116,6 +116,16 @@ test("every add-on's hover look is drawn only where the pointer can hover too", 
     }
 });
 
+// `.ui-user-select()` writes the prefixed property too, which Safari reads alone (MECHANISMS: no `user-select` in a component's file).
+test("every add-on's text selection is the framework's mixin, prefixed for Safari", async () => {
+    for (const entry of addOnEntries) {
+        const addOn = (await less.render(readFileSync(entry, "utf8"), { filename: entry })).css.replace(/\/\*[\s\S]*?\*\//g, "");
+        const bare = rulesOf(addOn).filter(rule => /(^|[;\s])user-select:/.test(rule.body) && !rule.body.includes("-webkit-user-select:"));
+
+        assert.deepEqual(bare.map(rule => rule.selector), [], entry);
+    }
+});
+
 test("a press, the keyboard's marks and selection are drawn for every pointer", () => {
     const pressedOrKeyed = rules.filter(rule => /:active|:focus-visible|\[data-ui-selected\]|--selected/.test(rule.selector) && !rule.selector.includes(":hover"));
 
@@ -133,9 +143,12 @@ test("a row's wash and a ghost button's wash wait for a hovering pointer, their 
     assert.ok(ghostPress !== undefined && !underHover(ghostPress), "the ghost button's press must show on a touch screen too");
 });
 
+// A picture shows by its root's marks (its source, or the file the viewer chose), never by a `:has()` on the picture's `src`.
+const Shown = ":is([data-ui-image-source], [data-ui-image-preview])";
+
 test("where nothing hovers, what a hover reveals shows on the chosen thing, or always on a lone one", () => {
     const noHover = (rule: CssRule) => rule.conditions.some(condition => condition.startsWith("@media") && condition.includes("(hover: none)"));
-    const pencil = rules.find(rule => noHover(rule) && rule.selector.endsWith(":has(> .ui-image-input__picture[src]) > .ui-image-input__edit"));
+    const pencil = rules.find(rule => noHover(rule) && rule.selector.includes(Shown) && rule.selector.endsWith(" > .ui-image-input__edit"));
     const cross = rules.find(rule => noHover(rule) && rule.selector === ".ui-image-input__remove");
     const chosenClose = rules.find(rule => rule.selector === ".ui-tab-item--selected .ui-tab-item__close");
 
@@ -147,7 +160,7 @@ test("where nothing hovers, what a hover reveals shows on the chosen thing, or a
 
 test("where nothing hovers, an avatar wears the hover's veil, lighter, with its pencil in the middle", () => {
     const noHover = (rule: CssRule) => rule.conditions.some(condition => condition.startsWith("@media") && condition.includes("(hover: none)"));
-    const veil = rules.find(rule => noHover(rule) && rule.selector.startsWith(".ui-image-input--avatar") && rule.selector.endsWith(":has(> .ui-image-input__picture[src]) > .ui-image-input__edit"));
+    const veil = rules.find(rule => noHover(rule) && rule.selector.startsWith(".ui-image-input--avatar") && rule.selector.includes(Shown) && rule.selector.endsWith(" > .ui-image-input__edit"));
 
     assert.ok(veil !== undefined && veil.body.includes("opacity: 1;"), "an avatar's veil does not show without a hover");
     assert.ok(veil.body.includes("black 30%") && !veil.body.includes("inset"), "an avatar's veil is not the lighter whole-picture one");

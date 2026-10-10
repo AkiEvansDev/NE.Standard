@@ -45,6 +45,11 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 
         _ = root.Attribute(WebAttributes.SplitMode, menuButton ? "menu" : "split");
 
+        _ = ResolveRenderValue(context, SplitButtonComponent.MenuPlacementProperty, out UIPopupPlacement? placement, out _);
+
+        if (placement is UIPopupPlacement resolved && resolved != UIPopupPlacement.BottomEnd)
+            _ = root.Attribute(WebAttributes.SplitPlacement, WebClassNames.PopupPlacement(resolved));
+
         // A split button's end part is nothing but its chevron, so only a menu button lets it go.
         if (menuButton)
             RenderFlagClass(context, root, SplitButtonComponent.ShowChevronProperty, NoChevronClassName, WebValueCondition.IsFalse);

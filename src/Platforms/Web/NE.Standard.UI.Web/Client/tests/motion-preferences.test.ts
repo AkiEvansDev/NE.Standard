@@ -48,7 +48,7 @@ const forcedColors = blocksOf(css, "@media (forced-colors: active)");
 const ringSelectors = allRules.filter(rule => /animation: ui-spin\b/.test(rule.body)).flatMap(rule => rule.selectors);
 
 // A windowed list's indicator, a ring of its own on the view's root rather than on a loading component.
-const WindowIndicator = ".ui-items-view--indicator:not(.ui-loading):has(> [data-ui-window-pending])::after";
+const WindowIndicator = ".ui-items-view--indicator[data-ui-window-pending]:not(.ui-loading)::after";
 
 test("the reader's reduced motion is answered in one block, for animations as well as transitions", () => {
     assert.equal(reducedMotion.length, 1, "a second prefers-reduced-motion block: preferences.less is the one place for it");
@@ -121,7 +121,8 @@ test("a collapse goes at once, as a show arrives", () => {
 });
 
 test("a ghost, outline, link or surface button keeps the button's transition list", () => {
-    const replacing = allRules.filter(rule => rule.selectors.some(selector => /^\.ui-button--(ghost|outline|link|surface)\b/.test(selector)) && /(^|;)\s*transition:/.test(rule.body));
+    // The button itself; a part of it (a link's underlined title) fades its own property.
+    const replacing = allRules.filter(rule => rule.selectors.some(selector => /^\.ui-button--(ghost|outline|link|surface)\b[^\s>+~]*$/.test(selector)) && /(^|;)\s*transition:/.test(rule.body));
 
     assert.deepEqual(replacing.flatMap(rule => rule.selectors), []);
 });

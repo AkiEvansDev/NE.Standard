@@ -39,7 +39,6 @@ import { MenuGroupEngine } from "../interactions/menu-group-engine";
 import { MenuSearchEngine } from "../interactions/menu-search-engine";
 import { ScreenKeyboardEngine } from "../interactions/screen-keyboard";
 import { SideDrawerEngine } from "../interactions/side-drawer-engine";
-import { SkipLinkEngine } from "../interactions/skip-link-engine";
 import { CollapsibleEngine } from "../interactions/collapsible-engine";
 import { GridSplitterEngine } from "../interactions/grid-splitter-engine";
 import { SplitButtonEngine } from "../interactions/split-button-engine";
@@ -66,16 +65,19 @@ import { ComponentIdAttribute, ComponentSelector, cssAttributeValue, pluginDomNa
 import { endsWithDynamicParameters } from "../addressing/dynamic-parameters";
 import { startTooltips, Tooltips, tooltips } from "../interactions/tooltip-engine";
 import { InlineRenames, openInlineRename } from "../interactions/inline-rename";
-import { Popups, popups } from "../interactions/popup-service";
+import { createPopups, Popups } from "../interactions/popup-service";
 import { pluginFocus } from "../interactions/popup-focus";
+import { pluginTypeAhead } from "../interactions/popup-list";
 import { rovingFocus } from "../interactions/roving-focus";
 import { componentStates } from "../interactions/interactive-state";
 import { wheel } from "../interactions/wheel-notches";
-import { shortcutWords } from "../interactions/keyboard-shortcut";
+import { seriesColors } from "../rendering/series-colors";
+import { pluginShortcutWords } from "../interactions/caret-fields";
 import { createItemRows, ItemRows } from "../items/item-rows";
 import { ItemsRuleWatcher } from "../items/items-rule-watcher";
 import { ItemsWindowEngine, ItemWindows } from "../items/items-window-engine";
 import { ItemsSelectionEngine } from "../interactions/items-selection-engine";
+import type { HeldRows } from "../interactions/items-selection-engine";
 import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
@@ -115,6 +117,7 @@ import { EntryValidation, FieldValidation, RuleJudging, ShownValueValidation, Va
 import { ValueBindingEngine } from "../updates/value-binding-engine";
 import { ExtensionRegistry } from "../extensions/extension-registry";
 import { MenuRowDecorator } from "../items/menu-row-decorator";
+import { RadioRowDecorator } from "../items/radio-row-decorator";
 import { RowGripDecorator } from "../items/row-grip";
 import { observeSize } from "../interactions/element-size";
 import { applyIconValue } from "../rendering/icon-value";
@@ -147,6 +150,8 @@ type EngineContext = {
     readonly effects: EffectRegistry;
     readonly validation: FieldValidation & EntryValidation & ShownValueValidation;
     readonly dialogs: DialogEngine;
+    /** A virtualized host's rows past the drawn ones, as the row keyboard walks them. */
+    readonly heldRows: HeldRows;
 };
 
 /** Icons as a package draws them on elements it builds itself: an icon value written the way a renderer writes it. */
@@ -189,11 +194,13 @@ export type PluginEngineContext = EngineContext & {
     readonly selection: ItemSelection;
     readonly popups: Popups;
     readonly roving: typeof rovingFocus;
+    readonly typeAhead: typeof pluginTypeAhead;
     readonly focus: typeof pluginFocus;
     readonly states: typeof componentStates;
     readonly validation: FieldValidation & RuleJudging;
     readonly wheel: typeof wheel;
-    readonly shortcuts: typeof shortcutWords;
+    readonly colors: typeof seriesColors;
+    readonly shortcuts: typeof pluginShortcutWords;
     readonly names: typeof pluginDomNames;
 };
 
@@ -222,26 +229,25 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["commit gate", ({ root, propertyPatchEngine }) => new CommitGate({ root, propertyPatchEngine })],
     // Only where the stylesheet cannot size a growing text area to its text on its own.
     ["text area grow", ({ root, propertyPatchEngine }) => sizesFieldsToContent() ? undefined : new TextAreaGrowEngine({ root, propertyPatchEngine })],
-    ["items selection", ({ root }) => new ItemsSelectionEngine({ root })],
-    ["range value", ({ root, propertyPatchEngine, dom }) => new RangeValueEngine({ root, propertyPatchEngine, dom })],
-    ["color input", ({ root, propertyPatchEngine, dom }) => new ColorInputEngine({ root, propertyPatchEngine, dom })],
+    ["items selection", ({ root, heldRows }) => new ItemsSelectionEngine({ root, rows: heldRows })],
+    ["range value", ({ root, propertyPatchEngine }) => new RangeValueEngine({ root, propertyPatchEngine })],
+    ["color input", ({ root, propertyPatchEngine }) => new ColorInputEngine({ root, propertyPatchEngine })],
     ["temporal picker", ({ root, propertyPatchEngine }) => new TemporalPickerEngine({ root, propertyPatchEngine })],
     ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom })],
     ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom })],
     ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
     ["timestamp", ({ root, propertyPatchEngine }) => new TimestampEngine({ root, propertyPatchEngine })],
-    ["context menu", ({ root }) => new ContextMenuEngine({ root })],
+    ["context menu", ({ root, dom }) => new ContextMenuEngine({ root, dom })],
     ["split button", ({ root }) => new SplitButtonEngine({ root })],
     ["toggle button", ({ root }) => new ToggleButtonEngine({ root })],
     ["button group", ({ root }) => new ButtonGroupEngine({ root })],
     ["menu", ({ root }) => new MenuEngine({ root })],
-    ["action bar", ({ root }) => new ActionBarEngine({ root })],
+    ["action bar", ({ root, dom }) => new ActionBarEngine({ root, dom })],
     // Before the group engine: it restores a menu's fold, and groups are opened against the shape that leaves.
     ["collapsible", ({ root }) => new CollapsibleEngine({ root })],
     ["menu group", ({ root }) => new MenuGroupEngine({ root })],
     ["menu search", ({ root }) => new MenuSearchEngine({ root })],
     ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
-    ["skip link", ({ root }) => new SkipLinkEngine({ root })],
     ["screen keyboard", () => new ScreenKeyboardEngine()],
     ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
     ["accordion", ({ root }) => new AccordionEngine({ root })],
@@ -338,14 +344,15 @@ export class WebUIRuntime {
         this.extensions = new ExtensionRegistry(options.converters, options.eventDefinitions, options.domOperations, options.valueReaders);
         this.extensions.registerRowDecorator(MenuRowDecorator);
         this.extensions.registerRowDecorator(RowGripDecorator);
+        this.extensions.registerRowDecorator(RadioRowDecorator);
         const addressResolver = new AddressResolver(this.dom, this.metadata);
         const operations = this.extensions.operations;
         const propertyState = new PropertyStateStore();
         const propertyPatchEngine = new PropertyPatchEngine(addressResolver, operations, this.extensions, propertyState);
         this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine, { root: this.root, valueReaders: this.extensions.valueReaders, metadata: this.metadata });
         // Built before the interaction engine, whose own effects go through the same registry a command's do.
-        this.dialogs = new DialogEngine({ root: this.root });
-        this.notifications = new NotificationEngine({ root: this.root });
+        this.dialogs = new DialogEngine({ root: this.root, dom: this.dom });
+        this.notifications = new NotificationEngine({ root: this.root, dom: this.dom });
         // Back or Forward to an entry of this route is told to the controller; to another route, it is a page load.
         const address = new AddressHistory({
             window,
@@ -549,7 +556,7 @@ export class WebUIRuntime {
             readValue: element => this.readPluginValue(element)
         });
 
-        this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs };
+        this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs, heldRows: this.virtualization };
 
         for (const [name, start] of ComponentEngines)
             startEngine(name, start, this.engineContext);
@@ -586,7 +593,7 @@ export class WebUIRuntime {
             valueBinding
         });
 
-        // Every event the compiled view declares, so `registerEvent` is only for events that appear in none.
+        // Every event the compiled view declares, attached bare; a package's `registerEvent` for one of them may attach it its own way.
         for (const eventName of new Set([...this.metadata.getEventNames(), ...interactionIndex.getSourceEventNames()]))
             this.eventPipeline.addEvent(eventName);
 
@@ -657,7 +664,13 @@ export class WebUIRuntime {
                     if (valueBinding?.release(element) === true)
                         propertyPatchEngine.restoreBoundValue(element, this.dom.resolveNearestComponent(element, () => true)?.dynamicParameters ?? []);
                 },
-                write: (element, value) => propertyPatchEngine.writeBoundValue(element, value)
+                write: (element, value) => propertyPatchEngine.writeBoundValue(element, value),
+                whenSettled: async element => {
+                    // Keyed by the component a value is sent from, as a command raised by the same edit waits on it.
+                    const component = this.dom.resolveNearestComponent(element, () => true)?.element ?? element;
+
+                    await valueBinding?.whenSettled(component);
+                }
             },
             properties: {
                 set: (element, propertyName, value) => {
@@ -680,13 +693,15 @@ export class WebUIRuntime {
             rows: createItemRows(itemsTemplates, itemsRenderer, this.virtualization),
             uploads: createFileUploads(validationEngine),
             selection: itemSelection,
-            popups,
+            popups: createPopups(this.dom),
             roving: rovingFocus,
+            typeAhead: pluginTypeAhead,
             focus: pluginFocus,
             states: componentStates,
             validation: validationEngine,
             wheel,
-            shortcuts: shortcutWords,
+            colors: seriesColors,
+            shortcuts: pluginShortcutWords,
             names: pluginDomNames
         };
 
@@ -749,7 +764,7 @@ export class WebUIRuntime {
         if (holder === null)
             return null;
 
-        return this.numberInputs?.readValue(holder) ?? this.extensions.valueReaders.read(holder);
+        return this.numberInputs?.readValue(holder) ?? this.extensions.valueReaders.readBound(holder);
     }
 
     /** The answer to going back or forward within this route: its changes come in order, its effects run here. */

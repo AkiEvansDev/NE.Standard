@@ -21,7 +21,7 @@ public static class UIForm
             .SetOrientation(UIOrientation.Vertical)
             .SetSpacing(4)
             .AddChild(input)
-            .AddChild(UIText.Note(hint));
+            .AddChild(UIText.Note(hint).SetFieldNote(true));
     }
 
     /// <summary>

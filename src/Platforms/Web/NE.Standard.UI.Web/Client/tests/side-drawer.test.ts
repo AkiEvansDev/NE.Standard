@@ -1,6 +1,7 @@
 // A side as a drawer: its button opens it and takes the focus into it once its content has begun to show — a key's opening into
 // its first control, a press's onto the drawer itself, a holder, so no field raises a phone's keyboard unasked — and Escape puts it
-// away, the focus going back to the button; a field's own Escape leaves the field first.
+// away at once, from a field in it too, as it closes a dialog, the focus going back to the button; a modal dialog over it, or a field
+// whose Escape is its own, keeps it.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -102,7 +103,7 @@ test("a focus the reader moved meanwhile is not taken back into the drawer", () 
     assert.equal(fakeDocument.activeElement, elsewhere);
 });
 
-test("Escape puts the drawer away and gives the focus back to its button; one a field already took leaves it open", () => {
+test("Escape puts the drawer away from its field at once and gives the focus back to its button; one already taken leaves it open", () => {
     const { root, toggle, search } = shell();
 
     toggle.focus();
@@ -117,11 +118,43 @@ test("Escape puts the drawer away and gives the focus back to its button; one a 
 
     assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
 
-    search.dispatchEvent(new FakeKeyboardEvent("Escape", search));
+    const escape = new FakeKeyboardEvent("Escape", search);
+
+    search.dispatchEvent(escape);
 
     assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
     assert.equal(toggle.getAttribute("aria-expanded"), "false");
     assert.equal(fakeDocument.activeElement, toggle);
+    // Spent: the field keys' leave after it has nothing to do.
+    assert.equal(escape.defaultPrevented, true);
+});
+
+test("a modal dialog opened from the drawer takes Escape, even one that does not close on it; so does a field claiming it", () => {
+    const { root, toggle, search } = shell();
+    const inside = FakeElement.of("", {}, "button");
+    const modal = FakeElement.of("", { "data-ui-dialog": "confirm", "data-ui-dialog-modal": "" }).append(inside);
+
+    toggle.focus();
+    openByKey(toggle);
+    root.append(modal);
+
+    inside.dispatchEvent(new FakeKeyboardEvent("Escape", inside));
+    assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
+
+    modal.setAttribute("hidden", "");
+    search.setAttribute("data-ui-runs-on-escape", "");
+
+    try {
+        search.dispatchEvent(new FakeKeyboardEvent("Escape", search));
+        assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
+
+        search.removeAttribute("data-ui-runs-on-escape");
+        search.dispatchEvent(Object.assign(new FakeKeyboardEvent("Escape", search), { isComposing: true }));
+        assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
+    }
+    finally {
+        search.removeAttribute("data-ui-runs-on-escape");
+    }
 });
 
 test("a page's own button opens the drawer, and the keyboard goes back to it rather than to a button out of sight", () => {
@@ -199,4 +232,65 @@ test("a group's own entry, a check, a caption, a disabled entry and a popup menu
 
         assert.equal(root.getAttribute("data-ui-drawer-open"), "left", `${entry.className} closed it`);
     }
+});
+
+test("open over its backdrop the drawer is a modal dialog, Tab kept inside it round its ends; put away it is its landmark again", () => {
+    const { root, toggle, drawer, search } = shell();
+    const last = FakeElement.of("", {}, "button");
+
+    drawer.setAttribute("role", "navigation");
+    drawer.append(last);
+    toggle.focus();
+    openByKey(toggle);
+
+    assert.equal(drawer.getAttribute("role"), "dialog");
+    assert.equal(drawer.getAttribute("aria-modal"), "true");
+    // Named, as a dialog is: the side's own name where its page gives one, else the word for what it is.
+    assert.equal(drawer.hasAttribute("aria-label"), true);
+
+    last.focus();
+
+    const tab = new FakeKeyboardEvent("Tab", last);
+
+    last.dispatchEvent(tab);
+    assert.equal(fakeDocument.activeElement, search);
+    assert.equal(tab.defaultPrevented, true);
+
+    search.dispatchEvent(Object.assign(new FakeKeyboardEvent("Tab", search), { shiftKey: true }));
+    assert.equal(fakeDocument.activeElement, last);
+
+    last.dispatchEvent(new FakeKeyboardEvent("Escape", last));
+
+    assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
+    assert.equal(drawer.getAttribute("role"), "navigation");
+    assert.equal(drawer.hasAttribute("aria-modal"), false);
+    assert.equal(drawer.hasAttribute("aria-label"), false);
+
+    drawer.setAttribute("aria-label", "Folders");
+    toggle.focus();
+    openByKey(toggle);
+
+    assert.equal(drawer.getAttribute("aria-label"), "Folders");
+});
+
+test("the drawer leaves Escape to a popup open in it, and takes the next once the popup is gone", async () => {
+    const { OwnedPopups } = await import("../src/interactions/owned-popup.ts");
+    const { root, toggle, drawer, search } = shell();
+    const owner = FakeElement.of("", {}, "button");
+    const popup = new FakeElement();
+    const popups = new OwnedPopups({ show: () => undefined, hide: () => undefined });
+
+    drawer.append(owner.append(popup));
+    toggle.focus();
+    openByKey(toggle);
+    popups.open({ owner: real(owner), popup: real(popup) });
+
+    // The popup's own Escape is the page's dismissal's, on the document; the drawer only stands aside.
+    search.dispatchEvent(new FakeKeyboardEvent("Escape", search));
+    assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
+
+    popups.close();
+    search.dispatchEvent(new FakeKeyboardEvent("Escape", search));
+
+    assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
 });

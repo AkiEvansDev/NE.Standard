@@ -17,7 +17,7 @@ const EmptyTemplate = FakeElement.of("ui-tree__empty", { "data-ui-empty-template
 /** What the tree's branch reads: the empty template and a renderer that clones it; the rest belongs to a list's branch. */
 const context = real<Context>({
     templates: { getEmptyTemplate: () => EmptyTemplate },
-    renderer: { renderFromTemplate: () => FakeElement.of("ui-empty-state") },
+    renderer: { renderFromTemplate: () => FakeElement.of("ui-empty-state"), getAncestorStack: () => [] },
     metadata: {},
     state: {},
     virtualization: {}

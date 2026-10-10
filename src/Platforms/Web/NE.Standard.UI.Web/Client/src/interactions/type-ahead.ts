@@ -2,6 +2,7 @@
 // current entry moves to the first entry whose words begin with it; the same letter typed again walks the entries it begins.
 // Words are folded by the one matching rule (`search-terms.ts`), so case and accents aside in the page's language.
 
+import { isComposing } from "./keyboard-shortcut.ts";
 import { foldWords } from "./search-terms.ts";
 
 /** A pause this long ends the prefix: the next character starts a new one. */
@@ -62,7 +63,7 @@ export class TypeAhead {
 
 /** The character a key types for a type-ahead, or null: a named key, a space, a chord, or a key composing a character types none. */
 export function typeAheadCharacter(domEvent: KeyboardEvent): string | null {
-    if (domEvent.isComposing || domEvent.metaKey || Array.from(domEvent.key).length !== 1 || !/\S/u.test(domEvent.key))
+    if (isComposing(domEvent) || domEvent.metaKey || Array.from(domEvent.key).length !== 1 || !/\S/u.test(domEvent.key))
         return null;
 
     // AltGr arrives as Ctrl and Alt together on Windows, and types a letter all the same.

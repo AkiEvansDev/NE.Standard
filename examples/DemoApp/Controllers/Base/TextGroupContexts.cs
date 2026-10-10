@@ -215,7 +215,7 @@ internal sealed partial class ParagraphLayoutGroupContext : SelectableTextLayout
 }
 
 /// <summary>
-/// The badge a text component can carry beside its title — the same eight properties wherever text appears.
+/// The badge a text component can carry beside its title — the same properties wherever text appears.
 /// </summary>
 internal sealed partial class TextBadgeGroupContext : DemoGroupContext
 {
@@ -230,6 +230,9 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
 
     [RecursiveMember]
     public partial UIThemeColor? BadgeColor { get; set; }
+
+    [RecursiveMember]
+    public partial UIBadgeFill? BadgeFill { get; set; }
 
     [RecursiveMember]
     public partial string? BadgeIcon { get; set; }
@@ -257,6 +260,7 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
         AddOption(nameof(BadgePlacement), CycleBadgePlacement, () => BadgePlacement);
         AddOption(nameof(BadgeStyle), CycleBadgeStyle, () => BadgeStyle);
         AddOption(nameof(BadgeColor), CycleBadgeColor, () => BadgeColor);
+        AddOption(nameof(BadgeFill), CycleBadgeFill, () => BadgeFill);
         AddOption(nameof(BadgeIcon), CycleBadgeIcon, () => BadgeIcon);
         AddOption(nameof(BadgeIconColor), CycleBadgeIconColor, () => BadgeIconColor);
         AddOption(nameof(BadgeIconSize), CycleBadgeIconSize, () => BadgeIconSize);
@@ -275,6 +279,9 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
     // Set, it wins over BadgeStyle above.
     public void CycleBadgeColor()
         => SetLastChange(nameof(BadgeColor), BadgeColor = CycleValue(BadgeColor, null, UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromColorVariant(ColorName.NebulaRose)));
+
+    public void CycleBadgeFill()
+        => SetLastChange(nameof(BadgeFill), BadgeFill = CycleEnum(BadgeFill));
 
     public void CycleBadgeIcon()
         => SetLastChange(nameof(BadgeIcon), BadgeIcon = CycleIconValue(BadgeIcon, DemoIcons.Clock));

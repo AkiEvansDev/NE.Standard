@@ -1,17 +1,21 @@
 // A side as a drawer on a narrow screen (UIViewOptions.SideDrawers): opened by its header button, or a button of the page's own
 // (ButtonComponent.OpensDrawer); put away by a press outside, Escape, a link or a menu entry taken inside it, the fold switch lying
-// where that button was, or the screen growing wide again. Open, the drawer is a focus holder, as a dialog's surface is.
+// where that button was, or the screen growing wide again. Open over its backdrop, the drawer is a modal dialog: a focus holder, as a
+// dialog's surface is, Tab kept inside it, and Escape closing it at once, from a field in it too, once no popup is open.
 
-import { BottomBarAttribute, CollapsedAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FlyoutContentClass, FocusHolderAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, PassiveMenuEntrySelector, RegionAttribute } from "../addressing/dom-attributes.ts";
-import { isInert } from "./interactive-state.ts";
+import { BottomBarAttribute, CollapsedAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerOpenAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { escapeIsClaimed } from "./field-escape.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
+import { choosesMenuEntry } from "./menu-group-engine.ts";
+import { isBehindModal } from "./open-dialogs.ts";
+import { hasOpenPopups } from "./popup-dismissal.ts";
 import { motion } from "../rendering/motion.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
 import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
-import { focusAsLastInput, isPointerLast, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
+import { focusAsLastInput, isPointerLast, moveFocusInto, restoreFocusTo, trapTab } from "./popup-focus.ts";
 
 const RootSelector = "[data-ui-root]";
 const LinkSelector = "a[href]";
-// The popups a menu entry can stand in inside a drawer: what they run acts on the drawer's own content, which must stay in sight.
-const PopupMenuSelector = `.ui-context-menu, .ui-split-button__menu, .${FlyoutContentClass}`;
 const CollapsibleClass = "ui-collapsible";
 const RightSide = "right-side";
 const LeftEdgeClass = "ui-side--left";
@@ -24,8 +28,8 @@ export type SideDrawerEngineOptions = {
 export class SideDrawerEngine {
     private readonly root: ParentNode;
 
-    // The drawers made holders while open, each with whether its tab index was this engine's to add.
-    private readonly holders = new Map<HTMLElement, boolean>();
+    // The drawers made modal holders while open, each with whether its tab index and its name were this engine's to add and the role it had.
+    private readonly holders = new Map<HTMLElement, { readonly addsTabIndex: boolean; readonly addsName: boolean; readonly role: string | null }>();
 
     // The button that opened each shell's drawer, which the keyboard goes back to: a side may have more than one.
     private readonly openers = new WeakMap<HTMLElement, HTMLElement>();
@@ -34,7 +38,8 @@ export class SideDrawerEngine {
         this.root = options.root ?? document;
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent));
-        this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent));
+        // Capturing, ahead of the field keys' leave: a drawer closes on the first Escape, as a dialog does.
+        this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
         // Wide again, the side stands in its column: a drawer left open would hold the page under its backdrop.
         if (typeof matchMedia === "function")
@@ -81,8 +86,47 @@ export class SideDrawerEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (domEvent instanceof KeyboardEvent && domEvent.key === "Escape" && !domEvent.defaultPrevented)
-            this.closeAll();
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent))
+            return;
+
+        if (domEvent.key === "Tab") {
+            this.trapTab(domEvent);
+            return;
+        }
+
+        // A popup open in the drawer or over it takes the first Escape, as a dialog leaves it to one.
+        if (domEvent.key !== "Escape" || escapeIsClaimed(domEvent) || hasOpenPopups())
+            return;
+
+        let closed = false;
+
+        for (const { shell } of this.openDrawers()) {
+            this.close(shell);
+            closed = true;
+        }
+
+        if (closed)
+            domEvent.preventDefault();
+    }
+
+    /** Tab stays in an open drawer, round from its last stop to its first, as in a modal dialog. */
+    private trapTab(domEvent: KeyboardEvent): void {
+        for (const { drawer } of this.openDrawers())
+            trapTab(drawer, domEvent);
+    }
+
+    /** The drawers open now that the keyboard can reach: not one a modal dialog opened from it stands over, whose keys are the dialog's. */
+    private openDrawers(): { readonly shell: HTMLElement; readonly drawer: HTMLElement }[] {
+        const drawers: { readonly shell: HTMLElement; readonly drawer: HTMLElement }[] = [];
+
+        for (const shell of document.querySelectorAll<HTMLElement>(`${RootSelector}[${DrawerOpenAttribute}]`)) {
+            const drawer = drawerOf(shell, shell.getAttribute(DrawerOpenAttribute) ?? "");
+
+            if (drawer !== null && !isBehindModal(drawer))
+                drawers.push({ shell, drawer });
+        }
+
+        return drawers;
     }
 
     private toggle(shell: HTMLElement, side: string, opener: HTMLElement): void {
@@ -107,19 +151,28 @@ export class SideDrawerEngine {
         this.focusInto(shell, side, drawer, document.activeElement, isPointerLast(), performance.now() + motion.normal);
     }
 
-    /** Makes an open drawer a focus holder: a field in it let go by Enter or Escape hands it the keyboard, not the page's body. */
+    /**
+     * Makes an open drawer a modal dialog — over its backdrop the page behind is out of reach — and a focus holder: a field in it let
+     * go by Enter or Escape hands it the keyboard, not the page's body.
+     */
     private hold(drawer: HTMLElement): void {
         if (this.holders.has(drawer) || drawer.hasAttribute(FocusHolderAttribute))
             return;
 
         const addsTabIndex = !drawer.hasAttribute("tabindex");
+        // A dialog is named; a side named by its page keeps that name, one with none is called what it is.
+        const addsName = !drawer.hasAttribute("aria-label") && !drawer.hasAttribute("aria-labelledby");
 
+        this.holders.set(drawer, { addsTabIndex, addsName, role: drawer.getAttribute("role") });
         drawer.setAttribute(FocusHolderAttribute, "");
+        drawer.setAttribute("role", "dialog");
+        drawer.setAttribute("aria-modal", "true");
+
+        if (addsName)
+            drawer.setAttribute("aria-label", clientStrings.text("ui.side.panel"));
 
         if (addsTabIndex)
             drawer.tabIndex = -1;
-
-        this.holders.set(drawer, addsTabIndex);
     }
 
     private focusInto(shell: HTMLElement, side: string, drawer: HTMLElement, from: Element | null, pressed: boolean, until: number): void {
@@ -185,18 +238,27 @@ export class SideDrawerEngine {
             toggle.setAttribute("aria-expanded", String(toggle.getAttribute(DrawerToggleAttribute) === open));
     }
 
-    /** Takes the holder's marks off a drawer put away: a side standing in its column again is no layer. */
+    /** Takes the modal holder's marks off a drawer put away: a side standing in its column again is no layer, and its landmark again. */
     private release(drawer: HTMLElement | null): void {
-        const addedTabIndex = drawer === null ? undefined : this.holders.get(drawer);
+        const held = drawer === null ? undefined : this.holders.get(drawer);
 
-        if (drawer === null || addedTabIndex === undefined)
+        if (drawer === null || held === undefined)
             return;
 
         this.holders.delete(drawer);
         drawer.removeAttribute(FocusHolderAttribute);
+        drawer.removeAttribute("aria-modal");
 
-        if (addedTabIndex)
+        if (held.role === null)
+            drawer.removeAttribute("role");
+        else
+            drawer.setAttribute("role", held.role);
+
+        if (held.addsTabIndex)
             drawer.removeAttribute("tabindex");
+
+        if (held.addsName)
+            drawer.removeAttribute("aria-label");
     }
 }
 
@@ -218,18 +280,15 @@ export function isDrawerFoldSwitch(toggle: Element): boolean {
 }
 
 /**
- * Whether a press on a link or a menu entry inside an open drawer puts it away. Not a group's own entry, which only opens its group;
- * not a check, which toggles in place as it does in a flyout; not a caption, a rule or a disabled entry; not an entry of a popup
- * menu (a context menu, a split button's list, a flyout's), which acts on the drawer's own content.
+ * Whether a press on a link or a menu entry inside an open drawer puts it away: a link does, an entry as it would put its menu away
+ * (`choosesMenuEntry`) — but not an entry of a popup menu (a context menu, a split button's list, a flyout's), which acts on the
+ * drawer's own content.
  */
 function closesDrawer(taken: HTMLElement): boolean {
     if (!taken.classList.contains(MenuItemClass))
         return true;
 
-    return !taken.matches(`${MenuGroupEntrySelector}, ${PassiveMenuEntrySelector}`)
-        && taken.getAttribute(MenuItemKindAttribute) !== "check"
-        && !isInert(taken)
-        && taken.closest(PopupMenuSelector) === null;
+    return choosesMenuEntry(taken) && taken.closest(MenuPopupSelector) === null;
 }
 
 function drawerOf(shell: HTMLElement, side: string): HTMLElement | null {

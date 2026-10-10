@@ -1,6 +1,7 @@
 using System;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
+using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
@@ -35,4 +36,16 @@ public readonly record struct WebTextBodyOptions
     /// since the words it shows name the host then (<see cref="TextContentRendererBase.TooltipNamedAttribute"/>).
     /// </summary>
     public bool TooltipNamesHost { get; init; }
+
+    /// <summary>
+    /// Whether the root wears the text's alignment as a button's (<c>ui-button--align-*</c>), placing its label box by it — with
+    /// <see cref="IncludeTextLayout"/>.
+    /// </summary>
+    public bool AlignsRoot { get; init; }
+
+    /// <summary>
+    /// One more operation after each part's own (the icon, the title, the description, the badge's icon and text): what the text showing
+    /// anything decides around it — a card's header band, gone with nothing to show. Null for none.
+    /// </summary>
+    public WebDomOperation? PartsShownOperation { get; init; }
 }

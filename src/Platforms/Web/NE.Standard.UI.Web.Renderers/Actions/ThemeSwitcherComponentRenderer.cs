@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -31,6 +32,10 @@ public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
         WebWords.Write(context, root, "aria-label", UIStrings.ThemeSwitch);
 
         SwitcherChromeRenderer.RenderChrome(context, root);
+
+        // Named on hover as every glyph-only button is: by its own words where the author gives it no tooltip.
+        if (ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _) != WebRenderValueKind.Binding && string.IsNullOrWhiteSpace(tooltip))
+            WebWords.Write(context, root, WebAttributes.Tooltip, UIStrings.ThemeSwitch);
 
         RenderGlyph(context, root, "light", ThemeSwitcherComponent.LightIconProperty);
         RenderGlyph(context, root, "dark", ThemeSwitcherComponent.DarkIconProperty);

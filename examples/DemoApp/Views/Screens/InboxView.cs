@@ -31,15 +31,18 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>The filters over the list, then the list: three rules, each active while its control holds a value.</summary>
+    /// <remarks>The filters are Tonal: a toolbar over the list, not a form whose fields stack.</remarks>
     private static StackPanelComponent CreateList()
         => UILayout.Stack(12,
             new TextInputComponent(SearchId)
+                .SetAppearance(UIInputAppearance.Tonal)
                 .SetPlaceholder("Search by sender or subject")
                 .SetPrefixIcon(DemoIcons.Search)
                 .SetShowClearButton()
                 .SetDebounceMilliseconds(150),
             UILayout.Columns(12,
                 new SelectComponent(LabelId)
+                    .SetAppearance(UIInputAppearance.Tonal)
                     .SetPlaceholder("Every label")
                     .SetShowClearButton()
                     .SetOptions(
@@ -147,8 +150,9 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
                             )
                         ),
                     new SeparatorComponent(),
+                    // Tonal: the reading pane already frames the reply, and Send is its own button.
                     new TextAreaComponent()
-                        .SetAppearance(UIInputAppearance.Outline)
+                        .SetAppearance(UIInputAppearance.Tonal)
                         .BindPlaceholder(nameof(InboxController.ReplyPlaceholder))
                         .SetRows(3)
                         .BindValue(nameof(InboxController.Reply)),

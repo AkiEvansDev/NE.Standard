@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
-import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 function pathOf(target: FakeElement | null): FakeElement[] {
     const path: FakeElement[] = [];
@@ -79,14 +79,15 @@ const { noteKey, notePress } = await import("../src/interactions/popup-focus.ts"
 
 new ContextMenuEngine({ root: real<ParentNode>(fakeDocument.body) });
 
-type Scene = { readonly owner: FakeElement; readonly text: FakeElement; readonly field: FakeElement; readonly menu: FakeElement; readonly entry: FakeElement; readonly outside: FakeElement; readonly openings: () => number };
+type Scene = { readonly owner: FakeElement; readonly text: FakeElement; readonly field: FakeElement; readonly checkbox: FakeElement; readonly menu: FakeElement; readonly entry: FakeElement; readonly outside: FakeElement; readonly openings: () => number };
 
 function scene(): Scene {
     const entry = FakeElement.of("ui-menu-item", { role: "menuitem", tabindex: "-1" }, "a");
     const menu = FakeElement.of("ui-context-menu", { "data-ui-context-menu": "", role: "menu" }).append(FakeElement.of("ui-menu").append(entry));
     const text = new FakeElement("p");
-    const field = new FakeElement("input");
-    const owner = FakeElement.of("", { "data-ui-id": "4", "data-ui-context-menu-owner": "" }).append(text, field, menu);
+    const field = new FakeInput();
+    const checkbox = new FakeInput("checkbox");
+    const owner = FakeElement.of("", { "data-ui-id": "4", "data-ui-context-menu-owner": "" }).append(text, field, checkbox, menu);
     const outside = new FakeElement("p");
     let openings = 0;
 
@@ -95,7 +96,7 @@ function scene(): Scene {
     fakeDocument.body.append(outside, owner);
     fakeDocument.activeElement = fakeDocument.body;
 
-    return { owner, text, field, menu, entry, outside, openings: () => openings };
+    return { owner, text, field, checkbox, menu, entry, outside, openings: () => openings };
 }
 
 function pointer(type: string, target: FakeElement, init: { readonly x?: number; readonly y?: number; readonly pointerType?: string; readonly pointerId?: number } = {}): FakeMouseEvent {
@@ -187,6 +188,17 @@ test("a mouse held down, a press on no menu's owner and a press in a field time 
 
     assert.equal(raised, 0);
     assert.equal(isOpen(at), false);
+});
+
+test("a finger held on a checkbox opens the row's menu, as a right press there does: a checkbox takes no typing", () => {
+    const at = scene();
+
+    pointer("pointerdown", at.checkbox);
+    mock.timers.tick(500);
+    assert.equal(isOpen(at), true);
+
+    pointer("pointerup", at.checkbox);
+    close(at);
 });
 
 test("the browser's own contextmenu after the timer opened the menu is spent: the menu opens once", () => {
@@ -285,5 +297,99 @@ test("a finger that slid to an entry after the menu opened chooses it with its r
     pointer("pointerup", at.entry, { x: 10, y: 60 });
 
     assert.equal(click(at.entry).stopped, false);
+    close(at);
+});
+
+/** The browser's own drag of what the finger holds; `refused` as an engine listening after the long press refuses it. */
+function dragStart(target: FakeElement, refused = false): void {
+    const domEvent = new FakeMouseEvent("dragstart", { pointerType: "touch" });
+
+    target.dispatchEvent(domEvent);
+
+    if (refused)
+        domEvent.preventDefault();
+}
+
+function dragOver(target: FakeElement, x: number, y: number): void {
+    target.dispatchEvent(new FakeMouseEvent("dragover", { clientX: x, clientY: y }));
+}
+
+test("the browser's own drag of a held part, begun before the time, opens the menu as it begins; the time then opens nothing more", () => {
+    const at = scene();
+
+    pointer("pointerdown", at.text, { x: 10, y: 10 });
+    mock.timers.tick(400);
+    dragStart(at.text);
+    pointer("pointercancel", at.text, { x: 10, y: 10 });
+    mock.timers.tick(1);
+    assert.equal(isOpen(at), true);
+    assert.equal(at.openings(), 1);
+
+    mock.timers.tick(500);
+    assert.equal(at.openings(), 1);
+    close(at);
+});
+
+test("the drag moving on past the slop takes the menu away as a press outside would; let go where it began, the menu stays", () => {
+    const at = scene();
+
+    pointer("pointerdown", at.text, { x: 10, y: 10 });
+    mock.timers.tick(400);
+    dragStart(at.text);
+    pointer("pointercancel", at.text, { x: 10, y: 10 });
+    mock.timers.tick(1);
+    dragOver(at.text, 14, 14);
+    assert.equal(isOpen(at), true);
+    dragOver(at.outside, 10, 40);
+    assert.equal(isOpen(at), false);
+
+    pointer("pointerdown", at.text, { x: 10, y: 10 });
+    mock.timers.tick(400);
+    dragStart(at.text);
+    pointer("pointercancel", at.text, { x: 10, y: 10 });
+    mock.timers.tick(1);
+    at.text.dispatchEvent(new FakeMouseEvent("dragend", { clientX: 10, clientY: 10 }));
+    dragOver(at.outside, 10, 60);
+    assert.equal(isOpen(at), true);
+    close(at);
+});
+
+test("a drag an engine refused leaves the press to its timer, and a mouse's drag opens nothing", () => {
+    const at = scene();
+
+    pointer("pointerdown", at.text);
+    mock.timers.tick(400);
+    dragStart(at.text, true);
+    mock.timers.tick(1);
+    assert.equal(isOpen(at), false);
+    mock.timers.tick(99);
+    assert.equal(isOpen(at), true);
+    pointer("pointerup", at.text);
+    close(at);
+
+    pointer("pointerdown", at.text, { pointerType: "mouse" });
+    dragStart(at.text);
+    mock.timers.tick(600);
+    assert.equal(isOpen(at), false);
+    pointer("pointerup", at.text, { pointerType: "mouse" });
+});
+
+test("on a handle a drag holds from its press, a slide after the menu opened takes the menu away; elsewhere it stays for an entry", () => {
+    const at = scene();
+
+    at.text.setAttribute("data-ui-splitting", "");
+    pointer("pointerdown", at.text, { x: 10, y: 10 });
+    mock.timers.tick(500);
+    assert.equal(isOpen(at), true);
+    pointer("pointermove", at.text, { x: 40, y: 10 });
+    assert.equal(isOpen(at), false);
+    pointer("pointerup", at.text, { x: 40, y: 10 });
+    at.text.removeAttribute("data-ui-splitting");
+
+    pointer("pointerdown", at.text, { x: 10, y: 10 });
+    mock.timers.tick(500);
+    pointer("pointermove", at.entry, { x: 10, y: 60 });
+    assert.equal(isOpen(at), true);
+    pointer("pointerup", at.entry, { x: 10, y: 60 });
     close(at);
 });

@@ -13,6 +13,7 @@
 }
 
 // Hides the native control visually while keeping it in the tab order and accessibility tree, which display: none would not.
+// Its parent is positioned: placed by a far ancestor, a focusable one is scrolled to where it landed when it takes the focus.
 .ui-visually-hidden() {
     position: absolute;
     width: 1px;
@@ -37,7 +38,7 @@
         transition: background-color @ui-motion-fast @ui-motion-ease;
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &:hover {
             background-color: var(--ui-wash-hover);
         }
@@ -48,16 +49,21 @@
     }
 }
 
-// A button that answers the pointer: not disabled or loading, nor owning a popup the pointer is in (`:hover` holds on ancestors).
-// State rules and take-backs all spell it, so they tie (the popup part weighs nothing); never inside another `:has()`, dropped whole.
-@ui-button-live: ~":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not(:has([role='menu']:hover, [role='listbox']:hover)))";
+// A button that answers the pointer: not disabled or loading, nor holding a popup the pointer is in (`:hover` holds on ancestors;
+// owned-popup.ts marks the owner). State rules and take-backs all spell it, so they tie (the popup part weighs nothing).
+@ui-button-live: ~":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not([data-ui-popup-hover]))";
 
 // A field root that answers the pointer: not disabled or read-only (a read-only one keeps its focus edge, but lifts nothing).
 @ui-field-live: ~":not(.ui-disabled):not(.ui-readonly)";
 
+// A filled ground (a primary, accent or danger button's) answers the pointer darkened by a black tint, 16% under a press, in either
+// palette: the washes are the text's colour, light on a dark palette, and would lighten it.
+@ui-filled-hover-shade: ~"color-mix(in srgb, black 10%, transparent)";
+@ui-filled-active-shade: ~"color-mix(in srgb, black 16%, transparent)";
+
 // Takes .ui-reveal-hover() off an element reacting another way; the selector chain must match the ghost button's for equal specificity.
 .ui-reveal-hover-off(@rules: {}) {
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         &@{ui-button-live}:hover {
             background: none;
             @rules();

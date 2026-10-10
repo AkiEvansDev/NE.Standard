@@ -1,5 +1,6 @@
 // A popup takes the side it asks for, flips to the opposite one where that has the room, and — in a window too short for either
-// side of its axis — stands beside its anchor across the axis rather than being clamped over the anchor it opened from. A boundary
+// side of its axis — stands beside its anchor across the axis rather than being clamped over the anchor it opened from; with room
+// nowhere, it takes the larger side of its axis capped to that room, scrolling inside. A boundary
 // (a list's box) is the room its side is chosen in. A popup opened from inside a popup or bar keeps the gap off that surface's edge,
 // on whichever side it ends up, and a submenu stands with its first entry level with the entry it opened from. A menu at the pointer
 // opens down and to the right of it, turning up or leftward where there is no room, as a native one does.
@@ -72,9 +73,34 @@ test("with no room to the right it stands to the left, and a popup asked above r
     assert.equal(place({ left: 100, top: 120, width: 80, height: 30 }, { width: 200, height: 250 }, { width: 1000, height: 300 }, "top").side, "right-end");
 });
 
-test("a popup with room nowhere keeps the side of its axis with the more room, as before", () => {
+test("a popup with room nowhere takes the side of its axis with the more room, capped to it and scrolling, its anchor in sight", () => {
     assert.equal(place({ left: 100, top: 120, width: 300, height: 30 }, { width: 500, height: 250 }, { width: 500, height: 300 }).side, "bottom-start");
     assert.equal(place({ left: 100, top: 150, width: 300, height: 30 }, { width: 500, height: 250 }, { width: 500, height: 300 }).side, "top-start");
+
+    viewport.innerWidth = 500;
+    viewport.innerHeight = 300;
+
+    const anchor = FakeElement.of("anchor");
+    const popup = FakeElement.of("popup");
+
+    anchor.rect = { left: 100, top: 120, width: 300, height: 30 };
+    popup.rect = { left: 0, top: 0, width: 500, height: 250 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(anchor, popup);
+
+    placeAnchoredPopup(real(anchor), real(popup), { placement: "bottom-start", gap: 4 });
+
+    // Below the anchor's foot (150), less the gap and the window's margin: 300 - 150 - 4 - 4.
+    assert.equal(popup.style["max-height"], "142px");
+    assert.equal(popup.style["overflow-y"], "auto");
+
+    // Room come back: the cap is taken off before the popup is measured again, and it stands whole.
+    viewport.innerHeight = 600;
+    repositionAnchoredPopup(real(popup));
+    releaseAnchoredPopup(real(popup));
+
+    assert.equal(popup.style["max-height"], undefined);
+    assert.equal(popup.dataset.uiPlacement, "bottom-start");
 });
 
 test("a side popup with no room either way flips across to below", () => {
@@ -117,7 +143,7 @@ test("an on-screen keyboard's room is not the popup's: one that fitted below fli
 
         const kept = place({ left: 16, top: 200, width: 358, height: 44 }, { width: 358, height: 300 }, { width: 390, height: 765 });
 
-        // Neither side has the room: the popup is held inside what the keyboard leaves, over its anchor rather than under the keys.
+        // Neither side has the room: the popup is held inside what the keyboard leaves, capped to the larger side, not under the keys.
         assert.equal(kept.top + 300 <= 465 - 4, true);
 
         // Zoomed in, the page keeps the window's room, as before.

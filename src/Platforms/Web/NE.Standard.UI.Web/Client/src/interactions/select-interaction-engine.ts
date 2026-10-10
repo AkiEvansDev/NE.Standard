@@ -1,16 +1,20 @@
 import {
     BindingAttributePrefix, ComponentContextAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute,
-    ensureElementId, HiddenClass, ListTriggerClass as TriggerClass, SelectClass, SelectedKeysAttribute
+    ensureElementId, HiddenClass, ListTriggerClass as TriggerClass, PointerFocusAttribute, SelectClass, SelectedKeysAttribute
 } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
+import { isCaretField } from "./caret-fields.ts";
+import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { enterTags, holdsTagSeparator, isChoiceFull, parseChosenKeys, parseMaxChosen, removeChosenKey, splitTags, takeTypedTags, toggleChosenKey } from "./multi-select-keys.ts";
 import type { TypedTag } from "./multi-select-keys.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { ownDescendants } from "./own-descendants.ts";
+import { entryWords } from "./search-terms.ts";
 import { isInert, isItemDisabled, isReadOnly } from "./interactive-state.ts";
 import { focusAsLastInput, focusByPointer, isPointerLast, isTouchLast, markPointerFocus } from "./popup-focus.ts";
-import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
+import { applyRovingTabIndex, moveRovingFocus } from "./roving-focus.ts";
+import { resolveRowTarget } from "./row-cursor.ts";
 import { narrowToTerm, refreshEmptyState } from "./search-input-engine.ts";
 import { TypeAhead, typeAheadCharacter } from "./type-ahead.ts";
 import type { EntryValidation, FieldMarkWords, FieldValidation } from "./validation-engine.ts";
@@ -33,9 +37,13 @@ const ClearAttribute = "data-ui-select-clear";
 // A select whose open list carries a text field over its options; the field holds the keyboard while the list is open.
 const SearchClass = "ui-search";
 const SearchInputClass = "ui-search__input";
-const TitleClass = "ui-text__title";
 // The option the arrows or the pointer reached, marked outright: `:focus` fails in an unfocused window, and a search keeps its focus.
 const ActiveAttribute = "data-ui-active";
+// On the list while its current option is the keyboard's rather than the pointer's: the options' wash then moves without a fade.
+const ListKeyboardAttribute = "data-ui-list-keyboard";
+
+// The keys that move an open list's current option.
+const ListKeys = new Set(["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp"]);
 // A multi-select wears the select's shell: its value is the JSON list on the root's chosen-keys attribute, shown as chips.
 const MultiClass = "ui-multi-select";
 const ChipsClass = "ui-multi-select__chips";
@@ -44,6 +52,8 @@ const ChipLabelClass = "ui-multi-select__chip-label";
 const ChipRemoveClass = "ui-multi-select__chip-remove";
 // On a chip, the key of the option it stands for.
 const ChipAttribute = "data-ui-select-chip";
+// On the chips' host while a chip stands, as the render writes it: the field's clear shows by it.
+const ChipsShownAttribute = "data-ui-select-chips";
 // On a multi-select's root, how many options it takes at most.
 const MaxAttribute = "data-ui-select-max";
 // On a multi-select's root that takes the reader's own text: its entry after the chips is the control the reader types in.
@@ -107,9 +117,26 @@ function optionsOf(select: HTMLElement): HTMLElement[] {
     return ownDescendants(select, `.${PopupClass} .${OptionClass}`, `.${SelectClass}`);
 }
 
+/** The open list's current option: the focused one, else — a search keeps the focus in its field — the marked one. */
+function currentOption(select: HTMLElement): HTMLElement | null {
+    const options = optionsOf(select).filter(option => !isItemDisabled(option));
+
+    return options.find(option => option === document.activeElement) ?? options.find(option => option.hasAttribute(ActiveAttribute)) ?? null;
+}
+
+/** Marks each of the select's lists whose current option is the keyboard's, not the pointer's; written only when it changes. */
+function markListKeyboard(select: HTMLElement): void {
+    for (const list of ownDescendants(select, `.${ListClass}`, `.${SelectClass}`)) {
+        const keyboard = list.querySelector(`:scope > .${OptionClass}[${ActiveAttribute}]:not([${PointerFocusAttribute}])`) !== null;
+
+        if (list.hasAttribute(ListKeyboardAttribute) !== keyboard)
+            list.toggleAttribute(ListKeyboardAttribute, keyboard);
+    }
+}
+
 /** What an option reads as in a field: its title where it has one, else everything it draws. */
 function optionLabel(option: HTMLElement | null): string | null {
-    return option === null ? null : option.querySelector<HTMLElement>(`.${TitleClass}`)?.textContent ?? option.textContent;
+    return option === null ? null : entryWords(option);
 }
 
 function stripAddressingAttributes(element: Element): void {
@@ -139,7 +166,10 @@ export class SelectInteractionEngine {
 
             if (popup !== null)
                 popup.style.minHeight = "";
-        }
+        },
+        closesOnTab: true,
+        // Not a search's or a free-text entry's list: the on-screen keyboard is up while it shows, and the field stays in sight.
+        sheetOnPhone: ({ owner }) => typedFieldOf(owner) === null
     });
 
     private readonly typeAhead = new TypeAhead();
@@ -230,7 +260,7 @@ export class SelectInteractionEngine {
 
     /** Escape on an entry whose first suggestion is marked takes the mark off before it closes the list: Enter then takes the text. */
     private handleEntryEscape(domEvent: Event): void {
-        const target = domEvent instanceof KeyboardEvent && domEvent.key === "Escape" && !domEvent.defaultPrevented ? entryTarget(domEvent) : null;
+        const target = domEvent instanceof KeyboardEvent && domEvent.key === "Escape" && !domEvent.defaultPrevented && !isComposing(domEvent) ? entryTarget(domEvent) : null;
 
         if (target === null || this.openSelect !== target.select || target.select.getAttribute(TagEntryAttribute) !== "first-suggestion" || !optionsOf(target.select).some(option => option.hasAttribute(ActiveAttribute)))
             return;
@@ -295,7 +325,7 @@ export class SelectInteractionEngine {
         narrowToTerm(entry);
 
         const typed = entry.value.trim().length > 0;
-        const shown = typed ? optionsOf(select).filter(option => isShown(option) && !isItemDisabled(option)) : [];
+        const shown = typed ? candidateOptions(select) : [];
         // The first suggestion not chosen already: Enter on a chosen one would take it out.
         const first = shown.find(option => option.getAttribute("aria-selected") !== "true") ?? null;
 
@@ -323,6 +353,9 @@ export class SelectInteractionEngine {
     }
 
     private sync(select: HTMLElement): void {
+        // Options drawn again lose their marks: the list's follows.
+        markListKeyboard(select);
+
         if (isMultiple(select)) {
             this.syncMultiple(select);
             return;
@@ -580,20 +613,22 @@ export class SelectInteractionEngine {
 
     private handleKeydown(domEvent: Event): void {
         // A key composing a character is the input method's, Enter's confirming it included.
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing)
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent))
             return;
+
+        // A key took the pointer's marks off (popup-focus.ts, ahead of this): the current option is the keyboard's now.
+        if (this.openSelect !== null)
+            markListKeyboard(this.openSelect);
 
         if (this.handleEntryKey(domEvent) || this.handleChipKey(domEvent))
             return;
 
         // Only a key inside the open select: the arrows of a field focus has since reached are that field's.
-        if ((domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp") && this.openSelect !== null && domEvent.target instanceof Node && this.openSelect.contains(domEvent.target)) {
-            domEvent.preventDefault();
-            this.moveCurrent(this.openSelect, domEvent.key === "ArrowDown" ? 1 : -1);
+        if (this.openSelect !== null && domEvent.target instanceof Node && this.openSelect.contains(domEvent.target) && this.handleOpenListKey(domEvent, this.openSelect))
             return;
-        }
 
-        if ((domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp") && this.handleClosedArrow(domEvent))
+        // Down or Up opens, Alt+Down too, as a combobox's does; any other chord is the browser's.
+        if ((domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp") && isPlainKey(domEvent, { alt: domEvent.key === "ArrowDown" }) && this.handleClosedArrow(domEvent))
             return;
 
         if (this.handleTypeAhead(domEvent))
@@ -617,6 +652,32 @@ export class SelectInteractionEngine {
 
         domEvent.preventDefault();
         this.choose(select, option);
+    }
+
+    /**
+     * The open list's keys: the arrows, Home and End (a search field's caret keeps those two) and the page keys move its current
+     * option, stopping at the ends; Alt+Up chooses it and closes the list, as a combobox's does, a multi-select's list only closing.
+     */
+    private handleOpenListKey(domEvent: KeyboardEvent, select: HTMLElement): boolean {
+        if (domEvent.key === "ArrowUp" && domEvent.altKey && isPlainKey(domEvent, { alt: true })) {
+            domEvent.preventDefault();
+
+            const current = currentOption(select);
+
+            if (current !== null && !isMultiple(select))
+                this.choose(select, current);
+            else
+                this.close();
+
+            return true;
+        }
+
+        if (!ListKeys.has(domEvent.key) || !isPlainKey(domEvent) || ((domEvent.key === "Home" || domEvent.key === "End") && isCaretField(domEvent.target)))
+            return false;
+
+        domEvent.preventDefault();
+        this.moveCurrent(select, domEvent.key);
+        return true;
     }
 
     /**
@@ -644,13 +705,13 @@ export class SelectInteractionEngine {
                 domEvent.preventDefault();
 
                 if (this.openSelect === select)
-                    this.moveCurrent(select, domEvent.key === "ArrowDown" ? 1 : -1);
+                    this.moveCurrent(select, domEvent.key);
                 else
                     this.openSuggestions(select, entry, domEvent.key === "ArrowDown");
 
                 return true;
             case "Enter": {
-                const marked = this.openSelect === select ? optionsOf(select).find(option => option.hasAttribute(ActiveAttribute) && isShown(option) && !isItemDisabled(option)) : undefined;
+                const marked = this.openSelect === select ? candidateOptions(select).find(option => option.hasAttribute(ActiveAttribute)) : undefined;
 
                 if (marked !== undefined) {
                     domEvent.preventDefault();
@@ -723,7 +784,7 @@ export class SelectInteractionEngine {
     private openSuggestions(select: HTMLElement, entry: HTMLInputElement, down: boolean): void {
         narrowToTerm(entry);
 
-        const shown = optionsOf(select).filter(option => isShown(option) && !isItemDisabled(option) && !isInert(option));
+        const shown = candidateOptions(select);
         const start = (down ? shown[0] : shown[shown.length - 1]) ?? null;
 
         if (start !== null)
@@ -787,7 +848,7 @@ export class SelectInteractionEngine {
         if (field !== null)
             narrowToTerm(field);
 
-        const options = optionsOf(select).filter(option => isShown(option) && !isItemDisabled(option) && !isInert(option));
+        const options = candidateOptions(select);
         const start = options.find(option => option.getAttribute("aria-selected") === "true") ?? (domEvent.key === "ArrowDown" ? options[0] : options[options.length - 1]) ?? null;
 
         this.toggle(select, false, start);
@@ -828,7 +889,7 @@ export class SelectInteractionEngine {
         domEvent.preventDefault();
 
         // Read off the options, not their layout: a closed list's options have none.
-        const options = optionsOf(select).filter(option => !isItemDisabled(option) && !isInert(option));
+        const options = candidateOptions(select);
         const current = open
             ? options.find(option => option === document.activeElement) ?? options.find(option => option.hasAttribute(ActiveAttribute)) ?? null
             : options.find(option => option.getAttribute("aria-selected") === "true") ?? null;
@@ -900,7 +961,7 @@ export class SelectInteractionEngine {
         if (domEvent.key !== "Enter" || select === null || !(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SearchInputClass) || !select.contains(domEvent.target))
             return null;
 
-        return optionsOf(select).find(option => option.hasAttribute(ActiveAttribute) && !isItemDisabled(option) && option.style.display !== "none") ?? null;
+        return candidateOptions(select).find(option => option.hasAttribute(ActiveAttribute)) ?? null;
     }
 
     /**
@@ -975,7 +1036,7 @@ export class SelectInteractionEngine {
     }
 
     private initializeFocus(select: HTMLElement, start: HTMLElement | null): void {
-        const options = optionsOf(select).filter(option => !isItemDisabled(option));
+        const options = candidateOptions(select);
 
         if (options.length === 0)
             return;
@@ -1010,7 +1071,7 @@ export class SelectInteractionEngine {
      */
     private initializeSearch(select: HTMLElement, field: HTMLInputElement, start: HTMLElement | null, typing: boolean): void {
         const options = optionsOf(select);
-        const shown = options.filter(option => isShown(option) && !isItemDisabled(option));
+        const shown = candidateOptions(select);
         const chosen = typing ? undefined : start ?? shown.find(option => option.getAttribute("aria-selected") === "true");
         const target = chosen ?? (typing || isPointerLast() ? null : shown[0] ?? null);
 
@@ -1039,21 +1100,10 @@ export class SelectInteractionEngine {
             scrollIntoList(select, start);
     }
 
-    // Only what can be chosen, and without the wrap: a list has a top and a bottom.
-    private moveCurrent(select: HTMLElement, direction: 1 | -1): void {
+    // Only what can be chosen, and without the wrap: a list has a top and a bottom. A page key moves by the list's height, as a row's.
+    private moveCurrent(select: HTMLElement, key: string): void {
         const options = optionsOf(select).filter(option => !isItemDisabled(option));
-
-        // Focus first, then the mark: a search keeps the focus in its field, so only the mark knows where the list's cursor is.
-        const focused = options.find(option => option === document.activeElement);
-        const current = focused ?? options.find(option => option.hasAttribute(ActiveAttribute)) ?? null;
-
-        const next = resolveRovingTarget({
-            key: direction === 1 ? "ArrowDown" : "ArrowUp",
-            items: options,
-            current,
-            axis: "vertical",
-            loop: false
-        });
+        const next = resolveRowTarget(key, options, currentOption(select), "vertical");
 
         if (next === null)
             return;
@@ -1063,8 +1113,7 @@ export class SelectInteractionEngine {
             scrollIntoList(select, next);
         }
         else {
-            applyRovingTabIndex(options, next);
-            next.focus();
+            moveRovingFocus(options, next);
         }
 
         this.markActive(select, next);
@@ -1080,6 +1129,8 @@ export class SelectInteractionEngine {
 
             markPointerFocus(option, option === active && pointer);
         }
+
+        markListKeyboard(select);
 
         // The option a screen reader reads as current while a search's field or an entry keeps the keyboard.
         const field = typedFieldOf(select);
@@ -1203,6 +1254,14 @@ function keepFieldFocus(select: HTMLElement): void {
         focusAsLastInput(target);
 }
 
+/**
+ * The options a key may land on — type-ahead, an arrow, Enter, the option a list opens on: shown (not left out by a search's term or
+ * the list's own filter), not disabled, not inert. Read off the options, not their layout: a closed list's options have none.
+ */
+function candidateOptions(select: HTMLElement): HTMLElement[] {
+    return optionsOf(select).filter(option => isShown(option) && !isItemDisabled(option) && !isInert(option));
+}
+
 /** Whether an option stands in its list: not left out by a search's term or by the list's own filter. */
 function isShown(option: HTMLElement): boolean {
     return option.style.display !== "none" && !option.classList.contains(HiddenClass);
@@ -1268,6 +1327,9 @@ function renderChips(select: HTMLElement, chips: readonly { readonly key: string
 
     if (host === null)
         return;
+
+    if (host.hasAttribute(ChipsShownAttribute) !== chips.length > 0)
+        host.toggleAttribute(ChipsShownAttribute, chips.length > 0);
 
     const existing = [...host.querySelectorAll<HTMLElement>(`:scope > .${ChipClass}`)];
     const unchanged = existing.length === chips.length && existing.every((chip, index) =>

@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({ window: { addEventListener: () => undefined, setTimeout, clearTimeout } });
 
@@ -54,4 +54,17 @@ test("a toast's action comes after its close, as it is drawn under the message",
     const toast = real<FakeElement>(engine.show({ message: "Lost", sticky: true, action: { label: "Reload", run: () => undefined } }));
 
     assert.deepEqual(toast.children.map(child => child.className.split(" ")[0]), ["ui-notification__message", "ui-notification__close", "ui-notification__action"]);
+});
+
+test("Escape on a toast holding the keyboard closes it as its close does, and is spent on it", () => {
+    const { opener, engine } = page();
+    const toast = engine.show({ message: "Saved", sticky: true });
+    const close = focusClose(toast, opener);
+    const escape = new FakeKeyboardEvent("Escape", close);
+
+    close.dispatchEvent(escape);
+
+    assert.equal(escape.defaultPrevented, true);
+    assert.equal(fakeDocument.activeElement, opener);
+    assert.equal(real<FakeElement>(toast).isConnected, false);
 });

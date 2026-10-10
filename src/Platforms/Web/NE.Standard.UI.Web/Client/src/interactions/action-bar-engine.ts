@@ -5,24 +5,30 @@
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, RowFocusAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, RowBarAttribute, TableRowClass, TreeRowClass, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { ActionBarButtonClass, actionBarEntryOf, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } from "./anchored-popup.ts";
 import { actionBarMenuOf, isTouchOpening, OpenClass as MenuOpenClass } from "./context-menu-engine.ts";
 import { canScroll, isClippedOut, viewBoxAround } from "./element-visibility.ts";
+import { escapeIsClaimed } from "./field-escape.ts";
 import { isInert } from "./interactive-state.ts";
-import { DialogAttribute } from "./open-dialogs.ts";
+import { OpenDialogSelector } from "./open-dialogs.ts";
 import { FocusableSelector, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
-import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
+import type { ComponentIndex } from "./popup-focus.ts";
+import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
+import { cursorRowOf } from "./row-cursor.ts";
 import { SelectionRootSelector } from "./row-selection.ts";
 
 const HostSelector = `[${ActionBarAttribute}]`;
-const OpenDialogSelector = `[${DialogAttribute}]:not([hidden]), dialog[open]`;
 const BarSelector = `.${ActionBarClass}`;
 
 // On a bar whose host the scroll took wholly out of sight: it stays chosen, and shows again as the host comes back.
 const OutClass = `${ActionBarClass}--out`;
+
+// The rows that hold a host as their child; a tree's row holds it in its node face's wrapper.
+const HostRowSelector = `.ui-items-view__item, .${TableRowClass}`;
+const TreeNodeWrapperClass = "ui-tree__node";
 
 // Between the bar and the edge of the item it stands over, so the two never read as one. A host whose look reaches past its box (a
 // canvas node's selection ring) sets a wider one on itself.
@@ -41,6 +47,8 @@ type ShownBar = {
     readonly bar: HTMLElement;
     readonly menu: HTMLElement;
     readonly observer: MutationObserver;
+    /** The list's row the bar stands over, marked while it does (`.ui-row-bar()`). */
+    readonly row: Element | null;
 };
 
 /**
@@ -67,10 +75,13 @@ type PendingTap = {
 
 export type ActionBarEngineOptions = {
     readonly root?: ParentNode;
+    /** The page's components by id (the runtime's `DomRegistry`), through which an opener the page redrew away is found again. */
+    readonly dom?: ComponentIndex;
 };
 
 export class ActionBarEngine {
     private readonly root: ParentNode;
+    private readonly components: ComponentIndex | null;
     private readonly shown = new Map<HTMLElement, ShownBar>();
 
     // The host the reader chose, and what it stands for; the host is null while its row is not on the page (a window scrolled past).
@@ -88,6 +99,7 @@ export class ActionBarEngine {
 
     public constructor(options: ActionBarEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.components = options.dom ?? null;
 
         this.root.addEventListener("pointerdown", domEvent => this.handlePointerDown(domEvent));
         this.root.addEventListener("pointerup", domEvent => this.handlePointerUp(domEvent));
@@ -224,10 +236,18 @@ export class ActionBarEngine {
         // Escape no popup took is the bar's: it goes. One in an open dialog the host is not in — the framework's, or a package's own
         // `<dialog>` — is the dialog's.
         if (domEvent.key === "Escape") {
+            if (escapeIsClaimed(domEvent))
+                return;
+
             const dialog = target.closest(OpenDialogSelector);
 
-            if (dialog === null || (this.chosen !== null && dialog.contains(this.chosen)))
+            if (dialog === null || (this.chosen !== null && dialog.contains(this.chosen))) {
+                // Spent on a bar it took away, as each step of the Escape chain is: the field's own leave waits for the next.
+                if (this.chosen !== null)
+                    domEvent.preventDefault();
+
                 this.choose(null);
+            }
 
             return;
         }
@@ -262,7 +282,7 @@ export class ActionBarEngine {
             // Only while it can still take the focus: a root made focusable for one return has given its tab index back since.
             const back = this.cameFrom !== null && this.cameFrom.isConnected && takesFocus(this.cameFrom) && host !== null && (host.contains(this.cameFrom) || this.cameFrom.contains(host))
                 ? this.cameFrom
-                : liveFocusReturn(host);
+                : liveFocusReturn(host, this.components);
 
             domEvent.preventDefault();
             back?.focus();
@@ -276,8 +296,7 @@ export class ActionBarEngine {
             return;
 
         domEvent.preventDefault();
-        applyRovingTabIndex(buttons, next);
-        next.focus();
+        moveRovingFocus(buttons, next);
     }
 
     /** Chooses a host, or none: its bar shows and every other goes. The one chosen already is left as it stands. */
@@ -412,7 +431,11 @@ export class ActionBarEngine {
         const observer = new MutationObserver(() => this.redraw(host));
 
         observer.observe(menu, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: EntryStateAttributes });
-        this.shown.set(host, { bar, menu, observer });
+
+        const row = rowOfHost(host);
+
+        row?.setAttribute(RowBarAttribute, "");
+        this.shown.set(host, { bar, menu, observer, row });
         shownAt.set(bar, Date.now());
     }
 
@@ -439,10 +462,7 @@ export class ActionBarEngine {
         // "More" is the one button standing for no entry.
         const again = buttons.find(button => actionBarEntryOf(button) === entry) ?? buttons.find(isRovingCandidate) ?? null;
 
-        if (again !== null) {
-            applyRovingTabIndex(buttons, again);
-            again.focus();
-        }
+        moveRovingFocus(buttons, again);
     }
 
     /** "More" opens the menu itself, as a right press there would; the bar stands under it, its "more" said to be open, until it closes. */
@@ -503,6 +523,10 @@ export class ActionBarEngine {
         releaseAnchoredPopup(shown.bar);
         shown.bar.remove();
         this.shown.delete(host);
+
+        // Another bar over the same row (the one "more" opened beside the chosen) keeps it marked.
+        if (shown.row !== null && ![...this.shown.values()].some(other => other.row === shown.row))
+            shown.row.removeAttribute(RowBarAttribute);
     }
 
     /** A bar whose host the scroll took wholly out of sight is not seen floating against nothing; back in sight, it is again. */
@@ -564,16 +588,12 @@ function pressedHostOf(target: Element): HTMLElement | null {
  * their own); elsewhere the nearest host around the focus.
  */
 function focusHostOf(active: Element): HTMLElement | null {
-    if (active.matches(SelectionRootSelector)) {
-        for (const row of active.querySelectorAll<HTMLElement>(`[${RowFocusAttribute}]`)) {
-            if (row.closest(SelectionRootSelector) !== active)
-                continue;
+    if (active instanceof HTMLElement && active.matches(SelectionRootSelector)) {
+        const row = cursorRowOf(active);
+        const host = row === null ? undefined : hostsIn(row)[0];
 
-            const host = hostsIn(row)[0];
-
-            if (host !== undefined)
-                return host;
-        }
+        if (host !== undefined)
+            return host;
     }
 
     return active.closest<HTMLElement>(HostSelector);
@@ -628,6 +648,27 @@ function barGapOf(host: HTMLElement): number {
     const own = Number.parseFloat(getComputedStyle(host).getPropertyValue(BarGapProperty));
 
     return Number.isFinite(own) ? own : BarGap;
+}
+
+/**
+ * The list's row a host's bar stands over, as each list draws it: a table's row is a host itself, an items view's or a table's row holds
+ * one as its child, a tree's row in its node face's wrapper. A host further inside a row (a card in a template) has none.
+ */
+function rowOfHost(host: HTMLElement): Element | null {
+    if (host.classList.contains(TableRowClass))
+        return host;
+
+    const parent = host.parentElement;
+
+    if (parent === null)
+        return null;
+
+    if (parent.matches(HostRowSelector))
+        return parent;
+
+    const row = parent.parentElement;
+
+    return parent.classList.contains(TreeNodeWrapperClass) && row !== null && row.classList.contains(TreeRowClass) ? row : null;
 }
 
 /** Draws the bar's buttons from its menu, one tab stop among them; false when the menu has nothing shown to offer. */

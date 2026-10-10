@@ -49,3 +49,10 @@ export function scrollHostTo(host: Element, top: number): void {
 function hostOffset(host: Element, viewport: Element): number {
     return host.getBoundingClientRect().top - viewport.getBoundingClientRect().top - viewport.clientTop + viewport.scrollTop;
 }
+
+/** The box a row stands in; a wrapping host's row is `display: contents` and measures as nothing, so its template's root is measured. */
+export function itemBox(row: Element): DOMRect {
+    const box = row.getBoundingClientRect();
+
+    return box.height > 0 || row.firstElementChild === null ? box : row.firstElementChild.getBoundingClientRect();
+}

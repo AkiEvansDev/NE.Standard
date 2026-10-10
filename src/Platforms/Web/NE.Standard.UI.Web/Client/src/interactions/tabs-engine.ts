@@ -1,12 +1,14 @@
 // Switching tabs: a click moves one attribute over strip and pages already in the DOM, and the new key goes back the two-way path.
 
 import { BindSelectedKeyAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { isFieldKey } from "./caret-fields.ts";
 import { happenedInside, observeComponents } from "./dom-mutations.ts";
 import { isLaidOut } from "./element-visibility.ts";
 import { isInert } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
-import { writeSelectedKey } from "./selected-key.ts";
+import { resolveShownKey, writeSelectedKey } from "./selected-key.ts";
 import { OverflowButtonClass, StripFitter } from "./strip-overflow.ts";
 import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch.ts";
 
@@ -60,19 +62,16 @@ export class TabsEngine {
             this.apply(root);
     }
 
-    /** Marks the current caption and shows its page; a selected caption that is hidden hands over to the first shown one. */
+    /** Marks the current caption and shows its page; a key naming no shown caption hands over to the first shown one and writes it back. */
     private apply(root: HTMLElement): void {
         const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
         const headers = this.ownHeaders(root);
-        const selectedHeader = headers.find(header => (header.getAttribute(TabKeyAttribute) ?? "") === selected) ?? null;
+        const shownHeaders = headers.filter(isShown);
+        const shownKey = resolveShownKey(shownHeaders, selected, header => header.getAttribute(TabKeyAttribute) ?? "");
 
-        if (selectedHeader !== null && !isShown(selectedHeader)) {
-            const fallback = headers.find(isShown);
-
-            if (fallback !== undefined) {
-                this.select(root, fallback.getAttribute(TabKeyAttribute) ?? "");
-                return;
-            }
+        if (shownKey !== null && shownKey !== selected) {
+            this.select(root, shownKey);
+            return;
         }
 
         const previous = headers.find(header => header.classList.contains(SelectedModifier)) ?? null;
@@ -89,7 +88,7 @@ export class TabsEngine {
                 current = header;
         }
 
-        this.fitHeaders(root, headers.filter(isShown), current);
+        this.fitHeaders(root, shownHeaders, current);
         slideCaptionMark(previous, current);
 
         // Only the captions left on the strip take part in arrow-key travel; a hidden one is reached through the list.
@@ -160,7 +159,7 @@ export class TabsEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element) || isFieldKey(domEvent) || !isPlainKey(domEvent))
             return;
 
         const header = domEvent.target.closest<HTMLElement>(`.${HeaderClass}`);

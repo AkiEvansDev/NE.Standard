@@ -11,17 +11,17 @@ import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
 import type { PendingTransfer, PendingTransfers } from "../items/pending-transfers.ts";
-import { leftAltogether } from "./drag-marks.ts";
+import { leftAltogether, markDropBoxed } from "./drag-marks.ts";
 import { isInert } from "./interactive-state.ts";
 import type { ItemDrag, ItemDropEffect } from "./item-drags.ts";
 import { carriedRows, currentItemDrag, endItemDrag, isLiftable, offeredItems } from "./item-drags.ts";
 import type { Place } from "./items-reorder-engine.ts";
 import { flowOf, insertIndex, lineOffset, markRowDrop, placeAmong, rowOrder, shownRows } from "./items-reorder-engine.ts";
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
-import { isMacPlatform, matchesShortcut } from "./keyboard-shortcut.ts";
+import { isComposing, isMacPlatform, matchesShortcut } from "./keyboard-shortcut.ts";
 import { focusedRow, litRow, rowKeyTarget } from "./row-cursor.ts";
-import { hostOf, KeyboardRowsRootSelector, rowBox, rowKey, SelectionRowSelector } from "./row-selection.ts";
-import { takesTyping } from "./screen-keyboard.ts";
+import { hostOf, KeyboardRowsRootSelector, rowBox, rowKey } from "./row-selection.ts";
+import { takesTyping } from "./caret-fields.ts";
 import { dropFolderOf, markTreeDrop } from "./tree-drop.ts";
 
 /** What items of a kind dropped on a component are raised as on it, the kind after it (`EventNames.DropPrefix`). */
@@ -216,7 +216,12 @@ export class ItemDragEngine {
             return { index: null, folder, list: null, mark: () => markTreeDrop(target, marked) };
         }
 
-        return { index: null, folder: null, list: null, mark: () => target.setAttribute(ItemDropOverAttribute, "") };
+        const mark = (): void => {
+            target.setAttribute(ItemDropOverAttribute, "");
+            markDropBoxed(target, true);
+        };
+
+        return { index: null, folder: null, list: null, mark };
     }
 
     /** Takes the mark off the target marked last, and off every place marked in it. */
@@ -229,6 +234,7 @@ export class ItemDragEngine {
             return;
 
         marked.removeAttribute(ItemDropOverAttribute);
+        markDropBoxed(marked, false);
 
         if (marked.matches(KeyboardRowsRootSelector))
             markRowDrop(marked, null);
@@ -278,8 +284,13 @@ export class ItemDragEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
             return;
 
+        // The last of the Escape chain: taken only where there was something to let go of.
         if (domEvent.key === "Escape") {
-            this.letGo();
+            if (this.clipboard !== null && !isComposing(domEvent)) {
+                domEvent.preventDefault();
+                this.letGo();
+            }
+
             return;
         }
 
@@ -334,8 +345,7 @@ export class ItemDragEngine {
         if (found === null || host === null || isInert(found.root) || !found.root.hasAttribute(DragKindAttribute))
             return;
 
-        // Drawn by their box: a wrap's row is `display: contents` and has none of its own.
-        const rows = [...host.children].filter((row): row is HTMLElement => row instanceof HTMLElement && row.matches(SelectionRowSelector) && rowBox(row) !== null);
+        const rows = shownRows(host);
         const row = found.row ?? focusedRow(rows);
         const items = row === null || !isLiftable(row) ? null : offeredItems(found.root, host, carriedRows(row, rows));
 

@@ -26,4 +26,10 @@ public sealed class CompiledUIEvent
     /// Gets the compiled command arguments.
     /// </summary>
     public CompiledUIActionArgument[] Arguments { get; init; } = [];
+
+    /// <summary>
+    /// Gets whether the event submits its component's form before the command, as a submit button's press does
+    /// (<c>IFormSubmittingComponent</c>).
+    /// </summary>
+    public bool SubmitsForm { get; init; }
 }

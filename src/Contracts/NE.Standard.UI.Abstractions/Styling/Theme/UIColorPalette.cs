@@ -314,7 +314,7 @@ public sealed record UIColorPalette
     private static ColorVariant MarkOn(ColorVariant ink, ColorVariant background, ColorVariant surface)
     {
         System.Drawing.Color drawn = ink.ToColor();
-        ColorVariant raised = Over(drawn, RaisedCardShare, surface);
+        ColorVariant raised = UIColorContrast.Composite(drawn, RaisedCardShare, surface);
 
         for (var opacity = 1; opacity < byte.MaxValue; opacity++)
         {
@@ -332,19 +332,8 @@ public sealed record UIColorPalette
     {
         System.Drawing.Color top = color.ToColor();
 
-        return UIColorContrast.Ratio(Over(top, top.A / 255d, ground), ground) >= GraphicRatio;
+        return UIColorContrast.Ratio(UIColorContrast.Composite(top, top.A / 255d, ground), ground) >= GraphicRatio;
     }
-
-    /// <summary>A colour laid at a share over an opaque ground, channel by channel as the browser composites it, in whole levels.</summary>
-    private static ColorVariant Over(System.Drawing.Color top, double alpha, ColorVariant ground)
-    {
-        System.Drawing.Color under = ground.ToColor();
-
-        return ColorVariant.FromRgb(Blend(top.R, under.R, alpha), Blend(top.G, under.G, alpha), Blend(top.B, under.B, alpha), ColorAdjustment.None, 0, byte.MaxValue);
-    }
-
-    private static byte Blend(byte top, byte under, double alpha)
-        => (byte)System.Math.Round((top * alpha) + (under * (1 - alpha)));
 
     /// <summary>The colour as words on the page: moved toward the page's text a tenth at a time until it reads there.</summary>
     private ColorVariant InkOnPage(ColorVariant color)

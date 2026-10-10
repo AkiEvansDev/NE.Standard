@@ -8,18 +8,21 @@ import type { ClientStringKey } from "../runtime/client-strings.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
+import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusAsLastInput, focusByPointer } from "./popup-focus.ts";
-import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
+import { applyRovingTabIndex, isRovingCandidate, isRovingKey, moveRovingFocus, resolveRovingTarget } from "./roving-focus.ts";
+import { resolveRowTarget } from "./row-cursor.ts";
 import {
     applyPeriodPreview, applyRovingDay, chooseCalendarDay, createCalendarState, DayAttribute, DayClass, element, moveByKey, navButton,
-    navigateCalendar, NavAttribute, renderCalendar, renderPeriodCaption, startOfMonth
+    MonthClass, moveMonthByKey, navigateCalendar, NavAttribute, renderCalendar, renderPeriodCaption, startOfMonth
 } from "./temporal-calendar.ts";
 import type { CalendarState } from "./temporal-calendar.ts";
 import {
     applyPageLanguage, CalendarRootClass, clampToRange, defaultMoment, hourLabel, isDayOffered, isEndPart, isRange, isTwelveHour,
     MaxAttribute, MinAttribute, orderPeriod, parseCanonical, PickerAttributes, readBound, readCulturePack, readDayOffer, readFormat,
-    readMode, readStep, readValue, readValueOf, RootClass, TemporalRootSelector, toCanonical, typedValue, valueInputOf, writeValueOf
+    readMode, readStep, readValue, readValueOf, RootClass, stepFor, TemporalRootSelector, toCanonical, typedValue, unitValue, valueInputOf,
+    withUnit, writeValueOf
 } from "./temporal-dom.ts";
 import type { TemporalMode, TimeStep, TimeUnit } from "./temporal-dom.ts";
 import type { PeriodEnd } from "./temporal-range.ts";
@@ -458,14 +461,7 @@ export class TemporalPickerEngine {
             return;
 
         const end = isRange(picker) && this.getState(picker).activeEnd === "end";
-        const next = new Date(readValueOf(picker, end) ?? defaultMoment(picker));
-
-        if (unit === "hour")
-            next.setHours(cellValue);
-        else if (unit === "minute")
-            next.setMinutes(cellValue);
-        else
-            next.setSeconds(cellValue);
+        const next = withUnit(readValueOf(picker, end) ?? defaultMoment(picker), unit, cellValue);
 
         // Nothing closes here: every unit is on screen at once, and the footer's Done finishes the picker.
         this.commit(picker, next, end);
@@ -481,11 +477,12 @@ export class TemporalPickerEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented)
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
-        // ArrowDown in the field opens the popup, matching what a native date input does; a period's end field opens it on the end.
-        if (domEvent.key === "ArrowDown" && domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(FieldClass)) {
+        // ArrowDown in the field opens the popup, matching what a native date input does, Alt+Down as a combobox's; a period's end
+        // field opens it on the end.
+        if (domEvent.key === "ArrowDown" && isPlainKey(domEvent, { alt: true }) && domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(FieldClass)) {
             domEvent.preventDefault();
             this.toggle(domEvent.target.closest<HTMLElement>(`.${RootClass}`), isEndPart(domEvent.target) ? "end" : "start");
             return;
@@ -497,11 +494,21 @@ export class TemporalPickerEngine {
             return;
 
         if (domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TimeCellClass)) {
-            applyTimeColumnKey(domEvent);
+            if (isPlainKey(domEvent))
+                applyTimeColumnKey(domEvent);
+
             return;
         }
 
-        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(DayClass))
+        if (domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(MonthClass)) {
+            if (isPlainKey(domEvent))
+                moveMonthFocus(domEvent, domEvent.target);
+
+            return;
+        }
+
+        // Shift only with a page key, which then turns a year.
+        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(DayClass) || !isPlainKey(domEvent, { shift: domEvent.key === "PageUp" || domEvent.key === "PageDown" }))
             return;
 
         const focused = parseCanonical(domEvent.target.getAttribute(DayAttribute) ?? "", "date");
@@ -515,7 +522,7 @@ export class TemporalPickerEngine {
             return;
         }
 
-        const moved = moveByKey(picker, focused, domEvent.key);
+        const moved = moveByKey(picker, focused, domEvent.key, domEvent.shiftKey);
 
         if (moved === null)
             return;
@@ -749,7 +756,7 @@ function renderTimePane(picker: HTMLElement, value: Date | null): HTMLElement {
     const columns = element("div", `${RootClass}__time-columns`);
 
     for (const unit of timeUnits(step))
-        columns.append(renderTimeColumn(picker, unit, unitIncrement(step, unit), value));
+        columns.append(renderTimeColumn(picker, unit, stepFor(step, unit), value));
 
     pane.append(columns);
 
@@ -763,17 +770,6 @@ function timeUnits(step: TimeStep): TimeUnit[] {
     return step.unit === "hour" ? ["hour"] : ["hour", "minute"];
 }
 
-function unitIncrement(step: TimeStep, unit: TimeUnit): number {
-    return unit === "hour" ? step.hour : unit === "minute" ? step.minute : step.second;
-}
-
-function readUnit(value: Date | null, unit: TimeUnit): number | null {
-    if (value === null)
-        return null;
-
-    return unit === "hour" ? value.getHours() : unit === "minute" ? value.getMinutes() : value.getSeconds();
-}
-
 function renderTimeColumn(picker: HTMLElement, unit: TimeUnit, increment: number, value: Date | null): HTMLElement {
     const column = element("div", TimeColumnClass);
 
@@ -782,7 +778,7 @@ function renderTimeColumn(picker: HTMLElement, unit: TimeUnit, increment: number
     column.setAttribute("aria-label", clientStrings.text(unit === "hour" ? "ui.picker.hours" : unit === "minute" ? "ui.picker.minutes" : "ui.picker.seconds"));
 
     const count = unit === "hour" ? 24 : 60;
-    const current = readUnit(value, unit);
+    const current = value === null ? null : unitValue(value, unit);
     // The hours are counted as the field's format counts them; a cell's value stays the hour of the day.
     const twelveHour = unit === "hour" && isTwelveHour(readFormat(picker));
     const culture = readCulturePack(picker);
@@ -949,7 +945,20 @@ function followPointerInDial(cell: HTMLElement): void {
         focusByPointer(cell);
 }
 
-/** Roving focus inside the clock: up and down move within a column, left and right move between them. */
+/** The month pane's arrows: the keyboard's month moves, choosing nothing until Enter or Space presses it. */
+function moveMonthFocus(domEvent: KeyboardEvent, cell: HTMLElement): void {
+    if (!isRovingKey(domEvent.key, "both"))
+        return;
+
+    // Taken at the grid's edge too, where it stops: the popup must not scroll instead.
+    domEvent.preventDefault();
+
+    const next = moveMonthByKey(cell, domEvent.key);
+
+    moveRovingFocus([...next?.parentElement?.children ?? []] as HTMLElement[], next);
+}
+
+/** Roving focus inside the clock: up and down move within a column, a page key a column's height, left and right move between them. */
 function applyTimeColumnKey(domEvent: KeyboardEvent): void {
     const cell = domEvent.target as HTMLElement;
     const column = cell.closest<HTMLElement>(`.${TimeColumnClass}`);
@@ -974,6 +983,11 @@ function applyTimeColumnKey(domEvent: KeyboardEvent): void {
 // No wrap: a column of hours has a top and a bottom.
 function columnCell(column: HTMLElement, cell: HTMLElement, key: string): HTMLElement | null {
     const cells = [...column.querySelectorAll<HTMLElement>(`.${TimeCellClass}`)];
+
+    // Page Down and Page Up step a list's page (`resolveRowTarget`), the cells out of bounds not counted; held at the column's ends,
+    // where the cursor stays on its cell, the key still spent, so the popup does not scroll instead.
+    if (key === "PageUp" || key === "PageDown")
+        return resolveRowTarget(key, cells.filter(isRovingCandidate), cell, "vertical") ?? cell;
 
     return resolveRovingTarget({ key, items: cells, current: cell, axis: "vertical", loop: false });
 }
@@ -1004,14 +1018,8 @@ function isTimeCellDisabled(picker: HTMLElement, unit: TimeUnit, cellValue: numb
     if (min === null && max === null)
         return false;
 
-    const candidate = new Date(value ?? new Date());
-
-    if (unit === "hour")
-        candidate.setHours(cellValue);
-    else if (unit === "minute")
-        candidate.setMinutes(cellValue);
-    else
-        candidate.setSeconds(cellValue);
+    // The moment a press on the cell would commit: with no value, the clamped default a press starts from, not now.
+    const candidate = withUnit(value ?? defaultMoment(picker), unit, cellValue);
 
     // Judged against the whole candidate: hour 9 is legal if any minute within 09:00-09:59 falls inside Min/Max.
     const lower = new Date(candidate);

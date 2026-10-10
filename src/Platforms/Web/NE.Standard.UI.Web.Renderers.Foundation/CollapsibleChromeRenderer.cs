@@ -1,6 +1,6 @@
 using System;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -27,7 +27,8 @@ public static class CollapsibleChromeRenderer
 
     /// <summary>
     /// Writes the chrome; a control that takes a shape with nothing to fold (<paramref name="folds"/> false, a menu's rail) keeps its
-    /// edge and its toggle content but neither its fold nor its switch.
+    /// edge, its toggle content and its switch but no fold: a rail kept a phone's drawer is drawn there as a list, whose switch puts the
+    /// drawer away, and the rail's own styles hide both.
     /// </summary>
     public static void RenderCollapsible(WebRenderContext context, IHtmlElementBuilder root, bool folds = true)
     {
@@ -52,7 +53,7 @@ public static class CollapsibleChromeRenderer
 
         _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? toggle, out _);
 
-        var show = folds && toggle == true;
+        var show = toggle == true;
 
         // With content of its own beside it, the toggle stands in a row with that content; without, it is the root's own child.
         if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out _, RegionNames.ToggleContent))

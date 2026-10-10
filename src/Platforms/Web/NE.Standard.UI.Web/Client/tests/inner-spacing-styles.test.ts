@@ -28,7 +28,7 @@ function rules(part: string): string[] {
 
 test("a description that runs on under a title takes back the leading above its first line", () => {
     const wrap = rules(".ui-text--wrap > .ui-text__body > .ui-text__description").filter(rule => rule.includes(trim));
-    const fold = rules(".ui-text__description:has(.ui-text__fold)").filter(rule => rule.includes(trim));
+    const fold = rules(".ui-text__description[data-ui-folds]").filter(rule => rule.includes(trim));
 
     assert.ok(wrap.length > 0, "a wrapping description under a title keeps its leading above");
     assert.ok(fold.length > 0, "a description with a fold under a title keeps its leading above");

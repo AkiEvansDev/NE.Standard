@@ -5,22 +5,19 @@
 // unmodified key typed into a field is the text's, an open modal keeps everything outside it out of reach, and a chord claimed twice
 // fires neither.
 
-import { ContextMenuAttribute, MenuItemClass, ShortcutAttribute } from "../addressing/dom-attributes.ts";
+import { ContextMenuAttribute, MenuItemClass, MenuItemShortcutAttribute, ShortcutAttribute } from "../addressing/dom-attributes.ts";
 import type { WebUIMetadata } from "../metadata/metadata-index.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { isShownEntry } from "./action-bar.ts";
-import { isCaretField } from "./caret-fields.ts";
-import { ContextMenuOwnerSelector, contextMenuAt } from "./context-menu-engine.ts";
+import { isCaretField, isFieldKey } from "./caret-fields.ts";
+import { contextMenuAt, keyboardPlace } from "./context-menu-engine.ts";
 import { CommitInPlaceEventName } from "./field-keys-engine.ts";
 import { isInert } from "./interactive-state.ts";
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
-import { formatShortcut, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
+import { formatShortcut, isComposing, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
 import { findOpenModalDialog } from "./open-dialogs.ts";
-import { ownDescendants } from "./own-descendants.ts";
 import { isRovingCandidate } from "./roving-focus.ts";
-import { litRow, rowKeyTarget } from "./row-cursor.ts";
-import { SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 import type { TooltipWordsProvider } from "./tooltip-engine.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 
@@ -87,14 +84,14 @@ export class ShortcutEngine {
     }
 
     private handleKeydown(domEvent: Event): void {
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || domEvent.isComposing)
+        if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
         if (this.stale)
             this.rebuild();
 
-        // An unmodified key belongs to the caret's text.
-        if ((this.claims.size === 0 && this.entryShortcuts.size === 0) || isTypingTarget(domEvent))
+        // A key the field keeps â€” typing, and a caret's chord such as Ctrl+Left â€” is not the page's.
+        if ((this.claims.size === 0 && this.entryShortcuts.size === 0) || isFieldKey(domEvent))
             return;
 
         const modal = findOpenModalDialog(this.root);
@@ -233,49 +230,6 @@ export function viewShortcutsOf(metadata: WebUIMetadata): ViewShortcut[] {
     return [...shortcuts.values()];
 }
 
-/** Whether an unmodified press belongs to text the user is editing: a caret field or an editable region, not a checkbox or a slider. */
-function isTypingTarget(domEvent: KeyboardEvent): boolean {
-    if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey)
-        return false;
-
-    const target = domEvent.target;
-
-    return isCaretField(target) || (target instanceof HTMLElement && target.isContentEditable);
-}
-
-/**
- * Where the keyboard is, for a context menu's entry: the focused element, or — where a host of rows holds the focus itself — the row its
- * cursor is on, else its chosen row, else the host (whose rows' menus are then out of reach).
- */
-function keyboardPlace(): Element | null {
-    const active = document.activeElement;
-
-    if (active === null || active === document.body)
-        return null;
-
-    const found = rowKeyTarget(active);
-
-    if (found === null || (found.row !== null && found.row !== active))
-        return active;
-
-    const row = found.row ?? litRow(ownDescendants(found.root, SelectionRowSelector, SelectionRootSelector));
-
-    return row === null ? found.root : ownerInRow(row);
-}
-
-/** The part of a row its context menu belongs to: the row where it is the owner, else the first owner inside it that is not a nested row's. */
-function ownerInRow(row: HTMLElement): Element {
-    if (row.matches(ContextMenuOwnerSelector))
-        return row;
-
-    for (const owner of row.querySelectorAll(ContextMenuOwnerSelector)) {
-        if (owner.closest(SelectionRowSelector) === row)
-            return owner;
-    }
-
-    return row;
-}
-
 /** A field keeping the focus while a chord presses something: what was typed goes first, as Enter would send it. */
 function commitField(domEvent: KeyboardEvent): void {
     if (isCaretField(domEvent.target))
@@ -305,7 +259,10 @@ function writeEntryChords(root: ParentNode): void {
         writeEntryChord(element);
 }
 
-/** A menu entry's chord at its end, in the reader's platform's words; written only when it differs, so the observer's own write settles. */
+/**
+ * A menu entry's chord at its end, in the reader's platform's words; written only when it differs, so the observer's own write settles.
+ * The entry is marked while it shows one, which keeps a check beside the words.
+ */
 function writeEntryChord(element: HTMLElement): void {
     const words = element.querySelector(EntryShortcutSelector);
 
@@ -316,6 +273,9 @@ function writeEntryChord(element: HTMLElement): void {
 
     if (words.textContent !== text)
         words.textContent = text;
+
+    if (element.hasAttribute(MenuItemShortcutAttribute) !== (text.length > 0))
+        element.toggleAttribute(MenuItemShortcutAttribute, text.length > 0);
 }
 
 /** The chord an element carries, in the reader's platform's words; null where it carries none. */

@@ -7,8 +7,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
+// The window's keydown listeners, which hear a key before the document does: an open list's Tab closes it there.
+const windowKeys: ((domEvent: unknown) => void)[] = [];
+
 installFakeDom({
-    window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
+    window: { addEventListener: (type: string, listener: (domEvent: unknown) => void) => type === "keydown" && windowKeys.push(listener), setTimeout, innerWidth: 1280, innerHeight: 900 },
     getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr" }),
     MutationObserver: class {
         public observe(): void {
@@ -174,4 +177,26 @@ test("three languages: an arrow on the button opens the list, and a choice in it
 
     assert.deepEqual(asked, ["ru"]);
     assert.equal(switcher.classes.has("ui-language-switcher--open"), false);
+});
+
+test("the open list is one stop of the Tab order, on the page's language, and Tab closes it to go on from the button", () => {
+    const at = scene(["en", "zh-Hans", "ru"]);
+    const switcher = fakeDocument.body.children[0];
+
+    show("zh-Hans");
+    at.trigger.dispatchEvent(new FakeKeyboardEvent("ArrowDown", at.trigger));
+
+    assert.deepEqual(at.choices.map(choice => choice.tabIndex), [-1, 0, -1]);
+
+    at.choices[1].dispatchEvent(new FakeKeyboardEvent("ArrowDown", at.choices[1]));
+
+    assert.deepEqual(at.choices.map(choice => choice.tabIndex), [-1, -1, 0]);
+
+    const tab = new FakeKeyboardEvent("Tab", at.choices[2]);
+
+    windowKeys.forEach(listener => listener(tab));
+    at.choices[2].dispatchEvent(tab);
+
+    assert.equal(switcher.classes.has("ui-language-switcher--open"), false);
+    assert.equal(tab.defaultPrevented, false);
 });

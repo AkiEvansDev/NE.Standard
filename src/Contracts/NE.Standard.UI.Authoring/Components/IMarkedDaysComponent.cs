@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Authoring.Components;
 
@@ -22,6 +23,8 @@ public interface IMarkedDaysComponent : IInputComponent
     /// <summary>
     /// Gets the days the calendar draws marked; order and repeats do not matter.
     /// </summary>
+    /// <remarks>A bound set is sent whole each time the controller assigns a new one.</remarks>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     IReadOnlyCollection<DateOnly>? MarkedDays { get; }
 
     /// <summary>
@@ -31,5 +34,6 @@ public interface IMarkedDaysComponent : IInputComponent
     /// True by a static value or a controller binding, the server refuses a day the input sends that is not marked and answers it with
     /// the value it holds; a cleared value is no day and passes.
     /// </remarks>
+    [UIComponentProperty(DefaultValue = false, GenerateSetter = false)]
     bool? MarkedDaysOnly { get; }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Runtime;
@@ -59,27 +60,20 @@ internal sealed class UITestClient : IUIUpdateSink, IUIDialogService, IUIDownloa
     }
 
     public Task<bool> ShowAsync(UIHandle handle, string dialogName, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(handle);
-        ArgumentException.ThrowIfNullOrWhiteSpace(dialogName);
-
-        if (!_pages.TryGetValue(handle.Instance.Id, out UITestPage? page))
-            return Task.FromResult(false);
-
-        page.SetDialogOpen(dialogName, open: true);
-
-        return Task.FromResult(true);
-    }
+        => SendEffect(handle, new OpenDialogEffect(dialogName));
 
     public Task<bool> HideAsync(UIHandle handle, string dialogName, CancellationToken cancellationToken = default)
+        => SendEffect(handle, new CloseDialogEffect(dialogName));
+
+    // As the web's dialog service sends it: an effect in a command result, so the page's Effects lists it as the browser runs it.
+    private Task<bool> SendEffect(UIHandle handle, ClientEffect effect)
     {
         ArgumentNullException.ThrowIfNull(handle);
-        ArgumentException.ThrowIfNullOrWhiteSpace(dialogName);
 
         if (!_pages.TryGetValue(handle.Instance.Id, out UITestPage? page))
             return Task.FromResult(false);
 
-        page.SetDialogOpen(dialogName, open: false);
+        page.Receive(new UICommandExecutionResult { Command = UICommandResult.Ok([effect]), Changes = ServerChangeSet.Empty });
 
         return Task.FromResult(true);
     }

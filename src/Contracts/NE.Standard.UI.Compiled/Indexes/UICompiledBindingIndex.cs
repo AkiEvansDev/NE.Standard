@@ -134,6 +134,22 @@ public sealed class UICompiledBindingIndex
     }
 
     /// <summary>
+    /// Resolves the property binding a component's write lands on: the address carries the keys of every row the component stands
+    /// in, of which the binding reads the outer ones it is bound under — all for its own row, fewer in the Parent scope, none in Root.
+    /// </summary>
+    public CompiledUIBindingResolution ResolveWrite(UIPropertyAddress address)
+    {
+        CompiledUIBinding binding = GetRequiredProperty(new UIPropertyAddress(address.Component.Id, address.Property));
+        var keys = address.Component.DynamicParameters;
+        var count = CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters);
+
+        if (keys.Length < count)
+            throw new ArgumentException($"Address '{address}' names {keys.Length} row keys, but its binding reads {count}.", nameof(address));
+
+        return Resolve(binding, keys.Length == count ? keys : keys[..count]);
+    }
+
+    /// <summary>
     /// Resolves a compiled binding using dynamic template parameters.
     /// </summary>
     public CompiledUIBindingResolution Resolve(CompiledUIBinding binding, object?[] dynamicParameters)

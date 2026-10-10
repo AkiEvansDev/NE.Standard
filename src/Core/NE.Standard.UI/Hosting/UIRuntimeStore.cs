@@ -398,30 +398,18 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
         lock (_sync)
         {
+            if (_instanceKeys.TryGetValue(instanceId, out UIRuntimeKey key))
+            {
+                if (_entries.ContainsKey(key))
+                    return DetachNoLock(key, instanceId, utcNow, out runtime, out activeInstances);
+
+                _ = _instanceKeys.Remove(instanceId);
+            }
+
+            runtime = null;
             activeInstances = 0;
 
-            if (!_instanceKeys.TryGetValue(instanceId, out UIRuntimeKey key))
-            {
-                runtime = null;
-                return false;
-            }
-
-            if (!_entries.TryGetValue(key, out UIRuntimeEntry? entry))
-            {
-                _ = _instanceKeys.Remove(instanceId);
-                runtime = null;
-                return false;
-            }
-
-            runtime = entry.Runtime;
-
-            if (!entry.Detach(instanceId, utcNow))
-                return false;
-
-            activeInstances = entry.ConnectionCount;
-            _ = _instanceKeys.Remove(instanceId);
-
-            return true;
+            return false;
         }
     }
 
@@ -430,25 +418,28 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
 
         lock (_sync)
+            return DetachNoLock(key, instanceId, utcNow, out runtime, out activeInstances);
+    }
+
+    private bool DetachNoLock(UIRuntimeKey key, string instanceId, DateTime utcNow, out IUIRuntime? runtime, out int activeInstances)
+    {
+        activeInstances = 0;
+
+        if (!_entries.TryGetValue(key, out UIRuntimeEntry? entry))
         {
-            activeInstances = 0;
-
-            if (!_entries.TryGetValue(key, out UIRuntimeEntry? entry))
-            {
-                runtime = null;
-                return false;
-            }
-
-            runtime = entry.Runtime;
-
-            if (!entry.Detach(instanceId, utcNow))
-                return false;
-
-            activeInstances = entry.ConnectionCount;
-            _ = _instanceKeys.Remove(instanceId);
-
-            return true;
+            runtime = null;
+            return false;
         }
+
+        runtime = entry.Runtime;
+
+        if (!entry.Detach(instanceId, utcNow))
+            return false;
+
+        activeInstances = entry.ConnectionCount;
+        _ = _instanceKeys.Remove(instanceId);
+
+        return true;
     }
 
     /// <summary>

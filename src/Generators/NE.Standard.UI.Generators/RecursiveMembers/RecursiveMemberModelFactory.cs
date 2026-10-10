@@ -30,16 +30,7 @@ internal static class RecursiveMemberModelFactory
         if (containingType is null)
             return null;
 
-        AttributeData? attribute = null;
-
-        foreach (AttributeData candidate in property.GetAttributes())
-        {
-            if (candidate.AttributeClass?.ToDisplayString() == RecursiveMemberNames.AttributeMetadataName)
-            {
-                attribute = candidate;
-                break;
-            }
-        }
+        AttributeData? attribute = property.FindAttribute(RecursiveMemberNames.AttributeMetadataName);
 
         if (attribute is null)
             return null;
@@ -91,14 +82,8 @@ internal static class RecursiveMemberModelFactory
 
     private static void ValidateGeneratedMemberConflict(IPropertySymbol property, INamedTypeSymbol containingType, string memberName, List<DiagnosticInfo> diagnostics)
     {
-        foreach (ISymbol member in containingType.GetMembers(memberName))
-        {
-            if (SymbolEqualityComparer.Default.Equals(member, property))
-                continue;
-
+        if (containingType.DeclaresOtherMember(memberName, property))
             diagnostics.Add(DiagnosticInfo.Create(RecursiveMemberDiagnostics.GeneratedMemberConflict, property, memberName, containingType.ToDisplayString()));
-            return;
-        }
     }
 
     private static RecursiveOwnerModel CreateOwnerModel(INamedTypeSymbol type, INamedTypeSymbol? recursiveObservableType)

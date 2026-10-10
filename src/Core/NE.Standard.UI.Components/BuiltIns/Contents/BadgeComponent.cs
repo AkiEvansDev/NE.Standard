@@ -31,6 +31,13 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     public UIThemeColor? Color { get; set; }
 
     /// <summary>
+    /// Gets or sets how the badge spends its colour; unset, a <see cref="Type"/> fills and a <see cref="Color"/> tints. A plain badge
+    /// ignores it.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIBadgeFill? Fill { get; set; }
+
+    /// <summary>
     /// Gets or sets the icon shown beside the badge text, by name from the registered icon font/set.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]

@@ -1,0 +1,55 @@
+@import "./tokens.less";
+@import "../mixins/focus.less";
+
+// Where the keyboard stands on a plain pressable — a button, an action, a link, an expander's header, a clickable surface, the page
+// switchers — the one keyboard frame a list's entry wears, only for a focus a key gave (`@ui-keyboard-focus`), in the one shape
+// (`.ui-keyboard-frame()`). A pressable with a mark of its own is not listed: a menu's entry and a select's option (their list's frame),
+// a tab's caption (the chosen line follows the arrows), a field's parts (the field's edge), a toggle (its row's frame, in its own file).
+// After every component, so a component's own `outline: none` does not win the tie.
+
+// A split button frames the part the keyboard is on, never its pill; a menu split button's pill is its one press. Weightless, so the
+// rules below say their own. A button's corner is the frame's own (the theme's button radius), and stays its own.
+@ui-keyboard-pressables: ~".ui-button:not(.ui-tab-header, .ui-tab-item__label, .ui-menu-item, .ui-split-button), .ui-action, .ui-language-switcher__trigger, .ui-collapsible__toggle, .ui-breadcrumb";
+
+:where(@{ui-keyboard-pressables})@{ui-keyboard-focus} {
+    .ui-keyboard-frame(@takes: false);
+}
+
+// A split button's part is square where it meets the other: framed, it takes the frame's corner all round, its ground being the pill's.
+:is(.ui-split-button__main, .ui-split-button__toggle)@{ui-keyboard-focus} {
+    .ui-keyboard-frame();
+}
+
+// On a filled ground the brand's ink is lost in the brand's fill: the frame takes the words' own colour there.
+:is(.ui-button--primary, .ui-button--accent, .ui-button--danger):not(.ui-split-button)@{ui-keyboard-focus} {
+    .ui-keyboard-frame(@ink: currentColor; @takes: false);
+}
+
+.ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger) > :is(.ui-split-button__main, .ui-split-button__toggle)@{ui-keyboard-focus} {
+    .ui-keyboard-frame(@ink: currentColor);
+}
+
+// A card's corner is larger than the frame's: the frame stands in from it as far as keeps its own. An expander's header takes the card's
+// corner all round for the while (it paints no ground), so the frame clears the expander's rounded clip on every side, open or folded.
+.ui-surface--clickable@{ui-keyboard-focus} {
+    .ui-keyboard-frame-inside(var(--ui-radius-card));
+}
+
+.ui-expander__header@{ui-keyboard-focus} {
+    .ui-keyboard-frame(@host: var(--ui-radius-card); @offset: ~"calc(@{ui-keyboard-frame-radius} - var(--ui-radius-card) - 2px)");
+}
+
+// A link is its words, with no box to stand a frame inside: it goes round them — a link among running words close round them, in the
+// little room a line leaves above and below its words, where a clamped paragraph clips.
+.ui-link@{ui-keyboard-focus} {
+    .ui-keyboard-frame-outside();
+}
+
+.ui-text__link@{ui-keyboard-focus} {
+    .ui-keyboard-frame-outside(0px);
+}
+
+// A key's focus scrolls the frame into sight with the words, not the words alone, which left its outer edge under a scroller's edge.
+:is(.ui-link, .ui-text__link) {
+    scroll-margin: @ui-keyboard-frame-reach;
+}

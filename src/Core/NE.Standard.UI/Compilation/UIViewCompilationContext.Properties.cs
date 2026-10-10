@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
@@ -8,6 +9,7 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
+using NE.Standard.UI.Shell.Data;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -25,14 +27,13 @@ internal sealed partial class UIViewCompilationContext
             throw new InvalidOperationException($"Binding mode '{mode}' is not supported for property '{property.Name}' on component type '{typeKey}'.");
 
         // An OnSubmit value is buffered on the client until a shared FormId submits it; without one it would never be sent.
-        if (mode == UIBindingMode.OnSubmit
-            && component is IInputComponent input
-            && string.IsNullOrWhiteSpace(input.FormId)
-            && FindBinding(component, IInputComponent.FormIdProperty) is null)
-        {
+        if (mode == UIBindingMode.OnSubmit && component is IInputComponent input && !HasForm(component, input))
             throw new InvalidOperationException($"Property '{property.Name}' on component type '{typeKey}' is bound '{mode}' but the component has no 'FormId', so its value could never be submitted.");
-        }
     }
+
+    /// <summary>Whether an input belongs to a form: its <c>FormId</c> set or bound.</summary>
+    private static bool HasForm(IVisualComponent component, IInputComponent input)
+        => !string.IsNullOrWhiteSpace(input.FormId) || FindBinding(component, IInputComponent.FormIdProperty) is not null;
 
     /// <summary>
     /// Refuses a text area whose Enter submits its form (<c>SubmitOnEnter</c>, set or bound) but that also runs a command on Enter
@@ -43,13 +44,10 @@ internal sealed partial class UIViewCompilationContext
         if (component is not IInputComponent input || !SubmitsOnEnter(component))
             return;
 
-        for (var i = 0; i < component.Events.Count; i++)
-        {
-            if (string.Equals(component.Events[i].Name, EventNames.Enter, StringComparison.Ordinal))
-                throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' both submits on Enter and runs a command on Enter ('OnEnter'); Enter does one of them, so drop 'SubmitOnEnter' or the 'OnEnter' command.");
-        }
+        if (HasEvent(component, EventNames.Enter))
+            throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' both submits on Enter and runs a command on Enter ('OnEnter'); Enter does one of them, so drop 'SubmitOnEnter' or the 'OnEnter' command.");
 
-        if (string.IsNullOrWhiteSpace(input.FormId) && FindBinding(component, IInputComponent.FormIdProperty) is null)
+        if (!HasForm(component, input))
             throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' submits on Enter but has no 'FormId', so Enter would have no form to submit.");
     }
 
@@ -59,53 +57,45 @@ internal sealed partial class UIViewCompilationContext
     /// </summary>
     private void EnsureDropTargetIsInView(IVisualComponent component)
     {
-        UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
-
-        for (var i = 0; i < definitions.Length; i++)
+        if (!TryGetPropertyDefinition(component.TypeKey, FileInputComponent.DropTargetIdProperty, out UIPropertyDefinition? definition)
+            && !TryGetPropertyDefinition(component.TypeKey, ImageInputComponent.DropTargetIdProperty, out definition))
         {
-            UIPropertyDefinition definition = definitions[i];
-
-            if (!definition.Property.Equals(FileInputComponent.DropTargetIdProperty) && !definition.Property.Equals(ImageInputComponent.DropTargetIdProperty))
-                continue;
-
-            if (definition.Getter(component) is string { Length: > 0 } dropTarget && !_componentIdsByAuthoringId.ContainsKey(dropTarget))
-                throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' names DropTargetId '{dropTarget}', which the view does not have.");
-
             return;
         }
+
+        if (definition.Getter(component) is string { Length: > 0 } dropTarget && !_componentIdsByAuthoringId.ContainsKey(dropTarget))
+            throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' names DropTargetId '{dropTarget}', which the view does not have.");
+    }
+
+    /// <summary>
+    /// Refuses a window larger than one read may ask for: every host refuses such a read, so the view that would send it is the
+    /// author's to fix, not a page that fails at its first scroll.
+    /// </summary>
+    private static void EnsureWindowFitsARead(IVisualComponent component)
+    {
+        if (component is IItemsHostComponent { WindowSize: > UIItemWindowClientRequest.MaxCount } host)
+            throw new InvalidOperationException($"Component '{component.Id}' sets WindowSize {host.WindowSize}; one read takes at most {UIItemWindowClientRequest.MaxCount} rows.");
     }
 
     /// <summary>
     /// Refuses a pager aimed at nothing, at a component the view does not have, or at a host whose window is not a page — one holding
-    /// its rows whole, or a windowed one whose scroll reads the next window; and a page size of no rows.
+    /// its rows whole, or a windowed one whose scroll reads the next window; and a page size of no rows, or of more than one read takes.
     /// </summary>
     private void EnsurePagerTargetPages(IVisualComponent component)
     {
-        UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
-        string? target = null;
-        var isPager = false;
+        if (!TryGetPropertyDefinition(component.TypeKey, PagerComponent.TargetProperty, out UIPropertyDefinition? targetDefinition))
+            return;
 
-        for (var i = 0; i < definitions.Length; i++)
+        if (TryGetPropertyDefinition(component.TypeKey, PagerComponent.PageSizesProperty, out UIPropertyDefinition? sizesDefinition) && sizesDefinition.Getter(component) is IReadOnlyList<int> sizes)
         {
-            UIPropertyDefinition definition = definitions[i];
-
-            if (definition.Property.Equals(PagerComponent.TargetProperty))
+            for (var i = 0; i < sizes.Count; i++)
             {
-                isPager = true;
-                target = definition.Getter(component) as string;
-            }
-            else if (definition.Property.Equals(PagerComponent.PageSizesProperty) && definition.Getter(component) is IReadOnlyList<int> sizes)
-            {
-                for (var j = 0; j < sizes.Count; j++)
-                {
-                    if (sizes[j] <= 0)
-                        throw new InvalidOperationException($"Pager '{component.Id}' offers a page size of {sizes[j]}; a page holds one row or more.");
-                }
+                if (sizes[i] is <= 0 or > UIItemWindowClientRequest.MaxCount)
+                    throw new InvalidOperationException($"Pager '{component.Id}' offers a page size of {sizes[i]}; a page holds from one row to {UIItemWindowClientRequest.MaxCount}.");
             }
         }
 
-        if (!isPager)
-            return;
+        var target = targetDefinition.Getter(component) as string;
 
         if (string.IsNullOrWhiteSpace(target))
             throw new InvalidOperationException($"Pager '{component.Id}' names no Target; aim it at the items view or table it pages with SetTarget(id).");
@@ -125,45 +115,29 @@ internal sealed partial class UIViewCompilationContext
 
     /// <summary>Whether a component says <c>SubmitOnEnter</c>, set or bound.</summary>
     private bool SubmitsOnEnter(IVisualComponent component)
-    {
-        UIPropertyDefinition[] definitions = GetPropertyDefinitions(component.TypeKey);
-
-        for (var i = 0; i < definitions.Length; i++)
-        {
-            UIPropertyDefinition definition = definitions[i];
-
-            if (definition.Property.Equals(TextAreaComponent.SubmitOnEnterProperty))
-                return definition.Getter(component) is true || FindBinding(component, definition.Property) is not null;
-        }
-
-        return false;
-    }
+        => TryGetPropertyDefinition(component.TypeKey, TextAreaComponent.SubmitOnEnterProperty, out UIPropertyDefinition? definition)
+            && (definition.Getter(component) is true || FindBinding(component, definition.Property) is not null);
 
     private UIPropertyDefinition GetRequiredPropertyDefinition(string typeKey, UIProperty property)
-    {
-        UIPropertyDefinition[] definitions = GetPropertyDefinitions(typeKey);
+        => TryGetPropertyDefinition(typeKey, property, out UIPropertyDefinition? definition)
+            ? definition
+            : throw new InvalidOperationException($"Property definition for '{property.Name}' was not found in component '{typeKey}'.");
 
-        for (var i = 0; i < definitions.Length; i++)
-        {
-            UIPropertyDefinition definition = definitions[i];
+    /// <summary>The definition of a property a component type registers, if it registers it.</summary>
+    private bool TryGetPropertyDefinition(string typeKey, UIProperty property, [NotNullWhen(true)] out UIPropertyDefinition? definition)
+        => GetTypeState(typeKey).TryGetDefinition(property, out definition);
 
-            if (definition.Property.Equals(property))
-                return definition;
-        }
-
-        throw new InvalidOperationException($"Property definition for '{property.Name}' was not found in component '{typeKey}'.");
-    }
-
-    private UIPropertyDefinition[] GetPropertyDefinitions(string typeKey)
+    // Held per view, so the whole compile reads one set of a type's properties even if the type registers more meanwhile.
+    private UIComponentTypeState GetTypeState(string typeKey)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(typeKey);
 
-        if (_propertyDefinitionsCache.TryGetValue(typeKey, out UIPropertyDefinition[]? definitions))
-            return definitions;
+        if (_typeStates.TryGetValue(typeKey, out UIComponentTypeState? state))
+            return state;
 
-        definitions = UIPropertyRegister.GetProperties(typeKey);
-        _propertyDefinitionsCache.Add(typeKey, definitions);
+        state = UIComponentTypeState.For(typeKey, UIPropertyRegister.GetProperties(typeKey));
+        _typeStates.Add(typeKey, state);
 
-        return definitions;
+        return state;
     }
 }

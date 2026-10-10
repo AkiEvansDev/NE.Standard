@@ -1,0 +1,164 @@
+@import "../core/tokens.less";
+@import "../mixins/dialog.less";
+@import "../mixins/glyphs.less";
+
+// A list popup on a phone, shown as a sheet (popup-sheet.ts): along the bottom at the screen's width, its top corners rounded, at
+// most three quarters of the screen high and scrolling after, sliding up as it opens and down as it closes. The mark and the popover
+// together, after every component, outweigh any list's own placement — one rule for them all, not one per control.
+[data-ui-sheet][popover] {
+    inset: auto 0 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: 75dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    // The safe area kept below, where a phone draws its home bar.
+    padding: 0 @ui-space-2 calc(@ui-space-2 + env(safe-area-inset-bottom));
+    border-inline: none;
+    border-bottom: none;
+    .ui-sheet-edge();
+    // It slides rather than fades: opaque through the slide, which `--ui-sheet-drag` moves under a finger (sheet-swipe.ts).
+    opacity: 1;
+    transform: translateY(100%);
+    transition:
+        transform @ui-motion-normal @ui-motion-exit,
+        display @ui-motion-normal allow-discrete,
+        overlay @ui-motion-normal allow-discrete;
+}
+
+// Sliding out, it takes no press nor a drag's moves: what the drag that closed it goes on over is the page's.
+[data-ui-sheet][popover]:not(:popover-open) {
+    pointer-events: none;
+}
+
+[data-ui-sheet][popover]:popover-open {
+    .ui-sheet-follow();
+    transition-timing-function: @ui-motion-enter;
+
+    @starting-style {
+        transform: translateY(100%);
+    }
+}
+
+// A list opened from a sheet's entry slides in from the side as the sheet under it slides out the other way, a carousel; back, the
+// two slide the other way round.
+[data-ui-sheet="nested"][popover] {
+    transform: translateX(100%);
+}
+
+[data-ui-sheet="nested"][popover]:popover-open {
+    @starting-style {
+        transform: translateX(100%);
+    }
+}
+
+[data-ui-sheet][popover][data-ui-sheet-covered]:popover-open {
+    transform: translateX(-100%);
+}
+
+    [data-ui-sheet][popover][data-ui-sheet-covered]:dir(rtl):popover-open {
+        transform: translateX(100%);
+    }
+
+    [data-ui-sheet="nested"][popover]:dir(rtl) {
+        transform: translateX(-100%);
+    }
+
+    [data-ui-sheet="nested"][popover]:dir(rtl):popover-open {
+        @starting-style {
+            transform: translateX(-100%);
+        }
+    }
+
+// The grab handle, in the band a press drags from.
+[data-ui-sheet][popover]::before {
+    .ui-sheet-handle();
+}
+
+// Every entry a finger's height: a menu's — a link entry too, which carries no role —, a select's option, a choice's; not the icons
+// of an action bar's row atop a menu.
+[data-ui-sheet][popover] :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], .ui-menu-item):not(.ui-action-bar > *) {
+    min-height: 3rem;
+}
+
+// A sheet's words are the list's own type whatever the size of the field it opened from: a Small select's caption-size text stood as
+// tiny print in a finger's rows.
+[data-ui-sheet][popover] {
+    font-size: var(--ui-text-body-font-size);
+    line-height: var(--ui-text-body-line-height);
+}
+
+// An option's content is its template's: centred down the taller row, at its full width — a grid, where the template's own
+// `align-self` stays on the block axis. A multi-select's option keeps its row, its check at the end of the words' line: a grid
+// dropped the check onto a second track.
+[data-ui-sheet][popover] [role="option"]:where(:not(.ui-multi-select .ui-select__option)) {
+    display: grid;
+    align-items: center;
+}
+
+// The page sizes start at the sheet's edge as every list's entries do; under their button they stand at its end.
+[data-ui-sheet][popover] .ui-pager__size-choice {
+    justify-content: flex-start;
+}
+
+// The row atop a nested list: back to the list under it, named by the entry it opened from.
+.ui-sheet__back {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: @ui-space-3;
+    width: 100%;
+    min-height: 3rem;
+    margin-bottom: @ui-space-1;
+    padding: 0 @ui-space-2;
+    border: none;
+    border-bottom: 1px solid var(--ui-color-border);
+    border-radius: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-align: start;
+    cursor: pointer;
+}
+
+    // The arrow, the downward one turned to point back.
+    .ui-sheet__back::before {
+        .ui-glyph(@ui-glyph-arrow-down; @ui-glyph-md-lg);
+        transform: rotate(90deg);
+    }
+
+    .ui-sheet__back:dir(rtl)::before {
+        transform: rotate(-90deg);
+    }
+
+// The page dimmed under every open sheet, a press on it a press outside; lifted as a popup is, whose mark takes the popover's own
+// box off it (`data-ui-popup-lifted`, runtime.less).
+.ui-sheet-scrim {
+    position: fixed;
+    inset: 0;
+    .ui-dialog-veil();
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity @ui-motion-normal @ui-motion-exit,
+        display @ui-motion-normal allow-discrete,
+        overlay @ui-motion-normal allow-discrete;
+}
+
+.ui-sheet-scrim:popover-open {
+    opacity: 1;
+    pointer-events: auto;
+    transition-timing-function: @ui-motion-enter;
+
+    @starting-style {
+        opacity: 0;
+    }
+}
+
+// Its sheets gone under a press still going on: unseen, it takes the rest of that press (popup-sheet.ts).
+.ui-sheet-scrim:popover-open[data-ui-sheet-scrim-leaving] {
+    opacity: 0;
+    transition-timing-function: @ui-motion-exit;
+}

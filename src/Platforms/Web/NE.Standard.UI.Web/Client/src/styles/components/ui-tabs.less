@@ -83,7 +83,7 @@
 }
 
     // Excluded rather than out-ranked, which would beat the selected rule below; the button family's guard quiets a loading header.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-tab-header@{ui-button-live}:not(.ui-tab-header--selected):hover::after {
             .ui-tab-caption-hover-mark();
         }

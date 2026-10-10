@@ -2,6 +2,7 @@
 import type { UICommandExecutionResult, UICommandRequest } from "../metadata/metadata-index";
 import { getIdValue } from "../metadata/metadata-index.ts";
 import type { SignalRTransport } from "./signalr-transport";
+import { largeValueBody, stageValueAsync } from "./value-staging.ts";
 
 /** The one call the dispatcher makes: a command onto the hub. */
 export type CommandSender = Pick<SignalRTransport, "processEventAsync">;
@@ -19,6 +20,8 @@ export class CommandDispatcher {
     // Per connection, which is all a pushed result can reach: the server sends it to the connection that raised the command.
     private nextRequestId = 1;
     private readonly awaited = new Map<number, AwaitedResult>();
+    // Settles once the newest command whose keys are being staged has gone onto the hub: every command after it waits behind it.
+    private staging: Promise<void> | null = null;
 
     public constructor(transport: CommandSender) {
         this.transport = transport;
@@ -42,7 +45,7 @@ export class CommandDispatcher {
         const pushed = this.expect(requestId);
 
         try {
-            const answer = await this.transport.processEventAsync({ ...normalizedRequest, requestId });
+            const answer = await this.sendAsync({ ...normalizedRequest, requestId });
 
             return answer.accepted === true ? await pushed : answer;
         }
@@ -50,6 +53,48 @@ export class CommandDispatcher {
             this.awaited.delete(requestId);
             this.pendingKeys.delete(key);
         }
+    }
+
+    /**
+     * Sends a command onto the hub in the order it was dispatched. Keys too large for the hub's message (a drop of many rows) are staged
+     * beside it, as a large value is, and the command carries their token; the commands after it wait for it to go, and one with
+     * nothing staged ahead of it leaves at once.
+     */
+    private sendAsync(request: UICommandRequest): Promise<UICommandExecutionResult> {
+        const body = largeValueBody(request.dynamicParameters);
+
+        if (body === null && this.staging === null)
+            return this.transport.processEventAsync(request);
+
+        const ahead = this.staging;
+        // Posted at once, in parallel with what is ahead: only the order the commands reach the hub in matters.
+        const staged = body === null ? null : stageValueAsync(body);
+        let markSent = (): void => { };
+        const sent = new Promise<void>(resolve => {
+            markSent = resolve;
+        });
+
+        staged?.catch(() => { });
+        this.staging = sent;
+
+        const send = async (): Promise<UICommandExecutionResult> => {
+            try {
+                await ahead;
+
+                const token = staged === null ? null : await staged;
+
+                return this.transport.processEventAsync(token === null ? request : { ...request, dynamicParameters: [], dynamicParametersToken: token });
+            }
+            finally {
+                // Once the invoke is on its way, or the post failed: either way the next command is free to go.
+                markSent();
+
+                if (this.staging === sent)
+                    this.staging = null;
+            }
+        };
+
+        return send();
     }
 
     private expect(requestId: number): Promise<UICommandExecutionResult> {

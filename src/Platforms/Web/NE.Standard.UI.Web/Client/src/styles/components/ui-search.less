@@ -19,10 +19,18 @@
     overflow: auto;
 }
 
-// A size under the closed field's: it filters a list, it is not the value. Its look is `SearchFieldAppearance`, Ghost unless set.
+// The field's head wears its look, `SearchFieldAppearance` (Ghost unless set), as `.ui-input--<appearance>`, so ui-input.less draws
+// the field as it draws every field's box: its ground, its edges, its hover and its focus. A size under the closed field's: it filters
+// a list, it is not the value.
+.ui-search__head {
+    display: flex;
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
 .ui-search__field {
     .ui-input-field();
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     min-height: 2rem;
     padding: 0 @ui-space-2;
 }
@@ -31,40 +39,18 @@
         min-height: @ui-control-height-sm;
     }
 
-    // Filled and Tonal: a ground one step off the popup's, its edge the brand's while the keyboard types in it.
-    .ui-search__field--filled@{ui-field-focus},
-    .ui-search__field--tonal@{ui-field-focus},
-    .ui-search__field--outline@{ui-field-focus} {
-        border-color: var(--ui-color-primary);
-    }
-
-    // The edges in the mark, as a text field's (ui-input.less); Ghost's line below parts the field from the options, a divider.
-    .ui-search__field--filled {
-        border-bottom-color: var(--ui-color-mark);
-        border-end-start-radius: 0;
-        border-end-end-radius: 0;
-    }
-
-    .ui-search__field--outline {
-        border-color: var(--ui-color-mark);
-        background: none;
-    }
-
-    .ui-search__field--underline {
-        border-style: none none solid none;
-        border-color: var(--ui-color-mark);
-        border-radius: 0;
-        background: none;
-    }
-
-    // Ghost: no box, the popup's own ground, a line under it running the popup's width to part it from the options. The field holds
-    // the keyboard whenever the list is open, so no focus look either: its caret is the sign.
-    .ui-search__field:not(.ui-search__field--filled, .ui-search__field--tonal, .ui-search__field--outline, .ui-search__field--underline) {
+    // Ghost: no box, the popup's own ground, a line under it running the popup's width to part it from the options — a divider, not
+    // the field's edge. The field holds the keyboard whenever the list is open, so no focus look either: its caret is the sign.
+    .ui-search__head.ui-input--ghost {
         margin: -@ui-space-1 -@ui-space-1 0;
+    }
+
+    .ui-search > .ui-select__popup > .ui-search__head.ui-input--ghost > .ui-search__field {
         border-style: none none solid none;
         border-color: var(--ui-color-border);
         border-radius: 0;
         background: none;
+        outline: none;
         min-height: 2.25rem;
         padding: 0 @ui-space-3;
     }

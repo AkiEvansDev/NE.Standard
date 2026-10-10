@@ -6,7 +6,6 @@ using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -15,7 +14,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// A single-line text input for entering free-form text.
 /// </summary>
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
-public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent
+[UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
+[UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
+public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
     private readonly FieldActions _actions = new();
@@ -98,11 +99,6 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
         return Self;
     }
 
-    /// <inheritdoc/>
-    [Translatable]
-    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public UIPhrase? Placeholder { get; set; }
-
     /// <summary>
     /// Gets or sets the semantic input type (e.g. text, password, email).
     /// </summary>
@@ -114,12 +110,6 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     public int? MaxLength { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether leading and trailing whitespace is trimmed from the input.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? TrimInput { get; set; }
 
     /// <summary>
     /// Gets or sets how long after the viewer stops typing the value is committed, in milliseconds; unset, it
@@ -178,7 +168,7 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
 
     /// <summary>
     /// Runs <paramref name="command"/> on Escape as a cancel: the field goes back to its last committed value, sending nothing typed
-    /// since, and leaves the focus as Escape does; without it Escape commits and leaves.
+    /// since, and leaves the focus as Escape does; without it, or with <see cref="CancelOnEscape"/> off, Escape commits and leaves.
     /// </summary>
     public T OnEscape(string command)
         => On(EventNames.Escape, command);

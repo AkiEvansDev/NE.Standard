@@ -1,7 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import { SliderMinDistanceAttribute } from "../addressing/dom-attributes.ts";
-import type { DomRegistry } from "../addressing/dom-registry.ts";
-import { getIdValue } from "../metadata/metadata-index.ts";
+import { componentParts } from "../addressing/dom-registry.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
@@ -30,9 +29,7 @@ const ReadingPropertyNames = new Set(["Value", "EndValue", "Min", "Max"]);
 
 export type RangeValueEngineOptions = {
     readonly root?: ParentNode;
-
     readonly propertyPatchEngine?: PropertyPatchEngine;
-    readonly dom?: DomRegistry;
 };
 
 /** A press on a range slider's track: the two handles, where they stood, and the one it moves — none until a press on both moves. */
@@ -90,16 +87,13 @@ export class RangeValueEngine {
             if (!ReadingPropertyNames.has(change.propertyName))
                 return;
 
-            const componentId = getIdValue(change.reference.componentId);
+            // The elements the patch landed on, not every one the id names: a package's clone of a template is patched alone.
+            for (const input of componentParts(change.components, `.${RangeInputClass}`) as HTMLInputElement[]) {
+                this.settled.set(input, input.value);
+                this.writeReadings(input);
 
-            for (const component of this.options.dom?.findAllComponents(componentId, change.dynamicParameters) ?? []) {
-                for (const input of component.querySelectorAll<HTMLInputElement>(`.${RangeInputClass}`)) {
-                    this.settled.set(input, input.value);
-                    this.writeReadings(input);
-
-                    if (change.propertyName === (isEndInput(input) ? EndValuePropertyName : ValuePropertyName))
-                        this.reportClamped(input, change.value);
-                }
+                if (change.propertyName === (isEndInput(input) ? EndValuePropertyName : ValuePropertyName))
+                    this.reportClamped(input, change.value);
             }
         });
     }

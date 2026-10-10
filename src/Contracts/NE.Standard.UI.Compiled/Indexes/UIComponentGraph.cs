@@ -146,6 +146,25 @@ public sealed class UIComponentGraph
             : throw new InvalidOperationException($"Component '{componentId}' was not found.");
 
     /// <summary>
+    /// The roots of the item scopes (row templates) a component stands in, outermost first, the component itself included: where each
+    /// key of its row address begins. Empty for a component the graph does not hold.
+    /// </summary>
+    public IReadOnlyList<UIComponentId> GetItemScopes(UIComponentId componentId)
+    {
+        List<UIComponentId> scopes = [];
+
+        for (UIComponentNode? node = TryGet(componentId, out UIComponentNode? own) ? own : null; node is not null; node = node.ParentId is UIComponentId parent && TryGet(parent, out UIComponentNode? above) ? above : null)
+        {
+            if (node.DefinesContextParameter)
+                scopes.Add(node.ComponentId);
+        }
+
+        scopes.Reverse();
+
+        return scopes;
+    }
+
+    /// <summary>
     /// Attempts to get a compiled component id by authoring component id.
     /// </summary>
     public bool TryGetComponentId(string authoringId, out UIComponentId componentId)

@@ -19,6 +19,7 @@ installFakeDom({
 
 const { ItemsSelectionEngine } = await import("../src/interactions/items-selection-engine.ts");
 const { soleControlOf } = await import("../src/interactions/own-control.ts");
+const { notePress, noteKey } = await import("../src/interactions/popup-focus.ts");
 
 function tile(key: string, top: number): FakeElement {
     const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key });
@@ -48,7 +49,7 @@ test("a row that is one button is pressed through the list, whose one stop the l
 
     assert.deepEqual(root.querySelectorAll("button").map(button => button.getAttribute("tabindex")), ["-1", "-1"]);
 
-    root.dispatchEvent(new FakeKeyboardEvent("ArrowDown", root));
+    // Focused from the keyboard, the list's cursor stands on its first row already.
     root.dispatchEvent(new FakeKeyboardEvent("Enter", root));
     root.dispatchEvent(new FakeKeyboardEvent("ArrowDown", root));
 
@@ -60,16 +61,28 @@ test("a row that is one button is pressed through the list, whose one stop the l
     assert.equal(space.defaultPrevented, true);
 });
 
-test("the first arrow into a list with no cursor lights its near end: the first row going down, the last going up", () => {
-    const down = panel(tile("a", 0), tile("b", 40), tile("c", 80));
+test("a list the pointer focused shows no cursor, and its first arrow lights its near end: the first row going down, the last going up", () => {
+    // A press focuses the list; the key that follows is noted as the window's listener notes it, ahead of the list.
+    const arrive = (): FakeElement => {
+        notePress(null);
 
-    down.root.dispatchEvent(new FakeKeyboardEvent("ArrowDown", down.root));
-    assert.equal(down.root.querySelector("[data-ui-row-focus]")?.getAttribute("data-ui-key"), "a");
+        const { root } = panel(tile("a", 0), tile("b", 40), tile("c", 80));
 
-    const up = panel(tile("a", 0), tile("b", 40), tile("c", 80));
+        assert.equal(root.querySelector("[data-ui-row-focus]"), null);
 
-    up.root.dispatchEvent(new FakeKeyboardEvent("ArrowUp", up.root));
-    assert.equal(up.root.querySelector("[data-ui-row-focus]")?.getAttribute("data-ui-key"), "c");
+        return root;
+    };
+    const arrow = (root: FakeElement, key: string): string | null => {
+        const domEvent = new FakeKeyboardEvent(key, root);
+
+        noteKey(real<Event>(domEvent));
+        root.dispatchEvent(domEvent);
+
+        return root.querySelector("[data-ui-row-focus]")?.getAttribute("data-ui-key") ?? null;
+    };
+
+    assert.equal(arrow(arrive(), "ArrowDown"), "a");
+    assert.equal(arrow(arrive(), "ArrowUp"), "c");
 });
 
 test("a row of several controls, or of a field, is not one control", () => {

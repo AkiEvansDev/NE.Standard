@@ -54,6 +54,7 @@ public sealed class AnnounceEffect : ClientEffect
     public override string Kind => ClientEffectKinds.Announce;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>

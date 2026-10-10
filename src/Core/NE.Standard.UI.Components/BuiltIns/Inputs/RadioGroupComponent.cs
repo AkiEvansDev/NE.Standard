@@ -12,12 +12,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A group of radio buttons that lets the user select a single option from a list.
 /// </summary>
+[UIComponentPropertyBlock(typeof(ISizedInputComponent))]
 public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent
     where T : RadioGroupComponent<T>, IUIComponentDefinition
 {
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ISizedInputComponent), DefaultValue = UIInputSize.Medium)]
-    public UIInputSize? Size { get; set; }
+    private readonly DefaultTextTemplate _optionTemplate = new DefaultTextTemplate(binds: true)
+        .SetIconAlignment(UITextIconAlignment.Title)
+        .SetBadgeAlignment(UITextBadgeAlignment.Title);
 
     /// <summary>
     /// Gets or sets the layout orientation of the radio buttons.
@@ -36,10 +37,30 @@ public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase
     /// </summary>
     protected RadioGroupComponent(string? id = null) : base(id)
     {
-        // Content, not Title: an option is a list row, so its glyph stands for both lines.
-        _ = SetTemplate(new DefaultTextTemplate(binds: true).SetIconAlignment(UITextIconAlignment.Content));
+        // Title, as a checkbox's: an option's dot stands on its title's line, and its glyph and badge beside it.
+        _ = SetTemplate(_optionTemplate);
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
         _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
+    }
+
+    /// <summary>
+    /// Sets where an option's icon sits against its text: on the title's line (the default) or centred across title and description.
+    /// The default option template's; a template of the author's own says its own.
+    /// </summary>
+    public T SetIconAlignment(UITextIconAlignment alignment)
+    {
+        _ = _optionTemplate.SetIconAlignment(alignment);
+        return Self;
+    }
+
+    /// <summary>
+    /// Sets where an option's badge sits against its text: at the title line's end (the default) or centred across title and
+    /// description. The default option template's; a template of the author's own says its own.
+    /// </summary>
+    public T SetBadgeAlignment(UITextBadgeAlignment alignment)
+    {
+        _ = _optionTemplate.SetBadgeAlignment(alignment);
+        return Self;
     }
 }
 

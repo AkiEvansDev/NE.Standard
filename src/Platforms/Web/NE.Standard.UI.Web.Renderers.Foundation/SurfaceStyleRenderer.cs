@@ -44,7 +44,11 @@ public static class SurfaceStyleRenderer
         WebDomOperation.Style("--ui-surface-image-blur", converter: WebDomConverters.BackgroundImageBlurCss),
         WebDomOperation.Attribute(WebAttributes.SurfaceImageBlur, converter: WebDomConverters.BackgroundImageBlurAttribute)
     ];
-    private static readonly WebDomOperation[] SurfaceOperations = [WebDomOperation.Class(converter: WebDomConverters.SurfaceStyleClass)];
+
+    /// <summary>The operation that writes a Surface's class, which a renderer whose Surface does more starts its own list with.</summary>
+    public static readonly WebDomOperation SurfaceClassOperation = WebDomOperation.Class(converter: WebDomConverters.SurfaceStyleClass);
+
+    private static readonly WebDomOperation[] SurfaceOperations = [SurfaceClassOperation];
 
     public static void RenderBackground(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
     {
@@ -111,14 +115,19 @@ public static class SurfaceStyleRenderer
     }
 
     public static void RenderSurface(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)
+        => RenderSurface(context, target, property, SurfaceOperations);
+
+    /// <summary>Renders a Surface patched by <paramref name="operations"/>, which start with <see cref="SurfaceClassOperation"/>.</summary>
+    public static void RenderSurface(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, WebDomOperation[] operations)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(operations);
 
         _ = WebComponentRendererBase.RenderProperty<UISurfaceStyle?>(context, target, property, static (element, value) =>
         {
             if (value is UISurfaceStyle surface)
                 _ = element.Class(WebClassNames.SurfaceStyle(surface));
-        }, SurfaceOperations);
+        }, operations);
     }
 }

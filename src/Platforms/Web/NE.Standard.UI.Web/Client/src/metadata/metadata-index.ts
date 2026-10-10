@@ -233,6 +233,8 @@ export type WebDomOperation = {
     readonly value?: string | null;
     // The target is a part only some instances render; an instance without it is not worth a warning.
     readonly optional?: boolean | null;
+    // The converter decides a null value too, rather than null removing the attribute before it is asked.
+    readonly convertsNull?: boolean | null;
 };
 
 type WebDomOperationKindName =
@@ -360,6 +362,8 @@ export type UICommandRequest = {
     // The id of an action the server offered the page (a notification's), run once.
     readonly action?: string;
     readonly dynamicParameters: readonly unknown[];
+    // The keys staged beside the hub, in place of `dynamicParameters`, where they are too large for it (docs/VALUES.md §2).
+    readonly dynamicParametersToken?: string;
     // Echoed on a background command's pushed result; the dispatcher gives one to every request it sends.
     readonly requestId?: number;
 };
@@ -584,6 +588,8 @@ export type SystemNotificationClientEffect = ClientEffect & {
     readonly tag?: string;
     readonly icon?: string;
     readonly address?: string;
+    // The words of the fallback toast's button that leads to the address; none for the framework's "Open".
+    readonly addressLabel?: Phrase | AuthorText;
     readonly silent?: boolean;
     readonly requireInteraction?: boolean;
     // The command a click runs, offered for one press; its words are the fallback toast's button.

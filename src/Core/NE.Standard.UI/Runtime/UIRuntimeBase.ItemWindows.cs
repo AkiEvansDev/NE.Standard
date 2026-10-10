@@ -29,9 +29,10 @@ internal abstract partial class UIRuntimeBase
     private const int DefaultRuleWindowSize = 50;
 
     /// <summary>
-    /// One client write that a source has to approve, held aside so applying it need not await author code under the state lock.
+    /// One client write that a source has to approve, held aside so applying it need not await author code under the state lock;
+    /// <see cref="Value"/> is the update's value as its input's format reads it.
     /// </summary>
-    private readonly record struct PendingSourceWrite(UIItemSourceBase Source, CompiledUIBinding Binding, object?[] DynamicParameters, string ItemKey, string ItemProperty, object? Value, RecursivePath Path);
+    private readonly record struct PendingSourceWrite(UIItemSourceBase Source, CompiledUIBinding Binding, ClientValueUIUpdate Update, string ItemKey, string ItemProperty, object? Value, RecursivePath Path);
 
     /// <summary>
     /// A windowed host whose rules read controller state, with the paths a change to which invalidates the
@@ -63,6 +64,9 @@ internal abstract partial class UIRuntimeBase
         // method rather than two, since each would allocate its own task for the answer.
         await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
         ThrowIfAskedToGo();
+
+        // The source's read is the requesting tab's, as a command is the tab's that raised it.
+        using IDisposable invocation = BeginInvocation(requester);
 
         try
         {
@@ -112,7 +116,7 @@ internal abstract partial class UIRuntimeBase
 
         PathSegment window = resolution.Path[^1];
 
-        if (window.Kind != PathSegmentKind.Property || !string.Equals(window.Property, UIItemSourceBase.WindowProperty, StringComparison.Ordinal))
+        if (!IsWindowSegment(window))
             throw new InvalidOperationException($"Component '{componentId}' binds '{resolution.Path}', which does not address a source window.");
 
         RecursivePath sourcePath = resolution.Path.Take(resolution.Path.Count - 1);
@@ -120,6 +124,10 @@ internal abstract partial class UIRuntimeBase
         return TryGetControllerValue(sourcePath) as UIItemSourceBase
             ?? throw new InvalidOperationException($"Path '{sourcePath}' does not resolve to an item source.");
     }
+
+    /// <summary>Whether a path segment reads a source's window (<see cref="UIItemSourceBase.WindowProperty"/>), where a windowed host binds.</summary>
+    private static bool IsWindowSegment(PathSegment segment)
+        => segment.Kind == PathSegmentKind.Property && string.Equals(segment.Property, UIItemSourceBase.WindowProperty, StringComparison.Ordinal);
 
     /// <summary>
     /// Resolves the viewer's <c>Query</c> and the host's <c>ItemsView</c> rules into the query the source is asked to answer.
@@ -242,7 +250,8 @@ internal abstract partial class UIRuntimeBase
 
             for (var j = 0; j < host.RulePaths.Length; j++)
             {
-                if (!IsSameOrAncestorPath(path, host.RulePaths[j]))
+                // The rule's own path or one enclosing it: replacing an object replaces every value inside it.
+                if (!IsSameOrDescendantPath(path, host.RulePaths[j]))
                     continue;
 
                 _ = (_dirtyItemWindows ??= []).Add(host.ComponentId);
@@ -284,8 +293,7 @@ internal abstract partial class UIRuntimeBase
 
         return resolution.Source.Kind == CompiledUIBindingSourceKind.Controller
             && resolution.Path.Count > 0
-            && resolution.Path[^1] is { Kind: PathSegmentKind.Property } window
-            && string.Equals(window.Property, UIItemSourceBase.WindowProperty, StringComparison.Ordinal);
+            && IsWindowSegment(resolution.Path[^1]);
     }
 
     private RecursivePath[]? TryGetRulePathsNoLock(UIComponentId componentId)
@@ -321,27 +329,6 @@ internal abstract partial class UIRuntimeBase
             ? size
             : DefaultRuleWindowSize;
 
-    /// <summary>
-    /// Whether a change to <paramref name="changed"/> changes what <paramref name="rule"/> reads — the same
-    /// path, or one enclosing it, since replacing an object replaces every value inside it.
-    /// </summary>
-    private static bool IsSameOrAncestorPath(RecursivePath changed, RecursivePath rule)
-    {
-        if (changed.Count > rule.Count)
-            return false;
-
-        ReadOnlySpan<PathSegment> left = changed.AsSpan();
-        ReadOnlySpan<PathSegment> right = rule.AsSpan();
-
-        for (var i = 0; i < left.Length; i++)
-        {
-            if (!left[i].Equals(right[i]))
-                return false;
-        }
-
-        return true;
-    }
-
     private List<UIComponentId>? DrainDirtyItemWindowsNoLock()
     {
         if (_dirtyItemWindows is not { Count: > 0 })
@@ -355,18 +342,26 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Appends what re-reading the invalidated windows produced to a change set about to travel.
+    /// Appends what re-reading the invalidated windows produced to the change set the drain that found them stale took, sent in a turn
+    /// of its own where <paramref name="publish"/>.
     /// </summary>
-    private async Task<ServerChangeSet> AppendItemWindowReloadsAsync(ServerChangeSet changes, List<UIComponentId>? staleWindows, DrainTarget target, CancellationToken cancellationToken)
-        => staleWindows is null
-            ? changes
-            : AppendUpdates(changes, await ReloadItemWindowsAsync(staleWindows, target, cancellationToken).ConfigureAwait(false));
+    private async Task<ServerChangeSet> AppendItemWindowReloadsAsync(ServerChangeSet changes, List<UIComponentId>? staleWindows, DrainTarget target, bool publish, CancellationToken cancellationToken)
+    {
+        if (staleWindows is null)
+            return changes;
+
+        // Outside every turn: the source's read may await this runtime.
+        await ReloadItemWindowsAsync(staleWindows, cancellationToken).ConfigureAwait(false);
+
+        ServerChangeSet reloaded = await InSendOrderAsync(() => TakeReloadedTurnAsync(target, publish, cancellationToken), cancellationToken).ConfigureAwait(false);
+
+        return AppendUpdates(changes, reloaded);
+    }
 
     /// <summary>
-    /// Reads each invalidated window again from the start, since a changed filter makes the previous offset meaningless, and takes
-    /// what that queued for the same caller the drain that found them stale was for.
+    /// Reads each invalidated window again from the start, since a changed filter makes the previous offset meaningless.
     /// </summary>
-    private async Task<ServerChangeSet> ReloadItemWindowsAsync(List<UIComponentId> components, DrainTarget target, CancellationToken cancellationToken)
+    private async Task ReloadItemWindowsAsync(List<UIComponentId> components, CancellationToken cancellationToken)
     {
         for (var i = 0; i < components.Count; i++)
         {
@@ -408,18 +403,29 @@ internal abstract partial class UIRuntimeBase
                 _ = await HandleRuntimeExceptionAsync(exception, "ReloadItemWindow", commandRequest: null, clientChangeSet: null, cancellationToken).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    /// Takes what the re-reads queued, for the same caller the drain that found the windows stale was for, and sends it where
+    /// <paramref name="publish"/>; a window a re-read left stale waits for the next drain.
+    /// </summary>
+    private async Task<ServerChangeSet> TakeReloadedTurnAsync(DrainTarget target, bool publish, CancellationToken cancellationToken)
+    {
+        ServerChangeSet reloaded;
 
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             DrainControllerChangesNoLock();
 
-            return TakePendingUpdatesNoLock(target);
+            reloaded = TakePendingUpdatesNoLock(target);
         }
         finally
         {
             _ = _stateLock.Release();
         }
+
+        return publish ? await PublishChangesAsync(reloaded, cancellationToken).ConfigureAwait(false) : reloaded;
     }
 
     /// <summary>
@@ -439,13 +445,8 @@ internal abstract partial class UIRuntimeBase
         PathSegment key = path[^2];
         PathSegment window = path[^3];
 
-        if (property.Kind != PathSegmentKind.Property ||
-            key.Kind != PathSegmentKind.Key ||
-            window.Kind != PathSegmentKind.Property ||
-            !string.Equals(window.Property, UIItemSourceBase.WindowProperty, StringComparison.Ordinal))
-        {
+        if (property.Kind != PathSegmentKind.Property || key.Kind != PathSegmentKind.Key || !IsWindowSegment(window))
             return false;
-        }
 
         if (TryGetControllerValue(path.Take(path.Count - 3)) is not UIItemSourceBase source)
             return false;
@@ -453,7 +454,7 @@ internal abstract partial class UIRuntimeBase
         pending = new PendingSourceWrite(
             source,
             resolution.Binding,
-            update.DynamicParameters,
+            update,
             key.Key,
             property.Property,
             update.Value,
@@ -464,9 +465,10 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Hands each held-aside write to its source, answering with the item's actual value for each write the source refuses.
+    /// Hands each held-aside write to its source, answering with the item's actual value for each write the source refuses; one it
+    /// accepts is held as an inline write is, so the writer is not sent its own value back.
     /// </summary>
-    private async Task<List<ServerUIUpdate>?> ApplySourceWritesAsync(List<PendingSourceWrite> writes, CancellationToken cancellationToken)
+    private async Task<List<ServerUIUpdate>?> ApplySourceWritesAsync(List<PendingSourceWrite> writes, string writerInstanceId, CancellationToken cancellationToken)
     {
         List<ServerUIUpdate>? refusals = null;
 
@@ -478,13 +480,19 @@ internal abstract partial class UIRuntimeBase
                 .TryWriteAsync(write.ItemKey, write.ItemProperty, write.Value, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (accepted)
-                continue;
-
             await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                (refusals ??= []).Add(BuildServerValueNoLock(write.Binding, write.Path, write.DynamicParameters));
+                if (!accepted)
+                {
+                    (refusals ??= []).Add(BuildServerValueNoLock(write.Binding, write.Path, BindingKeys(write.Update, write.Binding)));
+                    continue;
+                }
+
+                HoldWrittenValueNoLock(write.Update, write.Binding, writerInstanceId);
+
+                if (ClearRejectionNoLock(write.Update) is { } cleared)
+                    (refusals ??= []).Add(cleared);
             }
             finally
             {

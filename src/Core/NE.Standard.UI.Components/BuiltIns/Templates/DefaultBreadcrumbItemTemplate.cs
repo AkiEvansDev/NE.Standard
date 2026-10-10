@@ -24,10 +24,9 @@ public abstract class DefaultBreadcrumbItemTemplate<TTemplate> : BreadcrumbItemC
         {
             _ = this.BindTextBase();
 
-            _ = Bind(VisibilityProperty, nameof(ITextBaseModel.Visibility), UIBindingScope.Relative);
-            _ = Bind(EnabledProperty, nameof(ITextBaseModel.Enabled), UIBindingScope.Relative);
+            _ = this.BindItemState();
 
-            _ = Bind(UrlProperty, nameof(IBreadcrumbItemModel.Url), UIBindingScope.Relative);
+            _ = Bind(UrlProperty, nameof(IBreadcrumbItemModel.Url), UIBindingScope.Relative, optional: true);
         }
     }
 }

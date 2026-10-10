@@ -57,7 +57,8 @@ export function orderPeriod(period: Period): Period {
     return period;
 }
 
-function withTime(day: Date, timeOf: Date): Date {
+/** The day at the hour, minute and second another moment holds. */
+export function withTime(day: Date, timeOf: Date): Date {
     return localDate(day.getFullYear(), day.getMonth(), day.getDate(), timeOf.getHours(), timeOf.getMinutes(), timeOf.getSeconds());
 }
 

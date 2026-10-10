@@ -3,21 +3,16 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
 /// <summary>
 /// A file input that lets the user select one or more files to upload.
 /// </summary>
+[UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 public abstract partial class FileInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IMaxFileSizeComponent
     where T : FileInputComponent<T>, IUIComponentDefinition
 {
-    /// <inheritdoc/>
-    [Translatable]
-    [UIComponentProperty(Contract = typeof(IPlaceholderInputComponent), DefaultValue = null)]
-    public UIPhrase? Placeholder { get; set; }
-
     /// <summary>
     /// Gets or sets the accepted file types, expressed as a comma-separated list of extensions or MIME types.
     /// </summary>
