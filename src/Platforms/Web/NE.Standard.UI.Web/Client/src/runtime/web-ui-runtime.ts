@@ -56,7 +56,7 @@ import { TabMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions/
 import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { TimestampEngine } from "../interactions/timestamp-engine";
-import { holdAtEnd, isEndAnchored, ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
+import { holdAtEnd, holdsOlderWindow, isEndAnchored, ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
 import { SurfacePressEngine } from "../interactions/surface-press-engine";
 import { TextSelectionEngine } from "../interactions/text-selection-engine";
 import { ScrollGroupEngine } from "../interactions/scroll-group-engine";
@@ -1462,8 +1462,8 @@ function contentRegion(): HTMLElement | null {
 
 /**
  * The document and the content as a page load shows them: every scroller in the content at its start, or at its end where it is
- * anchored there, held at it as a page's first look holds it — a windowed host's window placed after by its engine. A side keeps
- * where its reader left it.
+ * anchored there, held at it as a page's first look holds it — a windowed host whose window stops short of the source's end placed
+ * after by its engine. A side keeps where its reader left it.
  */
 function showFromStart(content: HTMLElement | null): void {
     document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -1472,7 +1472,9 @@ function showFromStart(content: HTMLElement | null): void {
         return;
 
     for (const scroller of [content, ...content.querySelectorAll<HTMLElement>("*")]) {
-        if (isEndAnchored(scroller) && resolveHostMode(scroller) !== "windowed") {
+        // A windowed feed at the source's end is held there too: left at its top, its engine places only a window that starts past
+        // the source's first row, and a padding or a row drawn after the switch would leave it wherever the race put it.
+        if (isEndAnchored(scroller) && !(resolveHostMode(scroller) === "windowed" && holdsOlderWindow(scroller))) {
             holdAtEnd(scroller);
             scroller.scrollTo({ top: scroller.scrollHeight, left: 0, behavior: "instant" });
         }

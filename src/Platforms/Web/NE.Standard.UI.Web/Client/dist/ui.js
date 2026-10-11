@@ -24221,7 +24221,7 @@ function rQ(e) {
 		top: 0,
 		left: 0,
 		behavior: "instant"
-	}), e !== null) for (let t of [e, ...e.querySelectorAll("*")]) CV(t) && B(t) !== "windowed" ? (vV(t), t.scrollTo({
+	}), e !== null) for (let t of [e, ...e.querySelectorAll("*")]) CV(t) && !(B(t) === "windowed" && wV(t)) ? (vV(t), t.scrollTo({
 		top: t.scrollHeight,
 		left: 0,
 		behavior: "instant"

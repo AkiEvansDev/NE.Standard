@@ -235,7 +235,7 @@ export function isEndAnchored(container: Element): boolean {
 }
 
 /** Whether the container is a windowed host whose window has newer items after it, so its end is not the newest content. */
-function holdsOlderWindow(container: Element): boolean {
+export function holdsOlderWindow(container: Element): boolean {
     return readWindowFlag(container, WindowMoreAfterAttribute);
 }
 
