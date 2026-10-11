@@ -8,7 +8,7 @@ internal abstract class DemoView : UIViewBase
     /// The title band and the sidebar stand, the sidebar from the top of the page; the content scrolls by itself; on a phone the
     /// sidebar is a drawer the header opens, the framework's default. Only the notification page overrides it.
     /// </summary>
-    public override UIViewOptions Options { get; } = new() { StickyHeader = true, ScrollContentOnly = true, ShellLayout = UIShellLayout.FullHeightSides };
+    public override UIViewOptions Options { get; } = new() { StickyHeader = true, ScrollContentOnly = true, ShellLayout = UIShellLayout.FullHeightSides, SideDrawers = UISideDrawers.BelowXl };
 
     protected abstract string ComponentRoute { get; }
     protected abstract string Header { get; }

@@ -22,15 +22,17 @@ public static class CollapsibleChromeRenderer
     private const string ToggleClassName = "ui-collapsible__toggle";
     private const string BarClassName = "ui-collapsible__bar";
     private const string BarContentClassName = "ui-collapsible__bar-content";
+    private const string PinClassName = "ui-collapsible__pin";
     private const string CollapsedAttribute = WebAttributes.Collapsed;
     private const string ToggleAttribute = WebAttributes.CollapseToggle;
 
     /// <summary>
     /// Writes the chrome; a control that takes a shape with nothing to fold (<paramref name="folds"/> false, a menu's rail) keeps its
     /// edge, its toggle content and its switch but no fold: a rail kept a phone's drawer is drawn there as a list, whose switch puts the
-    /// drawer away, and the rail's own styles hide both.
+    /// drawer away, and the rail's own styles hide both. <paramref name="pinSide"/> names the side whose drawer a pin at the end of the
+    /// top row pins (a sidebar menu's <c>DrawerPin</c>); the row stands for it even with nothing else beside the switch.
     /// </summary>
-    public static void RenderCollapsible(WebRenderContext context, IHtmlElementBuilder root, bool folds = true)
+    public static void RenderCollapsible(WebRenderContext context, IHtmlElementBuilder root, bool folds = true, string? pinSide = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -55,8 +57,10 @@ public static class CollapsibleChromeRenderer
 
         var show = toggle == true;
 
+        var hasContent = context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out _, RegionNames.ToggleContent);
+
         // With content of its own beside it, the toggle stands in a row with that content; without, it is the root's own child.
-        if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out _, RegionNames.ToggleContent))
+        if (!hasContent && pinSide is null)
         {
             if (show)
                 RenderToggle(context, root);
@@ -70,13 +74,33 @@ public static class CollapsibleChromeRenderer
             _ = bar.Element("div", content =>
             {
                 _ = content.Class(BarContentClassName);
-                WebComponentRendererBase.RenderRegion(context, content, RegionNames.ToggleContent);
+
+                if (hasContent)
+                    WebComponentRendererBase.RenderRegion(context, content, RegionNames.ToggleContent);
             });
 
             if (show)
                 RenderToggle(context, bar);
+
+            if (pinSide is not null)
+                RenderPin(context, bar, pinSide);
         });
     }
+
+    /// <summary>
+    /// Renders a drawer's pin, which side-drawer-engine.ts presses and the stylesheet shows only where pinning means something; its pin
+    /// is drawn in CSS, as the toggle's burger is.
+    /// </summary>
+    private static void RenderPin(WebRenderContext context, IHtmlElementBuilder bar, string side)
+        => _ = bar.Element("button", pin =>
+        {
+            _ = pin.Class(PinClassName);
+            _ = pin.Attribute("type", "button");
+            _ = pin.Attribute(WebAttributes.DrawerPin, side);
+            _ = pin.Attribute("aria-pressed", "false");
+            _ = pin.Attribute("aria-controls", WebAttributes.DrawerId(side));
+            WebWords.Write(context, pin, "aria-label", UIStrings.SidePin);
+        });
 
     /// <summary>Renders the collapse toggle; its burger is drawn in CSS, as a host need install no icon pack.</summary>
     private static void RenderToggle(WebRenderContext context, IHtmlElementBuilder parent)

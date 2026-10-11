@@ -27,7 +27,7 @@ function shell(): { root: FakeElement; toggle: FakeElement; drawer: FakeElement;
     const toggle = FakeElement.of("", { "data-ui-drawer-toggle": "left" }, "button");
     const search = new FakeInput("search");
     const drawer = FakeElement.of("", { "data-ui-region": "left" }).append(new FakeElement().append(search));
-    const root = FakeElement.of("", { "data-ui-root": "" }).append(FakeElement.of("", { "data-ui-region": "header" }).append(toggle), drawer);
+    const root = FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "md" }).append(FakeElement.of("", { "data-ui-region": "header" }).append(toggle), drawer);
 
     fakeDocument.body.children.length = 0;
     fakeDocument.body.append(root);

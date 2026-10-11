@@ -1,27 +1,36 @@
 // A splitter re-divides its container's tracks on the client and keeps the viewer's division in the browser: the
-// container's Columns/Rows are not bindable, and a drag is nobody's application state.
+// container's Columns/Rows are not bindable. A bound Position also gives the share to the controller and takes it from there.
 
-import { ColumnLimitsAttribute, RowLimitsAttribute, SplitFoldedAttribute, SplitterStepAttribute } from "../addressing/dom-attributes";
-import { currentResponsiveTier, resolveTier, ResponsiveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier";
-import { OnceWarner } from "../runtime/logger";
-import { ClientBootPatch, ClientStore } from "../state/client-store";
-import { observeComponents } from "./dom-mutations";
-import { isInert } from "./interactive-state";
-import { isPlainKey } from "./keyboard-shortcut";
-import { PointerDrag } from "./pointer-drag";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { BindPositionAttribute, ColumnLimitsAttribute, RowLimitsAttribute, SplitEdgeAttribute, SplitFoldedAttribute, SplitterPositionAttribute, SplitterStepAttribute } from "../addressing/dom-attributes.ts";
+import { currentResponsiveTier, resolveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier.ts";
+import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
+import { OnceWarner } from "../runtime/logger.ts";
+import { ClientStore } from "../state/client-store.ts";
+import type { ClientBootPatch } from "../state/client-store.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { observeSize } from "./element-size.ts";
+import { isInert } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { PointerDrag } from "./pointer-drag.ts";
 import {
     applyGridTrackLimits,
     bigStep,
     coversNoRoom,
+    foldDelta,
+    FoldPixels,
     formatGridTracks,
-    GridSplitRuns,
-    GridTrack,
     moveSplit,
+    narrowRunTracks,
     parseGridTrackLimits,
     parseGridTracks,
+    parseShare,
     resolveSplitRuns,
-    splitPercent
-} from "./grid-tracks";
+    shareDelta,
+    splitPercent,
+    splitShare
+} from "./grid-tracks.ts";
+import type { GridSplitRuns, GridTrack } from "./grid-tracks.ts";
 
 const RootClass = "ui-grid-splitter";
 const ContainerClass = "ui-container";
@@ -75,6 +84,7 @@ type StoredSplit = Partial<Record<ResponsiveTier, string>>;
 
 /** What a splitter knows about its place when a gesture starts. */
 type SplitContext = {
+    readonly splitter: HTMLElement;
     readonly container: HTMLElement;
     readonly axis: SplitAxis;
     readonly tracks: readonly GridTrack[];
@@ -96,6 +106,12 @@ export class GridSplitterEngine {
     private readonly warner = new OnceWarner();
     private readonly drag: PointerDrag<SplitContext>;
 
+    // The width a bound bar was last placed at: another tier has tracks of its own, which the same share is placed on once.
+    private readonly placedTiers = new WeakMap<HTMLElement, ResponsiveTier>();
+
+    // A bar with a share the page did not show yet, and what stops watching its box.
+    private readonly waiting = new WeakMap<HTMLElement, () => void>();
+
     public constructor(options: GridSplitterEngineOptions = {}) {
         this.root = options.root ?? document;
 
@@ -104,12 +120,16 @@ export class GridSplitterEngine {
             resolveHandle: target => target.closest<HTMLElement>(`.${RootClass}`),
             begin: splitter => this.resolveContext(splitter),
             coordinate: context => context.axis.coordinate,
+            // The bar follows the pointer all the way, a side too narrow for its panes showing none of them; let go there, it folds.
             move: (context, delta) => {
-                this.apply(context, delta);
+                if (this.apply(context, delta, 0))
+                    this.reportPosition(context.splitter, true);
             },
             end: (splitter, context) => {
+                this.foldNarrow(splitter);
                 this.remember(context);
                 this.reportPosition(splitter);
+                this.writeBack(splitter, context);
             }
         });
 
@@ -120,13 +140,12 @@ export class GridSplitterEngine {
 
         observeComponents(this.root, `.${RootClass}`, { childList: true }, splitters => this.prepareEach(splitters));
 
-        // Another width may bring another tier's tracks: a folded pane is measured again, and given back once its tracks have room.
-        window.addEventListener("resize", () => this.reportEach());
-    }
+        // A share the controller pushed; none on a bound bar puts the authored tracks back.
+        observeComponents(this.root, `.${RootClass}`, { attributeFilter: [SplitterPositionAttribute] }, splitters => this.takeEach(splitters));
 
-    private reportEach(): void {
-        for (const splitter of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`))
-            this.reportPosition(splitter);
+        // Another width may bring another tier's tracks: a folded pane is measured again, and given back once its tracks have room;
+        // a bound bar is placed on the new tier's tracks at its share.
+        window.addEventListener("resize", () => this.reportEach());
     }
 
     private prepareEach(splitters: Iterable<HTMLElement>): void {
@@ -137,6 +156,7 @@ export class GridSplitterEngine {
                 continue;
 
             this.restore(container, axisOf(splitter));
+            this.place(splitter);
             this.reportPosition(splitter);
         }
     }
@@ -166,6 +186,84 @@ export class GridSplitterEngine {
 
             if (template !== undefined && container.style.getPropertyValue(variable).length === 0)
                 container.style.setProperty(variable, template);
+        }
+    }
+
+    /**
+     * Moves the bar to the share its `Position` holds, at the width in force, and keeps that division as a drag's is kept, so the
+     * next page paints it first. Within a pixel the bar already stands there: the share a drag wrote back comes round to this too.
+     * Unbound, the share is the authored starting division, and a division the viewer left at this width stands over it.
+     */
+    private place(splitter: HTMLElement): void {
+        const share = readShareAttribute(splitter);
+
+        if (share === null)
+            return;
+
+        // A bar the page does not show (a hidden tab, a folded panel, a width that hides it) has no track to find.
+        if (splitter.getClientRects().length === 0) {
+            this.waitForBox(splitter);
+            return;
+        }
+
+        this.stopWaiting(splitter);
+
+        const context = this.resolveContext(splitter);
+
+        if (context === null)
+            return;
+
+        this.placedTiers.set(splitter, context.tier);
+
+        if (!splitter.hasAttribute(BindPositionAttribute) && viewerTemplate(context.container, context.axis, context.tier) !== undefined)
+            return;
+
+        const delta = shareDelta(context.sizes, context.runs, share);
+
+        if (Math.abs(delta) >= 1 && this.apply(context, delta))
+            this.remember(context);
+    }
+
+    /** Places a hidden bar once it has a box; it stops watching once placed, removed, or left with no share. */
+    private waitForBox(splitter: HTMLElement): void {
+        if (this.waiting.has(splitter))
+            return;
+
+        this.waiting.set(splitter, observeSize(splitter, () => {
+            if (!splitter.isConnected || readShareAttribute(splitter) === null)
+                this.stopWaiting(splitter);
+            else if (splitter.getClientRects().length > 0) {
+                this.place(splitter);
+                this.reportPosition(splitter);
+            }
+        }));
+    }
+
+    private stopWaiting(splitter: HTMLElement): void {
+        this.waiting.get(splitter)?.();
+        this.waiting.delete(splitter);
+    }
+
+    private takeEach(splitters: Iterable<HTMLElement>): void {
+        for (const splitter of splitters) {
+            if (readShareAttribute(splitter) === null && splitter.hasAttribute(BindPositionAttribute))
+                this.reset(splitter, false);
+            else
+                this.place(splitter);
+
+            this.reportPosition(splitter);
+        }
+    }
+
+    private reportEach(): void {
+        const tier = currentResponsiveTier();
+
+        for (const splitter of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)) {
+            // A placed bar on the tracks of a tier it was not placed at yet; one not placed for want of a box waits for it (waitForBox).
+            if (this.placedTiers.has(splitter) && this.placedTiers.get(splitter) !== tier)
+                this.place(splitter);
+
+            this.reportPosition(splitter);
         }
     }
 
@@ -220,11 +318,15 @@ export class GridSplitterEngine {
         if (this.apply(context, delta)) {
             this.remember(context);
             this.reportPosition(splitter);
+            this.writeBack(splitter, context);
         }
     }
 
-    /** Puts the authored layout back on this axis, at every width, and forgets the viewer's division. */
-    private reset(splitter: HTMLElement): void {
+    /**
+     * Puts the authored layout back on this axis, at every width, and forgets the viewer's division — an unbound bar's authored share
+     * included, which it then stands at again; a bound bar tells the controller, unless the controller is who said so.
+     */
+    private reset(splitter: HTMLElement, tell = true): void {
         const container = containerOf(splitter);
 
         if (container === null)
@@ -236,7 +338,32 @@ export class GridSplitterEngine {
             container.style.removeProperty(responsiveVariable(axis.split, tier));
 
         this.store.write(container, axis.slot, null);
+        this.placedTiers.delete(splitter);
+
+        if (!splitter.hasAttribute(BindPositionAttribute))
+            this.place(splitter);
+
         this.reportPosition(splitter);
+
+        if (tell && splitter.hasAttribute(BindPositionAttribute) && splitter.hasAttribute(SplitterPositionAttribute)) {
+            splitter.removeAttribute(SplitterPositionAttribute);
+            splitter.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+    }
+
+    /** A bound bar tells the controller the share it now stands at, as laid out; one that did not move tells nothing. */
+    private writeBack(splitter: HTMLElement, context: SplitContext): void {
+        if (!splitter.hasAttribute(BindPositionAttribute))
+            return;
+
+        const share = formatShare(splitShare(readSizes(context.container, context.axis), context.runs));
+
+        if (splitter.getAttribute(SplitterPositionAttribute) === share)
+            return;
+
+        splitter.setAttribute(SplitterPositionAttribute, share);
+        this.placedTiers.set(splitter, context.tier);
+        splitter.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     private handleDoubleClick(domEvent: Event): void {
@@ -246,9 +373,21 @@ export class GridSplitterEngine {
             this.reset(splitter);
     }
 
-    /** Writes the division `delta` pixels from where the gesture began; answers whether anything moved. */
-    private apply(context: SplitContext, delta: number): boolean {
-        const moved = moveSplit(context.tracks, context.sizes, context.runs, delta);
+    /** A side the bar was let go under `FoldPixels` from folds to nothing. */
+    private foldNarrow(splitter: HTMLElement): void {
+        const context = this.resolveContext(splitter);
+        const delta = context === null ? 0 : foldDelta(context.sizes, context.runs, FoldPixels);
+
+        if (context !== null && delta !== 0)
+            this.apply(context, delta, 0);
+    }
+
+    /**
+     * Writes the division `delta` pixels from where the gesture began; answers whether anything moved. A step (a key, a share) does
+     * not stop in the sliver under `FoldPixels`: it folds the side or opens it to that.
+     */
+    private apply(context: SplitContext, delta: number, sliver = FoldPixels): boolean {
+        const moved = moveSplit(context.tracks, context.sizes, context.runs, delta, sliver);
 
         if (moved === null)
             return false;
@@ -320,11 +459,11 @@ export class GridSplitterEngine {
             return null;
         }
 
-        return { container, axis, tracks, sizes, runs, tier };
+        return { splitter, container, axis, tracks, sizes, runs, tier };
     }
 
-    /** `aria-valuenow`: the share the run before the bar holds, as the layout stands. */
-    private reportPosition(splitter: HTMLElement): void {
+    /** `aria-valuenow`: the share the run before the bar holds, as the layout stands; while `dragging`, a side too narrow shows nothing. */
+    private reportPosition(splitter: HTMLElement, dragging = false): void {
         const container = containerOf(splitter);
 
         if (container === null)
@@ -344,22 +483,41 @@ export class GridSplitterEngine {
         splitter.setAttribute("aria-valuemin", "0");
         splitter.setAttribute("aria-valuemax", "100");
         splitter.setAttribute("aria-valuenow", String(splitPercent(sizes, runs)));
-        foldEmptyPanes(container, axis, sizes);
+
+        const edge = runIsEmpty(sizes, runs.before) ? "before" : runIsEmpty(sizes, runs.after) ? "after" : null;
+
+        if (edge === null)
+            splitter.removeAttribute(SplitEdgeAttribute);
+        else if (splitter.getAttribute(SplitEdgeAttribute) !== edge)
+            splitter.setAttribute(SplitEdgeAttribute, edge);
+
+        foldEmptyPanes(container, dragging ? { axis, tracks: narrowRunTracks(sizes, runs, FoldPixels) } : null);
     }
 }
 
+function runIsEmpty(sizes: readonly number[], run: readonly number[]): boolean {
+    return run.every(index => (sizes[index] ?? 0) < 1);
+}
+
 /**
- * Marks each child whose tracks on the axis are all nothing: squeezed to no width its words stood one a line and stretched the row
- * to their height (`ui-container.less` takes the marked child away). Measured on the tracks, not on the child, so a folded child is
- * found again once a drag or another width gives its tracks room.
+ * Marks each child whose tracks on either split axis are all nothing, or, on the axis a drag moves, all in a side it has taken under
+ * `FoldPixels` (`narrow`): squeezed to no width its words stood one a line and stretched
+ * the row to their height (`ui-container.less` takes the marked child away). Both axes at once, or a bar between rows cleared what
+ * one between columns had marked. Measured on the tracks, not on the child, so a folded child is found again once a drag or another
+ * width gives its tracks room; a splitter only across its own axis, since its own track is as wide as the bar it shows.
  */
-function foldEmptyPanes(container: HTMLElement, axis: SplitAxis, sizes: readonly number[]): void {
+function foldEmptyPanes(container: HTMLElement, narrow: { readonly axis: SplitAxis; readonly tracks: ReadonlySet<number> } | null): void {
+    const axes = [Columns, Rows]
+        .filter(axis => ownSplitters(container, axis).length > 0)
+        .map(axis => ({ axis, sizes: readSizes(container, axis) }));
+
     for (const child of container.children) {
-        if (!(child instanceof HTMLElement) || child.classList.contains(RootClass))
+        if (!(child instanceof HTMLElement))
             continue;
 
         const style = getComputedStyle(child);
-        const folded = coversNoRoom(style[axis.lineStart], style[axis.lineEnd], sizes);
+        const own = child.classList.contains(RootClass) ? axisOf(child) : null;
+        const folded = axes.some(({ axis, sizes }) => axis !== own && coversNoRoom(style[axis.lineStart], style[axis.lineEnd], sizes, narrow?.axis === axis ? narrow.tracks : undefined));
 
         if (folded !== child.hasAttribute(SplitFoldedAttribute))
             child.toggleAttribute(SplitFoldedAttribute, folded);
@@ -379,7 +537,7 @@ function axisOf(splitter: HTMLElement): SplitAxis {
 
 /** The template in force at this tier: the viewer's for this tier or the nearest narrower one, else the authored. */
 function resolveTemplate(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier): string | null {
-    const own = resolveTier(tier, candidate => container.style.getPropertyValue(responsiveVariable(axis.split, candidate)).trim() || undefined);
+    const own = viewerTemplate(container, axis, tier);
 
     if (own !== undefined)
         return own;
@@ -387,6 +545,11 @@ function resolveTemplate(container: HTMLElement, axis: SplitAxis, tier: Responsi
     const authored = container.style.getPropertyValue(axis.authored).trim();
 
     return authored.length > 0 ? authored : null;
+}
+
+/** The viewer's division in force at this tier — its own or the nearest narrower one's — or undefined where the authored is. */
+function viewerTemplate(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier): string | undefined {
+    return resolveTier(tier, candidate => container.style.getPropertyValue(responsiveVariable(axis.split, candidate)).trim() || undefined);
 }
 
 /** Every track's laid-out size: a grid container's computed template is the used sizes, in pixels. */
@@ -418,6 +581,16 @@ function pageDirection(key: string, axis: SplitAxis): number {
         return key === "PageDown" ? 1 : -1;
 
     return key === "PageUp" ? 1 : -1;
+}
+
+/** The share the bar's `Position` holds, or null for none. */
+function readShareAttribute(splitter: HTMLElement): number | null {
+    return parseShare(splitter.getAttribute(SplitterPositionAttribute));
+}
+
+/** Four places: a tenth of a pixel on a wide screen, and one text for one division, so a bar that did not move sends nothing. */
+function formatShare(share: number): string {
+    return String(Math.round(share * 10000) / 10000);
 }
 
 function readStep(splitter: HTMLElement): number {

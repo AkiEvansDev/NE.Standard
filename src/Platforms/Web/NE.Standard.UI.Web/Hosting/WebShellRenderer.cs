@@ -8,6 +8,7 @@ using System.Text.Json;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Assets;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -24,7 +25,6 @@ public static class WebShellRenderer
     private const string NotificationsAttribute = "data-ui-notifications";
     private const string ScrollContentAttribute = "data-ui-scroll-content";
     private const string FullHeightSidesAttribute = "data-ui-full-height-sides";
-    private const string SideDrawersAttribute = "data-ui-side-drawers";
     private const string LeftBarAttribute = "data-ui-left-bar";
     private const string DrawerBackdropClass = "ui-shell__drawer-backdrop";
 
@@ -215,8 +215,14 @@ public static class WebShellRenderer
             if (context.ShellLayout == UIShellLayout.FullHeightSides)
                 _ = root.Attribute(FullHeightSidesAttribute);
 
-            if (context.SideDrawers)
-                _ = root.Attribute(SideDrawersAttribute);
+            // The width below which the sides are drawers, which the stylesheet's bands and the drawers' engine read off the root.
+            if (SideDrawersValue(context.SideDrawers) is string drawers)
+            {
+                _ = root.Attribute(WebAttributes.SideDrawers, drawers);
+
+                if (ModelessDrawers(context) is string modeless)
+                    _ = root.Attribute(WebAttributes.DrawerModeless, modeless);
+            }
 
             // The view's facts the stylesheet reads off the root, written once: neither moves after the first paint.
             if (context.BottomBar)
@@ -229,7 +235,7 @@ public static class WebShellRenderer
                 _ = root.Content(context.Content);
 
             // What an open drawer dims the page under, and a press on it closes the drawer; the stylesheet shows it only then.
-            if (context.SideDrawers)
+            if (context.SideDrawers != UISideDrawers.Never)
                 _ = root.Element("div", backdrop => backdrop.Class(DrawerBackdropClass).Attribute(WebAttributes.DrawerBackdrop));
         });
 
@@ -247,6 +253,27 @@ public static class WebShellRenderer
             });
         }
     }
+
+    /// <summary>The root's word for the width below which the sides are drawers; none where they never are.</summary>
+    private static string? SideDrawersValue(UISideDrawers drawers)
+        => drawers switch
+        {
+            UISideDrawers.BelowMd => "md",
+            UISideDrawers.BelowXl => "xl",
+            UISideDrawers.BelowXxl => "xxl",
+            UISideDrawers.Always => "always",
+            _ => null
+        };
+
+    /// <summary>The sides whose open drawer leaves the page as it is: no veil, and a press beside it reaches the page.</summary>
+    private static string? ModelessDrawers(WebShellContext context)
+        => (context.LeftDrawerModal, context.RightDrawerModal) switch
+        {
+            (false, false) => $"{RegionNames.LeftSide} {RegionNames.RightSide}",
+            (false, true) => RegionNames.LeftSide,
+            (true, false) => RegionNames.RightSide,
+            _ => null
+        };
 
     /// <summary>
     /// A hidden form per FormId, which its fields join by <c>form</c>: beside the root, since a form inside the root's form is dropped by

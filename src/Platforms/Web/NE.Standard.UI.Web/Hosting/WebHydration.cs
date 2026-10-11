@@ -31,7 +31,7 @@ internal sealed class WebHydration
     public string Json { get; }
 
     /// <summary>
-    /// The same values, for the render that paints them — null on a page that has none to paint.
+    /// The same values, for the render that paints them — null on a page with no controller, served from its cached markup.
     /// </summary>
     public IWebRenderValues? Values { get; }
 

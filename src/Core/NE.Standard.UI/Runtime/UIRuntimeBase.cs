@@ -81,7 +81,11 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     private bool _disposed;
     private bool _pendingFullResync;
     private int _fullResyncRequested;
-    private int _commandsInFlight;
+    // Every hold on the runtime in one count, so the last one out disposes it: a command's, posted work's or an accepted run's as 1,
+    // a job's as JobHold, so one read also tells whether a command holds it (CommandHolds), which a job alone does not.
+    private long _commandsInFlight;
+    private const long JobHold = 1L << 32;
+    private const long CommandHolds = JobHold - 1;
     [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Disposing it lets go of one command's hold on this runtime; each holder does that once, and there is nothing else to release.")]
     private readonly CommandRelease _commandRelease;
     private int _disposeRequested;
@@ -177,7 +181,9 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     /// <remarks>Both counters go through full fences, so a command entering either sees the request or is seen by it.</remarks>
     private bool RequestDispose()
     {
-        _ = Interlocked.Exchange(ref _disposeRequested, 1);
+        // The first request alone tells the runtime's own jobs: a later one finds their token's source disposed.
+        if (Interlocked.Exchange(ref _disposeRequested, 1) == 0)
+            CancelLifetime();
 
         // After the request, so a subscription racing it is either dropped here or refused by it.
         LeaveBroadcast();
@@ -218,6 +224,7 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         _exclusiveCommandLock.Dispose();
         _initializeLock.Dispose();
         _sendOrder.Dispose();
+        _lifetime.Dispose();
         Controller.Dispose();
     }
 

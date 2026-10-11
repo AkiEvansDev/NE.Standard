@@ -7,6 +7,7 @@
 
     type BootPatch = {
         readonly selector?: string;
+        readonly root?: boolean;
         readonly attributes?: Readonly<Record<string, string | null>>;
         readonly styles?: Readonly<Record<string, string>>;
     };
@@ -57,8 +58,10 @@
         let complete = true;
 
         for (const patch of patches) {
-            // Every element the selector names, not the first: a tree's fold marks many rows with one patch.
-            const targets = patch.selector === undefined ? [element] : [...element.querySelectorAll(patch.selector)];
+            // Every element the selector names, not the first: a tree's fold marks many rows with one patch. The root is the page's
+            // own, open around the element as the parser hands it over.
+            const root = patch.root === true ? element.closest("[data-ui-root]") : null;
+            const targets = patch.root === true ? (root === null ? [] : [root]) : patch.selector === undefined ? [element] : [...element.querySelectorAll(patch.selector)];
 
             // Never done before the document: the parser hands a long tree over in chunks, and later rows would paint unpatched.
             if (patch.selector !== undefined || targets.length === 0)

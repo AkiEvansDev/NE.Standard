@@ -584,7 +584,7 @@ export function bottomBarTop(fallback: number): number {
 
     const rect = bar.getBoundingClientRect();
 
-    // From the drawer breakpoint up the region is the page's side column, as wide as the rail rather than the window.
+    // Where the view's sides are columns the region is the page's side column, as wide as the rail rather than the window.
     return rect.height > 0 && rect.width >= window.innerWidth - 1 && rect.top > 0 ? rect.top : fallback;
 }
 

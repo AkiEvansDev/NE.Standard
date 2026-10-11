@@ -19,15 +19,20 @@ The framework's packages share one version and are installed together at it. A c
 digits — `1.1.x` goes with the framework's `1.1` — and moves its last digit on its own between framework releases. Until
 2.0.0 the public surface may still move between versions; each changelog marks what breaks.
 
+An application is a class library over the platform-independent packages — its views, controllers, routes and services —
+and a web project that hosts it, so a second platform is a second host over the same library:
+
 ```
-dotnet add package NE.Standard.UI.Web
-dotnet add package NE.Standard.UI.Web.Renderers
+dotnet add App package NE.Standard.UI
+dotnet add App.Web package NE.Standard.UI.Web
+dotnet add App.Web package NE.Standard.UI.Web.Renderers
 ```
 
-The rest of the table arrives as a dependency of those two — the generators that write a controller's observable
-members included — except `NE.Standard.UI.Extensions`, the presets, and `NE.Standard.UI.Testing`, for an
-application's tests: separate installs for an application that wants them. Each package
-brings the namespaces an application writes against as global usings, so the code below needs no `using` line.
+The engine brings the core and the built-in components to the library — the generators that write a controller's observable
+members included — and the web two bring the rest to the host. `NE.Standard.UI.Extensions`, the presets, goes in the library
+and `NE.Standard.UI.Testing` in its test project: separate installs for an application that wants them. An add-on comes in the
+same two halves, the component in the library and its rendering in the host. Each package brings the namespaces an
+application writes against as global usings, so the code below needs no `using` line.
 
 | Package | |
 |---|---|
@@ -125,7 +130,7 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application, 78 routes in all: screens that compose many components into a piece of an
+`examples/DemoApp` is the reference application, 79 routes in all: screens that compose many components into a piece of an
 application (a sign-up, a checkout, a chat, a file editor, the sign-in, account, admin and forbidden pages of the security
 mechanism), pages for what the framework does across components (words, commands, values and validation, large lists, colours),
 and one page per component — a preview beside every bindable property, each row stepping its value, then examples of it in use,

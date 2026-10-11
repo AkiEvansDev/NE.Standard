@@ -1,0 +1,271 @@
+// A pane container's engine over a stand-in DOM: a layout pushed while a pane is lifted waits for it to come down, a hold whose pane
+// was re-rendered away lets the next lift through, a place a splitter folded is no target, and a container nested in a pane that
+// arrives is arranged as its own; a grip shows only over its pane's top band.
+
+import assert from "node:assert/strict";
+import test from "node:test";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+
+class FakePointerEvent extends FakeEvent {
+    public readonly button = 0;
+    public readonly pointerId = 1;
+    public readonly clientX: number;
+    public readonly clientY: number;
+
+    public constructor(type: string, clientX: number, clientY: number) {
+        super(type);
+        this.clientX = clientX;
+        this.clientY = clientY;
+    }
+}
+
+/** A record as the engine reads one: the element it happened on and what was added under it. */
+type FakeRecord = { readonly type: "attributes" | "childList"; readonly target: FakeElement; readonly addedNodes: FakeElement[] };
+
+class FakeObserver {
+    public static readonly all: FakeObserver[] = [];
+    private readonly callback: (records: FakeRecord[]) => void;
+
+    public constructor(callback: (records: FakeRecord[]) => void) {
+        this.callback = callback;
+        FakeObserver.all.push(this);
+    }
+
+    /** Hands the records to every observer, as the browser's would after a push or an arrival. */
+    public static notify(...records: FakeRecord[]): void {
+        for (const observer of FakeObserver.all)
+            observer.callback(records);
+    }
+
+    public observe(): void {
+    }
+}
+
+/** A place moves a pane it is given out of the place it stood in, as the browser's `append` does. */
+class FakePlace extends FakeElement {
+    public override append(...children: FakeElement[]): this {
+        for (const child of children) {
+            child.parent?.children.splice(child.parent.children.indexOf(child), 1);
+            super.append(child);
+        }
+
+        return this;
+    }
+}
+
+const stored = new Map<string, string>();
+
+installFakeDom({
+    window: {
+        addEventListener: () => undefined,
+        localStorage: {
+            getItem: (key: string) => stored.get(key) ?? null,
+            setItem: (key: string, value: string) => void stored.set(key, value),
+            removeItem: (key: string) => void stored.delete(key)
+        }
+    },
+    PointerEvent: FakePointerEvent,
+    MutationObserver: FakeObserver
+});
+
+const { PaneContainerEngine } = await import("../src/interactions/pane-container-engine.ts");
+
+type Workspace = { readonly container: FakeElement; readonly places: FakePlace[]; readonly panes: Map<string, FakeElement>; readonly changes: string[] };
+
+/** A container of panes side by side, a hundred pixels each, the layout bound, on the page under the engine's root. */
+function workspace(names: readonly string[], attributes: Readonly<Record<string, string>> = { "data-ui-bind-layout": "Layout" }): Workspace {
+    const container = FakeElement.of("ui-container ui-pane-container", attributes);
+    const places: FakePlace[] = [];
+    const panes = new Map<string, FakeElement>();
+    const changes: string[] = [];
+
+    names.forEach((name, index) => {
+        const place = new FakePlace();
+        const pane = FakeElement.of("ui-pane-container__pane", { "data-ui-pane": name });
+
+        place.classes.add("ui-pane-container__place");
+        place.attributes.set("data-ui-pane-place", name);
+        place.rect = { left: index * 100, top: 0, width: 100, height: 100 };
+        pane.style.transform = "";
+        pane.append(FakeElement.of("ui-pane-container__grip", {}, "button"));
+        container.append(place.append(pane));
+        places.push(place);
+        panes.set(name, pane);
+    });
+
+    container.addEventListener("change", () => void changes.push(container.getAttribute("data-ui-pane-layout") ?? ""));
+
+    return { container, places, panes, changes };
+}
+
+/** The panes' names in the order of their places, every pane a place holds. */
+function standing(places: readonly FakeElement[]): string[] {
+    return places.map(place => place.children.map(pane => pane.getAttribute("data-ui-pane")).join("+"));
+}
+
+function gripOf(pane: FakeElement | undefined): FakeElement {
+    return pane!.children[0];
+}
+
+function push(container: FakeElement, layout: string): void {
+    container.setAttribute("data-ui-pane-layout", layout);
+    FakeObserver.notify({ type: "attributes", target: container, addedNodes: [] });
+}
+
+function pointer(element: FakeElement, type: string, x: number, y = 50): void {
+    element.dispatchEvent(new FakePointerEvent(type, x, y));
+}
+
+function key(element: FakeElement, name: string): void {
+    element.dispatchEvent(new FakeKeyboardEvent(name, element));
+}
+
+/** A page holding the workspace, the engine started over it; the page is taken away when the test is done. */
+function start(context: { after(fn: () => void): void }, ...workspaces: Workspace[]): FakeElement {
+    const root = new FakeElement();
+
+    for (const { container } of workspaces)
+        root.append(container);
+
+    fakeDocument.body.append(root);
+    context.after(() => {
+        root.remove();
+        FakeObserver.all.length = 0;
+        fakeDocument.activeElement = fakeDocument.body;
+    });
+
+    new PaneContainerEngine({ root: real<ParentNode>(root) });
+
+    return root;
+}
+
+test("a layout pushed while a pane is lifted waits, and moves the panes once it is put back where it stood", context => {
+    const space = workspace(["chat", "tasks", "tree"]);
+    const grip = gripOf(space.panes.get("chat"));
+
+    start(context, space);
+    pointer(grip, "pointerdown", 50);
+    push(space.container, "tasks,chat,tree");
+
+    assert.deepEqual(standing(space.places), ["chat", "tasks", "tree"], "nothing moves under the lifted pane");
+
+    pointer(grip, "pointermove", 60);
+    pointer(grip, "pointerup", 60);
+
+    assert.deepEqual(standing(space.places), ["tasks", "chat", "tree"]);
+    assert.deepEqual(space.changes, [], "the controller's own layout is not sent back");
+});
+
+test("a drop after a push keeps the viewer's trade, one pane to a place", context => {
+    const space = workspace(["chat", "tasks", "tree"]);
+    const grip = gripOf(space.panes.get("chat"));
+
+    start(context, space);
+    pointer(grip, "pointerdown", 50);
+    push(space.container, "tasks,chat,tree");
+    pointer(grip, "pointermove", 250);
+    pointer(grip, "pointerup", 250);
+
+    assert.deepEqual(standing(space.places), ["tree", "tasks", "chat"]);
+    assert.deepEqual(space.changes, ["tree,tasks,chat"]);
+    assert.equal(space.container.hasAttribute("data-ui-pane-moving"), false);
+});
+
+test("a drop on a container re-rendered away moves nothing and sends nothing", context => {
+    const space = workspace(["chat", "tasks"]);
+    const grip = gripOf(space.panes.get("chat"));
+    const root = start(context, space);
+
+    pointer(grip, "pointerdown", 50);
+    pointer(grip, "pointermove", 150);
+    space.container.remove();
+    pointer(root, "pointerup", 150);
+
+    assert.deepEqual(standing(space.places), ["chat", "tasks"]);
+    assert.deepEqual(space.changes, []);
+});
+
+test("a hold whose pane was re-rendered away lets the next lift through", context => {
+    const first = workspace(["chat", "tasks"]);
+    const second = workspace(["deploys", "alerts"]);
+
+    start(context, first, second);
+    key(gripOf(first.panes.get("chat")), " ");
+    assert.equal(first.panes.get("chat")!.hasAttribute("data-ui-pane-lifted"), true);
+
+    first.container.remove();
+    key(gripOf(second.panes.get("deploys")), " ");
+
+    assert.equal(second.panes.get("deploys")!.hasAttribute("data-ui-pane-lifted"), true);
+});
+
+test("a place a splitter folded away is no target, and does not count as a place to go", context => {
+    const space = workspace(["chat", "tasks", "tree"]);
+    const folded = space.places[1];
+    const grip = gripOf(space.panes.get("chat"));
+
+    folded.laidOut = false;
+    folded.rect = { left: 0, top: 0, width: 0, height: 0 };
+    start(context, space);
+
+    key(grip, " ");
+    key(grip, "ArrowUp");
+    assert.equal(folded.hasAttribute("data-ui-pane-target"), false, "a folded place's box is at the corner, above every other");
+
+    key(grip, "ArrowRight");
+    assert.equal(space.places[2].hasAttribute("data-ui-pane-target"), true);
+    key(grip, "Escape");
+
+    space.places[2].laidOut = false;
+    key(grip, " ");
+    assert.equal(space.panes.get("chat")!.hasAttribute("data-ui-pane-lifted"), false, "one place left shown has nowhere to go");
+});
+
+test("a lift stops the slide its pane is still playing", context => {
+    const space = workspace(["chat", "tasks"]);
+    const pane = space.panes.get("chat")!;
+    const cancelled: string[] = [];
+
+    Object.assign(pane, { getAnimations: () => [{ cancel: () => void cancelled.push("slide") }] });
+    start(context, space);
+    pointer(gripOf(pane), "pointerdown", 50);
+
+    assert.deepEqual(cancelled, ["slide"]);
+});
+
+test("a container that arrives nested in another's pane takes the layout this viewer left it in", context => {
+    const outer = workspace(["main", "side"]);
+    const inner = workspace(["deploys", "alerts"], { "data-ui-name": "board" });
+    const host = outer.panes.get("main")!;
+
+    start(context, outer);
+    stored.set("ne.ui:board:panes", "alerts,deploys");
+    host.append(inner.container);
+    FakeObserver.notify({ type: "childList", target: host, addedNodes: [inner.container] });
+
+    assert.deepEqual(standing(inner.places), ["alerts", "deploys"]);
+    assert.deepEqual(standing(outer.places), ["main", "side"]);
+});
+
+test("a pane's grip shows while the pointer is over the pane's top band, not anywhere on the pane", context => {
+    const space = workspace(["chat", "tasks"]);
+    const chat = space.panes.get("chat")!;
+    const tasks = space.panes.get("tasks")!;
+
+    chat.rect = { left: 0, top: 0, width: 100, height: 100 };
+    tasks.rect = { left: 100, top: 0, width: 100, height: 100 };
+    start(context, space);
+
+    pointer(chat, "pointermove", 50, 60);
+    assert.equal(chat.hasAttribute("data-ui-pane-near"), false, "the middle of the pane");
+
+    pointer(chat, "pointermove", 50, 10);
+    assert.equal(chat.hasAttribute("data-ui-pane-near"), true);
+
+    pointer(tasks, "pointermove", 150, 10);
+    assert.equal(chat.hasAttribute("data-ui-pane-near"), false, "one pane's band at a time");
+    assert.equal(tasks.hasAttribute("data-ui-pane-near"), true);
+
+    pointer(tasks, "pointermove", 150, 80);
+    assert.equal(tasks.hasAttribute("data-ui-pane-near"), false);
+});

@@ -51,6 +51,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         NativeInputRendererBase.RenderFormId(context, root, ButtonComponent.SubmitFormIdProperty, WebAttributes.SubmitFormId, joinsForm: IsButtonElement);
 
         RenderDrawerOpener(context, root);
+        RenderDrawerPin(context, root);
 
         ResponsiveRenderer.ApplyResponsiveThickness(context, root, ButtonComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
 
@@ -99,6 +100,18 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 
         _ = ResolveRenderValue(context, ButtonComponent.OpensDrawerProperty, out UISide? side, out _);
 
+        if (DrawerRegion(view, side) is not string region)
+            return;
+
+        _ = root
+            .Attribute(WebAttributes.DrawerToggle, region)
+            .Attribute("aria-expanded", "false")
+            .Attribute("aria-controls", WebAttributes.DrawerId(region));
+    }
+
+    /// <summary>The region of a side the view makes a drawer at some width; none for a side it has not, or where its sides never are.</summary>
+    private static string? DrawerRegion(CompiledView view, UISide? side)
+    {
         var region = side switch
         {
             UISide.Left => RegionNames.LeftSide,
@@ -106,12 +119,23 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
             _ => null
         };
 
-        if (region is null || !view.Options.SideDrawers || view.FindRegion(region) is null)
+        return region is null || view.Options.SideDrawers == UISideDrawers.Never || view.FindRegion(region) is null ? null : region;
+    }
+
+    /// <summary>
+    /// A button that pins a side's drawer (<see cref="ButtonComponent{T}.PinsDrawer"/>) wears the mark side-drawer-engine.ts presses
+    /// and the stylesheet shows it by, pressed as the side is pinned; nothing where the side is no drawer.
+    /// </summary>
+    private static void RenderDrawerPin(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        _ = ResolveRenderValue(context, ButtonComponent.PinsDrawerProperty, out UISide? side, out _);
+
+        if (DrawerRegion(context.ViewResolution.View, side) is not string region)
             return;
 
         _ = root
-            .Attribute(WebAttributes.DrawerToggle, region)
-            .Attribute("aria-expanded", "false")
+            .Attribute(WebAttributes.DrawerPin, region)
+            .Attribute("aria-pressed", "false")
             .Attribute("aria-controls", WebAttributes.DrawerId(region));
     }
 

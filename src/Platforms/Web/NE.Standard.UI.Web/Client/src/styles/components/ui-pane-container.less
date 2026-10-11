@@ -1,0 +1,112 @@
+@import "../core/tokens.less";
+@import "../mixins/elevation.less";
+@import "../mixins/focus.less";
+
+// A pane container is a container (ui-container.less places its places as children); a place holds one pane, which fills it, and
+// pane-container-engine.ts carries a pane to another place.
+.ui-pane-container__place {
+    position: relative;
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+}
+
+.ui-pane-container__pane {
+    position: relative;
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+}
+
+    // The content under the grip, in one cell: the grip stands over it rather than taking a row of its own.
+    .ui-pane-container__pane > :not(.ui-pane-container__grip) {
+        grid-area: 1 / 1;
+        min-width: 0;
+        min-height: 0;
+    }
+
+// The grip: a short bar at the pane's top centre, shown while the pointer is over the pane's top band (pane-container-engine.ts marks
+// it), the keyboard on the grip or the pane on its way; a touch screen has no hover, so there it stands faint. Pale, a mark on the pane rather than a control in it, the muted
+// ink only under the pointer. Its press area is taller than the bar.
+.ui-pane-container__grip {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 0.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: @ui-part-radius-sm;
+    background: none;
+    color: color-mix(in srgb, @ui-text-muted 50%, transparent);
+    cursor: grab;
+    opacity: 0;
+    touch-action: none;
+    transform: translateX(-50%);
+    transition: opacity @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+
+    &::before {
+        content: "";
+        width: 2rem;
+        height: 0.25rem;
+        border-radius: 0.125rem;
+        background-color: currentColor;
+    }
+}
+
+    @media @{ui-can-hover} {
+        .ui-pane-container__pane[data-ui-pane-near] > .ui-pane-container__grip {
+            opacity: 1;
+        }
+
+        .ui-pane-container__grip:hover {
+            color: @ui-text-muted;
+        }
+    }
+
+    @media @{ui-cannot-hover} {
+        .ui-pane-container__grip {
+            opacity: 0.6;
+        }
+    }
+
+    // A key's focus, not the one a drag leaves on the grip (pointer-drag.ts focuses it): that one would keep the grip shown after
+    // the pointer has left the pane.
+    .ui-pane-container__grip@{ui-keyboard-focus},
+    .ui-pane-container__pane[data-ui-pane-lifted] > .ui-pane-container__grip {
+        opacity: 1;
+        color: @ui-text-muted;
+    }
+
+    .ui-pane-container__grip@{ui-keyboard-focus} {
+        .ui-keyboard-frame(@takes: false);
+    }
+
+// On its way the pane stands over the others, raised, and the place it would trade with is edged as a drop target is.
+.ui-pane-container__pane[data-ui-pane-lifted] {
+    z-index: 2;
+    .ui-elevation-3();
+    cursor: grabbing;
+}
+
+// The press itself refuses a selection (pointer-drag.ts), so the container need only keep the hand closed wherever it goes.
+.ui-pane-container[data-ui-pane-moving] {
+    cursor: grabbing;
+}
+
+.ui-pane-container__place[data-ui-pane-target]::after {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    border-radius: @ui-part-radius-sm;
+    background-color: color-mix(in srgb, var(--ui-color-primary) 8%, transparent);
+    .ui-drop-edge();
+    pointer-events: none;
+}

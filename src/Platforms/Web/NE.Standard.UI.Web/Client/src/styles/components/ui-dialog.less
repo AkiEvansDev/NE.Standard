@@ -29,9 +29,18 @@
     .ui-dialog-backdrop-enter();
 }
 
+// A non-modal dialog leaves the page working beside its panel: the layer that holds it covers the page, so a press beside the panel
+// goes through the layer and its backdrop alike, and only the panel takes its own — not while it fades out, as the layer does not.
+.ui-dialog:not([data-ui-dialog-modal]) {
+    pointer-events: none;
+}
+
 .ui-dialog:not([data-ui-dialog-modal]) .ui-dialog__backdrop {
     background: transparent;
-    pointer-events: none;
+}
+
+.ui-dialog:not([data-ui-dialog-modal], [hidden]) > .ui-dialog__surface {
+    pointer-events: auto;
 }
 
 .ui-dialog__surface {

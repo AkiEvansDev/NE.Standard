@@ -10,7 +10,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A checkbox input that toggles a boolean value.
 /// </summary>
-/// <remarks>Its label is a full <see cref="ITextComponent"/>, not an input caption; <c>BadgePlacement</c> has no effect here.</remarks>
+/// <remarks>
+/// Its label is a full <see cref="ITextComponent"/>, not an input caption; <c>BadgePlacement</c> has no effect here. Its title and
+/// description keep one line each beside the box, cut short past it: a description is a short phrase. Words that explain the
+/// choice at length go under the toggle as the field's hint — <c>UIForm.Field(toggle, hint)</c> — which wraps.
+/// </remarks>
 [UIComponentPropertyBlock(typeof(ITextComponent))]
 [UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
 [UIComponentPropertyBlock(typeof(ISizedInputComponent))]

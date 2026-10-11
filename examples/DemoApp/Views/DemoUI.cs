@@ -48,6 +48,7 @@ internal static class DemoUI
             ("/layouts/wrap-panel", "demo.nav.layouts.wrap-panel"),
             ("/layouts/scroll", "demo.nav.layouts.scroll"),
             ("/layouts/grid-splitter", "demo.nav.layouts.grid-splitter"),
+            ("/layouts/pane-container", "demo.nav.layouts.pane-container"),
             ("/layouts/surface", "demo.nav.layouts.surface"),
             ("/layouts/card", "demo.nav.layouts.card"),
             ("/layouts/expander", "demo.nav.layouts.expander"),
@@ -173,6 +174,7 @@ internal static class DemoUI
             .SetPadding(UIThickness.All(16, 16, 16, 24))
             .AddChild(new MenuComponent(SidebarId)
                 .SetShowCollapseToggle(true)
+                .SetDrawerPin(true)
                 .SetSearch()
                 .SetMinWidth(UILayoutLength.Absolute(180))
                 .SetItems([.. entries])

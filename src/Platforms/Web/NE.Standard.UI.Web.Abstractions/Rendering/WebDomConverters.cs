@@ -148,6 +148,9 @@ public static class WebDomConverters
     /// <summary>A number as its text while it is zero or more (an indent); otherwise nothing.</summary>
     public const string NonNegativeNumber = "nonNegativeNumber";
 
+    /// <summary>A number as its text while it is a share from 0 to 1 (a splitter's position); otherwise nothing.</summary>
+    public const string Share = "share";
+
     /// <summary>Present, and empty, while a count is above zero; otherwise removed.</summary>
     public const string PositiveFlagAttribute = "positiveFlagAttribute";
 

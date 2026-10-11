@@ -3,9 +3,9 @@ using DemoApp.Controllers.Base;
 namespace DemoApp.Controllers.Layouts.GridSplitter;
 
 /// <summary>
-/// What a splitter says about itself: how far an arrow key moves it, and the colour of its line at rest.
+/// What a splitter says about itself: how far an arrow key moves it, the colour of its line at rest, and where it stands.
 /// </summary>
-/// <remarks>The position is not here: it is the viewer's, kept in the browser, and no controller sees it.</remarks>
+/// <remarks>Both preview bars bind the one position, so a drag of either moves the other; the examples' bars are unbound, kept in the browser.</remarks>
 internal sealed partial class GridSplitterGroupContext : DemoGroupContext
 {
     [RecursiveMember]
@@ -14,10 +14,14 @@ internal sealed partial class GridSplitterGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UIThemeColor? Color { get; set; }
 
+    [RecursiveMember]
+    public partial double? Position { get; set; }
+
     public GridSplitterGroupContext()
     {
         AddOption(nameof(Step), CycleStep, () => Step);
         AddOption(nameof(Color), CycleColor, () => Color);
+        AddOption(nameof(Position), CyclePosition, () => Position);
     }
 
     public void CycleStep()
@@ -25,6 +29,9 @@ internal sealed partial class GridSplitterGroupContext : DemoGroupContext
 
     public void CycleColor()
         => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.Primary, UIThemeColor.Accent, UIThemeColor.Muted, null));
+
+    public void CyclePosition()
+        => SetLastChange(nameof(Position), Position = CycleValue(Position, 0.25, 0.75, null));
 }
 
 internal sealed partial class GridSplitterController() : DemoStandardController

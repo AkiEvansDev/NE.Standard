@@ -158,7 +158,9 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// <summary>Gets whether a command is currently executing against this runtime.</summary>
     /// <remarks>
     /// Kept true for the whole run of a background or exclusive command, so neither a cleanup pass racing a disconnect nor
-    /// an eviction takes the runtime; one disposed while a command runs is disposed by the last command to finish.
+    /// an eviction takes the runtime; one disposed while a command runs is disposed by the last command to finish. A job the runtime
+    /// owns (<see cref="IUIRuntimeAccess.Start"/>) is not counted: it keeps no runtime past its retention, though one asked to go still
+    /// waits for it to end.
     /// </remarks>
     bool HasCommandsInFlight { get; }
 

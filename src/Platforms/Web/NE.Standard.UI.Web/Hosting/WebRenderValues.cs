@@ -18,12 +18,10 @@ internal sealed class WebRenderValues : IWebRenderValues
     {
     }
 
-    public static WebRenderValues? Create(ServerChangeSet changes)
+    // Empty, not null, for a page with nothing bound: its cached entry holds no markup, so it is rendered here as any page with a controller.
+    public static WebRenderValues Create(ServerChangeSet changes)
     {
         ArgumentNullException.ThrowIfNull(changes);
-
-        if (changes.IsEmpty)
-            return null;
 
         WebRenderValues values = new();
 

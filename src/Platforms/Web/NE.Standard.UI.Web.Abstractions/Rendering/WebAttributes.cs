@@ -345,14 +345,29 @@ public static class WebAttributes
     public const string DrawerBackdrop = "data-ui-drawer-backdrop";
 
     /// <summary>
-    /// On a left side that is a rail alone (<c>UIMenuDisplay.Rail</c>): below the drawer breakpoint it is a bar along the page's
+    /// On the root: the width below which the view's sides are drawers (<c>UIViewOptions.SideDrawers</c>) — <c>md</c>, <c>xl</c>,
+    /// <c>xxl</c> or <c>always</c> — read by the stylesheet's bands and the drawers' engine; none where they never are.
+    /// </summary>
+    public const string SideDrawers = "data-ui-side-drawers";
+
+    /// <summary>On the root: the sides whose open drawer leaves the page working beside it, no veil over it (<c>UIViewOptions.LeftDrawerModal</c>).</summary>
+    public const string DrawerModeless = "data-ui-drawer-modeless";
+
+    /// <summary>
+    /// On a button that pins a side's drawer and unpins it (<c>ButtonComponent.PinsDrawer</c>, <c>MenuComponent.DrawerPin</c>): the side,
+    /// as <see cref="DrawerToggle"/> names it.
+    /// </summary>
+    public const string DrawerPin = "data-ui-drawer-pin";
+
+    /// <summary>
+    /// On a left side that is a rail alone (<c>UIMenuDisplay.Rail</c>): where the view's sides are drawers it is a bar along the page's
     /// bottom rather than a drawer, and its groups fly out upward (menu-group-engine.ts).
     /// </summary>
     public const string BottomBar = "data-ui-bottom-bar";
 
     /// <summary>
-    /// On a left side that is a rail alone where the view keeps it a drawer (<c>UIViewOptions.RailBottomBar</c> off): below the drawer
-    /// breakpoint its rail is drawn as a list (menu-group-engine.ts).
+    /// On a left side that is a rail alone where the view keeps it a drawer (<c>UIViewOptions.RailBottomBar</c> off): where the view's
+    /// sides are drawers its rail is drawn as a list (menu-group-engine.ts).
     /// </summary>
     public const string RailDrawer = "data-ui-rail-drawer";
 
@@ -452,6 +467,18 @@ public static class WebAttributes
 
     /// <summary>The pixels a splitter moves per arrow press.</summary>
     public const string SplitterStep = "data-ui-splitter-step";
+
+    /// <summary>On a splitter: the share of the room it divides that the tracks before it hold, 0 to 1 (<c>GridSplitterComponent.Position</c>).</summary>
+    public const string SplitterPosition = "data-ui-splitter-position";
+
+    /// <summary>On a pane container: its layout as the controller wrote it, the panes' names in the order of their places.</summary>
+    public const string PaneLayout = "data-ui-pane-layout";
+
+    /// <summary>On a pane container's place: the name of the pane added at it, which names the place.</summary>
+    public const string PanePlace = "data-ui-pane-place";
+
+    /// <summary>On a pane: its name, as the layout lists it.</summary>
+    public const string Pane = "data-ui-pane";
 
     /// <summary>On a table's header cell: the column's key, for the columns engine.</summary>
     public const string TableColumnKey = "data-ui-table-column-key";

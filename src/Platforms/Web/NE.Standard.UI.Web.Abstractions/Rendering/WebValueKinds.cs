@@ -9,6 +9,12 @@ public static class WebValueKinds
     /// <summary>A flyout's open state, read off its root.</summary>
     public const string FlyoutOpen = "flyout-open";
 
+    /// <summary>A splitter's share before it, 0 to 1, or none for the authored tracks, read off its root.</summary>
+    public const string SplitterPosition = "splitter-position";
+
+    /// <summary>A pane container's layout, the panes' names in the order of their places, read off its root.</summary>
+    public const string PaneLayout = "pane-layout";
+
     /// <summary>A tab strip's selected key, read off its root.</summary>
     public const string TabsSelected = "tabs-selected";
 

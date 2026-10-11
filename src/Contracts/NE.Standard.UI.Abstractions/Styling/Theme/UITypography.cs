@@ -97,15 +97,26 @@ public sealed record UITypography
         Overline.Validate();
     }
 
-    /// <summary>A font family name never needs a control character or any of <c>&lt; &gt; { } ; " '</c>.</summary>
-    private static void ValidateFontFamily(string fontFamily)
+    /// <summary>
+    /// Validates a font family list: it names at least one family, and a name never needs a control character or any of
+    /// <c>&lt; &gt; { } ; " '</c>.
+    /// </summary>
+    public static void ValidateFontFamily(string fontFamily)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fontFamily);
+
+        var named = false;
 
         foreach (var c in fontFamily)
         {
             if (char.IsControl(c) || c is '<' or '>' or '{' or '}' or ';' or '"' or '\'')
                 throw new InvalidOperationException($"Font family '{fontFamily}' contains a disallowed character.");
+
+            named |= c != ',' && !char.IsWhiteSpace(c);
         }
+
+        // Commas alone would pass the characters and fail only where the page writes the list.
+        if (!named)
+            throw new InvalidOperationException($"Font family list '{fontFamily}' names no family.");
     }
 }

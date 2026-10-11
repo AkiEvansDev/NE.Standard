@@ -28,6 +28,7 @@ test("a folded entry's words leave the eye but not a screen reader, and its body
     assert.match(declarations(`${collapsedEntry}${header} > .ui-text__title`) ?? "", /clip: rect\(0, 0, 0, 0\);/, "the title is not visually hidden");
     assert.match(declarations(`${collapsedEntry} > .ui-button__content > .ui-text__body > .ui-text__description`) ?? "", /display: none;/);
     assert.match(declarations(`${collapsedEntry} > .ui-button__content.ui-text > .ui-text__body`) ?? "", /width: 0;/, "the empty body's header gap pushes the glyph aside");
+    assert.match(declarations(`${collapsedEntry} > .ui-text`) ?? "", /min-block-size: 1lh;/, "a folded entry is shorter than open, so the rail's icons move up at the end of the fold");
 });
 
 test("a folded entry's and a rail entry's badge stands on the icon's corner, an empty text as a dot", () => {
@@ -82,8 +83,11 @@ test("a rail's entries stand edge to edge, square slices with no rounded hover t
     assert.match(declarations(railEntry) ?? "", /--ui-menu-entry-tl: 0;\s*--ui-menu-entry-tr: 0;\s*--ui-menu-entry-br: 0;\s*--ui-menu-entry-bl: 0;/);
 });
 
-test("a rail hides the switch and toggle row it keeps for its drawer, and a drawer's switch stands over its opener", () => {
+test("a rail hides the switch and toggle row it keeps for its drawer, and a side's switch leads its row", () => {
     assert.match(declarations(".ui-menu--rail > .ui-collapsible__bar,\n.ui-menu--rail > .ui-collapsible__toggle") ?? "", /display: none;/);
-    assert.match(css, /\[data-ui-region="left-side"\] \.ui-collapsible\.ui-side--left > \.ui-collapsible__bar > \.ui-collapsible__toggle,[\s\S]*?\{\s*order: -1;/);
+    assert.match(declarations(".ui-collapsible:is(.ui-side--left, .ui-side--right) > .ui-collapsible__bar > .ui-collapsible__toggle") ?? "", /order: -1;/, "the switch leads its row in a column as in a drawer");
+    assert.match(declarations(".ui-side--left > .ui-collapsible__toggle") ?? "", /align-self: flex-start;/, "a switch alone stands on the edge it leads a row from");
+    assert.match(declarations(".ui-side--right > .ui-collapsible__toggle") ?? "", /align-self: flex-end;/);
+    assert.doesNotMatch(css, /\[data-ui-region="left-side"\] \.ui-collapsible\.ui-side--left > \.ui-collapsible__toggle/, "a drawer needs no rule of its own for it");
     assert.match(declarations(".ui-menu[data-ui-menu-search] > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input__row") ?? "", /padding-inline-start/, "only a search's glyph is inset to the glyph column");
 });

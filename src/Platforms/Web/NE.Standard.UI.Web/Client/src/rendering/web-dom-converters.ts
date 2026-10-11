@@ -349,6 +349,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["nonZeroCount", value => toCount(value, count => count !== 0)?.toString()],
     ["positiveNumber", value => toFiniteNumber(value, number => number > 0)?.toString()],
     ["nonNegativeNumber", value => toFiniteNumber(value, number => number >= 0)?.toString()],
+    ["share", value => toFiniteNumber(value, number => number >= 0 && number <= 1)?.toString()],
     ["positiveFlagAttribute", value => toPositiveCount(value) === undefined ? undefined : ""],
     familyClass("maxLinesClass", toClassFamily(["ui-text--max-lines"]), value => toPositiveCount(value) === undefined ? "" : "ui-text--max-lines"),
     tokenClass("progressVariantClass", "ui-progress--", progressVariantTokens),

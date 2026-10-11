@@ -99,6 +99,9 @@ public static partial class UIStrings
     public const string PickerOpen = "ui.picker.open";
     public const string FileChoose = "ui.file.choose";
     public const string SplitterLabel = "ui.splitter.label";
+
+    /// <summary>The name of a pane's grip, which carries the pane to another place in its pane container.</summary>
+    public const string PaneMove = "ui.pane.move";
     public const string SplitButtonMore = "ui.split.more";
     public const string ImageChoose = "ui.image.choose";
     public const string ImageChange = "ui.image.change";
@@ -125,6 +128,12 @@ public static partial class UIStrings
 
     /// <summary>The name of a side open as a drawer over the page, a dialog of its own, where nothing in it names it.</summary>
     public const string SidePanel = "ui.side.panel";
+
+    /// <summary>The name of an open drawer's own switch, which puts the drawer away there rather than folding its side.</summary>
+    public const string SideClose = "ui.side.close";
+
+    /// <summary>The name of a drawer's pin, pressed as the side is pinned: from the medium breakpoint up it then stands in its column.</summary>
+    public const string SidePin = "ui.side.pin";
 
     public const string MenuSearch = "ui.menu.search";
     public const string ThemeSwitch = "ui.theme.switch";
@@ -243,6 +252,7 @@ public static partial class UIStrings
         [PickerOpen] = "Open the picker",
         [FileChoose] = "Choose files",
         [SplitterLabel] = "Resize",
+        [PaneMove] = "Move the panel",
         [SplitButtonMore] = "More actions",
         [ImageChoose] = "Choose a picture",
         [ImageChange] = "Change the picture",
@@ -263,6 +273,8 @@ public static partial class UIStrings
         [CollapseToggle] = "Expand or collapse",
         [SideOpen] = "Open the side panel",
         [SidePanel] = "Side panel",
+        [SideClose] = "Close the side panel",
+        [SidePin] = "Pin the side panel",
         [MenuSearch] = "Search",
         [ThemeSwitch] = "Switch theme",
         [LanguageSwitch] = "Language: {language} ({code}), switch to {other} ({otherCode})",

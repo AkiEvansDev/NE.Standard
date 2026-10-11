@@ -39,5 +39,14 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         }, [WebDomOperation.Attribute(WebAttributes.SplitterStep, converter: WebDomConverters.PositiveNumber)]);
 
         ThemeColorRenderer.RenderThemeColor(context, root, GridSplitterComponent.ColorProperty);
+
+        // Bound, the share comes back through the value engine (grid-splitter-engine.ts), which reads it off the root.
+        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.SplitterPosition);
+
+        _ = RenderProperty<double?>(context, root, GridSplitterComponent.PositionProperty, static (target, value) =>
+        {
+            if (value is double share and >= 0 and <= 1)
+                _ = target.Attribute(WebAttributes.SplitterPosition, share.ToString(CultureInfo.InvariantCulture));
+        }, [WebDomOperation.Attribute(WebAttributes.SplitterPosition, converter: WebDomConverters.Share)]);
     }
 }

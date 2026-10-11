@@ -65,6 +65,7 @@ export type ClientStringKey =
     | "ui.pager.size"
     | "ui.language.current"
     | "ui.side.panel"
+    | "ui.side.close"
     | "ui.sheet.back"
     | "ui.language.switch";
 

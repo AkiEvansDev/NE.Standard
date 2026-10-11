@@ -3,6 +3,8 @@ import {
     ItemsQueryValueKind,
     SelectedKeyAttribute,
     SelectedKeysAttribute,
+    PaneLayoutAttribute,
+    SplitterPositionAttribute,
     TabCaptionAttribute,
     TreeDropTargetAttribute,
     TreeTitleAttribute,
@@ -11,6 +13,7 @@ import {
     ValueHolderAttribute,
     ValueKindAttribute
 } from "../addressing/dom-attributes.ts";
+import { parseShare } from "../interactions/grid-tracks.ts";
 import { logWarn } from "../runtime/logger.ts";
 
 export function toDomString(value: unknown): string {
@@ -138,6 +141,10 @@ export function resolveValueHolder(element: Element): Element | null {
 const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     // flyout-interaction-engine.ts
     { kind: "flyout-open", read: element => element.classList.contains("ui-flyout--open") },
+    // grid-splitter-engine.ts: the share before the bar, none for the authored tracks
+    { kind: "splitter-position", read: element => parseShare(element.getAttribute(SplitterPositionAttribute)) },
+    // pane-container-engine.ts: the panes' names in the order of their places
+    { kind: "pane-layout", read: element => element.getAttribute(PaneLayoutAttribute) },
     // tabs-engine.ts and tabs-view-engine.ts
     { kind: "tabs-selected", read: element => element.getAttribute(TabsSelectedAttribute) },
     // tabs-view-engine.ts: the order on the tab's root, the caption on its label

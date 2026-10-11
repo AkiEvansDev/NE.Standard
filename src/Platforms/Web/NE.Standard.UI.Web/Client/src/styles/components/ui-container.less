@@ -43,7 +43,7 @@
     @{property}: .ui-responsive-chain(~"--ui-placement-@{axis}"; auto)[@value] / span .ui-responsive-chain(~"--ui-placement-@{axis}-span"; @span-default)[@value];
 }
 
-:is(@{ui-placement-hosts}) > [data-ui-id] {
+:is(@{ui-placement-hosts}) > :is([data-ui-id], .ui-pane-container__place) {
     .ui-responsive-reset(--ui-placement-column);
     .ui-responsive-reset(--ui-placement-row);
     .ui-responsive-reset(--ui-placement-column-span);

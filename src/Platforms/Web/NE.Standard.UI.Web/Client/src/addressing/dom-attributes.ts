@@ -232,9 +232,24 @@ export const MenuUnmatchedAttribute = "data-ui-menu-unmatched";
 export const DrawerToggleAttribute = "data-ui-drawer-toggle";
 export const DrawerOpenAttribute = "data-ui-drawer-open";
 export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
-/** On a left side that is a rail alone: below the drawer breakpoint a bar along the page's bottom, its groups flying out upward. */
+/** On an open drawer's own switch standing where the button that opened it is, and on the row it moves with (side-drawer-engine.ts). */
+export const DrawerSwitchAttribute = "data-ui-drawer-switch";
+export const DrawerSwitchRowAttribute = "data-ui-drawer-switch-row";
+/** On the root: the width below which the sides are drawers (`md`, `xl`, `xxl` or `always`; UIViewOptions.SideDrawers), none where they never are. */
+export const SideDrawersAttribute = "data-ui-side-drawers";
+/** On the root: the sides whose open drawer leaves the page working beside it, unveiled (UIViewOptions.LeftDrawerModal). */
+export const DrawerModelessAttribute = "data-ui-drawer-modeless";
+/** On a button that pins a side's drawer and unpins it, naming the side (ButtonComponent.PinsDrawer, MenuComponent.DrawerPin). */
+export const DrawerPinAttribute = "data-ui-drawer-pin";
+
+/** On the root, one per side: the reader pinned that side, which from the medium breakpoint up stands in its column (side-drawer-engine.ts). */
+export function pinnedAttribute(side: string): string {
+    return side === "right-side" ? "data-ui-pinned-right-side" : "data-ui-pinned-left-side";
+}
+
+/** On a left side that is a rail alone: where the view's sides are drawers a bar along the page's bottom, its groups flying out upward. */
 export const BottomBarAttribute = "data-ui-bottom-bar";
-/** On a left side that is a rail alone kept a drawer (UIViewOptions.RailBottomBar off): below the drawer breakpoint its rail is a list. */
+/** On a left side that is a rail alone kept a drawer (UIViewOptions.RailBottomBar off): where the view's sides are drawers its rail is a list. */
 export const RailDrawerAttribute = "data-ui-rail-drawer";
 /** On the root where the content region's root fills the height (WebAttributes.ContentFills): content-fills.ts keeps it. */
 export const ContentFillsAttribute = "data-ui-content-fills";
@@ -271,6 +286,14 @@ export const FoldingAttribute = "data-ui-folding";
 export const ColumnLimitsAttribute = "data-ui-column-limits";
 export const RowLimitsAttribute = "data-ui-row-limits";
 export const SplitterStepAttribute = "data-ui-splitter-step";
+/** On a splitter: the share before it, 0 to 1, a bound `Position` holds; and the binding attribute that says it is bound. */
+export const SplitterPositionAttribute = "data-ui-splitter-position";
+export const BindPositionAttribute = "data-ui-bind-position";
+/** A pane container's layout on its root, the name of the pane added at a place on the place, a pane's name on the pane, and the binding attribute that says the layout is bound. */
+export const PaneLayoutAttribute = "data-ui-pane-layout";
+export const PanePlaceAttribute = "data-ui-pane-place";
+export const PaneAttribute = "data-ui-pane";
+export const BindLayoutAttribute = "data-ui-bind-layout";
 /** On a table header's resize handle and on every cell: the 0-based column it belongs to. */
 export const TableColumnAttribute = "data-ui-table-column";
 /** On a table's header cell: the column's key, the viewport tier below which the author hides the column, and whether it starts hidden. */
@@ -371,6 +394,8 @@ export const KeyboardUpAttribute = "data-ui-keyboard-up";
 export const ConnectionAttribute = "data-ui-connection";
 /** Client-only: on a container's child whose tracks a splitter took to nothing, so its squeezed words lend the row no height. */
 export const SplitFoldedAttribute = "data-ui-split-folded";
+/** Client-only: on a splitter with nothing left on one side, `before` or `after`: its line stands at that edge, shown only under the pointer. */
+export const SplitEdgeAttribute = "data-ui-split-edge";
 /** Client-only: on a handle the pointer focused, so no keyboard focus is drawn for it; a key or a blur takes it off. */
 export const PointerFocusAttribute = "data-ui-pointer-focus";
 /**

@@ -638,7 +638,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// Releases controller resources.
+    /// Releases what the controller owns: an override disposes its own fields when <paramref name="disposing"/> and the controller is
+    /// not <see cref="IsDisposed"/> yet, then calls the base — the .NET pattern, the one the analyzers' CA2213 reads.
     /// </summary>
     protected virtual void Dispose(bool disposing)
     {
@@ -646,18 +647,10 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             return;
 
         if (disposing)
-        {
             SetChangeNotifier(null);
-            OnDispose();
-        }
 
         IsDisposed = true;
     }
-
-    /// <summary>
-    /// Releases managed resources owned by derived controllers.
-    /// </summary>
-    protected virtual void OnDispose() { }
 
     /// <summary>
     /// Throws when the controller has been disposed.

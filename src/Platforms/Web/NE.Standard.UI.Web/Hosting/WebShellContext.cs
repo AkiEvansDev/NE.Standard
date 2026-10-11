@@ -73,9 +73,15 @@ public sealed class WebShellContext
     public UIShellLayout ShellLayout { get; init; }
 
     /// <summary>
-    /// Gets whether the sides slide over the content as drawers on a narrow screen; on by default, as in <c>UIViewOptions</c>.
+    /// Gets below which width the sides slide over the content as drawers; below the medium breakpoint by default, as in <c>UIViewOptions</c>.
     /// </summary>
-    public bool SideDrawers { get; init; } = true;
+    public UISideDrawers SideDrawers { get; init; }
+
+    /// <summary>Gets whether the left side's open drawer dims the page and closes on a press beside it, as in <c>UIViewOptions</c>.</summary>
+    public bool LeftDrawerModal { get; init; } = true;
+
+    /// <summary>Gets whether the right side's open drawer dims the page and closes on a press beside it, as in <c>UIViewOptions</c>.</summary>
+    public bool RightDrawerModal { get; init; } = true;
 
     /// <summary>
     /// Gets whether the left side is a phone's bottom bar rather than a drawer: a rail alone under <see cref="SideDrawers"/>, unless the

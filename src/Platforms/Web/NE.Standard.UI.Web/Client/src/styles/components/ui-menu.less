@@ -4,6 +4,7 @@
 @import "../mixins/popup.less";
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
+@import "../mixins/side-drawers.less";
 @import "../core/typography.less";
 
 // Collapsed, and not mid-slide: while collapsible-engine.ts folds the menu the open layout stays, clipped, so nothing jumps ahead of the edge.
@@ -20,8 +21,6 @@
 @ui-menu-icon-entry: ~":is(@{ui-menu-collapsed-entry}, @{ui-menu-rail-entry})";
 // A rail's measures follow its Size (MenuComponent.Size, a class on the rail), Medium's the default: set on the rail below.
 @ui-menu-rail-width: var(--ui-menu-rail-width);
-// A rail laid along the page's bottom: the whole of a left side on a phone (WebViewRenderer marks the side, side-drawers.less places it).
-@ui-menu-bottom-bar: ~"[data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] .ui-menu--rail";
 // The narrowest a bar's entry is squeezed to, a press's room for the icon and a short label; past it the bar scrolls sideways.
 @ui-menu-bar-entry-width: var(--ui-menu-bar-entry-width);
 // The popups a menu fills on its own, a right-click menu's host and a split button's list: `MenuHostPopupSelector` (dom-attributes.ts).
@@ -95,7 +94,7 @@
 // Down a list where some entries carry an icon (`data-ui-menu-icons`, menu-icons.ts), one without keeps the icon's room — its 1em glyph
 // and the text body's 0.375em gap — so every entry's words start on one edge: they zigzagged (a column chooser). A caption and a rule
 // stand at the edge, and a folded menu or a rail, whose entries centre, keeps none.
-.ui-menu.ui-orientation--vertical:not([data-ui-collapsed], .ui-menu--rail) > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item:not([data-ui-menu-passive]) > .ui-menu-item:not([data-ui-text-icon]) > .ui-button__content {
+.ui-menu.ui-orientation--vertical:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item:not([data-ui-menu-passive]) > .ui-menu-item:not([data-ui-text-icon]) > .ui-button__content {
     padding-inline-start: 1.375em;
 }
 
@@ -191,9 +190,10 @@
 }
 
 // A section unfolds in place as an expander does (interpolate-size is on in reset.less), `display` held until the fold is over.
-// Not a select's choices or a folded menu's or rail's groups: they fly out, and one closing must not play a fold in the rail. One
+// Not a select's choices or a folded menu's or rail's groups: they fly out, and one closing must not play a fold in the rail. A
+// menu mid-fold is still open, so the section its fold closes slides shut under the slide rather than drop the list below it. One
 // curve both ways, as an accordion's: the section opening and the one closing with it cancel frame by frame.
-.ui-menu:not([data-ui-collapsed], .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout]) {
+.ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout]) {
     transition:
         block-size @ui-motion-normal @ui-motion-ease,
         padding-top @ui-motion-normal @ui-motion-ease,
@@ -221,7 +221,7 @@
 }
 
 // In step with the section folding under it, as an expander's chevron, not at the fast tempo of a chevron with nothing to follow.
-.ui-menu:not([data-ui-collapsed], .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu-item::after {
+.ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu-item::after {
     transition-duration: @ui-motion-normal;
 }
 
@@ -341,10 +341,12 @@
     }
 
     // One track, no gap, or the hidden body's track pushes the glyph off centre; restated as ui-button.less stretches a badge entry.
+    // A line tall, as the title made it open: shorter, every icon down the rail moved up at the end of the fold.
     @{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *) > .ui-text {
         grid-template-columns: auto;
         gap: 0;
         .ui-responsive-property(width, --ui-width, auto);
+        min-block-size: 1lh;
         justify-content: center;
     }
 
@@ -535,7 +537,7 @@
 }
 
     // A folded menu is a rail of icons, and a rail a column of short labels: a line of words has no room in either.
-    .ui-menu:is([data-ui-collapsed], .ui-menu--rail) > .ui-menu__host > [data-ui-empty-placeholder] {
+    @{ui-menu-folded} > .ui-menu__host > [data-ui-empty-placeholder] {
         display: none;
     }
 
@@ -623,10 +625,13 @@
     .ui-menu-rail-along();
 }
 
-// A rail standing as the page's bottom bar on a phone is the horizontal rail, whatever its authored orientation: as wide as the page,
-// its ground running under the phone's home bar. Its current entry keeps the rail's look — a square slice, a line on one edge, the icon
-// filled — the line on the top edge, facing the content: at the bottom it would sit on the screen's edge, over the home bar.
-@media (max-width: (@ui-breakpoint-md - 0.02px)) {
+// A rail standing as the page's bottom bar where the sides are drawers — the whole of a left side (WebViewRenderer marks the side,
+// side-drawers.less places it) — is the horizontal rail, whatever its authored orientation: as wide as the page, its ground running
+// under the phone's home bar. Its current entry keeps the rail's look — a square slice, a line on one edge, the icon filled — the
+// line on the top edge, facing the content: at the bottom it would sit on the screen's edge, over the home bar.
+.ui-side-drawer-bands({
+    @ui-menu-bottom-bar: ~"@{ui-drawers} > [data-ui-bottom-bar] .ui-menu--rail";
+
     // The bar's hairline is the rail's own, not its side's border: drawn under the entries, so the current one's line lies over it
     // rather than a pixel below it.
     @{ui-menu-bottom-bar} {
@@ -649,7 +654,7 @@
         @{ui-menu-bottom-bar} > .ui-menu__host > .ui-menu__item > .ui-menu-item > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge {
             margin-block-start: @ui-space-1;
         }
-}
+});
 
 // A square slice of the rail, so the current entry's mark lies on the rail's own edge; the icon and the label in one centred column.
 @{ui-menu-rail-entry} {

@@ -7,12 +7,18 @@ import {
     applyGridTrackLimits,
     bigStep,
     coversNoRoom,
+    foldDelta,
+    FoldPixels,
     formatGridTracks,
     moveSplit,
+    narrowRunTracks,
     parseGridTrackLimits,
     parseGridTracks,
+    parseShare,
     resolveSplitRuns,
-    splitPercent
+    shareDelta,
+    splitPercent,
+    splitShare
 } from "../src/interactions/grid-tracks.ts";
 
 test("the renderer's repeat template reads as twenty-four stars", () => {
@@ -121,6 +127,25 @@ test("the reported position is the run before the bar in percent", () => {
     assert.equal(splitPercent([300, 8, 700], { before: [0], after: [2] }), 30);
 });
 
+test("a bound position is the run before the bar's share, and the move that puts the bar at another share", () => {
+    const runs = { before: [0, 1], after: [3] };
+    const sizes = [200, 100, 8, 700];
+
+    assert.equal(splitShare(sizes, runs), 0.3);
+    assert.equal(shareDelta(sizes, runs, 0.5), 200, "half of the thousand pixels either side, from three hundred");
+    assert.equal(shareDelta(sizes, runs, 2), 700, "a share past the room is held to it");
+    assert.equal(splitShare([0, 8, 0], { before: [0], after: [2] }), 0, "no room, no share");
+});
+
+test("a position written on a bar is a share from 0 to 1, and anything else is none", () => {
+    assert.equal(parseShare("0.25"), 0.25);
+    assert.equal(parseShare("0"), 0);
+    assert.equal(parseShare("1"), 1);
+
+    for (const text of [null, "", "1.5", "-0.1", "half", "NaN"])
+        assert.equal(parseShare(text), null, String(text));
+});
+
 test("a pane is folded only while every track it covers has no room, and one the grid placed itself never is", () => {
     const sizes = [0, 8, 0.4, 0, 300];
 
@@ -130,6 +155,7 @@ test("a pane is folded only while every track it covers has no room, and one the
     assert.equal(coversNoRoom("2", "3", sizes), false, "the splitter's own track");
     assert.equal(coversNoRoom("auto", "auto", sizes), false);
     assert.equal(coversNoRoom("5", "span 3", sizes), false, "past the template: not read as folded");
+    assert.equal(coversNoRoom("5", "6", sizes, new Set([4])), true, "a track a drag has taken too narrow counts as none");
 });
 
 test("a run is never left a sliver: shrunk into one it folds to nothing, grown out of nothing it opens past it", () => {
@@ -141,6 +167,24 @@ test("a run is never left a sliver: shrunk into one it folds to nothing, grown o
     assert.equal(Math.round(width(moveSplit(tracks, [0, 8, 600], runs, 16), [0, 8, 600])), 120, "one key's step opens it to the sliver's edge");
     assert.equal(Math.round(width(moveSplit(tracks, [300, 8, 300], runs, 280), [300, 8, 300])), 600, "the other run folds the same way");
     assert.equal(Math.round(width(moveSplit(tracks, [300, 8, 300], runs, -100), [300, 8, 300])), 200, "outside the sliver a move is as it was");
+});
+
+test("a splitter's side follows a drag all the way, and is folded only once the bar is let go under the fold's width", () => {
+    const tracks = parseGridTracks("minmax(0, 1fr) auto minmax(0, 1fr)")!;
+    const runs = { before: [0], after: [2] };
+    const width = (moved: ReturnType<typeof moveSplit>, sizes: readonly number[]): number => moved![0].value / (moved![0].value + moved![2].value) * (sizes[0] + sizes[2]);
+
+    assert.equal(Math.round(width(moveSplit(tracks, [150, 8, 450], runs, -130, 0), [150, 8, 450])), 20, "a drag does not snap");
+    assert.equal(Math.round(width(moveSplit(tracks, [60, 8, 540], runs, -16, FoldPixels), [60, 8, 540])), 0, "a key's step into it folds");
+    assert.equal(Math.round(width(moveSplit(tracks, [0, 8, 600], runs, 16, FoldPixels), [0, 8, 600])), FoldPixels, "a step opens a folded side to the fold's width");
+
+    assert.equal(foldDelta([20, 8, 580], runs, FoldPixels), -20, "let go at 20 px, the side before folds");
+    assert.equal(foldDelta([570, 8, 30], runs, FoldPixels), 30, "the side after the same way");
+    assert.equal(foldDelta([0, 8, 600], runs, FoldPixels), 0, "a folded side stays");
+    assert.equal(foldDelta([48, 8, 552], runs, FoldPixels), 0, "a side as wide as the fold stays");
+
+    assert.deepEqual([...narrowRunTracks([20, 8, 580], runs, FoldPixels)], [0]);
+    assert.deepEqual([...narrowRunTracks([300, 8, 300], runs, FoldPixels)], []);
 });
 
 test("a big step, a page key's, is a tenth of the room the bar moves in, never less than an arrow's step", () => {

@@ -5,9 +5,9 @@ import { isInert } from "./interactive-state.ts";
 import { ownMenuEntries } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, MarkedMenuEntrySelector, MenuControlEntrySelector, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuPopupSelector, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, NestedMenuClass as NestedClass, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FoldingAttribute, MarkedMenuEntrySelector, MenuControlEntrySelector, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuPopupSelector, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, NestedMenuClass as NestedClass, pinnedAttribute, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
-import { DrawerBreakpointQuery } from "../rendering/responsive-tier.ts";
+import { DrawerBreakpointQueries, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { markMenuCurrent } from "../updates/menu-current.ts";
 import { markMenuIcons } from "../updates/menu-icons.ts";
@@ -24,6 +24,9 @@ const UnfoldedAttribute = "data-ui-menu-unfolded";
 const SelectAttribute = MenuSelectAttribute;
 // On a rail kept a drawer while it is drawn as a list there, so the rail's class can be given back.
 const RailAsListAttribute = "data-ui-menu-rail-list";
+// The side a bottom bar and a drawer's rail stand on: a rail alone is only ever the left side.
+const LeftSide = "left-side";
+const RootSelector = "[data-ui-root]";
 
 const OpenGroupSlot = "menu-open-group";
 
@@ -103,14 +106,19 @@ export class MenuGroupEngine {
                 describeGroup(group);
         });
 
-        // Across the drawer breakpoint a bottom bar turns into its column and back: a flyout placed toward the old side would hang over
+        // Across a drawer breakpoint a bottom bar turns into its column and back: a flyout placed toward the old side would hang over
         // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts). A drawer's rail turns into a list and back.
         if (typeof matchMedia === "function") {
-            matchMedia(DrawerBreakpointQuery).addEventListener("change", () => {
-                this.closeBarFlyout();
-                this.refitDrawerRails();
-            });
+            for (const query of DrawerBreakpointQueries) {
+                matchMedia(query).addEventListener("change", () => {
+                    this.closeBarFlyout();
+                    this.refitDrawerRails();
+                });
+            }
         }
+
+        // A pin (side-drawer-engine.ts) stands a drawer's rail in its column and back as a breakpoint does; a bottom bar takes none.
+        observeComponents(this.root, RootSelector, { attributeFilter: [pinnedAttribute(LeftSide)] }, () => this.refitDrawerRails());
     }
 
     /** Gives a drawer's rail the shape of the width it now stands at, its groups re-resolved for it as a fold re-resolves them. */
@@ -161,6 +169,11 @@ export class MenuGroupEngine {
         dropFlyouts(menu);
 
         this.closeGroups(menu);
+
+        // A fold the reader plays (collapsible-engine.ts) slides the section it opens again in step with it, as it slides the one it
+        // closes, rather than drop the entries below it into place on the first frame.
+        if (menu.hasAttribute(FoldingAttribute))
+            menu.setAttribute(UnfoldedAttribute, "");
 
         if (!collapsed)
             this.openResolvedGroup(menu);
@@ -366,27 +379,31 @@ export function towardContent(menu: Element): "left" | "right" | "top" | "bottom
 }
 
 /**
- * Whether a rail stands as the page's bottom bar: the whole of a left side (the server marks the side) on a screen below the drawer
- * breakpoint, where the stylesheet lays it along the bottom (side-drawers.less).
+ * Whether a rail stands as the page's bottom bar: the whole of a left side (the server marks the side) below the width its view's
+ * sides are drawers below, where the stylesheet lays it along the bottom (side-drawers.less).
  */
 export function isBottomBar(menu: Element): boolean {
+    const bar = menu.closest(`[${BottomBarAttribute}]`);
+
     return menu.classList.contains(MenuRailClass)
-        && menu.closest(`[${BottomBarAttribute}]`) !== null
+        && bar?.parentElement !== null && bar?.parentElement !== undefined
         && typeof matchMedia === "function"
-        && !matchMedia(DrawerBreakpointQuery).matches;
+        && sideIsDrawer(bar.parentElement, LeftSide);
 }
 
 /**
- * Draws a rail whose side is kept a drawer (the server marks the side) as a list below the drawer breakpoint and as the rail from it.
+ * Draws a rail whose side is kept a drawer (the server marks the side) as a list where the side is a drawer, and as the rail in its column.
  * Its class is all that makes a rail — every rail rule of the stylesheet, its flyouts and its cut labels' tooltips read it — so the
  * list is the menu without it, a mark kept to give it back.
  */
 function fitDrawerRails(menus: Iterable<HTMLElement>): void {
-    const narrow = typeof matchMedia === "function" && !matchMedia(DrawerBreakpointQuery).matches;
-
     for (const menu of menus) {
-        if ((!menu.classList.contains(MenuRailClass) && !menu.hasAttribute(RailAsListAttribute)) || menu.closest(`[${RailDrawerAttribute}]`) === null)
+        const side = menu.closest(`[${RailDrawerAttribute}]`);
+
+        if ((!menu.classList.contains(MenuRailClass) && !menu.hasAttribute(RailAsListAttribute)) || side?.parentElement === null || side?.parentElement === undefined)
             continue;
+
+        const narrow = typeof matchMedia === "function" && sideIsDrawer(side.parentElement, LeftSide);
 
         menu.classList.toggle(MenuRailClass, !narrow);
         menu.toggleAttribute(RailAsListAttribute, narrow);

@@ -73,6 +73,18 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     public UIMenuDisplay? Display { get; set; }
 
     /// <summary>
+    /// Gets or sets whether a sidebar menu that is a side's drawer offers to pin it: a pin at the end of its top row, after the switch
+    /// and the search, which keeps the side in its column from the medium breakpoint up until it is pressed again.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only, and a list's alone: a rail is no drawer's head. Shown only where pinning means something — from the medium
+    /// breakpoint up, where the side is a drawer (<c>UIViewOptions.SideDrawers</c>) or pinned. The pin is kept in the browser under the
+    /// first authored id in the side (the menu's, where nothing around it has one); a side with no menu is pinned by a button of the page's own (<c>ButtonComponent.PinsDrawer</c>).
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
+    public bool? DrawerPin { get; set; }
+
+    /// <summary>
     /// Gets or sets how much room a rail takes — its column, its glyphs and labels — and the bottom bar it becomes on a phone.
     /// </summary>
     /// <remarks>

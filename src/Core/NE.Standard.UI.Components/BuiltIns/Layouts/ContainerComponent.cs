@@ -70,10 +70,14 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     /// <summary>
     /// Sets a grid row definition. <paramref name="index"/> is 1-based, matching <see cref="UIGridPlacement.Row"/>.
     /// </summary>
+    /// <remarks>
+    /// A container starts with one star row, so <c>SetRow(1, …)</c> sets it and <see cref="AddRow"/> adds the second: a three-row
+    /// container is <c>SetRow(1, Auto).AddRow(Star).AddRow(Auto)</c>.
+    /// </remarks>
     public T SetRow(int index, UIGridUnit unit)
     {
         if (index < 1 || index > _rows.Count)
-            throw new ArgumentOutOfRangeException(nameof(index));
+            throw new ArgumentOutOfRangeException(nameof(index), index, $"Container '{Id}' has {_rows.Count} row(s), its first one from the start; set row 1 to {_rows.Count}, or add one with AddRow first.");
 
         unit.Validate();
         _rows[index - 1] = unit;
@@ -81,7 +85,8 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     }
 
     /// <summary>
-    /// Adds a grid row definition.
+    /// Adds a grid row definition after the ones there are — after the star row a container starts with, which <see cref="SetRow"/>
+    /// sets.
     /// </summary>
     public T AddRow(UIGridUnit unit)
     {

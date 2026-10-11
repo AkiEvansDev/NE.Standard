@@ -1,0 +1,48 @@
+@import "../core/tokens.less";
+
+// The bands of width a view's sides may be drawers in (UIViewOptions.SideDrawers, the root's `data-ui-side-drawers`), narrowest first;
+// @rules is drawn once in each, given:
+// - @ui-drawers: the roots whose sides are drawers in this band — below the medium breakpoint every root naming a width, above it
+//   those naming a wider one;
+// - @ui-drawers-left, @ui-drawers-right: what keeps that side a drawer there besides — from the medium breakpoint up, not pinned (a
+//   pin, side-drawer-engine.ts, stands the side in its column, as if the screen were wide), appended to @ui-drawers;
+// - @ui-pins-hold: whether a pin holds in this band, for a rule about a pinned side alone (`& when (@ui-pins-hold)`);
+// - @ui-columns: the roots whose sides stand in their columns in this band.
+// side-drawer-width.ts reads the same widths for the engines.
+.ui-side-drawer-bands(@rules) {
+    @media (max-width: (@ui-breakpoint-md - 0.02px)) {
+        @ui-drawers: ~'[data-ui-root][data-ui-side-drawers]';
+        @ui-drawers-left: ~'';
+        @ui-drawers-right: ~'';
+        @ui-pins-hold: false;
+        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers])';
+        @rules();
+    }
+
+    @media (min-width: @ui-breakpoint-md) and (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        @ui-drawers: ~'[data-ui-root]:is([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+        @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
+        @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
+        @ui-pins-hold: true;
+        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+        @rules();
+    }
+
+    @media (min-width: @ui-breakpoint-xl) and (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        @ui-drawers: ~'[data-ui-root]:is([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+        @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
+        @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
+        @ui-pins-hold: true;
+        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+        @rules();
+    }
+
+    @media (min-width: @ui-breakpoint-xxl) {
+        @ui-drawers: ~'[data-ui-root][data-ui-side-drawers="always"]';
+        @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
+        @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
+        @ui-pins-hold: true;
+        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="always"])';
+        @rules();
+    }
+}

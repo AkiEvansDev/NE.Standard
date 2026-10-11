@@ -375,6 +375,8 @@ public static partial class WebEndpointRouteBuilderExtensions
             ScrollContentOnly = resolution.View.Options.ScrollContentOnly,
             ShellLayout = resolution.View.Options.ShellLayout,
             SideDrawers = resolution.View.Options.SideDrawers,
+            LeftDrawerModal = resolution.View.Options.LeftDrawerModal,
+            RightDrawerModal = resolution.View.Options.RightDrawerModal,
             BottomBar = WebViewRenderer.HasBottomBar(resolution.View),
             ContentFills = WebViewRenderer.ContentFills(resolution.View, hydration.Values),
             Metadata = metadata,

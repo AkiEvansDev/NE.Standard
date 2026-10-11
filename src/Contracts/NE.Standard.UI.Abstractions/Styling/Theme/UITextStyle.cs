@@ -8,12 +8,12 @@ namespace NE.Standard.UI.Abstractions.Styling.Theme;
 public readonly record struct UITextStyle()
 {
     /// <summary>
-    /// The font size, in points.
+    /// The font size, in device-independent pixels.
     /// </summary>
     public double FontSize { get; init; }
 
     /// <summary>
-    /// The line height, in points.
+    /// The line height, in device-independent pixels.
     /// </summary>
     public double LineHeight { get; init; }
 
@@ -23,7 +23,7 @@ public readonly record struct UITextStyle()
     public int FontWeight { get; init; } = 400;
 
     /// <summary>
-    /// The letter spacing, in points, or <see langword="null"/> to use the default spacing.
+    /// The letter spacing, in device-independent pixels, or <see langword="null"/> to use the default spacing.
     /// </summary>
     public double? LetterSpacing { get; init; }
 

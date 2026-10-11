@@ -38,6 +38,7 @@ using DemoApp.Controllers.Layouts.Container;
 using DemoApp.Controllers.Layouts.Expander;
 using DemoApp.Controllers.Layouts.Flyout;
 using DemoApp.Controllers.Layouts.GridSplitter;
+using DemoApp.Controllers.Layouts.PaneContainer;
 using DemoApp.Controllers.Layouts.Scroll;
 using DemoApp.Controllers.Layouts.StackPanel;
 using DemoApp.Controllers.Layouts.Surface;
@@ -89,6 +90,7 @@ using DemoApp.Views.Layouts.Container;
 using DemoApp.Views.Layouts.Expander;
 using DemoApp.Views.Layouts.Flyout;
 using DemoApp.Views.Layouts.GridSplitter;
+using DemoApp.Views.Layouts.PaneContainer;
 using DemoApp.Views.Layouts.Scroll;
 using DemoApp.Views.Layouts.StackPanel;
 using DemoApp.Views.Layouts.Surface;
@@ -174,6 +176,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<FlyoutView, FlyoutController>("/layouts/flyout");
         _ = application.Route<CollapsiblePanelView, CollapsiblePanelController>("/layouts/collapsible-panel");
         _ = application.Route<GridSplitterView, GridSplitterController>("/layouts/grid-splitter");
+        _ = application.Route<PaneContainerView, PaneContainerController>("/layouts/pane-container");
 
         // Contents
         _ = application.Route<BadgeView, BadgeController>("/contents/badge");

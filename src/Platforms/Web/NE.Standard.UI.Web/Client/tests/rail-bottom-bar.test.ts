@@ -53,7 +53,7 @@ const rail = FakeElement.of("ui-menu ui-menu--rail ui-orientation--vertical ui-s
 // As the server writes the issue's own side: the rail in a padded box, the side marked a bar.
 const bar = FakeElement.of("", { "data-ui-region": "left-side", "data-ui-bottom-bar": "" }).append(FakeElement.of("ui-container", { "data-ui-id": "1" }).append(rail));
 
-fakeDocument.body.append(FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "" }).append(bar));
+fakeDocument.body.append(FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "md" }).append(bar));
 
 new MenuGroupEngine({ root: real<ParentNode>(fakeDocument.body) });
 new MenuEngine({ root: real<ParentNode>(fakeDocument.body) });

@@ -33,11 +33,11 @@ public abstract partial class LinkComponent<T> : VisualComponentBase<T>, ITextBa
     public string? Url { get; set; }
 
     /// <summary>
-    /// Initializes the link with a centered alignment.
+    /// Initializes the link at the start of its line, as text stands, centred on it.
     /// </summary>
     protected LinkComponent(string? id = null) : base(id)
     {
-        HorizontalAlignment = UIAlignment.Center;
+        HorizontalAlignment = UIAlignment.Start;
         VerticalAlignment = UIAlignment.Center;
     }
 }

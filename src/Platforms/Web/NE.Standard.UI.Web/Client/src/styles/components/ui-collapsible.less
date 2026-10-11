@@ -37,13 +37,14 @@
         .ui-burger-glyph(@ui-glyph-md);
     }
 
-// The switch sits on the inner edge — facing away from the edge the panel is attached to — so it stays reachable after the fold.
+// A side's switch alone stands where it leads a row (below), at the edge the panel hangs on, in a column and in a drawer alike; folded,
+// the rail centres it.
 .ui-side--left > .ui-collapsible__toggle {
-    align-self: flex-end;
+    align-self: flex-start;
 }
 
 .ui-side--right > .ui-collapsible__toggle {
-    align-self: flex-start;
+    align-self: flex-end;
 }
 
 .ui-side--top > .ui-collapsible__toggle {
@@ -73,11 +74,44 @@
     flex-direction: row-reverse;
 }
 
+// In a side's row the switch leads, at the edge the panel hangs on, before what shares the row and the pin after it: one order
+// whether the side stands in its column or opens as a drawer, where the switch stands over the button that opened it.
+.ui-collapsible:is(.ui-side--left, .ui-side--right) > .ui-collapsible__bar > .ui-collapsible__toggle {
+    order: -1;
+}
+
 .ui-side--top > .ui-collapsible__bar {
     order: 1;
 }
 
-.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]) > .ui-collapsible__bar > .ui-collapsible__bar-content {
+// A sidebar menu's pin for its drawer (MenuComponent.DrawerPin, side-drawers.less shows it) at the end of its top row, the switch's
+// match beside it, filled while its side is pinned.
+.ui-collapsible__pin {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 0;
+    border-radius: var(--ui-radius-button);
+    background: none;
+    color: @ui-text-muted;
+    cursor: pointer;
+    .ui-reveal-hover(@transition: false);
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+}
+
+    .ui-collapsible__pin::before {
+        .ui-pin-glyph(@ui-glyph-sm; 0);
+    }
+
+    .ui-collapsible__pin[aria-pressed="true"]::before {
+        .ui-pin-glyph(@ui-glyph-sm; 1);
+    }
+
+// Folded, the panel is its switch alone: what stood beside it, the pin too, comes back with the panel.
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]) > .ui-collapsible__bar > :is(.ui-collapsible__bar-content, .ui-collapsible__pin) {
     display: none;
 }
 

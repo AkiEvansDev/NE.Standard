@@ -88,11 +88,29 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     /// </summary>
     /// <remarks>
     /// Render-time only. The page's own button for that side, then, is this one: the shell draws none, so a header collapsed on a phone
-    /// leaves no band behind for it. Shown only where the side is a drawer — below the medium breakpoint, and never where a left side
-    /// is the bottom bar — the button is as expanded as the drawer is open, and the keyboard comes back to it when the drawer goes.
+    /// leaves no band behind for it. Shown only where the side is a drawer — below the width the view names, unpinned, and never where
+    /// a left side is the bottom bar — the button is as expanded as the drawer is open, and the keyboard comes back to it when the
+    /// drawer goes.
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public UISide? OpensDrawer
+    {
+        get;
+        set => field = value is null or UISide.Left or UISide.Right ? value : throw new ArgumentOutOfRangeException(nameof(value), value, "A drawer is a left or a right side.");
+    }
+
+    /// <summary>
+    /// Gets or sets the side whose drawer the button pins and unpins (<see cref="UIViewOptions.SideDrawers"/>), left or right: pinned,
+    /// the side stands in its column from the medium breakpoint up, as if the screen were wide.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only. A side with no sidebar menu to carry a pin (<c>MenuComponent.DrawerPin</c>) is pinned by a button of the page's
+    /// own, standing wherever the side's heading is. Shown only where pinning means something — from the medium breakpoint up, where the
+    /// side is a drawer or pinned, and never for a left side that is the bottom bar — it is as pressed as the side is pinned. The pin is
+    /// kept in the browser under the first authored id in the side.
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
+    public UISide? PinsDrawer
     {
         get;
         set => field = value is null or UISide.Left or UISide.Right ? value : throw new ArgumentOutOfRangeException(nameof(value), value, "A drawer is a left or a right side.");

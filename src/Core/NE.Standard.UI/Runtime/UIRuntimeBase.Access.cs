@@ -149,14 +149,7 @@ internal abstract partial class UIRuntimeBase
         }
         catch (Exception exception)
         {
-            try
-            {
-                _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (Exception handlerException)
-            {
-                TryLogDetachedCommandFailure(operation, handlerException);
-            }
+            await ReportDetachedFailureAsync(operation, exception).ConfigureAwait(false);
         }
         finally
         {
@@ -164,14 +157,7 @@ internal abstract partial class UIRuntimeBase
             if (inTurn)
                 _ = _exclusiveCommandLock.Release();
 
-            try
-            {
-                await LeaveCommandAsync().ConfigureAwait(false);
-            }
-            catch (Exception exception)
-            {
-                TryLogDetachedCommandFailure(operation, exception);
-            }
+            await LeaveOrLogAsync(operation, 1).ConfigureAwait(false);
         }
     }
 
@@ -188,6 +174,92 @@ internal abstract partial class UIRuntimeBase
         await action(cancellationToken).ConfigureAwait(false);
 
         _ = await DrainAsync(action: null, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Hands a failure nothing awaits to the controller's exception handler, and logs one the handler itself throws.</summary>
+    private async Task ReportDetachedFailureAsync(string operation, Exception exception)
+    {
+        try
+        {
+            _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception handlerException)
+        {
+            TryLogDetachedCommandFailure(operation, handlerException);
+        }
+    }
+
+    /// <summary>Lets go of a hold nothing awaits (<see cref="LeaveAsync"/>), logging a failure of the dispose it may run.</summary>
+    private async Task LeaveOrLogAsync(string operation, long hold)
+    {
+        try
+        {
+            await LeaveAsync(hold).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            TryLogDetachedCommandFailure(operation, exception);
+        }
+    }
+
+    // Cancelled once the runtime is asked to go: the token of every job it owns.
+    private readonly CancellationTokenSource _lifetime = new();
+
+    /// <inheritdoc />
+    public void Start(Func<CancellationToken, Task> action)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(action);
+
+        // Held from now, as posted work is, so a runtime asked to go waits for the job to answer its token rather than disposing under
+        // it; held as a job, which keeps no runtime past its retention, so one nobody comes back to is asked to go and its job told.
+        _ = Interlocked.Add(ref _commandsInFlight, JobHold);
+
+        // Not in the caller's flow: started in a command, the job kept that command's connection as Context.Handle after it closed.
+        if (ExecutionContext.IsFlowSuppressed())
+        {
+            _ = Task.Run(() => RunStartedAsync(action));
+            return;
+        }
+
+        using (ExecutionContext.SuppressFlow())
+            _ = Task.Run(() => RunStartedAsync(action));
+    }
+
+    /// <summary>Runs a job the runtime owns to its end and lets go of its hold; never faults: a failure goes to the controller.</summary>
+    private async Task RunStartedAsync(Func<CancellationToken, Task> action)
+    {
+        try
+        {
+            // Read under the hold: a runtime not yet asked to go keeps its token until this job leaves.
+            if (Volatile.Read(ref _disposeRequested) == 0)
+                await action(_lifetime.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The runtime is going: the job stopped as asked.
+        }
+        catch (Exception exception)
+        {
+            await ReportDetachedFailureAsync("Start", exception).ConfigureAwait(false);
+        }
+        finally
+        {
+            await LeaveOrLogAsync("Start", JobHold).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Tells the runtime's own jobs it is going; a job's registration that throws stops neither the others nor the going.</summary>
+    private void CancelLifetime()
+    {
+        try
+        {
+            _lifetime.Cancel();
+        }
+        catch (AggregateException exception)
+        {
+            TryLogDetachedCommandFailure("Start", exception);
+        }
     }
 
     /// <inheritdoc />

@@ -1,6 +1,7 @@
-// The bottom bar read back from the compiled stylesheet: below the drawer breakpoint a side marked a bar is no drawer but a row of the
-// page's own after the footer, standing at the viewport's bottom, the boxes around its rail stepping aside; the rail lies along it as a
-// horizontal rail does, through the same rules, its current entry marked on the edge toward the content.
+// The drawers and the bottom bar read back from the compiled stylesheet: below the drawer breakpoint a side marked a bar is no drawer
+// but a row of the page's own after the footer, standing at the viewport's bottom, the boxes around its rail stepping aside; the rail
+// lies along it as a horizontal rail does, through the same rules, its current entry marked on the edge toward the content. Wider, the
+// sides are drawers where the view names a wider width, a pinned side standing in its column; a modeless side's drawer has no veil.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -52,12 +53,17 @@ const shell = "[data-ui-root][data-ui-side-drawers]";
 const barRail = `${shell} > [data-ui-bottom-bar] .ui-menu--rail`;
 const horizontalRail = ".ui-menu--rail.ui-orientation--horizontal";
 
-const closedDrawers = `${shell} > :is([data-ui-region="left-side"]:where(:not([data-ui-bottom-bar])), [data-ui-region="right-side"])`;
 const closedLeft = `${shell} > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`;
+const closedDrawers = `${closedLeft},\n  ${shell} > [data-ui-region="right-side"]`;
 const openDrawers = [
-    '[data-ui-root][data-ui-drawer-open="left-side"] > [data-ui-region="left-side"]',
-    '[data-ui-root][data-ui-drawer-open="right-side"] > [data-ui-region="right-side"]'
+    `${shell}[data-ui-drawer-open="left-side"] > [data-ui-region="left-side"]`,
+    `${shell}[data-ui-drawer-open="right-side"] > [data-ui-region="right-side"]`
 ];
+
+// A tablet's band, between the medium and the extra-large breakpoints: the roots naming a wider width, a side there unpinned.
+const tablet = mediaBlocks("@media (min-width: 768px) and (max-width: 1279.98px) {");
+const wider = '[data-ui-root]:is([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+const columns = '[data-ui-root]:not([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
 
 /**
  * A selector's weight in attributes and classes — all these selectors carry — so two rules can be weighed: `:where` weighs nothing,
@@ -138,16 +144,16 @@ test("an open drawer's rule still outweighs the closed ones the bar's exception 
     const open = Math.min(...openDrawers.map(weight));
 
     assert.ok(phone.indexOf(openDrawers[0]) > phone.indexOf(closedLeft));
-    assert.ok(open >= weight(closedDrawers), "the closed drawer's visibility would win: an opened drawer stays hidden");
+    assert.ok(open >= Math.max(...splitList(closedDrawers).map(weight)), "the closed drawer's visibility would win: an opened drawer stays hidden");
     assert.ok(open >= weight(closedLeft), "the closed drawer's transform would win: an opened drawer stays off the screen");
-    assert.ok(weight(`${shell} > [data-ui-region="left-side"]:not([data-ui-bottom-bar])`) > open, "the weighing tells the bare exception apart");
+    assert.ok(weight(`${shell} > [data-ui-region="left-side"]:not([data-ui-bottom-bar])`) > weight(closedLeft), "the weighing tells the bare exception apart");
 });
 
 test("the bar is a row of the page's own after the footer, standing at the viewport's bottom on the page's ground", () => {
     const bar = declarations(phone, `${shell} > [data-ui-region="left-side"][data-ui-bottom-bar]`) ?? "";
 
     assert.match(bar, /position: sticky;\s*bottom: 0;/);
-    assert.match(bar, /grid-column: 1;\s*grid-row: 4;/, "not after the footer, the content's end would scroll under it");
+    assert.match(bar, /grid-column: 1 \/ -1;\s*grid-row: 4;/, "not after the footer, the content's end would scroll under it");
     assert.match(bar, /overflow: visible;/, "a scrolling side's own overflow would clip the bar");
     assert.match(bar, /var\(--ui-color-background\);/);
     assert.match(declarations(phone, `${shell} > [data-ui-bottom-bar] [data-ui-id]:not(.ui-menu--rail, .ui-menu--rail *)`) ?? "", /display: contents;/);
@@ -179,11 +185,37 @@ test("the bar's hairline is the rail's, under its entries, so the current entry'
     assert.doesNotMatch(declarations(phone, barRail) ?? "", /padding-top|border-top/, "the entries would start below the hairline");
 });
 
-test("a page's own drawer button shows only where its side is a drawer: never from the breakpoint up, nor for the bottom bar's side", () => {
-    const wide = mediaBlocks("@media (min-width: 768px) {");
+test("a page's own drawer button shows only where its side is a drawer: not where the sides are columns, nor pinned, nor the bar's", () => {
+    const hidden = [
+        `${columns} [data-ui-id][data-ui-drawer-toggle]`,
+        `${columns} [data-ui-drawer-pin]`,
+        `${wider}[data-ui-left-bar] [data-ui-id][data-ui-drawer-toggle="left-side"]`
+    ];
 
-    assert.match(declarations(wide, "[data-ui-id][data-ui-drawer-toggle]") ?? "", /display: none !important;/);
-    assert.match(declarations(phone, '[data-ui-root][data-ui-left-bar] [data-ui-id][data-ui-drawer-toggle="left-side"]') ?? "", /display: none !important;/);
+    const pinned = [
+        `${wider}[data-ui-pinned-left-side] [data-ui-id][data-ui-drawer-toggle="left-side"]`,
+        `${wider}[data-ui-pinned-right-side] [data-ui-id][data-ui-drawer-toggle="right-side"]`
+    ];
+
+    assert.match(declarations(tablet, hidden.join(",\n  ")) ?? "", /display: none !important;/);
+    assert.match(declarations(tablet, pinned.join(",\n  ")) ?? "", /display: none !important;/);
+    assert.match(phone, /\[data-ui-root\]\[data-ui-side-drawers\]\[data-ui-left-bar\] \[data-ui-id\]\[data-ui-drawer-toggle="left-side"\] \{\s*display: none !important;/);
+    assert.match(declarations(phone, "[data-ui-drawer-pin]") ?? "", /display: none !important;/, "a phone's sides are drawers whatever is pinned");
+    assert.doesNotMatch(phone, /\[data-ui-pinned-(left|right)-side\] \[data-ui-id\]\[data-ui-drawer-toggle/, "on a phone a pinned side is a drawer, opened by the page's own button");
+    assert.match(declarations(css, '[data-ui-root][data-ui-left-bar] [data-ui-drawer-pin="left-side"]') ?? "", /display: none !important;/, "the bottom bar stands as a bar whatever is pinned");
+});
+
+test("on a tablet the sides are drawers where the view names a wider width, and a pinned side keeps its column", () => {
+    assert.match(declarations(tablet, `${wider}:not([data-ui-pinned-left-side]) > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /transform: translateX\(-100%\);/);
+    assert.match(tablet, /:not\(\[data-ui-pinned-right-side\]\) > \[data-ui-region="right-side"\] \{\s*right: 0;\s*transform: translateX\(100%\);/);
+    assert.match(declarations(tablet, `${wider}:not([data-ui-pinned-left-side])[data-ui-drawer-open="left-side"] > [data-ui-region="left-side"],\n  ${wider}:not([data-ui-pinned-right-side])[data-ui-drawer-open="right-side"] > [data-ui-region="right-side"]`) ?? "", /visibility: visible;\s*transform: none;/);
+    assert.match(mediaBlocks("@media (min-width: 1536px) {"), /\[data-ui-root\]\[data-ui-side-drawers="always"\]:not\(\[data-ui-pinned-left-side\]\) > \[data-ui-region="left-side"\]/, "always is a drawer on the widest screen too");
+});
+
+test("a modeless side's open drawer leaves the page unveiled", () => {
+    const veiled = '[data-ui-root][data-ui-drawer-open="left-side"]:not([data-ui-drawer-modeless~="left-side"]) > .ui-shell__drawer-backdrop,\n[data-ui-root][data-ui-drawer-open="right-side"]:not([data-ui-drawer-modeless~="right-side"]) > .ui-shell__drawer-backdrop';
+
+    assert.match(declarations(css, veiled) ?? "", /display: block;\s*opacity: 1;/);
 });
 
 test("the document and a filled page are read off the shell's marks: the gutter dropped, the regions' own scroll kept on a phone", () => {

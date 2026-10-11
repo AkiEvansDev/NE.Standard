@@ -28,7 +28,7 @@ namespace NE.Standard.UI.Runtime;
 internal abstract partial class UIRuntimeBase
 {
     /// <inheritdoc />
-    public bool HasCommandsInFlight => Volatile.Read(ref _commandsInFlight) != 0;
+    public bool HasCommandsInFlight => (Volatile.Read(ref _commandsInFlight) & CommandHolds) != 0;
 
     /// <inheritdoc />
     public async Task<UICommandExecutionResult> ProcessEventAsync(UIHandle invoker, UICommandRequest request, CancellationToken cancellationToken = default)
@@ -69,7 +69,7 @@ internal abstract partial class UIRuntimeBase
     private sealed class CommandRelease(UIRuntimeBase runtime) : IAsyncDisposable
     {
         public ValueTask DisposeAsync()
-            => runtime.LeaveCommandAsync();
+            => runtime.LeaveAsync(1);
     }
 
     /// <summary>
@@ -459,14 +459,7 @@ internal abstract partial class UIRuntimeBase
             if (run is not null)
                 LeaveRun(run);
 
-            try
-            {
-                await LeaveCommandAsync().ConfigureAwait(false);
-            }
-            catch (Exception exception)
-            {
-                TryLogDetachedCommandFailure(operation, exception);
-            }
+            await LeaveOrLogAsync(operation, 1).ConfigureAwait(false);
         }
 
         return succeeded;
@@ -661,11 +654,12 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Lets go of one command's hold on the runtime; the last one out disposes a runtime asked to go meanwhile.
+    /// Lets go of a hold on the runtime — a command's 1 or a job's <see cref="JobHold"/>; the last one out disposes a runtime asked to
+    /// go meanwhile.
     /// </summary>
-    private async ValueTask LeaveCommandAsync()
+    private async ValueTask LeaveAsync(long hold)
     {
-        if (Interlocked.Decrement(ref _commandsInFlight) == 0 && Volatile.Read(ref _disposeRequested) != 0 && TryClaimDispose())
+        if (Interlocked.Add(ref _commandsInFlight, -hold) == 0 && Volatile.Read(ref _disposeRequested) != 0 && TryClaimDispose())
             await DisposeNowAsync().ConfigureAwait(false);
     }
 }

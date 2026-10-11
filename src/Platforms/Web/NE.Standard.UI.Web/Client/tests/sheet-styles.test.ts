@@ -1,6 +1,7 @@
 // A phone's sheet as the compiled stylesheet draws it: along the bottom at the screen's width, three quarters of it high at most,
 // sliding up out of its popover and down into it, a nested list sliding in from the side; its handle, and a dialog's bottom sheet
-// rounded as it is, and wearing the same handle and following the same drag where the viewer may dismiss it.
+// rounded as it is, and wearing the same handle and following the same drag where the viewer may dismiss it; a non-modal dialog's
+// layer, which lets a press beside its panel through to the page.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -54,4 +55,10 @@ test("a dialog's bottom sheet rounds its top corners as a list's sheet does; a s
     assert.match(rule(".ui-dialog[data-ui-dialog-placement=\"bottom\"] > .ui-dialog__surface"), corners);
     assert.match(rule(".ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface"), /border-radius: 0;/);
     assert.ok(css.indexOf("\n.ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface {") < css.indexOf("\n.ui-dialog[data-ui-dialog-placement=\"bottom\"] > .ui-dialog__surface {"), "the bottom sheet's corners come after every edge's square ones");
+});
+
+test("a non-modal dialog takes a press on its panel alone, so the page beside it keeps working", () => {
+    assert.match(rule(".ui-dialog:not([data-ui-dialog-modal])"), /pointer-events: none;/);
+    assert.match(rule(".ui-dialog:not([data-ui-dialog-modal], [hidden]) > .ui-dialog__surface"), /pointer-events: auto;/);
+    assert.doesNotMatch(rule(".ui-dialog__backdrop"), /pointer-events/);
 });

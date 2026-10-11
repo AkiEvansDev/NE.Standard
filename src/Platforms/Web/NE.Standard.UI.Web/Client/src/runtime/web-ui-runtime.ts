@@ -41,6 +41,7 @@ import { ScreenKeyboardEngine } from "../interactions/screen-keyboard";
 import { SideDrawerEngine } from "../interactions/side-drawer-engine";
 import { CollapsibleEngine } from "../interactions/collapsible-engine";
 import { GridSplitterEngine } from "../interactions/grid-splitter-engine";
+import { PaneContainerEngine } from "../interactions/pane-container-engine";
 import { SplitButtonEngine } from "../interactions/split-button-engine";
 import { ButtonGroupEngine } from "../interactions/button-group-engine";
 import { AccordionEngine } from "../interactions/accordion-engine";
@@ -250,6 +251,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
     ["screen keyboard", () => new ScreenKeyboardEngine()],
     ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
+    ["pane container", ({ root }) => new PaneContainerEngine({ root })],
     ["accordion", ({ root }) => new AccordionEngine({ root })],
     ["tabs", ({ root }) => new TabsEngine({ root })],
     ["tabs view", ({ root, effects }) => new TabsViewEngine({ root, effects })],

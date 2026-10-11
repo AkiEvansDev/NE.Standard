@@ -276,6 +276,17 @@ export class FakeElement {
         this.dispatchEvent(new FakeEvent("click"));
     }
 
+    /** Where its box stands without a transform: a drawer still sliding in has its `rect` off the edge and this at it. */
+    public offset: { left: number; top: number } | null = null;
+
+    public get offsetLeft(): number {
+        return this.offset?.left ?? this.rect.left;
+    }
+
+    public get offsetTop(): number {
+        return this.offset?.top ?? this.rect.top;
+    }
+
     public get offsetWidth(): number {
         return this.rect.width;
     }

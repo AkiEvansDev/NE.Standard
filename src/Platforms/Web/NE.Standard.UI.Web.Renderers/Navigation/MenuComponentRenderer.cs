@@ -80,8 +80,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (IsPopupMenu(context, context.Node) && !IsContextMenuRoot(context))
             _ = root.Attribute("role", "menu");
 
-        // A rail has nothing left to fold: no fold, no switch.
-        CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: !rail);
+        // A rail has nothing left to fold: no fold, no switch, and no head to carry a drawer's pin.
+        CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: !rail, pinSide: rail ? null : DrawerPinSide(context));
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty, SurfaceOperations);
         RenderPopupSurface(context);
@@ -133,6 +133,26 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         {
             if (slot.RootComponentId == node.ComponentId)
                 return (owner, slot);
+        }
+
+        return null;
+    }
+
+    /// <summary>The side whose drawer the menu offers to pin (<c>MenuComponent.DrawerPin</c>): the side region it stands in.</summary>
+    private static string? DrawerPinSide(WebRenderContext context)
+    {
+        CompiledView view = context.ViewResolution.View;
+
+        if (!ReadRenderValue(context, MenuComponent.DrawerPinProperty, false) || view.Options.SideDrawers == UISideDrawers.Never)
+            return null;
+
+        for (UIComponentId? id = context.Node.ComponentId; id is UIComponentId current; id = view.Graph.GetRequired(current).ParentId)
+        {
+            for (var i = 0; i < view.Regions.Length; i++)
+            {
+                if (view.Regions[i].RootComponentId == current)
+                    return view.Regions[i].Key is RegionNames.LeftSide or RegionNames.RightSide ? view.Regions[i].Key : null;
+            }
         }
 
         return null;

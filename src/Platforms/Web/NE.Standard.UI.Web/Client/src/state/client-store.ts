@@ -7,6 +7,8 @@ const BootSlot = "boot";
 /** Attributes and styles the boot script writes on a component before the first paint. */
 export type ClientBootPatch = {
     readonly selector?: string;
+    /** The page's root rather than the component: a fact of the shell kept under a component's name, as a side's pin is. */
+    readonly root?: boolean;
     readonly attributes?: Readonly<Record<string, string | null>>;
     readonly styles?: Readonly<Record<string, string>>;
 };

@@ -29,3 +29,21 @@
     .ui-responsive-property(height, --ui-height, 0.5rem);
     .ui-drag-bar-line(horizontal; currentColor; @ui-button-live);
 }
+
+// A bar with nothing left on one side (grid-splitter-engine.ts marks which): its line stands at that edge rather than mid-track, where
+// it met a crossing bar's end four pixels short.
+.ui-grid-splitter[data-ui-split-edge="before"]::before {
+    --ui-drag-bar-offset: 0px;
+}
+
+.ui-grid-splitter[data-ui-split-edge="after"]::before {
+    --ui-drag-bar-offset: calc(100% - var(--ui-drag-bar-line));
+}
+
+// Along a folded edge the line read as a stray border: where the pointer can hover it shows only under it, a key's focus or a
+// drag. A grip there stood over the grip of the pane beside it.
+@media @{ui-can-hover} {
+    .ui-grid-splitter[data-ui-split-edge]:not(:hover, [data-ui-splitting], @{ui-keyboard-focus})::before {
+        opacity: 0;
+    }
+}

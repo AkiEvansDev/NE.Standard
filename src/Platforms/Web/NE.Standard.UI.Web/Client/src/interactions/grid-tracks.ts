@@ -215,8 +215,11 @@ function range(start: number, end: number): number[] {
     return indices;
 }
 
-/** Moves the boundary between the two runs by `delta` pixels, within every track's bounds; null when nothing can move. */
-export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, delta: number): GridTrack[] | null {
+/**
+ * Moves the boundary between the two runs by `delta` pixels, within every track's bounds; null when nothing can move. A run is kept
+ * out of the sliver below `sliver` pixels (`snapSliver`); 0 lets it follow the move all the way, as a splitter's drag does.
+ */
+export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, delta: number, sliver = SliverPixels): GridTrack[] | null {
     const before = measureRun(tracks, sizes, runs.before);
     const after = measureRun(tracks, sizes, runs.after);
 
@@ -230,7 +233,7 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
     if (lower > upper)
         return null;
 
-    const clamped = snapSliver(Math.min(Math.max(delta, lower), upper), delta, before.total, after.total, lower, upper);
+    const clamped = snapSliver(Math.min(Math.max(delta, lower), upper), delta, before.total, after.total, lower, upper, sliver);
 
     if (clamped === 0)
         return null;
@@ -259,22 +262,28 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
     return next;
 }
 
-/** Below this a run is a sliver: its words stood one a line and stretched the row, so it folds to nothing or opens to this. */
+/** Below this a table's column is a sliver: its words stood one a line and stretched the row, so it folds to nothing or opens to this. */
 const SliverPixels = 120;
 
 /**
- * Keeps either run out of the sliver between nothing and `SliverPixels`: a move into it goes on to nothing when it shrinks that run,
- * and stops at the edge of it when it grows one, within the bounds the move was clamped to.
+ * Below this a splitter's side folds to nothing when the bar is let go there, and a key's step opens a folded side to it: small, so a
+ * narrow side stays the reader's to keep.
  */
-function snapSliver(move: number, delta: number, before: number, after: number, lower: number, upper: number): number {
+export const FoldPixels = 48;
+
+/**
+ * Keeps either run out of the sliver between nothing and `sliver`: a move into it goes on to nothing when it shrinks that run, and
+ * stops at the edge of it when it grows one, within the bounds the move was clamped to.
+ */
+function snapSliver(move: number, delta: number, before: number, after: number, lower: number, upper: number, sliver: number): number {
     let snapped = move;
     const beforeNext = before + snapped;
     const afterNext = after - snapped;
 
-    if (beforeNext > 0 && beforeNext < SliverPixels)
-        snapped = delta < 0 ? -before : SliverPixels - before;
-    else if (afterNext > 0 && afterNext < SliverPixels)
-        snapped = delta > 0 ? after : after - SliverPixels;
+    if (beforeNext > 0 && beforeNext < sliver)
+        snapped = delta < 0 ? -before : sliver - before;
+    else if (afterNext > 0 && afterNext < sliver)
+        snapped = delta > 0 ? after : after - sliver;
 
     return Math.min(Math.max(snapped, lower), upper);
 }
@@ -357,10 +366,30 @@ function sumWeight(run: readonly number[], tracks: readonly GridTrack[]): number
 
 /** The share of the room the run before the boundary holds, in whole percent — what `aria-valuenow` reports. */
 export function splitPercent(sizes: readonly number[], runs: GridSplitRuns): number {
+    return Math.round(splitShare(sizes, runs) * 100);
+}
+
+/** The share of the room a bar divides that the run before it holds, 0 to 1; 0 where there is no room. */
+export function splitShare(sizes: readonly number[], runs: GridSplitRuns): number {
     const before = sum(runs.before, sizes);
     const total = before + sum(runs.after, sizes);
 
-    return total <= 0 ? 0 : Math.round(before / total * 100);
+    return total <= 0 ? 0 : before / total;
+}
+
+/** How far the bar moves for the run before it to hold `share` of the room, in pixels, before any track's bound clamps it. */
+export function shareDelta(sizes: readonly number[], runs: GridSplitRuns, share: number): number {
+    const before = sum(runs.before, sizes);
+    const total = before + sum(runs.after, sizes);
+
+    return total * Math.min(Math.max(share, 0), 1) - before;
+}
+
+/** A splitter's position as written on it (`data-ui-splitter-position`): a share from 0 to 1, or null for none or text that is not one. */
+export function parseShare(text: string | null): number | null {
+    const share = text === null || text.length === 0 ? Number.NaN : Number(text);
+
+    return share >= 0 && share <= 1 ? share : null;
 }
 
 /** Where each of a table's first `pinned` columns sticks: the laid-out widths before it added up, the first at zero. */
@@ -375,6 +404,34 @@ export function pinOffsets(sizes: readonly number[], pinned: number): number[] {
     return offsets;
 }
 
+const NoTracks: ReadonlySet<number> = new Set();
+
+/** How far the boundary moves to fold a run left under `fold` pixels, as the layout stands; 0 when neither run is one. */
+export function foldDelta(sizes: readonly number[], runs: GridSplitRuns, fold: number): number {
+    const before = runs.before.reduce((total, index) => total + (sizes[index] ?? 0), 0);
+    const after = runs.after.reduce((total, index) => total + (sizes[index] ?? 0), 0);
+
+    if (before >= 1 && before < fold)
+        return -before;
+
+    return after >= 1 && after < fold ? after : 0;
+}
+
+/**
+ * The tracks of each run under `fold` pixels: a side a drag has taken that narrow, whose panes are taken away rather than squeezed
+ * until the bar is let go — folded then, or given room.
+ */
+export function narrowRunTracks(sizes: readonly number[], runs: GridSplitRuns, fold: number): Set<number> {
+    const narrow = new Set<number>();
+
+    for (const run of [runs.before, runs.after]) {
+        if (run.reduce((total, index) => total + (sizes[index] ?? 0), 0) < fold)
+            run.forEach(index => narrow.add(index));
+    }
+
+    return narrow;
+}
+
 /** The tracks with the hidden columns' at zero and unbounded: a hidden column keeps its track, so every index after it stays true. */
 export function zeroTracks(tracks: readonly GridTrack[], hidden: ReadonlySet<number>): GridTrack[] {
     return tracks.map((track, index) => hidden.has(index) ? { kind: "px", value: 0 } : track);
@@ -382,9 +439,9 @@ export function zeroTracks(tracks: readonly GridTrack[], hidden: ReadonlySet<num
 
 /**
  * Whether a child placed from grid line `start` to `end` (computed values: a line, `span N` or `auto`) covers only tracks of no
- * size; a child the grid placed by itself (`auto`) is never one.
+ * size, or only ones `narrow` names; a child the grid placed by itself (`auto`) is never one.
  */
-export function coversNoRoom(start: string, end: string, sizes: readonly number[]): boolean {
+export function coversNoRoom(start: string, end: string, sizes: readonly number[], narrow: ReadonlySet<number> = NoTracks): boolean {
     const first = Number(start);
 
     if (!Number.isInteger(first) || first < 1)
@@ -394,5 +451,5 @@ export function coversNoRoom(start: string, end: string, sizes: readonly number[
     const line = Number(end);
     const last = spanned !== null ? first + Number(spanned[1]) : Number.isInteger(line) && line > first ? line : first + 1;
 
-    return last - 1 <= sizes.length && sizes.slice(first - 1, last - 1).every(size => size < 1);
+    return last - 1 <= sizes.length && sizes.slice(first - 1, last - 1).every((size, offset) => size < 1 || narrow.has(first - 1 + offset));
 }

@@ -9,9 +9,9 @@ namespace DemoApp.Views.Layouts.GridSplitter;
 /// the viewer move: a sidebar's edge, the lines between panes, and a log's top.
 /// </summary>
 /// <remarks>
-/// Two panes in the preview because <c>Orientation</c> is not bindable, and their containers are unnamed, so a drag there is
-/// forgotten on navigation. Every container in the examples is named, so the division chosen there is there on the next visit
-/// — and painted before the first frame.
+/// Two panes in the preview because <c>Orientation</c> is not bindable, and their containers are unnamed with the position bound, so
+/// a drag there is the page's controller's and goes with it. Every container in the examples is named, so the division chosen there
+/// is there on the next visit — and painted before the first frame.
 /// </remarks>
 internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
 {
@@ -70,7 +70,8 @@ internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
             .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindStep($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Step)}")
-            .BindColor($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Color)}");
+            .BindColor($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Color)}")
+            .BindPosition($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Position)}");
 
     /// <summary>On the page's own ground, with no edge of its own: the bar is the border between the two panes.</summary>
     private static SurfaceComponent Pane(string title, string description)
@@ -88,7 +89,7 @@ internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(SplitterGroup, "Splitter", nameof(GridSplitterController.CycleSplitterOption), note: "Step is the keyboard's: focus a bar (Tab, or a click) and press the arrows — each press moves it by Step. A drag follows the pointer whatever Step says.")
+            DemoUI.CreateOptionSection(SplitterGroup, "Splitter", nameof(GridSplitterController.CycleSplitterOption), note: "Step is the keyboard's: focus a bar (Tab, or a click) and press the arrows — each press moves it by Step. A drag follows the pointer whatever Step says. Position is the share before the bar, written back by every drag; both bars bind it here.")
         );
 
     protected override IVisualComponent[] CreateExamples()

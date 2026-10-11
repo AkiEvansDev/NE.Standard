@@ -41,6 +41,20 @@ public interface IUIRuntimeAccess
     void Post(Func<CancellationToken, Task> action);
 
     /// <summary>
+    /// Starts a long job the runtime owns — a reply streamed for a minute, an import — on the thread pool, and returns at once.
+    /// </summary>
+    /// <remarks>
+    /// It outlives the connection that started it: a page reloaded, or a tablet's screen gone to sleep, finds the job still running
+    /// once it attaches again. It runs beside the runtime's commands, not in their turn, so what it writes goes through
+    /// <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/>; the token it is given is cancelled when the runtime
+    /// is asked to go — its retention past, its session ended — which then waits for the job to end. It runs outside any command, so
+    /// <c>Context.Handle</c> there is the connection the runtime is attached to, not the one that started it. A failure goes to the
+    /// controller's exception handler. A <c>Background</c> command, by contrast, is cancelled with its connection. Start a job from a
+    /// command or a hook that runs once the runtime has started, not from initialization: its writes need a started runtime.
+    /// </remarks>
+    void Start(Func<CancellationToken, Task> action);
+
+    /// <summary>
     /// Gets whether a page is attached to the runtime now — a connection someone looks at, not a page render reading it.
     /// </summary>
     bool HasViewers { get; }

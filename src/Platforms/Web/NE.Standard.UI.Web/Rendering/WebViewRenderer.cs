@@ -98,10 +98,10 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         ArgumentNullException.ThrowIfNull(metadata);
 
         CompiledView view = viewResolution.View;
-        // A left side that is a rail alone is a bar along the page's bottom on a phone, not a drawer, so it has no button; unless the
-        // view keeps it a drawer, where the rail is drawn as a list.
+        // A left side that is a rail alone is a bar along the page's bottom where the view's sides are drawers, not a drawer, so it has
+        // no button; unless the view keeps it a drawer, where the rail is drawn as a list.
         var bottomBar = HasBottomBar(view);
-        var railDrawer = view.Options.SideDrawers && !view.Options.RailBottomBar && IsRailAlone(view, RegionNames.LeftSide);
+        var railDrawer = view.Options.SideDrawers != UISideDrawers.Never && !view.Options.RailBottomBar && IsRailAlone(view, RegionNames.LeftSide);
         var leftDrawer = !bottomBar && view.FindRegion(RegionNames.LeftSide) is not null;
         var rightDrawer = view.FindRegion(RegionNames.RightSide) is not null;
         // A side the page opens by a button of its own gets none of the shell's, so a header collapsed on a phone leaves no band for it.
@@ -109,7 +109,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         var leftToggle = leftDrawer && !leftOpener;
         var rightToggle = rightDrawer && !rightOpener;
         // The band that carries the drawers' buttons: the header, or the content where a page has none.
-        var toggles = view.Options.SideDrawers ? ToggleHost(view, leftToggle, rightToggle) : null;
+        var toggles = view.Options.SideDrawers != UISideDrawers.Never ? ToggleHost(view, leftToggle, rightToggle) : null;
         for (var i = 0; i < view.Regions.Length; i++)
         {
             CompiledRegion region = view.Regions[i];
@@ -133,7 +133,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     _ = section.Attribute(WebAttributes.RailDrawer);
 
                 // What the drawer's buttons name as the region they open.
-                if (view.Options.SideDrawers && IsDrawer(region.Key, leftDrawer, rightDrawer))
+                if (view.Options.SideDrawers != UISideDrawers.Never && IsDrawer(region.Key, leftDrawer, rightDrawer))
                     _ = section.Attribute("id", WebAttributes.DrawerId(region.Key));
 
                 var carriesToggles = string.Equals(region.Key, toggles, StringComparison.Ordinal);
@@ -155,7 +155,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
     /// <summary>Whether the left side is a phone's bottom bar: a rail alone under side drawers, unless the view keeps it a drawer.</summary>
     internal static bool HasBottomBar(CompiledView view)
-        => view.Options.SideDrawers && view.Options.RailBottomBar && IsRailAlone(view, RegionNames.LeftSide);
+        => view.Options.SideDrawers != UISideDrawers.Never && view.Options.RailBottomBar && IsRailAlone(view, RegionNames.LeftSide);
 
     /// <summary>
     /// Whether the content region's root fills its height: its base <c>Height</c> is <c>Fill</c>, a bound one as the session's values
