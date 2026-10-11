@@ -124,6 +124,15 @@ public static class WebAttributes
     /// <summary>The script element that carries the page's words.</summary>
     public const string Strings = "data-ui-strings";
 
+    /// <summary>
+    /// On an element whose text or attribute a phrase holding moments was painted into: the moments, as JSON, whose first paint the
+    /// boot script writes in the reader's zone before the body paints (<see cref="WebMoments.MomentsAttribute"/>).
+    /// </summary>
+    public const string Moments = "data-ui-moments";
+
+    /// <summary>The head's script element that carries the page's language's names and patterns for dates and times.</summary>
+    public const string Temporal = "data-ui-temporal";
+
     /// <summary>The script element that carries the hydration payload.</summary>
     public const string Hydration = "data-ui-hydration";
 

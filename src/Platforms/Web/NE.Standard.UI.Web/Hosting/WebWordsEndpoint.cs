@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -109,12 +110,13 @@ internal sealed class WebWordsAsset
 
     private readonly Lazy<WebAssetCompression.Compressed> _compressed;
 
-    private WebWordsAsset(string language, byte[] bytes, string version, string stringsJson)
+    private WebWordsAsset(string language, byte[] bytes, string version, string stringsJson, string temporalJson)
     {
         Language = language;
         Bytes = bytes;
         Version = version;
         StringsJson = stringsJson;
+        TemporalJson = temporalJson;
         Href = string.Create(CultureInfo.InvariantCulture, $"{WebWordsEndpoint.Prefix}{Uri.EscapeDataString(language)}.json?v={version}");
         _compressed = new Lazy<WebAssetCompression.Compressed>(() => WebAssetCompression.Build(bytes));
     }
@@ -136,6 +138,9 @@ internal sealed class WebWordsAsset
     /// <summary>The framework's and the packages' words in this language, serialized for the page's <c>data-ui-strings</c> block.</summary>
     public string StringsJson { get; }
 
+    /// <summary>The table's <c>temporal</c> block alone, for the page's head: what a moment is written in before the body paints.</summary>
+    public string TemporalJson { get; }
+
     public static WebWordsAsset Build(ITranslator translator, string language, IEnumerable<IUIStringsSource> packages, bool reportMissing, UITemporalOptions? temporal)
     {
         UIWordTable table = translator.ListWords(language);
@@ -150,20 +155,21 @@ internal sealed class WebWordsAsset
         foreach (KeyValuePair<string, string> word in chrome)
             _ = words.TryAdd(word.Key, word.Value);
 
+        var temporalJson = WriteTemporal(language, temporal);
         byte[] bytes;
 
         using (MemoryStream buffer = new())
         {
             using (Utf8JsonWriter writer = new(buffer))
-                Write(writer, language, table, reportMissing, words, temporal);
+                Write(writer, language, table, reportMissing, words, temporalJson);
 
             bytes = buffer.ToArray();
         }
 
-        return new WebWordsAsset(language, bytes, HashVersion(bytes), WebShellRenderer.SerializeStrings(chrome));
+        return new WebWordsAsset(language, bytes, HashVersion(bytes), WebShellRenderer.SerializeStrings(chrome), temporalJson);
     }
 
-    private static void Write(Utf8JsonWriter writer, string language, UIWordTable table, bool reportMissing, SortedDictionary<string, string> words, UITemporalOptions? temporal)
+    private static void Write(Utf8JsonWriter writer, string language, UIWordTable table, bool reportMissing, SortedDictionary<string, string> words, string temporalJson)
     {
         writer.WriteStartObject();
         writer.WriteString("language", language);
@@ -185,7 +191,8 @@ internal sealed class WebWordsAsset
             writer.WriteString(word.Key, word.Value);
 
         writer.WriteEndObject();
-        WriteTemporal(writer, language, temporal);
+        writer.WritePropertyName("temporal");
+        writer.WriteRawValue(temporalJson, skipInputValidation: true);
 
         // The pack a number in the page's culture is drawn with after a switch, as its culture attribute carries it.
         writer.WritePropertyName("number");
@@ -197,15 +204,24 @@ internal sealed class WebWordsAsset
     /// The language's names and patterns a temporal field in the page's culture is drawn with, so a switch draws it again without a
     /// render: <c>WebTemporalCulturePack</c> and <c>WebTemporalPatterns</c> under the application's options, in one object.
     /// </summary>
-    private static void WriteTemporal(Utf8JsonWriter writer, string language, UITemporalOptions? options)
+    /// <remarks>
+    /// Written by a default writer, which escapes <c>&lt;</c> and <c>&amp;</c>: the same text stands in the page's head inside a script element.
+    /// </remarks>
+    private static string WriteTemporal(string language, UITemporalOptions? options)
     {
         CultureInfo culture = WebCultures.Resolve(language);
+        using MemoryStream buffer = new();
 
-        // One object of both, each written by the wire's own conventions, as a field's culture attribute carries the pack.
-        writer.WriteStartObject("temporal");
-        WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalCulturePack.FromCulture(culture), PackJsonOptions));
-        WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalPatterns.Resolve(culture, options, ownCulture: false), PackJsonOptions));
-        writer.WriteEndObject();
+        using (Utf8JsonWriter writer = new(buffer))
+        {
+            // One object of both, each written by the wire's own conventions, as a field's culture attribute carries the pack.
+            writer.WriteStartObject();
+            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalCulturePack.FromCulture(culture), PackJsonOptions));
+            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalPatterns.Resolve(culture, options, ownCulture: false), PackJsonOptions));
+            writer.WriteEndObject();
+        }
+
+        return Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length);
     }
 
     private static void WriteFields(Utf8JsonWriter writer, JsonElement value)
@@ -232,6 +248,9 @@ internal sealed class WebPageWords
     /// <summary>Gets the chrome's words in the table's language, for the page's <c>data-ui-strings</c> block.</summary>
     public required string StringsJson { get; init; }
 
+    /// <summary>Gets the table's names and patterns for dates and times, for the page's <c>data-ui-temporal</c> block.</summary>
+    public required string TemporalJson { get; init; }
+
     /// <summary>Gets the view's title as it is translated — a plain key, or a phrase when the title takes arguments — or none.</summary>
     public object? Title { get; init; }
 
@@ -248,6 +267,7 @@ internal sealed class WebPageWords
         {
             Table = new WebPageWordsTable(asset.Language, asset.Href),
             StringsJson = asset.StringsJson,
+            TemporalJson = asset.TemporalJson,
             Title = string.IsNullOrWhiteSpace(title)
                 ? null
                 : resolution.View.TitleArguments is { Count: > 0 } arguments ? new UIPhrase(title, arguments) : (object)title

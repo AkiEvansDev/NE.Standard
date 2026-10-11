@@ -13,8 +13,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// relative one stays current without the server sending it again.
 /// </summary>
 /// <remarks>
-/// The first paint is in UTC, which the page replaces as soon as it starts: one render of a view is shared by every reader, so it
-/// cannot carry any one reader's zone.
+/// The server paints it in UTC, which the page writes in the reader's zone before the body is first painted: one render of a view is
+/// shared by every reader, so it cannot carry any one reader's zone.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
 public abstract partial class TimestampComponent<T> : VisualComponentBase<T>, ITooltipComponent

@@ -324,7 +324,7 @@ public static class WebCssValues
     /// <summary>
     /// The text colour that reads on a filled ground of this colour: a role's on-colour, a raw colour's on-light or on-dark by its
     /// lightness; <c>initial</c> for the page's own grounds (Background, Surface) and a colour of no opacity, which are no filled ground
-    /// and take back the page's ink from one around them; empty for a colour no text is meant to stand on (Muted, the On* roles, Border…).
+    /// and take back the page's ink from one around them; empty for a colour no text is meant to stand on (the On* roles, Border…).
     /// </summary>
     public static string ThemeOnColor(UIThemeColor value)
     {
@@ -355,8 +355,8 @@ public static class WebCssValues
     }
 
     /// <summary>
-    /// CSS custom property backing a semantic <see cref="UIColorStyle"/> role; null for <see cref="UIColorStyle.Default"/>/
-    /// <see cref="UIColorStyle.Muted"/>, which have none.
+    /// CSS custom property backing a semantic <see cref="UIColorStyle"/> role; null for <see cref="UIColorStyle.Default"/>, which
+    /// inherits. <see cref="UIColorStyle.Muted"/> is the muted text colour: without it a muted colour written inline was an empty style.
     /// </summary>
     private static string? StyleVar(UIColorStyle style)
         => style switch
@@ -377,6 +377,7 @@ public static class WebCssValues
             UIColorStyle.OnWarning => "--ui-color-on-warning",
             UIColorStyle.OnSuccess => "--ui-color-on-success",
             UIColorStyle.OnDanger => "--ui-color-on-danger",
+            UIColorStyle.Muted => "--ui-text-muted",
             UIColorStyle.Selected => "--ui-color-selected",
             UIColorStyle.FocusRing => "--ui-color-focus-ring",
             UIColorStyle.Border => "--ui-color-border",
@@ -399,6 +400,7 @@ public static class WebCssValues
             _ => null
         };
 
+    // Muted's ground is the muted text colour, which the surface reads on, as words read on their own colour inverted.
     private static string? OnStyleVar(UIColorStyle style)
         => style switch
         {
@@ -408,6 +410,7 @@ public static class WebCssValues
             UIColorStyle.Warning => "--ui-color-on-warning",
             UIColorStyle.Success => "--ui-color-on-success",
             UIColorStyle.Danger => "--ui-color-on-danger",
+            UIColorStyle.Muted => "--ui-color-surface",
             _ => null
         };
 }

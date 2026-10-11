@@ -107,7 +107,8 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     /// Render-time only. A side with no sidebar menu to carry a pin (<c>MenuComponent.DrawerPin</c>) is pinned by a button of the page's
     /// own, standing wherever the side's heading is. Shown only where pinning means something — from the medium breakpoint up, where the
     /// side is a drawer or pinned, and never for a left side that is the bottom bar — it is as pressed as the side is pinned. The pin is
-    /// kept in the browser under the first authored id in the side.
+    /// kept in the browser under the first authored id in the side, so the side's root wants an id of its own. The button is a toggle
+    /// whose <see cref="Pressed"/> is the pin, which an interaction may read for an icon of its own for pinned.
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public UISide? PinsDrawer

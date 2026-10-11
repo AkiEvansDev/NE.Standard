@@ -382,6 +382,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             Metadata = metadata,
             MetadataJson = metadataJson,
             StringsJson = words.StringsJson,
+            TemporalJson = words.TemporalJson,
             HydrationJson = hydration.Json,
             StandInNavigation = string.Equals(UIRoutePath.Normalize(resolution.Navigation.Route), requestedRoute, StringComparison.Ordinal) ? null : resolution.Navigation
         };

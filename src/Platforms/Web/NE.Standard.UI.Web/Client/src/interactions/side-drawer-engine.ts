@@ -8,7 +8,7 @@
 // from the medium breakpoint up, kept in the browser under the first authored id in the side and written on the root as the parser
 // reaches that id (boot.ts): before the content after it paints, a right side's not before the content ahead of it.
 
-import { BottomBarAttribute, CollapsedAttribute, ComponentNameAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerModelessAttribute, DrawerOpenAttribute, DrawerPinAttribute, DrawerSwitchAttribute, DrawerSwitchRowAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, pinnedAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentNameAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerModelessAttribute, DrawerOpenAttribute, DrawerPinAttribute, DrawerSwitchAttribute, DrawerSwitchRowAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, pinnedAttribute, RegionAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { choosesMenuEntry } from "./menu-group-engine.ts";
@@ -18,6 +18,7 @@ import { motion } from "../rendering/motion.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { DrawerBreakpointQueries, isBottomBarSide, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
+import { PressedKind } from "./toggle-button-engine.ts";
 import { focusAsLastInput, isPointerLast, moveFocusInto, restoreFocusTo, trapTab } from "./popup-focus.ts";
 
 const RootSelector = "[data-ui-root]";
@@ -495,10 +496,22 @@ function isModal(shell: Element, side: string): boolean {
     return !(shell.getAttribute(DrawerModelessAttribute) ?? "").split(" ").includes(side);
 }
 
-/** Tells every pin of the shell whether its side is pinned. */
+/**
+ * Tells every pin of the shell whether its side is pinned; a page's own pin, a toggle (`ButtonComponent.PinsDrawer`), announces the
+ * change as a toggle does, so an interaction on its Pressed hears a pin restored on load as well as one pressed.
+ */
 function markPins(shell: Element): void {
-    for (const pin of shell.querySelectorAll<HTMLElement>(`[${DrawerPinAttribute}]`))
-        pin.setAttribute("aria-pressed", String(shell.hasAttribute(pinnedAttribute(pin.getAttribute(DrawerPinAttribute) ?? ""))));
+    for (const pin of shell.querySelectorAll<HTMLElement>(`[${DrawerPinAttribute}]`)) {
+        const pressed = String(shell.hasAttribute(pinnedAttribute(pin.getAttribute(DrawerPinAttribute) ?? "")));
+
+        if (pin.getAttribute("aria-pressed") === pressed)
+            continue;
+
+        pin.setAttribute("aria-pressed", pressed);
+
+        if (pin.getAttribute(ValueKindAttribute) === PressedKind)
+            pin.dispatchEvent(new Event("change", { bubbles: true }));
+    }
 }
 
 function drawerOf(shell: HTMLElement, side: string): HTMLElement | null {

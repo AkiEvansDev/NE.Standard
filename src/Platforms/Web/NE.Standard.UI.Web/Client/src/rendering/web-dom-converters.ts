@@ -140,6 +140,7 @@ const styleVarNames = new Map<string, string>([
     ["on-warning", "--ui-color-on-warning"],
     ["on-success", "--ui-color-on-success"],
     ["on-danger", "--ui-color-on-danger"],
+    ["muted", "--ui-text-muted"],
     ["selected", "--ui-color-selected"],
     ["focus-ring", "--ui-color-focus-ring"],
     ["border", "--ui-color-border"],
@@ -165,7 +166,9 @@ const onColorVarNames = new Map<string, string>([
     ["info", "--ui-color-on-info"],
     ["warning", "--ui-color-on-warning"],
     ["success", "--ui-color-on-success"],
-    ["danger", "--ui-color-on-danger"]
+    ["danger", "--ui-color-on-danger"],
+    // Muted's ground is the muted text colour, which the surface reads on.
+    ["muted", "--ui-color-surface"]
 ]);
 
 const badgePlacementTokens = ["inline", "trailing"];

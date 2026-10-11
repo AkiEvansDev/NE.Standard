@@ -17,25 +17,30 @@ import {
     applyGridTrackLimits,
     bigStep,
     coversNoRoom,
-    foldDelta,
     FoldPixels,
     formatGridTracks,
     moveSplit,
     narrowRunTracks,
     parseGridTrackLimits,
     parseGridTracks,
+    releaseDelta,
     parseShare,
     resolveSplitRuns,
     shareDelta,
     splitPercent,
     splitShare
 } from "./grid-tracks.ts";
-import type { GridSplitRuns, GridTrack } from "./grid-tracks.ts";
+import type { GridSplitRuns, GridTrack, SplitMove } from "./grid-tracks.ts";
 
 const RootClass = "ui-grid-splitter";
 const ContainerClass = "ui-container";
 const VerticalClass = "ui-orientation--vertical";
 const DefaultStep = 16;
+
+// A drag follows the pointer, under a side's floor too, and the side folds or springs back as it is let go (settle); a step (a key, a
+// share) does not stop under the fold's width or the side's floor: it folds the side or opens it to the larger of the two.
+const DragMove: SplitMove = { sliver: 0, passFloors: true };
+const StepMove: SplitMove = { sliver: FoldPixels, passFloors: true };
 
 /** One axis of a container: what the renderer wrote, what a drag writes over it, and where the viewer's copy is kept. */
 type SplitAxis = {
@@ -122,11 +127,11 @@ export class GridSplitterEngine {
             coordinate: context => context.axis.coordinate,
             // The bar follows the pointer all the way, a side too narrow for its panes showing none of them; let go there, it folds.
             move: (context, delta) => {
-                if (this.apply(context, delta, 0))
-                    this.reportPosition(context.splitter, true);
+                if (this.apply(context, delta, DragMove))
+                    this.reportPosition(context.splitter, context.tracks);
             },
             end: (splitter, context) => {
-                this.foldNarrow(splitter);
+                this.settle(splitter);
                 this.remember(context);
                 this.reportPosition(splitter);
                 this.writeBack(splitter, context);
@@ -373,21 +378,18 @@ export class GridSplitterEngine {
             this.reset(splitter);
     }
 
-    /** A side the bar was let go under `FoldPixels` from folds to nothing. */
-    private foldNarrow(splitter: HTMLElement): void {
+    /** A side the bar was let go under `FoldPixels` from folds to nothing; one let go under its floor springs back to it. */
+    private settle(splitter: HTMLElement): void {
         const context = this.resolveContext(splitter);
-        const delta = context === null ? 0 : foldDelta(context.sizes, context.runs, FoldPixels);
+        const delta = context === null ? 0 : releaseDelta(context.tracks, context.sizes, context.runs, FoldPixels);
 
         if (context !== null && delta !== 0)
-            this.apply(context, delta, 0);
+            this.apply(context, delta, DragMove);
     }
 
-    /**
-     * Writes the division `delta` pixels from where the gesture began; answers whether anything moved. A step (a key, a share) does
-     * not stop in the sliver under `FoldPixels`: it folds the side or opens it to that.
-     */
-    private apply(context: SplitContext, delta: number, sliver = FoldPixels): boolean {
-        const moved = moveSplit(context.tracks, context.sizes, context.runs, delta, sliver);
+    /** Writes the division `delta` pixels from where the gesture began, a step's by default; answers whether anything moved. */
+    private apply(context: SplitContext, delta: number, move = StepMove): boolean {
+        const moved = moveSplit(context.tracks, context.sizes, context.runs, delta, move);
 
         if (moved === null)
             return false;
@@ -462,8 +464,11 @@ export class GridSplitterEngine {
         return { splitter, container, axis, tracks, sizes, runs, tier };
     }
 
-    /** `aria-valuenow`: the share the run before the bar holds, as the layout stands; while `dragging`, a side too narrow shows nothing. */
-    private reportPosition(splitter: HTMLElement, dragging = false): void {
+    /**
+     * `aria-valuenow`: the share the run before the bar holds, as the layout stands; while a drag holds the gesture's `tracks`, a side
+     * under the fold's width or its floor shows nothing.
+     */
+    private reportPosition(splitter: HTMLElement, tracks?: readonly GridTrack[]): void {
         const container = containerOf(splitter);
 
         if (container === null)
@@ -491,7 +496,7 @@ export class GridSplitterEngine {
         else if (splitter.getAttribute(SplitEdgeAttribute) !== edge)
             splitter.setAttribute(SplitEdgeAttribute, edge);
 
-        foldEmptyPanes(container, dragging ? { axis, tracks: narrowRunTracks(sizes, runs, FoldPixels) } : null);
+        foldEmptyPanes(container, tracks === undefined ? null : { axis, tracks: narrowRunTracks(tracks, sizes, runs, FoldPixels) });
     }
 }
 
@@ -501,7 +506,7 @@ function runIsEmpty(sizes: readonly number[], run: readonly number[]): boolean {
 
 /**
  * Marks each child whose tracks on either split axis are all nothing, or, on the axis a drag moves, all in a side it has taken under
- * `FoldPixels` (`narrow`): squeezed to no width its words stood one a line and stretched
+ * `FoldPixels` or its floor (`narrow`): squeezed to no width its words stood one a line and stretched
  * the row to their height (`ui-container.less` takes the marked child away). Both axes at once, or a bar between rows cleared what
  * one between columns had marked. Measured on the tracks, not on the child, so a folded child is found again once a drag or another
  * width gives its tracks room; a splitter only across its own axis, since its own track is as wide as the bar it shows.

@@ -702,6 +702,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             case WebRenderValueKind.Static:
                 renderStatic(target, value);
+                RenderPaintedMoments(target, word);
                 RenderIntoMark(context, target, address, RecordWord(context, propertyId, word));
                 break;
 
@@ -710,6 +711,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 if (context.IsPresentationCopy)
                 {
                     renderStatic(target, value);
+                    RenderPaintedMoments(target, word);
                     break;
                 }
 
@@ -718,7 +720,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
                 // Painting the first value as well, so the page arrives finished rather than filling itself in later.
                 if (context.Values is not null)
+                {
                     renderStatic(target, value);
+                    RenderPaintedMoments(target, word);
+                }
+
                 break;
 
             default:
@@ -728,6 +734,16 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         }
 
         return kind;
+    }
+
+    /// <summary>
+    /// Names the moments a painted phrase held on the element it was painted into, so the boot script writes them in the reader's zone
+    /// before the body paints: the phrase's own arguments are the client's only once the page has started.
+    /// </summary>
+    private static void RenderPaintedMoments(IHtmlElementBuilder target, RenderedWord word)
+    {
+        if (word.Painted is { } phrase && WebMoments.MomentsAttribute(phrase) is { } moments)
+            _ = target.Attribute(WebAttributes.Moments, moments);
     }
 
     /// <summary>
@@ -887,7 +903,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 // words are content.
                 var translatable = propertyValue.IsTranslatable && !IsContentItem(scopeItem);
 
-                word = word with { Key = ReadWordKey(translatable, bindingValue), FromItem = true };
+                word = word with { Key = ReadWordKey(translatable, bindingValue), FromItem = true, Painted = bindingValue as UIPhrase };
                 bindingValue = TranslateRenderedValue(context, translatable, bindingValue);
 
                 value = CastRenderedValue<T>(bindingValue, property);
@@ -896,14 +912,15 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
             // Still a binding, but carrying this session's value so a renderer deriving from several properties
             // at once (a slider's fill from value, min and max) sees the real ones.
-            _ = TryReadSessionValue(context, property, propertyValue, binding, out value);
+            _ = TryReadSessionValue(context, property, propertyValue, binding, out value, out UIPhrase? painted);
+            word = word with { Painted = painted };
 
             return WebRenderValueKind.Binding;
         }
 
         var rawValue = propertyValue.Value;
 
-        word = word with { Key = ReadWordKey(propertyValue.IsTranslatable, rawValue) };
+        word = word with { Key = ReadWordKey(propertyValue.IsTranslatable, rawValue), Painted = rawValue as UIPhrase };
         rawValue = TranslateRenderedValue(context, propertyValue.IsTranslatable, rawValue);
 
         value = CastRenderedValue<T>(rawValue, property);
@@ -937,9 +954,10 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     /// <summary>
     /// Whether a property's value is translatable here, whether it is translatable text this instance shows as written, the key a
-    /// static value was translated from, and whether that value was read off the row's item rather than the component's own.
+    /// static value was translated from, whether that value was read off the row's item rather than the component's own, and the
+    /// phrase the painted value was, whatever its source — a moment in it is written again before the body paints.
     /// </summary>
-    private readonly record struct RenderedWord(bool Translatable, bool Content, object? Key, bool FromItem);
+    private readonly record struct RenderedWord(bool Translatable, bool Content, object? Key, bool FromItem, UIPhrase? Painted = null);
 
     protected static bool TryResolveStaticBindingValue(WebRenderContext context, CompiledUIBinding binding, out object? value)
         => TryResolveStaticBindingValue(context, binding, out value, out _);
@@ -992,9 +1010,10 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     /// <summary>This session's value for a bound property, when the render was given any.</summary>
-    private static bool TryReadSessionValue<T>(WebRenderContext context, UIProperty property, CompiledUIPropertyValue propertyValue, CompiledUIBinding binding, out T? value)
+    private static bool TryReadSessionValue<T>(WebRenderContext context, UIProperty property, CompiledUIPropertyValue propertyValue, CompiledUIBinding binding, out T? value, out UIPhrase? painted)
     {
         value = default;
+        painted = null;
 
         if (context.Values is null)
             return false;
@@ -1020,6 +1039,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 return false;
         }
 
+        painted = raw as UIPhrase;
         raw = TranslateRenderedValue(context, translatable, raw);
 
         if (raw is null)

@@ -179,3 +179,23 @@ test("across a breakpoint only a drawer whose side stands in its column again is
     resize(1300);
     assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
 });
+
+test("a page's own pin is a toggle that announces its side's pin, pressed or restored on load, for an interaction on its Pressed", () => {
+    width = 800;
+
+    const { root, pin } = shell("xl");
+    const heard: string[] = [];
+
+    pin.setAttribute("data-ui-value-kind", "pressed");
+    pin.addEventListener("change", () => void heard.push(pin.getAttribute("aria-pressed") ?? ""));
+
+    pin.dispatchEvent(new FakeEvent("click"));
+    pin.dispatchEvent(new FakeEvent("click"));
+    assert.deepEqual(heard, ["true", "false"]);
+
+    root.setAttribute("data-ui-pinned-left-side", "");
+    heard.length = 0;
+    new SideDrawerEngine({ root: real<ParentNode>(root) });
+
+    assert.deepEqual(heard, ["true"], "a pin the page came back with");
+});

@@ -157,6 +157,17 @@ public static class WebShellRenderer
             });
         }
 
+        // Ahead of the boot script, which writes every moment by it as the parser hands the body over.
+        if (!string.IsNullOrEmpty(context.TemporalJson))
+        {
+            _ = head.Element("script", script =>
+            {
+                _ = script.Attribute("type", "application/json");
+                _ = script.Attribute(WebAttributes.Temporal);
+                _ = script.Raw(context.TemporalJson);
+            });
+        }
+
         // Classic, blocking, and in the head: the boot script must run before the body paints; a module would arrive too late.
         foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.HeadScript))
             _ = head.Element("script", script => script.Attribute("src", ResolvePublicPath(asset)));

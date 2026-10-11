@@ -69,7 +69,7 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     /// </summary>
     /// <remarks>
     /// Empty takes any file — a shelf of attachments: a picture shows as its thumbnail, any other file as its kind's glyph
-    /// (<c>UIFileGlyphs</c>) over its name.
+    /// (<c>UIFileGlyphs</c>) over its name and size.
     /// </remarks>
     [UIComponentProperty(DefaultValue = DefaultAccept)]
     public string? Accept { get; set; }

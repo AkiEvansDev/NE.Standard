@@ -1,16 +1,14 @@
 // A timestamp written in the reader's zone in the page's patterns, and a relative one — a relative day too — kept current as time passes.
 
+import { TimestampClass, TimestampFormatAttribute, TimestampTextClass } from "../addressing/dom-attributes";
 import { componentParts } from "../addressing/dom-registry";
-import { asHeading, formatTimestamp, isRelativeFormat, nearDay, readInstant, readTimestampFormat } from "../rendering/timestamp-format";
+import { isRelativeFormat, nearDay, readInstant, readTimestampFormat, timestampText } from "../rendering/timestamp-format";
 import type { TimestampFormat } from "../rendering/timestamp-format";
 import { clientStrings } from "../runtime/client-strings";
 import { needRelativeTicks } from "../runtime/relative-clock";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
 import { observeComponents } from "./dom-mutations";
 
-const RootClass = "ui-timestamp";
-const TextClass = "ui-timestamp__text";
-const FormatAttribute = "data-ui-timestamp-format";
 const InstantAttribute = "datetime";
 
 export type TimestampEngineOptions = {
@@ -25,17 +23,17 @@ export class TimestampEngine {
         this.root = options.root ?? document;
 
         // The server's text stands until the table's patterns arrive, since it is written in them: then only the time moves.
-        this.apply(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`), clientStrings.temporal === null);
-        clientStrings.onTable(() => this.apply(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)));
+        this.apply(this.root.querySelectorAll<HTMLElement>(`.${TimestampClass}`), clientStrings.temporal === null);
+        clientStrings.onTable(() => this.apply(this.root.querySelectorAll<HTMLElement>(`.${TimestampClass}`)));
 
         // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
-        options.propertyPatchEngine?.addValueChangeHandler(change => this.apply(componentParts(change.components, `.${RootClass}`)));
+        options.propertyPatchEngine?.addValueChangeHandler(change => this.apply(componentParts(change.components, `.${TimestampClass}`)));
 
         // A patched instant, and a timestamp that arrives in a built row; its own text is not a change to answer.
-        observeComponents(this.root, `.${RootClass}`, {
+        observeComponents(this.root, `.${TimestampClass}`, {
             childList: true,
             attributeFilter: [InstantAttribute],
-            relevant: mutation => mutation.type === "attributes" || !(mutation.target instanceof Element && mutation.target.closest(`.${RootClass}`) !== null)
+            relevant: mutation => mutation.type === "attributes" || !(mutation.target instanceof Element && mutation.target.closest(`.${TimestampClass}`) !== null)
         }, stamps => this.apply(stamps));
     }
 
@@ -47,16 +45,14 @@ export class TimestampEngine {
         let relative = false;
 
         for (const stamp of stamps) {
-            const format = readTimestampFormat(stamp.getAttribute(FormatAttribute));
+            const format = readTimestampFormat(stamp.getAttribute(TimestampFormatAttribute));
             const instant = readInstant(stamp.getAttribute(InstantAttribute));
-            const text = stamp.querySelector<HTMLElement>(`.${TextClass}`);
+            const text = stamp.querySelector<HTMLElement>(`.${TimestampTextClass}`);
 
             if (text === null || (relativeOnly && !needsNoPatterns(format, instant, now)))
                 continue;
 
-            const formatted = instant === null ? "" : formatTimestamp(instant, format, words, now);
-            // A day's name standing alone heads what follows it: "Today", where a moment in a sentence says "today".
-            const written = format === "relative-date" ? asHeading(formatted, words.language) : formatted;
+            const written = instant === null ? "" : timestampText(instant, format, words, now);
 
             // Written only when it changes: a relative text read again every few seconds mostly reads the same.
             if (text.textContent !== written)
@@ -72,7 +68,7 @@ export class TimestampEngine {
 
     /** Writes every relative timestamp again; answers whether one is left on the page, which keeps the ticks coming. */
     private readonly refreshRelative = (): boolean => {
-        const stamps = [...this.root.querySelectorAll<HTMLElement>(`.${RootClass}:is([${FormatAttribute}="relative"], [${FormatAttribute}="relative-date"])`)];
+        const stamps = [...this.root.querySelectorAll<HTMLElement>(`.${TimestampClass}:is([${TimestampFormatAttribute}="relative"], [${TimestampFormatAttribute}="relative-date"])`)];
 
         if (stamps.length === 0)
             return false;

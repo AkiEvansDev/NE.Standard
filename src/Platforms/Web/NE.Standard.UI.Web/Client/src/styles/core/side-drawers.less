@@ -55,6 +55,16 @@
     display: none !important;
 }
 
+// A pin held down keeps the hover's light wash, laid over whatever ground its look gives it, and a pack's glyph its filled drawing
+// (the FILL axis, MECHANISMS §7); an icon of the author's own for pinned is an interaction on the button's Pressed.
+[data-ui-drawer-pin][aria-pressed="true"] {
+    background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
+
+    .ui-text__icon::before {
+        --ui-icon-fill: 1;
+    }
+}
+
 .ui-side-drawer-bands({
     // A page's own button for a drawer (ButtonComponent.OpensDrawer) shows only where its side is one, as the shell's own does: not
     // where the sides are columns, nor beside a left side that is the bottom bar (the shell marks the root) — it would open nothing;

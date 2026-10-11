@@ -6,6 +6,8 @@ import type { MetadataIndex, WebRenderInteractionMetadata } from "../metadata/me
 const ValuePropertyName = "Value";
 /** The property a period's end field holds (`data-ui-value-end`). */
 const EndValuePropertyName = "EndValue";
+/** A toggle button's value (`aria-pressed`): it has no Value, so a rule on an unbound one's pressed state reads this. */
+const PressedPropertyName = "Pressed";
 
 export class InteractionIndex {
     private readonly eventInteractions = new Map<string, WebRenderInteractionMetadata[]>();
@@ -113,7 +115,7 @@ export class InteractionIndex {
                     this.copiesValues = true;
 
                 const propertyName = this.metadata.getPropertyDefinition(propertyId)?.propertyName;
-                const byField = propertyName === ValuePropertyName ? this.valueInteractions : propertyName === EndValuePropertyName ? this.endValueInteractions : null;
+                const byField = propertyName === ValuePropertyName || propertyName === PressedPropertyName ? this.valueInteractions : propertyName === EndValuePropertyName ? this.endValueInteractions : null;
 
                 if (byField !== null) {
                     const values = byField.get(componentId) ?? [];

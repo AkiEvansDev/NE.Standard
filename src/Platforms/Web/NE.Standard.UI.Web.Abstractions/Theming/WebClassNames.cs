@@ -34,6 +34,12 @@ public static class WebClassNames
 
     public const string CardHeaderEmpty = "ui-card__header--empty";
 
+    /// <summary>A timestamp's root, a <c>&lt;time&gt;</c> naming its instant, which the boot script and <c>timestamp-engine.ts</c> write in the reader's zone.</summary>
+    public const string Timestamp = "ui-timestamp";
+
+    /// <summary>The part of a timestamp holding its text.</summary>
+    public const string TimestampText = "ui-timestamp__text";
+
     /// <summary>A select's root, a multi-select's and a search's: the field whose list the reader picks from.</summary>
     public const string Select = "ui-select";
 

@@ -147,6 +147,15 @@ export const PagerSizeAttribute = "data-ui-pager-size";
 export const NumberFormatAttribute = "data-ui-number-format";
 /** The temporal culture pack as JSON — month and day names, the AM and PM words — read the same way. */
 export const TemporalCultureAttribute = "data-ui-temporal-culture";
+/** On the head's JSON script: the page's language's names and patterns for dates and times, the words table's `temporal` (`WebAttributes.Temporal`). */
+export const PageTemporalAttribute = "data-ui-temporal";
+/** On an element a phrase holding moments was painted into: the moments, whose first paint the boot script writes again (`WebAttributes.Moments`). */
+export const MomentsAttribute = "data-ui-moments";
+/** A timestamp's root, whose `datetime` is its instant, and the part holding its text (`TimestampComponentRenderer`). */
+export const TimestampClass = "ui-timestamp";
+export const TimestampTextClass = "ui-timestamp__text";
+/** On a timestamp's root: how it shows its instant, read once (`WebAttributes.TimestampFormat`). */
+export const TimestampFormatAttribute = "data-ui-timestamp-format";
 export const EmptyTemplateAttribute = "data-ui-empty-template";
 export const GroupTemplateAttribute = "data-ui-group-template";
 export const EmptyPlaceholderAttribute = "data-ui-empty-placeholder";
@@ -382,6 +391,8 @@ export const ThemeAttribute = "data-ui-theme";
 export const ThemeColorsAttribute = "data-ui-theme-colors";
 /** An element's chrome words with their keys (`WebWords`, `strings.write`), which a language switch writes again. */
 export const WordsAttribute = "data-ui-words";
+/** The place in a words mark that stands for the element's own text, beside the attributes it names: the server's `WebWords.TextTarget`. */
+export const WordsTextTarget = "#text";
 /** The language switcher's root, whose value says what its button shows for a language: `code` or `name`. */
 export const LanguageSwitcherAttribute = "data-ui-language-switcher";
 /** On a language switcher's choice: the language it switches to. */

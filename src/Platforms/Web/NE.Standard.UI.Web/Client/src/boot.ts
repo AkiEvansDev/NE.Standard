@@ -1,4 +1,12 @@
-// Classic head script, imports nothing: applies the stored boot patches to elements as the parser produces them, before the first paint.
+// Classic head script, built as one with what it imports: as the parser produces the body, applies the stored boot patches and writes
+// every moment the server painted in UTC — a timestamp, a moment in words — in the reader's zone, before the first paint.
+
+import { MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, WordsAttribute, WordsTextTarget } from "./addressing/dom-attributes.ts";
+import { momentsOfMark, readMomentsAttribute, readPageTemporal, serverMomentPaint } from "./rendering/moment-first-paint.ts";
+import type { PaintedMoment } from "./rendering/moment-first-paint.ts";
+import type { TemporalLanguage } from "./rendering/temporal-format.ts";
+import { formatTimestamp, readInstant, readTimestampFormat, timestampText } from "./rendering/timestamp-format.ts";
+import type { TimestampWords } from "./rendering/timestamp-format.ts";
 
 (() => {
     const KeyPrefix = "ne.ui:";
@@ -12,44 +20,75 @@
         readonly styles?: Readonly<Record<string, string>>;
     };
 
-    const patchesByName = new Map<string, readonly BootPatch[]>();
+    /** Work on the elements a selector names as the parser hands them over; answers whether an element is finished with. */
+    type BootJob = {
+        readonly selector: string;
+        readonly apply: (element: Element) => boolean;
+        readonly done: WeakSet<Element>;
+        readonly pending: Set<Element>;
+    };
 
-    try {
-        for (let index = 0; index < localStorage.length; index++) {
-            const key = localStorage.key(index);
+    // Where a moment stands: the element's text, any place (`data-ui-moments` names none), or an attribute by its own name.
+    const TextPlace = "#text";
+    const AnyPlace = "*";
 
-            if (key === null || !key.startsWith(KeyPrefix) || !key.endsWith(KeySuffix))
-                continue;
+    const jobs: BootJob[] = [];
+    // What is left to write of each element's moments, per place.
+    const unwritten = new WeakMap<Element, Map<string, PaintedMoment[]>>();
+    const patchesByName = readPatches();
+    const temporal = readPageTemporal(document);
 
-            const name = key.slice(KeyPrefix.length, key.length - KeySuffix.length);
+    if (patchesByName.size > 0)
+        jobs.push(job(`[${NameAttribute}]`, element => applyPatches(element, patchesByName)));
 
-            try {
-                const stored = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, BootPatch>;
+    // A page with no patterns paints its moments as the server wrote them, and the runtime writes them once it starts.
+    if (temporal !== null) {
+        const words = { temporal, language: document.documentElement.lang };
+        const now = Date.now();
 
-                patchesByName.set(name, Object.values(stored));
-            }
-            catch {
-                // Unreadable entry; the runtime drops it on its next write.
+        jobs.push(job(`.${TimestampClass}`, element => writeTimestamp(element, temporal, words, now)));
+        jobs.push(job(`[${WordsAttribute}*='"moment"']`, element => writeMomentWords(element, temporal, words, now)));
+        jobs.push(job(`[${MomentsAttribute}]`, element => writeMoments(element, AnyPlace, () => readMomentsAttribute(element.getAttribute(MomentsAttribute)), temporal, words, now)));
+    }
+
+    if (jobs.length === 0)
+        return;
+
+    function job(selector: string, apply: (element: Element) => boolean): BootJob {
+        return { selector, apply, done: new WeakSet<Element>(), pending: new Set<Element>() };
+    }
+
+    function readPatches(): Map<string, readonly BootPatch[]> {
+        const patches = new Map<string, readonly BootPatch[]>();
+
+        try {
+            for (let index = 0; index < localStorage.length; index++) {
+                const key = localStorage.key(index);
+
+                if (key === null || !key.startsWith(KeyPrefix) || !key.endsWith(KeySuffix))
+                    continue;
+
+                const name = key.slice(KeyPrefix.length, key.length - KeySuffix.length);
+
+                try {
+                    const stored = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, BootPatch>;
+
+                    patches.set(name, Object.values(stored));
+                }
+                catch {
+                    // Unreadable entry; the runtime drops it on its next write.
+                }
             }
         }
-    }
-    catch {
-        // No storage: nothing was ever kept, so the server's shape is right.
-        return;
-    }
+        catch {
+            // No storage: nothing was ever kept, so the server's shape is right.
+        }
 
-    if (patchesByName.size === 0)
-        return;
-
-    function isAllowedAttributeName(name: string): boolean {
-        return name.startsWith("data-") || name.startsWith("aria-") || name === "class" || name === "hidden";
+        return patches;
     }
-
-    const done = new WeakSet<Element>();
-    const pending = new Set<Element>();
 
     /** Applies the element's patches; answers whether they are finished with, which a patch naming its targets by selector never is while parsing. */
-    function apply(element: Element): boolean {
+    function applyPatches(element: Element, patchesByName: ReadonlyMap<string, readonly BootPatch[]>): boolean {
         const patches = patchesByName.get(element.getAttribute(NameAttribute) ?? "");
 
         if (patches === undefined)
@@ -94,25 +133,139 @@
         return complete;
     }
 
-    function visit(root: Element): void {
-        const candidates = root.hasAttribute(NameAttribute) ? [root, ...root.querySelectorAll(`[${NameAttribute}]`)] : root.querySelectorAll(`[${NameAttribute}]`);
+    function isAllowedAttributeName(name: string): boolean {
+        return name.startsWith("data-") || name.startsWith("aria-") || name === "class" || name === "hidden";
+    }
 
-        for (const element of candidates) {
-            if (done.has(element))
+    /**
+     * Writes a timestamp's text as `timestamp-engine.ts` will, once the server's has arrived whole: the parser may hand the element
+     * over before its text, and a text written ahead of it would stand beside the server's.
+     */
+    function writeTimestamp(element: Element, temporal: TemporalLanguage, words: TimestampWords, now: number): boolean {
+        const instant = readInstant(element.getAttribute("datetime"));
+        const text = element.querySelector(`.${TimestampTextClass}`);
+
+        if (instant === null)
+            return true;
+
+        const format = readTimestampFormat(element.getAttribute(TimestampFormatAttribute));
+
+        if (text === null || text.textContent !== serverMomentPaint({ instant, format }, temporal))
+            return false;
+
+        text.textContent = timestampText(instant, format, words, now);
+        return true;
+    }
+
+    /** Writes each moment in an element's words — its own text's, an attribute's — where the server's paint of it stands. */
+    function writeMomentWords(element: Element, temporal: TemporalLanguage, words: TimestampWords, now: number): boolean {
+        let marks: Record<string, unknown>;
+
+        try {
+            marks = JSON.parse(element.getAttribute(WordsAttribute) ?? "{}") as Record<string, unknown>;
+        }
+        catch {
+            return true;
+        }
+
+        let complete = true;
+
+        for (const [target, mark] of Object.entries(marks))
+            complete = writeMoments(element, target === WordsTextTarget ? TextPlace : target, () => momentsOfMark(mark), temporal, words, now) && complete;
+
+        return complete;
+    }
+
+    /**
+     * Writes an element's moments in order where the server's paint of each stands — in its text, in an attribute, or either — and
+     * answers whether all are written: one whose paint has not arrived yet waits, with those after it, for the parser's next batch.
+     */
+    function writeMoments(element: Element, place: string, read: () => PaintedMoment[], temporal: TemporalLanguage, words: TimestampWords, now: number): boolean {
+        let places = unwritten.get(element);
+
+        if (places === undefined) {
+            places = new Map<string, PaintedMoment[]>();
+            unwritten.set(element, places);
+        }
+
+        let left = places.get(place);
+
+        if (left === undefined) {
+            left = read();
+            places.set(place, left);
+        }
+
+        while (left.length > 0) {
+            const moment = left[0];
+
+            if (!replacePaint(element, place, serverMomentPaint(moment, temporal), formatTimestamp(moment.instant, moment.format, words, now)))
+                return false;
+
+            left.shift();
+        }
+
+        return true;
+    }
+
+    /**
+     * Writes `written` over the first `painted` in the element's text — in the text node holding it, so the element's own markup
+     * stands — or in one of its attributes; answers whether it was there.
+     */
+    function replacePaint(element: Element, place: string, painted: string, written: string): boolean {
+        if (place === TextPlace || place === AnyPlace) {
+            const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+
+            for (let node = texts.nextNode(); node !== null; node = texts.nextNode()) {
+                const text = node as Text;
+                const at = text.data.indexOf(painted);
+
+                if (at >= 0) {
+                    text.data = text.data.slice(0, at) + written + text.data.slice(at + painted.length);
+                    return true;
+                }
+            }
+        }
+
+        if (place === TextPlace)
+            return false;
+
+        for (const attribute of [...element.attributes]) {
+            if ((place === AnyPlace ? attribute.name.startsWith("data-ui-") : attribute.name !== place) || !attribute.value.includes(painted))
                 continue;
 
-            if (apply(element))
-                done.add(element);
-            else
-                pending.add(element);
+            element.setAttribute(attribute.name, attribute.value.replace(painted, () => written));
+            return true;
+        }
+
+        return false;
+    }
+
+    function visit(root: Element): void {
+        for (const { selector, apply, done, pending } of jobs) {
+            const candidates = root.matches(selector) ? [root, ...root.querySelectorAll(selector)] : root.querySelectorAll(selector);
+
+            for (const element of candidates) {
+                if (done.has(element))
+                    continue;
+
+                if (apply(element)) {
+                    pending.delete(element);
+                    done.add(element);
+                }
+                else {
+                    pending.add(element);
+                }
+            }
         }
     }
 
     function retryPending(): void {
-        for (const element of pending) {
-            if (apply(element)) {
-                pending.delete(element);
-                done.add(element);
+        for (const { apply, done, pending } of jobs) {
+            for (const element of pending) {
+                if (apply(element)) {
+                    pending.delete(element);
+                    done.add(element);
+                }
             }
         }
     }

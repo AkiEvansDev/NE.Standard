@@ -425,7 +425,7 @@
         object-fit: cover;
     }
 
-// A file that is no picture, where a picture's thumbnail would be: its kind's `ne-` glyph over its name, on a faint ground of its own.
+// A file that is no picture, where a picture's thumbnail would be: its kind's `ne-` glyph over its name and size, on a faint ground of its own.
 .ui-image-input__tile--file {
     display: flex;
     flex-direction: column;
@@ -449,6 +449,12 @@
         color: var(--ui-color-on-surface);
         font-size: 0.75rem;
         line-height: 1.2;
+    }
+
+    .ui-image-input__file-size {
+        font-size: 0.6875rem;
+        line-height: 1.2;
+        white-space: nowrap;
     }
 
 // The cross over a square: a veil the pointer or the keyboard brings up, the same weight as every other clear control.

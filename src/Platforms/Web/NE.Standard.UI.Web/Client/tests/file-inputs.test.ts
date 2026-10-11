@@ -267,7 +267,7 @@ test("a shelf names the pictures it left out, takes the rest, and says the limit
     assert.deepEqual(marks.at(-1)?.words, { key: "ui.file.leftout", args: { limit: "1,5 МБ", names: "huge.png, wide.png" } });
 });
 
-test("a shelf taking any file shows a picture as its thumbnail and any other file as its kind's glyph over its name", async () => {
+test("a shelf taking any file shows a picture as its thumbnail and any other file as its kind's glyph over its name and size", async () => {
     const { tiles, native } = shelfWithComposer({}, "");
 
     pick(native, fileOf("cat.png", 10), fileOf("minutes.pdf", 10, "application/pdf"), fileOf("setup.exe", 10, "application/x-msdownload"));
@@ -283,6 +283,7 @@ test("a shelf taking any file shows a picture as its thumbnail and any other fil
     assert.equal(pdf.getAttribute("title"), "minutes.pdf");
     assert.equal(pdf.querySelector(".ui-image-input__file-glyph")?.classes.has("ui-icon-glyph--ne-picture-as-pdf"), true);
     assert.equal(pdf.querySelector(".ui-image-input__file-name")?.textContent, "minutes.pdf");
+    assert.equal(pdf.querySelector(".ui-image-input__file-size")?.textContent, "10 bytes");
     assert.match(pdf.querySelector(".ui-image-input__remove")?.getAttribute("data-ui-words") ?? "", /ui\.file\.remove/);
 
     assert.equal(other.querySelector(".ui-image-input__file-glyph")?.classes.has("ui-icon-glyph--ne-draft"), true);

@@ -69,6 +69,13 @@ export function formatTimestamp(instant: number, format: TimestampFormat, words:
     return formatTemporal(new Date(instant), pattern, temporal);
 }
 
+/** A timestamp's own text: its instant formatted, a relative day standing alone as a heading ("Today", where a phrase says "today"). */
+export function timestampText(instant: number, format: TimestampFormat, words: TimestampWords, now: number): string {
+    const formatted = formatTimestamp(instant, format, words, now);
+
+    return format === "relative-date" ? asHeading(formatted, words.language) : formatted;
+}
+
 /**
  * How many of the reader's days the instant lies from the one `now` is in — 0 today, -1 yesterday, 1 tomorrow — or null for one further:
  * the days a relative day names. Counted between the two local dates, so a day of 23 or 25 hours is still one.

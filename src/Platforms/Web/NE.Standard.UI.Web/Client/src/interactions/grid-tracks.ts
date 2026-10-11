@@ -215,11 +215,25 @@ function range(start: number, end: number): number[] {
     return indices;
 }
 
-/**
- * Moves the boundary between the two runs by `delta` pixels, within every track's bounds; null when nothing can move. A run is kept
- * out of the sliver below `sliver` pixels (`snapSliver`); 0 lets it follow the move all the way, as a splitter's drag does.
- */
-export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, delta: number, sliver = SliverPixels): GridTrack[] | null {
+/** How a boundary moves: the sliver a run is kept out of, and whether a run may go under its tracks' floors. */
+export type SplitMove = {
+    /** Below this a run folds to nothing or opens to it (`snapSliver`); 0 lets it follow the move all the way, as a splitter's drag does. */
+    readonly sliver: number;
+    /**
+     * A run may go under its floor — a splitter's side, which folds rather than stop there: its floor is then its sliver too, and its
+     * tracks hold no floor while under it, or the stylesheet would hold them up.
+     */
+    readonly passFloors: boolean;
+};
+
+/** Below this a table's column is a sliver: its words stood one a line and stretched the row, so it folds to nothing or opens to this. */
+const SliverPixels = 120;
+
+/** A table's column: kept out of the sliver, never under its floor. */
+const ColumnMove: SplitMove = { sliver: SliverPixels, passFloors: false };
+
+/** Moves the boundary between the two runs by `delta` pixels, within every track's bounds the move keeps; null when nothing can move. */
+export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, delta: number, move: SplitMove = ColumnMove): GridTrack[] | null {
     const before = measureRun(tracks, sizes, runs.before);
     const after = measureRun(tracks, sizes, runs.after);
 
@@ -227,13 +241,14 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
         return null;
 
     // The boundary may move as far as the tightest bound on either side allows.
-    const lower = Math.max(before.min - before.total, after.total - after.max);
-    const upper = Math.min(before.max - before.total, after.total - after.min);
+    const lower = Math.max((move.passFloors ? 0 : before.min) - before.total, after.total - after.max);
+    const upper = Math.min(before.max - before.total, after.total - (move.passFloors ? 0 : after.min));
 
     if (lower > upper)
         return null;
 
-    const clamped = snapSliver(Math.min(Math.max(delta, lower), upper), delta, before.total, after.total, lower, upper, sliver);
+    const sliver = (run: RunMeasure): number => move.sliver > 0 && move.passFloors ? Math.max(move.sliver, run.min) : move.sliver;
+    const clamped = snapSliver(Math.min(Math.max(delta, lower), upper), delta, before.total, after.total, lower, upper, sliver(before), sliver(after));
 
     if (clamped === 0)
         return null;
@@ -259,31 +274,45 @@ export function moveSplit(tracks: readonly GridTrack[], sizes: readonly number[]
             resize(next, after, after.total - clamped);
     }
 
+    if (move.passFloors) {
+        dropFloor(next, before, before.total + clamped);
+        dropFloor(next, after, after.total - clamped);
+    }
+
     return next;
 }
 
-/** Below this a table's column is a sliver: its words stood one a line and stretched the row, so it folds to nothing or opens to this. */
-const SliverPixels = 120;
+/** A run taken under its floor holds none, or the stylesheet's `minmax` would hold its star tracks up there. */
+function dropFloor(next: GridTrack[], run: RunMeasure, total: number): void {
+    if (total >= run.min - 0.5)
+        return;
+
+    for (const index of run.indices) {
+        const { min: _, ...rest } = next[index];
+
+        next[index] = rest;
+    }
+}
 
 /**
  * Below this a splitter's side folds to nothing when the bar is let go there, and a key's step opens a folded side to it: small, so a
- * narrow side stays the reader's to keep.
+ * narrow side stays the reader's to keep. A side with a floor above it springs back to the floor from between the two.
  */
 export const FoldPixels = 48;
 
 /**
- * Keeps either run out of the sliver between nothing and `sliver`: a move into it goes on to nothing when it shrinks that run, and
+ * Keeps either run out of its sliver between nothing and its edge: a move into it goes on to nothing when it shrinks that run, and
  * stops at the edge of it when it grows one, within the bounds the move was clamped to.
  */
-function snapSliver(move: number, delta: number, before: number, after: number, lower: number, upper: number, sliver: number): number {
+function snapSliver(move: number, delta: number, before: number, after: number, lower: number, upper: number, beforeSliver: number, afterSliver: number): number {
     let snapped = move;
     const beforeNext = before + snapped;
     const afterNext = after - snapped;
 
-    if (beforeNext > 0 && beforeNext < sliver)
-        snapped = delta < 0 ? -before : sliver - before;
-    else if (afterNext > 0 && afterNext < sliver)
-        snapped = delta > 0 ? after : after - sliver;
+    if (beforeNext > 0 && beforeNext < beforeSliver)
+        snapped = delta < 0 ? -before : beforeSliver - before;
+    else if (afterNext > 0 && afterNext < afterSliver)
+        snapped = delta > 0 ? after : after - afterSliver;
 
     return Math.min(Math.max(snapped, lower), upper);
 }
@@ -406,27 +435,38 @@ export function pinOffsets(sizes: readonly number[], pinned: number): number[] {
 
 const NoTracks: ReadonlySet<number> = new Set();
 
-/** How far the boundary moves to fold a run left under `fold` pixels, as the layout stands; 0 when neither run is one. */
-export function foldDelta(sizes: readonly number[], runs: GridSplitRuns, fold: number): number {
-    const before = runs.before.reduce((total, index) => total + (sizes[index] ?? 0), 0);
-    const after = runs.after.reduce((total, index) => total + (sizes[index] ?? 0), 0);
+/**
+ * How far the boundary moves as the bar is let go, as the layout stands: a run left under `fold` pixels folds to nothing, and one left
+ * between that and its floor springs back to the floor; 0 when neither run is one.
+ */
+export function releaseDelta(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, fold: number): number {
+    const before = measureRun(tracks, sizes, runs.before);
+    const after = measureRun(tracks, sizes, runs.after);
 
-    if (before >= 1 && before < fold)
-        return -before;
+    if (before.total >= 1 && before.total < fold)
+        return -before.total;
 
-    return after >= 1 && after < fold ? after : 0;
+    if (after.total >= 1 && after.total < fold)
+        return after.total;
+
+    if (before.total >= 1 && before.total < before.min - 0.5)
+        return before.min - before.total;
+
+    return after.total >= 1 && after.total < after.min - 0.5 ? after.total - after.min : 0;
 }
 
 /**
- * The tracks of each run under `fold` pixels: a side a drag has taken that narrow, whose panes are taken away rather than squeezed
- * until the bar is let go — folded then, or given room.
+ * The tracks of each run under `fold` pixels or under its floor: a side a drag has taken that narrow, whose panes are taken away rather
+ * than squeezed until the bar is let go — folded then, or given room.
  */
-export function narrowRunTracks(sizes: readonly number[], runs: GridSplitRuns, fold: number): Set<number> {
+export function narrowRunTracks(tracks: readonly GridTrack[], sizes: readonly number[], runs: GridSplitRuns, fold: number): Set<number> {
     const narrow = new Set<number>();
 
-    for (const run of [runs.before, runs.after]) {
-        if (run.reduce((total, index) => total + (sizes[index] ?? 0), 0) < fold)
-            run.forEach(index => narrow.add(index));
+    for (const indices of [runs.before, runs.after]) {
+        const run = measureRun(tracks, sizes, indices);
+
+        if (run.total < Math.max(fold, run.min - 0.5))
+            indices.forEach(index => narrow.add(index));
     }
 
     return narrow;

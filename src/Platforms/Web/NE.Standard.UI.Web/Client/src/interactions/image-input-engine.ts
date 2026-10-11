@@ -20,7 +20,7 @@ import type { CropFrame } from "./image-crop.ts";
 import { cropPictureAsync } from "./image-crop-dialog.ts";
 import type { CropImaging } from "./image-crop-dialog.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
-import { publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
+import { formatFileSize, publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
 import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
 import type { FieldValidation } from "./validation-engine.ts";
 
@@ -39,6 +39,7 @@ const ProgressClass = "ui-image-input__progress";
 const FileTileClass = "ui-image-input__tile--file";
 const FileGlyphClass = "ui-image-input__file-glyph";
 const FileNameClass = "ui-image-input__file-name";
+const FileSizeClass = "ui-image-input__file-size";
 
 /** The property whose emptying from the controller clears a single picture. */
 const SelectionIdProperty = "SelectionId";
@@ -561,7 +562,7 @@ function cropSizeOf(root: HTMLElement): number {
 }
 
 /**
- * A square on the shelf: a picture as its own thumbnail, any other file as its kind's glyph over its name; the cross over it, and
+ * A square on the shelf: a picture as its own thumbnail, any other file as its kind's glyph over its name and size; the cross over it, and
  * the ring and the bar until the upload has landed.
  */
 function createTile(file: File): Tile {
@@ -593,10 +594,11 @@ function createTile(file: File): Tile {
     return { element, url, selectionId: null };
 }
 
-/** A file's square's face: its kind's glyph and its name, the whole name on its title, and a cross that says it takes a file away. */
+/** A file's square's face: its kind's glyph, its name and its size, the whole name on its title, and a cross that says it takes a file away. */
 function fileParts(element: HTMLElement, remove: HTMLElement, file: File): HTMLElement[] {
     const glyph = document.createElement("span");
     const label = document.createElement("span");
+    const size = document.createElement("span");
 
     element.classList.add(FileTileClass);
     element.setAttribute("title", file.name);
@@ -605,9 +607,11 @@ function fileParts(element: HTMLElement, remove: HTMLElement, file: File): HTMLE
     applyIconValue(glyph, fileGlyph(file.name, file.type));
     label.className = FileNameClass;
     label.textContent = file.name;
+    size.className = FileSizeClass;
+    size.textContent = formatFileSize(file.size, clientStrings.language);
     clientStrings.write(remove, "aria-label", "ui.file.remove");
 
-    return [glyph, label];
+    return [glyph, label, size];
 }
 
 /** Writes the inline row's text — a file's name or the controller's caption — only when it changes. */

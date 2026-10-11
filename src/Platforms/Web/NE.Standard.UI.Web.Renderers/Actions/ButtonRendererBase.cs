@@ -126,6 +126,10 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
     /// A button that pins a side's drawer (<see cref="ButtonComponent{T}.PinsDrawer"/>) wears the mark side-drawer-engine.ts presses
     /// and the stylesheet shows it by, pressed as the side is pinned; nothing where the side is no drawer.
     /// </summary>
+    /// <remarks>
+    /// A toggle whose <c>Pressed</c> is the side's pin, which the engine writes and announces, so an interaction on it (an icon of its
+    /// own for pinned) hears a pin restored on load as well as one pressed.
+    /// </remarks>
     private static void RenderDrawerPin(WebRenderContext context, IHtmlElementBuilder root)
     {
         _ = ResolveRenderValue(context, ButtonComponent.PinsDrawerProperty, out UISide? side, out _);
@@ -135,6 +139,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 
         _ = root
             .Attribute(WebAttributes.DrawerPin, region)
+            .Attribute(WebAttributes.ValueKind, WebValueKinds.Pressed)
             .Attribute("aria-pressed", "false")
             .Attribute("aria-controls", WebAttributes.DrawerId(region));
     }

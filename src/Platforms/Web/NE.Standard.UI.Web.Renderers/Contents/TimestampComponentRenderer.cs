@@ -5,6 +5,7 @@ using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
@@ -16,15 +17,13 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 /// <remarks>
 /// The first paint is <see cref="WebMoments.FirstPaint"/> — the instant in UTC in the page's names and the application's patterns,
 /// said to be UTC where it shows a clock, since a time with no zone named would read as the reader's own — as a moment in a phrase's
-/// words is painted.
+/// words is painted. The boot script finds that text as the body is parsed and writes it in the reader's zone before the first paint.
 /// </remarks>
 public sealed class TimestampComponentRenderer : WebComponentRendererBase
 {
-    private const string TextClassName = "ui-timestamp__text";
-
     public override string ComponentTypeKey => TimestampComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-timestamp";
+    protected override string ClassName => WebClassNames.Timestamp;
 
     protected override string ElementName => "time";
 
@@ -49,7 +48,7 @@ public sealed class TimestampComponentRenderer : WebComponentRendererBase
         _ = root.Element("span", part =>
         {
             text = part;
-            _ = part.Class(TextClassName);
+            _ = part.Class(WebClassNames.TimestampText);
         });
 
         // The tree is written out only once the whole component is built, so writing the text after its element returned is safe.

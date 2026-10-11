@@ -8,6 +8,14 @@ html {
     scrollbar-width: thin;
 }
 
+// No bar where nothing hovers, as a phone's own apps scroll: a phone's browser keeps its thumb drawn over a region it scrolled,
+// whatever the region's mode. It takes no room there, so `Always`' strip and a stable gutter reserve none either.
+@media @{ui-cannot-hover} {
+    * {
+        scrollbar-width: none;
+    }
+}
+
 @supports not (scrollbar-width: thin) {
     html::-webkit-scrollbar,
     *::-webkit-scrollbar {
@@ -32,6 +40,14 @@ html {
         html::-webkit-scrollbar-thumb:hover,
         *::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--ui-color-on-surface) 38%, transparent);
+        }
+    }
+
+    @media @{ui-cannot-hover} {
+        html::-webkit-scrollbar,
+        *::-webkit-scrollbar {
+            width: 0;
+            height: 0;
         }
     }
 }

@@ -1,7 +1,7 @@
 // A rule reading a field (`ShownWhen`, `HiddenWhen`, `EnabledWhen`: a property interaction) follows the reader's own edit, not only a
 // push: the server never sends a writer its own value back, so the edit has to reach the interaction engine on the page. The real
 // engines run here — the value engine sending, the patch engine recording, the interaction engine — over a stand-in server that
-// either answers nothing or refuses the value by pushing the old one back.
+// either answers nothing or refuses the value by pushing the old one back. A toggle with no binding is read by its Pressed.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -29,6 +29,8 @@ const BoxValue: Reference = { componentId: 5, propertyId: "box.value" };
 const PanelVisibility: Reference = { componentId: 2, propertyId: "panel.visibility" };
 const ButtonEnabled: Reference = { componentId: 4, propertyId: "button.enabled" };
 const AddressVisibility: Reference = { componentId: 6, propertyId: "address.visibility" };
+const PinPressed: Reference = { componentId: 7, propertyId: "pin.pressed" };
+const MarkIcon: Reference = { componentId: 8, propertyId: "mark.icon" };
 
 const PropertyNames: Readonly<Record<string, string>> = {
     "switch.value": "Value",
@@ -36,7 +38,9 @@ const PropertyNames: Readonly<Record<string, string>> = {
     "box.value": "Value",
     "panel.visibility": "Visibility",
     "button.enabled": "Enabled",
-    "address.visibility": "Visibility"
+    "address.visibility": "Visibility",
+    "pin.pressed": "Pressed",
+    "mark.icon": "Icon"
 };
 
 type Page = {
@@ -46,6 +50,8 @@ type Page = {
     readonly panel: FakeElement;
     readonly button: FakeElement;
     readonly address: FakeElement;
+    readonly pin: FakeElement;
+    readonly mark: FakeElement;
     readonly sent: unknown[];
     answer: Answer;
     /** A value the server pushes, as an attach's snapshot or another tab's change arrives. */
@@ -62,6 +68,9 @@ function createPage(): Page {
     const panel = FakeElement.of("", { "data-ui-id": "2" });
     const button = FakeElement.of("", { "data-ui-id": "4" }, "button");
     const address = FakeElement.of("", { "data-ui-id": "6" });
+    // A toggle button with no binding, pressed by an engine of its own (a drawer's pin), whose Pressed a rule reads.
+    const pin = FakeElement.of("ui-button", { "data-ui-id": "7", "data-ui-value-kind": "pressed", "aria-pressed": "false" }, "button");
+    const mark = FakeElement.of("", { "data-ui-id": "8" });
 
     toggle.setAttribute("data-ui-bind-value", "11");
     text.setAttribute("data-ui-bind-value", "13");
@@ -72,7 +81,9 @@ function createPage(): Page {
         [5, FakeElement.of("", { "data-ui-id": "5" }).append(box)],
         [2, panel],
         [4, button],
-        [6, address]
+        [6, address],
+        [7, pin],
+        [8, mark]
     ]);
 
     fakeDocument.body.children.length = 0;
@@ -90,7 +101,9 @@ function createPage(): Page {
                 // EnabledWhen(text, "Orvane"): enabled while the typed name matches.
                 { sourceKind: "Property", source: TextValue, target: ButtonEnabled, operator: "Equal", value: "Orvane", trueValue: true, falseValue: false },
                 // HiddenWhen(box): collapsed while it is ticked.
-                { sourceKind: "Property", source: BoxValue, target: AddressVisibility, operator: "Required", trueValue: "Collapsed", falseValue: "Visible" }
+                { sourceKind: "Property", source: BoxValue, target: AddressVisibility, operator: "Required", trueValue: "Collapsed", falseValue: "Visible" },
+                // An icon of its own for pinned: the pin's Pressed.
+                { sourceKind: "Property", source: PinPressed, target: MarkIcon, operator: "Equal", value: true, trueValue: "keep", falseValue: "keep_off" }
             ]
         },
         getBindingById: (id: number) => bindings.get(id),
@@ -148,6 +161,8 @@ function createPage(): Page {
         panel,
         button,
         address,
+        pin,
+        mark,
         sent,
         answer: "nothing",
         push: (reference, value) => patches.applyPropertyValue(reference, [], value, false),
@@ -374,6 +389,18 @@ function createFilterPage(): FilterPage {
         pushQuery: value => patches.applyPropertyValue(QueryValue, [], value, false)
     };
 }
+
+test("a rule on an unbound toggle's Pressed follows it, pressed by its engine as by a press", () => {
+    const page = createPage();
+
+    page.pin.setAttribute("aria-pressed", "true");
+    page.pin.dispatchEvent(new FakeEvent("change"));
+    assert.equal(page.mark.getAttribute("data-icon"), "keep");
+
+    page.pin.setAttribute("aria-pressed", "false");
+    page.pin.dispatchEvent(new FakeEvent("change"));
+    assert.equal(page.mark.getAttribute("data-icon"), "keep_off");
+});
 
 test("an effect reading a field that is also a list's filter source runs once per edit, and the list follows the edit", () => {
     const page = createFilterPage();

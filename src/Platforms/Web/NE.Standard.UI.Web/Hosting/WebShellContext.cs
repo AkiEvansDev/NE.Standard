@@ -114,6 +114,12 @@ public sealed class WebShellContext
     public string? StringsJson { get; init; }
 
     /// <summary>
+    /// Gets the page's language's names and patterns for dates and times as JSON, the words table's <c>temporal</c> block: in the head,
+    /// so a moment is written in the reader's zone as the body is parsed, before its first paint. None writes no block.
+    /// </summary>
+    public string? TemporalJson { get; init; }
+
+    /// <summary>
     /// Gets the values this page was rendered with, for the client to apply before its first paint — see <see cref="WebHydration"/>.
     /// </summary>
     public string? HydrationJson { get; init; }

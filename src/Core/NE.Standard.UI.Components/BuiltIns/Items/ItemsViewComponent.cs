@@ -163,7 +163,7 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// <remarks>
     /// An overlay spanning the view's width stands over its scrollbar too, a strip that comes and goes with the rows' overflow.
     /// <c>VerticalScroll = UIScrollMode.Always</c> keeps the strip whether the rows overflow or not, so the overlay's margin can count
-    /// it; a screen whose scrollbars float over the content (a touch screen) reserves none either way.
+    /// it; a screen where nothing hovers (a touch screen) draws no scrollbar and reserves no strip either way.
     /// </remarks>
     [UIComponentProperty(DefaultValue = null)]
     public UIResponsive<UIThickness>? Padding { get; set; }

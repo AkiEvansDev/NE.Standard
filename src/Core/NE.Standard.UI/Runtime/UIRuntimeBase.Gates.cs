@@ -13,6 +13,7 @@ using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.Foundation.Inputs;
+using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -153,18 +154,45 @@ internal abstract partial class UIRuntimeBase
         UIComponentId componentId = update.Address.Component.Id;
         var dynamicParameters = update.Address.Component.DynamicParameters;
 
-        if (gates.TryGet(componentId, out UIComponentGates? target)
-            && (IsClosedNoLock(target!.Chain, dynamicParameters)
-                || (target.ReadOnly is { } readOnly && IsClosedNoLock(readOnly, dynamicParameters))
-                || (target.Values is { } checks && IsValueRefusedNoLock(checks, update, resolution, ref read))))
+        if (gates.TryGet(componentId, out UIComponentGates? target))
         {
-            return true;
+            if (ClosingGateNoLock(target!.Chain, dynamicParameters) is { } closing)
+            {
+                // Said in the log, unlike a disabled or loading one's: a page writes to a hidden field only by the author's design (a
+                // picker opened from elsewhere) or by a forged call, and the field going back to its value says nothing to either.
+                if (closing.Kind == UIComponentGateKind.Visibility)
+                    TryLogHiddenWrite(update);
+
+                return true;
+            }
+
+            if ((target.ReadOnly is { } readOnly && IsClosedNoLock(readOnly, dynamicParameters))
+                || (target.Values is { } checks && IsValueRefusedNoLock(checks, update, resolution, ref read)))
+            {
+                return true;
+            }
         }
 
         if (IsChoice(property))
             return gates.TryGetRows(componentId, out UIRowGates rows) && IsChoiceRefusedNoLock(gates, rows, update, resolution);
 
         return WriteAbility(property) is UIComponentGateKind ability && gates.TryGetRowRoot(componentId, out UIRowAbilities? row) && IsRowRefusedNoLock(row!, ability, dynamicParameters);
+    }
+
+    /// <summary>
+    /// Logs a write refused for a hidden component, swallowing a logging failure of its own.
+    /// </summary>
+    private void TryLogHiddenWrite(ClientValueUIUpdate update)
+    {
+        try
+        {
+            if (Controller is IUIContextController contextController && View.Graph.TryGet(update.Address.Component.Id, out UIComponentNode? node))
+                Log.HiddenWriteRefused(contextController.Context.Logger, update.Address.Property.Name, node.TypeKey, node.AuthoringId);
+        }
+        catch
+        {
+            // A logger that throws must not turn a refused write into a failed one.
+        }
     }
 
     /// <summary>
@@ -394,14 +422,18 @@ internal abstract partial class UIRuntimeBase
     }
 
     private bool IsClosedNoLock(UIComponentGate[] gates, object?[] dynamicParameters)
+        => ClosingGateNoLock(gates, dynamicParameters) is not null;
+
+    /// <summary>The first of the gates that closes the component for the row keys given, or null where none does.</summary>
+    private UIComponentGate? ClosingGateNoLock(UIComponentGate[] gates, object?[] dynamicParameters)
     {
         for (var i = 0; i < gates.Length; i++)
         {
             if (IsClosedNoLock(gates[i], dynamicParameters))
-                return true;
+                return gates[i];
         }
 
-        return false;
+        return null;
     }
 
     /// <summary>

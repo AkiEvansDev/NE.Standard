@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -14,8 +15,8 @@ namespace NE.Standard.UI.Web.Abstractions.Rendering;
 /// (<see cref="UIMoment"/>): the instant in UTC in the page's names and the application's patterns, the ones the words table carries.
 /// </summary>
 /// <remarks>
-/// Not the reader's zone, because one render of a view is shared by every reader of it; the page writes the same patterns in the
-/// reader's zone, so at hydration only the time moves and " UTC" goes.
+/// Not the reader's zone, because one render of a view is shared by every reader of it; the boot script finds this text as the body
+/// is parsed and writes the moment in the reader's zone before the first paint, by the same patterns the head carries.
 /// </remarks>
 public static class WebMoments
 {
@@ -67,6 +68,44 @@ public static class WebMoments
             return arguments;
 
         return PaintArguments(arguments, WebCultures.Resolve(language), options);
+    }
+
+    /// <summary>
+    /// The moments a phrase's arguments hold, nested phrases' included, in the order they stand, as the page's <c>data-ui-moments</c>
+    /// carries them: the boot script finds each one's first paint in the element and writes it in the reader's zone before the body
+    /// paints. Null where the phrase holds none.
+    /// </summary>
+    public static string? MomentsAttribute(UIPhrase phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+
+        if (phrase.IsText || phrase.Arguments is not { } arguments || !HoldsMoment(arguments))
+            return null;
+
+        StringBuilder text = new("[");
+
+        AppendMoments(text, arguments);
+        return text.Append(']').ToString();
+    }
+
+    private static void AppendMoments(StringBuilder text, IReadOnlyDictionary<string, object?> arguments)
+    {
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            if (UIMoment.TryRead(argument.Value, out UIMoment moment))
+            {
+                // The instant and the format's name are the wire's own, neither holding anything a JSON string escapes.
+                _ = text.Append(text.Length > 1 ? ",{\"moment\":\"" : "{\"moment\":\"")
+                    .Append(UIMomentJsonConverter.InstantText(moment.Instant))
+                    .Append("\",\"format\":\"")
+                    .Append(UIMomentJsonConverter.FormatName(moment.Format))
+                    .Append("\"}");
+            }
+            else if (argument.Value is UIPhrase { IsText: false, Arguments: { } nested })
+            {
+                AppendMoments(text, nested);
+            }
+        }
     }
 
     private static bool HoldsMoment(IReadOnlyDictionary<string, object?> arguments)

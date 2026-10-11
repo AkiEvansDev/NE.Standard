@@ -1,9 +1,10 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
-import { WordsAttribute } from "../addressing/dom-attributes.ts";
+import { WordsAttribute, WordsTextTarget } from "../addressing/dom-attributes.ts";
 import { logDebug, logWarn } from "./logger.ts";
 import { hasKeyPrefix, holdsMoment, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
 import type { WordLookup } from "./words.ts";
 import type { TemporalLanguage } from "../rendering/temporal-format.ts";
+import { readPageTemporal } from "../rendering/moment-first-paint.ts";
 import { formatTimestamp, isRelativeFormat } from "../rendering/timestamp-format.ts";
 import { needRelativeTicks } from "./relative-clock.ts";
 import type { TimestampFormat } from "../rendering/timestamp-format.ts";
@@ -94,9 +95,6 @@ const MaxAskedKeyLength = 512;
 
 const StringsSelector = "script[type='application/json'][data-ui-strings]";
 
-/** The mark's name for an element's own text, as the server's `WebWords.TextTarget`. */
-const TextTarget = "#text";
-
 /** An element whose words mark may hold a moment: the mark's JSON names one. */
 const MomentMarkSelector = `[${WordsAttribute}*='"moment"']`;
 
@@ -171,6 +169,11 @@ export class ClientWords implements WordLookup {
 
     /** Reads the words the shell wrote; a page without them (a test, a bare host) reads keys back. */
     public load(documentRoot: ParentNode = document): void {
+        // The head's names and patterns, the table's own: a day or a time is written in the reader's zone from the start, as the boot
+        // script wrote it, rather than once the table lands.
+        if (!this.tableLoaded)
+            this.currentTemporal = readPageTemporal(documentRoot) ?? this.currentTemporal;
+
         const script = documentRoot.querySelector<HTMLScriptElement>(StringsSelector);
         const text = script?.textContent?.trim() ?? "";
 
@@ -437,7 +440,7 @@ export class ClientWords implements WordLookup {
                     const words = this.wordsOfMark(mark);
 
                     if (words !== null)
-                        writeWords(element, target === TextTarget ? null : target, words);
+                        writeWords(element, target === WordsTextTarget ? null : target, words);
                 }
             }
         });
@@ -554,7 +557,7 @@ export function forgetWords(element: Element, attribute: string | null): void {
 /** Joins a word's mark to the element's others, or takes it off where `mark` is null. */
 function markWords(element: Element, attribute: string | null, mark: unknown): void {
     const marks = readMarks(element);
-    const place = attribute ?? TextTarget;
+    const place = attribute ?? WordsTextTarget;
 
     if (mark === null) {
         if (!(place in marks))
@@ -577,7 +580,7 @@ function markWords(element: Element, attribute: string | null, mark: unknown): v
 
 /** The words an element's text was written in, as a value writes them again: a key's as a phrase, an author's text as itself; else null. */
 export function readTextWords(element: Element): unknown {
-    const mark = readMarks(element)[TextTarget];
+    const mark = readMarks(element)[WordsTextTarget];
 
     if (typeof mark === "string")
         return mark;
