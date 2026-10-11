@@ -23,6 +23,11 @@ function noChanges(): ServerChangeSet {
     return {};
 }
 
+/** The runtime a push names as its sender: the id an attach answered with, or none. */
+function readRuntime(runtime: unknown): string | null {
+    return typeof runtime === "string" ? runtime : null;
+}
+
 export class SignalRTransport {
     private readonly windowId: string;
     private readonly connection: HubConnection;
@@ -55,13 +60,14 @@ export class SignalRTransport {
         return this.connection.state === HubConnectionState.Reconnecting;
     }
 
-    public onChanges(handler: (changes: ServerChangeSet) => void): void {
-        this.connection.on("ui.changes", this.inbound.pushed((payload: unknown) => handler(payload as ServerChangeSet)));
+    /** A change set pushed, with the runtime that sent it; none from a host that does not say. */
+    public onChanges(handler: (changes: ServerChangeSet, runtime: string | null) => void): void {
+        this.connection.on("ui.changes", this.inbound.pushed((payload: unknown, sender?: unknown) => handler(payload as ServerChangeSet, readRuntime(sender))));
     }
 
     // Effects raised outside a command, a Direct runtime's command effects, and a background command's whole result, by its request id.
-    public onCommandResult(handler: (result: UICommandExecutionResult) => void): void {
-        this.connection.on("ui.commandResult", this.inbound.pushed((payload: unknown) => handler(payload as UICommandExecutionResult)));
+    public onCommandResult(handler: (result: UICommandExecutionResult, runtime: string | null) => void): void {
+        this.connection.on("ui.commandResult", this.inbound.pushed((payload: unknown, sender?: unknown) => handler(payload as UICommandExecutionResult, readRuntime(sender))));
     }
 
     public onReconnecting(handler: (error?: Error) => void): void {
@@ -172,6 +178,11 @@ export class SignalRTransport {
     /** Resolves once the runtime is attached and calls go through; fails once the connection is given up. */
     public whenAttached(): Promise<void> {
         return this.gate.wait();
+    }
+
+    /** Holds every call but the attach until an attach is answered, as a reconnect does: the page is going to another runtime. */
+    public holdCalls(): void {
+        this.gate.rearm();
     }
 
     /** Tells the runtime what the page is now: on screen or not, and what the browser lets it show. */

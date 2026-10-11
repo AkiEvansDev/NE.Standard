@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
@@ -63,6 +64,12 @@ internal sealed partial class WebUIHub : Hub
 
         /// <summary>What the page reports of itself as it attaches; none from a page that does not report.</summary>
         public WebUIClientStateRequest? ClientState { get; init; }
+
+        /// <summary>
+        /// The page goes to another runtime of its route, its address now differing in a parameter the route keys runtimes by: it
+        /// leaves the one it holds and attaches to that one over the same connection.
+        /// </summary>
+        public bool SwitchRuntime { get; init; }
     }
 
     internal sealed class WebUIClientStateRequest
@@ -264,9 +271,19 @@ internal sealed partial class WebUIHub : Hub
 
         [LoggerMessage(EventId = 16, Level = LogLevel.Information, Message = "Web UI route '{Route}' for tab '{ClientWindowId}' found a runtime built since the page attached: the page reloads.")]
         public static partial void RuntimeFresh(ILogger logger, string route, string clientWindowId);
+
+        [LoggerMessage(EventId = 17, Level = LogLevel.Debug, Message = "Connection '{ConnectionId}' left its runtime for another of route '{Route}'.")]
+        public static partial void RuntimeSwitched(ILogger logger, string connectionId, string route);
+
+        [LoggerMessage(EventId = 18, Level = LogLevel.Debug, Message = "Connection '{ConnectionId}' asked to go to route '{Route}', which is not its page's: the page loads it.")]
+        public static partial void SwitchRefused(ILogger logger, string connectionId, string route);
+
+        [LoggerMessage(EventId = 19, Level = LogLevel.Warning, Message = "Connection '{ConnectionId}' could not go to route '{Route}' in place: the page loads it.")]
+        public static partial void SwitchFailed(ILogger logger, Exception exception, string connectionId, string route);
     }
 
     private const string HandleContextItemKey = "NE.Standard.UI.Web.Handle";
+    private const string AttachmentContextItemKey = "NE.Standard.UI.Web.Attachment";
 
     // Shared: an answer that carries nothing but the reload.
     private static readonly WebUIAttachResult ReloadResult = new()
@@ -287,11 +304,12 @@ internal sealed partial class WebUIHub : Hub
     private readonly IUserSessionStore _sessions;
     private readonly WebValueStagingStore _stagedValues;
     private readonly WebOutgoingValues _outgoing;
+    private readonly WebRuntimeStamps _stamps;
     private readonly WebUIMetrics _metrics;
     private readonly IEnumerable<IUIStringsSource> _packageStrings;
     private readonly ILogger<WebUIHub> _logger;
 
-    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, WebSessionCookie sessionCookie, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger)
+    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, WebSessionCookie sessionCookie, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebRuntimeStamps stamps, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(renderCache);
@@ -301,6 +319,7 @@ internal sealed partial class WebUIHub : Hub
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(stagedValues);
         ArgumentNullException.ThrowIfNull(outgoing);
+        ArgumentNullException.ThrowIfNull(stamps);
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(packageStrings);
         ArgumentNullException.ThrowIfNull(logger);
@@ -313,6 +332,7 @@ internal sealed partial class WebUIHub : Hub
         _sessions = sessions;
         _stagedValues = stagedValues;
         _outgoing = outgoing;
+        _stamps = stamps;
         _metrics = metrics;
         _packageStrings = packageStrings;
         _logger = logger;
@@ -323,8 +343,21 @@ internal sealed partial class WebUIHub : Hub
         Log.ConnectionOpened(_logger, Context.ConnectionId);
         _metrics.ConnectionOpened();
 
+        BeginAttachment();
+
         return base.OnConnectedAsync();
     }
+
+    /// <summary>Opens the page's stay on a runtime: the token a background command it raises keeps, ended by <see cref="ReleaseRuntime"/>.</summary>
+    private void BeginAttachment()
+        => Context.Items[AttachmentContextItemKey] = CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+
+    /// <summary>
+    /// Cancelled once the page leaves its runtime — its connection closing, or the page going to another runtime of its route — which
+    /// ends a background command it raised there, as a closed connection always has.
+    /// </summary>
+    private CancellationToken AttachmentAborted
+        => Context.Items.TryGetValue(AttachmentContextItemKey, out var value) && value is CancellationTokenSource attachment ? attachment.Token : Context.ConnectionAborted;
 
     public async Task<WebUIAttachResult> AttachAsync(WebUIAttachRequest request)
     {
@@ -332,6 +365,25 @@ internal sealed partial class WebUIHub : Hub
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ClientWindowId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Route);
 
+        if (!request.SwitchRuntime)
+            return await AttachCoreAsync(request).ConfigureAwait(false);
+
+        // A page going to another runtime still shows the one it leaves: an address that cannot be attached — refused, a runtime that
+        // fails to start — is loaded instead, and the page shows what the server renders there, never the runtime it left as the other.
+        try
+        {
+            return await AttachCoreAsync(request).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (!Context.ConnectionAborted.IsCancellationRequested)
+        {
+            Log.SwitchFailed(_logger, exception, Context.ConnectionId, request.Route);
+
+            return ReloadResult;
+        }
+    }
+
+    private async Task<WebUIAttachResult> AttachCoreAsync(WebUIAttachRequest request)
+    {
         var route = UIRoutePath.Normalize(request.Route);
         var started = Stopwatch.GetTimestamp();
 
@@ -362,6 +414,22 @@ internal sealed partial class WebUIHub : Hub
             return ReloadResult;
         }
 
+        // A page going to another runtime of its route leaves the one it holds, as a closing connection does; an address that
+        // resolved to another route — a redirect, a refusal — is loaded instead. Naming the runtime it holds, it attaches again.
+        if (request.SwitchRuntime && TryGetHandle(out UIHandle? held) && !NamesRuntimeOf(held, view, request.ClientWindowId))
+        {
+            if (_host is not UIHost || !IsRouteOf(held, view, request.ClientWindowId))
+            {
+                Log.SwitchRefused(_logger, Context.ConnectionId, route);
+
+                return ReloadResult;
+            }
+
+            LeaveRuntime();
+
+            Log.RuntimeSwitched(_logger, Context.ConnectionId, route);
+        }
+
         // One connection is one page: it attaches again to the runtime it holds (a full resync, a lost staged value), never to
         // another, which would leave the first kept for its whole retention.
         if (!MayAttach(view, request.ClientWindowId))
@@ -386,9 +454,14 @@ internal sealed partial class WebUIHub : Hub
             Context.ConnectionAborted
         ).ConfigureAwait(false);
 
+        // Before the snapshot: what the runtime pushes from here on names it, as everything the page's earlier runtimes pushed names them.
+        if (runtime.RuntimeId is not null)
+            _stamps.Remember(runtime.Handle, runtime.RuntimeId);
+
         // The runtime the page held is gone, and what the page shows — fields it accepted, a dialog, unsaved work — with it: applying
-        // this one's snapshot would leave a mixture, so the page reloads, and nothing is built for it.
-        if (request.Runtime is not null && runtime.RuntimeId is not null && !string.Equals(request.Runtime, runtime.RuntimeId, StringComparison.Ordinal))
+        // this one's snapshot would leave a mixture, so the page reloads, and nothing is built for it. Not a page going to another
+        // runtime, which takes its whole state anyway — on a connection that dropped meanwhile too, which holds no runtime to leave.
+        if (!request.SwitchRuntime && request.Runtime is not null && runtime.RuntimeId is not null && !string.Equals(request.Runtime, runtime.RuntimeId, StringComparison.Ordinal))
         {
             Context.Items[HandleContextItemKey] = runtime.Handle;
             Log.RuntimeFresh(_logger, route, request.ClientWindowId);
@@ -427,13 +500,49 @@ internal sealed partial class WebUIHub : Hub
 
     /// <summary>Whether this connection may attach: one holding no handle may, one holding a handle only to that handle's runtime from its tab.</summary>
     private bool MayAttach(UIViewResolution view, string clientWindowId)
-    {
-        if (!TryGetHandle(out UIHandle? held))
-            return true;
+        => !TryGetHandle(out UIHandle? held) || NamesRuntimeOf(held, view, clientWindowId);
 
-        return _host is UIHost host
+    private bool NamesRuntimeOf(UIHandle held, UIViewResolution view, string clientWindowId)
+        => _host is UIHost host
             ? host.NamesRuntimeOf(held, view, clientWindowId)
             : string.Equals(held.Instance.WindowId, clientWindowId, StringComparison.Ordinal);
+
+    /// <summary>Whether the view resolved for an attach from the held page's tab is of the held page's route, with a controller.</summary>
+    private static bool IsRouteOf(UIHandle held, UIViewResolution view, string clientWindowId)
+        => string.Equals(held.Instance.WindowId, clientWindowId, StringComparison.Ordinal)
+            && view.Route.ControllerType is not null
+            && string.Equals(UIRoutePath.Normalize(held.Instance.Navigation.Route), UIRoutePath.Normalize(view.Navigation.Route), StringComparison.Ordinal);
+
+    /// <summary>
+    /// Lets go of the runtime this connection holds as its closing does — its staged values, its handle, the background commands the
+    /// page raised there — the connection staying open for the next.
+    /// </summary>
+    private void LeaveRuntime()
+    {
+        _ = ReleaseRuntime();
+        _ = Context.Items.Remove(HandleContextItemKey);
+
+        BeginAttachment();
+    }
+
+    /// <summary>
+    /// What a page's stay on its runtime holds, let go of — its staged values, its attach, the background commands it raised there —
+    /// whether it goes to another runtime or its connection closes; answers whether a runtime was detached.
+    /// </summary>
+    private bool ReleaseRuntime()
+    {
+        _stagedValues.ReleaseAttach(Context.ConnectionId);
+
+        var detached = _host.DetachRuntime(Context.ConnectionId);
+
+        // Cancelled, then let go: a command still finishing reads only whether it was cancelled, which a disposed source still answers.
+        if (Context.Items.TryGetValue(AttachmentContextItemKey, out var value) && value is CancellationTokenSource attachment)
+        {
+            attachment.Cancel();
+            attachment.Dispose();
+        }
+
+        return detached;
     }
 
     /// <summary>The handle the attach left on this connection, if it attached.</summary>
@@ -693,8 +802,9 @@ internal sealed partial class WebUIHub : Hub
 
         command.Validate();
 
+        // The attachment's token: a background command keeps it, and ends with the page's stay on this runtime.
         UICommandExecutionResult result = await _host
-            .ProcessEventAsync(handle, command, Context.ConnectionAborted)
+            .ProcessEventAsync(handle, command, AttachmentAborted)
             .ConfigureAwait(false);
 
         return _outgoing.Stage(result, handle.Session.SessionId, [Context.ConnectionId]);
@@ -853,11 +963,7 @@ internal sealed partial class WebUIHub : Hub
         if (exception is not null)
             Log.ConnectionClosedWithException(_logger, exception, Context.ConnectionId);
 
-        _stagedValues.ReleaseAttach(Context.ConnectionId);
-
-        var detached = _host.DetachRuntime(Context.ConnectionId);
-
-        if (detached)
+        if (ReleaseRuntime())
             Log.Detached(_logger, Context.ConnectionId);
         else
             Log.DetachSkipped(_logger, Context.ConnectionId);

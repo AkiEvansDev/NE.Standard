@@ -60,6 +60,8 @@ export class ItemsWindowEngine {
     private readonly states = new WeakMap<Element, WindowState>();
     // Only the first start() snaps the viewport to the server's window; a reconnect or rebuild realigns to the viewer's scroll instead.
     private started = false;
+    // Hosts whose next start snaps to the server's window as a first one does: their rows are another runtime's now.
+    private readonly forgotten = new WeakSet<Element>();
 
     public constructor(options: ItemsWindowEngineOptions) {
         this.options = options;
@@ -75,6 +77,8 @@ export class ItemsWindowEngine {
         this.started = true;
 
         for (const host of this.hosts()) {
+            const fresh = this.forgotten.delete(host) || firstStart;
+
             this.layout(host);
 
             if (countItems(host) === 0) {
@@ -85,7 +89,7 @@ export class ItemsWindowEngine {
                 continue;
             }
 
-            if (firstStart) {
+            if (fresh) {
                 this.revealWindow(host);
                 continue;
             }
@@ -93,6 +97,25 @@ export class ItemsWindowEngine {
             // Attached again: a read the dropped connection cut cleared its pending skeleton and was never asked again.
             this.realign(host);
             this.considerRequest(host);
+        }
+    }
+
+    /**
+     * Forgets what the hosts inside `scope` knew of their windows — a row's size, a decision waiting — so the next start shows the
+     * server's window as a page load's does: the page went to another runtime, whose rows these are now.
+     */
+    public forget(scope: Element): void {
+        for (const host of this.hosts()) {
+            if (!scope.contains(host))
+                continue;
+
+            const state = this.states.get(host);
+
+            if (state !== undefined && state.scheduled !== 0)
+                window.clearTimeout(state.scheduled);
+
+            this.states.delete(host);
+            this.forgotten.add(host);
         }
     }
 
@@ -302,6 +325,12 @@ export class ItemsWindowEngine {
         if (anchor === "After" && readWindowNumber(host, WindowTotalAttribute) === null && drawsSkeleton(host))
             ensureSpacer(host, PendingSpacer, PendingRows * this.rowSize(host));
 
+        // A host with no offset reads by its edges alone: after a read that brought rows it decides again, since a reader still at the
+        // edge, with a wheel that raises no scroll there, would otherwise ask for nothing more. Rows read in above keep the first one
+        // where the reader saw it: the host takes no anchoring of the browser's (`overflow-anchor: none`, its engines size its spacers).
+        const cursor = readWindowNumber(host, WindowOffsetAttribute) === null;
+        const kept = cursor && anchor === "Before" ? keptPlace(host) : null;
+
         try {
             await this.options.requestWindow({
                 componentId,
@@ -324,8 +353,11 @@ export class ItemsWindowEngine {
             ensureSpacer(host, PendingSpacer, 0);
             this.layout(host);
 
+            if (kept !== null)
+                keepPlace(host, kept);
+
             // The viewer kept scrolling during the read, so decide again from where they are now.
-            if (state.restless) {
+            if (state.restless || (cursor && edgeMoved(host, anchor, key))) {
                 state.restless = false;
                 this.considerRequest(host);
             }
@@ -436,6 +468,41 @@ function writeSkeletonSizes(host: Element, row: number, tile: number | null): vo
         else
             style.setProperty(TileSizeProperty, tileText);
     }
+}
+
+/** Whether a read at an edge brought rows: the row at that edge is no longer the one the read was asked from. */
+function edgeMoved(host: Element, anchor: ItemAnchorName, key: string | null): boolean {
+    const items = itemElements(host);
+    const edge = anchor === "Before" ? items[0] : anchor === "After" ? items[items.length - 1] : undefined;
+
+    return edge !== undefined && keyOf(edge) !== key;
+}
+
+/** The first row, and where it stands in what the host holds: its place on the screen with the host's scroll taken back off. */
+type KeptPlace = { readonly row: Element; readonly at: number };
+
+function keptPlace(host: Element): KeptPlace | null {
+    const row = itemElements(host)[0];
+
+    return row === undefined ? null : { row, at: placeInHost(host, row) };
+}
+
+function placeInHost(host: Element, row: Element): number {
+    return itemBox(row).top + readHostScroll(host).top;
+}
+
+/**
+ * Scrolls by as far as the rows read in moved the kept row within the host, so it stands where it stood. Not by how far it moved on
+ * the screen: a reader who scrolled while the rows were read moved it too, and would be put back where the read began.
+ */
+function keepPlace(host: Element, kept: KeptPlace): void {
+    if (!kept.row.isConnected)
+        return;
+
+    const moved = placeInHost(host, kept.row) - kept.at;
+
+    if (moved !== 0)
+        scrollHostTo(host, readHostScroll(host).top + moved);
 }
 
 function itemElements(host: Element): Element[] {

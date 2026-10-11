@@ -93,7 +93,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     // Every group across the page, its samples side by side inside it: no half-page column stands beside a taller one. A picture as the
     // icon is the Icon page's, which shows it on a text body too.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateHostsGroup(), CreatePartsGroup(), CreateLongTextGroup(), CreateFoldGroup()];
+        => [CreateHostsGroup(), CreatePartsGroup(), CreateLongTextGroup(), CreateFoldGroup(), CreateBadgesGroup()];
 
     /// <summary>
     /// The same four properties set six times: on the text alone, and on five components that each own a text body inside.
@@ -311,6 +311,32 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                 .SetTitle("Two-factor authentication")
                 .SetDescription("Adds a second step when signing in from a new device. [Which devices count?]{A browser that has not signed in "
                     + "for **thirty days**, or any device after the password changes.}"),
+            columns: 24
+        );
+    }
+
+    /// <summary>
+    /// A title with its badges under it in place of a description (`UIText.WithBadges`), and the standard actions beside it as icon
+    /// buttons (`UIIconButtons`), Delete in the danger colour.
+    /// </summary>
+    private static ContainerComponent CreateBadgesGroup()
+    {
+        BadgeItem[] badges =
+        [
+            new BadgeItem { BadgeText = "production", BadgeStyle = UIBadgeType.Success },
+            new BadgeItem { BadgeText = "8 of 8", BadgeIcon = DemoIcons.Outline(DemoIcons.Check) },
+            new BadgeItem { BadgeText = "eu-west-1", BadgeStyle = UIBadgeType.Surface }
+        ];
+
+        return DemoUI.CreateExample("A title over its badges",
+            new ContainerComponent()
+                .SetMaxWidth(UILayoutLength.Absolute(470))
+                .SetColumn(24, UIGridUnit.Auto())
+                .AddChild(UIText.WithBadges("billing · #481", badges, DemoIcons.Outline(DemoIcons.Server)).SetPlacement(1, 1, 23, 1))
+                .AddChild(UILayout.Row(4, UIIconButtons.Pin(), UIIconButtons.Edit(), UIIconButtons.Copy(), UIIconButtons.Delete())
+                    .SetVerticalAlignment(UIAlignment.Center)
+                    .SetPlacement(24, 1, 1, 1)
+                ),
             columns: 24
         );
     }

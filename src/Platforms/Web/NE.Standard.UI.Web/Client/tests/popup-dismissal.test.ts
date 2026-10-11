@@ -1,6 +1,6 @@
 // A press outside closes a popup: on the click that ends a primary press where the popup waits for it, at once for any other press,
 // which no click follows — a right press elsewhere would otherwise open a context menu beside a list still open. Escape in a rename
-// field is the field's. Over a stand-in document that only keeps the listeners, and events that carry their path.
+// field is the field's; a press on the overlay scrollbar's thumb is one on the scroller it is drawn over. Over a stand-in document that only keeps the listeners, and events that carry their path.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -80,7 +80,7 @@ Object.assign(globalThis, {
     Element: FakeTarget
 });
 
-const { PopupDismissal } = await import("../src/interactions/popup-dismissal.ts");
+const { PopupDismissal, setPressStandIn } = await import("../src/interactions/popup-dismissal.ts");
 
 function dispatch(type: string, button: number, path: readonly object[]): void {
     for (const listener of listeners.get(type) ?? [])
@@ -172,4 +172,27 @@ test("Escape in a rename field inside a popup is the field's, cancelling the ren
 
     assert.equal(press(new FakeTarget(false)).defaultPrevented, true);
     assert.deepEqual(closed, ["escape"]);
+});
+
+test("a press on a stand-in counts where the element it stands for is: a thumb dragged over a popup's list is a press inside the popup", () => {
+    const { popup, closed } = watched();
+    const layer = {} as EventTarget;
+    const list = { parentElement: Object.assign(popup, { parentElement: null }) };
+
+    setPressStandIn(path => path.includes(layer) ? list as unknown as Element : null);
+
+    try {
+        dispatch("pointerdown", 0, [layer]);
+        dispatch("click", 0, [layer]);
+
+        assert.deepEqual(closed, []);
+
+        dispatch("pointerdown", 0, [{}]);
+        dispatch("click", 0, [{}]);
+
+        assert.deepEqual(closed, ["outside"]);
+    }
+    finally {
+        setPressStandIn(() => null);
+    }
 });

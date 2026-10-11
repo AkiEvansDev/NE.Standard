@@ -245,11 +245,11 @@ function attachListeners(): void {
     listening = true;
 
     // Capture phase: a popup can sit inside any scrollable ancestor, and scroll does not bubble.
-    document.addEventListener("scroll", repositionAll, true);
-    window.addEventListener("resize", repositionAll);
+    document.addEventListener("scroll", domEvent => repositionAll(domEvent.target), true);
+    window.addEventListener("resize", () => repositionAll(null));
     // A phone's on-screen keyboard shrinks the visual viewport alone, and the window's size says nothing of it.
-    window.visualViewport?.addEventListener("resize", repositionAll);
-    window.visualViewport?.addEventListener("scroll", repositionAll);
+    window.visualViewport?.addEventListener("resize", () => repositionAll(null));
+    window.visualViewport?.addEventListener("scroll", () => repositionAll(null));
 
     // A fixed popup does not re-lay-out for free when its own contents change size.
     resizeObserver = new ResizeObserver(entries => {
@@ -266,13 +266,18 @@ function attachListeners(): void {
     });
 }
 
-function repositionAll(): void {
+/** Places every popup again after `scrolled` moved (null: the window changed); one the scroll was inside stays where it is. */
+export function repositionAll(scrolled: EventTarget | null): void {
     for (const [popup, entry] of tracked) {
         // An engine that tears its popup out of the DOM without releasing it would otherwise leak an entry.
         if (!popup.isConnected) {
             releaseAnchoredPopup(popup);
             continue;
         }
+
+        // Its own list scrolling moves no anchor: placed again, a capped list was uncapped and lost its scroll under every move.
+        if (scrolled instanceof Node && popup.contains(scrolled))
+            continue;
 
         position(entry.anchor, popup, entry.options);
     }
@@ -293,7 +298,10 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     if (options.minAnchorWidth === true)
         popup.style.minWidth = `${anchor.getBoundingClientRect().width}px`;
 
-    // Its own size, not the one a cap gave it the last time round: room that came back lets it stand whole again.
+    // Its own size, not the one a cap gave it the last time round: room that came back lets it stand whole again. Read first: the
+    // uncapped list scrolls no more, and capped again it would stand at its top.
+    const scrolled = popup.hasAttribute(CappedAttribute) ? { top: popup.scrollTop, left: popup.scrollLeft } : null;
+
     uncap(popup);
 
     // Measured after the width is applied, or an anchor-wide popup is placed against its old size.
@@ -316,6 +324,11 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     if (!fits(edgeRect, popupRect, side, gap, room)) {
         capTo(popup, side, sideSpace(edgeRect, side, room) - gap - ViewportMargin);
         popupRect = popup.getBoundingClientRect();
+
+        if (scrolled !== null) {
+            popup.scrollTop = scrolled.top;
+            popup.scrollLeft = scrolled.left;
+        }
     }
 
     const inset = options.alignEntries === true ? entryInset(popup, side) : NoInset;

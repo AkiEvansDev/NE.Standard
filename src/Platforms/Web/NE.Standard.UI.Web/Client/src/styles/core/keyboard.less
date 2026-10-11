@@ -35,8 +35,13 @@
     .ui-keyboard-frame-inside(var(--ui-radius-card));
 }
 
-.ui-expander__header@{ui-keyboard-focus} {
+.ui-expander:not(.ui-expander--quiet) > .ui-expander__header@{ui-keyboard-focus} {
     .ui-keyboard-frame(@host: var(--ui-radius-card); @offset: ~"calc(@{ui-keyboard-frame-radius} - var(--ui-radius-card) - 2px)");
+}
+
+// A quiet expander's line is words with no box, as a link's: the frame goes round them.
+.ui-expander--quiet > .ui-expander__header@{ui-keyboard-focus} {
+    .ui-keyboard-frame-outside();
 }
 
 // A link is its words, with no box to stand a frame inside: it goes round them — a link among running words close round them, in the

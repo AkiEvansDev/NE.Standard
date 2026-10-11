@@ -18,7 +18,47 @@ internal sealed class PagesView : DemoMechanismView, IUIViewDefinition
     protected override string HeaderDescription => "demo.mechanisms.pages.description";
 
     protected override void DrawContent(WrapPanelComponent container)
-        => _ = container.AddChildren(CreateTopicGroup(), CreateUserGroup());
+        => _ = container.AddChildren(CreateCopiesGroup(), CreateTopicGroup(), CreateUserGroup());
+
+    private static ContainerComponent CreateCopiesGroup()
+        => DemoUI.CreateExample(Words + "copies.title",
+            UILayout.Stack(12,
+                UILayout.Row(16)
+                    .AddChild(CreateCopyLink("demo.mechanisms.pages.copies.plain", "/mechanisms/pages"))
+                    .AddChild(CreateCopyLink("demo.mechanisms.pages.copies.a", "/mechanisms/pages?copy=a"))
+                    .AddChild(CreateCopyLink("demo.mechanisms.pages.copies.b", "/mechanisms/pages?copy=b")),
+                UILayout.Row(12)
+                    .AddChild(new BadgeComponent()
+                        .SetVerticalAlignment(UIAlignment.Center)
+                        .SetType(UIBadgeType.Primary)
+                        .BindText(nameof(CopiesPagesGroupContext.Which), UIBindingScope.Relative)
+                    )
+                    .AddChild(new ButtonComponent()
+                        .SetType(UIButtonType.Outline)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Add))
+                        .SetTitle("demo.mechanisms.pages.copies.press")
+                        .OnClick(nameof(PagesController.PressCopy))
+                    )
+                    .AddChild(new BadgeComponent()
+                        .SetVerticalAlignment(UIAlignment.Center)
+                        .SetType(UIBadgeType.Surface)
+                        .BindText(nameof(CopiesPagesGroupContext.Presses), UIBindingScope.Relative)
+                    ),
+                new TextInputComponent()
+                    .SetTitle("demo.mechanisms.pages.copies.draft")
+                    .BindValue(nameof(CopiesPagesGroupContext.Draft), UIBindingScope.Relative)
+            ),
+            note: Words + "copies.note",
+            context: nameof(PagesController.CopiesGroup),
+            controller: [DemoCode.Of<CopiesPagesGroupContext>(), DemoCode.Of<PagesController>(nameof(PagesController.CopyParameter), nameof(PagesController.CopiesGroup), "OnNavigatedAsync", nameof(PagesController.PressCopy))],
+            words: true
+        );
+
+    private static LinkComponent CreateCopyLink(string title, string url)
+        => new LinkComponent()
+            .SetVerticalAlignment(UIAlignment.Center)
+            .SetTitle(title)
+            .SetUrl(url);
 
     private static ContainerComponent CreateTopicGroup()
         => DemoUI.CreateExample(Words + "topic.title",

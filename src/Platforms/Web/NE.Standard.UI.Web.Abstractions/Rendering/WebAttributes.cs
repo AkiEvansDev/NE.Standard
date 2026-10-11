@@ -162,6 +162,9 @@ public static class WebAttributes
 
     public const string PressRipple = "data-ui-press-ripple";
 
+    /// <summary>On <c>&lt;html&gt;</c>: the theme draws its scrollbars over the content (<c>UITheme.OverlayScrollbars</c>).</summary>
+    public const string OverlayScrollbars = "data-ui-overlay-scrollbars";
+
     /// <summary>On <c>&lt;html&gt;</c>: the framework's service worker's address, where the application turned system notifications on.</summary>
     public const string ServiceWorker = "data-ui-service-worker";
 

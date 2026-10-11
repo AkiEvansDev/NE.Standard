@@ -56,13 +56,14 @@ import { TabMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions/
 import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { TimestampEngine } from "../interactions/timestamp-engine";
-import { ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
+import { holdAtEnd, isEndAnchored, ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
 import { SurfacePressEngine } from "../interactions/surface-press-engine";
 import { TextSelectionEngine } from "../interactions/text-selection-engine";
 import { ScrollGroupEngine } from "../interactions/scroll-group-engine";
 import { PressRippleEngine } from "../interactions/press-ripple-engine";
+import { OverlayScrollbarEngine } from "../interactions/overlay-scrollbar-engine";
 import { startRefusals } from "../interactions/refusal-engine";
-import { ComponentIdAttribute, ComponentSelector, cssAttributeValue, pluginDomNames, PressRippleAttribute } from "../addressing/dom-attributes";
+import { ComponentIdAttribute, ComponentSelector, cssAttributeValue, OverlayScrollbarsAttribute, pluginDomNames, PressRippleAttribute, RegionAttribute } from "../addressing/dom-attributes";
 import { endsWithDynamicParameters } from "../addressing/dynamic-parameters";
 import { startTooltips, Tooltips, tooltips } from "../interactions/tooltip-engine";
 import { InlineRenames, openInlineRename } from "../interactions/inline-rename";
@@ -77,19 +78,20 @@ import { pluginShortcutWords } from "../interactions/caret-fields";
 import { createItemRows, ItemRows } from "../items/item-rows";
 import { ItemsRuleWatcher } from "../items/items-rule-watcher";
 import { ItemsWindowEngine, ItemWindows } from "../items/items-window-engine";
+import { resolveHostMode } from "../items/items-host-mode";
 import { ItemsSelectionEngine } from "../interactions/items-selection-engine";
 import type { HeldRows } from "../interactions/items-selection-engine";
 import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
 import {
-    ClientEffectKinds, ConfirmLeaveClientEffect, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, SetThemeColorsClientEffect, WebUIAttachRequest, WebUIAttachResult,
+    ClientEffectKinds, ConfirmLeaveClientEffect, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, SetThemeColorsClientEffect, WebUIAttachRequest,
     getIdValue
 } from "../metadata/metadata-index";
 import { applyThemeColors } from "../rendering/theme-colors";
 import { readWebUIMetadata } from "../metadata/metadata-reader";
 import { paintsMoment, readHydration } from "./web-hydration";
-import { AttachOutcome, attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
+import { attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
 import { readTimeZone } from "../transport/reader-time-zone";
 import { ClientStateReporter } from "./client-state";
 import { startServiceWorker } from "./service-worker";
@@ -102,13 +104,14 @@ import { PropertyStateStore } from "../state/property-state-store";
 import { SignalRTransport } from "../transport/signalr-transport";
 import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
 import { fetchStagedValuesAsync, hasStagedValues } from "../transport/value-staging";
+import { ContentRegion } from "../updates/content-fills";
 import { DomOperationRegistration } from "../updates/dom-operation-registry";
 import { ensureFormOwners } from "../updates/form-owner";
 import { EffectRegistration, EffectRegistry } from "../effects/effect-registry";
 import { DialogEngine } from "../interactions/dialog-engine";
 import { showLeaveDialog } from "../interactions/leave-dialog";
 import { LeaveGuard } from "../interactions/leave-guard";
-import { AddressHistory, readQueryParameters } from "../effects/address-history";
+import { AddressHistory, differsInIdentity, readQueryParameters } from "../effects/address-history";
 import { observeComponents } from "../interactions/dom-mutations";
 import { NotificationEngine } from "../interactions/notification-engine";
 import { PropertyPatchEngine } from "../updates/property-patch-engine";
@@ -294,6 +297,7 @@ export class WebUIRuntime {
     private readonly notifications: NotificationEngine;
     private readonly effects: EffectRegistry;
     private readonly leaveGuard: LeaveGuard;
+    private readonly address: AddressHistory;
     private readonly clientState: ClientStateReporter;
 
     /** Public so a plugin's own Source-driven config can reuse this dispatch. */
@@ -311,6 +315,19 @@ export class WebUIRuntime {
 
     // The runtime the last attach was answered with, which every later attach presents: an answer naming another says the page is stale.
     private heldRuntime: string | null = null;
+
+    // The runtime the render prepared, which an attach presents to claim it, until the page goes to another runtime of its route.
+    private pageId = this.hydration?.pageId ?? null;
+
+    // The query the held runtime was attached by — the last answered attach's — so an attach whose address differs from it in an
+    // identity parameter says it goes to another runtime; decided per attach, so two switches in a row each say it.
+    private runtimeSearch = window.location.search;
+
+    // The content region a switch to another runtime turned inert, until an attach is answered.
+    private inertContent: Element | null = null;
+
+    // Sends what the page's fields still hold and resolves once every value given is answered; built with the value engine.
+    private readonly settleValues: () => Promise<void>;
 
     // The change sets still waiting on a staged value, in order; null while every one has been applied.
     private inbound: Promise<void> | null = null;
@@ -355,10 +372,12 @@ export class WebUIRuntime {
         // Built before the interaction engine, whose own effects go through the same registry a command's do.
         this.dialogs = new DialogEngine({ root: this.root, dom: this.dom });
         this.notifications = new NotificationEngine({ root: this.root, dom: this.dom });
-        // Back or Forward to an entry of this route is told to the controller; to another route, it is a page load.
-        const address = new AddressHistory({
+        // Back or Forward to an entry of this route is told to the controller, or goes to its runtime in place where it names another;
+        // to another route, it is a page load.
+        this.address = new AddressHistory({
             window,
             revisit: parameters => void this.navigateInPlaceAsync(parameters),
+            switchRuntime: (search, previous) => this.revisitRuntime(search, previous),
             load: () => window.location.reload()
         });
         // The event pipeline is built further down: a toast's action is pressed long after the constructor ends.
@@ -373,7 +392,7 @@ export class WebUIRuntime {
         const worker = startServiceWorker(document.documentElement, this.windowId, followNotificationClick);
 
         this.effects = new EffectRegistry({
-            address,
+            address: this.address,
             dialogs: this.dialogs,
             notifications: this.notifications,
             runAction,
@@ -446,8 +465,10 @@ export class WebUIRuntime {
             virtualization: this.virtualization
         });
 
-        // Every answer's changes come through here in the order the messages arrived, pushes' too (inbound-order.ts).
-        this.transport = new SignalRTransport(this.windowId, (changes, before) => this.applyChanges(changes, before), options.signalR);
+        // Every answer's changes come through here in the order the messages arrived, pushes' too (inbound-order.ts). An answer is the
+        // held runtime's as it arrives: the hub answers one call at a time, so one arriving while an attach to another is on its way is
+        // the left runtime's, dropped once that attach is answered.
+        this.transport = new SignalRTransport(this.windowId, (changes, before) => this.applyChanges(changes, before, this.heldRuntime), options.signalR);
         this.clientState = new ClientStateReporter({ report: state => this.transport.reportClientStateAsync(state) });
         this.dispatcher = new CommandDispatcher(this.transport);
 
@@ -501,6 +522,10 @@ export class WebUIRuntime {
             refuses: element => validationEngine.refusesBounds(element)
         });
         propertyPatchEngine.setHeldTargets(target => valueBinding?.isHeld(target) === true);
+        this.settleValues = async () => {
+            commitWaiting();
+            await valueChangeDispatcher.whenAnsweredAsync();
+        };
 
         // Here rather than with the registry's defaults: it needs the value engine, which is built after the registry.
         this.effects.register(ClientEffectKinds.DiscardForm, context => {
@@ -531,10 +556,8 @@ export class WebUIRuntime {
             confirm: (_target, leave) => showLeaveDialog(this.dialogs, leave),
             // The first edit's value may be what sets the flag: a leave while one is unanswered waits for its answer.
             pending: () => hasWaitingCommits() || valueChangeDispatcher.isBusy,
-            settle: async () => {
-                commitWaiting();
-                await valueChangeDispatcher.whenAnsweredAsync();
-            }
+            settle: () => this.settleValues(),
+            follow: target => this.followInPlace(target)
         });
         this.updateProcessor.addPageHandler(update => this.leaveGuard.set(update.holdsUnsavedWork === true));
         this.effects.register(ClientEffectKinds.ConfirmLeave, context => {
@@ -580,6 +603,11 @@ export class WebUIRuntime {
             root,
             clicks: component => this.metadata.hasServerEventForComponent("click", readComponentId(component)) || interactionEngine.hasEventForComponent("click", readComponentId(component))
         }) : undefined, this.engineContext);
+
+        // A theme flag too, and only where a pointer hovers: a touch screen draws no bar at all (core/scrollbar.less).
+        startEngine("overlay scrollbars", () => document.documentElement.hasAttribute(OverlayScrollbarsAttribute)
+            ? new OverlayScrollbarEngine()
+            : undefined, this.engineContext);
 
         this.eventPipeline = new EventPipeline({
             root: this.root,
@@ -707,16 +735,17 @@ export class WebUIRuntime {
             names: pluginDomNames
         };
 
-        this.transport.onChanges(changes => void this.applyChanges(changes));
+        this.transport.onChanges((changes, runtime) => void this.applyChanges(changes, undefined, runtime));
 
         // An invoke's returned copy carries no effects, so nothing applies twice; a background command's pushed result settles its dispatch.
-        this.transport.onCommandResult(result => {
+        this.transport.onCommandResult((result, runtime) => {
             // Applied here in arrival order: through the dispatch they would land behind a later push. The dispatch settles without them.
             const { changes, ...rest } = result;
 
             // The effects after the changes, a staged value among them: an effect acts on the page those changes produced.
-            void afterAppliedAsync(() => this.applyChanges(changes), () => {
-                if (this.dispatcher.settle(rest))
+            void afterAppliedAsync(() => this.applyChanges(changes, undefined, runtime), () => {
+                // The runtime the page left: its dispatch was let go as the page went, and its effects are not this page's.
+                if (!this.holdsRuntime(runtime) || this.dispatcher.settle(rest))
                     return;
 
                 this.effects.applyAll(result.command?.effects, this.dom);
@@ -767,6 +796,96 @@ export class WebUIRuntime {
             return null;
 
         return this.numberInputs?.readValue(holder) ?? this.extensions.valueReaders.readBound(holder);
+    }
+
+    /**
+     * Back or Forward from `previous` to an entry of another runtime of this route: gone to in place, answering whether it was. A page
+     * holding unsaved work steps back onto the entry it stood on while its reader is asked, as a link's press asks; going on, the page
+     * follows the entry as it follows a link.
+     */
+    private revisitRuntime(search: string, previous: string): boolean {
+        if (!this.switchesTo(window.location.pathname, search, previous))
+            return false;
+
+        if (this.leaveGuard.asks) {
+            const target = `${window.location.pathname}${search}${window.location.hash}`;
+
+            this.address.stepBack();
+            this.leaveGuard.navigate(target);
+
+            return true;
+        }
+
+        void this.switchRuntimeAsync();
+
+        return true;
+    }
+
+    /** Goes to `url` in place where it names another runtime of this route — a link's, a NavigateEffect's — answering whether it did. */
+    private followInPlace(url: string): boolean {
+        let target: URL;
+
+        try {
+            target = new URL(url, window.location.href);
+        }
+        catch {
+            return false;
+        }
+
+        if (target.origin !== window.location.origin || !this.switchesTo(target.pathname, target.search, window.location.search))
+            return false;
+
+        this.address.enter(`${target.pathname}${target.search}${target.hash}`);
+        void this.switchRuntimeAsync();
+
+        return true;
+    }
+
+    /**
+     * Whether an address of this site is another runtime of the route than the address `from` the page stands on (or is on its way
+     * to), which the page goes to in place: an identity parameter differs, and the page is its route's own — attached, not standing
+     * in for another address.
+     */
+    private switchesTo(pathname: string, search: string, from: string): boolean {
+        const identity = this.hydration?.identity ?? [];
+
+        return identity.length > 0
+            && this.heldRuntime !== null
+            && !this.connectionLost
+            && pathname === window.location.pathname
+            && readStandInNavigation() === null
+            && differsInIdentity(search, from, identity);
+    }
+
+    /**
+     * Goes to the runtime the address now names, another of the page's route, over the connection held: the values still on their
+     * way reach the runtime left first, its dialogs close and the commands waiting on it let go; then nothing goes out and the
+     * content takes no press or key until the attach that says so (`createAttachRequest`) is answered with the other's whole state.
+     */
+    private async switchRuntimeAsync(): Promise<void> {
+        try {
+            await this.settleValues();
+        }
+        catch (error) {
+            logWarn("the values still on their way did not settle before the page went to another runtime.", error);
+        }
+
+        this.dialogs.closeAll();
+
+        // A background command raised on the runtime left is ended with it: what waits on it lets go.
+        this.dispatcher.release(new Error("the page went to another runtime of its route before the command answered."));
+
+        // A value or a command raised on the content the left runtime drew would land in the other.
+        this.transport.holdCalls();
+
+        const content = contentRegion();
+
+        if (content !== null && !content.hasAttribute("inert")) {
+            content.setAttribute("inert", "");
+            this.inertContent = content;
+        }
+
+        await this.attachAsync();
     }
 
     /** The answer to going back or forward within this route: its changes come in order, its effects run here. */
@@ -1101,23 +1220,28 @@ export class WebUIRuntime {
     /**
      * Applies a change set; one naming a value staged beside the hub waits for its fetch, and every later set waits in turn, in order.
      * `before` runs in the set's turn: a value's answer lets its field go only once what arrived ahead of it (an attach's snapshot) is in.
+     * `from` is the runtime that sent the set, read in its turn: one of a runtime the page has gone from by then is dropped.
      */
-    private applyChanges(changes: ServerChangeSet | undefined, before?: () => void): void | Promise<void> {
+    private applyChanges(changes: ServerChangeSet | undefined, before?: () => void, from?: string | null): void | Promise<void> {
         if (this.inbound === null && !hasStagedValues(changes)) {
             before?.();
-            this.applyNow(changes);
+
+            if (this.holdsRuntime(from))
+                this.applyNow(changes);
+
             return;
         }
 
         // The connection the set arrived on is the reader the server named, whatever a reconnect has made of it by the fetch.
         const instanceId = this.transport.instanceId;
         const applied = (this.inbound ?? Promise.resolve())
-            .then(() => {
+            .then(async () => {
                 before?.();
 
-                return fetchStagedValuesAsync(changes, instanceId);
+                // Not fetched either: a value the left runtime staged is not this page's.
+                if (this.holdsRuntime(from))
+                    this.applyNow(await fetchStagedValuesAsync(changes, instanceId));
             })
-            .then(resolved => this.applyNow(resolved))
             .catch(error => {
                 // A value that could not be fetched leaves the page behind the server: it attaches again, as after a dropped connection.
                 logError("a staged value could not be fetched; the page attaches again.", error);
@@ -1131,6 +1255,11 @@ export class WebUIRuntime {
         });
 
         return applied;
+    }
+
+    /** Whether `from`, the runtime a change set or a result names as its sender, is the one the page holds; one naming none is. */
+    private holdsRuntime(from: string | null | undefined): boolean {
+        return from === undefined || from === null || this.heldRuntime === null || from === this.heldRuntime;
     }
 
     // A window that moved leaves its spacers standing for the wrong count.
@@ -1175,12 +1304,16 @@ export class WebUIRuntime {
         if (this.connectionLost)
             return false;
 
+        // The address the attach is made for, read once: the page may move on while the attach is under way.
+        const search = window.location.search;
+        const request = this.createAttachRequest(search);
         // What followed the attach's snapshot may be pushed before the answer lands: every change set from here waits for the snapshot.
         const hold = this.holdInbound();
         const started = performance.now();
 
         try {
-            const result = await this.attachWithRetryAsync();
+            // Retried with a growing backoff, so a hub call throwing on a live socket needs no reload.
+            const result = await attachWithRetryAsync(() => this.transport.attachAsync(request), () => this.transport.isReconnecting, AttachRetryDelaysMilliseconds, delay);
             const answered = performance.now();
 
             if (result === null) {
@@ -1203,18 +1336,37 @@ export class WebUIRuntime {
             }
 
             forgetReload(sessionMemory());
+            // From here what the runtime left pushed, and what its calls answered, is dropped as it comes up (`holdsRuntime`).
             this.heldRuntime = result.runtime ?? null;
+            this.runtimeSearch = search;
             this.dom.rebuild();
             this.updateProcessor.registerServerRenderedItems(result.initialChanges);
 
             // Behind whatever was already queued, and applied here rather than through the queue the hold closes.
             await hold.previous;
 
+            const content = contentRegion();
+
+            // Gone to another runtime: the runtime the render prepared is not the page's to claim any more, and the windows its content
+            // read were the left runtime's.
+            if (request.switchRuntime) {
+                this.pageId = null;
+
+                if (content !== null)
+                    this.windows.forget(content);
+            }
+
             // The snapshot says the page holds unsaved work only where it does: a runtime that saved meanwhile says nothing.
             this.leaveGuard.set(false);
             await this.applyAttachChangesAsync(result.initialChanges);
 
             this.updateProcessor.initializeItemsHosts();
+
+            if (request.switchRuntime)
+                showFromStart(content);
+
+            this.inertContent?.removeAttribute("inert");
+            this.inertContent = null;
             this.windows.start();
 
             logElapsed("runtime attached", started, {
@@ -1229,6 +1381,36 @@ export class WebUIRuntime {
         finally {
             hold.release();
         }
+    }
+
+    /**
+     * What an attach for the address `search` presents. Whether it goes to another runtime is decided here, per attach, against the
+     * address the held runtime was attached by: an attach run again after a second switch says it too, a reconnect under way to
+     * another runtime says it on the new connection, and one back to the held runtime says nothing.
+     */
+    private createAttachRequest(search: string): WebUIAttachRequest {
+        // A page standing in for the one asked for (a sign-in or error page at the address that led there) attaches as itself.
+        const standIn = readStandInNavigation();
+        const switchRuntime = standIn === null && this.heldRuntime !== null && differsInIdentity(search, this.runtimeSearch, this.hydration?.identity ?? []);
+        const request: WebUIAttachRequest = {
+            clientWindowId: this.windowId,
+            route: standIn?.route ?? window.location.pathname,
+            // Presenting the runtime the render prepared claims it rather than building a second one; one going elsewhere claims none.
+            pageId: switchRuntime ? null : this.pageId,
+            view: this.hydration?.view ?? null,
+            // A retry presents it again; the server answers it once and sends the whole page to any attach after that.
+            since: this.renderSequence,
+            // None on the first attach, the render's own or a second tab's: only a page that held a runtime can find it gone.
+            runtime: this.heldRuntime,
+            parameters: standIn !== null ? standIn.parameters : readQueryParameters(search),
+            timeZone: readTimeZone(),
+            clientState: this.clientState.forAttach(),
+            switchRuntime
+        };
+
+        this.renderSequence = null;
+
+        return request;
     }
 
     /** Closes the inbound queue until `release`: change sets arriving meanwhile wait; `previous` is what was queued before. */
@@ -1259,33 +1441,6 @@ export class WebUIRuntime {
             this.reattachRequested = true;
         }
     }
-
-    /**
-     * Retries a failed attach with a growing backoff, so a hub call throwing on a live socket needs no reload; null once all failed,
-     * `LeftToReconnect` where the connection dropped again meanwhile.
-     */
-    private async attachWithRetryAsync(): Promise<AttachOutcome<WebUIAttachResult>> {
-        // A page standing in for the one asked for (a sign-in or error page at the address that led there) attaches as itself.
-        const standIn = readStandInNavigation();
-        const request: WebUIAttachRequest = {
-            clientWindowId: this.windowId,
-            route: standIn?.route ?? window.location.pathname,
-            // Presenting the runtime the render prepared claims it rather than building a second one.
-            pageId: this.hydration?.pageId ?? null,
-            view: this.hydration?.view ?? null,
-            // A retry presents it again; the server answers it once and sends the whole page to any attach after that.
-            since: this.renderSequence,
-            // None on the first attach, the render's own or a second tab's: only a page that held a runtime can find it gone.
-            runtime: this.heldRuntime,
-            parameters: standIn !== null ? standIn.parameters : readQueryParameters(window.location.search),
-            timeZone: readTimeZone(),
-            clientState: this.clientState.forAttach()
-        };
-
-        this.renderSequence = null;
-
-        return await attachWithRetryAsync(() => this.transport.attachAsync(request), () => this.transport.isReconnecting, AttachRetryDelaysMilliseconds, delay);
-    }
 }
 
 export async function startWebUIAsync(options: WebUIRuntimeOptions = {}): Promise<WebUIRuntime> {
@@ -1298,6 +1453,33 @@ export async function startWebUIAsync(options: WebUIRuntimeOptions = {}): Promis
     await runtime.startAsync();
 
     return runtime;
+}
+
+/** The page's content region, which going to another runtime of the route redraws; the sides stay the reader's. */
+function contentRegion(): HTMLElement | null {
+    return document.querySelector<HTMLElement>(`[${RegionAttribute}="${ContentRegion}"]`);
+}
+
+/**
+ * The document and the content as a page load shows them: every scroller in the content at its start, or at its end where it is
+ * anchored there, held at it as a page's first look holds it — a windowed host's window placed after by its engine. A side keeps
+ * where its reader left it.
+ */
+function showFromStart(content: HTMLElement | null): void {
+    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+
+    if (content === null)
+        return;
+
+    for (const scroller of [content, ...content.querySelectorAll<HTMLElement>("*")]) {
+        if (isEndAnchored(scroller) && resolveHostMode(scroller) !== "windowed") {
+            holdAtEnd(scroller);
+            scroller.scrollTo({ top: scroller.scrollHeight, left: 0, behavior: "instant" });
+        }
+        else if (scroller.scrollTop !== 0 || scroller.scrollLeft !== 0) {
+            scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        }
+    }
 }
 
 /** Waits out one of `AttachRetryDelaysMilliseconds` between two retries of a failed attach. */

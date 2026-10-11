@@ -42,6 +42,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindExpanded($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Expanded)}")
             .BindShowChevron($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.ShowChevron)}")
+            .BindVariant($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Variant)}")
             .BindSurface($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Surface)}")
             .BindPadding($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Padding)}")
             .BindBackground($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Background)}")
@@ -139,7 +140,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// The part of a form nobody touches, closed down to one line of chrome.
+    /// The part of a form nobody touches, closed down to one quiet line: muted words and a chevron, no card around the fields.
     /// </summary>
     private static ContainerComponent CreateAdvancedGroup()
     {
@@ -151,6 +152,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
                     .SetValue("Billing")
                 )
                 .AddChild(new ExpanderComponent()
+                    .SetVariant(UIExpanderVariant.Quiet)
                     .SetCollapsed()
                     // A caption rather than a title: between two fields, a heading would make it a form of its own.
                     .ConfigureDefaultHeader(header => header

@@ -304,6 +304,7 @@ public static class WebClassNames
             UISurfaceStyle.Background => $"{SurfaceStylePrefix}background",
             UISurfaceStyle.Raised => $"{SurfaceStylePrefix}raised",
             UISurfaceStyle.Tinted => $"{SurfaceStylePrefix}tinted",
+            UISurfaceStyle.Flat => $"{SurfaceStylePrefix}flat",
             _ => string.Empty
         };
 
@@ -470,6 +471,10 @@ public static class WebClassNames
             UIImageFit.None => "ui-image-fit--none",
             _ => string.Empty
         };
+
+    /// <summary>An expander's modifier: <c>ui-expander--quiet</c> for the quiet fold, nothing for the card.</summary>
+    public static string ExpanderVariant(UIExpanderVariant value)
+        => value == UIExpanderVariant.Quiet ? "ui-expander--quiet" : string.Empty;
 
     public static string ImageShape(UIImageShape value)
         => value == UIImageShape.Circle ? "ui-image--circle" : string.Empty;

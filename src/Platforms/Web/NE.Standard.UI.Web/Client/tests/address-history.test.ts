@@ -1,41 +1,59 @@
 // The page's state in its address: a ReplaceAddress or PushAddress effect rewrites the query while the route stays, written as a
 // Navigate effect's would be; Back or Forward to an entry of the same route tells the controller the entry's parameters, one that
-// differs only by its fragment moves nothing, and one of another route loads that page.
+// differs only by its fragment moves nothing, one naming another runtime of the route goes to it — or, the reader asked first, is
+// stepped back from until they go on — and one of another route loads that page.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AddressWindow } from "../src/effects/address-history.ts";
-import { AddressHistory, readQueryParameters } from "../src/effects/address-history.ts";
+import { AddressHistory, differsInIdentity, readQueryParameters } from "../src/effects/address-history.ts";
 
 /** A window's location and history as the address reaches them: entries as the browser keeps them, and Back and Forward over them. */
 class FakeWindow implements AddressWindow {
     public readonly writes: { readonly kind: "push" | "replace"; readonly url: string }[] = [];
-    private readonly entries: string[];
+    private readonly entries: { url: string; state: unknown }[];
     private index = 0;
     private popState: (() => void) | null = null;
 
     public constructor(address: string) {
-        this.entries = [address];
+        this.entries = [{ url: address, state: null }];
     }
 
     public get location(): { readonly pathname: string; readonly search: string } {
-        const url = new URL(this.entries[this.index], "https://shop.example");
+        const url = new URL(this.entries[this.index].url, "https://shop.example");
 
         return { pathname: url.pathname, search: url.search };
     }
 
-    public readonly history = {
-        replaceState: (_data: unknown, _unused: string, url: string): void => {
+    /** The address the tab shows now. */
+    public get address(): string {
+        return this.entries[this.index].url;
+    }
+
+    // Read anew each time, as the browser's: its state is the entry's the tab stands on.
+    public get history(): AddressWindow["history"] {
+        return {
+            state: this.entries[this.index].state,
+            // A state written without an address keeps the entry's: not a write of the page's address.
+            replaceState: (data, _unused, url) => this.replaceState(data, url),
+            pushState: (data, _unused, url) => this.pushState(data, url),
+            go: delta => this.go(delta)
+        };
+    }
+
+    private replaceState(data: unknown, url?: string): void {
+        if (url !== undefined)
             this.writes.push({ kind: "replace", url });
-            this.entries[this.index] = url;
-        },
-        pushState: (_data: unknown, _unused: string, url: string): void => {
-            this.writes.push({ kind: "push", url });
-            this.entries.splice(this.index + 1, this.entries.length, url);
-            this.index++;
-        }
-    };
+
+        this.entries[this.index] = { url: url ?? this.entries[this.index].url, state: data };
+    }
+
+    private pushState(data: unknown, url: string): void {
+        this.writes.push({ kind: "push", url });
+        this.entries.splice(this.index + 1, this.entries.length, { url, state: data });
+        this.index++;
+    }
 
     public addEventListener(_type: "popstate", listener: () => void): void {
         this.popState = listener;
@@ -46,7 +64,7 @@ class FakeWindow implements AddressWindow {
         this.index += delta;
 
         if (address !== undefined)
-            this.entries[this.index] = address;
+            this.entries[this.index] = { url: address, state: null };
 
         this.popState?.();
     }
@@ -56,16 +74,51 @@ type Watched = {
     readonly window: FakeWindow;
     readonly history: AddressHistory;
     readonly revisits: (Record<string, unknown> | null)[];
+    readonly switches: string[];
     readonly loads: number[];
+    // A link to `url` the page goes through in place where it names another runtime, as the runtime follows one.
+    readonly follow: (url: string) => void;
+    // The entries a reader holding unsaved work was asked about, stepped back from meanwhile.
+    readonly asked: string[];
 };
 
-function watch(address: string): Watched {
+/**
+ * The address watched, its route keyed by `identity`: an entry differing from the one the page stood on in one of them is gone to,
+ * or — the page holding unsaved work (`holds`) — asked about, the step undone while the reader decides.
+ */
+function watch(address: string, identity: readonly string[] = [], holds = false): Watched {
     const window = new FakeWindow(address);
     const revisits: (Record<string, unknown> | null)[] = [];
+    const switches: string[] = [];
     const loads: number[] = [];
-    const history = new AddressHistory({ window, revisit: parameters => revisits.push(parameters), load: () => loads.push(1) });
+    const asked: string[] = [];
+    let history: AddressHistory | null = null;
+    const switchRuntime = (search: string, previous: string): boolean => {
+        if (!differsInIdentity(search, previous, identity))
+            return false;
 
-    return { window, history, revisits, loads };
+        if (holds) {
+            asked.push(search);
+            history?.stepBack();
+
+            return true;
+        }
+
+        switches.push(search);
+
+        return true;
+    };
+    const watched = new AddressHistory({ window, revisit: parameters => revisits.push(parameters), switchRuntime, load: () => loads.push(1) });
+    const follow = (url: string): void => {
+        const previous = window.location.search;
+
+        watched.enter(url);
+        switchRuntime(window.location.search, previous);
+    };
+
+    history = watched;
+
+    return { window, history: watched, revisits, switches, loads, follow, asked };
 }
 
 test("replace rewrites the query on the route the page was loaded at, formatted as a Navigate effect's", () => {
@@ -119,6 +172,70 @@ test("an entry of another route is a page load", () => {
 
     assert.deepEqual(revisits, []);
     assert.deepEqual(loads, [1]);
+});
+
+test("back to an entry naming another runtime of the route goes to it; one of the same runtime is the controller's", () => {
+    const { window, history, revisits, switches, loads, follow } = watch("/chat?with=ann", ["with"]);
+
+    follow("/chat?with=bob");
+    history.push({ with: "bob", reply: "m7" });
+    window.go(-1);
+    window.go(-1);
+    window.go(2);
+
+    assert.deepEqual(window.writes, [
+        { kind: "push", url: "/chat?with=bob" },
+        { kind: "push", url: "/chat?with=bob&reply=m7" }
+    ]);
+    assert.deepEqual(revisits, [{ with: "bob" }]);
+    assert.deepEqual(switches, ["?with=bob", "?with=ann", "?with=bob&reply=m7"]);
+    assert.deepEqual(loads, []);
+});
+
+test("back to another runtime's entry while unsaved work is held steps forward again, asking about the entry", () => {
+    const { window, history, revisits, switches, asked } = watch("/chat?with=ann", ["with"]);
+    const held = watch("/chat?with=ann", ["with"], true);
+
+    history.push({ with: "ann", reply: "m1" });
+    held.history.push({ with: "ann", reply: "m1" });
+    held.history.enter("/chat?with=bob");
+    held.window.go(-2);
+
+    // The tab stands on the entry the page shows again, numbered as it was: one Back from there is the reply's entry.
+    assert.equal(held.window.address, "/chat?with=bob");
+    assert.deepEqual(held.asked, ["?with=ann"]);
+    assert.deepEqual(held.switches, []);
+    assert.deepEqual(held.revisits, []);
+
+    held.window.go(-1);
+
+    assert.equal(held.window.address, "/chat?with=bob");
+    assert.deepEqual(held.asked, ["?with=ann", "?with=ann&reply=m1"]);
+
+    // Nothing held, the same step is the controller's within its runtime.
+    window.go(-1);
+
+    assert.deepEqual(revisits, [{ with: "ann" }]);
+    assert.deepEqual(switches, []);
+    assert.deepEqual(asked, []);
+});
+
+test("an entry the page never numbered is stepped back from by adding the address the page shows", () => {
+    const held = watch("/chat?with=ann", ["with"], true);
+
+    held.window.go(0, "/chat?with=bob");
+
+    assert.equal(held.window.address, "/chat?with=ann");
+    assert.deepEqual(held.window.writes, [{ kind: "push", url: "/chat?with=ann" }]);
+    assert.deepEqual(held.asked, ["?with=bob"]);
+});
+
+test("two queries name different runtimes only where an identity parameter differs, its values in order", () => {
+    assert.equal(differsInIdentity("?with=ann&reply=m1", "?with=ann", ["with"]), false);
+    assert.equal(differsInIdentity("?with=ann", "?with=bob", ["with"]), true);
+    assert.equal(differsInIdentity("?tag=a&tag=b", "?tag=b&tag=a", ["tag"]), true);
+    assert.equal(differsInIdentity("", "?with=", ["with"]), false);
+    assert.equal(differsInIdentity("?with=ann", "?with=bob", []), false);
 });
 
 test("a query reads as an attach reads it: a repeated key is an array, no query is none", () => {

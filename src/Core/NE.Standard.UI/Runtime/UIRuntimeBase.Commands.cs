@@ -564,9 +564,14 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>Sends a command's result to the tab that raised it, through the sink every pushed result takes.</summary>
-    /// <remarks>The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it.</remarks>
+    /// <remarks>
+    /// The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it. A tab no longer attached
+    /// hears nothing: its connection may hold another runtime of the route now, whose page this result would write over.
+    /// </remarks>
     protected Task PushCommandResultAsync(UIHandle invoker, UICommandExecutionResult result, CancellationToken cancellationToken)
-        => Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
+        => Array.IndexOf(Volatile.Read(ref _attachedInstanceIdsSnapshot), invoker.Instance.Id) < 0
+            ? Task.CompletedTask
+            : Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
 
     private void TryLogDetachedCommandFailure(string operation, Exception exception)
     {

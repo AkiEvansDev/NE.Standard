@@ -101,6 +101,14 @@
         transition: transform @ui-motion-normal @ui-motion-exit, visibility 0s linear @ui-motion-normal;
     }
 
+    // A side whose root names its width (marked by the render) keeps it slid out, as its column gives it pinned, under the same cap: a drawer of the shell's
+    // own width beside a pinned side of the author's jumped on every pin.
+    @{ui-drawers}@{ui-drawers-left} > [data-ui-region="left-side"][data-ui-side-sized]:where(:not([data-ui-bottom-bar])),
+    @{ui-drawers}@{ui-drawers-right} > [data-ui-region="right-side"][data-ui-side-sized] {
+        width: fit-content;
+        max-width: 85vw;
+    }
+
     @{ui-drawers}@{ui-drawers-left} > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar])) {
         left: 0;
         transform: translateX(-100%);

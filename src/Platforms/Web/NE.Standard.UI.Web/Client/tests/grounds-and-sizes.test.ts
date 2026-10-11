@@ -72,7 +72,7 @@ test("a themed element's muted words lift on a filled ground as every other part
 });
 
 test("a key-value list with no edge drops its rows' inset on its default Surface, and keeps it on a fill of its own", () => {
-    const selector = ".ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, [style*=\"--ui-surface-color\"], .ui-key-value-action--row-hover) .ui-key-value-action__row";
+    const selector = ".ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, .ui-surface--flat, [style*=\"--ui-surface-color\"], .ui-key-value-action--row-hover) .ui-key-value-action__row";
 
     assert.ok(css.includes(`\n${selector},`), "the inset rule does not match a list on Surface Background, which every list carries");
     assert.doesNotMatch(css, /\.ui-border--none:not\([^)]*\.ui-surface--background/, "Surface Background still counts as an edge");
@@ -126,6 +126,16 @@ test("a list on Background takes its holder's ground rather than painting the pa
     assert.match(list, /background-color: transparent;/);
     assert.match(list, /--ui-ground: inherit;/);
     assert.match(list, /--ui-surface-fill: inherit;/);
+});
+
+test("a quiet expander stands on its holder's ground whatever its Surface: no Raised shadow, no Tinted ground or ink", () => {
+    const quiet = declarations(".ui-expander.ui-expander--quiet") ?? "";
+
+    assert.match(quiet, /box-shadow: none;/);
+    // As `!important` as the Tinted surface's own, and of a higher specificity, so the tint's ground does not outlive its fill.
+    assert.match(quiet, /--ui-ground: inherit !important;/);
+    assert.match(quiet, /--ui-faint-base: inherit !important;/);
+    assert.match(quiet, /background-color: transparent;/);
 });
 
 test("on a phone a key-value list's key track is capped under half the row; wider, it keeps its floor and its longest key", () => {

@@ -344,6 +344,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .AnchorToEnd()
             // Messages differ in height and side: rows of grey bars where older ones will land would read as messages of their own.
             .SetLoadingLook(UIItemsLoadingLook.Indicator)
+            // A bubble is its own card: the row its bar stands over takes no wash across the conversation's width.
+            .SetSelectionStyle(new UISelectionStyle(null, null, null, null, ActionBarBackground: UIThemeColor.Transparent))
             .SetSpacing(6)
             .SetMargin(UIThickness.All(16, 8, 16, 8));
 

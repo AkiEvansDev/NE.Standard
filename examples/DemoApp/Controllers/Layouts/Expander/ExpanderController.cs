@@ -17,6 +17,9 @@ internal sealed partial class ExpanderSurfaceGroupContext : DemoGroupContext
     public partial bool ShowChevron { get; set; } = true;
 
     [RecursiveMember]
+    public partial UIExpanderVariant? Variant { get; set; } = UIExpanderVariant.Card;
+
+    [RecursiveMember]
     public partial UISurfaceStyle? Surface { get; set; } = UISurfaceStyle.Background;
 
     [RecursiveMember]
@@ -32,6 +35,7 @@ internal sealed partial class ExpanderSurfaceGroupContext : DemoGroupContext
     {
         AddOption(nameof(Expanded), ToggleExpanded, () => Expanded);
         AddOption(nameof(ShowChevron), ToggleShowChevron, () => ShowChevron);
+        AddOption(nameof(Variant), CycleVariant, () => Variant);
         AddOption(nameof(Surface), CycleSurface, () => Surface);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddOption(nameof(Background), CycleBackground, () => Background);
@@ -43,6 +47,9 @@ internal sealed partial class ExpanderSurfaceGroupContext : DemoGroupContext
 
     public void ToggleShowChevron()
         => SetLastChange(nameof(ShowChevron), ShowChevron = !ShowChevron);
+
+    public void CycleVariant()
+        => SetLastChange(nameof(Variant), Variant = CycleEnum(Variant));
 
     public void CycleSurface()
         => SetLastChange(nameof(Surface), Surface = CycleEnum(Surface));

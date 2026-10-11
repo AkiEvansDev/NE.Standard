@@ -30,19 +30,22 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
     private readonly IHubContext<WebUIHub> _hub;
     private readonly WebOutgoingValues _outgoing;
+    private readonly WebRuntimeStamps _stamps;
     private readonly IServiceProvider _services;
     private readonly ILogger<StandardWebUpdateSink> _logger;
 
     // The services a pushed language switch is completed from are read when one is pushed: the application is built after the sink.
-    public StandardWebUpdateSink(IHubContext<WebUIHub> hub, WebOutgoingValues outgoing, IServiceProvider services, ILogger<StandardWebUpdateSink> logger)
+    public StandardWebUpdateSink(IHubContext<WebUIHub> hub, WebOutgoingValues outgoing, WebRuntimeStamps stamps, IServiceProvider services, ILogger<StandardWebUpdateSink> logger)
     {
         ArgumentNullException.ThrowIfNull(hub);
         ArgumentNullException.ThrowIfNull(outgoing);
+        ArgumentNullException.ThrowIfNull(stamps);
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(logger);
 
         _hub = hub;
         _outgoing = outgoing;
+        _stamps = stamps;
         _services = services;
         _logger = logger;
     }
@@ -61,9 +64,10 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         Log.SendingChanges(_logger, instanceIds.Count, handle.Instance.WindowId);
 
+        // The runtime that sent it rides along: a page gone to another runtime over the same connection drops what this one still sends.
         await _hub.Clients
             .Clients([.. instanceIds])
-            .SendAsync("ui.changes", _outgoing.Stage(changes, handle.Session.SessionId, instanceIds), cancellationToken)
+            .SendAsync("ui.changes", _outgoing.Stage(changes, handle.Session.SessionId, instanceIds), _stamps.Of(handle), cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -81,7 +85,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
 
         await _hub.Clients
             .Client(handle.Instance.Id)
-            .SendAsync("ui.commandResult", _outgoing.Stage(sent, handle.Session.SessionId, [handle.Instance.Id]), cancellationToken)
+            .SendAsync("ui.commandResult", _outgoing.Stage(sent, handle.Session.SessionId, [handle.Instance.Id]), _stamps.Of(handle), cancellationToken)
             .ConfigureAwait(false);
     }
 

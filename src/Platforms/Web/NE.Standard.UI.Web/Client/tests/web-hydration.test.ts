@@ -31,6 +31,11 @@ test("the compile the page was rendered from is read back, and a page without on
     assert.equal(readHydration(pageWith("{\"pageId\":\"abc\",\"changes\":{\"updates\":[]}}"))?.view, null);
 });
 
+test("the parameters the route keys its runtimes by are read back, and a route keyed by none names none", () => {
+    assert.deepEqual(readHydration(pageWith("{\"pageId\":\"abc\",\"identity\":[\"with\"],\"changes\":{\"updates\":[]}}"))?.identity, ["with"]);
+    assert.deepEqual(readHydration(pageWith("{\"pageId\":\"abc\",\"changes\":{\"updates\":[]}}"))?.identity, []);
+});
+
 test("a render that read a runtime it did not build hands nothing over", () => {
     const payload = readHydration(pageWith("{\"pageId\":null,\"changes\":{\"updates\":[]}}"));
 

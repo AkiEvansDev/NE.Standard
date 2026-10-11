@@ -31,10 +31,10 @@ public interface IFieldInputComponent : ISizedInputComponent
     UIInputTitlePlacement? TitlePlacement { get; }
 
     /// <summary>
-    /// Gets or sets how the field surface is drawn; settable so a host can override the shape, as the key-value list does
-    /// for an unset editor.
+    /// Gets or sets how the field surface is drawn: <see cref="UIInputAppearance.Tonal"/> unless set, and
+    /// <see cref="UIInputAppearance.Filled"/> only where a long form asks for it.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIInputAppearance.Filled)]
+    [UIComponentProperty(DefaultValue = UIInputAppearance.Tonal)]
     UIInputAppearance? Appearance { get; set; }
 
     /// <summary>

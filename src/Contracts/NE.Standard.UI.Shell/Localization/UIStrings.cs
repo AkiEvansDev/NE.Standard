@@ -44,13 +44,21 @@ public static partial class UIStrings
 
     /// <summary>The name of a message's ×, which hides it where it stands (the <c>UIMessage</c> preset).</summary>
     public const string MessageDismiss = "ui.message.dismiss";
+
+    // The standard actions' names (UIStandardAction): a built-in menu's entry, a row's button, a dialog's × and the Extensions
+    // presets alike.
+    public const string ActionPin = "ui.action.pin";
+    public const string ActionUnpin = "ui.action.unpin";
+    public const string ActionOpen = "ui.action.open";
+    public const string ActionEdit = "ui.action.edit";
+    public const string ActionCopy = "ui.action.copy";
+    public const string ActionSave = "ui.action.save";
+    public const string ActionCancel = "ui.action.cancel";
+    public const string ActionClose = "ui.action.close";
+    public const string ActionDelete = "ui.action.delete";
     public const string TabsMore = "ui.tabs.more";
     public const string CommandBarMore = "ui.commandbar.more";
-    public const string TabClose = "ui.tab.close";
     public const string TabRename = "ui.tab.rename";
-    public const string TabPin = "ui.tab.pin";
-    public const string TabUnpin = "ui.tab.unpin";
-    public const string TabDelete = "ui.tab.delete";
     public const string SelectClear = "ui.select.clear";
     public const string SelectPlaceholder = "ui.select.placeholder";
     public const string SelectRemove = "ui.select.remove";
@@ -114,9 +122,6 @@ public static partial class UIStrings
     public const string ImageCropApply = "ui.crop.apply";
     public const string ImageCropCancel = "ui.crop.cancel";
     public const string ImageUnreadable = "ui.image.unreadable";
-    public const string RowEdit = "ui.row.edit";
-    public const string RowSave = "ui.row.save";
-    public const string RowCancel = "ui.row.cancel";
 
     /// <summary>A row's grip, which drags it (<c>DragHandle</c>).</summary>
     public const string RowDrag = "ui.row.drag";
@@ -210,13 +215,18 @@ public static partial class UIStrings
         [NotificationClose] = "Close",
         [NotificationOpen] = "Open",
         [MessageDismiss] = "Dismiss",
+        [ActionPin] = "Pin",
+        [ActionUnpin] = "Unpin",
+        [ActionOpen] = "Open",
+        [ActionEdit] = "Edit",
+        [ActionCopy] = "Copy",
+        [ActionSave] = "Save",
+        [ActionCancel] = "Cancel",
+        [ActionClose] = "Close",
+        [ActionDelete] = "Delete",
         [TabsMore] = "More tabs",
         [CommandBarMore] = "More commands",
-        [TabClose] = "Close",
         [TabRename] = "Rename",
-        [TabPin] = "Pin",
-        [TabUnpin] = "Unpin",
-        [TabDelete] = "Delete",
         [SelectClear] = "Clear selection",
         [SelectPlaceholder] = "Select…",
         [SelectRemove] = "Remove {label}",
@@ -263,9 +273,6 @@ public static partial class UIStrings
         [ImageCropApply] = "Done",
         [ImageCropCancel] = "Cancel",
         [ImageUnreadable] = "The picture could not be opened.",
-        [RowEdit] = "Edit",
-        [RowSave] = "Save",
-        [RowCancel] = "Cancel",
         [RowDrag] = "Reorder",
         [TableResizeColumn] = "Resize column",
         [TreeToggle] = "Expand or collapse",

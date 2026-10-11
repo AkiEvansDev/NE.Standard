@@ -80,11 +80,6 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// <summary>The argument the edit and save commands receive the row's key under.</summary>
     private const string EditArgumentName = "id";
 
-    // UIStrings keys, spelled here because the words are the framework's and the component cannot reach the shell's constants.
-    private const string RowEditKey = "ui.row.edit";
-    private const string RowSaveKey = "ui.row.save";
-    private const string RowCancelKey = "ui.row.cancel";
-
     /// <summary>
     /// Initializes the component with its default row, key, value and action templates.
     /// </summary>
@@ -156,11 +151,6 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     {
         ArgumentNullException.ThrowIfNull(template);
 
-        // Fields default to tonal, with padding set back so the text aligns with the value's: the row frames the editor, and a
-        // Filled field's line would only add weight to it.
-        if (template is IFieldInputComponent { Appearance: null } field)
-            field.Appearance = UIInputAppearance.Tonal;
-
         // Spelled out rather than left to the input's own default: a draft that never came back would be no draft.
         return template.Bind(IInputComponent.ValueProperty, nameof(IKeyValueActionModel.EditValue), UIBindingScope.Relative, UIBindingMode.TwoWay);
     }
@@ -184,11 +174,11 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         if (ValueInputTemplate is null)
             _ = SetValueInputTemplate(new TextInputComponent());
 
-        // The words are the framework's own keys: the page translates them the way it translates any title.
+        // The standard actions' words, the framework's own keys: the page translates them the way it translates any title.
         ButtonComponent pencil = new ButtonComponent()
             .SetType(UIButtonType.Ghost)
             .SetSize(UIButtonSize.Small)
-            .SetTitle(RowEditKey);
+            .SetTitle(UIStandardAction.Edit.Word);
 
         if (editCommand is null)
             _ = row.InteractOn(pencil.Id, EventNames.Click, DefaultRowTemplate.EditingProperty, true);
@@ -198,13 +188,13 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         ButtonComponent save = new ButtonComponent()
             .SetType(UIButtonType.Primary)
             .SetSize(UIButtonSize.Small)
-            .SetTitle(RowSaveKey)
+            .SetTitle(UIStandardAction.Save.Word)
             .OnClick(saveCommand, UIAction.ArgCurrentItemKey(EditArgumentName));
 
         ButtonComponent cancel = new ButtonComponent()
             .SetType(UIButtonType.Ghost)
             .SetSize(UIButtonSize.Small)
-            .SetTitle(RowCancelKey);
+            .SetTitle(UIStandardAction.Cancel.Word);
 
         _ = row.InteractOn(cancel.Id, EventNames.Click, DefaultRowTemplate.EditingProperty, false);
 

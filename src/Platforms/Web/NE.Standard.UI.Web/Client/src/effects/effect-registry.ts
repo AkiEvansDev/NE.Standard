@@ -344,7 +344,9 @@ export class EffectRegistry {
         });
 
         this.register("CloseDialog", context => {
-            this.applyDialogEffect(context, "CloseDialog", (dialogs, key) => dialogs.close(key));
+            const asViewer = (context.effect as DialogClientEffect).raisesClose === true;
+
+            this.applyDialogEffect(context, "CloseDialog", (dialogs, key) => asViewer ? dialogs.dismiss(key) : dialogs.close(key));
         });
 
         // An anchor with `download`, not a fetch: the browser then owns saving the file and its progress.

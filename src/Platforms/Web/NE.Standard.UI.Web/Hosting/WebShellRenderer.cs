@@ -69,6 +69,9 @@ public static class WebShellRenderer
         if (context.Theme.PressRipple)
             _ = document.Attribute(WebAttributes.PressRipple);
 
+        if (context.Theme.OverlayScrollbars)
+            _ = document.Attribute(WebAttributes.OverlayScrollbars);
+
         // On the document as on the root: the document's own gutter goes with it.
         if (context.ScrollContentOnly)
             _ = document.Attribute(ScrollContentAttribute);

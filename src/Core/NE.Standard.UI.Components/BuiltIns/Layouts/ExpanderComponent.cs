@@ -7,6 +7,7 @@ using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
@@ -28,6 +29,12 @@ public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowChevron { get; set; }
+
+    /// <summary>
+    /// How the expander is drawn: a bordered card, or a quiet fold of a line of muted words for a quiet part of a page.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = UIExpanderVariant.Card)]
+    public UIExpanderVariant? Variant { get; set; }
 
     /// <summary>
     /// Gets the header region — any visual component, not only the built-in text one.

@@ -15,5 +15,11 @@ public enum UISurfaceStyle
     /// The surface's own colour mixed into the page instead of painted over it; takes the colour from <c>Background</c>,
     /// falling back to the theme's primary when none is set.
     /// </summary>
-    Tinted
+    Tinted,
+
+    /// <summary>
+    /// The raised panel's fill lying on the page, with no shadow — the ground an action row stands on, for a clickable row of content
+    /// of its own; a dialog keeps its shadow, so Flat draws there as <see cref="Raised"/>.
+    /// </summary>
+    Flat
 }

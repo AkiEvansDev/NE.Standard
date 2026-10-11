@@ -64,7 +64,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
 
     // Paired by height: the band beside the empty state, the strip of readings beside the tiles.
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup()], [CreateEmptyStateGroup(), CreateChoiceGroup()]);
+        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup()], [CreateEmptyStateGroup(), CreateChoiceGroup(), CreateRowsGroup()]);
 
     /// <summary>
     /// A band that holds controls and belongs to the page (a card would promise bands it cannot fill), inside a panel of its own.
@@ -162,6 +162,40 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
                     )
             )
         );
+    }
+
+    /// <summary>
+    /// <c>Flat</c>: an action row's ground and no shadow, for a clickable row holding content of its own (a glyph before a time).
+    /// </summary>
+    private static ContainerComponent CreateRowsGroup()
+    {
+        return DemoUI.CreateExample("Rows of their own content",
+            UILayout.Stack(4)
+                .AddChild(CreateMessageRow("The release window moves to Thursday", "Mon 09:12", pinned: true))
+                .AddChild(CreateMessageRow("Staging is green again after the cache fix", "Sun 18:40", pinned: false))
+                .AddChild(new ActionComponent().SetAction("All pinned messages", icon: DemoIcons.Outline(DemoIcons.Star)))
+        );
+    }
+
+    private static SurfaceComponent CreateMessageRow(string words, string time, bool pinned)
+    {
+        StackPanelComponent sent = new StackPanelComponent()
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetSpacing(4)
+            .SetVerticalAlignment(UIAlignment.Center);
+
+        if (pinned)
+            _ = sent.AddChild(new IconComponent().SetIcon(DemoIcons.Star).SetSize(UIIconSize.Small).SetColor(UIThemeColor.Muted));
+
+        return new SurfaceComponent()
+            .SetSurface(UISurfaceStyle.Flat)
+            .SetClickable(true)
+            .SetBorderThickness(UIThickness.Uniform(0))
+            .SetPadding(UIThickness.All(12, 8, 12, 8))
+            .SetContent(UILayout.Stack(2)
+                .AddChild(new TextComponent().SetTitle(words).SetTitleType(UITextAppearance.Body))
+                .AddChild(sent.AddChild(new TextComponent().SetTitle(time).SetTitleType(UITextAppearance.Caption).SetTitleColor(UIThemeColor.Muted)))
+            );
     }
 
     /// <summary>

@@ -6,7 +6,7 @@ import { ContentFillsAttribute, RegionAttribute } from "../addressing/dom-attrib
 /** The operation's kind, as `WebComponentRendererBase.ContentFillsOperationKind` spells it on the server. */
 export const ContentFillsOperationKind = "content-fills";
 
-const ContentRegion = "content";
+export const ContentRegion = "content";
 const RootAttribute = "data-ui-root";
 
 // The base tier as WebResponsiveCss writes a Fill height: a pane filling from a breakpoint up is a phone's scrolling page below it.

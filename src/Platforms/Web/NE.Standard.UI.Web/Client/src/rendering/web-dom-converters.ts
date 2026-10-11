@@ -182,7 +182,7 @@ const themeTokens = ["light", "dark"];
 const alignmentTokens = ["start", "center", "end", "stretch"];
 const overflowTokens = ["clip", "visible"];
 const visibilityTokens = ["visible", "hidden", "collapsed"];
-const surfaceStyleTokens = ["background", "raised", "tinted"];
+const surfaceStyleTokens = ["background", "raised", "tinted", "flat"];
 const orientationTokens = ["horizontal", "vertical"];
 const groupSeparatorTokens = ["none", "gap", "rule"];
 const selectionModeTokens = ["none", "one", "many"];
@@ -198,6 +198,7 @@ const colorInputVariantTokens = ["field", "swatch"];
 const imageFitTokens = ["fill", "contain", "cover", "none"];
 const imageFitSizeTokens = ["100% 100%", "contain", "cover", "auto"];
 const imageShapeTokens = ["default", "circle"];
+const expanderVariantTokens = ["card", "quiet"];
 const backgroundDimModeTokens = ["uniform", "vignette"];
 const progressVariantTokens = ["linear", "circular"];
 const textAreaResizeTokens = ["none", "vertical", "horizontal", "both"];
@@ -339,6 +340,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ...tierConverters("gridPlacement", "ColumnSpanCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "columnSpan")),
     ...tierConverters("gridPlacement", "RowSpanCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "rowSpan")),
     tokenClass("imageFitClass", "ui-image-fit--", imageFitTokens),
+    familyClass("expanderVariantClass", toClassFamily(["ui-expander--quiet"]), value => toToken(value, expanderVariantTokens) === "quiet" ? "ui-expander--quiet" : ""),
     familyClass("imageShapeClass", toClassFamily(["ui-image--circle"]), value => toToken(value, imageShapeTokens) === "circle" ? "ui-image--circle" : ""),
     ["backgroundImageCss", value => toBackgroundImageCss(value)],
     ["backgroundImageAttribute", value => toBackgroundImageCss(value).length === 0 ? undefined : ""],

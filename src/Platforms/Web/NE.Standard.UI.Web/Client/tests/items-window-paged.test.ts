@@ -92,3 +92,31 @@ test("a re-attach does not ask an empty window for its first rows again while th
 
     assert.deepEqual(anchors, ["Start", "Start"]);
 });
+
+test("a window forgotten as the page goes to another runtime is asked for its first rows again, the left runtime's read let go", () => {
+    const host = FakeElement.of("ui-items-view__host", {
+        "data-ui-items-host": "",
+        "data-ui-host-mode": "windowed",
+        "data-ui-window-paged": "",
+        "data-ui-window-size": "20"
+    });
+    const view = FakeElement.of("ui-items-view", { "data-ui-id": "5" }).append(host);
+
+    host.rect = { left: 0, top: 0, width: 400, height: 200 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(view);
+
+    const anchors: string[] = [];
+    const engine = new ItemsWindowEngine({
+        root: real<ParentNode>(fakeDocument.body),
+        requestWindow: request => new Promise<void>(() => {
+            anchors.push(request.anchor);
+        })
+    });
+
+    engine.start();
+    engine.forget(real<Element>(view));
+    engine.start();
+
+    assert.deepEqual(anchors, ["Start", "Start"]);
+});

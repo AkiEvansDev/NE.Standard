@@ -381,6 +381,8 @@ export const FilePickAttribute = "data-ui-file-pick";
 export const FileDropTargetIdAttribute = "data-ui-file-drop-target-id";
 /** On `<html>`: the theme opts every button, action and menu item into the press ripple. */
 export const PressRippleAttribute = "data-ui-press-ripple";
+/** On `<html>`: the theme draws its scrollbars over the content (overlay-scrollbar-engine.ts). */
+export const OverlayScrollbarsAttribute = "data-ui-overlay-scrollbars";
 /** On `<html>`: the framework's service worker's address, where the application turned system notifications on. */
 export const ServiceWorkerAttribute = "data-ui-service-worker";
 /** On `<html>`: the application's own worker imports the framework's, so the page waits for it instead of registering. */

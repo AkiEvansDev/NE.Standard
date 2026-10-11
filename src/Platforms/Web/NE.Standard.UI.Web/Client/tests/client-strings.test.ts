@@ -179,9 +179,9 @@ test("an author's text marked as itself is looked up as a plain value, and marks
     const root = new FakeRoot([caption], [new FakeRoot([inTemplate])]);
 
     caption.setAttribute("data-ui-words", JSON.stringify({ "#text": "Cards" }));
-    inTemplate.setAttribute("data-ui-words", JSON.stringify({ "aria-label": ["ui.tab.close"] }));
+    inTemplate.setAttribute("data-ui-words", JSON.stringify({ "aria-label": ["ui.action.close"] }));
 
-    strings.useTable(tableOf("ru", { "Cards": "Карты", "ui.tab.close": "Закрыть" }));
+    strings.useTable(tableOf("ru", { "Cards": "Карты", "ui.action.close": "Закрыть" }));
     strings.rewriteMarks(root as unknown as ParentNode);
 
     assert.equal(caption.textContent, "Карты");

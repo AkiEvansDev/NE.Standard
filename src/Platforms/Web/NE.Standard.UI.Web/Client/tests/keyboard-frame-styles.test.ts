@@ -1,6 +1,6 @@
 // The keyboard's frame is one shape wherever it is drawn: a 2 px line whose corners are the theme's button radius. A row, a cell and
 // an entry take that corner while framed; a card insets the frame until concentric; a toggle's row and a link stand it outside,
-// taking the corner that keeps the frame's own; a clipping component leaves it its reach.
+// taking the corner that keeps the frame's own, as a quiet expander's line does; a clipping component leaves it its reach.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -32,7 +32,7 @@ test("a row takes the frame's corner while the keyboard is on it, the frame on i
 });
 
 test("an expander's header takes a card's corner and the frame insets from it to keep its own", () => {
-    const header = rules(".ui-expander__header:focus-visible:not([data-ui-pointer-focus])");
+    const header = rules(".ui-expander:not(.ui-expander--quiet) > .ui-expander__header:focus-visible:not([data-ui-pointer-focus])");
 
     assert.match(header, /border-radius: var\(--ui-radius-card\);/);
     assert.match(header, /outline-offset: calc\(var\(--ui-radius-button\) - var\(--ui-radius-card\) - 2px\);/);
@@ -44,10 +44,13 @@ test("a toggle's row and a link stand the frame outside, taking the corner that 
     assert.match(row, /border-radius: calc\(var\(--ui-radius-button\) - 2px - 2px\);/);
     assert.match(row, /outline-offset: 2px;/);
     assert.match(rules(".ui-link:focus-visible:not([data-ui-pointer-focus])"), /outline-offset: 2px;/);
+    assert.match(rules(".ui-expander--quiet > .ui-expander__header:focus-visible:not([data-ui-pointer-focus])"), /outline-offset: 2px;/);
 });
 
 test("a component that clips its children leaves an outside frame its reach", () => {
     assert.match(rules("[data-ui-id][style*=\"overflow: clip\"]"), /overflow-clip-margin: 4px;/);
+    // A card's expander clips at its edge, its frames inside it; a quiet one keeps the reach for the frame round its line.
+    assert.match(rules(".ui-expander:not(.ui-expander--quiet)[data-ui-id][style*=\"overflow: clip\"]"), /overflow-clip-margin: 0px;/);
 });
 
 test("no keyboard frame is drawn in another shape: every brand-ink or words-ink outline is the frame's line", () => {

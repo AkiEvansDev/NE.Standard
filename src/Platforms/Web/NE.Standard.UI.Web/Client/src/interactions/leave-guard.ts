@@ -27,6 +27,8 @@ export type LeaveGuardOptions = {
     readonly pending: () => boolean;
     /** Commits what waits and resolves once every value given has its answer applied. */
     readonly settle: () => Promise<void>;
+    /** Follows a leave the page goes through in place — to another runtime of its route — answering whether it took it; none unloads. */
+    readonly follow?: (target: string) => boolean;
 };
 
 /** A press as the guard reads it: which button, which keys held, whether something took it already, and what it landed on. */
@@ -98,9 +100,14 @@ export class LeaveGuard {
             this.options.window.addEventListener("beforeunload", this.beforeUnload);
     }
 
-    /** A NavigateEffect's address, local already: followed, or decided as a link's press is. */
+    /** Whether a leave would be asked about now: the page holds unsaved work, or a value is still on its way, and nothing let go of it. */
+    public get asks(): boolean {
+        return !this.released && (this.holds || this.options.pending());
+    }
+
+    /** A NavigateEffect's address, or an entry Back or Forward went to in place, local already: followed, or decided as a link's press is. */
     public navigate(url: string): void {
-        if (this.deciding || this.released || (!this.holds && !this.options.pending())) {
+        if (this.deciding || !this.asks) {
             this.leave(url);
             return;
         }
@@ -115,6 +122,10 @@ export class LeaveGuard {
 
     /** Leaves for `url` by a decision already made: the browser is not asked again. */
     public leave(url: string): void {
+        // Gone to in place, the page stays: its browser question stays with it.
+        if (this.options.follow?.(url) === true)
+            return;
+
         this.release();
         this.options.window.location.assign(url);
     }
@@ -133,14 +144,21 @@ export class LeaveGuard {
     }
 
     private handlePress(domEvent: Event): void {
-        // Nothing held and nothing on its way: whatever was pressed, the browser follows it at once.
-        if (this.released || (!this.holds && !this.options.pending()))
+        if (this.released)
             return;
 
         const target = leaveTarget(domEvent as unknown as Press, this.options.window.location.href);
 
         if (target === null)
             return;
+
+        // Nothing held and nothing on its way: followed at once, by the page where it goes there in place, else by the browser.
+        if (!this.holds && !this.options.pending()) {
+            if (this.options.follow?.(target) === true)
+                domEvent.preventDefault();
+
+            return;
+        }
 
         domEvent.preventDefault();
 

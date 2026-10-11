@@ -98,7 +98,7 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
             {
                 _ = close.Class(CloseClass);
                 _ = close.Attribute("type", "button");
-                WebWords.Write(context, close, "aria-label", UIStrings.TabClose);
+                WebWords.Write(context, close, "aria-label", UIStrings.ActionClose);
                 _ = close.Attribute("tabindex", "-1");
             });
         });

@@ -14,10 +14,10 @@ export class InboundOrder {
         this.apply = apply;
     }
 
-    /** A pushed message's handler, called in its turn rather than inside the frame's loop. */
-    public pushed<T>(handler: (payload: T) => void): (payload: T) => void {
+    /** A pushed message's handler, called in its turn rather than inside the frame's loop; `sender` is what the message says sent it. */
+    public pushed<T>(handler: (payload: T, sender?: unknown) => void): (payload: T, sender?: unknown) => void {
         // SignalR runs a push inside the frame's loop but settles an answer a turn later: a push behind an answer would land first.
-        return payload => queueMicrotask(() => handler(payload));
+        return (payload, sender) => queueMicrotask(() => handler(payload, sender));
     }
 
     /** An invoke's answer, its changes applied in its turn after `before`, then resolved with them taken off so none applies them again. */

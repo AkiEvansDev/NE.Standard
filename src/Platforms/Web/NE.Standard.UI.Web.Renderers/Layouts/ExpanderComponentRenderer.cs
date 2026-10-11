@@ -1,6 +1,7 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -11,6 +12,8 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 /// <summary>Renders an expander as a native <c>&lt;details&gt;</c>/<c>&lt;summary&gt;</c> pair.</summary>
 public sealed class ExpanderComponentRenderer : WebComponentRendererBase
 {
+    private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.ExpanderVariantClass)];
+
     public override string ComponentTypeKey => ExpanderComponent.ComponentTypeKey;
 
     protected override string ElementName => "details";
@@ -22,6 +25,12 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         SurfaceChromeRenderer.RenderChrome(context, root);
+
+        _ = RenderProperty<UIExpanderVariant?>(context, root, ExpanderComponent.VariantProperty, static (target, value) =>
+        {
+            if (value is UIExpanderVariant variant && WebClassNames.ExpanderVariant(variant) is { Length: > 0 } className)
+                _ = target.Class(className);
+        }, VariantOperations);
 
         // The compiled default is true, so a plain expander opens; a bound null is closed both here and on the client's toggle.
         RenderFlagAttribute(context, root, ExpanderComponent.ExpandedProperty, "open");

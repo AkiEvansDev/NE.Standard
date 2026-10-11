@@ -44,13 +44,14 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 )
             },
             // Wider than a centred dialog's own cap: the width is the dialog's to name, and the fields stretch to it.
-            // Tonal fields: a short form the dialog already frames, not a long one whose fields stack.
+            // Tonal fields: a short form the dialog already frames, not a long one whose fields stack. Headed by the preset: its mark,
+            // its title and an × that closes it as Escape does, which cancels the edit as Cancel does.
             new UIDialog
             {
                 Key = DialogTestController.EditKey,
                 Label = Words + "edit.label",
                 Width = UILayoutLength.Absolute(640),
-                Content = CreatePanel(Words + "edit.heading", null,
+                Content = UIDialogs.Content(DialogTestController.EditKey, Words + "edit.heading", UILayout.Stack(12,
                     new TextInputComponent()
                         .SetAppearance(UIInputAppearance.Tonal)
                         .SetTitle(Words + "edit.name")
@@ -63,8 +64,8 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                         CreateButton(Words + "cancel", nameof(DialogTestController.CancelEdit), UIButtonType.Ghost),
                         CreateButton(Words + "save", nameof(DialogTestController.SaveEdit), UIButtonType.Primary)
                     )
-                )
-            },
+                ), DemoIcons.Outline(DemoIcons.Edit))
+            }.OnClose(nameof(DialogTestController.CancelEdit)),
             // A sheet at the left edge, not modal: the page keeps answering, so the count follows each switch as it is thrown.
             // On the page's own ground, not lifted: a drawer is part of the page, so it wears the first surface, not the second.
             new UIDialog

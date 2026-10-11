@@ -90,7 +90,7 @@
 // in a card or an expander; the separators stay. The fill is read off the inline Background, the one place it is written. Surface
 // Background is not an edge: every list carries it by default, and its ground is the page's own. A list whose rows wash under the
 // pointer keeps the inset, since the wash is then the row's edge and the key would stand on it.
-.ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, [style*="--ui-surface-color"], .ui-key-value-action--row-hover) {
+.ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, .ui-surface--flat, [style*="--ui-surface-color"], .ui-key-value-action--row-hover) {
     .ui-key-value-action__row,
     .ui-key-value-action__host > [data-ui-empty-placeholder] {
         padding-inline: 0;

@@ -57,10 +57,13 @@ test("a current entry writes in the text's ink, never the brand's: the brand sta
 
     for (const entry of [
         ".ui-menu-item--selected",
-        ".ui-button[data-ui-value-kind=\"pressed\"][aria-pressed=\"true\"]",
+        ".ui-button[data-ui-value-kind=\"pressed\"][aria-pressed=\"true\"]:not([data-ui-drawer-pin])",
         ".ui-language-switcher__choice[aria-checked=\"true\"]"
     ])
         assert.ok((declarations(entry) ?? "").includes(ink), `${entry} does not write in the text's ink`);
+
+    // A drawer's pin is a toggle only so an interaction can read it: held down it keeps the hover's wash, not the selected ground.
+    assert.match(declarations("[data-ui-drawer-pin][aria-pressed=\"true\"]") ?? "", /background-image: linear-gradient\(var\(--ui-wash-hover\), var\(--ui-wash-hover\)\);/);
 
     assert.doesNotMatch(css, /\.ui-menu-item--selected(?: [^{),]*)? \{[^}]*--ui-color-primary-ink/);
     assert.doesNotMatch(declarations(".ui-multi-select .ui-select__option::after") ?? "", /--ui-color-primary-ink/);

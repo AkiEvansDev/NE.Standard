@@ -26,6 +26,13 @@
         animation-iteration-count: 1 !important;
     }
 
+    // A load of another page goes to it at once: the fade between the two pages is movement too.
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+        animation: none !important;
+    }
+
     // The loading ring keeps turning, as the one sign that something is under way.
     @{ui-loading-rings} {
         animation-duration: @ui-loading-ring-turn !important;

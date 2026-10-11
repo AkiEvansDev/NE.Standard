@@ -155,7 +155,8 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<CommandsView, CommandsController>("/mechanisms/commands");
         _ = application.Route<ValuesView, ValuesController>("/mechanisms/values");
         _ = application.Route<ListsView, ListsController>("/mechanisms/lists");
-        _ = application.Route<PagesView, PagesController>("/mechanisms/pages");
+        // Keyed by its copy: each copy is a runtime of its own, gone between without a page load.
+        _ = application.Route<PagesView, PagesController>("/mechanisms/pages", static route => route.Identity(PagesController.CopyParameter));
 
         // Actions
         _ = application.Route<ButtonView, ButtonController>("/actions/button");

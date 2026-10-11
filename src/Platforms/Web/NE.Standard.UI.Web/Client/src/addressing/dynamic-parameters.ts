@@ -1,5 +1,5 @@
 // With extensions: the node test runner loads this module as is.
-import { ComponentKeyAttribute, ComponentParameterCountAttribute, GroupAnchorAttribute } from "./dom-attributes.ts";
+import { ComponentKeyAttribute, ComponentParameterCountAttribute, GroupAnchorAttribute, ItemsHostAttribute } from "./dom-attributes.ts";
 import { logWarn } from "../runtime/logger.ts";
 
 export function readParameterCount(element: Element): number {
@@ -12,12 +12,19 @@ export function collectDynamicParameters(element: Element, expectedCount: number
 
     const parameters: unknown[] = [];
     let current: Element | null = element;
+    let host: Element | null = null;
 
     while (current !== null && parameters.length < expectedCount) {
         const parameter = readDynamicParameter(current);
 
-        if (parameter !== undefined)
-            parameters.push(parameter);
+        if (parameter !== undefined) {
+            const own = current.closest(ItemsHostSelector);
+
+            if (own === null || own !== host)
+                parameters.push(parameter);
+
+            host = own;
+        }
 
         current = current.parentElement;
     }
@@ -61,15 +68,22 @@ export function matchesDynamicParameters(element: Element, expectedParameters: r
 export function endsWithDynamicParameters(element: Element, keys: readonly unknown[]): boolean {
     let index = keys.length - 1;
     let current: Element | null = element;
+    let host: Element | null = null;
 
     while (current !== null && index >= 0) {
         const key = readDynamicParameter(current);
 
         if (key !== undefined) {
-            if (key !== String(keys[index] ?? ""))
-                return false;
+            const own = current.closest(ItemsHostSelector);
 
-            index--;
+            if (own === null || own !== host) {
+                if (key !== String(keys[index] ?? ""))
+                    return false;
+
+                index--;
+            }
+
+            host = own;
         }
 
         current = current.parentElement;
@@ -88,6 +102,10 @@ export function readNumberAttribute(element: Element, name: string): number {
 
     return Number.isInteger(result) ? result : 0;
 }
+
+// One key per list: a composite's cell and a menu's submenu repeat their row's key inside the row, under the row's own host, which
+// a list nested in another's row would read twice (a submenu's list in a row's context menu, looked for under its entry's key twice).
+const ItemsHostSelector = `[${ItemsHostAttribute}]`;
 
 // Keys only: every item collection is keyed, so an element with no key introduces no scope; a positional fallback would misaddress.
 // A group header stands in the row it is drawn from, as the server renders it.

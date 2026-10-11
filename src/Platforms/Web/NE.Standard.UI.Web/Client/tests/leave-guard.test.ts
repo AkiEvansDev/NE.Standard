@@ -1,7 +1,7 @@
 // A page whose controller holds unsaved work keeps the reader from leaving it unasked: a plain press on a link of the site, and a
 // NavigateEffect, ask the controller instead (its answer running as the leave's own); the browser's own question is on only while
 // the work is held; and a navigation decided already — a command that cleared the flag, the controller's answer, the framework's
-// Leave — goes without asking again.
+// Leave — goes without asking again. A leave to another runtime of the route is followed by the page in place, unloading nothing.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -87,6 +87,9 @@ type Guarded = {
     pending: boolean;
     settled: number;
     values: () => Promise<void>;
+    /** Which leaves the page follows in place, and the ones it followed. */
+    follows: (target: string) => boolean;
+    readonly followed: string[];
 };
 
 /** A guard whose answers' Navigate effects go back through it, as the page's effect registry sends them. */
@@ -100,6 +103,8 @@ function guarded(): Guarded {
         pending: false,
         settled: 0,
         values: async () => undefined,
+        follows: () => false,
+        followed: [],
         guard: undefined as unknown as LeaveGuard
     };
 
@@ -123,6 +128,14 @@ function guarded(): Guarded {
             context.settled++;
             await context.values();
             context.pending = false;
+        },
+        follow: target => {
+            if (!context.follows(target))
+                return false;
+
+            context.followed.push(target);
+
+            return true;
         }
     });
 
@@ -192,6 +205,27 @@ test("a NavigateEffect goes at once while nothing is held, and asks the controll
     assert.deepEqual(second.asked, ["/inbox"]);
     assert.deepEqual(second.window.assigned, []);
     assert.deepEqual(asked, []);
+});
+
+test("a leave to another runtime of the route is followed in place, held work or not, and the browser's question stays", async () => {
+    const context = guarded();
+    const { window, guard, asked, followed } = context;
+
+    context.follows = target => target.startsWith("/notes?id=");
+
+    assert.equal(window.raise("click", press(link("/notes?id=7"))).defaultPrevented, true);
+    assert.equal(window.raise("click", press(link("/inbox"))).defaultPrevented, false, "another route: the browser follows it");
+    guard.navigate("/notes?id=8");
+
+    guard.set(true);
+    context.answer = async target => [{ kind: "Navigate", request: { route: target } }];
+    assert.equal(window.raise("click", press(link("/notes?id=9"))).defaultPrevented, true);
+    await settle();
+
+    assert.deepEqual(asked, ["/notes?id=9"]);
+    assert.deepEqual(followed, ["/notes?id=7", "/notes?id=8", "/notes?id=9"]);
+    assert.deepEqual(window.assigned, []);
+    assert.equal(window.asksOnUnload(), true);
 });
 
 test("the browser's own question is on only while the page holds unsaved work", () => {
@@ -392,4 +426,21 @@ test("the runtime's own reload is released from the question, and a page back fr
 
     window.raise("pageshow", { persisted: true });
     assert.equal(window.asksOnUnload(), true);
+});
+
+test("a leave is asked about while work is held or a value is on its way, never once the page let go of the question", () => {
+    const context = guarded();
+    const { guard } = context;
+
+    assert.equal(guard.asks, false);
+
+    context.pending = true;
+    assert.equal(guard.asks, true, "a value on its way may be what sets the flag");
+
+    context.pending = false;
+    guard.set(true);
+    assert.equal(guard.asks, true);
+
+    guard.release();
+    assert.equal(guard.asks, false);
 });

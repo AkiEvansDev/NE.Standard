@@ -1,6 +1,7 @@
 // A popup takes the side it asks for, flips to the opposite one where that has the room, and — in a window too short for either
 // side of its axis — stands beside its anchor across the axis rather than being clamped over the anchor it opened from; with room
-// nowhere, it takes the larger side of its axis capped to that room, scrolling inside. A boundary
+// nowhere, it takes the larger side of its axis capped to that room, scrolling inside, and keeps its scroll as it is placed again;
+// its own scroll places it nowhere. A boundary
 // (a list's box) is the room its side is chosen in. A popup opened from inside a popup or bar keeps the gap off that surface's edge,
 // on whichever side it ends up, and a submenu stands with its first entry level with the entry it opened from. A menu at the pointer
 // opens down and to the right of it, turning up or leftward where there is no room, as a native one does.
@@ -31,7 +32,7 @@ installFakeDom({
     getComputedStyle: (element: unknown) => ({ transform: "none", filter: "none", perspective: "none", ...boxStyles.get(element) })
 });
 
-const { PopupGap, placeAnchoredPopup, placeAtPoint, releaseAnchoredPopup, repositionAnchoredPopup } = await import("../src/interactions/anchored-popup.ts");
+const { PopupGap, placeAnchoredPopup, placeAtPoint, releaseAnchoredPopup, repositionAll, repositionAnchoredPopup } = await import("../src/interactions/anchored-popup.ts");
 
 type Placed = { readonly side: string; readonly left: number; readonly top: number };
 
@@ -101,6 +102,47 @@ test("a popup with room nowhere takes the side of its axis with the more room, c
 
     assert.equal(popup.style["max-height"], undefined);
     assert.equal(popup.dataset.uiPlacement, "bottom-start");
+});
+
+test("a capped list keeps its scroll: its own scroll places nothing again, and a placement for its anchor's sake keeps where it stood", () => {
+    viewport.innerWidth = 500;
+    viewport.innerHeight = 300;
+
+    const anchor = FakeElement.of("anchor");
+    const popup = FakeElement.of("popup");
+    const removeProperty = popup.style.removeProperty as (name: string) => void;
+    let uncapped = 0;
+
+    // The browser lays an uncapped list out whole, which scrolls no more: its scroll falls back to its top.
+    popup.style.removeProperty = (name: string): void => {
+        removeProperty.call(popup.style, name);
+
+        if (name === "max-height") {
+            uncapped++;
+            popup.scrollTop = 0;
+        }
+    };
+
+    anchor.rect = { left: 100, top: 120, width: 300, height: 30 };
+    popup.rect = { left: 0, top: 0, width: 500, height: 250 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(anchor, popup);
+
+    placeAnchoredPopup(real(anchor), real(popup), { placement: "bottom-start", gap: 4 });
+    popup.scrollTop = 120;
+
+    repositionAll(real(popup));
+
+    assert.equal(uncapped, 0);
+    assert.equal(popup.scrollTop, 120);
+
+    repositionAll(real(anchor));
+
+    assert.equal(uncapped, 1);
+    assert.equal(popup.style["max-height"], "142px");
+    assert.equal(popup.scrollTop, 120);
+
+    releaseAnchoredPopup(real(popup));
 });
 
 test("a side popup with no room either way flips across to below", () => {

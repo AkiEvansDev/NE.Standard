@@ -2,6 +2,8 @@
 // tile's step in a wrapping list, for the stylesheet's bars; marks the host busy while a window is read, with the edge it reads at;
 // and, after the rows of a host that cannot count, stands a few skeleton rows while its next ones come, taken away when they land.
 // A host whose look is the indicator (a conversation's) or none (a table's) gets none of those rows: nothing in it moves.
+// Read from its very top, a host that cannot count keeps the row the reader saw in place and reads on while the reader is still
+// at the edge; a read that brought nothing asks again for nothing.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -171,6 +173,77 @@ test("attached again, a host whose next rows a dropped connection cut asks for t
     assert.deepEqual(reads.anchors, []);
 
     engine.start();
+
+    assert.deepEqual(reads.anchors, ["After"]);
+});
+
+test("a host that cannot count, read from its very top, keeps the row the reader saw in place and reads on while still at the edge", async () => {
+    const { host, engine, reads } = scene({ boxes: [[0, 0], [0, 30], [0, 60]], look: "indicator" });
+
+    host.setAttribute("data-ui-window-more-before", "true");
+    host.setAttribute("data-ui-window-more-after", "false");
+
+    engine.reconsider();
+
+    assert.deepEqual(reads.anchors, ["Before"]);
+
+    // Two rows land above: the first one the reader saw moves down by them, and the scroll, at the top, stays there.
+    const seen = host.children[0];
+
+    for (const index of [1, 0]) {
+        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": `older-${index}` });
+
+        row.rect = { left: 0, top: index * 30, width: 30, height: 30 };
+        host.children.unshift(row);
+    }
+
+    seen.rect = { ...seen.rect, top: 60 };
+    reads.release();
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(host.scrollTop, 60);
+    assert.deepEqual(reads.anchors, ["Before", "Before"]);
+
+    reads.release();
+    await new Promise(resolve => setImmediate(resolve));
+});
+
+test("a reader who scrolled while older rows were read keeps that scroll: the place is kept by the rows read in alone", async () => {
+    const { host, engine, reads } = scene({ boxes: [[0, 0], [0, 30], [0, 60]], look: "indicator" });
+
+    host.setAttribute("data-ui-window-more-before", "true");
+    host.setAttribute("data-ui-window-more-after", "false");
+
+    engine.reconsider();
+
+    // The reader scrolls 20 down during the read, then two rows land above: on the screen the row moved 60 down and 20 up.
+    const seen = host.children[0];
+
+    host.scrollTop = 20;
+
+    for (const index of [1, 0]) {
+        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": `older-${index}` });
+
+        row.rect = { left: 0, top: index * 30 - 20, width: 30, height: 30 };
+        host.children.unshift(row);
+    }
+
+    seen.rect = { ...seen.rect, top: 40 };
+    reads.release();
+    await new Promise(resolve => setImmediate(resolve));
+
+    assert.equal(host.scrollTop, 80);
+
+    reads.release();
+    await new Promise(resolve => setImmediate(resolve));
+});
+
+test("a read that brought no rows asks again for nothing, though the source still says there are more", async () => {
+    const { engine, reads } = scene({ boxes: [[0, 0], [0, 30], [0, 60]], look: "indicator" });
+
+    engine.reconsider();
+    reads.release();
+    await new Promise(resolve => setImmediate(resolve));
 
     assert.deepEqual(reads.anchors, ["After"]);
 });

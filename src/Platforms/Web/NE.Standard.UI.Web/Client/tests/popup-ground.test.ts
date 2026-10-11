@@ -52,6 +52,7 @@ test("a field in a dialog mixes its ground from the dialog's own fill, whatever 
 test("a raised panel lifts the popups opened from it one step above the neutral raised step, and the page's grounds take the step back", () => {
     // Not its own fill: a colour of the panel's own would be the ground of entries written in the page's ink.
     assert.ok(declarations(".ui-surface--raised")?.includes(Step("var(--ui-surface-raised)")), "a raised surface leaves its popups at the page's level");
+    assert.ok(declarations(".ui-surface--flat")?.includes(Step("var(--ui-surface-raised)")), "a flat surface is a raised one's ground, its popups lifted alike");
     assert.ok(declarations(".ui-dialog__surface")?.includes(Step("var(--ui-surface-raised)")), "the dialog leaves its popups at the page's level");
 
     for (const ground of [".ui-surface--background", ".ui-surface--tinted", ".ui-dialog__surface[data-ui-dialog-surface=\"background\"]", ".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]"])

@@ -32,6 +32,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private const string StickyAttribute = "data-ui-sticky";
     // On the band carrying the drawers' buttons, naming their sides.
     private const string DrawerTogglesAttribute = "data-ui-drawer-toggles";
+    // On a side whose root names its own width, which its drawer keeps.
+    internal const string SideSizedAttribute = "data-ui-side-sized";
     private const string DialogSurfaceAttribute = "data-ui-dialog-surface";
     private const string DrawerToggleClass = "ui-shell__drawer-toggle";
 
@@ -132,6 +134,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                 if (railDrawer && string.Equals(region.Key, RegionNames.LeftSide, StringComparison.Ordinal))
                     _ = section.Attribute(WebAttributes.RailDrawer);
 
+                if (IsDrawer(region.Key, leftDrawer, rightDrawer) && SideSized(view, region))
+                    _ = section.Attribute(SideSizedAttribute);
+
                 // What the drawer's buttons name as the region they open.
                 if (view.Options.SideDrawers != UISideDrawers.Never && IsDrawer(region.Key, leftDrawer, rightDrawer))
                     _ = section.Attribute("id", WebAttributes.DrawerId(region.Key));
@@ -152,6 +157,14 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             });
         }
     }
+
+    /// <summary>
+    /// Whether a side's root names its own width — a length, or a bound one — which its drawer then keeps, as its column does pinned;
+    /// the stylesheet reads no child of the region.
+    /// </summary>
+    internal static bool SideSized(CompiledView view, CompiledRegion region)
+        => view.State.TryGetValue(region.RootComponentId, IVisualComponent.WidthProperty, out CompiledUIPropertyValue? width)
+            && (width.IsBind || (RecursiveValueCoercion.TryCoerce(width.Value, out UIResponsive<UILayoutLength> length) && length.Base.Kind == UILayoutLengthKind.Absolute));
 
     /// <summary>Whether the left side is a phone's bottom bar: a rail alone under side drawers, unless the view keeps it a drawer.</summary>
     internal static bool HasBottomBar(CompiledView view)
@@ -375,7 +388,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         WebWords.WriteText(_translator, viewResolution.Session.Language, surface, "aria-label", dialog.Label);
 
                     // Render-time only: a dialog is not a component, so a live patch has nothing to address.
-                    if (dialog.Surface != UISurfaceStyle.Raised)
+                    if (dialog.Surface is not (UISurfaceStyle.Raised or UISurfaceStyle.Flat))
                         _ = surface.Attribute(DialogSurfaceAttribute, dialog.Surface.ToString().ToLowerInvariant());
 
                     RenderDialogLayout(dialog, surface);

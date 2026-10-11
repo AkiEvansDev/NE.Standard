@@ -117,13 +117,25 @@ internal sealed partial class RowMenusGroupContext : DemoGroupContext
 
         if (string.Equals(entry.Kind, ImageKind, StringComparison.Ordinal))
         {
-            entry.Menu.Add(new MenuItem { Id = "open", IsContent = true, Title = "Open the picture", Icon = DemoIcons.Outline(DemoIcons.ExternalLink) });
-            entry.Menu.Add(new MenuItem { Id = "save", IsContent = true, Title = "Save the picture", Icon = DemoIcons.Outline(DemoIcons.Upload) });
+            // The standard entries from the presets, in the framework's words; the one with choices of its own written by hand.
+            entry.Menu.Add(UIMenuItems.Open());
+            entry.Menu.Add(new MenuItem
+            {
+                Id = "save",
+                IsContent = true,
+                Title = "Save the picture",
+                Icon = DemoIcons.Outline(DemoIcons.Upload),
+                Items =
+                {
+                    new MenuItem { Id = "as-png", IsContent = true, Title = "As PNG" },
+                    new MenuItem { Id = "as-jpeg", IsContent = true, Title = "As JPEG" }
+                }
+            });
         }
         else
         {
-            entry.Menu.Add(new MenuItem { Id = "copy", IsContent = true, Title = "Copy the text", Icon = DemoIcons.Outline(DemoIcons.Copy) });
-            entry.Menu.Add(new MenuItem { Id = "pin", IsContent = true, Title = "Pin", Icon = DemoIcons.Outline(DemoIcons.Bell) });
+            entry.Menu.Add(UIMenuItems.Copy());
+            entry.Menu.Add(UIMenuItems.Pin());
         }
 
         return entry;

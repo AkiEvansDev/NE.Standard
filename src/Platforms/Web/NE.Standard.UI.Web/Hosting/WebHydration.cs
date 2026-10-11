@@ -54,7 +54,7 @@ internal sealed class WebHydration
         // A runtime kept while its session moved to another language or theme hears it first, so the paint is not its old text.
         await UIHost.HearBeforeRenderAsync(existing, resolution, cancellationToken).ConfigureAwait(false);
 
-        return await ReadAsync(existing, pageId: null, resolution.View.Fingerprint, render, words, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync(existing, pageId: null, resolution, render, words, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<WebHydration> PrepareNewAsync(IUIHost host, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
@@ -73,7 +73,7 @@ internal sealed class WebHydration
 
         try
         {
-            return await ReadAsync(runtime.Runtime, pageId, resolution.View.Fingerprint, render, words, cancellationToken).ConfigureAwait(false);
+            return await ReadAsync(runtime.Runtime, pageId, resolution, render, words, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -82,18 +82,20 @@ internal sealed class WebHydration
         }
     }
 
-    private static async Task<WebHydration> ReadAsync(IUIRuntime? runtime, string? pageId, string view, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
+    private static async Task<WebHydration> ReadAsync(IUIRuntime? runtime, string? pageId, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
     {
         UIRenderSnapshot snapshot = await WebInitialChanges
             .BuildAsync(runtime, pageId, render.InitBindingIds ?? [], cancellationToken)
             .ConfigureAwait(false);
 
         ServerChangeSet changes = snapshot.Changes;
+        var view = resolution.View.Fingerprint;
 
         // `view` is the compile's fingerprint: the attach presents it, and a page of another compile is reloaded rather than attached.
         // `sequence` is where the runtime the render prepared stood: the page's first attach presents it and is sent only what came after.
+        // `identity` names the parameters the route keys its runtimes by: an address differing in one goes to another runtime in place.
         return new WebHydration(
-            JsonSerializer.Serialize(new { pageId, view, sequence = snapshot.Sequence, changes, words = words.Table, title = words.Title }, JsonOptions),
+            JsonSerializer.Serialize(new { pageId, view, sequence = snapshot.Sequence, identity = resolution.Route.IdentityParameters, changes, words = words.Table, title = words.Title }, JsonOptions),
             WebRenderValues.Create(changes)
         );
     }

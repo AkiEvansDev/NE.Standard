@@ -74,6 +74,7 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton<WebSessionCookie>();
         services.TryAddSingleton<WebValueStagingStore>();
         services.TryAddSingleton<WebOutgoingValues>();
+        services.TryAddSingleton<WebRuntimeStamps>();
         services.TryAddSingleton<WebHubCallLimiter>();
         services.TryAddSingleton<WebUIMetrics>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();

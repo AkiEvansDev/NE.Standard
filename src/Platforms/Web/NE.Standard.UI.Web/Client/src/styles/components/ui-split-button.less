@@ -62,6 +62,12 @@
         text-align: start;
     }
 
+    // An icon alone keeps no gap after it, as an icon-only button's (ui-button.less): the empty body stood a gap past the glyph and
+    // pushed it off the part's centre.
+    .ui-split-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main > .ui-button__content {
+        gap: 0;
+    }
+
     .ui-split-button.ui-loading:not([data-ui-text-icon]) > .ui-split-button__main > .ui-button__content {
         opacity: @ui-loading-label-opacity;
     }

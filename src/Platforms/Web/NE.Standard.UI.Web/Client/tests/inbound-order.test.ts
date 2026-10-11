@@ -1,6 +1,7 @@
 // What the server sends is applied in the order its messages arrived, whether a push or an invoke's answer: SignalR settles an
 // answer through a promise and calls a push's handler at once, so one frame carrying both would otherwise apply the push first.
 // A pushed command result settles its command once its changes are applied, also when applying them threw before any promise existed.
+// A push carries the runtime that sent it alongside, for a page that went to another runtime over the same connection.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -139,4 +140,19 @@ test("a pushed result settles its command after its changes, whether applied at 
     }, () => order.push("settled"));
 
     assert.deepEqual(order, ["applied at once", "settled", "applied in turn", "settled"]);
+});
+
+test("a push hands on the runtime that sent it, in its turn: a page that went to another runtime tells the left one's apart", async () => {
+    const received: unknown[] = [];
+    const order = new InboundOrder(() => undefined);
+    const push = order.pushed<ServerChangeSet>((set, sender) => void received.push([nameOf(set), sender]));
+
+    push(changes("left"), "runtime-a");
+    push(changes("unsaid"));
+
+    assert.deepEqual(received, []);
+
+    await Promise.resolve();
+
+    assert.deepEqual(received, [["left", "runtime-a"], ["unsaid", undefined]]);
 });

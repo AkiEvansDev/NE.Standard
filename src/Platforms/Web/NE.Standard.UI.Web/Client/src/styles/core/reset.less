@@ -25,6 +25,18 @@ html {
     -webkit-tap-highlight-color: transparent;
 }
 
+// A load of another of the application's pages keeps this one drawn until the next has painted, then fades across to it, so the
+// shell and what stays the same across both do not blink (Chromium and Safari; elsewhere a plain load). At the framework's fast
+// tempo, not the browser's quarter second.
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: @ui-motion-fast;
+}
+
 // A shell that scrolls its own regions never scrolls the document, and a reserved gutter there only cuts every fixed layer —
 // the backdrop, a sheet, the toasts — short of the window's edge; the regions keep their own gutters. The shell marks the document too.
 html[data-ui-scroll-content] {

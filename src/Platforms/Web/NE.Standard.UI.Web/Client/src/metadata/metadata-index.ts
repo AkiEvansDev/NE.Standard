@@ -539,6 +539,8 @@ export type ConfirmLeaveClientEffect = ClientEffect & {
 
 export type DialogClientEffect = ClientEffect & {
     readonly dialogKey?: string;
+    /** A close that is the viewer's own (an × in the dialog), raising the dialog's close as Escape does. */
+    readonly raisesClose?: boolean;
 };
 
 export type ThemeModeName = "Light" | "Dark";
@@ -641,6 +643,8 @@ export type WebUIAttachRequest = {
     readonly timeZone: string | null;
     /** What the page is now: on screen or not, and what the browser lets it show. */
     readonly clientState: ClientState;
+    /** The page goes to another runtime of its route, the one its address now names, leaving the one it holds. */
+    readonly switchRuntime: boolean;
 };
 
 export type WebUIAttachResult = {

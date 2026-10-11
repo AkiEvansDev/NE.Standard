@@ -1,9 +1,36 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DemoApp.Controllers.Mechanisms;
+
+/// <summary>The copy of this page a runtime is, and what was done in it: its presses and its draft, each copy's own.</summary>
+internal sealed partial class CopiesPagesGroupContext : DemoGroupContext
+{
+    private int _presses;
+
+    [RecursiveMember]
+    public partial UIPhrase? Which { get; set; } = UIPhrase.Of("demo.mechanisms.pages.copies.this-plain");
+
+    [RecursiveMember]
+    public partial UIPhrase? Presses { get; set; } = PressesPhrase(0);
+
+    [RecursiveMember]
+    public partial string? Draft { get; set; }
+
+    public void Read(UINavigationRequest navigation)
+        => Which = navigation.TryGetParameter(PagesController.CopyParameter, out var copy) && !string.IsNullOrEmpty(copy)
+            ? UIPhrase.Of("demo.mechanisms.pages.copies.this", ("copy", copy.ToUpperInvariant()))
+            : UIPhrase.Of("demo.mechanisms.pages.copies.this-plain");
+
+    public void Press()
+        => Presses = PressesPhrase(++_presses);
+
+    private static UIPhrase PressesPhrase(int count)
+        => UIPhrase.Of("demo.mechanisms.pages.copies.presses", ("count", count));
+}
 
 /// <summary>A topic every open copy of this page takes: the waves it heard, and whether it still listens.</summary>
 internal sealed partial class TopicPagesGroupContext : DemoGroupContext
@@ -36,6 +63,12 @@ internal sealed partial class PagesController : DemoController
     /// <summary>The topic every copy of this page takes as it opens, and leaves as its runtime ends.</summary>
     public const string WaveTopic = "demo-pages:wave";
 
+    /// <summary>The parameter the route keys its runtimes by: `?copy=a` is another runtime of this page than `?copy=b`.</summary>
+    public const string CopyParameter = "copy";
+
+    [RecursiveMember]
+    public partial CopiesPagesGroupContext CopiesGroup { get; set; } = new();
+
     [RecursiveMember]
     public partial TopicPagesGroupContext TopicGroup { get; set; } = new();
 
@@ -48,6 +81,20 @@ internal sealed partial class PagesController : DemoController
 
         return Task.CompletedTask;
     }
+
+    protected override Task OnNavigatedAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        CopiesGroup.Read(navigation);
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>One more press on this copy: the other copies keep their own count.</summary>
+    [UICommand]
+    public void PressCopy()
+        => CopiesGroup.Press();
 
     /// <summary>
     /// A wave to every page on the topic, this one included: posted, so this command answers before any of them runs it, and each

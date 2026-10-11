@@ -113,6 +113,9 @@ public static class WebDomConverters
     public const string SafeImageSource = "safeImageSource";
     public const string ImageFitClass = "imageFitClass";
 
+    /// <summary>An expander's variant as its modifier: <c>ui-expander--quiet</c>, or nothing for the card.</summary>
+    public const string ExpanderVariantClass = "expanderVariantClass";
+
     /// <summary>An image's shape as its modifier: <c>ui-image--circle</c>, or nothing for the default.</summary>
     public const string ImageShapeClass = "imageShapeClass";
     public const string BackgroundImageCss = "backgroundImageCss";

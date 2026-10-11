@@ -14,6 +14,8 @@ import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selec
 // focus), and either part of a split button, washed alone as its hover is. A menu split button is one press, and the pill takes it.
 const OwnPressSelector = ".ui-tab-item__caption, .ui-split-button:not([data-ui-split-mode='menu']) > :is(.ui-split-button__main, .ui-split-button__toggle)";
 const EntrySelector = `.${ButtonClass}, .ui-action, .${MenuItemClass}, .ui-select__option, .ui-language-switcher__choice, .ui-pager__size-choice, .ui-color-input__swatch--button, .ui-expander__header, ${OwnPressSelector}`;
+// A quiet expander's line answers a press in its ink alone, as a link does, and takes it from a row around it (ui-expander.less).
+const QuietSelector = ".ui-expander--quiet > .ui-expander__header";
 const KeyValueRowClass = "ui-key-value-action__row";
 const RowSelector = `${SelectionRowSelector}, .${KeyValueRowClass}`;
 const TargetSelector = `${EntrySelector}, ${RowSelector}`;
@@ -99,7 +101,7 @@ export class PressRippleEngine {
 
         const element = target.closest<HTMLElement>(OwnPressSelector) ?? target.closest<HTMLElement>(TargetSelector);
 
-        if (element === null || isInert(element))
+        if (element === null || isInert(element) || element.matches(QuietSelector))
             return null;
 
         // A press in a popup the button holds inside it (a split button's list, the language switcher's) is the entry's, not the button's.

@@ -247,8 +247,9 @@
         background-color: var(--ui-wash-active);
     }
 
-// A toggle held down wears the selected ground and ink, the mark every chosen thing in the framework wears.
-.ui-button[data-ui-value-kind="pressed"][aria-pressed="true"] {
+// A toggle held down wears the selected ground and ink, the mark every chosen thing in the framework wears. Not a drawer's pin, a
+// toggle only so an interaction can read it: held down it keeps the hover's light wash (side-drawers.less), as the menu's own pin does.
+.ui-button[data-ui-value-kind="pressed"][aria-pressed="true"]:not([data-ui-drawer-pin]) {
     .ui-selected-ground();
     .ui-selected-ink();
 

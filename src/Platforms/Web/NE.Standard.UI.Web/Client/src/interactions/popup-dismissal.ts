@@ -27,6 +27,30 @@ export type PopupDismissalOptions = {
 
 const instances = new Set<PopupDismissal>();
 
+// What a press on a stand-in is a press on: the overlay scrollbar's thumb, in a layer of its own, for the scroller it is drawn over.
+let pressStandIn: ((path: readonly EventTarget[]) => Element | null) | null = null;
+
+/** Names the element a press on a stand-in (the overlay scrollbar's layer) is a press on, for every dismissal. */
+export function setPressStandIn(standIn: (path: readonly EventTarget[]) => Element | null): void {
+    pressStandIn = standIn;
+}
+
+/** The press's path, carried on through the element a stand-in was pressed for: a drag of a list's thumb is a press inside its popup. */
+function pressPath(domEvent: Event): readonly EventTarget[] {
+    const path = domEvent.composedPath();
+    const standsFor = pressStandIn?.(path) ?? null;
+
+    if (standsFor === null)
+        return path;
+
+    const carried: EventTarget[] = [...path];
+
+    for (let current: Element | null = standsFor; current !== null; current = current.parentElement)
+        carried.push(current);
+
+    return carried;
+}
+
 // The order Escape first found popups open in, a tie-break between unrelated popups only; one seen closed is renumbered on reopening.
 const openOrder = new Map<HTMLElement, number>();
 let openSequence = 0;
@@ -150,7 +174,7 @@ export class PopupDismissal {
 
     /** A press other than the primary one closes at once wherever it waits for the click: none follows a right press. */
     private handlePress(domEvent: Event): void {
-        const path = domEvent.composedPath();
+        const path = pressPath(domEvent);
         const atOnce = this.options.onPress === true || (domEvent instanceof MouseEvent && domEvent.button !== 0);
 
         this.pressedInside.clear();
@@ -164,7 +188,7 @@ export class PopupDismissal {
     }
 
     private handleContextMenu(domEvent: Event): void {
-        const path = domEvent.composedPath();
+        const path = pressPath(domEvent);
 
         for (const popup of [...this.options.openPopups()]) {
             if (!this.isInside(popup, path))
@@ -179,7 +203,7 @@ export class PopupDismissal {
     }
 
     private handleClick(domEvent: Event): void {
-        const path = domEvent.composedPath();
+        const path = pressPath(domEvent);
 
         // Copied first: closing one changes what is open.
         for (const popup of [...this.options.openPopups()]) {

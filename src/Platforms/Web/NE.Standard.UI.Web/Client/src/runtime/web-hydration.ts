@@ -13,6 +13,8 @@ export type WebHydrationPayload = {
     readonly sequence: number | null;
     // The compile the page was rendered from; presented at the attach, so a page of another compile is reloaded rather than fed updates.
     readonly view: string | null;
+    // The parameters the route keys its runtimes by: an address of the route differing in one is another runtime, gone to in place.
+    readonly identity: readonly string[];
     readonly changes: ServerChangeSet | undefined;
     // The table the page translates by — its language and versioned address — fetched before the first change set is applied.
     readonly words: WebPageWords | null;
@@ -48,6 +50,7 @@ export function readHydration(documentRoot: ParentNode = document): WebHydration
             pageId: parsed.pageId ?? null,
             sequence: typeof parsed.sequence === "number" ? parsed.sequence : null,
             view: typeof parsed.view === "string" ? parsed.view : null,
+            identity: Array.isArray(parsed.identity) ? parsed.identity.filter(name => typeof name === "string") : [],
             changes: parsed.changes,
             words: typeof words?.language === "string" && typeof words.href === "string" ? { language: words.language, href: words.href } : null,
             title: parsed.title ?? null

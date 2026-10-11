@@ -61,6 +61,7 @@ test("a check or a chevron keeps beside a word at the entry's end by the entry's
 test("a menu's Surface names the ground of the popup it fills by the popup's mark", () => {
     assert.match(declarations(":is(.ui-context-menu, .ui-split-button__menu)[data-ui-menu-surface=\"background\"]") ?? "", /--ui-popup-ground: var\(--ui-color-background\);/);
     assert.match(declarations(":is(.ui-context-menu, .ui-split-button__menu)[data-ui-menu-surface=\"raised\"]") ?? "", /--ui-popup-ground: var\(--ui-surface-raised\);/);
+    assert.match(declarations(":is(.ui-context-menu, .ui-split-button__menu)[data-ui-menu-surface=\"flat\"]") ?? "", /--ui-popup-ground: var\(--ui-surface-raised\);/);
     assert.match(declarations(":is(.ui-context-menu, .ui-split-button__menu)[data-ui-menu-surface=\"tinted\"]") ?? "", /--ui-popup-ground: color-mix/);
 });
 

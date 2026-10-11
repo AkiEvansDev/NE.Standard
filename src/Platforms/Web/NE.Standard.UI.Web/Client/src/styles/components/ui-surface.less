@@ -84,7 +84,8 @@
     background-color: transparent;
 }
 
-.ui-surface--raised {
+// Raised's ground, which Flat lays on the page with no shadow: an action row's fill under content of the author's own.
+.ui-surface-raised-ground() {
     --ui-surface-fill: var(--ui-surface-color, var(--ui-surface-raised));
     background-color: var(--ui-surface-fill);
     --ui-faint-base: initial;
@@ -92,7 +93,15 @@
     // A popup opened from a lifted panel is lifted once more, as the panel is off the page — from the neutral step, not a colour
     // of the panel's own: the popup's entries keep the page's ink, which reads on no colour but a neutral one.
     .ui-popup-ground-lifted(var(--ui-surface-raised));
+}
+
+.ui-surface--raised {
+    .ui-surface-raised-ground();
     .ui-elevation-1();
+}
+
+.ui-surface--flat {
+    .ui-surface-raised-ground();
 }
 
 // The mode's share keeps the hue visible and the contrast intact in both themes; mixed into the mode's ground, read on the element,

@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
@@ -25,12 +25,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent
     where T : TabsViewComponent<T>, IUIComponentDefinition
 {
-    // UIStrings keys, spelled here because the words are the framework's and the component cannot reach the shell's constants.
+    // A UIStrings key, spelled here because the words are the framework's and the component cannot reach the shell's constants;
+    // the other entries are standard actions (UIStandardAction).
     private const string RenameKey = "ui.tab.rename";
-    private const string PinKey = "ui.tab.pin";
-    private const string UnpinKey = "ui.tab.unpin";
-    private const string CloseKey = "ui.tab.close";
-    private const string DeleteKey = "ui.tab.delete";
 
     private readonly Dictionary<string, IVisualComponent> _regions;
     private readonly List<MenuItem> _entries = [];
@@ -107,8 +104,8 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         List<MenuItem> items =
         [
             new MenuItem { Id = UITabMenu.Rename, Title = RenameKey, Icon = UIGlyphs.Edit },
-            new MenuItem { Id = UITabMenu.Pin, Title = PinKey, Icon = UIGlyphs.PinOutlined },
-            new MenuItem { Id = UITabMenu.Unpin, Title = UnpinKey, Icon = UIGlyphs.PinOff },
+            UIStandardAction.Pin.ToMenuItem(UITabMenu.Pin),
+            UIStandardAction.Unpin.ToMenuItem(UITabMenu.Unpin),
             new MenuItem { Id = UITabMenu.Separator, Kind = UIMenuItemKind.Separator }
         ];
 
@@ -118,8 +115,8 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
             items.Add(new MenuItem { Id = UITabMenu.RemoveSeparator, Kind = UIMenuItemKind.Separator });
         }
 
-        items.Add(new MenuItem { Id = UITabMenu.Close, Title = CloseKey, Icon = UIGlyphs.Close });
-        items.Add(new MenuItem { Id = UITabMenu.Delete, Title = DeleteKey, Icon = UIGlyphs.Delete, TitleColor = UIThemeColor.Danger, IconColor = UIThemeColor.Danger });
+        items.Add(UIStandardAction.Close.ToMenuItem(UITabMenu.Close));
+        items.Add(UIStandardAction.Delete.ToMenuItem(UITabMenu.Delete));
 
         _ = TabMenu.SetItems(items);
     }

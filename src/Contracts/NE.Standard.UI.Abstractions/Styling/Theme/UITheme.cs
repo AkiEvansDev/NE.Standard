@@ -37,6 +37,12 @@ public sealed record UITheme
     public bool PressRipple { get; init; } = true;
 
     /// <summary>
+    /// Whether, where a pointer hovers, a scroller keeps no room for its bar and shows a thin thumb over its edge only while the pointer
+    /// is over it or it moves; on by default. Off, every scroller wears the platform's thin bar in the room it keeps.
+    /// </summary>
+    public bool OverlayScrollbars { get; init; } = true;
+
+    /// <summary>
     /// Validates all theme token groups.
     /// </summary>
     public void Validate()

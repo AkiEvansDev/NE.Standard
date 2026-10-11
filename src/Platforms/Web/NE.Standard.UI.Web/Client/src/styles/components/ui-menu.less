@@ -492,7 +492,9 @@
 }
 
 :is(@{ui-menu-host-popups})[data-ui-menu-surface="raised"],
-.ui-menu.ui-surface--raised .ui-menu__submenu[data-ui-menu-flyout] {
+:is(@{ui-menu-host-popups})[data-ui-menu-surface="flat"],
+.ui-menu.ui-surface--raised .ui-menu__submenu[data-ui-menu-flyout],
+.ui-menu.ui-surface--flat .ui-menu__submenu[data-ui-menu-flyout] {
     --ui-popup-ground: var(--ui-surface-raised);
 }
 

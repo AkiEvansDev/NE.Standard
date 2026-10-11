@@ -61,7 +61,7 @@ export class DialogEngine {
             this.returnFocusByKey.set(key, previous);
 
         if (isSwipedSheet(dialog))
-            this.swipes.set(key, followSwipeDown(surface, surface, () => this.closeFromViewer(key)));
+            this.swipes.set(key, followSwipeDown(surface, surface, () => this.dismiss(key)));
 
         return true;
     }
@@ -92,6 +92,16 @@ export class DialogEngine {
         return true;
     }
 
+    /** Closes every open dialog as the server's close does, raising nothing: the page went to another runtime, which opened none. */
+    public closeAll(): void {
+        for (const dialog of this.root.querySelectorAll<HTMLElement>(`[${DialogAttribute}]:not([hidden])`)) {
+            const key = dialog.getAttribute(DialogAttribute);
+
+            if (key !== null)
+                this.close(key);
+        }
+    }
+
     private find(key: string): HTMLElement | null {
         return this.root.querySelector<HTMLElement>(`[${DialogAttribute}="${cssAttributeValue(key)}"]`);
     }
@@ -115,7 +125,7 @@ export class DialogEngine {
         const key = dialog.getAttribute(DialogAttribute);
 
         if (key !== null)
-            this.closeFromViewer(key);
+            this.dismiss(key);
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {
@@ -134,7 +144,7 @@ export class DialogEngine {
 
             if (key !== null) {
                 domEvent.preventDefault();
-                this.closeFromViewer(key);
+                this.dismiss(key);
             }
 
             return;
@@ -144,17 +154,19 @@ export class DialogEngine {
             trapTab(topmost, domEvent);
     }
 
-    /** Closes on Escape or a backdrop press and raises a bubbling `close` (`OnClose`); the server's own close raises none, as it knows. */
-    private closeFromViewer(key: string): void {
+    /** Closes the dialog as the viewer does — Escape, the backdrop, an × of its own — raising its close for the server to hear. */
+    public dismiss(key: string): boolean {
         const dialog = this.find(key);
         const wasOpen = dialog !== null && !dialog.hasAttribute("hidden");
 
         if (!this.close(key) || !wasOpen || dialog === null)
-            return;
+            return false;
 
         const content = dialog.querySelector(ComponentSelector);
 
         content?.dispatchEvent(new Event("close", { bubbles: true }));
+
+        return true;
     }
 
     private getTopmostOpen(): HTMLElement | null {

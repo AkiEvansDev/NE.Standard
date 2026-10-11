@@ -29,6 +29,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
             .AddChild(CreatePlaced())
             .SetPlacement(1, 1, 24, 1);
 
+    // Filled, set on each field: a long form whose fields stack, where the line under each finds its edge.
     private static StackPanelComponent CreateForm()
         => UILayout.Stack(28,
             UIPage.Section("Plan", "What each server is, and how many of them.",
@@ -42,6 +43,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                             new OptionItem { Id = CheckoutController.ProPlan, Title = "Pro", Description = "4 vCPU · 16 GB · 240 GB · €64" },
                             new OptionItem { Id = CheckoutController.DedicatedPlan, Title = "Dedicated", Description = "16 vCPU · 64 GB · 960 GB · €290" }
                         ])
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.Plan))
                         .OnChange(nameof(CheckoutController.UpdateSummary)),
@@ -51,6 +53,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                         .SetMax(40)
                         .SetAllowDecimals(false)
                         .SetShowStepper()
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.Servers))
                         .OnChange(nameof(CheckoutController.UpdateSummary))
@@ -75,6 +78,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                         .SetTitle("Email")
                         .SetType(UITextInputType.Email)
                         .SetAutocomplete(UIAutocomplete.Email)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.Email))
                         .Required("The invoices have to go somewhere.", UIValidationTrigger.Submit)
@@ -84,6 +88,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                         .SetType(UITextInputType.Tel)
                         .SetAutocomplete(UIAutocomplete.Telephone)
                         .SetPlaceholder("Only if on-call should ring")
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.Phone))
                 ),
@@ -103,22 +108,26 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                     .SetTitle("Company")
                     .SetPlaceholder("Bramble Studio")
                     .SetAutocomplete(UIAutocomplete.Organization)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetFormId(FormId)
                     .BindValue(nameof(CheckoutController.Company)),
                 new TextInputComponent()
                     .SetTitle("Street and number")
                     .SetAutocomplete(UIAutocomplete.AddressLine1)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetFormId(FormId)
                     .BindValue(nameof(CheckoutController.Street)),
                 UIForm.Row(
                     new TextInputComponent()
                         .SetTitle("City")
                         .SetAutocomplete(UIAutocomplete.City)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.City)),
                     new TextInputComponent()
                         .SetTitle("Postcode")
                         .SetAutocomplete(UIAutocomplete.PostalCode)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.Postcode))
                 ),
@@ -131,6 +140,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                         new OptionItem { Id = "se", Title = "Sweden" },
                         new OptionItem { Id = "fr", Title = "France" }
                     ])
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetFormId(FormId)
                     .BindValue(nameof(CheckoutController.Country))
             )
@@ -142,15 +152,18 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                 UILayout.Stack(16,
                     new TextInputComponent()
                         .SetTitle("Street and number")
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetFormId(FormId)
                         .BindValue(nameof(CheckoutController.BillingStreet)),
                     UIForm.Row(
                         new TextInputComponent()
                             .SetTitle("City")
+                            .SetAppearance(UIInputAppearance.Filled)
                             .SetFormId(FormId)
                             .BindValue(nameof(CheckoutController.BillingCity)),
                         new TextInputComponent()
                             .SetTitle("Postcode")
+                            .SetAppearance(UIInputAppearance.Filled)
                             .SetFormId(FormId)
                             .BindValue(nameof(CheckoutController.BillingPostcode))
                     )
@@ -163,6 +176,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                     .SetPlaceholder("Left blank, nothing is printed")
                     .SetRows(3)
                     .SetMaxLength(200)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetFormId(FormId)
                     .BindValue(nameof(CheckoutController.InvoiceNote)),
                     "Printed on every invoice, two hundred characters at most.")
