@@ -1,13 +1,18 @@
 // A press in a list's rows focuses the list, never the box its rows stand in: focused by the press, the box handed the focus back to the
 // list mid-press, which cancelled the browser's drag of a row and flashed the keyboard's wash on the cursor's row. The box is out of the
-// focus's way for the press alone and out of the Tab order again once the press's focus has landed.
+// focus's way for the press alone and out of the Tab order again once the press's focus has landed. A click on a row focuses the list
+// marked as the pointer's, even where the press began on a row's control that took the focus off the list.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
+class FakeMouseEvent extends FakeEvent {
+}
+
 installFakeDom({
+    MouseEvent: FakeMouseEvent,
     MutationObserver: class {
         public observe(): void {
         }
@@ -18,6 +23,7 @@ installFakeDom({
 });
 
 const { ItemsSelectionEngine } = await import("../src/interactions/items-selection-engine.ts");
+const { notePress } = await import("../src/interactions/popup-focus.ts");
 
 /** A list of two rows, its root the stop, under a running engine. */
 function list(): { readonly root: FakeElement; readonly host: FakeElement; readonly text: FakeElement } {
@@ -78,6 +84,38 @@ test("a press marks the list as the pointer's before the browser focuses it, so 
     press("pointerdown", text);
 
     assert.equal(root.hasAttribute("data-ui-pointer-focus"), true);
+});
+
+test("a press begun on a row's control and let go beside it focuses the list back marked, so the row never flashes the keyboard's wash", () => {
+    const { root, text } = list();
+    const control = FakeElement.of("ui-surface ui-surface--clickable", { tabindex: "0", role: "button" });
+
+    text.append(control);
+    root.focus();
+
+    // The press lands on the control, which the browser focuses; the list's mark goes with its focus.
+    notePress(real(control), "mouse");
+    press("pointerdown", control);
+    control.focus();
+    root.removeAttribute("data-ui-pointer-focus");
+
+    // Let go beside the control, the click lands on the row: the list takes the focus back, wearing the mark as the focus moves.
+    let markedAsFocused: boolean | null = null;
+    const focus = root.focus.bind(root);
+
+    root.focus = (): void => {
+        markedAsFocused = root.hasAttribute("data-ui-pointer-focus");
+        focus();
+    };
+
+    const click = new FakeMouseEvent("click");
+
+    click.target = text;
+    text.dispatchEvent(click);
+
+    assert.equal(fakeDocument.activeElement, root);
+    assert.equal(markedAsFocused, true);
+    assert.equal(text.parent?.hasAttribute("data-ui-row-focus"), true);
 });
 
 test("a press outside the list leaves its box as it is", () => {

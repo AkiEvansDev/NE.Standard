@@ -40,6 +40,13 @@ internal sealed partial class DemoChatItem : TextItem
     public int Unread { get; set; }
 }
 
+/// <summary>A photo a message carries: a press shows it full size among the message's others.</summary>
+internal sealed partial class DemoChatPhoto : TextItem
+{
+    [RecursiveMember(false)]
+    public string Source { get; init; } = string.Empty;
+}
+
 /// <summary>
 /// A message: its author, words and moment, grouped by the day it was sent so a day header stands over each day's first, and drawn on
 /// the reader's side or the other's — the template variant its <see cref="Side"/> names.
@@ -79,6 +86,14 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
     /// </summary>
     [RecursiveMember(false)]
     public RecursiveCollection<MenuItem> Actions { get; } = CreateActions();
+
+    /// <summary>The photos sent with the words, in the order they stand; none for most messages.</summary>
+    [RecursiveMember(false)]
+    public RecursiveCollection<DemoChatPhoto> Photos { get; } = [];
+
+    /// <summary>The photos' strip, collapsed on a message that carries none.</summary>
+    [RecursiveMember(false)]
+    public UIVisibility PhotosVisibility => Photos.Count > 0 ? UIVisibility.Visible : UIVisibility.Collapsed;
 
     /// <summary>Whether the message is pinned; its pin entry offers the other way round.</summary>
     public bool Pinned { get; private set; }
@@ -428,7 +443,8 @@ internal sealed partial class ChatController : UIControllerBase
                 ("Amsterdam next week, lunch on Tuesday?", false)),
             Chat("c5", "Billing", Initials("Billing", "#e2734b"), "Orvane billing desk", now.AddHours(-5), 0,
                 ("Bramble Studio's invoice is attached.", false)),
-            Chat("c6", "Priya Nair", Initials("Priya Nair", "#9a6bdb"), "Reviews", now.AddHours(-9), 0,
+            // No picture at all, and one whose picture is gone: both show the person's glyph wherever the face would stand.
+            Chat("c6", "Priya Nair", string.Empty, "Reviews", now.AddHours(-9), 0,
                 ("Could you look at CHG-482?", true), ("Two comments, neither blocking.", false)),
             Chat("c7", "On call", Initials("On call", "#2a9d9f"), "4 members", now.AddDays(-1), 0,
                 ("Quiet night. The index rebuild is off the path.", false)),
@@ -436,14 +452,14 @@ internal sealed partial class ChatController : UIControllerBase
                 ("The rail reads well at phone width now.", false)),
             Chat("c9", "Ferro Logistics", Initials("Ferro Logistics", "#d9558a"), "Customer", now.AddDays(-2), 0,
                 ("Card ending 4411 expires in October.", false)),
-            Chat("c10", "Alex Warren", Initials("Alex Warren", "#5b8def"), "Infrastructure", now.AddDays(-3), 0,
+            Chat("c10", "Alex Warren", DemoImages.Missing, "Infrastructure", now.AddDays(-3), 0,
                 ("The queue drained in two minutes.", false), ("Nice. Closing the incident.", true)),
             Chat("c11", "Release notes", DemoImages.Logo, "Channel", now.AddDays(-4), 0,
                 ("481 rolled back, 482 went out clean.", false)),
             Chat("c12", "Office", Initials("Office", "#c4932f"), "12 members", now.AddDays(-5), 0,
                 ("The coffee machine is fixed. Truly.", false)),
-            Chat("c13", "Grace Kim", Initials("Grace Kim", "#3d8f8a"), "Databases", now.AddDays(-6), 0,
-                ("Photos from the offsite are up.", false)),
+            WithPhotos(Chat("c13", "Grace Kim", Initials("Grace Kim", "#3d8f8a"), "Databases", now.AddDays(-6), 0,
+                ("Photos from the offsite are up.", false)), DemoImages.HarbourSky, DemoImages.SunsetRuins, DemoImages.NightStreet, DemoImages.MeteorShore),
             Chat("c14", "Orvane Trust CA", Initials("Orvane Trust", "#6b7a8f"), "Certificates", now.AddDays(-8), 0,
                 ("The certificate for bramble.example renews in three days.", false))
         ];
@@ -494,6 +510,17 @@ internal sealed partial class ChatController : UIControllerBase
         chat.History.Add(new DemoChatMessage($"{id}-{count}", "Priya Nair", "The retries review is in.", at, mine: false));
 
         return Finish(chat);
+    }
+
+    /// <summary>The chat's last message with photos sent along, a press on one showing them full size, one after another.</summary>
+    private static DemoChatItem WithPhotos(DemoChatItem chat, params string[] sources)
+    {
+        DemoChatMessage message = chat.History[^1];
+
+        for (var i = 0; i < sources.Length; i++)
+            message.Photos.Add(new DemoChatPhoto { Id = $"{message.Id}-p{i}", Title = $"Offsite photo {i + 1}", Source = sources[i], IsContent = true });
+
+        return chat;
     }
 
     private static DemoChatItem Item(string id, string name, string avatar, string status, DateTimeOffset at, int unread, bool isGroup)

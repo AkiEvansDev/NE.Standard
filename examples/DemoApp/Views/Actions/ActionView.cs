@@ -202,7 +202,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(300))
                     .AddChild(UIText.Label("ButtonComponent"))
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Outline)
+                        .SetType(UIButtonType.Ghost)
                         // Asked for: a button centres itself, and the two only compare from the same edge.
                         .SetHorizontalAlignment(UIAlignment.Start)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Bell))

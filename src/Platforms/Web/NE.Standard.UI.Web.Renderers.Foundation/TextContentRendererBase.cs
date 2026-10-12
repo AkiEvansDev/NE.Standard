@@ -79,7 +79,9 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] MaxLinesOperations = [WebDomOperation.Style(MaxLinesVariable, converter: WebDomConverters.PositiveCount), WebDomOperation.Class(converter: WebDomConverters.MaxLinesClass)];
     private static readonly WebDomOperation[] QuoteLineOperations = [WebDomOperation.ToggleClass(QuoteClassName, condition: WebValueCondition.IsTrue)];
     private static readonly WebDomOperation[] QuoteLineColorOperations = [WebDomOperation.Style(QuoteColorVariable, converter: WebDomConverters.ThemeColorCss)];
-    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.TextIcon, target: "root", condition: WebValueCondition.DrawsIcon)];
+    private static readonly WebIconShapeSite IconShapeSite = new(ITextBaseComponent.IconProperty, ITextBaseComponent.IconShapeProperty, ITextBaseComponent.IconFallbackProperty, WebAttributes.TextIcon);
+    // A round icon's stand-in after the value's own, so the icon shows while it stands in for a value that draws nothing.
+    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.TextIcon, target: "root", condition: WebValueCondition.DrawsIcon), IconShapeSite.StandInOperation];
     private static readonly WebDomOperation[] TitleOperations = [WebDomOperation.Text(), WebDomOperation.ToggleAttribute(WebAttributes.TextTitle, target: "root", condition: WebValueCondition.HasText)];
 
     // Optional: a field that names nothing of its own (a package's editor, a picture button) carries no mark.
@@ -446,6 +448,19 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// <summary>How the field surface is drawn, as a modifier on the component root.</summary>
     public static void RenderInputAppearance(WebRenderContext context, IHtmlElementBuilder root)
     {
+        RenderFieldAppearance(context, root);
+
+        RenderFlagClass(context, root, IFieldInputComponent.ShowFocusEdgeProperty, NoFocusEdgeClassName, WebValueCondition.IsFalse);
+
+        RenderInputSize(context, root);
+    }
+
+    /// <summary>
+    /// The field surface's appearance alone, for a field-shaped control that is no input (a page switcher's field), whose size and focus
+    /// edge are not an input's.
+    /// </summary>
+    public static void RenderFieldAppearance(WebRenderContext context, IHtmlElementBuilder root)
+    {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
@@ -454,10 +469,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             if (value is UIInputAppearance appearance)
                 _ = target.Class(WebClassNames.InputAppearance(appearance));
         }, InputAppearanceOperations);
-
-        RenderFlagClass(context, root, IFieldInputComponent.ShowFocusEdgeProperty, NoFocusEdgeClassName, WebValueCondition.IsFalse);
-
-        RenderInputSize(context, root);
     }
 
     /// <summary>How much room an input takes, as a modifier on the component root; a field's appearance renders it with itself.</summary>
@@ -599,7 +610,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         _ = icon.Class("ui-icon");
 
         IconValueRenderer.RenderIconAppearance(context, icon, ITextBaseComponent.IconSizeProperty, ITextBaseComponent.IconColorProperty);
-        IconValueRenderer.RenderIconShape(context, icon, ITextBaseComponent.IconShapeProperty);
+        IconValueRenderer.RenderIconShape(context, root, icon, partsShown is null ? IconShapeSite : FollowedIconShapeSites.GetOrAdd(partsShown, static then => new WebIconShapeSite(ITextBaseComponent.IconProperty, ITextBaseComponent.IconShapeProperty, ITextBaseComponent.IconFallbackProperty, WebAttributes.TextIcon, then)));
 
         _ = RenderProperty<string?>(context, icon, ITextBaseComponent.IconProperty, (target, value) =>
         {
@@ -613,6 +624,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
     // A part's operations with the body's one more after them, built once per pair: a text body is drawn per row.
     private static readonly ConcurrentDictionary<(WebDomOperation[] Operations, WebDomOperation Then), WebDomOperation[]> FollowedOperations = new();
+    private static readonly ConcurrentDictionary<WebDomOperation, WebIconShapeSite> FollowedIconShapeSites = new();
 
     private static WebDomOperation[] Followed(WebDomOperation[] operations, WebDomOperation? then)
         => then is null ? operations : FollowedOperations.GetOrAdd((operations, then), static key => [.. key.Operations, key.Then]);

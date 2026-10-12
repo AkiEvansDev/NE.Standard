@@ -21,7 +21,8 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 /// <c>language-switcher-engine.ts</c> switches on a press where there are two languages and opens the list where there are more;
 /// the list is drawn for two as well, since the engine reads the other one from it. With one language nothing is drawn inside the
 /// root, which the stylesheet hides. A page in a language the switcher does not offer names none of its own as current: the button
-/// shows the page's language as a label that is never a choice.
+/// shows the page's language as a label that is never a choice. The field (<see cref="UISwitcherVariant.Field"/>) draws the same label
+/// and list as a select-shaped field (<see cref="SwitcherChromeRenderer.RenderField"/>), the languages by name, a press opening the list.
 /// </remarks>
 public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
 {
@@ -59,15 +60,24 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
 
     protected override string ClassName => "ui-language-switcher";
 
+    protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
+        => SwitcherChromeRenderer.IsField(context) ? (ElementName, SwitcherChromeRenderer.FieldClassName) : base.ResolveRoot(context);
+
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class(WebClassNames.Button);
-
         IReadOnlyList<string> languages = ResolveLanguages(context);
         var current = ResolveCurrent(context);
+
+        if (SwitcherChromeRenderer.IsField(context))
+        {
+            RenderField(context, root, languages, current);
+            return;
+        }
+
+        _ = root.Class(WebClassNames.Button);
         UILanguageDisplay display = ReadRenderValue<UILanguageDisplay?>(context, LanguageSwitcherComponent.DisplayProperty, null) ?? UILanguageDisplay.Code;
 
         // The engine's hook, a marker rather than the class, and what the button shows for a language.
@@ -123,7 +133,13 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
             RenderLabel(trigger, languages, PageOnlyLanguages(context, languages, current), current, display);
         });
 
-        RenderChoices(root, languages, current);
+        _ = root.Element("div", menu =>
+        {
+            _ = menu.Attribute("role", "menu");
+            _ = menu.Attribute(WebAttributes.EventBoundary);
+
+            RenderChoices(menu, languages, current, field: false);
+        });
     }
 
     /// <summary>The languages offered: the author's, in the author's order, as far as the translator lists them; else the translator's.</summary>
@@ -152,6 +168,33 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
         var session = context.ViewResolution.Session.Language;
 
         return string.IsNullOrWhiteSpace(session) ? context.Translator.DefaultLanguage : session;
+    }
+
+    /// <summary>
+    /// The field: the caption over a select's box showing the page's language by its name after the author's glyph, and the languages
+    /// as a listbox, which a press opens whatever their number; with one language, nothing, as the button.
+    /// </summary>
+    private static void RenderField(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<string> languages, string current)
+    {
+        if (languages.Count < 2)
+        {
+            _ = root.Attribute(WebAttributes.LanguageSwitcher, SwitcherChromeRenderer.FieldHookValue);
+            _ = root.Class(SingleClassName);
+            return;
+        }
+
+        SwitcherChromeRenderer.RenderField(context, root, WebAttributes.LanguageSwitcher, UIStrings.LanguageField, trigger =>
+        {
+            _ = trigger.Element("span", icon =>
+            {
+                _ = icon.Class("ui-language-switcher__icon");
+                _ = icon.Class("ui-icon");
+
+                SwitcherChromeRenderer.RenderGlyph(context, icon, LanguageSwitcherComponent.IconProperty);
+            });
+
+            RenderLabel(trigger, languages, PageOnlyLanguages(context, languages, current), current, UILanguageDisplay.Name);
+        }, list => RenderChoices(list, languages, current, field: true));
     }
 
     /// <summary>What a press on a two-language switcher asks for: the other language, or the first where the page is in neither.</summary>
@@ -260,30 +303,27 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
         });
 
     /// <summary>
-    /// The list, a menu of one choice per language, the page's own checked; inside the root, like a split button's, so the
-    /// component's inert and its closest() paths hold.
+    /// The list's choices, one per language, the page's own chosen: a menu's radio entries under the button, a listbox's options under
+    /// the field; inside the root, like a split button's, so the component's inert and its closest() paths hold.
     /// </summary>
-    private static void RenderChoices(IHtmlElementBuilder root, IReadOnlyList<string> languages, string current)
-        => _ = root.Element("div", menu =>
-        {
-            _ = menu.Class(MenuClassName);
-            _ = menu.Attribute("role", "menu");
-            _ = menu.Attribute(WebAttributes.EventBoundary);
+    private static void RenderChoices(IHtmlElementBuilder menu, IReadOnlyList<string> languages, string current, bool field)
+    {
+        _ = menu.Class(MenuClassName);
 
-            foreach (var language in languages)
+        foreach (var language in languages)
+        {
+            _ = menu.Element("button", choice =>
             {
-                _ = menu.Element("button", choice =>
-                {
-                    _ = choice.Class(ChoiceClassName);
-                    _ = choice.Attribute("type", "button");
-                    _ = choice.Attribute("role", "menuitemradio");
-                    _ = choice.Attribute("tabindex", "-1");
-                    _ = choice.Attribute("aria-checked", string.Equals(language, current, StringComparison.Ordinal) ? "true" : "false");
-                    _ = choice.Attribute(WebAttributes.Language, language);
-                    // Named in itself, so a reader's voice reads it in its own language.
-                    _ = choice.Attribute("lang", language);
-                    _ = choice.Text(NativeName(language));
-                });
-            }
-        });
+                _ = choice.Class(ChoiceClassName);
+                _ = choice.Attribute("type", "button");
+                _ = choice.Attribute("role", field ? "option" : "menuitemradio");
+                _ = choice.Attribute("tabindex", "-1");
+                _ = choice.Attribute(field ? "aria-selected" : "aria-checked", string.Equals(language, current, StringComparison.Ordinal) ? "true" : "false");
+                _ = choice.Attribute(WebAttributes.Language, language);
+                // Named in itself, so a reader's voice reads it in its own language.
+                _ = choice.Attribute("lang", language);
+                _ = choice.Text(NativeName(language));
+            });
+        }
+    }
 }

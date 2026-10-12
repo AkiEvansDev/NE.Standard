@@ -115,13 +115,18 @@ export const ImageCaptionAttribute = "data-ui-image-caption";
 export const ImageCropAttribute = "data-ui-image-crop";
 /** Beside it: the side, in pixels, the cropped picture is written at. */
 export const ImageCropSizeAttribute = "data-ui-image-crop-size";
-/** A picture (`WebClassNames.Image`), and one drawn round, which shows a person's stand-in when it fails. */
+/** A picture's box (`WebClassNames.Image`), the `<img>` it holds, and one drawn round, which shows a glyph while it has no picture. */
 export const ImageClass = "ui-image";
+export const ImagePictureClass = "ui-image__picture";
 export const ImageCircleClass = "ui-image--circle";
 /** On a picture: the author's stand-in, shown when its own source is missing or fails (`WebAttributes.FallbackSrc`). */
 export const FallbackSrcAttribute = "data-ui-fallback-src";
-/** Client-only: on a picture showing the framework's own stand-in; the stylesheet lays it on the wash (ui-image.less). */
+/** On a round picture or picture icon: the glyph it shows while it has no picture, where its author named one (`WebAttributes.FallbackIcon`). */
+export const FallbackIconAttribute = "data-ui-fallback-icon";
+/** On a picture's box showing the framework's own stand-in (`WebAttributes.ImageFailed`); the stylesheet lays it on the wash (ui-image.less). */
 export const ImageFailedAttribute = "data-ui-image-failed";
+/** On a round picture icon showing its fallback glyph (`WebAttributes.IconFailed`): "missing" with no value, "failed" when its picture failed. */
+export const IconFailedAttribute = "data-ui-icon-failed";
 /** On a surface whose background picture is blurred: it draws the blur's layer and isolates its stacking (mixins/surface-image.less). */
 export const SurfaceImageBlurAttribute = "data-ui-surface-image-blur";
 /** A split button's mode: "split" (the end part opens the menu) or "menu" (the whole button does). */
@@ -133,6 +138,8 @@ export const ItemsHostAttribute = "data-ui-items-host";
 export const CollectionSinkAttribute = "data-ui-collection-sink";
 /** On an items component's query element: the viewer's filter and sort terms as JSON. */
 export const ItemsQueryAttribute = "data-ui-items-query";
+/** On an items view's first-visible element: the key of the row at its top, as the page last wrote it back (`WebAttributes.FirstVisibleKey`). */
+export const FirstVisibleKeyAttribute = "data-ui-first-visible-key";
 /** The number culture pack as JSON; an engine formats by the nearest one above the element. */
 export const NumberCultureAttribute = "data-ui-number-culture";
 /** On an element whose number and temporal packs are the page's: a language switch writes them again (`page-culture.ts`). */
@@ -151,6 +158,8 @@ export const TemporalCultureAttribute = "data-ui-temporal-culture";
 export const PageTemporalAttribute = "data-ui-temporal";
 /** On an element a phrase holding moments was painted into: the moments, whose first paint the boot script writes again (`WebAttributes.Moments`). */
 export const MomentsAttribute = "data-ui-moments";
+/** On an element a package's engine draws, and on the region the boot script holds for it until the engines start (`WebAttributes.AwaitsDraw`). */
+export const AwaitsDrawAttribute = "data-ui-awaits-draw";
 /** A timestamp's root, whose `datetime` is its instant, and the part holding its text (`TimestampComponentRenderer`). */
 export const TimestampClass = "ui-timestamp";
 export const TimestampTextClass = "ui-timestamp__text";
@@ -174,6 +183,8 @@ export const ValueEndAttribute = "data-ui-value-end";
 export const ValueKindAttribute = "data-ui-value-kind";
 /** The value kind of the element a host's query is carried on. */
 export const ItemsQueryValueKind = "items-query";
+/** The value kind of the element an items view's first visible key is written on (`WebValueKinds.FirstVisibleKey`). */
+export const FirstVisibleKeyValueKind = "first-visible-key";
 
 /** How an items host holds its rows — "virtualized" or "windowed"; a plain host carries nothing. */
 export const HostModeAttribute = "data-ui-host-mode";
@@ -395,8 +406,14 @@ export const ThemeColorsAttribute = "data-ui-theme-colors";
 export const WordsAttribute = "data-ui-words";
 /** The place in a words mark that stands for the element's own text, beside the attributes it names: the server's `WebWords.TextTarget`. */
 export const WordsTextTarget = "#text";
-/** The language switcher's root, whose value says what its button shows for a language: `code` or `name`. */
+/** The language switcher's root, whose value says what its button shows for a language, `code` or `name`, or `field` on the field. */
 export const LanguageSwitcherAttribute = "data-ui-language-switcher";
+/** The theme switcher's root: empty on the button, `field` on the field. */
+export const ThemeSwitcherAttribute = "data-ui-theme-switcher";
+/** On a theme field's option and its words in the box: the theme it stands for, as `ThemeAttribute` spells it. */
+export const ThemeChoiceAttribute = "data-ui-theme-choice";
+/** The value of a page switcher's root attribute on its field shape (`SwitcherChromeRenderer.FieldHookValue`). */
+export const SwitcherFieldValue = "field";
 /** On a language switcher's choice: the language it switches to. */
 export const LanguageAttribute = "data-ui-language";
 /** Client-only: on a splitter while the pointer holds it, for the stylesheet's pressed look. */

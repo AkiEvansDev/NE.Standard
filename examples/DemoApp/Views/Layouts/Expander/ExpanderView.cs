@@ -151,26 +151,17 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Service name")
                     .SetValue("Billing")
                 )
-                .AddChild(new ExpanderComponent()
-                    .SetVariant(UIExpanderVariant.Quiet)
-                    .SetCollapsed()
-                    // A caption rather than a title: between two fields, a heading would make it a form of its own.
-                    .ConfigureDefaultHeader(header => header
-                        .SetIcon(DemoIcons.Sliders)
-                        .SetTitle("Advanced")
-                        .SetTitleType(UITextAppearance.Caption)
-                    )
-                    .SetContent(UILayout.Stack(12)
-                        .AddChild(new NumberInputComponent()
+                // The quiet variant as a fold (UIPage.Fold): the name a caption, the content a stack under it.
+                .AddChild(UIPage.Fold("Advanced", false,
+                        new NumberInputComponent()
                             .SetTitle("Request timeout")
                             .SetSuffixText("s")
-                            .SetValue(30)
-                        )
-                        .AddChild(new CheckboxComponent()
+                            .SetValue(30),
+                        new CheckboxComponent()
                             .SetTitle("Retry on 5xx")
                             .SetValue(true)
-                        )
                     )
+                    .ConfigureDefaultHeader(header => header.SetIcon(DemoIcons.Sliders))
                 )
                 .AddChild(new ButtonComponent()
                     .SetType(UIButtonType.Primary)

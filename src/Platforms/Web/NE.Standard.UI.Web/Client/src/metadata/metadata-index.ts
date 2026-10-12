@@ -387,6 +387,7 @@ type UICommandResult = {
 
 export type ClientEffectKindName =
     | "Navigate"
+    | "NavigateBack"
     | "Focus"
     | "ScrollTo"
     | "ScrollToItem"
@@ -412,7 +413,8 @@ export type ClientEffectKindName =
     | "ReplaceAddress"
     | "PushAddress"
     | "RequestNotificationPermission"
-    | "ShowSystemNotification";
+    | "ShowSystemNotification"
+    | "ShowImage";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
 export type ClientEffectKindValue = ClientEffectKindName | (string & {});
@@ -420,6 +422,7 @@ export type ClientEffectKindValue = ClientEffectKindName | (string & {});
 /** The built-in kinds by name, so a caller raising one does not spell it a second time. */
 export const ClientEffectKinds = {
     Navigate: "Navigate",
+    NavigateBack: "NavigateBack",
     Focus: "Focus",
     ScrollTo: "ScrollTo",
     ScrollToItem: "ScrollToItem",
@@ -445,7 +448,8 @@ export const ClientEffectKinds = {
     ReplaceAddress: "ReplaceAddress",
     PushAddress: "PushAddress",
     RequestNotificationPermission: "RequestNotificationPermission",
-    ShowSystemNotification: "ShowSystemNotification"
+    ShowSystemNotification: "ShowSystemNotification",
+    ShowImage: "ShowImage"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
@@ -475,6 +479,11 @@ export type NavigateClientEffect = ClientEffect & {
         readonly route?: string;
         readonly parameters?: Record<string, unknown> | null;
     };
+};
+
+/** The browser's Back where the entry behind is of this site, else the address of this site it names. */
+export type NavigateBackClientEffect = ClientEffect & {
+    readonly fallback?: string;
 };
 
 /** Writes the page's query from its parameters while the route stays: in place (`ReplaceAddress`) or as a new entry (`PushAddress`). */
@@ -604,6 +613,20 @@ export type SystemNotificationClientEffect = ClientEffect & {
 export type NotificationActionModel = {
     readonly label?: Phrase | AuthorText;
     readonly id?: string;
+};
+
+/** One picture a lightbox shows: its address, and the words under it and for a screen reader. */
+type LightboxImageModel = {
+    readonly source?: string;
+    readonly caption?: Phrase | AuthorText;
+    readonly altText?: Phrase | AuthorText;
+};
+
+/** Shows pictures full size over the page: the ones given, or read off the target component — with its other drawn rows' where `rows`. */
+export type ShowImageClientEffect = TargetedClientEffect & {
+    readonly images?: readonly LightboxImageModel[];
+    readonly startIndex?: number;
+    readonly rows?: boolean;
 };
 
 export type AnnouncePolitenessName = "Polite" | "Assertive";

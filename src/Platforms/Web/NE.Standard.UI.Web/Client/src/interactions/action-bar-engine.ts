@@ -5,7 +5,7 @@
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, RowBarAttribute, TableRowClass, TreeRowClass, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, PopupRoleSelector, RowBarAttribute, TableRowClass, TreeRowClass, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { ActionBarButtonClass, actionBarEntryOf, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } from "./anchored-popup.ts";
@@ -14,6 +14,7 @@ import { canScroll, isClippedOut, viewBoxAround } from "./element-visibility.ts"
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isInert } from "./interactive-state.ts";
 import { OpenDialogSelector } from "./open-dialogs.ts";
+import { ownControlOf } from "./own-control.ts";
 import { FocusableSelector, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
 import type { ComponentIndex } from "./popup-focus.ts";
 import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
@@ -118,7 +119,9 @@ export class ActionBarEngine {
 
     /**
      * A mouse's or a pen's press chooses the host under it, or takes the bar away; a finger's waits to be a tap. A press in a bar or
-     * in a context menu is neither. A right press chooses nothing: it opens the menu, and takes away a bar standing elsewhere.
+     * in a context menu is neither. A right press chooses nothing: it opens the menu, and takes away a bar standing elsewhere. A press
+     * on a control of the host's own (a button, a link, a clickable picture) is the control's: it chooses nothing, and leaves a bar
+     * standing on that host where it is.
      */
     private handlePointerDown(domEvent: Event): void {
         const pointer = domEvent as Partial<PointerEvent>;
@@ -127,7 +130,8 @@ export class ActionBarEngine {
         if (target === null || target.closest(`${BarSelector}, [${ContextMenuAttribute}]`) !== null)
             return;
 
-        const host = pressedHostOf(target);
+        const pressed = pressedHostOf(target);
+        const host = pressed !== null && pressed !== this.chosen && pressesOwnControl(target, pressed) ? null : pressed;
 
         if (pointer.pointerType === "touch") {
             this.pendingTap = { pointerId: pointer.pointerId ?? 0, host, identity: host === null ? null : identityOf(host) };
@@ -135,7 +139,7 @@ export class ActionBarEngine {
         }
 
         if ((pointer.button ?? 0) !== 0) {
-            if (host !== this.chosen)
+            if (pressed !== this.chosen)
                 this.choose(null);
 
             return;
@@ -581,6 +585,57 @@ function pressedHostOf(target: Element): HTMLElement | null {
     const component = target.closest(ComponentSelector);
 
     return row === null || (component !== null && !component.contains(row)) ? null : hostsIn(row)[0] ?? null;
+}
+
+/** Whether the press landed on a control of the host's own — not on the control the whole host is (a tile that is a button). */
+function pressesOwnControl(target: Element, host: HTMLElement): boolean {
+    const row = host.closest(`[${ComponentKeyAttribute}]`) ?? host;
+    const control = ownControlOf(target, row);
+
+    return control !== null && !isWholeOf(control, host);
+}
+
+// What stands beside a host's content and is no part of it: its right-click menu and the bar drawn over it.
+const BesideContentSelector = `[${ContextMenuAttribute}], .${ActionBarClass}, ${PopupRoleSelector}`;
+
+/**
+ * Whether the control is the host as a whole, with nothing beside it on the way up — no part, no words — but the host's menu: a tile
+ * that is a button. Being the row's one control is not enough — a message holding only a photo, a line holding only a link.
+ */
+function isWholeOf(control: Element, host: Element): boolean {
+    if (control.contains(host))
+        return true;
+
+    for (let part: Element = control; part !== host;) {
+        const parent = part.parentElement;
+
+        if (parent === null)
+            return false;
+
+        let words = wordsOf(parent) - wordsOf(part);
+
+        for (const sibling of parent.children) {
+            if (sibling === part)
+                continue;
+
+            if (!sibling.matches(BesideContentSelector))
+                return false;
+
+            words -= wordsOf(sibling);
+        }
+
+        if (words > 0)
+            return false;
+
+        part = parent;
+    }
+
+    return true;
+}
+
+/** How many letters an element holds, its spacing aside. */
+function wordsOf(element: Element): number {
+    return (element.textContent ?? "").replace(/s+/g, "").length;
 }
 
 /**

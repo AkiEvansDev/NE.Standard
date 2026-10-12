@@ -23,7 +23,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.settings.description";
 
     protected override IVisualComponent CreateScreen()
-        => UILayout.Stack(24, CreateProfile(), CreateNotifications(), CreateSecurity(), CreateDangerZone())
+        => UILayout.Stack(24, CreateProfile(), CreateDisplay(), CreateNotifications(), CreateSecurity(), CreateDangerZone())
             .SetMaxWidth(UILayoutLength.Absolute(760))
             .SetPadding(UIThickness.All(0, 8, 0, 0))
             .SetPlacement(1, 1, 24, 1);
@@ -50,33 +50,30 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 .BindValue(nameof(WorkspaceSettingsController.Bio))
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
                 "A line under your name, a hundred and sixty characters at most."),
-            UIForm.Row(
-                new SelectComponent()
-                    .SetTitle("Time zone")
-                    .SetFormId(ProfileFormId)
-                    .SetOptions(
-                    [
-                        new OptionItem { Id = "europe-amsterdam", Title = "Amsterdam (UTC+2)" },
-                        new OptionItem { Id = "europe-stockholm", Title = "Stockholm (UTC+2)" },
-                        new OptionItem { Id = "america-ashburn", Title = "Ashburn (UTC−4)" },
-                        new OptionItem { Id = "asia-singapore", Title = "Singapore (UTC+8)" }
-                    ])
-                    .BindValue(nameof(WorkspaceSettingsController.TimeZone))
-                    .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
-                new SelectComponent()
-                    .SetTitle("Language")
-                    .SetFormId(ProfileFormId)
-                    .SetOptions(
-                    [
-                        new OptionItem { Id = "en", Title = "English" },
-                        new OptionItem { Id = "pt", Title = "Português" },
-                        new OptionItem { Id = "de", Title = "Deutsch" }
-                    ])
-                    .BindValue(nameof(WorkspaceSettingsController.Language))
-                    .OnChange(nameof(WorkspaceSettingsController.SaveProfile))
-            ),
+            new SelectComponent()
+                .SetTitle("Time zone")
+                .SetFormId(ProfileFormId)
+                .SetOptions(
+                [
+                    new OptionItem { Id = "europe-amsterdam", Title = "Amsterdam (UTC+2)" },
+                    new OptionItem { Id = "europe-stockholm", Title = "Stockholm (UTC+2)" },
+                    new OptionItem { Id = "america-ashburn", Title = "Ashburn (UTC−4)" },
+                    new OptionItem { Id = "asia-singapore", Title = "Singapore (UTC+8)" }
+                ])
+                .BindValue(nameof(WorkspaceSettingsController.TimeZone))
+                .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
             UIText.Note(string.Empty).BindDescription(nameof(WorkspaceSettingsController.ProfileNote))
         ), DemoIcons.Outline(DemoIcons.UserRound));
+
+    /// <summary>
+    /// The page's own settings as fields: the theme and the language switchers drawn as a form's, which switch the page in place and
+    /// need no command, no binding and no save.
+    /// </summary>
+    private static CardComponent CreateDisplay()
+        => UIPage.Card("Display", "How these pages look to you, on this device and the next.", UIForm.Row(
+            UIForm.Field(new ThemeSwitcherComponent().AsField(), "System follows the device, light or dark as it is set."),
+            UIForm.Field(new LanguageSwitcherComponent().AsField(), "The page is rewritten in place; nothing typed is lost.")
+        ), DemoIcons.Outline(DemoIcons.LightMode));
 
     /// <summary>A list of switches, a choice made across, and a pair of times a switch reveals.</summary>
     private static CardComponent CreateNotifications()
@@ -138,7 +135,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             new SeparatorComponent(),
             UILayout.Columns(16,
                 UIText.Body("Signed-in devices").BindDescription(nameof(WorkspaceSettingsController.DevicesLine)).SetDescriptionColor(UIThemeColor.Muted).SetWrapMode(UITextWrapMode.Wrap),
-                UIButtons.Toolbar(UIButtons.Secondary("Sign out the others").OnClick(nameof(WorkspaceSettingsController.SignOutOthers)))
+                UIButtons.Toolbar(UIButtons.Ghost("Sign out the others").OnClick(nameof(WorkspaceSettingsController.SignOutOthers)))
                     .SetHorizontalAlignment(UIAlignment.End)
             )
         ), DemoIcons.Outline(DemoIcons.Lock));

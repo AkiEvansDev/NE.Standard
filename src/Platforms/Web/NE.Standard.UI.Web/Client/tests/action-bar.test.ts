@@ -306,6 +306,54 @@ test("a right press elsewhere takes the bar away and chooses nothing; on the cho
     assert.equal(barOf(at.host), null);
 });
 
+test("a press on a control of the host's own is the control's: it chooses nothing, and keeps a bar standing on that host", () => {
+    const at = scene();
+    const picture = FakeElement.of("ui-surface", { role: "button" });
+
+    at.text.append(picture);
+
+    press(at.link);
+    assert.equal(barOf(at.host), null);
+
+    tap(picture);
+    assert.equal(barOf(at.host), null);
+
+    press(at.text);
+    assert.notEqual(barOf(at.host), null);
+
+    tap(picture);
+    assert.notEqual(barOf(at.host), null);
+});
+
+test("a host that is one control as a whole, a tile that is a button, is chosen by a press on it", () => {
+    const at = scene();
+    const tile = FakeElement.of("ui-surface", { role: "button" });
+
+    at.text.remove();
+    at.host.prepend(tile);
+
+    press(tile);
+    assert.notEqual(barOf(at.host), null);
+});
+
+test("a host's one control that is not the whole of it — a message holding only a photo, a line only a link — chooses nothing", () => {
+    const at = scene();
+
+    at.text.textContent = "The notes are in ";
+    at.text.append(at.link);
+
+    press(at.link);
+    assert.equal(barOf(at.host), null);
+
+    const photo = FakeElement.of("ui-surface", { role: "button" });
+
+    at.link.remove();
+    at.text.append(photo);
+
+    tap(photo);
+    assert.equal(barOf(at.host), null);
+});
+
 test("a finger's tap chooses as it lifts; a press that turned into a scroll or a long press chooses nothing", () => {
     const at = scene();
 

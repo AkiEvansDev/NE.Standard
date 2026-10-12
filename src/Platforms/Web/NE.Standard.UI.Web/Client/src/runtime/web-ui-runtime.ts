@@ -75,6 +75,7 @@ import { componentStates } from "../interactions/interactive-state";
 import { wheel } from "../interactions/wheel-notches";
 import { seriesColors } from "../rendering/series-colors";
 import { pluginShortcutWords } from "../interactions/caret-fields";
+import { FirstVisibleKeyEngine } from "../items/first-visible-key-engine";
 import { createItemRows, ItemRows } from "../items/item-rows";
 import { ItemsRuleWatcher } from "../items/items-rule-watcher";
 import { ItemsWindowEngine, ItemWindows } from "../items/items-window-engine";
@@ -129,6 +130,7 @@ import { writeBadgeCount } from "../rendering/web-dom-converters";
 import { numberFormatting } from "../rendering/number-format";
 import { temporalFormatting } from "../rendering/temporal-format";
 import { applyPageCultures } from "../rendering/page-culture";
+import { releaseRegions } from "../rendering/region-hold";
 import { asBrowserReads, isExternalLink, isImageSource, isLocalRoute, isSafeLink } from "../rendering/url-safety";
 import { ClientStore } from "../state/client-store";
 import { CollectionSinkRegistration } from "../updates/collection-sinks";
@@ -261,6 +263,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["command bar", ({ root }) => new CommandBarEngine({ root })],
     ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
     ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
+    ["first visible key", ({ root }) => new FirstVisibleKeyEngine({ root })],
     ["surface press", ({ root }) => new SurfacePressEngine({ root })],
     ["text selection", ({ root }) => new TextSelectionEngine({ root })],
     ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
@@ -1111,6 +1114,8 @@ export class WebUIRuntime {
         // Before the attach: the markup is already the finished page, and this takes the client's copy of it.
         await this.hydrateAsync();
         this.startEnginesAwaitingHydration();
+        // A package's engine draws its part as it starts, so the regions the boot script held for one show whole from here.
+        releaseRegions(this.root);
         // Before the attach, which carries the state read then: a change meanwhile is reported once it is answered.
         this.clientState.start();
 

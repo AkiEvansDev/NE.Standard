@@ -78,10 +78,10 @@ public static class UIMessage
         // The first line is the title's where there is one, else the body's, which is shorter.
         var firstLine = title is null ? BodyLine : TitleLine;
 
-        // The mark, the words and the trailing auto columns on one row. The action stands at the message's end on the words' last
-        // line, as a toast's does, the × at the top: under the words on a phone, where beside them it would leave a few letters a line.
-        // At the top of a message taller than its words (stretched in a row of taller ones): stretched, the room would go to the rows
-        // and stand the action below the words' last line.
+        // The mark, the words and the trailing auto columns on one row. The mark stands on the words' middle; the action at the
+        // message's end on the words' last line, as a toast's does, the × at the top: under the words on a phone, where beside them it
+        // would leave a few letters a line. At the top of a message taller than its words (stretched in a row of taller ones):
+        // stretched, the room would go to the rows and stand the action below the words' last line.
         ContainerComponent layout = new ContainerComponent()
             .SetVerticalAlignment(UIAlignment.Start)
             .SetColumn(1, UIGridUnit.Auto())
@@ -89,8 +89,8 @@ public static class UIMessage
             .AddChild(new IconComponent()
                 .SetIcon(icon ?? GlyphOf(severity))
                 .SetColor(color)
-                .SetVerticalAlignment(UIAlignment.Start)
-                .SetMargin(UIThickness.All(0, (firstLine - MarkSize) / 2, 12, 0))
+                .SetVerticalAlignment(UIAlignment.Center)
+                .SetMargin(UIThickness.All(0, 0, 12, 0))
                 .SetPlacement(1, 1, 1, 1)
             )
             .AddChild(Words(title, body).SetPlacement(2, 1, 23 - trailing, 1));
@@ -131,9 +131,8 @@ public static class UIMessage
         return message.InteractOn(dismiss.Id, EventNames.Click, IVisualComponent.VisibilityProperty, UIVisibility.Collapsed);
     }
 
-    // The mark and the × stand on the first line's middle: a medium glyph, a small button, the subtitle's and the body's lines. A
-    // small button is taller than a line, so the × is drawn up into the padding rather than make the message taller.
-    private const double MarkSize = 20;
+    // The × stands on the first line's middle: a small button, the subtitle's and the body's lines. A small button is taller than a
+    // line, so the × is drawn up into the padding rather than make the message taller.
     private const double DismissSize = 28;
     private const double TitleLine = 24;
     private const double BodyLine = 20;

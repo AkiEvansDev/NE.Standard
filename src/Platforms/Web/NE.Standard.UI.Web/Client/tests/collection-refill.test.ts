@@ -75,3 +75,34 @@ test("a reset no insert follows, or an insert with no reset before it, is no ref
     assert.equal(readCollectionRefill([change("Insert", [service("a")]), change("Insert", [service("b")])], 0), null);
     assert.equal(readCollectionRefill([change("Reset"), change("Insert", [service("a")])], 1), null);
 });
+
+test("rows added one at a time with a menu each, sent merged, are one refill of every row, and each menu its own after it", () => {
+    const Menu = 70;
+    // As the server sends a clear and an Add per row once it merged the row inserts above the menus (#180).
+    const merged = [
+        change("Reset"),
+        change("Insert", [service("r1", 0), service("r2", 1), service("r3", 2)]),
+        change("Reset", [], Menu, ["r1"]),
+        change("Insert", [service("x", 0), service("y", 1)], Menu, ["r1"]),
+        change("Reset", [], Menu, ["r2"]),
+        change("Insert", [service("z", 0)], Menu, ["r2"])
+    ];
+    // The same, unmerged: the refill reads the first row alone and the others are drawn again one by one.
+    const interleaved = [
+        change("Reset"),
+        change("Insert", [service("r1", 0)]),
+        change("Reset", [], Menu, ["r1"]),
+        change("Insert", [service("x", 0), service("y", 1)], Menu, ["r1"]),
+        change("Insert", [service("r2", 1)])
+    ];
+
+    const rows = readCollectionRefill(merged, 0);
+    const menu = readCollectionRefill(merged, 2);
+
+    assert.deepEqual(keysOf(rows?.items), ["r1", "r2", "r3"]);
+    assert.equal(rows?.length, 2);
+    assert.deepEqual(menu?.dynamicParameters, ["r1"]);
+    assert.deepEqual(keysOf(menu?.items), ["x", "y"]);
+    assert.deepEqual(keysOf(readCollectionRefill(merged, 4)?.items), ["z"]);
+    assert.deepEqual(keysOf(readCollectionRefill(interleaved, 0)?.items), ["r1"]);
+});

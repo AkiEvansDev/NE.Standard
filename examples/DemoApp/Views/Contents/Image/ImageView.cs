@@ -14,6 +14,15 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ImageGroup = nameof(ImageController.ImageGroup);
 
+    /// <summary>The four the tiles show and the lightbox walks, each with the words under it.</summary>
+    private static readonly UILightboxImage[] Gallery =
+    [
+        new(DemoImages.SunsetRuins, "Sunset over the ruins"),
+        new(DemoImages.NightStreet, "A street at night"),
+        new(DemoImages.HarbourSky, "The harbour under an open sky"),
+        new(DemoImages.MeteorShore, "A meteor over the shore")
+    ];
+
     public static string ViewKey => "demo.contents.image";
 
     protected override string ComponentRoute => "/contents/image";
@@ -91,7 +100,8 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// Four pictures of four shapes in four identical boxes, where only <c>Cover</c> keeps the grid a grid.
+    /// Four pictures of four shapes in four identical boxes, where only <c>Cover</c> keeps the grid a grid; a press on one shows the
+    /// four full size, from the one pressed, on the page alone.
     /// </summary>
     private static ContainerComponent CreateGridGroup()
     {
@@ -102,36 +112,31 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetWrap(true)
                 .SetSpacing(8)
-                .AddChild(new ImageComponent()
-                    .SetSource(DemoImages.SunsetRuins)
-                    .SetFit(UIImageFit.Cover)
-                    .SetCornerRadius(UICornerRadius.Uniform(6))
-                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                    .SetHeight(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                )
-                .AddChild(new ImageComponent()
-                    .SetSource(DemoImages.NightStreet)
-                    .SetFit(UIImageFit.Cover)
-                    .SetCornerRadius(UICornerRadius.Uniform(6))
-                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                    .SetHeight(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                )
-                .AddChild(new ImageComponent()
-                    .SetSource(DemoImages.HarbourSky)
-                    .SetFit(UIImageFit.Cover)
-                    .SetCornerRadius(UICornerRadius.Uniform(6))
-                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                    .SetHeight(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                )
-                .AddChild(new ImageComponent()
-                    .SetSource(DemoImages.MeteorShore)
-                    .SetFit(UIImageFit.Cover)
-                    .SetCornerRadius(UICornerRadius.Uniform(6))
-                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                    .SetHeight(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                )
+                .AddChild(CreateTile(0))
+                .AddChild(CreateTile(1))
+                .AddChild(CreateTile(2))
+                .AddChild(CreateTile(3)),
+            note: "A press on a tile shows the four full size with no round trip (`ShowImageEffect` with the set and the tile's index): the arrows at the picture's foot, shown under the pointer, ← and → or a swipe walk them; a press beside the picture or Escape closes it."
         );
     }
+
+    /// <summary>
+    /// A tile: a pressable surface round the picture — a Tab stop Enter and Space press — so the keyboard opens it as the pointer does.
+    /// </summary>
+    private static SurfaceComponent CreateTile(int index)
+        => new SurfaceComponent()
+            .SetClickable(true)
+            .SetPadding(UIThickness.Uniform(0))
+            .SetBorderRadius(UICornerRadius.Uniform(6))
+            .SetContent(new ImageComponent()
+                .SetSource(Gallery[index].Source)
+                .SetAltText(Gallery[index].Caption)
+                .SetFit(UIImageFit.Cover)
+                .SetCornerRadius(UICornerRadius.Uniform(6))
+                .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
+                .SetHeight(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
+            )
+            .InteractOn(EventNames.Click, new ShowImageEffect(Gallery, index));
 
     /// <summary>
     /// A face in a row: small and round, its shape a circle — the box squared and the picture cropped to its middle, not fitted.
@@ -176,6 +181,28 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                     )
                 )
+                .AddChild(CreateFacelessRow(null, "Jordan Lee", "No picture yet"))
+                .AddChild(CreateFacelessRow(DemoImages.Missing, "Casey Moore", "A picture that no longer loads")),
+            note: "A round picture with no picture — none given, or one that fails — shows the person's glyph on a neutral circle, with no visibility binding in the controller; `SetFallbackIcon` names another glyph."
         );
     }
+
+    /// <summary>A row whose face is missing: the circle keeps its place and size, the person's glyph standing in it.</summary>
+    private static StackPanelComponent CreateFacelessRow(string? source, string name, string description)
+        => new StackPanelComponent()
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetSpacing(12)
+            .AddChild(new ImageComponent()
+                .SetSource(source)
+                .SetAltText(name)
+                .SetShape(UIImageShape.Circle)
+                .SetWidth(UILayoutLength.Absolute(40))
+            )
+            .AddChild(new TextComponent()
+                .SetTitle(name)
+                .SetDescription(description)
+                .SetDescriptionType(UITextAppearance.Caption)
+                .SetDescriptionColor(UIThemeColor.Muted)
+                .SetVerticalAlignment(UIAlignment.Center)
+            );
 }

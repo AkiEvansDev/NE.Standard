@@ -29,20 +29,15 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
 
     protected override IReadOnlyList<UIDialog> CreateDialogs()
         => [
-            // Neither the backdrop nor Escape answers a destructive question: only its two buttons do.
-            new UIDialog
-            {
-                Key = DialogTestController.ConfirmKey,
-                Label = Words + "confirm.label",
-                CloseOnBackdrop = false,
-                CloseOnEscape = false,
-                Content = CreatePanel(Words + "confirm.heading", $"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}",
-                    CreateButtons(
-                        CreateButton(Words + "cancel", nameof(DialogTestController.KeepRelease), UIButtonType.Ghost),
-                        CreateButton(Words + "delete", nameof(DialogTestController.DeleteRelease), UIButtonType.Danger)
-                    )
-                )
-            },
+            // The preset's question: a press beside it is no answer, Escape is Cancel, and both Cancel and Escape keep the release.
+            UIDialogs.Confirm(
+                DialogTestController.ConfirmKey,
+                Words + "confirm.heading",
+                new ParagraphComponent().BindDescription($"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}"),
+                Words + "delete",
+                nameof(DialogTestController.DeleteRelease),
+                cancelCommand: nameof(DialogTestController.KeepRelease)
+            ),
             // Wider than a centred dialog's own cap: the width is the dialog's to name, and the fields stretch to it.
             // Tonal fields: a short form the dialog already frames, not a long one whose fields stack. Headed by the preset: its mark,
             // its title and an × that closes it as Escape does, which cancels the edit as Cancel does.
@@ -75,11 +70,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 Placement = UIDialogPlacement.Left,
                 Surface = UISurfaceStyle.Background,
                 Modal = false,
-                Content = CreatePanel(Words + "filters", null,
+                Content = CreatePanel(Words + "filters",
                     CreateFilter(Words + "filters.only-failures", nameof(FiltersGroupContext.OnlyFailures)),
                     CreateFilter(Words + "filters.include-retries", nameof(FiltersGroupContext.IncludeRetries)),
                     CreateFilter(Words + "filters.last-day", nameof(FiltersGroupContext.LastDay)),
-                    CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseFilters), UIButtonType.Outline))
+                    CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseFilters), UIButtonType.Ghost))
                 )
             },
             // A sheet at the right edge over a backdrop: a click beside it, or Escape, puts the list back.
@@ -99,7 +94,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     .AddChild(new ParagraphComponent()
                         .BindDescription($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedDetails)}")
                     )
-                    .AddChild(CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseDetails), UIButtonType.Outline)))
+                    .AddChild(CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseDetails), UIButtonType.Ghost)))
             },
             // Nothing on it closes it: the command that showed it hides it when the work is done.
             new UIDialog
@@ -145,7 +140,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     .BindDescription(nameof(EditGroupContext.Owner), UIBindingScope.Relative)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-                .AddChild(CreateButton(Words + "edit", nameof(DialogTestController.BeginEdit), UIButtonType.Outline))
+                .AddChild(CreateButton(Words + "edit", nameof(DialogTestController.BeginEdit), UIButtonType.Ghost))
             ),
             note: Words + "edit.note",
             words: true
@@ -180,7 +175,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(FiltersGroupContext.Summary), UIBindingScope.Relative)
                 )
-                .AddChild(CreateButton(Words + "filters", nameof(DialogTestController.OpenFilters), UIButtonType.Outline).SetIcon(DemoIcons.Outline(DemoIcons.Filter)))
+                .AddChild(CreateButton(Words + "filters", nameof(DialogTestController.OpenFilters), UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Filter)))
             ),
             note: Words + "filters.note",
             words: true
@@ -229,17 +224,14 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         return row;
     }
 
-    /// <summary>A title, an optional bound line under it, and whatever the dialog holds below.</summary>
-    private static StackPanelComponent CreatePanel(string title, string? descriptionPath, params IVisualComponent[] body)
+    /// <summary>A title and whatever the dialog holds below.</summary>
+    private static StackPanelComponent CreatePanel(string title, params IVisualComponent[] body)
     {
-        // A paragraph, not a text: the title and the question under it are prose, which wraps rather than ending in an ellipsis.
+        // A paragraph, not a text: the title is prose, which wraps rather than ending in an ellipsis.
         ParagraphComponent heading = new ParagraphComponent()
             .SetTitle(title)
             .SetTitleType(UITextAppearance.Title)
             .SetTitleWrap(true);
-
-        if (descriptionPath is not null)
-            _ = heading.BindDescription(descriptionPath);
 
         StackPanelComponent panel = UILayout.Stack(12)
             .SetMinWidth(UILayoutLength.Absolute(320))

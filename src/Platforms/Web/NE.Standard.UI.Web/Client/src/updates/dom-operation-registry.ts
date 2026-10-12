@@ -11,6 +11,7 @@ import { logWarn } from "../runtime/logger.ts";
 import { CardHeaderShownOperationKind, writeCardHeaderShown } from "./card-header.ts";
 import { ContentFillsOperationKind, writeContentFills } from "./content-fills.ts";
 import { FormOwnerOperationKind, writeFormOwner } from "./form-owner.ts";
+import { IconStandInOperationKind, writeIconStandIn } from "./icon-stand-in.ts";
 import { MenuCurrentOperationKind, writeMenuCurrent } from "./menu-current.ts";
 import { MenuIconsOperationKind, writeMenuIcons } from "./menu-icons.ts";
 import { MenuSurfaceOperationKind, writeMenuSurface } from "./menu-surface.ts";
@@ -165,6 +166,15 @@ export class DomOperationRegistry {
         this.register(MenuCurrentOperationKind, context => writeMenuCurrent(context.target));
 
         this.register(MenuIconsOperationKind, context => writeMenuIcons(context.resolved.component));
+
+        // The host's mark that shows the icon, owned beside the value's own: a round icon with no value still shows, for its stand-in.
+        // Given back only where the stand-in held it, so a mark the first paint wrote for a value is never taken by a shape's patch.
+        this.register(IconStandInOperationKind, context => {
+            const mark = writeIconStandIn(context.target);
+
+            if (mark !== "keep")
+                toggleTrackedAttribute(context.resolved.component, IconStandInOperationKind, requireOperationName(context.operation), mark === "show", "");
+        });
 
         this.register(MenuSurfaceOperationKind, context => writeMenuSurface(context.target));
 

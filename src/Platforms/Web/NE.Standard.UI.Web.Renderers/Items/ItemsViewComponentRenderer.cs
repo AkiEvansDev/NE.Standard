@@ -21,6 +21,7 @@ namespace NE.Standard.UI.Web.Renderers.Items;
 public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-items-view__item";
+    private const string FirstVisibleClassName = "ui-items-view__first-visible";
 
     // What a row may be drawn from and still be an option: words, marks, pictures and the boxes they stand in.
     private static readonly FrozenSet<string> PassiveTypeKeys = new[]
@@ -45,6 +46,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         // Not `--ui-padding`, which every root reads as its own: the host, the scroll box, reads this one (ui-items-view.less).
         ResponsiveRenderer.ApplyResponsiveThickness(context, root, ItemsViewComponent.PaddingProperty, "--ui-items-view-padding");
         RenderSelection(context, root);
+        RenderFirstVisibleKey(context, root);
 
         // An option may hold no control of its own, so rows with buttons or fields are a list's items whatever the selection; rows that
         // are pressed without being chosen are options too, since the keyboard walks and presses them as a listbox's.
@@ -71,6 +73,22 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, rowDecorator: grip ? RowGripDecorator : null, itemWrapperRole: listbox ? "option" : "listitem", announcesSelection: announces);
         RegisterItemsFilterSortMetadata(context);
         RenderItems(context, root, listbox, announces, grip);
+    }
+
+    /// <summary>
+    /// The element the page writes the key of the row at the top onto, its own since the root's one writable value is the chosen key;
+    /// drawn only where the key is bound, so a list nobody asks about reports nothing. Empty at first: the page always reports once.
+    /// </summary>
+    private static void RenderFirstVisibleKey(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        if (context.IsPresentationCopy || ResolveRenderValue<string?>(context, ItemsViewComponent.FirstVisibleKeyProperty, out _, out _) != WebRenderValueKind.Binding)
+            return;
+
+        _ = root.Element("div", holder =>
+        {
+            _ = holder.Class(FirstVisibleClassName).Attribute("hidden").Attribute(WebAttributes.ValueKind, WebValueKinds.FirstVisibleKey);
+            _ = RenderProperty<string?>(context, holder, ItemsViewComponent.FirstVisibleKeyProperty, static (_, _) => { });
+        });
     }
 
     /// <summary>Whether a row template holds anything a press lands on — a button, a field, a link — rather than only words and pictures.</summary>

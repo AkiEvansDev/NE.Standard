@@ -65,3 +65,24 @@ internal sealed partial class ThemeSwitcherGroupContext : TooltipGroupContext
     public void CycleBackground()
         => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 }
+
+/// <summary>
+/// The theme switcher drawn as a settings form's field: the box's appearance, an input's.
+/// </summary>
+/// <remarks>
+/// The button's rows stay with the button: its type, size, padding and glyphs are no field's. The caption is decided at render, so it
+/// is no row: the pane shows the framework's own word, in the page's language.
+/// </remarks>
+internal sealed partial class ThemeFieldGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial UIInputAppearance? Appearance { get; set; }
+
+    public ThemeFieldGroupContext()
+    {
+        AddOption(nameof(Appearance), CycleAppearance, () => Appearance);
+    }
+
+    public void CycleAppearance()
+        => SetLastChange(nameof(Appearance), Appearance = CycleEnum(Appearance));
+}

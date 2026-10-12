@@ -1,6 +1,8 @@
 // A picture chosen by file: shown at once, uploaded beside the hub, and kept until the controller answers with its own picture.
 // A shelf (Multiple, or the Shelf shape) keeps a square per file, each uploaded as its own selection, the handles sent as a list: a
-// picture as its thumbnail, any other file its `Accept` lets in as its kind's glyph and its name. A single picture with a frame
+// picture as its thumbnail, any other file its `Accept` lets in as its kind's glyph and its name; a handle the controller names that
+// has no square — after a reload, on another runtime of the route — is drawn from what the server holds of it, and one the server no
+// longer holds is taken off and the list sent again, so the shelf shows what Send sends. A single picture with a frame
 // (`Crop`) is fitted to it in the crop dialog first, and the square the frame holds is what is shown and sent.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
@@ -20,7 +22,8 @@ import type { CropFrame } from "./image-crop.ts";
 import { cropPictureAsync } from "./image-crop-dialog.ts";
 import type { CropImaging } from "./image-crop-dialog.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
-import { formatFileSize, publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
+import { formatFileSize, publishSelection, readSelectionAsync, takeWithinSizeLimit, uploadedFileUrl, uploadFilesAsync } from "./file-upload.ts";
+import type { StoredFile } from "./file-upload.ts";
 import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
 import type { FieldValidation } from "./validation-engine.ts";
 
@@ -57,8 +60,17 @@ const TilesAttribute = "data-ui-image-tiles";
 
 type Tile = {
     readonly element: HTMLElement;
-    readonly url: string;
+    /** The object URL of the file the reader chose; null for a square drawn from what the server holds. */
+    readonly url: string | null;
     selectionId: string | null;
+};
+
+/** What a square shows of its file: a chosen `File` has these, and so has one the server read back. */
+type FileFace = {
+    readonly name: string;
+    readonly type: string;
+    /** Null where the server could not be asked: the square says what kind of thing it holds, not how large. */
+    readonly size: number | null;
 };
 
 /** The chosen file standing in for the controller's picture, and whether its handle has gone to the controller. */
@@ -210,9 +222,11 @@ export class ImageInputEngine {
         nameSurface(root, source.length > 0);
     }
 
-    /** The controller's list of handles is the shelf's truth once written: a square whose handle is gone from it goes too. */
+    /**
+     * The controller's list of handles is the shelf's truth once written: a square whose handle is gone from it goes too, and a handle
+     * with no square — the page loaded again, or gone to another runtime of the route — is drawn from what the server holds of it.
+     */
     private reconcileShelf(root: HTMLElement): void {
-        const tiles = this.shelves.get(root);
         const text = root.getAttribute(SelectedKeysAttribute);
 
         if (this.seenKeys.get(root) === text)
@@ -220,37 +234,104 @@ export class ImageInputEngine {
 
         this.seenKeys.set(root, text);
 
-        if (tiles === undefined || text === null)
-            return;
-
         // The shelf's own list echoed: an older echo can arrive after a later square lands, so pruning by it would drop that square.
         const sent = this.published.get(root) ?? [];
-        const echo = sent.indexOf(text);
+        const echo = text === null ? -1 : sent.indexOf(text);
 
         if (echo >= 0) {
             sent.splice(0, echo + 1);
             return;
         }
 
-        let kept: unknown;
+        const handles = readHandles(text);
 
-        try {
-            kept = JSON.parse(text);
-        }
-        catch {
-            return;
-        }
-
-        if (!Array.isArray(kept))
+        if (handles === null)
             return;
 
-        const handles = new Set(kept.filter((key): key is string => typeof key === "string"));
+        const tiles = this.shelves.get(root) ?? [];
 
         // A square still on its way has no handle yet and is nobody's to drop.
         for (const tile of [...tiles]) {
             if (tile.selectionId !== null && !handles.has(tile.selectionId))
                 this.dropTile(root, tile);
         }
+
+        this.restoreTiles(root, tiles, handles);
+    }
+
+    /** Draws a square for each handle the shelf has none for, and keeps the squares in the controller's order, those on their way last. */
+    private restoreTiles(root: HTMLElement, tiles: Tile[], handles: ReadonlySet<string>): void {
+        const host = root.querySelector<HTMLElement>(`.${TilesClass}`);
+
+        if (host === null || handles.size === 0)
+            return;
+
+        const byHandle = new Map<string, Tile>();
+
+        for (const tile of tiles) {
+            if (tile.selectionId !== null)
+                byHandle.set(tile.selectionId, tile);
+        }
+
+        const ordered: Tile[] = [];
+
+        for (const handle of handles) {
+            let tile = byHandle.get(handle);
+
+            if (tile === undefined) {
+                tile = createStoredTile(handle);
+                void this.fillStoredTileAsync(root, tile, handle);
+            }
+
+            ordered.push(tile);
+        }
+
+        for (const tile of tiles) {
+            if (tile.selectionId === null)
+                ordered.push(tile);
+        }
+
+        if (ordered.length === tiles.length && ordered.every((tile, index) => tiles[index] === tile))
+            return;
+
+        tiles.splice(0, tiles.length, ...ordered);
+        this.shelves.set(root, tiles);
+        // The squares are all the host holds: a square in place is moved, not drawn again.
+        host.replaceChildren(...tiles.map(tile => tile.element));
+        markTiles(root, tiles);
+    }
+
+    /**
+     * Shows what the server holds of a handle the square was drawn for; a handle the server no longer holds — a restart, the retention
+     * run out — is taken off the shelf and the list sent again, so the controller holds what the shelf shows.
+     */
+    private async fillStoredTileAsync(root: HTMLElement, tile: Tile, handle: string): Promise<void> {
+        let files: StoredFile[] | null;
+
+        try {
+            files = await readSelectionAsync(handle);
+        }
+        catch (error) {
+            logWarn("a file on the shelf could not be read back; it stays, as a file.", error);
+            files = [];
+        }
+
+        // Taken off the shelf while it was asked for: nothing to draw on.
+        if (!this.shelves.get(root)?.includes(tile))
+            return;
+
+        if (files === null) {
+            logWarn("a file on the shelf is gone from the server; it is taken off, and the controller told.", { selectionId: handle });
+            this.dropTile(root, tile);
+            this.publishShelf(root);
+            return;
+        }
+
+        const file = files.at(0);
+        const face: FileFace = file === undefined ? { name: "", type: "", size: null } : { name: file.fileName, type: file.contentType ?? "", size: file.size };
+
+        drawFace(tile.element, face, file === undefined ? "" : uploadedFileUrl(file.fileId));
+        tile.element.classList.remove(LoadingClass);
     }
 
     /** Revokes the object URLs of every input gone from the page — a row removed, a dialog closed — and forgets it. */
@@ -500,7 +581,9 @@ export class ImageInputEngine {
         if (tiles !== undefined && index >= 0)
             tiles.splice(index, 1);
 
-        URL.revokeObjectURL(tile.url);
+        if (tile.url !== null)
+            URL.revokeObjectURL(tile.url);
+
         tile.element.remove();
         markTiles(root, tiles ?? []);
     }
@@ -562,40 +645,82 @@ function cropSizeOf(root: HTMLElement): number {
 }
 
 /**
- * A square on the shelf: a picture as its own thumbnail, any other file as its kind's glyph over its name and size; the cross over it, and
- * the ring and the bar until the upload has landed.
+ * The handles a shelf's controller names, in its order; no list at all is an empty one — a controller's null takes the attribute off,
+ * and the squares it names no more go all the same. Null for a list that does not read.
  */
+function readHandles(text: string | null): Set<string> | null {
+    if (text === null)
+        return new Set();
+
+    let kept: unknown;
+
+    try {
+        kept = JSON.parse(text);
+    }
+    catch {
+        return null;
+    }
+
+    return Array.isArray(kept) ? new Set(kept.filter((key): key is string => typeof key === "string")) : null;
+}
+
+/** A square for a file the reader chose, shown from the file itself, with the ring and the bar until the upload has landed. */
 function createTile(file: File): Tile {
+    const element = document.createElement("span");
+    const url = URL.createObjectURL(file);
+
+    element.className = `${TileClass} ${LoadingClass}`;
+    drawFace(element, file, url);
+
+    return { element, url, selectionId: null };
+}
+
+/** A square for a handle the controller names, ringed and crossed until the server says what it holds. */
+function createStoredTile(selectionId: string): Tile {
     const element = document.createElement("span");
     const remove = document.createElement("button");
     const progress = document.createElement("span");
-    const url = URL.createObjectURL(file);
 
     element.className = `${TileClass} ${LoadingClass}`;
     remove.type = "button";
     remove.className = RemoveClass;
     progress.className = ProgressClass;
+    clientStrings.write(remove, "aria-label", "ui.file.remove");
+    element.append(remove, progress);
 
-    if (file.type.startsWith("image/")) {
+    return { element, url: null, selectionId };
+}
+
+/**
+ * A square's face: a picture as its own thumbnail from `source`, any other file as its kind's glyph over its name and size; the cross
+ * over it, and the ring and the bar while the square loads.
+ */
+function drawFace(element: HTMLElement, face: FileFace, source: string): void {
+    const remove = document.createElement("button");
+    const progress = document.createElement("span");
+
+    remove.type = "button";
+    remove.className = RemoveClass;
+    progress.className = ProgressClass;
+
+    if (face.type.startsWith("image/")) {
         const picture = document.createElement("img");
 
-        picture.src = url;
-        picture.alt = file.name;
+        picture.src = source;
+        picture.alt = face.name;
         clientStrings.write(remove, "aria-label", "ui.image.remove");
 
         // A picture the browser cannot draw — a camera's HEIC — is shown as the file it is.
-        picture.addEventListener("error", () => element.replaceChildren(...fileParts(element, remove, file), remove, progress), { once: true });
-        element.append(picture, remove, progress);
+        picture.addEventListener("error", () => element.replaceChildren(...fileParts(element, remove, face), remove, progress), { once: true });
+        element.replaceChildren(picture, remove, progress);
     }
     else {
-        element.append(...fileParts(element, remove, file), remove, progress);
+        element.replaceChildren(...fileParts(element, remove, face), remove, progress);
     }
-
-    return { element, url, selectionId: null };
 }
 
 /** A file's square's face: its kind's glyph, its name and its size, the whole name on its title, and a cross that says it takes a file away. */
-function fileParts(element: HTMLElement, remove: HTMLElement, file: File): HTMLElement[] {
+function fileParts(element: HTMLElement, remove: HTMLElement, file: FileFace): HTMLElement[] {
     const glyph = document.createElement("span");
     const label = document.createElement("span");
     const size = document.createElement("span");
@@ -608,7 +733,7 @@ function fileParts(element: HTMLElement, remove: HTMLElement, file: File): HTMLE
     label.className = FileNameClass;
     label.textContent = file.name;
     size.className = FileSizeClass;
-    size.textContent = formatFileSize(file.size, clientStrings.language);
+    size.textContent = file.size === null ? "" : formatFileSize(file.size, clientStrings.language);
     clientStrings.write(remove, "aria-label", "ui.file.remove");
 
     return [glyph, label, size];

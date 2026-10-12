@@ -38,6 +38,7 @@ const GLYPHS = [
     ["colorize", 0xe3b8],
     ["arrow_upward", 0xe5d8],
     ["arrow_downward", 0xe5db],
+    ["arrow_back", 0xe5c4],
     ["swap_vert", 0xe8d5],
     ["first_page", 0xe5dc],
     ["last_page", 0xe5dd],

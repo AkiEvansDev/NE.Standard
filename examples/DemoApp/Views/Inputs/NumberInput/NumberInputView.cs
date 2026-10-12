@@ -205,6 +205,7 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Monthly spend")
                     .SetPrefixText("€")
                     .SetValue(50)
+                    .SetAllowThousandsSeparator()
                     .SetStep(10)
                     .SetShowStepper()
                     .Validate(UIValidationTrigger.Change, UIComparisonOperator.GreaterOrEqual, 10, "Under €10 the plan cannot be billed at all.", UIValidationSeverity.Error)

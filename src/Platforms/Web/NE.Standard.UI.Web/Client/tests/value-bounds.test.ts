@@ -62,7 +62,7 @@ function tableOf(words: Record<string, string>): WordsTable {
 
 type Field = { readonly root: FakeElement; readonly input: FakeInput; readonly line: FakeElement };
 
-/** A number field as `NumberInputComponentRenderer` writes it, `SetRange(1, 1000)` in a culture grouping by a space. */
+/** A number field as `NumberInputComponentRenderer` writes it, `SetRange(1, 1000)`, grouped, in a culture grouping by a space. */
 function numberField(classes = ""): Field {
     const input = new FakeInput("text");
     const line = FakeElement.of("ui-validation-message", { "data-ui-validation-message": "" }, "span");
@@ -71,6 +71,7 @@ function numberField(classes = ""): Field {
     input.classes.add("ui-number-input__field");
     input.setAttribute("data-ui-number-min", "1");
     input.setAttribute("data-ui-number-max", "1000");
+    input.setAttribute("data-ui-number-thousands", "");
     input.value = "4";
     place(root);
 

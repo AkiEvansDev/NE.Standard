@@ -1,0 +1,67 @@
+@import "../core/tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/popup.less";
+@import "../mixins/responsive.less";
+@import "../mixins/selected.less";
+@import "../mixins/text.less";
+
+// A page switcher drawn as a settings form's field (`UISwitcherVariant.Field`): the input family's caption, a select's box
+// (`.ui-select__trigger`, which ui-input.less draws in the field's appearance and states) and the switcher's own list. The root is
+// shaped as a select's and is no `.ui-select`, whose engine would take it: the switcher's own engine drives it.
+.ui-switcher-field {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    .ui-responsive-floor(min-width, --ui-min-width, ~"min(12rem, 100%)", --ui-width);
+    gap: @ui-space-1;
+    font: inherit;
+}
+
+    // The open list's box reads as active (ui-input.less), its chevron turned up as a select's.
+    :is(.ui-language-switcher--open, .ui-theme-switcher--open) > .ui-select__trigger .ui-select__chevron::before {
+        .ui-chevron-up();
+    }
+
+    // The current choice's words, every choice's stacked in one cell so the box keeps one width; from its start, as a select's value.
+    .ui-switcher-field .ui-language-switcher__label,
+    .ui-theme-switcher__label {
+        display: inline-grid;
+        flex: 1 1 auto;
+        grid-template-columns: minmax(0, auto);
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+        .ui-switcher-field .ui-language-switcher__label-text,
+        .ui-theme-switcher__label-text {
+            grid-area: 1 / 1;
+            justify-self: start;
+            max-width: 100%;
+            .ui-text-nowrap();
+        }
+
+        // Shown once the page marks it (theme-choice.ts): the server cannot know the theme of a shell cached outside it.
+        .ui-theme-switcher__label-text:not(.ui-theme-switcher__label-text--current) {
+            visibility: hidden;
+        }
+
+// The theme field's list, as the language's (ui-language-switcher.less), placed by theme-switcher-engine.ts.
+.ui-theme-switcher__menu {
+    .ui-popup-list();
+    .ui-entry-list();
+    text-align: start;
+    cursor: default;
+    // The pointer moves the current theme, so it stays quiet while a key holds another.
+    .ui-entry-quiet(~"> .ui-theme-switcher__choice");
+}
+
+.ui-theme-switcher--open > .ui-theme-switcher__menu {
+    .ui-popup-open(flex);
+}
+
+    .ui-theme-switcher__choice {
+        .ui-choice-entry(~"[aria-selected='true']");
+        text-align: start;
+    }

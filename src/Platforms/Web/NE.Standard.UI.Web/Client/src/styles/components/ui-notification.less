@@ -95,9 +95,10 @@
     overflow-wrap: anywhere;
 }
 
-// Under the message, at its end: beside it, a label as long as "Reload" took half the message's width.
+// Under the message, at the toast's end, flush with the cross above it: beside the message, a label as long as "Reload" took half
+// its width.
 .ui-notification__action {
-    grid-column: 1;
+    grid-column: 1 / -1;
     justify-self: end;
 }
 

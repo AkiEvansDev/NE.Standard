@@ -46,8 +46,8 @@
         line-height: 0;
     }
 
-// An unsized image icon fills the block height like an avatar, not 1em like a glyph; Title layout is excluded, its icon being the title's.
-.ui-text--icon-content > .ui-text__icon.ui-icon--image:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
+// An unsized image icon, or a round one standing in for its picture, fills the block height like an avatar, not 1em like a glyph; Title layout is excluded, its icon being the title's.
+.ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]):not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
     align-self: stretch;
     width: auto;
     height: auto;
@@ -57,7 +57,7 @@
 }
 
     // `cover`, not `contain` like a glyph-image: this is a framed, clipping photo, not a glyph's slot.
-    .ui-text--icon-content > .ui-text__icon.ui-icon--image:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large)::before {
+    .ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]):not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large)::before {
         width: 100%;
         height: 100%;
         background-size: cover;
@@ -66,7 +66,7 @@
     }
 
 // A round picture's tile is the circle itself, which the picture above inherits; later and as specific, so it wins.
-.ui-text--icon-content > .ui-text__icon.ui-icon--image.ui-icon--circle {
+.ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]).ui-icon--circle {
     border-radius: 50%;
 }
 
@@ -314,12 +314,13 @@
 }
 
 // TitleWrap: a heading in prose (an article's headline, a dialog's question, a card's flavour line) runs on rather than losing its end;
-// an interface heading keeps its one line. Balanced, so a headline does not leave one word on its last line.
+// an interface heading keeps its one line. Balanced, so a headline does not leave one word on its last line. It breaks only between
+// words — "Serv / ers" read as two words — and a single word longer than its line ends in an ellipsis.
 .ui-text--title-wrap@{ui-text-with-title} > .ui-text__body > .ui-text__header > .ui-text__title {
-    overflow: visible;
+    overflow: hidden;
     white-space: normal;
-    text-overflow: clip;
-    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
     text-wrap-style: balance;
 }
 

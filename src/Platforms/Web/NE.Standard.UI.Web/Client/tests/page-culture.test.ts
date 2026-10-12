@@ -41,6 +41,7 @@ test("a number field at rest is drawn again in the pack a switch wrote", () => {
     const root = FakeElement.of("ui-number-input", { "data-ui-id": "1", "data-ui-page-culture": "", "data-ui-number-culture": JSON.stringify(English) });
 
     field.classes.add("ui-number-input__field");
+    field.setAttribute("data-ui-number-thousands", "");
     field.value = "1234.5";
     root.append(field);
     fakeDocument.body.children.length = 0;

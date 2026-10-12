@@ -72,6 +72,38 @@ test("a sidebar's current entry rounds as its neighbours do, straight only on th
     }
 });
 
+test("a list's rows round their washes as a menu's entries do, a chosen row straight only on its mark's edge; a grid's stay square", () => {
+    for (const [host, row] of [[".ui-items-view--stack", ".ui-items-view__item"], [".ui-tree", ".ui-tree__row"]] as const) {
+        const rows = `${host} > [data-ui-items-host] > ${row}`;
+
+        assert.equal(declarations(`${rows} {`)?.trim(), entryRadius, `${row} does not take the list entry's corner`);
+        // Its own rule, beside the chosen look's (the tree's is spelled the same).
+        assert.ok(css.includes(`\n${rows}[data-ui-selected] {\n  border-top-left-radius: 0;\n  border-bottom-left-radius: 0;\n}`), `a chosen ${row} is not straight on its leading mark's edge alone`);
+        assert.equal(declarations(`${host}[style*="--ui-selected-mark: none"] > [data-ui-items-host] > ${row}[data-ui-selected] {`)?.trim(), entryRadius, `a chosen ${row} with no mark does not round all round`);
+
+        for (const [mark, corners] of [["inset -2px", ["top-right", "bottom-right"]], ["inset 0 2px", ["top-left", "top-right"]], ["inset 0 -2px", ["bottom-left", "bottom-right"]]] as const) {
+            const rule = declarations(`${host}[style*="--ui-selected-mark: ${mark}"] > [data-ui-items-host] > ${row}[data-ui-selected] {`) ?? "";
+
+            assert.ok(rule.includes(entryRadius), `a chosen ${row} marked ${mark} does not round its other corners`);
+
+            for (const corner of corners)
+                assert.match(rule, new RegExp(`border-${corner}-radius: 0;`), `a chosen ${row} marked ${mark} is not straight at its ${corner} corner`);
+        }
+    }
+
+    assert.doesNotMatch(css, /\.ui-items-view--wrap[^{,]*> \.ui-items-view__item \{[^}]*radius/, "a wrapped view's row, display: contents, takes no corner: its tile keeps its own");
+    assert.doesNotMatch(css, /\n\.ui-(table__row|key-value-action__row)[^{]*\{[^}]*calc\(var\(--ui-radius-button\) \* 2 \/ 3\)/, "a table's or a key-value list's row takes the list entry's corner");
+});
+
+test("a list's row the keyboard is on wears the frame's corner, its rule outweighing the row's own", () => {
+    // Seven attributes and classes against the heaviest corner rule's five (host, inline mark, items host, row, chosen).
+    for (const [host, row] of [[".ui-items-view", ".ui-items-view__item"], [".ui-tree", ".ui-tree__row"]] as const) {
+        const cursor = declarations(`${host}:focus:not([data-ui-pointer-focus]) > [data-ui-items-host] > ${row}[data-ui-row-focus][data-ui-selected] {`) ?? "";
+
+        assert.match(cursor, /border-radius: var\(--ui-radius-button\);/, `a chosen ${row} under the keyboard does not take the frame's corner`);
+    }
+});
+
 test("a label floating over the page keeps a field's corner rather than the list popup's", () => {
     assert.match(declarations(".ui-tooltip {") ?? "", /border-radius: var\(--ui-radius-input\);/);
     assert.match(declarations(".ui-slider__bubble {") ?? "", /border-radius: var\(--ui-radius-input\);/);

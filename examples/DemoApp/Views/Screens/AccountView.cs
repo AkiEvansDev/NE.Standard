@@ -23,14 +23,14 @@ internal sealed class AccountView : DemoScreenView, IUIViewDefinition
                     CreateLine("Roles", nameof(AccountController.RolesLine)),
                     CreateLine("Permissions", nameof(AccountController.PermissionsLine)),
                     UIButtons.Toolbar(
-                        UIButtons.Secondary("Sign out", DemoIcons.Outline(DemoIcons.Close)).OnClick(nameof(AccountController.SignOutAsync))
+                        UIButtons.Ghost("Sign out", DemoIcons.Outline(DemoIcons.Close)).OnClick(nameof(AccountController.SignOutAsync))
                     )
                 ), DemoIcons.Outline(DemoIcons.User)),
                 UIPage.Card("Reports", "Every account may view; only reports.export may export; only an admin opens the console.", UILayout.Stack(12,
                     UIText.Note(string.Empty).BindDescription(nameof(AccountController.ReportLine)),
                     UILayout.Row(8,
                         UIButtons.Primary("View the revenue report").OnClick(nameof(AccountController.ViewReport)),
-                        UIButtons.Secondary("Export it", DemoIcons.Outline(DemoIcons.Download)).OnClick(nameof(AccountController.ExportReport)),
+                        UIButtons.Ghost("Export it", DemoIcons.Outline(DemoIcons.Download)).OnClick(nameof(AccountController.ExportReport)),
                         UIButtons.Ghost("Open the admin console", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(AccountController.OpenAdmin))
                     )
                 ), DemoIcons.Outline(DemoIcons.FileText))

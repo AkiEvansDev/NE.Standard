@@ -328,6 +328,9 @@
     .ui-selected-tile();
 }
 
+// A stack's rows are a list's: rounded as a menu's entries; a wrap's tile keeps its own corner.
+.ui-list-row-corners(~".ui-items-view--stack", ~".ui-items-view__item");
+
 // A row the reader drags to another place (Draggable): faint where it stands, and a line on the side of the row it would land beside.
 .ui-items-view .ui-row--dragging {
     opacity: @ui-drag-ghost-opacity;

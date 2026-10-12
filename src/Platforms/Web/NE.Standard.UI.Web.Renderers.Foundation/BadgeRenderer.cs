@@ -28,8 +28,11 @@ public sealed record WebBadgeRenderOptions
 
     public required UIProperty IconSizeProperty { get; init; }
 
-    /// <summary>The shape a picture icon is drawn in (<c>UIIconShape</c>), where the badge has one — a chip's, not a text's.</summary>
-    public UIProperty? IconShapeProperty { get; init; }
+    /// <summary>
+    /// The shape a picture icon is drawn in (<c>UIIconShape</c>) and its fallback, where the badge has them — a chip's, not a text's;
+    /// shown by <see cref="BadgeRenderer.IconShownAttribute"/> on the badge's own element.
+    /// </summary>
+    public WebIconShapeSite? IconShape { get; init; }
 
     public required UIProperty TextProperty { get; init; }
 
@@ -61,8 +64,8 @@ public sealed record WebBadgeRenderOptions
 /// <summary>Renders a badge — its style or raw colour, icon and text — into an element, whichever component owns it.</summary>
 public static class BadgeRenderer
 {
-    // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
-    private const string IconShownAttribute = "data-ui-badge-icon";
+    /// <summary>On the badge while its icon shows. Read by the stylesheet alone, so here rather than in WebAttributes, which holds what the client script reads.</summary>
+    public const string IconShownAttribute = "data-ui-badge-icon";
     private const string ColorVariable = "--ui-badge-color";
     private const string InkVariable = "--ui-badge-ink";
     private const string OnColorVariable = "--ui-badge-on";
@@ -83,7 +86,7 @@ public static class BadgeRenderer
     ];
 
     // The content-state marks land on the badge's own element, which differs by host: per target, built once.
-    private static readonly ConcurrentDictionary<(string Target, string? ShownTarget, WebDomOperation? Then), BadgeStateOperations> StateOperations = new();
+    private static readonly ConcurrentDictionary<(string Target, string? ShownTarget, WebDomOperation? Then, WebDomOperation? StandIn), BadgeStateOperations> StateOperations = new();
 
     public static void RenderBadge(WebRenderContext context, IHtmlElementBuilder componentRoot, IHtmlElementBuilder badgeRoot, WebBadgeRenderOptions options)
         => RenderBadge(context, componentRoot, badgeRoot, options, shownMarkHost: null);
@@ -144,7 +147,7 @@ public static class BadgeRenderer
         // On the badge, not only its text, so an icon with no size of its own inherits the text's height.
         TextAppearanceRenderer.RenderTextAppearance(context, badgeRoot, options.TextTypeProperty);
 
-        BadgeStateOperations state = StateOperations.GetOrAdd((options.ContentStateTarget, options.ShownMarkTarget, options.PartsShownOperation), static key => new BadgeStateOperations(key.Target, key.ShownTarget, key.Then));
+        BadgeStateOperations state = StateOperations.GetOrAdd((options.ContentStateTarget, options.ShownMarkTarget, options.PartsShownOperation, options.IconShape?.StandInOperation), static key => new BadgeStateOperations(key.Target, key.ShownTarget, key.Then, key.StandIn));
 
         _ = badgeRoot.Element("span", icon =>
         {
@@ -153,8 +156,8 @@ public static class BadgeRenderer
 
             IconValueRenderer.RenderIconAppearance(context, icon, options.IconSizeProperty, options.IconColorProperty);
 
-            if (options.IconShapeProperty is UIProperty shapeProperty)
-                IconValueRenderer.RenderIconShape(context, icon, shapeProperty);
+            if (options.IconShape is WebIconShapeSite shape)
+                IconValueRenderer.RenderIconShape(context, badgeRoot, icon, shape);
 
             _ = WebComponentRendererBase.RenderProperty<string?>(context, icon, options.IconProperty, (target, value) =>
             {
@@ -220,13 +223,14 @@ public static class BadgeRenderer
         });
     }
 
-    private sealed class BadgeStateOperations(string target, string? shownTarget, WebDomOperation? then)
+    private sealed class BadgeStateOperations(string target, string? shownTarget, WebDomOperation? then, WebDomOperation? standIn)
     {
         public WebDomOperation[] Icon { get; } =
         [
             .. IconValueRenderer.Operations,
             WebDomOperation.ToggleAttribute(IconShownAttribute, target: target, condition: WebValueCondition.DrawsIcon),
             .. ShownMark(WebAttributes.TextBadgeIcon, shownTarget, WebValueCondition.DrawsIcon),
+            .. Then(standIn),
             .. Then(then)
         ];
 

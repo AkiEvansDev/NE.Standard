@@ -32,6 +32,9 @@ public static class UIGlyphs
     public const string ArrowUp = "ne-arrow-up";
     public const string ArrowDown = "ne-arrow-down";
 
+    /// <summary>An arrow pointing back: the standard Back action, a page left for the one it was reached from.</summary>
+    public const string ArrowBack = "ne-arrow-back";
+
     /// <summary>The two ways a column may go: what a column sorted neither way shows, beside <see cref="ArrowUp"/> and <see cref="ArrowDown"/>.</summary>
     public const string Sort = "ne-sort";
     public const string FirstPage = "ne-first-page";

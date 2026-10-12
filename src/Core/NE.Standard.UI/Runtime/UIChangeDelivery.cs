@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Runtime;
 
 /// <summary>
 /// Sends a change set to a runtime's attached instances, each as <see cref="IUIRuntime.ChangesFor"/> gives it: without what its
-/// snapshot or its own write already holds.
+/// snapshot or its own write already holds — each with its runs of inserts on one list merged (<see cref="UICollectionInsertMerge"/>).
 /// </summary>
 internal static class UIChangeDelivery
 {
@@ -21,13 +21,14 @@ internal static class UIChangeDelivery
         {
             ServerChangeSet own = runtime.ChangesFor(instanceId, changes);
 
+            // Merged only once the watermark has cut it: the merged set carries no queue numbers.
             if (ReferenceEquals(own, changes))
                 (unaffected ??= []).Add(instanceId);
             else if (!own.IsEmpty)
-                await sink.SendChangesAsync(handle, [instanceId], own, cancellationToken).ConfigureAwait(false);
+                await sink.SendChangesAsync(handle, [instanceId], UICollectionInsertMerge.Merge(own), cancellationToken).ConfigureAwait(false);
         }
 
         if (unaffected is not null)
-            await sink.SendChangesAsync(handle, unaffected, changes, cancellationToken).ConfigureAwait(false);
+            await sink.SendChangesAsync(handle, unaffected, UICollectionInsertMerge.Merge(changes), cancellationToken).ConfigureAwait(false);
     }
 }

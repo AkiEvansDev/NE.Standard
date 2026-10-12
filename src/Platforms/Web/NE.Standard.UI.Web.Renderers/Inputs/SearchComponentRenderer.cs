@@ -73,11 +73,8 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
             {
                 _ = field.Class("ui-search__field ui-field-box");
 
-                _ = field.Element("span", glyph =>
-                {
-                    _ = glyph.Class("ui-search__glyph");
-                    _ = glyph.Attribute("aria-hidden", "true");
-                });
+                // An icon rather than a mark the stylesheet draws: an application's glyph map (MapUIGlyph) reaches it, as it reaches a search field's.
+                IconValueRenderer.RenderIcon(field, UIGlyphs.Search, $"ui-search__glyph {WebClassNames.IconSize(UIIconSize.Small)}");
 
                 _ = field.Element("input", input => RenderSearchInput(context, input));
             });

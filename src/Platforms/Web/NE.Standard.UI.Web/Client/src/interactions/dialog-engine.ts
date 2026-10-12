@@ -1,13 +1,14 @@
-import { ComponentSelector, cssAttributeValue, DialogSurfaceClass } from "../addressing/dom-attributes";
-import { logWarn } from "../runtime/logger";
-import { isCaretField } from "./caret-fields";
-import { escapeIsClaimed } from "./field-escape";
-import { isComposing } from "./keyboard-shortcut";
-import { hasOpenPopups } from "./popup-dismissal";
-import { firstFocusable, isTouchLast, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, trapTab } from "./popup-focus";
-import { followSwipeDown } from "./sheet-swipe";
-import type { ComponentIndex } from "./popup-focus";
-import { BackdropAttribute, CloseOnBackdropAttribute, CloseOnEscapeAttribute, DialogAttribute, findTopmostOpenDialog, isBehindModal, ModalAttribute, PlacementAttribute } from "./open-dialogs";
+// `.ts` on the value imports: `node --test` loads this module as it is (the lightbox's test).
+import { ComponentSelector, cssAttributeValue, DialogSurfaceClass } from "../addressing/dom-attributes.ts";
+import { logWarn } from "../runtime/logger.ts";
+import { isCaretField } from "./caret-fields.ts";
+import { escapeIsClaimed } from "./field-escape.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
+import { hasOpenPopups } from "./popup-dismissal.ts";
+import { firstFocusable, isTouchLast, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, trapTab } from "./popup-focus.ts";
+import { followSwipeDown } from "./sheet-swipe.ts";
+import type { ComponentIndex } from "./popup-focus.ts";
+import { BackdropAttribute, CloseOnBackdropAttribute, CloseOnEscapeAttribute, DialogAttribute, findTopmostOpenDialog, isBehindModal, ModalAttribute, PlacementAttribute } from "./open-dialogs.ts";
 
 export type DialogEngineOptions = {
     readonly root?: ParentNode;
@@ -26,6 +27,7 @@ export class DialogEngine {
         this.root = options.root ?? document;
         this.components = options.dom ?? null;
 
+        this.root.addEventListener("mousedown", domEvent => keepFocusOffBackdrop(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent), true);
     }
@@ -172,6 +174,17 @@ export class DialogEngine {
     private getTopmostOpen(): HTMLElement | null {
         return findTopmostOpenDialog(this.root);
     }
+}
+
+/**
+ * A press on an open dialog's backdrop takes no focus: the browser would drop it to the body as the press began, and the close the
+ * press asks for could then give it back nowhere.
+ */
+function keepFocusOffBackdrop(domEvent: Event): void {
+    const backdrop = domEvent.target instanceof Element ? domEvent.target.closest(`[${BackdropAttribute}]`) : null;
+
+    if (backdrop !== null && backdrop.closest(`[${DialogAttribute}]:not([hidden])`) !== null)
+        domEvent.preventDefault();
 }
 
 /** A bottom sheet the viewer may put away — by its backdrop or Escape — which its handle and a swipe down put away too. */

@@ -1,7 +1,8 @@
 // The two-language toggle weighs a press against the language asked for, not the one still shown — a second press while the first
 // switch loads goes back — and, the page in a language it does not offer, asks for the author's first; such a page checks none of
 // its choices and shows its language as a label only. The button is named by the page's language and, with two, by the one a press
-// switches to; with three or more a press, or an arrow, opens the list instead.
+// switches to; with three or more a press, or an arrow, opens the list instead. The field opens its list whatever the number, its
+// options selected rather than checked, its box named by its caption.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -199,4 +200,54 @@ test("the open list is one stop of the Tab order, on the page's language, and Ta
 
     assert.equal(switcher.classes.has("ui-language-switcher--open"), false);
     assert.equal(tab.defaultPrevented, false);
+});
+
+/** A language switcher's field as the renderer draws it: a select's box named by its caption, its languages a listbox's options. */
+function fieldScene(offered: readonly string[] = ["en", "zh-Hans"]): Scene & { readonly field: FakeElement } {
+    const labels = new Map(offered.map(language => [language, label(language)] as const));
+    const trigger = FakeElement.of("ui-select__trigger", { role: "combobox", "aria-label": "Language", "aria-expanded": "false" }, "button")
+        .append(FakeElement.of("ui-language-switcher__label").append(...labels.values()));
+    const choices = offered.map(language => {
+        const choice = FakeElement.of("ui-language-switcher__choice", { role: "option", "data-ui-language": language, "aria-selected": "false" }, "button");
+
+        choice.textContent = NativeNames[language];
+
+        return choice;
+    });
+    const field = FakeElement.of("ui-switcher-field", { "data-ui-language-switcher": "field" }, "span")
+        .append(trigger, FakeElement.of("ui-language-switcher__menu", { role: "listbox" }).append(...choices));
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(field);
+    asked.length = 0;
+
+    return { trigger, choices, labels, field };
+}
+
+test("the field opens its list even with two languages, and a choice switches through SetLanguage as the button's does", () => {
+    const at = fieldScene();
+
+    show("en");
+    at.trigger.dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(at.field.classes.has("ui-language-switcher--open"), true);
+    assert.deepEqual(asked, []);
+    assert.deepEqual(at.choices.map(choice => choice.tabIndex), [0, -1]);
+
+    at.choices[1].dispatchEvent(new FakeEvent("click"));
+
+    assert.deepEqual(asked, ["zh-Hans"]);
+    assert.equal(at.field.classes.has("ui-language-switcher--open"), false);
+});
+
+test("a switch from anywhere selects the field's option and shows its words; the box keeps its caption's name", () => {
+    const at = fieldScene();
+
+    show("zh-Hans");
+
+    assert.deepEqual(at.choices.map(choice => choice.getAttribute("aria-selected")), ["false", "true"]);
+    assert.equal(at.choices.some(choice => choice.hasAttribute("aria-checked")), false);
+    assert.equal(at.labels.get("zh-Hans")?.classes.has("ui-language-switcher__label-text--current"), true);
+    assert.equal(at.trigger.getAttribute("aria-label"), "Language");
+    assert.equal(at.trigger.hasAttribute("data-ui-words"), false);
 });

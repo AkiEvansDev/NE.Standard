@@ -35,6 +35,7 @@ internal static class DemoUI
         ("demo.nav.section.mechanisms", DemoIcons.Outline(DemoIcons.Mechanism),
         [
             ("/design/colors", "demo.nav.design.colors"),
+            ("/design/presets", "demo.nav.design.presets"),
             ("/mechanisms/words", "demo.nav.mechanisms.words"),
             ("/mechanisms/commands", "demo.nav.mechanisms.commands"),
             ("/mechanisms/values", "demo.nav.mechanisms.values"),
@@ -125,15 +126,20 @@ internal static class DemoUI
 
     /// <summary>
     /// The page band from the preset; the theme and language switchers are on every page, controller or not, since the theme and the
-    /// language are the framework's state.
+    /// language are the framework's state. A page reached from another leads it with <paramref name="leading"/>, its Back.
     /// </summary>
-    public static ContainerComponent CreateHeader(string title, string description)
-        => UIPage.Header(title, description,
+    public static ContainerComponent CreateHeader(string title, string description, IVisualComponent? leading = null)
+    {
+        IVisualComponent[] switchers =
+        [
             new LanguageSwitcherComponent(),
             new ThemeSwitcherComponent()
                 .SetLightIcon(DemoIcons.Outline(DemoIcons.LightMode))
                 .SetDarkIcon(DemoIcons.Outline(DemoIcons.DarkMode))
-        );
+        ];
+
+        return leading is null ? UIPage.Header(title, description, switchers) : UIPage.Header(leading, title, description, switchers);
+    }
 
     /// <summary>
     /// The sidebar every route wears, built from <see cref="MenuComponent"/>.

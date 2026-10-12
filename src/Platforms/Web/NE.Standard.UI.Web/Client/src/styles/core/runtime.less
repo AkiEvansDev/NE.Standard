@@ -188,6 +188,21 @@
     visibility: visible;
 }
 
+// A region holding a part only a package's engine draws, marked by the boot script and let go by the runtime (region-hold.ts): out
+// of sight meanwhile, so a page load never paints that part empty. An animation, so a script that never runs leaves the region as it
+// was; `!important` outranks the reduced-motion rule, since a hold is no movement. Opacity, as a part's own `visibility: visible`
+// would show through a hidden region.
+[data-ui-region][data-ui-awaits-draw] {
+    animation: ui-region-awaits-draw 1.5s !important;
+}
+
+@keyframes ui-region-awaits-draw {
+    from,
+    to {
+        opacity: 0;
+    }
+}
+
 // The client's own way of taking something out of a list, distinct from the author-facing Visibility property.
 .ui-hidden {
     display: none !important;

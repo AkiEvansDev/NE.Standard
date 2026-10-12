@@ -34,6 +34,10 @@ public static class UIIconButtons
     public static ButtonComponent Save()
         => Create(UIStandardAction.Save);
 
+    /// <summary>End an edit made in place — a message's words, a cell, a title — with a check; <see cref="Save"/> writes a document out.</summary>
+    public static ButtonComponent Done()
+        => Create(UIStandardAction.Done);
+
     /// <summary>Give up what is under way.</summary>
     public static ButtonComponent Cancel()
         => Create(UIStandardAction.Cancel);
@@ -41,6 +45,17 @@ public static class UIIconButtons
     /// <summary>Close it.</summary>
     public static ButtonComponent Close()
         => Create(UIStandardAction.Close);
+
+    /// <summary>
+    /// Go back to where the page was reached from: give it <c>.InteractOn(EventNames.Click, new NavigateBackEffect(fallback))</c> for
+    /// the browser's Back, or a command of its own where back means a place of the application's.
+    /// </summary>
+    public static ButtonComponent Back()
+        => Create(UIStandardAction.Back);
+
+    /// <summary>Make a new one.</summary>
+    public static ButtonComponent New()
+        => Create(UIStandardAction.New);
 
     /// <summary>Delete it: the glyph in the danger colour.</summary>
     public static ButtonComponent Delete()

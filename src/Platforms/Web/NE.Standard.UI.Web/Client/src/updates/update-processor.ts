@@ -324,7 +324,7 @@ export class UpdateProcessor {
 
             this.state.forgetRows(refill.componentId, refill.dynamicParameters, redrawn);
             this.syncItemsHost(host, refill.componentId);
-            this.dom.invalidate();
+            this.dom.invalidate(host);
             return;
         }
 
@@ -395,7 +395,7 @@ export class UpdateProcessor {
         }
 
         this.syncItemsHost(host, refill.componentId);
-        this.dom.invalidate();
+        this.dom.invalidate(host);
     }
 
     /** Validation updates are routed out to ValidationEngine rather than patched onto the DOM here. */
@@ -576,8 +576,8 @@ export class UpdateProcessor {
         if (componentId !== null)
             this.syncItemsHost(host, componentId);
 
-        // Marked rather than rebuilt: the registry rebuilds on its next lookup, which is what lets the rest of this set address these rows.
-        this.dom.invalidate();
+        // Only the host's subtree, read on the registry's next lookup: a change set of many updates reads the page once, not once each.
+        this.dom.invalidate(host);
     }
 
     /** A row's index in its host's whole collection: a virtualized host's values, a windowed one's rows past its offset. */

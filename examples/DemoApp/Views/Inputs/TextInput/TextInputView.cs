@@ -214,7 +214,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     )
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Outline)
+                    .SetType(UIButtonType.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                     .SetTitle("Copy the install command")

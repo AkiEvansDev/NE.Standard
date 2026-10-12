@@ -71,7 +71,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateRepeatGroup()
         => DemoUI.CreateExample(Words + "repeat.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Outline)
+                .SetType(UIButtonType.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.mechanisms.commands.charge")
                 .BindBadgeText(nameof(CountGroupContext.Count), UIBindingScope.Relative)
@@ -113,7 +113,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                     .OnClick(nameof(CommandsController.ApproveAsync))
                 )
                 .AddChild(new ButtonComponent(RejectId)
-                    .SetType(UIButtonType.Outline)
+                    .SetType(UIButtonType.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Close))
                     .SetTitle("demo.mechanisms.commands.decision.reject")
                     .BindEnabled(nameof(DecisionGroupContext.Open), UIBindingScope.Relative)
@@ -207,7 +207,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                     .OnChange(nameof(CommandsController.ChoosePlan))
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Outline)
+                    .SetType(UIButtonType.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight))
                     .SetTitle("demo.mechanisms.commands.address.next")
                     .OnClick(nameof(CommandsController.NextStep))
@@ -226,7 +226,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateThrowGroup()
         => DemoUI.CreateExample(Words + "throw.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Outline)
+                .SetType(UIButtonType.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.mechanisms.commands.throw.release")
                 .OnClick(nameof(CommandsController.FailUnhandled)),
@@ -239,7 +239,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateRefuseGroup()
         => DemoUI.CreateExample(Words + "refuse.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Outline)
+                .SetType(UIButtonType.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.mechanisms.commands.throw.release")
                 .OnClick(nameof(CommandsController.FailReported)),
@@ -252,7 +252,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateNavigateGroup()
         => DemoUI.CreateExample(Words + "navigate.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Outline)
+                .SetType(UIButtonType.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight))
                 .SetTitle("demo.mechanisms.commands.navigate.go")
@@ -266,7 +266,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateDownloadGroup()
         => DemoUI.CreateExample(Words + "download.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Outline)
+                .SetType(UIButtonType.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.Download))
                 .SetTitle("demo.mechanisms.commands.download.report")
@@ -280,7 +280,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateAnnounceGroup()
         => DemoUI.CreateExample(Words + "announce.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Outline)
+                .SetType(UIButtonType.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.MessageSquare))
                 .SetTitle("demo.mechanisms.commands.announce.save")

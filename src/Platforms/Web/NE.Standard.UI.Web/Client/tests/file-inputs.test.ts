@@ -388,6 +388,92 @@ test("a shelf says while a square stands on it, and taking the last square off t
     assert.equal(input.hasAttribute("data-ui-image-tiles"), false);
 });
 
+/** A shelf whose controller already names handles — a page loaded again, another runtime gone to — with the input its list goes out on. */
+function boundShelf(handles: readonly string[]): { input: FakeElement; tiles: FakeElement; selections: FakeInput; sent: string[] } {
+    const { input, tiles } = shelfWithComposer({ "data-ui-selected-keys": JSON.stringify(handles) }, "");
+    const selections = new FakeInput("hidden");
+    const sent: string[] = [];
+
+    selections.classes.add("ui-image-input__selections");
+    selections.setAttribute("data-ui-selected-keys", JSON.stringify(handles));
+    selections.addEventListener("change", () => void sent.push(selections.getAttribute("data-ui-selected-keys") ?? ""));
+    input.append(selections);
+
+    return { input, tiles, selections, sent };
+}
+
+/** The server's answer to reading a selection back: the files it holds, or no files where it holds it no more. */
+async function withStoredSelections(held: Readonly<Record<string, { fileName: string; contentType: string; size: number }>>, body: () => Promise<void>): Promise<void> {
+    const fetching = globalThis.fetch;
+
+    globalThis.fetch = (input: string | URL | Request): Promise<Response> => {
+        const selectionId = decodeURIComponent(String(input).replace("/_ne/files/selection/", ""));
+        const file = held[selectionId];
+
+        return Promise.resolve(Response.json({ selectionId, files: file === undefined ? [] : [{ fileId: `file-${selectionId}`, ...file }] }));
+    };
+
+    try {
+        await body();
+    }
+    finally {
+        globalThis.fetch = fetching;
+    }
+}
+
+test("a shelf draws the handles its controller names and it has no square for, in the controller's order, from what the server holds", async () => {
+    await withStoredSelections({
+        a: { fileName: "cat.png", contentType: "image/png", size: 10 },
+        b: { fileName: "minutes.pdf", contentType: "application/pdf", size: 2048 }
+    }, async () => {
+        const { input, tiles, sent } = boundShelf(["a", "b"]);
+
+        observe(input);
+        await settle();
+
+        const [picture, pdf] = tiles.children;
+
+        assert.equal(tiles.children.length, 2);
+        assert.equal(input.hasAttribute("data-ui-image-tiles"), true);
+        assert.equal(real<HTMLImageElement>(picture.children[0]).src, "/_ne/files/upload/file-a");
+        assert.equal(picture.classes.has("ui-loading"), false);
+        assert.equal(pdf.querySelector(".ui-image-input__file-name")?.textContent, "minutes.pdf");
+        assert.equal(pdf.querySelector(".ui-image-input__file-size")?.textContent, "2 kB");
+        // What the shelf shows is what the controller holds already: nothing is sent back.
+        assert.deepEqual(sent, []);
+    });
+});
+
+test("a handle the server no longer holds is taken off the shelf, and the list without it goes back to the controller", async () => {
+    await withStoredSelections({ kept: { fileName: "cat.png", contentType: "image/png", size: 10 } }, async () => {
+        const { input, tiles, sent } = boundShelf(["kept", "gone"]);
+
+        observe(input);
+        await settle();
+
+        assert.equal(tiles.children.length, 1);
+        assert.deepEqual(sent, [JSON.stringify(["kept"])]);
+    });
+});
+
+test("a controller holding no list takes the squares off its shelf", async () => {
+    await withStoredSelections({ a: { fileName: "cat.png", contentType: "image/png", size: 10 } }, async () => {
+        const { input, tiles } = boundShelf(["a"]);
+
+        observe(input);
+        await settle();
+
+        assert.equal(tiles.children.length, 1);
+
+        // Another runtime of the route whose controller never named a file: its null takes the attribute off.
+        input.removeAttribute("data-ui-selected-keys");
+        observe(input);
+
+        assert.equal(tiles.children.length, 0);
+        assert.equal(input.hasAttribute("data-ui-image-tiles"), false);
+    });
+});
+
 test("a read-only input's drop target refuses a file in place", () => {
     const { composer, area } = shelfWithComposer();
 

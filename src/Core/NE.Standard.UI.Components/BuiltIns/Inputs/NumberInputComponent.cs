@@ -34,9 +34,12 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
     public bool? AllowNegative { get; set; }
 
     /// <summary>
-    /// Gets or sets whether a thousands separator is shown while formatting the value.
+    /// Gets or sets whether the value's integer part is grouped by the culture's thousands separator. Unset, the <c>DisplayFormat</c>
+    /// says: <c>N</c>, <c>C</c> and <c>P</c> group, <c>F</c> and <c>D</c> do not, and a field with no format groups nothing, so a
+    /// count or a setting reads <c>32768</c>. <see langword="true"/> groups whatever the format but <c>D</c> (an <c>F2</c> reads as <c>N2</c>);
+    /// <see langword="false"/> never groups, a format's own grouping included.
     /// </summary>
-    [UIComponentProperty(DefaultValue = true)]
+    [UIComponentProperty(DefaultValue = null)]
     public bool? AllowThousandsSeparator { get; set; }
 
     /// <summary>
@@ -85,7 +88,7 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
     }
 
     /// <summary>
-    /// Enables the thousands separator while formatting the value.
+    /// Groups the value's thousands whatever its <c>DisplayFormat</c> — for a money-like value with no format of its own.
     /// </summary>
     public T SetAllowThousandsSeparator()
         => SetAllowThousandsSeparator(true);

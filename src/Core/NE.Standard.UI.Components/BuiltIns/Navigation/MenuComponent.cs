@@ -27,9 +27,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent
     where T : MenuComponent<T>, IUIComponentDefinition
 {
-    // UIStrings.MenuSearch: the Shell's key, written out, as the components reference no Shell.
-    private const string SearchKey = "ui.menu.search";
-
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
 
     /// <summary>The template variant key rendering <see cref="UIMenuItemKind.Header"/> entries.</summary>
@@ -154,7 +151,10 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         return Self;
     }
 
-    /// <summary>Puts a search beside the menu's switch: what is typed narrows the entries in the browser by the words they show.</summary>
+    /// <summary>
+    /// Puts a search beside the menu's switch, the field <see cref="TextInputComponent{T}.SetSearch"/> makes, Tonal and small: what is
+    /// typed narrows the entries in the browser by the words they show.
+    /// </summary>
     /// <remarks>
     /// A group stays, open, while one of its sub-entries matches, and a caption while an entry under it does. A search that leaves
     /// nothing shows the menu's empty template, as a select's does — the default one's "Nothing to show." unless the author set one.
@@ -162,13 +162,10 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     public T SetSearch(string? placeholder = null)
     {
         _ = SetToggleContent(new TextInputComponent()
-            .SetType(UITextInputType.Search)
+            .SetSearch(placeholder)
             // Tonal, by the field rule: the menu's band already frames it.
             .SetAppearance(UIInputAppearance.Tonal)
             .SetSize(UIInputSize.Small)
-            .SetPlaceholder(placeholder ?? SearchKey)
-            .SetPrefixIcon(UIGlyphs.Search)
-            .SetShowClearButton()
         );
 
         if (!HasEmptyTemplate)

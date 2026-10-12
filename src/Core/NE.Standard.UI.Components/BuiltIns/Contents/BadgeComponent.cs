@@ -63,6 +63,13 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     public UIIconShape? IconShape { get; set; }
 
     /// <summary>
+    /// Gets or sets the glyph a round picture icon (<see cref="IconShape"/> Circle) shows on a neutral circle while it has no
+    /// picture, none given or one that fails; unset, <c>UIGlyphs.Person</c>.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public string? IconFallback { get; set; }
+
+    /// <summary>
     /// Gets or sets the short text drawn inside the badge, beside its icon.
     /// </summary>
     [Translatable]

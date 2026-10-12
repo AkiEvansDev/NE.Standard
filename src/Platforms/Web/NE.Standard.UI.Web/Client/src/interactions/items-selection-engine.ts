@@ -181,9 +181,10 @@ export class ItemsSelectionEngine {
         const rows = ownRows(root);
 
         // The cursor follows the pointer so the arrows carry on from the clicked row, a grid's from its cell; the host takes the focus, as
-        // a file manager's list does.
+        // a file manager's list does — marked first: a press that began on a row's control and was let go beside it took the focus off
+        // the host, and focused back unmarked the row flashed the keyboard's wash.
         setRowFocus(root, rows, item, domEvent.target instanceof Element ? cellOf(item, domEvent.target) : null);
-        root.focus({ preventScroll: true });
+        focusAsLastInput(root);
 
         // A host choosing by a control of its own (a grid's checkboxes) leaves the click; its keyboard's Shift ranges from the clicked row.
         if (root.hasAttribute(NoRowSelectAttribute)) {

@@ -176,7 +176,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
             UILayout.Stack(12)
                 .AddChild(CreateRosterRow("alex", "platform", 40, true))
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Outline)
+                    .SetType(UIButtonType.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("Open the roster card")
                     .OnClick(nameof(SelectController.OpenRoster))

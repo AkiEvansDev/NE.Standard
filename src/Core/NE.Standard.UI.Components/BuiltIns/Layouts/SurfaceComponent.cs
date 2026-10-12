@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
@@ -48,6 +49,16 @@ public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedR
     /// </summary>
     public T OnClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
         => OnLiteral(EventNames.Click, command, arguments);
+
+    /// <summary>
+    /// Makes the surface pressable and shows the picture it holds full size on a press, on the page alone (<see cref="ShowImageEffect"/>);
+    /// <paramref name="amongRows"/> shows it among the pictures of the surface's other drawn rows — a message's photos.
+    /// </summary>
+    public T OnClickShowImage(bool amongRows = false)
+    {
+        Clickable = true;
+        return InteractOn(EventNames.Click, amongRows ? ShowImageEffect.AmongRows(Id) : ShowImageEffect.Of(Id));
+    }
 }
 
 /// <summary>

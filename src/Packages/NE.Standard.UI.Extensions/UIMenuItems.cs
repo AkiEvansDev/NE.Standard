@@ -35,6 +35,10 @@ public static class UIMenuItems
     public static MenuItem Save(string id = "save")
         => Create(UIStandardAction.Save, id);
 
+    /// <summary>End an edit made in place with a check; <see cref="Save"/> writes a document out.</summary>
+    public static MenuItem Done(string id = "done")
+        => Create(UIStandardAction.Done, id);
+
     /// <summary>Give up what is under way.</summary>
     public static MenuItem Cancel(string id = "cancel")
         => Create(UIStandardAction.Cancel, id);
@@ -42,6 +46,14 @@ public static class UIMenuItems
     /// <summary>Close it.</summary>
     public static MenuItem Close(string id = "close")
         => Create(UIStandardAction.Close, id);
+
+    /// <summary>Go back to where the page was reached from.</summary>
+    public static MenuItem Back(string id = "back")
+        => Create(UIStandardAction.Back, id);
+
+    /// <summary>Make a new one.</summary>
+    public static MenuItem New(string id = "new")
+        => Create(UIStandardAction.New, id);
 
     /// <summary>Delete it: the danger colour on the words and the mark.</summary>
     public static MenuItem Delete(string id = "delete")

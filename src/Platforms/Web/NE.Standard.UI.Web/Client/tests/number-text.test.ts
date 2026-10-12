@@ -21,20 +21,34 @@ const German: NumberCulturePack = {
     percentGroupSeparator: "."
 };
 
-test("a value with no format is grouped in the culture and keeps the decimals it has", () => {
+test("a value with no format told to group is grouped in the culture and keeps the decimals it has", () => {
     assert.equal(displayNumberText("1234.50", German, { format: null, thousands: true }), "1.234,50");
     assert.equal(displayNumberText("1234.5", InvariantNumberCulture, { format: null, thousands: true }), "1,234.5");
     assert.equal(displayNumberText("-1234", German, { format: null, thousands: true }), "-1.234");
 });
 
+test("a value with no format and no word on grouping groups nothing", () => {
+    assert.equal(displayNumberText("32768", German, { format: null, thousands: null }), "32768");
+    assert.equal(displayNumberText("1234.50", German, { format: null, thousands: null }), "1234,50");
+});
+
+test("with no word on grouping the format says: N, C and P group, F and D do not", () => {
+    assert.equal(displayNumberText("1234.5", German, { format: "N2", thousands: null }), "1.234,50");
+    assert.equal(displayNumberText("1234.5", German, { format: "C", thousands: null }), "1.234,50 €");
+    assert.equal(displayNumberText("12.345", German, { format: "P0", thousands: null }), "1.235 %");
+    assert.equal(displayNumberText("1234.567", German, { format: "F2", thousands: null }), "1234,57");
+    assert.equal(displayNumberText("1234", German, { format: "D6", thousands: null }), "001234");
+});
+
 test("a field that shows no thousands groups nothing, a format's own grouping included", () => {
     assert.equal(displayNumberText("1234.5", German, { format: null, thousands: false }), "1234,5");
     assert.equal(displayNumberText("1234.5", German, { format: "N2", thousands: false }), "1234,50");
+    assert.equal(displayNumberText("1234.5", German, { format: "C", thousands: false }), "1234,50 €");
 });
 
-test("the author's format is written in the culture", () => {
+test("a field told to group groups whatever its format, a fixed-point one read as its grouped twin", () => {
     assert.equal(displayNumberText("1234.5", German, { format: "N2", thousands: true }), "1.234,50");
-    assert.equal(displayNumberText("1234.567", German, { format: "F2", thousands: true }), "1234,57");
+    assert.equal(displayNumberText("1234.567", German, { format: "F2", thousands: true }), "1.234,57");
     assert.equal(displayNumberText("1234.5", German, { format: "C", thousands: true }), "1.234,50 €");
     assert.equal(displayNumberText("0.25", German, { format: "P0", thousands: true }), "25 %");
 });

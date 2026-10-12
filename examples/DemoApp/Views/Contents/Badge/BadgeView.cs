@@ -96,7 +96,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                     .SetWrap(true)
                     .SetSpacing(8)
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Outline)
+                        .SetType(UIButtonType.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Mail))
                         .SetTitle("Inbox")
                         .SetBadgeText("12")

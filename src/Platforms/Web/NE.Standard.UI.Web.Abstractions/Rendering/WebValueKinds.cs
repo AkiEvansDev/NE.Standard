@@ -39,6 +39,9 @@ public static class WebValueKinds
     /// <summary>An items component's viewer-set query, read off its query element as JSON.</summary>
     public const string ItemsQuery = "items-query";
 
+    /// <summary>An items view's key of the row at its top, read off its own hidden element.</summary>
+    public const string FirstVisibleKey = "first-visible-key";
+
     /// <summary>The checked radio under a radio group's root.</summary>
     public const string CheckedRadio = "checked-radio";
 

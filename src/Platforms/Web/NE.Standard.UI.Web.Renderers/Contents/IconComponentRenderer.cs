@@ -8,7 +8,8 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 
 public sealed class IconComponentRenderer : WebComponentRendererBase
 {
-    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.DrawsIcon)];
+    private static readonly WebIconShapeSite IconShapeSite = new(IconComponent.IconProperty, IconComponent.ShapeProperty, IconComponent.FallbackIconProperty, WebAttributes.Icon);
+    private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.DrawsIcon), IconShapeSite.StandInOperation];
 
     public override string ComponentTypeKey => IconComponent.ComponentTypeKey;
 
@@ -24,7 +25,7 @@ public sealed class IconComponentRenderer : WebComponentRendererBase
         RenderTooltip(context, root);
 
         IconValueRenderer.RenderIconAppearance(context, root, IconComponent.SizeProperty, IconComponent.ColorProperty);
-        IconValueRenderer.RenderIconShape(context, root, IconComponent.ShapeProperty);
+        IconValueRenderer.RenderIconShape(context, root, root, IconShapeSite);
 
         _ = RenderProperty<string?>(context, root, IconComponent.IconProperty, (target, value) =>
         {

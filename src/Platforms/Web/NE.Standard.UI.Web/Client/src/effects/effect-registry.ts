@@ -1,8 +1,10 @@
 import { ThemeAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
-import { DomRegistry } from "../addressing/dom-registry";
+import { DomRegistry, readComponentId } from "../addressing/dom-registry";
 import { ValueReaderRegistry, resolveValueHolder, toDomString } from "../extensions/value-readers";
 import { DialogEngine } from "../interactions/dialog-engine";
 import { copySelection } from "../interactions/legacy-commands";
+import { picturesOnPage, showLightbox } from "../interactions/lightbox";
+import type { LightboxPicture } from "../interactions/lightbox";
 import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
 import { NotificationEngine, offeredAction, offeredActionId } from "../interactions/notification-engine";
 import type { NotificationAction } from "../interactions/notification-engine";
@@ -20,12 +22,14 @@ import {
     CopyToClipboardClientEffect,
     DialogClientEffect,
     DownloadFileClientEffect,
+    NavigateBackClientEffect,
     NotificationClientEffect,
     ScrollClientEffect,
     SystemNotificationClientEffect,
     ScrollToClientEffect,
     ScrollToItemClientEffect,
     SetThemeClientEffect,
+    ShowImageClientEffect,
     TargetedClientEffect,
     getAnnouncePoliteness,
     getClientEffectKind,
@@ -78,10 +82,14 @@ export type EffectRegistryOptions = {
     readonly systemNotifications?: SystemNotificationServices;
 };
 
-/** What an address effect writes through: the route stays, the query is rewritten in place or as a new entry. */
+/**
+ * What an address effect writes through: the route stays, the query is rewritten in place or as a new entry; and the step back to the
+ * entry behind, answering whether there was one of this site.
+ */
 export type AddressWriter = {
     replace(parameters: Record<string, unknown> | null): void;
     push(parameters: Record<string, unknown> | null): void;
+    back(): boolean;
 };
 
 /** What the document declares, which has a third value the enum does not: no preference. */
@@ -169,11 +177,23 @@ export class EffectRegistry {
                 return;
             }
 
-            // A full page load, not a client-side route swap: the runtime store assumes one route per connection id.
-            if (this.navigate !== undefined)
-                this.navigate(url);
-            else
-                window.location.assign(url);
+            this.leaveFor(url);
+        });
+
+        // The browser's own Back, so the leave guard and a runtime switch take it as they take Back; the fallback where there is no
+        // entry of this site behind, a NavigateEffect's address.
+        this.register("NavigateBack", context => {
+            if (this.address?.back() === true)
+                return;
+
+            const fallback = (context.effect as NavigateBackClientEffect).fallback;
+
+            if (typeof fallback !== "string" || !isLocalRoute(fallback)) {
+                logWarn("navigate back effect has nothing to go back to and names no route of this site; not followed.", context.effect);
+                return;
+            }
+
+            this.leaveFor(fallback);
         });
 
         // No page load and no leave: the route stays, its query is the page's state (address-history.ts).
@@ -343,6 +363,29 @@ export class EffectRegistry {
             this.applyDialogEffect(context, "OpenDialog", (dialogs, key) => dialogs.open(key));
         });
 
+        // Drawn by the page itself, no round trip: the pictures given, or the ones the target and, asked, its other drawn rows show.
+        this.register("ShowImage", context => {
+            const effect = context.effect as ShowImageClientEffect;
+
+            if (this.dialogs === undefined) {
+                logWarn("show image effect arrived but no dialog engine is wired up.", effect);
+                return;
+            }
+
+            if (effect.target === undefined || effect.target === null) {
+                showLightbox(this.dialogs, givenPictures(effect.images), effect.startIndex ?? 0);
+                return;
+            }
+
+            const target = resolveTarget(context);
+            const shown = target === null ? null : picturesOnPage(target, effect.rows === true, element => context.dom.findEveryComponent(readComponentId(element)));
+
+            if (shown === null)
+                logWarn("show image effect names a component that shows no picture.", effect);
+            else
+                showLightbox(this.dialogs, shown.pictures, shown.start);
+        });
+
         this.register("CloseDialog", context => {
             const asViewer = (context.effect as DialogClientEffect).raisesClose === true;
 
@@ -424,6 +467,15 @@ export class EffectRegistry {
 
             this.notifications.announce(effect.message, getAnnouncePoliteness(effect.politeness) === "Assertive" ? "assertive" : "polite");
         });
+    }
+
+    /** Leaves for a local address through the leave guard where one is wired, else at once. */
+    private leaveFor(url: string): void {
+        // A full page load, not a client-side route swap: the runtime store assumes one route per connection id.
+        if (this.navigate !== undefined)
+            this.navigate(url);
+        else
+            window.location.assign(url);
     }
 
     private writeAddress(context: EffectContext, write: (address: AddressWriter, parameters: Record<string, unknown> | null) => void): void {
@@ -524,6 +576,24 @@ function wordsOf(value: unknown): string {
         return clientStrings.translate(value.key, value.args);
 
     return isAuthorText(value) ? clientStrings.resolveText(value.text) : "";
+}
+
+/** The pictures a show image effect names itself, each with its words; one without an address is left out. */
+function givenPictures(images: ShowImageClientEffect["images"]): LightboxPicture[] {
+    const pictures: LightboxPicture[] = [];
+
+    for (const image of images ?? []) {
+        if (typeof image?.source !== "string")
+            continue;
+
+        pictures.push({
+            source: image.source,
+            caption: isPhrase(image.caption) || isAuthorText(image.caption) ? image.caption : undefined,
+            altText: isPhrase(image.altText) || isAuthorText(image.altText) ? image.altText : undefined
+        });
+    }
+
+    return pictures;
 }
 
 /** The page's own icon, which a system notification shows where it names none; none for the shell's empty one, a `data:` stand-in. */

@@ -11,6 +11,7 @@ namespace NE.Standard.UI.Abstractions.Effects;
 public static class ClientEffectKinds
 {
     public const string Navigate = "Navigate";
+    public const string NavigateBack = "NavigateBack";
     public const string Focus = "Focus";
     public const string ScrollTo = "ScrollTo";
     public const string ScrollToItem = "ScrollToItem";
@@ -37,6 +38,7 @@ public static class ClientEffectKinds
     public const string PushAddress = "PushAddress";
     public const string RequestNotificationPermission = "RequestNotificationPermission";
     public const string ShowSystemNotification = "ShowSystemNotification";
+    public const string ShowImage = "ShowImage";
 }
 
 /// <summary>

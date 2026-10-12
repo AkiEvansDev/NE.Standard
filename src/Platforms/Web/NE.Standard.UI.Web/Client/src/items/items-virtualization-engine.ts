@@ -650,7 +650,7 @@ export class ItemsVirtualizationEngine {
         if (changed || state.first !== first || state.last !== last) {
             state.first = first;
             state.last = last;
-            this.options.dom.invalidate();
+            this.options.dom.invalidate(host);
         }
 
         state.laidOut = rows;

@@ -42,6 +42,15 @@
         margin: @ui-space-3 @ui-space-2 0 0;
     }
 
+// The button's middle stands on the page header's title line: UIPage.Header's 40 px controls and its title's line sit at its top
+// padding, 10 px on a phone and 20 from the medium breakpoint, so the 36 px button stands 2 px lower than that — 12, then 22.
+@media (min-width: @ui-breakpoint-md) {
+    .ui-shell__drawer-toggle,
+    .ui-shell__drawer-toggle[data-ui-drawer-toggle="right-side"] {
+        margin-top: 1.375rem;
+    }
+}
+
 // A pin shows only where pinning means something: from the medium breakpoint up, where its side is a drawer or pinned, and never for
 // a left side that is the bottom bar, which stands as a bar whatever is pinned. Over the author's Visibility, as a page's own drawer
 // button is hidden where its side is none.
@@ -124,6 +133,22 @@
         visibility: visible;
         transform: none;
         transition: transform @ui-motion-normal @ui-motion-enter;
+    }
+
+    // A pinned side is the drawer standing in its column: its fill kept, its shadow a hairline on the edge facing the page, so on a
+    // light page whose ground is close to the fill it still reads as a panel. A side that is a column by width alone stays the
+    // author's. A side's root drawing an edge of its own there doubles it: no `:has()` may look (DECISIONS), so the author draws it
+    // only in the tiers where the side is a column by width.
+    & when (@ui-pins-hold) {
+        @{ui-drawers}[data-ui-pinned-left-side] > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar])) {
+            background: var(--ui-color-surface);
+            border-right: 1px solid var(--ui-color-border);
+        }
+
+        @{ui-drawers}[data-ui-pinned-right-side] > [data-ui-region="right-side"] {
+            background: var(--ui-color-surface);
+            border-left: 1px solid var(--ui-color-border);
+        }
     }
 
     // A row of the page's own after the footer, so the content's end and the footer scroll clear of the bar rather than under it;

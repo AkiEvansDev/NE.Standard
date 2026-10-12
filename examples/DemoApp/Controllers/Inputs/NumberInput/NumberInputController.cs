@@ -129,7 +129,7 @@ internal sealed partial class NumberFormatGroupContext : DemoGroupContext
     public partial bool AllowNegative { get; set; } = true;
 
     [RecursiveMember]
-    public partial bool AllowThousandsSeparator { get; set; } = true;
+    public partial bool? AllowThousandsSeparator { get; set; }
 
     [RecursiveMember]
     public partial bool TrimTrailingZeros { get; set; }
@@ -139,7 +139,7 @@ internal sealed partial class NumberFormatGroupContext : DemoGroupContext
         AddOption(nameof(DisplayFormat), CycleDisplayFormat, () => DisplayFormat);
         AddOption(nameof(AllowDecimals), ToggleAllowDecimals, () => AllowDecimals);
         AddOption(nameof(AllowNegative), ToggleAllowNegative, () => AllowNegative);
-        AddOption(nameof(AllowThousandsSeparator), ToggleAllowThousandsSeparator, () => AllowThousandsSeparator);
+        AddOption(nameof(AllowThousandsSeparator), CycleAllowThousandsSeparator, () => AllowThousandsSeparator);
         AddOption(nameof(TrimTrailingZeros), ToggleTrimTrailingZeros, () => TrimTrailingZeros);
     }
 
@@ -152,8 +152,9 @@ internal sealed partial class NumberFormatGroupContext : DemoGroupContext
     public void ToggleAllowNegative()
         => SetLastChange(nameof(AllowNegative), AllowNegative = !AllowNegative);
 
-    public void ToggleAllowThousandsSeparator()
-        => SetLastChange(nameof(AllowThousandsSeparator), AllowThousandsSeparator = !AllowThousandsSeparator);
+    // Unset leaves it to DisplayFormat: cycle the format with each to see N2 and C group and nothing else.
+    public void CycleAllowThousandsSeparator()
+        => SetLastChange(nameof(AllowThousandsSeparator), AllowThousandsSeparator = CycleValue(AllowThousandsSeparator, null, true, false));
 
     public void ToggleTrimTrailingZeros()
         => SetLastChange(nameof(TrimTrailingZeros), TrimTrailingZeros = !TrimTrailingZeros);

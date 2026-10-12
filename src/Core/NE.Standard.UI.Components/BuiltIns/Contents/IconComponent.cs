@@ -41,6 +41,13 @@ public abstract partial class IconComponent<T> : VisualComponentBase<T>, IToolti
     [UIComponentProperty(DefaultValue = null)]
     public UIIconShape? Shape { get; set; }
 
+    /// <summary>
+    /// Gets or sets the glyph a round picture (<see cref="Shape"/> Circle) shows on a neutral circle while it has no picture, none
+    /// given or one that fails; unset, <c>UIGlyphs.Person</c>.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public string? FallbackIcon { get; set; }
+
     protected IconComponent(string? id = null) : base(id)
     {
         HorizontalAlignment = UIAlignment.Center;

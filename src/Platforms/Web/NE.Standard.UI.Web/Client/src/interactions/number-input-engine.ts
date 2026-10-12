@@ -17,6 +17,7 @@ const RootClass = "ui-number-input";
 const FieldClass = "ui-number-input__field";
 const NoDecimalsAttribute = "data-ui-number-no-decimals";
 const NoNegativeAttribute = "data-ui-number-no-negative";
+const ThousandsAttribute = "data-ui-number-thousands";
 const NoThousandsAttribute = "data-ui-number-no-thousands";
 const TrimZerosAttribute = "data-ui-number-trim-zeros";
 const StepAttribute = "data-ui-number-step";
@@ -298,9 +299,17 @@ function readNumberBound(input: HTMLInputElement, attribute: string): string | n
     return bound.length > 0 && Number.isFinite(Number(bound)) ? bound : null;
 }
 
-/** A value as the field shows it at rest: in its culture and DisplayFormat, grouped unless the author turned that off. */
+/** A value as the field shows it at rest: in its culture and DisplayFormat, grouped as the author or else the format says. */
 function restText(input: HTMLInputElement, invariant: string, culture: NumberCulturePack): string {
-    return displayNumberText(invariant, culture, { format: formatOf(input), thousands: !input.hasAttribute(NoThousandsAttribute) });
+    return displayNumberText(invariant, culture, { format: formatOf(input), thousands: thousandsOf(input) });
+}
+
+/** The author's word on grouping: one flag or the other, or neither, leaving it to the format. */
+function thousandsOf(input: HTMLInputElement): boolean | null {
+    if (input.hasAttribute(ThousandsAttribute))
+        return true;
+
+    return input.hasAttribute(NoThousandsAttribute) ? false : null;
 }
 
 /** The field's text read in its culture and format as invariant text, or null for text that is no number. */

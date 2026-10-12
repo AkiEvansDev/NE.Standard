@@ -100,6 +100,7 @@ internal abstract partial class UIRuntimeBase
     {
         ServerChangeSet changes = await DrainAsync(action: null, DrainTarget.Answer(instanceId), publish: true, cancellationToken).ConfigureAwait(false);
 
-        return SendsWhatItDrains ? ServerChangeSet.Empty : changes;
+        // Cut by the caller's watermark already: what is added to the answer from here on is appended, never cut again.
+        return SendsWhatItDrains ? ServerChangeSet.Empty : UICollectionInsertMerge.Merge(changes);
     }
 }

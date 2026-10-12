@@ -131,7 +131,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                 // Outlined, as a filter bar's buttons are: the bar is a row of choices, none of them the page's main action.
                 .AddChild(new SplitButtonComponent()
                     .SetMode(UISplitButtonMode.Menu)
-                    .SetType(UIButtonType.Outline)
+                    .SetType(UIButtonType.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Sliders))
                     .SetTitle("Filters")
                     .SetHorizontalAlignment(UIAlignment.Start)

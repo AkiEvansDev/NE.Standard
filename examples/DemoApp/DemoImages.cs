@@ -29,6 +29,12 @@ public static class DemoImages
     /// </summary>
     public const string Mark = "/images/mark.svg";
 
+    /// <summary>
+    /// A picture that cannot be drawn, as a person's picture deleted since: a round one shows its fallback glyph. Bytes that are no
+    /// image rather than an address that serves nothing, so the demo fails to load it without a 404 in the console.
+    /// </summary>
+    public const string Missing = "data:image/png;base64,AA==";
+
     /// <summary>The same colour mark inline, the other way a picture may be handed over.</summary>
     public const string InlineLogo = "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2048%2048'%3E%3Crect%20width='48'%20height='48'%20fill='%23232733'/%3E%3Cpath%20d='M24%209l14%208v14l-14%208-14-8V17z'%20fill='%23e2734b'/%3E%3Cpath%20d='M24%209l14%208-14%208-14-8z'%20fill='%23f0946f'/%3E%3C/svg%3E";
 

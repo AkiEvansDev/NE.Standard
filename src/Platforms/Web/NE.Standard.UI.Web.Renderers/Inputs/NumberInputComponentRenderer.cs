@@ -16,6 +16,12 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 {
     private static readonly WebDomOperation[] DisplayFormatOperations = [WebDomOperation.Attribute(WebAttributes.NumberFormat, target: "root")];
 
+    private static readonly WebDomOperation[] ThousandsOperations =
+    [
+        WebDomOperation.ToggleAttribute(WebAttributes.NumberThousands, condition: WebValueCondition.IsTrue),
+        WebDomOperation.ToggleAttribute(WebAttributes.NumberNoThousands, condition: WebValueCondition.IsFalse)
+    ];
+
     protected override string ClassName => "ui-number-input";
 
     public override string ComponentTypeKey => NumberInputComponent.ComponentTypeKey;
@@ -72,7 +78,12 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 
                 RenderFlagAttribute(context, input, NumberInputComponent.AllowNegativeProperty, WebAttributes.NumberNoNegative, WebValueCondition.IsFalse);
 
-                RenderFlagAttribute(context, input, NumberInputComponent.AllowThousandsSeparatorProperty, WebAttributes.NumberNoThousands, WebValueCondition.IsFalse);
+                // Three states in two flags, so a field left to its format carries neither.
+                _ = RenderProperty<bool?>(context, input, NumberInputComponent.AllowThousandsSeparatorProperty, static (target, value) =>
+                {
+                    if (value is bool grouped)
+                        _ = target.Attribute(grouped ? WebAttributes.NumberThousands : WebAttributes.NumberNoThousands);
+                }, ThousandsOperations);
 
                 RenderFlagAttribute(context, input, NumberInputComponent.TrimTrailingZerosProperty, WebAttributes.NumberTrimZeros);
 

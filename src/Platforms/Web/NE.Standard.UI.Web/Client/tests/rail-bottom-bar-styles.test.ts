@@ -212,6 +212,14 @@ test("on a tablet the sides are drawers where the view names a wider width, and 
     assert.match(mediaBlocks("@media (min-width: 1536px) {"), /\[data-ui-root\]\[data-ui-side-drawers="always"\]:not\(\[data-ui-pinned-left-side\]\) > \[data-ui-region="left-side"\]/, "always is a drawer on the widest screen too");
 });
 
+test("a pinned side keeps the drawer's fill and draws a hairline toward the page; a column by width stays the author's", () => {
+    assert.match(declarations(tablet, `${wider}[data-ui-pinned-left-side] > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /^\s*background: var\(--ui-color-surface\);\s*border-right: 1px solid var\(--ui-color-border\);\s*$/);
+    assert.match(declarations(tablet, `${wider}[data-ui-pinned-right-side] > [data-ui-region="right-side"]`) ?? "", /^\s*background: var\(--ui-color-surface\);\s*border-left: 1px solid var\(--ui-color-border\);\s*$/);
+    assert.match(mediaBlocks("@media (min-width: 1536px) {"), /\[data-ui-side-drawers="always"\]\[data-ui-pinned-left-side\] > \[data-ui-region="left-side"\]:where\(:not\(\[data-ui-bottom-bar\]\)\) \{\s*background/, "a pin holds on the widest screen too");
+    assert.doesNotMatch(phoneBlocks(), /\[data-ui-pinned-(left|right)-side\] > \[data-ui-region/, "on a phone a pinned side is a drawer, its shadow its edge");
+    assert.doesNotMatch(css, new RegExp(`${columns.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^{]*> \\[data-ui-region="(left|right)-side"\\][^{]*\\{[^}]*(background|border)`), "a column by width draws no fill or edge of the framework's");
+});
+
 test("a modeless side's open drawer leaves the page unveiled", () => {
     const veiled = '[data-ui-root][data-ui-drawer-open="left-side"]:not([data-ui-drawer-modeless~="left-side"]) > .ui-shell__drawer-backdrop,\n[data-ui-root][data-ui-drawer-open="right-side"]:not([data-ui-drawer-modeless~="right-side"]) > .ui-shell__drawer-backdrop';
 

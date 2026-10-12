@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -19,8 +20,16 @@ public static class IconValueRenderer
         WebDomOperation.Style(WebIconValue.ImageSourceProperty, converter: WebDomConverters.IconUrlCss)
     ];
 
+    /// <summary>
+    /// The operation that redraws a round picture icon's stand-in after its value, shape or fallback changed (<c>icon-stand-in.ts</c>),
+    /// named by the host's mark that shows the icon.
+    /// </summary>
+    public const string StandInOperationKind = "icon-stand-in";
+
+    /// <summary>The glyph a round picture shows while it has none, laid over the picture's place (<see cref="RenderStandInGlyph"/>).</summary>
+    public const string StandInClassName = "ui-icon-stand-in";
+
     private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)];
-    private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconShapeClass)];
 
     /// <summary>Writes the size class and colour a glyph wears.</summary>
     public static void RenderIconAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty sizeProperty, UIProperty colorProperty)
@@ -37,18 +46,52 @@ public static class IconValueRenderer
         ThemeColorRenderer.RenderThemeColor(context, target, colorProperty);
     }
 
-    /// <summary>Writes the shape a picture icon is drawn in (<see cref="UIIconShape"/>); the stylesheet leaves a glyph as it is.</summary>
-    public static void RenderIconShape(WebRenderContext context, IHtmlElementBuilder target, UIProperty shapeProperty)
+    /// <summary>
+    /// Writes the shape a picture icon is drawn in (<see cref="UIIconShape"/>; the stylesheet leaves a glyph as it is) and its fallback;
+    /// a round one whose value draws nothing shows the fallback glyph on a neutral circle, and its host the mark that shows the icon. A
+    /// picture that fails to load is the client's to answer (<c>icon-stand-in.ts</c>).
+    /// </summary>
+    public static void RenderIconShape(WebRenderContext context, IHtmlElementBuilder host, IHtmlElementBuilder icon, WebIconShapeSite site)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(host);
+        ArgumentNullException.ThrowIfNull(icon);
+        ArgumentNullException.ThrowIfNull(site);
 
-        _ = WebComponentRendererBase.RenderProperty<UIIconShape?>(context, target, shapeProperty, static (t, value) =>
+        _ = WebComponentRendererBase.RenderProperty<UIIconShape?>(context, icon, site.ShapeProperty, static (t, value) =>
         {
             if (value is UIIconShape shape && WebClassNames.IconShape(shape) is { Length: > 0 } className)
                 _ = t.Class(className);
-        }, ShapeOperations);
+        }, site.ShapeOperations.Span);
+
+        _ = WebComponentRendererBase.RenderProperty<string?>(context, icon, site.FallbackProperty, static (t, value) =>
+        {
+            if (Draws(value))
+                _ = t.Attribute(WebAttributes.FallbackIcon, value);
+        }, site.FallbackOperations.Span);
+
+        _ = WebComponentRendererBase.ResolveRenderValue(context, site.ShapeProperty, out UIIconShape? shape, out _);
+
+        if (shape != UIIconShape.Circle)
+            return;
+
+        _ = WebComponentRendererBase.ResolveRenderValue(context, site.IconProperty, out string? value, out _);
+
+        if (Draws(value))
+            return;
+
+        _ = WebComponentRendererBase.ResolveRenderValue(context, site.FallbackProperty, out string? fallback, out _);
+        _ = host.Attribute(site.ShownAttribute);
+        _ = icon.Attribute(WebAttributes.IconFailed, MissingReason);
+        RenderStandInGlyph(icon, fallback);
     }
+
+    /// <summary>Why a round icon shows its stand-in when it has no value at all, which the client tells from a picture that failed.</summary>
+    public const string MissingReason = "missing";
+
+    /// <summary>Renders the glyph a round picture shows while it has none: <paramref name="fallback"/> where it names one, else the person.</summary>
+    public static void RenderStandInGlyph(IHtmlElementBuilder parent, string? fallback)
+        => RenderIcon(parent, Draws(fallback) ? fallback : UIGlyphs.Person, StandInClassName);
 
     /// <summary>
     /// Renders a standalone icon element — a package's chrome mark or the framework's <c>ne-</c> glyph beside a word. Decorative:

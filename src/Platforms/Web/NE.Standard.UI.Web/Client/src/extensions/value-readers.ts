@@ -1,4 +1,6 @@
 import {
+    FirstVisibleKeyAttribute,
+    FirstVisibleKeyValueKind,
     ItemsQueryAttribute,
     ItemsQueryValueKind,
     SelectedKeyAttribute,
@@ -159,6 +161,8 @@ const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     { kind: "selected-keys", read: element => readJsonAttribute(element, SelectedKeysAttribute) },
     // the query element every items component renders: the viewer's terms, as an engine wrote them
     { kind: ItemsQueryValueKind, read: element => readJsonAttribute(element, ItemsQueryAttribute) },
+    // first-visible-key-engine.ts: the key of the row at an items view's top, none for a list with no rows
+    { kind: FirstVisibleKeyValueKind, read: element => element.getAttribute(FirstVisibleKeyAttribute) },
     // radio-group-sync-engine.ts
     { kind: "checked-radio", read: element => element.querySelector<HTMLInputElement>("input[type=\"radio\"]:checked")?.value ?? null },
     // toggle-button-engine.ts

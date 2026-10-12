@@ -7,6 +7,8 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Components.Foundation.Inputs;
+using NE.Standard.UI.Items;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 
@@ -34,6 +36,84 @@ internal sealed partial class UIViewCompilationContext
 
         return [.. interactions];
     }
+
+    /// <summary>
+    /// What the rules reading another component's property give their targets before anything changes, where every such rule on a
+    /// target reads a source the view itself sets: the page is drawn as the rules' first run would draw it, so a note under a switch that
+    /// is off starts hidden. A target bound to the controller, or ruled by a source the controller holds, is left to the page, which
+    /// runs the rules as the bound values arrive.
+    /// </summary>
+    /// <remarks>
+    /// For the first paint only: the compiled state keeps the authored values, which the server's gates read, so a rule the reader
+    /// satisfies opens a button the server never thought closed.
+    /// </remarks>
+    private Dictionary<UIPropertyAddress, object?> BuildFirstPaint()
+    {
+        Dictionary<UIPropertyAddress, object?> values = [];
+        HashSet<UIPropertyAddress> leftToPage = [];
+
+        for (var i = 0; i < _componentOrder.Count; i++)
+        {
+            IVisualComponent target = _componentOrder[i];
+
+            for (var j = 0; j < target.Interactions.Count; j++)
+            {
+                UIInteraction interaction = target.Interactions[j];
+
+                if (interaction.SourceKind != UIInteractionSourceKind.Property || interaction.ActionKind != UIInteractionActionKind.SetProperty
+                    || interaction.SourceProperty is not UIProperty sourceProperty || interaction.TargetProperty is not UIProperty targetProperty)
+                {
+                    continue;
+                }
+
+                UIPropertyAddress address = new(GetComponentId(target.Id), targetProperty);
+
+                if (leftToPage.Contains(address))
+                    continue;
+
+                if (FindBinding(target, targetProperty) is not null || !TryReadOwnValue(GetComponent(interaction.ComponentId), sourceProperty, out var source))
+                {
+                    _ = leftToPage.Add(address);
+                    _ = values.Remove(address);
+                    continue;
+                }
+
+                // Later rules on one target win, as they do when the page runs them in order.
+                values[address] = UIComparisonEvaluator.Evaluate(Comparable(source), interaction.Operator, Comparable(interaction.Value)) ? interaction.TrueValue : interaction.FalseValue;
+            }
+        }
+
+        return values;
+    }
+
+    /// <summary>The value a component holds of its own — set, else the property's default — and none where the property is bound.</summary>
+    private bool TryReadOwnValue(IVisualComponent component, UIProperty property, out object? value)
+    {
+        value = null;
+
+        if (FindBinding(component, property) is not null || !TryGetPropertyDefinition(component.TypeKey, property, out UIPropertyDefinition? definition))
+            return false;
+
+        // An unset two-state value is off: the page reads the box's `checked`, never nothing (value-readers.ts).
+        value = definition.Getter(component) ?? definition.DefaultValue ?? (HoldsTwoStates(component) ? false : null);
+        return true;
+    }
+
+    /// <summary>Whether the component's value is a two-state one, a switch's or a checkbox's.</summary>
+    private static bool HoldsTwoStates(IVisualComponent component)
+    {
+        for (Type? type = component.GetType(); type is not null; type = type.BaseType)
+        {
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(InputComponentBase<,>))
+                return type.GetGenericArguments()[1] == typeof(bool?);
+        }
+
+        return false;
+    }
+
+    /// <summary>A value as the page's rules read it: a phrase by its key, an author's text by its text (interaction-evaluator.ts).</summary>
+    private static object? Comparable(object? value)
+        => value is UIPhrase phrase ? phrase.Key : value;
 
     private CompiledUIInteraction BuildInteraction(IVisualComponent targetComponent, UIInteraction interaction)
     {

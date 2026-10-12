@@ -131,13 +131,10 @@ internal sealed partial class NoteEditorController : UIControllerBase
         return Leave();
     }
 
+    /// <summary>The dialog's close: Cancel and Escape have shut it on the page already, so only the leave is dropped.</summary>
     [UICommand]
-    public UICommandResult StayOnNote()
-    {
-        _leaveTarget = null;
-
-        return UICommandResult.Ok([new CloseDialogEffect(LeaveDialogKey)]);
-    }
+    public void StayOnNote()
+        => _leaveTarget = null;
 
     private UICommandResult Leave()
     {

@@ -67,7 +67,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                         )
                     )
                     .AddChild(DemoUI.CreateLabelled("Two ways on, one of them the usual one", UIButtons.Pair(
-                        UIButtons.Secondary("Use a password"),
+                        UIButtons.Ghost("Use a password"),
                         UIButtons.Primary("Sign in with SSO", DemoIcons.Outline(DemoIcons.Lock))
                             )
                         )
@@ -179,7 +179,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                             )
                             // Small, so the button keeps the row's height instead of setting it.
                             .AddChild(new ButtonComponent()
-                                .SetType(UIButtonType.Outline)
+                                .SetType(UIButtonType.Ghost)
                                 .SetSize(UIButtonSize.Small)
                                 .SetVerticalAlignment(UIAlignment.Center)
                                 .SetTitle("Change")

@@ -1,0 +1,233 @@
+@import "../core/tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/focus.less";
+@import "../mixins/interactive.less";
+
+// The pictures a ShowImageEffect shows full size (interactions/lightbox.ts): a page dialog whose surface is no panel. The surface
+// covers the window and takes no press, so the backdrop's veil is everything round the picture and a press there closes it; the
+// picture, its arrows, the × and the caption take their own. After ui-dialog.less, whose surface rules it outweighs.
+
+// The room round the picture: the × stands in the top band, and the bottom one keeps the picture centred.
+@ui-lightbox-band: 3.5rem;
+
+// The controls over a photograph of any colours: light ink on a dark plate, in either theme.
+@ui-lightbox-plate: color-mix(in srgb, black 55%, transparent);
+@ui-lightbox-plate-hover: color-mix(in srgb, black 72%, transparent);
+@ui-lightbox-ink: white;
+@ui-lightbox-veil: color-mix(in srgb, black 88%, transparent);
+
+// Between two pictures of the strip as one slides out and the other in; `SlideGap` in lightbox.ts.
+@ui-lightbox-slide-gap: 16px;
+
+// A pinch zooms the page as anywhere; a finger across is the set's swipe, not a scroll of what is behind. The neighbours waiting
+// off the screen are cut, not scrolled to.
+.ui-lightbox {
+    overflow: clip;
+    touch-action: pinch-zoom;
+}
+
+// The modal veil, darkened further: a photograph is looked at, not the page behind it, which the dialog's veil leaves readable.
+.ui-lightbox > .ui-dialog__backdrop {
+    background: @ui-lightbox-veil;
+}
+
+.ui-dialog.ui-lightbox > .ui-dialog__surface.ui-lightbox__surface {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: @ui-lightbox-band @ui-space-4;
+    overflow: visible;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: @ui-lightbox-ink;
+    pointer-events: none;
+}
+
+.ui-lightbox__title {
+    .ui-visually-hidden();
+}
+
+// The picture's room, sized by the grid: its own size is what the picture is fitted to (`cqw`/`cqh`), whatever its shape. The strip's
+// three figures stand in its one cell, a pitch — the room's width and a gap — apart, so a neighbour waits off the screen.
+.ui-lightbox__stage {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    container-type: size;
+    --ui-lightbox-way: 1;
+}
+
+// The next picture comes in from the end the page reads toward.
+.ui-lightbox:dir(rtl) .ui-lightbox__stage {
+    --ui-lightbox-way: -1;
+}
+
+// Hugs the picture, so the arrows stand on its lower edge; the strip moves by `--ui-lightbox-shift` (lightbox.ts, which holds the gap
+// equal as `SlideGap`), at once while a finger drags it or it goes back under a picture that slid in.
+.ui-lightbox__figure {
+    grid-area: 1 / 1;
+    position: relative;
+    display: flex;
+    pointer-events: auto;
+    --ui-lightbox-slot: 0;
+    transform: translateX(calc(var(--ui-lightbox-slot) * var(--ui-lightbox-way) * (100cqw + @ui-lightbox-slide-gap) + var(--ui-lightbox-shift, 0px)));
+    transition: transform @ui-motion-normal @ui-motion-ease;
+}
+
+.ui-lightbox__figure[data-ui-lightbox-slot="previous"] {
+    --ui-lightbox-slot: -1;
+}
+
+.ui-lightbox__figure[data-ui-lightbox-slot="next"] {
+    --ui-lightbox-slot: 1;
+}
+
+.ui-lightbox__stage[data-ui-lightbox-still] > .ui-lightbox__figure {
+    transition: none;
+}
+
+// A single picture has no neighbours.
+.ui-lightbox__figure[hidden] {
+    display: none;
+}
+
+// Fitted inside the room and never grown past its own size: a small picture is not blown up into a blur.
+.ui-lightbox__picture {
+    display: block;
+    max-width: 100cqw;
+    max-height: 100cqh;
+    object-fit: contain;
+    -webkit-touch-callout: none;
+}
+
+    .ui-lightbox__picture[data-ui-image-failed] {
+        visibility: hidden;
+    }
+
+// The set's arrows and counter, centred on the picture's lower edge: shown while the pointer is over the picture or the keyboard's
+// focus is on an arrow — not over the bands, not for a pointer's focus left on an arrow it pressed — and always on a screen without
+// a hover; a single picture has none.
+.ui-lightbox__nav {
+    position: absolute;
+    inset-inline: 0;
+    bottom: @ui-space-3;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: @ui-space-2;
+    pointer-events: none;
+    transition: opacity @ui-motion-fast @ui-motion-ease;
+}
+
+.ui-lightbox[data-ui-lightbox-set] .ui-lightbox__nav {
+    display: flex;
+}
+
+@media @{ui-can-hover} {
+    .ui-lightbox__figure:not(:hover) > .ui-lightbox__nav:not(@{ui-keyboard-within}) {
+        opacity: 0;
+    }
+}
+
+// As wide as its words for the set's last picture (`ui-lightbox__count-room`, unseen in the same cell), its digits all one width:
+// counting on moves neither arrow.
+.ui-lightbox__counter {
+    display: inline-grid;
+    justify-items: center;
+    padding: @ui-space-1 @ui-space-3;
+    border-radius: 999px;
+    background: @ui-lightbox-plate;
+    color: @ui-lightbox-ink;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ui-lightbox__count,
+.ui-lightbox__count-room {
+    grid-area: 1 / 1;
+}
+
+.ui-lightbox__count-room {
+    visibility: hidden;
+}
+
+.ui-lightbox__close,
+.ui-lightbox__step {
+    .ui-glyph-host();
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: @ui-lightbox-plate;
+    color: @ui-lightbox-ink;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background-color @ui-motion-fast @ui-motion-ease;
+
+    // The light ink of the plate, outside it: the brand's would vanish on a dark photograph.
+    &@{ui-keyboard-focus} {
+        .ui-keyboard-frame(@ui-lightbox-ink; 999px; false; 2px);
+    }
+}
+
+@media @{ui-can-hover} {
+    .ui-lightbox__close:hover,
+    .ui-lightbox__step:hover {
+        background: @ui-lightbox-plate-hover;
+    }
+}
+
+.ui-lightbox__close {
+    position: absolute;
+    top: @ui-space-2;
+    inset-inline-end: @ui-space-2;
+    .ui-cross-glyph(@ui-glyph-lg);
+}
+
+.ui-lightbox__step::before {
+    .ui-chevron(@ui-glyph-lg);
+}
+
+.ui-lightbox__step--previous::before {
+    transform: rotate(90deg);
+}
+
+.ui-lightbox__step--next::before {
+    transform: rotate(-90deg);
+}
+
+// Which way is back turns with the page's direction.
+.ui-lightbox:dir(rtl) .ui-lightbox__step--previous::before {
+    transform: rotate(-90deg);
+}
+
+.ui-lightbox:dir(rtl) .ui-lightbox__step--next::before {
+    transform: rotate(90deg);
+}
+
+.ui-lightbox__caption {
+    justify-self: center;
+    max-width: 48rem;
+    margin: @ui-space-3 0 0;
+    text-align: center;
+    color: @ui-lightbox-ink;
+    pointer-events: auto;
+}
+
+// On a phone the picture takes the window's width, edge to edge.
+@media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+    .ui-dialog.ui-lightbox > .ui-dialog__surface.ui-lightbox__surface {
+        padding-inline: 0;
+    }
+
+    .ui-lightbox__caption {
+        padding-inline: @ui-space-4;
+    }
+}

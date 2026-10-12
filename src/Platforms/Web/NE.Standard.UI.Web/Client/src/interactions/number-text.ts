@@ -7,8 +7,11 @@ import type { NumberCulturePack } from "../rendering/number-format.ts";
 export type NumberTextOptions = {
     /** The author's DisplayFormat: a .NET standard numeric format of the shared subset, or null for the value as typed. */
     readonly format: string | null;
-    /** Whether the integer part is grouped; false leaves every group separator out, the format's included. */
-    readonly thousands: boolean;
+    /**
+     * Whether the integer part is grouped: true whatever the format (an `F` reads as its `N`), false never (the format's grouping
+     * included), null as the format says — `N`, `C`, `P` group, `F`, `D` and no format do not.
+     */
+    readonly thousands: boolean | null;
 };
 
 // The canonical shape an invariant text is kept in: a sign, digits, and a fraction after a point.
@@ -19,22 +22,28 @@ export function displayNumberText(invariant: string, culture: NumberCulturePack,
     if (!InvariantShape.test(invariant))
         return invariant;
 
-    const shown = options.thousands ? culture : ungrouped(culture);
+    const shown = options.thousands === false ? ungrouped(culture) : culture;
     const value = Number(invariant);
+    const format = options.format?.trim() ?? "";
 
-    if (options.format !== null && options.format.trim().length > 0) {
+    if (format.length > 0) {
         try {
-            return formatNumber(value, options.format, shown);
+            return formatNumber(value, options.thousands === true ? groupedFormat(format) : format, shown);
         }
         catch {
             // A format outside the shared subset is the server's to refuse; the field still shows its number.
         }
     }
 
-    // No format: the decimals the value has, no more and no fewer, so a typed 1.50 reads back as 1.50.
+    // No format: the decimals the value has, no more and no fewer, so a typed 1.50 reads back as 1.50; grouped only when asked.
     const fraction = invariant.includes(".") ? invariant.length - invariant.indexOf(".") - 1 : 0;
 
-    return formatNumber(value, `${options.thousands ? "N" : "F"}${Math.min(fraction, 99)}`, shown);
+    return formatNumber(value, `${options.thousands === true ? "N" : "F"}${Math.min(fraction, 99)}`, shown);
+}
+
+/** A fixed-point format as its grouped twin, for a field told to group whatever its format: `F2` reads as `N2`. */
+function groupedFormat(format: string): string {
+    return /^[fF]\d{0,2}$/.test(format) ? `N${format.slice(1)}` : format;
 }
 
 /** What the viewer edits: the culture's decimal separator and a plain minus, nothing grouped, no symbol; a percent as it shows. */

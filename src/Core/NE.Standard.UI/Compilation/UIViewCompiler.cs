@@ -43,7 +43,7 @@ internal static class UIViewCompiler
             Templates = templates,
             Contexts = new UIComponentContextIndex(result.Contexts),
             Bindings = bindings,
-            Interactions = new UIInteractionIndex(result.Interactions),
+            Interactions = new UIInteractionIndex(result.Interactions, result.FirstPaint),
             Events = new UIEventIndex(result.Events, sources, templates),
             Validations = new UIValidationIndex(result.Validations, result.ValidationMessageTargets),
             ItemProjections = UIItemProjectionBuilder.Build(graph, state, bindings, templates),

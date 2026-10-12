@@ -17,6 +17,11 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
     protected override string Header => "demo.screens.notes.header";
     protected override string HeaderDescription => "demo.screens.notes.description";
 
+    // A note is opened from somewhere, so its header leads with Back: the browser's own, or the inbox where the tab has nothing of
+    // the site behind it.
+    protected override IVisualComponent? CreateHeader()
+        => DemoUI.CreateHeader(Header, HeaderDescription, UIIconButtons.Back().InteractOn(EventNames.Click, new NavigateBackEffect("/screens/inbox")));
+
     protected override IVisualComponent CreateScreen()
         => UILayout.Stack(24, CreateNote(), CreateWaysOff())
             .SetMaxWidth(UILayoutLength.Absolute(760))
@@ -62,41 +67,34 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
                 // Under the switch rather than its description, which keeps one line: the sentence reads whole on a phone.
                 UIText.Note("Off, OnLeaveRequestedAsync hands the leave to the base.").SetMargin(UIThickness.All(44, 0, 0, 0))
             ),
-            UIText.Paragraph("A press on any page in the sidebar, or on the link below, asks first. So does a command that answers with a NavigateEffect. The browser's back button, a reload or closing the tab ask the browser's own question instead — the only one a browser allows there."),
+            UIText.Paragraph("A press on any page in the sidebar, or on the link below, asks first. So does a command that answers with a NavigateEffect. The browser's back button, a reload or closing the tab ask the browser's own question instead — the only one a browser allows there. The arrow before the page's title is the browser's Back too, and asks as it does; with nothing of this site behind the tab, it goes to the inbox, asking first as a link does."),
             new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight)).SetTitle("The inbox, by a link").SetUrl("/screens/inbox").SetHorizontalAlignment(UIAlignment.Start),
-            UIButtons.Secondary("The inbox, by a command", DemoIcons.Outline(DemoIcons.Mail))
+            UIButtons.Ghost("The inbox, by a command", DemoIcons.Outline(DemoIcons.Mail))
                 .OnClick(nameof(NoteEditorController.OpenInbox))
                 .SetHorizontalAlignment(UIAlignment.Start),
             UIText.Note("A link opened in a new tab, or with Ctrl or Shift held, is not a leave of this page: nothing asks.")
         ), DemoIcons.Outline(DemoIcons.Navigation));
 
-    // Only its three buttons answer it: the backdrop and Escape would drop the leave without saying which way.
+    /// <summary>
+    /// The preset's question with a middle answer: Cancel, Don't save, Save. A press beside it does not drop the leave, and Escape is
+    /// Cancel — the note stays, as Cancel keeps it.
+    /// </summary>
     protected override IReadOnlyList<UIDialog> CreateDialogs()
-        => [
-            new UIDialog
-            {
-                Key = NoteEditorController.LeaveDialogKey,
-                Label = "Unsaved changes",
-                CloseOnBackdrop = false,
-                CloseOnEscape = false,
-                // The framework's own leave dialog's measures: a Subtitle, a Body line 8 px under it, the answers 16 px under that.
-                Content = UILayout.Stack(16,
-                    UILayout.Stack(8,
-                        UIText.Subtitle("Save your changes?").SetTitleWrap(true),
-                        UIText.Paragraph(string.Empty)
-                            .BindDescription(nameof(NoteEditorController.LeaveQuestion))
-                            .SetDescriptionType(UITextAppearance.Body)
-                            .SetDescriptionColor(UIThemeColor.Default)
-                    ),
-                    UILayout.Row(8,
-                        UIButtons.Ghost("Cancel").OnClick(nameof(NoteEditorController.StayOnNote)),
-                        UIButtons.Secondary("Don't save").OnClick(nameof(NoteEditorController.DiscardAndLeave)),
-                        UIButtons.Primary("Save").OnClick(nameof(NoteEditorController.SaveAndLeave))
-                    )
-                    .SetHorizontalAlignment(UIAlignment.End)
-                )
-                .AsContentTree()
-                .SetMinWidth(UILayoutLength.Absolute(320))
-            }
-        ];
+    {
+        UIDialog leave = UIDialogs.Confirm(
+            NoteEditorController.LeaveDialogKey,
+            "Save your changes?",
+            UIText.Paragraph(string.Empty).BindDescription(nameof(NoteEditorController.LeaveQuestion)),
+            "Save",
+            nameof(NoteEditorController.SaveAndLeave),
+            UIButtonType.Primary,
+            cancelCommand: nameof(NoteEditorController.StayOnNote),
+            middle: UIButtons.Ghost("Don't save").OnClick(nameof(NoteEditorController.DiscardAndLeave))
+        );
+
+        // The screen's words are its content, the dialog's too.
+        _ = ((StackPanelComponent)leave.Content).AsContentTree();
+
+        return [leave];
+    }
 }

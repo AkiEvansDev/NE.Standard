@@ -58,7 +58,7 @@ test("a quiet button brightens its parts under the pointer, never the root a pop
 
 test("a quote paragraph's line is its own box, out of the reach of a tile's wash on the root's background", () => {
     assert.doesNotMatch(declarations(".ui-paragraph--quote") ?? "", /background/, "the line is the root's background, which a wrapped tile's wash rewrites");
-    assert.match(declarations(".ui-paragraph--quote:not(.ui-loading)::before") ?? "", /width: 2px;\s*background-color: var\(--ui-quote-color/);
+    assert.match(declarations(".ui-paragraph--quote:not(.ui-loading)::before") ?? "", /width: 3px;\s*background-color: var\(--ui-quote-color, var\(--ui-color-border\)\);/);
 });
 
 test("a chosen row with pinned cells draws its mark once, above them", () => {

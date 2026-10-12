@@ -117,6 +117,7 @@ test("a list opened from a sheet's entry is a nested sheet, a row naming the ent
 
     assert.equal(back.classes.has("ui-sheet__back"), true);
     assert.equal(back.textContent, "Open in");
+    assert.ok(back.children[0]?.classes.has("ui-icon-glyph--ne-arrow-back"), "the standard Back's glyph, which MapUIGlyph redraws by its class");
 
     back.click();
 

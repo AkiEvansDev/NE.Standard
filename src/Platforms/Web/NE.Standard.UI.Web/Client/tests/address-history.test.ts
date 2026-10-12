@@ -1,7 +1,8 @@
 // The page's state in its address: a ReplaceAddress or PushAddress effect rewrites the query while the route stays, written as a
 // Navigate effect's would be; Back or Forward to an entry of the same route tells the controller the entry's parameters, one that
 // differs only by its fragment moves nothing, one naming another runtime of the route goes to it — or, the reader asked first, is
-// stepped back from until they go on — and one of another route loads that page.
+// stepped back from until they go on — and one of another route loads that page. A NavigateBack effect's step is the browser's Back
+// where an entry of this site stands behind the page, and none where nothing does.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -20,10 +21,21 @@ class FakeWindow implements AddressWindow {
         this.entries = [{ url: address, state: null }];
     }
 
-    public get location(): { readonly pathname: string; readonly search: string } {
+    // The Navigation API and the referrer, as a browser has them; neither, as an old one without the API on a typed address.
+    public navigation: { canGoBack: boolean } | undefined = undefined;
+    public document: { referrer: string } = { referrer: "" };
+
+    public get location(): { readonly pathname: string; readonly search: string; readonly origin: string } {
         const url = new URL(this.entries[this.index].url, "https://shop.example");
 
-        return { pathname: url.pathname, search: url.search };
+        return { pathname: url.pathname, search: url.search, origin: url.origin };
+    }
+
+    /** The tab came to the page from `referrer`, which stands behind it in the history. */
+    public cameFrom(referrer: string): void {
+        this.entries.unshift({ url: referrer, state: null });
+        this.index++;
+        this.document = { referrer };
     }
 
     /** The address the tab shows now. */
@@ -228,6 +240,49 @@ test("an entry the page never numbered is stepped back from by adding the addres
     assert.equal(held.window.address, "/chat?with=ann");
     assert.deepEqual(held.window.writes, [{ kind: "push", url: "/chat?with=ann" }]);
     assert.deepEqual(held.asked, ["?with=bob"]);
+});
+
+test("back steps to the entry this route wrote behind the page, which the controller hears as any Back", () => {
+    const { window, history, revisits } = watch("/inbox");
+
+    history.push({ message: "m1" });
+
+    assert.equal(history.back(), true);
+    assert.equal(window.address, "/inbox");
+    assert.deepEqual(revisits, [null]);
+});
+
+test("back with nothing of this site behind goes nowhere and says so, for the effect's fallback to go instead", () => {
+    const { window, history } = watch("/notes");
+
+    window.document = { referrer: "https://elsewhere.example/notes" };
+
+    assert.equal(history.back(), false);
+    assert.equal(window.address, "/notes");
+});
+
+test("a page of this site the tab came from stands behind it", () => {
+    const { window, history } = watch("/notes");
+
+    window.cameFrom("https://shop.example/inbox");
+
+    assert.equal(history.back(), true);
+    assert.equal(window.address, "https://shop.example/inbox");
+});
+
+test("the Navigation API's word wins over what the page wrote and where it came from", () => {
+    const { window, history } = watch("/inbox");
+
+    history.push({ message: "m1" });
+    window.navigation = { canGoBack: false };
+
+    assert.equal(history.back(), false);
+    assert.equal(window.address, "/inbox?message=m1");
+
+    window.navigation = { canGoBack: true };
+
+    assert.equal(history.back(), true);
+    assert.equal(window.address, "/inbox");
 });
 
 test("two queries name different runtimes only where an identity parameter differs, its values in order", () => {

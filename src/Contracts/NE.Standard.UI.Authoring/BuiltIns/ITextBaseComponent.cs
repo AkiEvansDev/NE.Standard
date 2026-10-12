@@ -30,6 +30,11 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     static UIProperty IconShapeProperty { get; } = new(nameof(IconShape));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="ITextBaseModel.IconFallback"/>.
+    /// </summary>
+    static UIProperty IconFallbackProperty { get; } = new(nameof(IconFallback));
+
+    /// <summary>
     /// Gets the registered property key for <see cref="ITextBaseModel.Title"/>.
     /// </summary>
     static UIProperty TitleProperty { get; } = new(nameof(Title));

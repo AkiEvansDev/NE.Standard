@@ -11,6 +11,7 @@ import { entryWords } from "./search-terms.ts";
 import { followSwipeDown } from "./sheet-swipe.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import type { ClientStringKey } from "../runtime/client-strings.ts";
+import { applyIconValue } from "../rendering/icon-value.ts";
 import { finishTransitions } from "../rendering/motion.ts";
 import { SheetBreakpointQuery } from "../rendering/responsive-tier.ts";
 
@@ -24,6 +25,8 @@ const ScrimLeavingAttribute = "data-ui-sheet-scrim-leaving";
 const ClickWait = 400;
 const BackClass = "ui-sheet__back";
 const BackKey: ClientStringKey = "ui.sheet.back";
+/** `UIGlyphs.ArrowBack`, the standard Back's glyph. */
+const BackGlyph = "ne-arrow-back";
 
 export type SheetOpening = {
     /** What the popup opened from; inside another sheet, the popup is that sheet's nested list. */
@@ -120,6 +123,7 @@ function createBackRow(opening: SheetOpening): HTMLElement {
     row.className = BackClass;
     row.tabIndex = -1;
     row.textContent = words;
+    row.prepend(backMark());
     clientStrings.write(row, "aria-label", BackKey, { entry: words });
     // On the row itself, so nothing around it (a context menu closing on a click inside) hears the press as an entry's.
     row.addEventListener("click", domEvent => {
@@ -128,6 +132,17 @@ function createBackRow(opening: SheetOpening): HTMLElement {
     });
 
     return row;
+}
+
+/** The back arrow as an icon rather than a mark the stylesheet draws: an application's glyph map (MapUIGlyph) reaches it. */
+function backMark(): HTMLElement {
+    const mark = document.createElement("span");
+
+    mark.className = "ui-sheet__back-mark";
+    mark.setAttribute("aria-hidden", "true");
+    applyIconValue(mark, BackGlyph);
+
+    return mark;
 }
 
 /** The veil under every open sheet, in the top layer just before the first: a press on it is a press outside. */

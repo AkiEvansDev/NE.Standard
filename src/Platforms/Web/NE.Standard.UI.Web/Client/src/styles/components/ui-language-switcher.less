@@ -67,6 +67,9 @@
         display: none;
     }
 
+// The page's language among the choices: a checked radio entry of the button's menu, a selected option of the field's listbox.
+@ui-language-chosen: ~":is([aria-checked='true'], [aria-selected='true'])";
+
 // The list: the context menu's surface, shown while the switcher is open and placed by language-switcher-engine.ts.
 .ui-language-switcher__menu {
     .ui-popup-list();
@@ -74,7 +77,7 @@
     text-align: start;
     cursor: default;
     // The pointer moves the current language (language-switcher-engine.ts), so it stays quiet while a key holds another.
-    .ui-entry-quiet(~"> .ui-language-switcher__choice"; ~""; ~"[aria-checked='true']");
+    .ui-entry-quiet(~"> .ui-language-switcher__choice"; ~""; @ui-language-chosen);
 }
 
 .ui-language-switcher--open > .ui-language-switcher__menu {
@@ -83,6 +86,6 @@
 
     // A language as a menu's entry; the list's own height, not the root's MinHeight, which is the button's.
     .ui-language-switcher__choice {
-        .ui-choice-entry();
+        .ui-choice-entry(@ui-language-chosen);
         text-align: start;
     }

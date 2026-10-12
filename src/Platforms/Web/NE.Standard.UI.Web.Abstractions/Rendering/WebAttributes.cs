@@ -133,6 +133,12 @@ public static class WebAttributes
     /// <summary>The head's script element that carries the page's language's names and patterns for dates and times.</summary>
     public const string Temporal = "data-ui-temporal";
 
+    /// <summary>
+    /// On an element the server leaves for a package's engine to draw (a Markdown display holding a document): the boot script marks
+    /// its region with it as parsed, and the stylesheet holds that region out of sight until the engines have started.
+    /// </summary>
+    public const string AwaitsDraw = "data-ui-awaits-draw";
+
     /// <summary>The script element that carries the hydration payload.</summary>
     public const string Hydration = "data-ui-hydration";
 
@@ -152,6 +158,15 @@ public static class WebAttributes
     public const string Metadata = "data-ui-metadata";
 
     public const string FallbackSrc = "data-ui-fallback-src";
+
+    /// <summary>On a round picture or picture icon: the glyph it shows while it has no picture, where the author named one; else <c>UIGlyphs.Person</c>.</summary>
+    public const string FallbackIcon = "data-ui-fallback-icon";
+
+    /// <summary>On a picture (<c>.ui-image</c>) showing the framework's stand-in: its source, and any fallback source, missing or failed.</summary>
+    public const string ImageFailed = "data-ui-image-failed";
+
+    /// <summary>On a round picture icon showing its fallback glyph: no picture given, or one that failed to load.</summary>
+    public const string IconFailed = "data-ui-icon-failed";
 
     public const string FileMaxSize = "data-ui-file-max-size";
 
@@ -241,6 +256,9 @@ public static class WebAttributes
 
     /// <summary>On an items component's query element: the viewer's filter and sort terms as JSON, the same text pushed and chosen.</summary>
     public const string ItemsQuery = "data-ui-items-query";
+
+    /// <summary>On an items view's first-visible element: the key of the row at the view's top, as the page last wrote it back.</summary>
+    public const string FirstVisibleKey = "data-ui-first-visible-key";
 
     /// <summary>The number culture pack as JSON; an engine formats by the nearest one above the element.</summary>
     public const string NumberCulture = "data-ui-number-culture";
@@ -399,11 +417,15 @@ public static class WebAttributes
 
     public const string NumberNoNegative = "data-ui-number-no-negative";
 
+    /// <summary>A number field that never groups its thousands; with neither this nor <see cref="NumberThousands"/> its format says.</summary>
     public const string NumberNoThousands = "data-ui-number-no-thousands";
 
     public const string NumberStep = "data-ui-number-step";
 
     public const string NumberStepDirection = "data-ui-number-step-direction";
+
+    /// <summary>A number field that groups its thousands whatever its format.</summary>
+    public const string NumberThousands = "data-ui-number-thousands";
 
     public const string NumberTrimZeros = "data-ui-number-trim-zeros";
 
@@ -659,8 +681,11 @@ public static class WebAttributes
     /// <summary>On the <c>style</c> in the head that holds the reader's own colours (<c>WebThemeCssBuilder.BuildColors</c>), after the theme's.</summary>
     public const string ThemeColors = "data-ui-theme-colors";
 
-    /// <summary>The hook the theme switcher's engine finds its button by; a class would be styling.</summary>
+    /// <summary>The hook the theme switcher's engine finds its root by; a class would be styling. <c>field</c> on the field, empty on the button.</summary>
     public const string ThemeSwitcher = "data-ui-theme-switcher";
+
+    /// <summary>On a theme field's choice and its words in the box: the theme it stands for, as <see cref="Theme"/> spells it.</summary>
+    public const string ThemeChoice = "data-ui-theme-choice";
 
     public const string Tooltip = "data-ui-tooltip";
 
@@ -717,7 +742,10 @@ public static class WebAttributes
     /// <summary>An element's chrome words with their keys (<c>WebWords</c>, <c>strings.write</c>), which a language switch writes again.</summary>
     public const string Words = "data-ui-words";
 
-    /// <summary>The hook the language switcher's engine finds its button by; a class would be styling.</summary>
+    /// <summary>
+    /// The hook the language switcher's engine finds its root by; a class would be styling. Its value is what the button shows for a
+    /// language, <c>code</c> or <c>name</c>, or <c>field</c> on the field.
+    /// </summary>
     public const string LanguageSwitcher = "data-ui-language-switcher";
 
     /// <summary>On a language switcher's choice: the language it switches to.</summary>

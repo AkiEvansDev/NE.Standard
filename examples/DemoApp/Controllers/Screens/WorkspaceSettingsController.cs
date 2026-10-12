@@ -30,9 +30,6 @@ internal sealed partial class WorkspaceSettingsController : UIControllerBase
     public partial string? TimeZone { get; set; } = "europe-amsterdam";
 
     [RecursiveMember]
-    public partial string? Language { get; set; } = "en";
-
-    [RecursiveMember]
     public partial string ProfileNote { get; set; } = "Every field saves as you leave it.";
 
     [RecursiveMember]

@@ -123,14 +123,13 @@
     cursor: pointer;
 }
 
-    // The arrow, the downward one turned to point back.
-    .ui-sheet__back::before {
-        .ui-glyph(@ui-glyph-arrow-down; @ui-glyph-md-lg);
-        transform: rotate(90deg);
+    // The standard Back's arrow (popup-sheet.ts), pointing the way the page reads back.
+    .ui-sheet__back-mark {
+        font-size: @ui-glyph-md-lg;
     }
 
-    .ui-sheet__back:dir(rtl)::before {
-        transform: rotate(-90deg);
+    .ui-sheet__back:dir(rtl) > .ui-sheet__back-mark {
+        transform: scaleX(-1);
     }
 
 // The page dimmed under every open sheet, a press on it a press outside; lifted as a popup is, whose mark takes the popover's own

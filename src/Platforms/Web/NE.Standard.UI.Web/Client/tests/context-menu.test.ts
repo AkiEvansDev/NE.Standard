@@ -1,6 +1,7 @@
 // A context menu: opened by the pointer it holds the keyboard itself with no entry current, the first arrow entering at the near
 // end; opened by a key its first entry takes it. Closed, the focus goes back to what held it, else to its owner — never the page's
-// body — and a closing press on nothing focusable is swallowed; a menu opened over one still fading cuts that fade short.
+// body —, as the opening's, the pointer's or a key's, whatever closed it; a closing press on nothing focusable is swallowed; a menu
+// opened over one still fading cuts that fade short.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -165,6 +166,28 @@ test("Escape gives the focus back to what held it before the menu opened", () =>
 
     assert.equal(at.host.classes.has("ui-context-menu--open"), false);
     assert.equal(fakeDocument.activeElement, at.before);
+});
+
+test("a menu the pointer opened gives the focus back as the pointer's, even when Escape closed it: a list's row shows no keyboard look", () => {
+    const at = scene();
+
+    at.before.focus();
+    openByPointer(at);
+    escape();
+
+    assert.equal(fakeDocument.activeElement, at.before);
+    assert.equal(at.before.hasAttribute("data-ui-pointer-focus"), true);
+});
+
+test("a menu a key opened gives the focus back as the keyboard's", () => {
+    const at = scene();
+
+    at.before.focus();
+    openByKey(at);
+    escape();
+
+    assert.equal(fakeDocument.activeElement, at.before);
+    assert.equal(at.before.hasAttribute("data-ui-pointer-focus"), false);
 });
 
 test("with nothing held, Escape gives the focus to the owner, made focusable for that return alone, never to the body", () => {

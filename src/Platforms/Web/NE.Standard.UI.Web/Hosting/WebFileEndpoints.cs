@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -46,6 +47,8 @@ internal static partial class WebFileEndpoints
         ArgumentNullException.ThrowIfNull(endpoints);
 
         _ = endpoints.MapPost($"{Prefix}/upload", UploadAsync).DisableAntiforgery();
+        _ = endpoints.MapGet($"{Prefix}/selection/{{selectionId}}", SelectionAsync);
+        _ = endpoints.MapGet($"{Prefix}/upload/{{fileId}}", UploadedAsync);
         _ = endpoints.MapGet($"{Prefix}/{{token}}", DownloadAsync);
     }
 
@@ -181,17 +184,7 @@ internal static partial class WebFileEndpoints
             metrics.FileUploaded(bytes);
             Log.Uploaded(logger, files.Count, bytes, elapsed.TotalMilliseconds);
 
-            return Results.Ok(new
-            {
-                selectionId,
-                files = files.ConvertAll(static file => new
-                {
-                    fileId = file.FileId,
-                    fileName = file.FileName,
-                    contentType = file.ContentType,
-                    size = file.Size
-                })
-            });
+            return Results.Ok(DescribeSelection(selectionId, files));
         }
         finally
         {
@@ -226,6 +219,90 @@ internal static partial class WebFileEndpoints
     // Saturated rather than multiplied blind: a limit set as high as it goes must not wrap to a negative body size.
     private static long SelectionBytes(UIFileOptions limits)
         => limits.MaxFileSize > long.MaxValue / limits.MaxFilesPerSelection ? long.MaxValue - MultipartOverheadBytes : limits.MaxFileSize * limits.MaxFilesPerSelection;
+
+    /// <summary>A selection as the upload answers it and the read-back repeats it: its id and each file's id, name, type and size.</summary>
+    private static object DescribeSelection(string selectionId, IReadOnlyList<UIUploadFile> files)
+    {
+        var described = new object[files.Count];
+
+        for (var i = 0; i < files.Count; i++)
+        {
+            UIUploadFile file = files[i];
+
+            described[i] = new
+            {
+                fileId = file.FileId,
+                fileName = file.FileName,
+                contentType = file.ContentType,
+                size = file.Size
+            };
+        }
+
+        return new { selectionId, files = described };
+    }
+
+    /// <summary>
+    /// What a selection of this session holds, for a page drawing what its controller still names — a shelf after a reload or a
+    /// switch; no files once the store no longer holds it, which the page takes as the selection gone.
+    /// </summary>
+    private static async Task<IResult> SelectionAsync(HttpContext http, string selectionId, [FromServices] IUIFileStore store, CancellationToken cancellationToken)
+    {
+        if (WebRequestGuards.IsCrossSiteRequest(http))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+        var sessionId = await ResolveSessionAsync(http, cancellationToken).ConfigureAwait(false);
+
+        if (sessionId is null)
+            return Results.Unauthorized();
+
+        // Gone, unknown and another session's alike answer no files: whether an id exists is not told to a session that does not
+        // hold it. An empty answer rather than a 404, which the browser would print as a failure on every expired upload. A blank id
+        // names nothing, and the store refuses one.
+        IReadOnlyList<UIUploadFile> files = string.IsNullOrWhiteSpace(selectionId) ? [] : await store.GetSelectionAsync(sessionId, selectionId, cancellationToken).ConfigureAwait(false);
+
+        http.Response.Headers.CacheControl = "no-store";
+
+        return Results.Ok(DescribeSelection(selectionId, files));
+    }
+
+    /// <summary>
+    /// One upload of this session, read as often as the page asks — the thumbnail a shelf draws again — unlike a staged download,
+    /// which a fetch takes.
+    /// </summary>
+    private static async Task<IResult> UploadedAsync(
+        HttpContext http,
+        string fileId,
+        [FromServices] IUIFileStore store,
+        [FromServices] IOptions<WebEndpointOptions> options,
+        CancellationToken cancellationToken)
+    {
+        if (WebRequestGuards.IsCrossSiteRequest(http))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+        var sessionId = await ResolveSessionAsync(http, cancellationToken).ConfigureAwait(false);
+
+        if (sessionId is null)
+            return Results.Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(fileId))
+            return Results.NotFound();
+
+        UIUploadFile? file = await store.GetUploadAsync(sessionId, fileId, cancellationToken).ConfigureAwait(false);
+        Stream? content = file is null ? null : await store.OpenUploadAsync(sessionId, fileId, cancellationToken).ConfigureAwait(false);
+
+        if (file is null || content is null)
+            return Results.NotFound();
+
+        var contentType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType;
+
+        // The session's own file: nothing between here and the browser may keep a copy.
+        http.Response.Headers.CacheControl = "no-store";
+
+        if (options.Value.InertContent)
+            WebInertContent.Apply(http.Response, contentType);
+
+        return Results.Stream(content, contentType);
+    }
 
     private static async Task<IResult> DownloadAsync(
         HttpContext http,

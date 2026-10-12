@@ -7,9 +7,13 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Actions;
 
 /// <summary>
-/// A button that switches the page between the light and dark theme, and wears the theme it offers.
+/// A button that switches the page between the light and dark theme, and wears the theme it offers; as a field (<see cref="AsField"/>)
+/// it offers Light, Dark and System, System following the platform's preference.
 /// </summary>
-/// <remarks>Both glyphs render; the platform shows the one matching the current theme, since the shell is cached across themes.</remarks>
+/// <remarks>
+/// Both glyphs render; the platform shows the one matching the current theme, since the shell is cached across themes. For the same
+/// reason the field's current choice is the page's to write, never the server's.
+/// </remarks>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
@@ -37,6 +41,17 @@ public abstract partial class ThemeSwitcherComponent<T> : VisualComponentBase<T>
     /// </summary>
     [UIComponentProperty]
     public string? DarkIcon { get; set; }
+
+    /// <summary>
+    /// Draws the switcher as a settings form's field: its title ("Theme" unless set) over a select-shaped box, the list offering Light,
+    /// Dark and System; it stands in its cell as an input does, not centred as the button, so an alignment goes after it.
+    /// </summary>
+    public T AsField()
+    {
+        HorizontalAlignment = null;
+
+        return SetVariant(UISwitcherVariant.Field);
+    }
 }
 
 /// <summary>

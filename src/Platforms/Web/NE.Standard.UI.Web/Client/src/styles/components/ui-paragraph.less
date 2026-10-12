@@ -30,8 +30,9 @@
 // The quote line runs the block's full height, in a transparent border, as padding would shadow the root's Padding. A pseudo-element,
 // not the root's background: a wrapped view's tile wash (.ui-tile-wash()) rewrites the root's background-image. Not while loading,
 // when the root's ::before is the loading ring.
-@ui-quote-color: ~"var(--ui-quote-color, color-mix(in srgb, currentColor 25%, transparent))";
-@ui-quote-border: ~"calc(2px + @{ui-space-2})";
+// The stroke and its neutral colour are the tokens a Markdown blockquote is drawn in too; QuoteLineColor writes --ui-quote-color.
+@ui-quote-color: ~"var(--ui-quote-color, @{ui-quote-ink})";
+@ui-quote-border: ~"calc(@{ui-quote-stroke} + @{ui-space-2})";
 
 .ui-paragraph--quote {
     position: relative;
@@ -44,7 +45,7 @@
         top: 0;
         bottom: 0;
         left: calc(-1 * @ui-quote-border);
-        width: 2px;
+        width: @ui-quote-stroke;
         background-color: @ui-quote-color;
         pointer-events: none;
     }

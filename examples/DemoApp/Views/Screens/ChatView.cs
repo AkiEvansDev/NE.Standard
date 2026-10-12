@@ -167,9 +167,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             // Tonal: a lone search over the list, nothing stacked under it.
             .AddChild(new TextInputComponent(SearchId)
                 .SetAppearance(UIInputAppearance.Tonal)
-                .SetPlaceholder("Search chats")
-                .SetPrefixIcon(DemoIcons.Search)
-                .SetShowClearButton()
+                .SetSearch("Search chats")
                 .SetDebounceMilliseconds(150)
                 .BindVisibility(nameof(ChatController.ChatsVisibility))
                 .SetPlacement(1, 2, 24, 1)
@@ -210,7 +208,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateChatRow()
         => new ContainerComponent()
-            .SetPadding(UIThickness.All(2, 6, 2, 6))
+            // Wider than the wash's own inset: the scrollbar drawn over the list's edge stays clear of the time.
+            .SetPadding(UIThickness.All(6, 6, 6, 6))
             .SetColumn(1, UIGridUnit.Auto())
             .SetColumn(24, UIGridUnit.Auto())
             .AddChild(CreateAvatar(44)
@@ -347,7 +346,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             // A bubble is its own card: the row its bar stands over takes no wash across the conversation's width.
             .SetSelectionStyle(new UISelectionStyle(null, null, null, null, ActionBarBackground: UIThemeColor.Transparent))
             .SetSpacing(6)
-            .SetMargin(UIThickness.All(16, 8, 16, 8));
+            // Inside the scroll, not around it: the scrollbar drawn over its edge runs in this air, clear of the bubbles.
+            .SetPadding(UIThickness.All(16, 8, 16, 8));
 
     /// <summary>
     /// A message on its side of the conversation, its author over it in a group and its time under it; its own menu behind a right
@@ -374,6 +374,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .SetTitleColor(UIThemeColor.Primary)
                         .BindDescription(nameof(DemoChatMessage.Text), UIBindingScope.Relative)
                         .SetDescriptionType(UITextAppearance.Body),
+                    CreatePhotos(),
                     new TimestampComponent()
                         .SetFormat(UITimestampFormat.Time)
                         .BindValue(nameof(DemoChatMessage.Sent), UIBindingScope.Relative)
@@ -381,6 +382,32 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .SetColor(UIThemeColor.Muted)
                         .SetHorizontalAlignment(UIAlignment.End)
                 )
+            );
+
+    /// <summary>
+    /// The photos sent with a message, small squares in a wrap: a press on one shows it full size among the message's others, on the
+    /// page alone — its arrows, ← and → or a swipe walk them, not the photos of other messages.
+    /// </summary>
+    private static ItemsViewComponent CreatePhotos()
+        => new ItemsViewComponent()
+            .BindItems(nameof(DemoChatMessage.Photos), UIBindingScope.Relative)
+            .BindVisibility(nameof(DemoChatMessage.PhotosVisibility), UIBindingScope.Relative)
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetLayoutType(UIItemsLayoutType.Wrap)
+            .SetSpacing(4)
+            .SetMargin(UIThickness.All(0, 4, 0, 2))
+            .SetTemplate(new SurfaceComponent()
+                .SetPadding(UIThickness.Uniform(0))
+                .SetBorderRadius(UICornerRadius.Uniform(6))
+                .SetContent(new ImageComponent()
+                    .BindSource(nameof(DemoChatPhoto.Source), UIBindingScope.Relative)
+                    .BindAltText(nameof(DemoChatPhoto.Title), UIBindingScope.Relative)
+                    .SetFit(UIImageFit.Cover)
+                    .SetCornerRadius(UICornerRadius.Uniform(6))
+                    .SetWidth(UILayoutLength.Absolute(88))
+                    .SetHeight(UILayoutLength.Absolute(88))
+                )
+                .OnClickShowImage(amongRows: true)
             );
 
     /// <summary>

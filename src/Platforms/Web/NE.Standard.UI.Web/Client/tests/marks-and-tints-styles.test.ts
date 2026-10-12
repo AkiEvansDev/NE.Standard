@@ -58,7 +58,8 @@ test("a current entry writes in the text's ink, never the brand's: the brand sta
     for (const entry of [
         ".ui-menu-item--selected",
         ".ui-button[data-ui-value-kind=\"pressed\"][aria-pressed=\"true\"]:not([data-ui-drawer-pin])",
-        ".ui-language-switcher__choice[aria-checked=\"true\"]"
+        ".ui-language-switcher__choice:is([aria-checked='true'], [aria-selected='true'])",
+        ".ui-theme-switcher__choice[aria-selected='true']"
     ])
         assert.ok((declarations(entry) ?? "").includes(ink), `${entry} does not write in the text's ink`);
 

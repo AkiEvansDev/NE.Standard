@@ -263,7 +263,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
                         .SetWidth(UILayoutLength.Absolute(320))
                     )
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Outline)
+                        .SetType(UIButtonType.Ghost)
                         .SetHorizontalAlignment(UIAlignment.Center)
                         .SetTitle("Show archived releases")
                     )

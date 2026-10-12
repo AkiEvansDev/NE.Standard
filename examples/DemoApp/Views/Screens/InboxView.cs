@@ -36,9 +36,7 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
         => UILayout.Stack(12,
             new TextInputComponent(SearchId)
                 .SetAppearance(UIInputAppearance.Tonal)
-                .SetPlaceholder("Search by sender or subject")
-                .SetPrefixIcon(DemoIcons.Search)
-                .SetShowClearButton()
+                .SetSearch("Search by sender or subject")
                 .SetDebounceMilliseconds(150),
             UILayout.Columns(12,
                 new SelectComponent(LabelId)

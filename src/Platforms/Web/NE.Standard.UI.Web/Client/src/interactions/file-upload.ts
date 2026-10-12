@@ -1,5 +1,5 @@
 // The one way a file leaves the browser: a multipart POST beside the hub, answering with the selection id the controller reads;
-// and what a field says when a pick is over its size limit.
+// a selection the server holds, read back; and what a field says when a pick is over its size limit.
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { FileMaxSizeAttribute } from "../addressing/dom-attributes.ts";
@@ -9,6 +9,8 @@ import { logElapsed, logWarn } from "../runtime/logger.ts";
 import type { FieldValidation } from "./validation-engine.ts";
 
 const UploadPath = "/_ne/files/upload";
+const SelectionPath = "/_ne/files/selection/";
+const UploadedPath = "/_ne/files/upload/";
 
 /** Past the byte, the steps a size is written in, each 1024 of the one before, as a file manager counts. */
 const SizeUnits = ["kilobyte", "megabyte", "gigabyte"] as const;
@@ -170,6 +172,35 @@ export function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: nu
 
         request.send(body);
     });
+}
+
+/** One file of a selection the server holds, as the upload answered it. */
+export type StoredFile = {
+    readonly fileId: string;
+    readonly fileName: string;
+    readonly contentType: string | null;
+    readonly size: number;
+};
+
+/**
+ * The files a selection of this session holds, read back to draw what a controller still names — a shelf after a reload or a
+ * switch; null where the server answers no files, as it does once it no longer holds the selection (a restart, the retention run
+ * out), and a failure of any other kind throws.
+ */
+export async function readSelectionAsync(selectionId: string): Promise<StoredFile[] | null> {
+    const response = await fetch(`${SelectionPath}${encodeURIComponent(selectionId)}`, { credentials: "same-origin", cache: "no-store" });
+
+    if (!response.ok)
+        throw new Error(`Reading selection failed with status ${response.status}.`);
+
+    const files = (await response.json() as { readonly files?: StoredFile[] } | null)?.files ?? [];
+
+    return files.length === 0 ? null : files;
+}
+
+/** Where the page reads one of this session's uploads again — the picture a shelf draws for a selection it read back. */
+export function uploadedFileUrl(fileId: string): string {
+    return `${UploadedPath}${encodeURIComponent(fileId)}`;
 }
 
 /** The framework's upload, answering with a selection id; a package never posts to the endpoint, whose path and shape are its own. */

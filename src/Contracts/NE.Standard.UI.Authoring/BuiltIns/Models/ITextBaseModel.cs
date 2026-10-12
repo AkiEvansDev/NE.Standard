@@ -52,6 +52,13 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     UIIconShape? IconShape { get; }
 
     /// <summary>
+    /// Gets the glyph a round picture icon (<see cref="IconShape"/> Circle) shows on a neutral circle while it has no picture, none
+    /// given or one that fails; unset, <c>UIGlyphs.Person</c>.
+    /// </summary>
+    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
+    string? IconFallback { get; }
+
+    /// <summary>
     /// Gets the label text drawn as the title; nothing renders when it is unset.
     /// </summary>
     /// <remarks>

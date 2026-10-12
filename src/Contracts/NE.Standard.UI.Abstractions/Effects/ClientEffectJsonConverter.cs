@@ -14,6 +14,7 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
     private static readonly FrozenDictionary<string, Type> BuiltInTypes = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
         [ClientEffectKinds.Navigate] = typeof(NavigateEffect),
+        [ClientEffectKinds.NavigateBack] = typeof(NavigateBackEffect),
         [ClientEffectKinds.Focus] = typeof(CompiledFocusEffect),
         [ClientEffectKinds.ScrollTo] = typeof(CompiledScrollToEffect),
         [ClientEffectKinds.ScrollToItem] = typeof(CompiledScrollToItemEffect),
@@ -39,7 +40,8 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         [ClientEffectKinds.ReplaceAddress] = typeof(ReplaceAddressEffect),
         [ClientEffectKinds.PushAddress] = typeof(PushAddressEffect),
         [ClientEffectKinds.RequestNotificationPermission] = typeof(RequestNotificationPermissionEffect),
-        [ClientEffectKinds.ShowSystemNotification] = typeof(ShowSystemNotificationEffect)
+        [ClientEffectKinds.ShowSystemNotification] = typeof(ShowSystemNotificationEffect),
+        [ClientEffectKinds.ShowImage] = typeof(CompiledShowImageEffect)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <inheritdoc />

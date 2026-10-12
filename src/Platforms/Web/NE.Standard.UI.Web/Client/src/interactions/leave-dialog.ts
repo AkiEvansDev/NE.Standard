@@ -55,7 +55,7 @@ function buildDialog(): HTMLElement {
     message.id = "ui-leave-message";
 
     // Stay first: the dialog's first control takes the focus, and Enter on it keeps the reader's work.
-    surface.append(title, message, Parts.actions(Parts.button("ui-button--outline", "stay"), Parts.button("ui-button--danger", "leave")));
+    surface.append(title, message, Parts.actions(Parts.button("ui-button--ghost", "stay"), Parts.button("ui-button--danger", "leave")));
 
     dialog.addEventListener("click", domEvent => {
         const choice = Parts.pressed(domEvent);

@@ -358,10 +358,7 @@ export function moveFocusInto(popup: HTMLElement, preferred?: HTMLElement | null
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const target = preferred ?? firstFocusable(popup);
 
-    if (pointerLast)
-        openedByPointer.add(popup);
-    else
-        openedByPointer.delete(popup);
+    noteOpening(popup);
 
     // The popup itself, named or for want of a control: focusable for it.
     if ((target === null || target === popup) && !popup.hasAttribute("tabindex"))
@@ -370,6 +367,14 @@ export function moveFocusInto(popup: HTMLElement, preferred?: HTMLElement | null
     focusAsLastInput(target ?? popup);
 
     return previous;
+}
+
+/** Notes whose opening a popup taking the focus was, the pointer's or a key's: what its closing gives the focus back as (restoreFocusTo). */
+function noteOpening(popup: HTMLElement): void {
+    if (pointerLast)
+        openedByPointer.add(popup);
+    else
+        openedByPointer.delete(popup);
 }
 
 /**
@@ -400,9 +405,12 @@ function revealWithin(box: Element, element: Element): void {
 
 /**
  * Gives an opened list the keyboard: a key's opening lights its first entry (its last for `fromEnd`); the pointer's lights none — the
- * list holds the focus with no entry a tab stop, so the first arrow enters at the near end, as a native menu's does.
+ * list holds the focus with no entry a tab stop, so the first arrow enters at the near end, as a native menu's does. Either way the
+ * closing gives the focus back as the opening's: a context menu a long press opened and Escape closed leaves its list unlit.
  */
 export function focusOpenedList(list: HTMLElement, entries: readonly HTMLElement[], fromEnd = false): void {
+    noteOpening(list);
+
     if (pointerLast) {
         applyRovingTabIndex(entries, null);
 

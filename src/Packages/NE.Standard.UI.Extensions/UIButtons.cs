@@ -19,7 +19,10 @@ public static class UIButtons
     public static ButtonComponent Accent(string title, string? icon = null)
         => Create(UIButtonType.Accent, title, icon);
 
-    /// <summary>An outlined button: the other way, beside the filled one.</summary>
+    /// <summary>
+    /// An outlined button, where a bare one would not read as a button: an action on a message's colour, an alternative stretched under
+    /// a stretched primary, a choice drawn as a card. Beside a filled button the other way is a <see cref="Ghost"/>.
+    /// </summary>
     public static ButtonComponent Secondary(string title, string? icon = null)
         => Create(UIButtonType.Outline, title, icon);
 

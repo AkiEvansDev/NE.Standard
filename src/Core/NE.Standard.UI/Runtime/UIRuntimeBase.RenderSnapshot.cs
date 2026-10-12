@@ -74,7 +74,8 @@ internal abstract partial class UIRuntimeBase
         if (HoldsUnsavedWork)
             updates.Add(PageState());
 
-        return new ServerChangeSet { Updates = [.. updates] }.For(instanceId);
+        // A list filled an Add at a time between the render and the attach goes as one insert, which the page reads as one refill.
+        return UICollectionInsertMerge.Merge(new ServerChangeSet { Updates = [.. updates] }.For(instanceId));
     }
 
     private static void AppendPastRender(List<ServerUIUpdate> updates, List<PendingUpdate> queued, long renderSequence)

@@ -19,6 +19,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
+    // UIStrings.SearchField: the Shell's key, written out, as the components reference no Shell.
+    private const string SearchKey = "ui.search.field";
+
     private readonly FieldActions _actions = new();
 
     /// <summary>
@@ -149,6 +152,17 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     public T SetShowClearButton()
         => SetShowClearButton(true);
+
+    /// <summary>
+    /// Makes the field a search box: the search type, the search glyph before the text, a clear button, and
+    /// <paramref name="placeholder"/> or the framework's word "Search". A filter beside a list or a search command reads it; how
+    /// soon it commits is <c>SetDebounceMilliseconds</c>'.
+    /// </summary>
+    public T SetSearch(string? placeholder = null)
+        => SetType(UITextInputType.Search)
+            .SetPrefixIcon(UIGlyphs.Search)
+            .SetShowClearButton()
+            .SetPlaceholder(placeholder ?? SearchKey);
 
     /// <summary>
     /// Runs <paramref name="command"/> on Enter, after the value has reached the server; the field keeps the focus for the next entry.

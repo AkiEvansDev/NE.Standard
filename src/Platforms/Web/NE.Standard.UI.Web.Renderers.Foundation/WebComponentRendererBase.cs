@@ -115,13 +115,22 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     protected abstract void RenderComponent(WebRenderContext context, IHtmlElementBuilder root);
 
+    /// <summary>
+    /// The root's element and class for this render: <see cref="ElementName"/> and <see cref="ClassName"/>, unless the component draws
+    /// two shapes by a property decided once at render (a page switcher as a button or a field).
+    /// </summary>
+    protected virtual (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
+        => (ElementName, ClassName);
+
     public void Render(WebRenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        _ = context.Html.Element(ElementName, root =>
+        (var elementName, var className) = ResolveRoot(context);
+
+        _ = context.Html.Element(elementName, root =>
         {
-            _ = root.Class(ClassName);
+            _ = root.Class(className);
             ApplyDefaultAttributes(context, root);
 
             RenderComponent(context, root);
@@ -885,7 +894,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         CompiledView view = context.ViewResolution.View;
 
         if (!view.State.TryGetValue(context.Node.ComponentId, property, out CompiledUIPropertyValue? propertyValue))
-            return WebRenderValueKind.Missing;
+        {
+            // Unset, but a rule reading another component's own value may still draw it (a note shown under a switch that is on).
+            if (!view.Interactions.TryGetFirstPaintValue(new UIPropertyAddress(context.Node.ComponentId, property), out var ruled))
+                return WebRenderValueKind.Missing;
+
+            value = CastRenderedValue<T>(ruled, property);
+            return WebRenderValueKind.Static;
+        }
 
         // The compiler's answer, carried on the value: asking the property register here would take its lock per property.
         word = new RenderedWord(propertyValue.IsTranslatable, propertyValue.IsContent, null, FromItem: false);
@@ -918,7 +934,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             return WebRenderValueKind.Binding;
         }
 
-        var rawValue = propertyValue.Value;
+        // The first paint of a rule reading another component's own value, which the page's rules would write as they start (ShownWhen).
+        var rawValue = view.Interactions.TryGetFirstPaintValue(new UIPropertyAddress(context.Node.ComponentId, property), out var firstPaint) ? firstPaint : propertyValue.Value;
 
         word = word with { Key = ReadWordKey(propertyValue.IsTranslatable, rawValue), Painted = rawValue as UIPhrase };
         rawValue = TranslateRenderedValue(context, propertyValue.IsTranslatable, rawValue);

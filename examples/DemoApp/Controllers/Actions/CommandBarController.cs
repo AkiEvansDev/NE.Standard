@@ -31,7 +31,7 @@ internal sealed partial class DeployActionsGroupContext : DemoGroupContext
     public RecursiveCollection<ButtonItem> Actions { get; } =
     [
         new() { Id = PromoteId, Title = "Promote", Icon = DemoIcons.Outline(DemoIcons.Upload), Type = UIButtonType.Primary },
-        new() { Id = "rollback", Title = "Roll back", Icon = DemoIcons.Outline(DemoIcons.Undo), Type = UIButtonType.Outline },
+        new() { Id = "rollback", Title = "Roll back", Icon = DemoIcons.Outline(DemoIcons.Undo), Type = UIButtonType.Ghost },
         new() { Id = "logs", Title = "Logs", Icon = DemoIcons.Outline(DemoIcons.FileText), Type = UIButtonType.Ghost }
     ];
 

@@ -317,7 +317,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         )
                         .AddChild(new ButtonComponent()
                             .OnClick(nameof(CardController.RecordButtonClick))
-                            .SetType(UIButtonType.Outline)
+                            .SetType(UIButtonType.Ghost)
                             .SetSize(UIButtonSize.Small)
                             .SetHorizontalAlignment(UIAlignment.Start)
                             .SetTitle("A button inside it")

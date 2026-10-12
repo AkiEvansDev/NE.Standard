@@ -1,10 +1,13 @@
-// Classic head script, built as one with what it imports: as the parser produces the body, applies the stored boot patches and writes
-// every moment the server painted in UTC — a timestamp, a moment in words — in the reader's zone, before the first paint.
+// Classic head script, built as one with what it imports: as the parser produces the body, applies the stored boot patches, writes
+// every moment the server painted in UTC — a timestamp, a moment in words — in the reader's zone, marks a theme field's current
+// choice, and holds every region with a part a package's engine draws, before the first paint.
 
 import { MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, WordsAttribute, WordsTextTarget } from "./addressing/dom-attributes.ts";
 import { momentsOfMark, readMomentsAttribute, readPageTemporal, serverMomentPaint } from "./rendering/moment-first-paint.ts";
 import type { PaintedMoment } from "./rendering/moment-first-paint.ts";
 import type { TemporalLanguage } from "./rendering/temporal-format.ts";
+import { AwaitsDrawSelector, holdRegionOf } from "./rendering/region-hold.ts";
+import { declaredTheme, markThemeChoice, ThemeFieldPartSelector } from "./rendering/theme-choice.ts";
 import { formatTimestamp, readInstant, readTimestampFormat, timestampText } from "./rendering/timestamp-format.ts";
 import type { TimestampWords } from "./rendering/timestamp-format.ts";
 
@@ -40,6 +43,20 @@ import type { TimestampWords } from "./rendering/timestamp-format.ts";
 
     if (patchesByName.size > 0)
         jobs.push(job(`[${NameAttribute}]`, element => applyPatches(element, patchesByName)));
+
+    // Held before its first paint, as its region is parsed: the runtime lets it show once the engines that draw its part have started.
+    jobs.push(job(AwaitsDrawSelector, element => {
+        holdRegionOf(element);
+        return true;
+    }));
+
+    // A theme field's current choice, from the theme the root is set to: the shell is cached outside the theme, so the server cannot.
+    const theme = declaredTheme();
+
+    jobs.push(job(ThemeFieldPartSelector, element => {
+        markThemeChoice(element, theme);
+        return true;
+    }));
 
     // A page with no patterns paints its moments as the server wrote them, and the runtime writes them once it starts.
     if (temporal !== null) {

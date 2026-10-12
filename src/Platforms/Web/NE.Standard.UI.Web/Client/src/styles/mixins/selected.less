@@ -137,8 +137,8 @@
 }
 
 // An entry of a short list of choices (a language, a page size): one line at the list's row height, the pointer's and the keyboard's
-// marks a list's, and the chosen one (`aria-checked`) on the chosen ground.
-.ui-choice-entry() {
+// marks a list's, and the chosen one (`aria-checked` in a menu, `aria-selected` in a field's listbox) on the chosen ground.
+.ui-choice-entry(@chosen: ~"[aria-checked='true']") {
     display: flex;
     align-items: center;
     min-height: @ui-list-row-height;
@@ -151,10 +151,10 @@
     white-space: nowrap;
     cursor: pointer;
     .ui-interactive-base();
-    .ui-entry-hover(~"[aria-checked='true']");
-    .ui-entry-keyboard(~"[aria-checked='true']");
+    .ui-entry-hover(@chosen);
+    .ui-entry-keyboard(@chosen);
 
-    &[aria-checked="true"] {
+    &@{chosen} {
         .ui-selected-ground();
         .ui-selected-ink();
     }
@@ -178,6 +178,43 @@
     // A key moves the cursor at once, frame and wash together: the washes' fade trailed the frame, which has none.
     @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row} {
         transition: @ui-root-transition;
+    }
+}
+
+// A list's rows (an items view's stack, a tree) round every wash they wear — the pointer's, the press's wave, the keyboard's, the
+// chosen ground — as a menu's entry does, and a chosen row is straight only on the edge its mark stands on: the leading one, or the
+// one SelectionStyle moved it to, read off the host's own inline mark (`.ui-selected-scope()` fences an ancestor's). A table's and a
+// key-value list's rows, edge to edge in a grid, stay square. The keyboard's frame, at a greater weight, takes its own corner.
+.ui-list-row-corners(@host; @row) {
+    @{host} > [data-ui-items-host] > @{row} {
+        border-radius: @ui-list-entry-radius;
+    }
+
+    @{host} > [data-ui-items-host] > @{row}[data-ui-selected] {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    @{host}[style*="--ui-selected-mark: none"] > [data-ui-items-host] > @{row}[data-ui-selected] {
+        border-radius: @ui-list-entry-radius;
+    }
+
+    @{host}[style*="--ui-selected-mark: inset -2px"] > [data-ui-items-host] > @{row}[data-ui-selected] {
+        border-radius: @ui-list-entry-radius;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    @{host}[style*="--ui-selected-mark: inset 0 2px"] > [data-ui-items-host] > @{row}[data-ui-selected] {
+        border-radius: @ui-list-entry-radius;
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+
+    @{host}[style*="--ui-selected-mark: inset 0 -2px"] > [data-ui-items-host] > @{row}[data-ui-selected] {
+        border-radius: @ui-list-entry-radius;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
     }
 }
 

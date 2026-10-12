@@ -54,6 +54,10 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesMod
     public partial UIIconShape? IconShape { get; set; }
 
     /// <inheritdoc />
+    [RecursiveMember]
+    public partial string? IconFallback { get; set; }
+
+    /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
     [JsonConverter(typeof(UIPhraseValueJsonConverter))]

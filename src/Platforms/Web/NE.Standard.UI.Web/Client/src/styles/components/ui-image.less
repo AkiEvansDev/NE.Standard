@@ -1,11 +1,27 @@
 @import "../mixins/responsive.less";
+@import "../mixins/stand-in.less";
 
+// The box takes the size, the shape and the corners; the picture fills it. A box, not the `<img>` itself, so a round one with no
+// picture can hold its fallback glyph over the picture's place.
 .ui-image {
     display: block;
+    // As wide as its picture until a width is given, as the picture alone was: a block would take its track's whole width.
+    .ui-responsive-property(width, --ui-width, fit-content);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     // CornerRadius, through the border's chain as a bordered component's corners are.
     .ui-responsive-property(border-radius, --ui-border-radius, 0);
 }
+
+    // `height: 100%` of a box with no height of its own is the picture's own; a cap on the box's height reaches it, as it did the
+    // `<img>` alone, or the picture would run out of its box.
+    .ui-image__picture {
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: inherit;
+        border-radius: inherit;
+    }
 
 // An unset Fit draws no class: the default is the image's intrinsic size under .ui-image's own max-width.
 
@@ -14,38 +30,62 @@
 .ui-image--circle {
     aspect-ratio: 1;
     border-radius: 50%;
-    object-fit: cover;
 }
+
+    .ui-image--circle > .ui-image__picture {
+        object-fit: cover;
+    }
 
 .ui-image-fit--fill {
     .ui-responsive-property(width, --ui-width, 100%);
     .ui-responsive-property(height, --ui-height, 100%);
-    object-fit: fill;
 }
+
+    .ui-image-fit--fill > .ui-image__picture {
+        object-fit: fill;
+    }
 
 .ui-image-fit--contain {
     .ui-responsive-property(width, --ui-width, 100%);
     .ui-responsive-property(height, --ui-height, 100%);
-    object-fit: contain;
 }
+
+    .ui-image-fit--contain > .ui-image__picture {
+        object-fit: contain;
+    }
 
 .ui-image-fit--cover {
     .ui-responsive-property(width, --ui-width, 100%);
     .ui-responsive-property(height, --ui-height, 100%);
-    object-fit: cover;
 }
+
+    .ui-image-fit--cover > .ui-image__picture {
+        object-fit: cover;
+    }
 
 .ui-image-fit--none {
-    .ui-responsive-property(width, --ui-width, auto);
+    .ui-responsive-property(width, --ui-width, fit-content);
     .ui-responsive-property(height, --ui-height, auto);
-    object-fit: none;
 }
 
-// A picture whose source is missing or failed, with no stand-in of its author's (or one that failed too): the framework's own glyph
+    .ui-image-fit--none > .ui-image__picture {
+        object-fit: none;
+    }
+
+// A picture whose source is missing or failed, with no stand-in of its author's (or one that failed too): the framework's own
 // (image-fallback-engine.ts) on the wash, shrunk into a box smaller than it and never grown — never the browser's broken mark. After
 // the fits, which it outranks.
-.ui-image[data-ui-image-failed] {
+.ui-image[data-ui-image-failed] > .ui-image__picture {
     object-fit: scale-down;
     object-position: center;
     background-color: var(--ui-wash-hover);
 }
+
+// A round one: a clear square on the neutral circle a badge stands on, its fallback glyph laid over it (`.ui-icon-stand-in`).
+.ui-image--circle[data-ui-image-failed] {
+    position: relative;
+}
+
+    .ui-image--circle[data-ui-image-failed] > .ui-image__picture {
+        background-color: @ui-stand-in-ground;
+    }

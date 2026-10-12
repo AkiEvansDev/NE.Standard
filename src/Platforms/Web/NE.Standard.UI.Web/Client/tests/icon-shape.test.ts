@@ -88,7 +88,7 @@ test("a live change after the attach's write takes the circle off, and puts it b
 test("only a picture is cut round, filling the circle; a glyph's rule is untouched", () => {
     assert.match(declarations(".ui-icon--image.ui-icon--circle::before") ?? "", /border-radius: 50%;[\s\S]*background-size: cover;/);
     assert.equal(declarations(".ui-icon--circle::before"), null, "a glyph keeps its shape");
-    assert.match(declarations(".ui-text--icon-content > .ui-text__icon.ui-icon--image.ui-icon--circle") ?? "", /border-radius: 50%;/, "the tile is round too");
+    assert.match(declarations(".ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]).ui-icon--circle") ?? "", /border-radius: 50%;/, "the tile is round too");
 });
 
 test("a round image is a square box, filled unless its fit says otherwise, whatever its corner radius", () => {
@@ -96,8 +96,8 @@ test("a round image is a square box, filled unless its fit says otherwise, whate
 
     assert.match(rule, /aspect-ratio: 1;/);
     assert.match(rule, /border-radius: 50%;/);
-    assert.match(rule, /object-fit: cover;/);
+    assert.match(declarations(".ui-image--circle > .ui-image__picture") ?? "", /object-fit: cover;/);
     assert.match(declarations(".ui-image") ?? "", /border-radius: var\(--ui-border-radius-xxl,/, "a corner radius comes through the chain, not inline");
     assert.ok(css.indexOf(".ui-image {") < css.indexOf(".ui-image--circle {"), "the circle comes later and wins over a corner radius");
-    assert.ok(css.indexOf(".ui-image--circle {") < css.indexOf(".ui-image-fit--contain {"), "an explicit fit comes later and wins");
+    assert.ok(css.indexOf(".ui-image--circle > .ui-image__picture {") < css.indexOf(".ui-image-fit--contain > .ui-image__picture {"), "an explicit fit comes later and wins");
 });

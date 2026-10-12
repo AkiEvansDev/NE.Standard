@@ -44,7 +44,7 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new LanguageSwitcherComponent()
                     .SetDisplay(UILanguageDisplay.Name)
                     .SetIcon(DemoIcons.Outline(DemoIcons.MessageSquare))
-                    .SetType(UIButtonType.Outline)
+                    .SetType(UIButtonType.Ghost)
                     .SetLanguages(["en", "zh-Hans"])
                 )
                 .AddChild(new LanguageSwitcherComponent().SetLanguages(["en"])),
@@ -175,7 +175,7 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
                 )
                 .AddChild(UILayout.Row(8)
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Outline)
+                        .SetType(UIButtonType.Ghost)
                         .SetIcon(DemoIcons.Add)
                         .SetTitle("demo.language.add-effect")
                         .OnClick(nameof(WordsController.AddEffect))
@@ -218,7 +218,7 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateCommandGroup()
         => DemoUI.CreateExample(Words + "group.command",
             new ButtonComponent()
-                .SetType(UIButtonType.Outline)
+                .SetType(UIButtonType.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.language.switch-from-command")
                 .OnClick(nameof(WordsController.SwitchFromCommandAsync)),

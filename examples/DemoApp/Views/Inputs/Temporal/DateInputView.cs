@@ -253,7 +253,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
                     .OnChange(nameof(DateInputController.MarkedDaysOnlyChanged))
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Outline)
+                    .SetType(UIButtonType.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("The next month's trains")
                     .OnClick(nameof(DateInputController.NextMonth))

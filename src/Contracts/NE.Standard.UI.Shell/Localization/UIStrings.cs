@@ -53,8 +53,11 @@ public static partial class UIStrings
     public const string ActionEdit = "ui.action.edit";
     public const string ActionCopy = "ui.action.copy";
     public const string ActionSave = "ui.action.save";
+    public const string ActionDone = "ui.action.done";
     public const string ActionCancel = "ui.action.cancel";
     public const string ActionClose = "ui.action.close";
+    public const string ActionBack = "ui.action.back";
+    public const string ActionNew = "ui.action.new";
     public const string ActionDelete = "ui.action.delete";
     public const string TabsMore = "ui.tabs.more";
     public const string CommandBarMore = "ui.commandbar.more";
@@ -65,6 +68,8 @@ public static partial class UIStrings
 
     /// <summary>A tag typed into a full multi-select, refused: <c>{max}</c>.</summary>
     public const string SelectFull = "ui.select.full";
+
+    /// <summary>Every search field's hint: a search's list field, a text input's <c>SetSearch</c>, a menu's search.</summary>
     public const string SearchField = "ui.search.field";
     public const string InputClear = "ui.input.clear";
     public const string BreadcrumbsLabel = "ui.breadcrumbs.label";
@@ -123,6 +128,12 @@ public static partial class UIStrings
     public const string ImageCropCancel = "ui.crop.cancel";
     public const string ImageUnreadable = "ui.image.unreadable";
 
+    /// <summary>The picture shown full size over the page (<c>ShowImageEffect</c>): its name, its set's arrows and counter.</summary>
+    public const string LightboxLabel = "ui.lightbox.label";
+    public const string LightboxPrevious = "ui.lightbox.previous";
+    public const string LightboxNext = "ui.lightbox.next";
+    public const string LightboxCounter = "ui.lightbox.counter";
+
     /// <summary>A row's grip, which drags it (<c>DragHandle</c>).</summary>
     public const string RowDrag = "ui.row.drag";
     public const string TableResizeColumn = "ui.table.resize";
@@ -140,10 +151,20 @@ public static partial class UIStrings
     /// <summary>The name of a drawer's pin, pressed as the side is pinned: from the medium breakpoint up it then stands in its column.</summary>
     public const string SidePin = "ui.side.pin";
 
-    public const string MenuSearch = "ui.menu.search";
     public const string ThemeSwitch = "ui.theme.switch";
+
+    /// <summary>The theme switcher's field's caption where the author gives none.</summary>
+    public const string ThemeField = "ui.theme.field";
+
+    /// <summary>The theme field's three choices: the light theme, the dark one, and the platform's preference.</summary>
+    public const string ThemeLight = "ui.theme.light";
+    public const string ThemeDark = "ui.theme.dark";
+    public const string ThemeSystem = "ui.theme.system";
     public const string LanguageSwitch = "ui.language.switch";
     public const string LanguageCurrent = "ui.language.current";
+
+    /// <summary>The language switcher's field's caption where the author gives none.</summary>
+    public const string LanguageField = "ui.language.field";
     public const string NotFoundTitle = "ui.notfound.title";
     public const string NotFoundDescription = "ui.notfound.description";
 
@@ -221,8 +242,11 @@ public static partial class UIStrings
         [ActionEdit] = "Edit",
         [ActionCopy] = "Copy",
         [ActionSave] = "Save",
+        [ActionDone] = "Done",
         [ActionCancel] = "Cancel",
         [ActionClose] = "Close",
+        [ActionBack] = "Back",
+        [ActionNew] = "New",
         [ActionDelete] = "Delete",
         [TabsMore] = "More tabs",
         [CommandBarMore] = "More commands",
@@ -273,6 +297,10 @@ public static partial class UIStrings
         [ImageCropApply] = "Done",
         [ImageCropCancel] = "Cancel",
         [ImageUnreadable] = "The picture could not be opened.",
+        [LightboxLabel] = "Picture",
+        [LightboxPrevious] = "Previous picture",
+        [LightboxNext] = "Next picture",
+        [LightboxCounter] = "{index} of {count}",
         [RowDrag] = "Reorder",
         [TableResizeColumn] = "Resize column",
         [TreeToggle] = "Expand or collapse",
@@ -282,10 +310,14 @@ public static partial class UIStrings
         [SidePanel] = "Side panel",
         [SideClose] = "Close the side panel",
         [SidePin] = "Pin the side panel",
-        [MenuSearch] = "Search",
         [ThemeSwitch] = "Switch theme",
+        [ThemeField] = "Theme",
+        [ThemeLight] = "Light",
+        [ThemeDark] = "Dark",
+        [ThemeSystem] = "System",
         [LanguageSwitch] = "Language: {language} ({code}), switch to {other} ({otherCode})",
         [LanguageCurrent] = "Language: {language} ({code})",
+        [LanguageField] = "Language",
         [NotFoundTitle] = "404",
         [NotFoundDescription] = "The page you are looking for does not exist.",
         [NotFoundPageTitle] = "Page not found",

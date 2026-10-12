@@ -111,7 +111,7 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
             UILayout.Stack(12,
                 UIMessage.Info("Two-step sign-in is on", "Every new device asks for a code from your phone.", dismissible: true)
                     .InteractOn(ShowAgainId, EventNames.Click, IVisualComponent.VisibilityProperty, UIVisibility.Visible),
-                new ButtonComponent(ShowAgainId).SetType(UIButtonType.Outline).SetTitle("Show it again").SetHorizontalAlignment(UIAlignment.Start)
+                new ButtonComponent(ShowAgainId).SetType(UIButtonType.Ghost).SetTitle("Show it again").SetHorizontalAlignment(UIAlignment.Start)
             ),
             note: "Both presses stay in the page: the server never hears them, so a reload shows the message again. The × hands the keyboard's focus to the next control. A message the server should stop showing binds its Visibility instead."
         );

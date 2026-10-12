@@ -23,7 +23,8 @@ internal sealed partial class DemoFeedItem : TextItem
 
 /// <summary>
 /// Rows whose menus are their own: files that open on a press and carry their actions in a bar, a delete taking the row away; and a
-/// feed, with what the page does to it — a note or a picture posted at its end, and the newest entry changing kind.
+/// feed, with what the page does to it — a note or a picture posted at its end, and the newest entry changing kind — and the entry at its
+/// top, which the page writes back as the reader scrolls.
 /// </summary>
 internal sealed partial class RowMenusGroupContext : DemoGroupContext
 {
@@ -31,8 +32,24 @@ internal sealed partial class RowMenusGroupContext : DemoGroupContext
     public const string ImageKind = "image";
 
     private static readonly string[] Pictures = [DemoImages.NightStreet, DemoImages.SunsetRuins, DemoImages.MeteorShore, DemoImages.HarbourSky];
+    private static readonly PathSegment TopEntrySegment = PathSegment.ForProperty(nameof(TopEntry));
 
     private int _posted;
+
+    /// <summary>The key of the feed's entry at its top, as the page writes it; followed as it lands into the line under the feed.</summary>
+    [RecursiveMember(false)]
+    public string? TopEntry
+    {
+        get;
+        set
+        {
+            if (SetRecursiveProperty(ref field, value, TopEntrySegment))
+                AtTop = $"At the top: {value ?? "nothing"}";
+        }
+    }
+
+    [RecursiveMember]
+    public partial string AtTop { get; set; } = "At the top: not reported yet";
 
     [RecursiveMember(false)]
     public RecursiveCollection<TextItem> Files { get; } =

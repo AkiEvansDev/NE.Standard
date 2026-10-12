@@ -20,16 +20,19 @@ public sealed class UIInteractionIndex
     private readonly FrozenDictionary<CompiledUIEventAddress, CompiledUIInteraction[]> _byEventSource;
     private readonly FrozenDictionary<UIPropertyAddress, CompiledUIInteraction[]> _byTarget;
     private readonly FrozenDictionary<UIComponentId, CompiledUIInteraction[]> _byComponent;
+    private readonly FrozenDictionary<UIPropertyAddress, object?> _firstPaint;
     private readonly CompiledUIInteraction[] _all;
 
     /// <summary>
-    /// Initializes the interaction index and validates interaction definitions.
+    /// Initializes the interaction index and validates interaction definitions; <paramref name="firstPaint"/> holds what a rule gives
+    /// its target before anything changes, where its source's value is the view's own.
     /// </summary>
-    public UIInteractionIndex(CompiledUIInteraction[] interactions)
+    public UIInteractionIndex(CompiledUIInteraction[] interactions, IReadOnlyDictionary<UIPropertyAddress, object?>? firstPaint = null)
     {
         ArgumentNullException.ThrowIfNull(interactions);
 
         _all = [.. interactions];
+        _firstPaint = firstPaint is null || firstPaint.Count == 0 ? FrozenDictionary<UIPropertyAddress, object?>.Empty : firstPaint.ToFrozenDictionary();
 
         Dictionary<UIPropertyAddress, List<CompiledUIInteraction>> byPropertySource = [];
         Dictionary<CompiledUIEventAddress, List<CompiledUIInteraction>> byEventSource = [];
@@ -92,6 +95,22 @@ public sealed class UIInteractionIndex
         => _byEventSource.TryGetValue(source, out CompiledUIInteraction[]? interactions)
             ? interactions
             : Empty;
+
+    /// <summary>
+    /// The value the rules reading another component's property give <paramref name="target"/> as the page is first drawn — a note
+    /// under a switch that is off starts hidden — where every source they read holds a value the view itself sets; the page applies
+    /// the same rules from then on.
+    /// </summary>
+    public bool TryGetFirstPaintValue(UIPropertyAddress target, out object? value)
+    {
+        if (_firstPaint.Count == 0)
+        {
+            value = null;
+            return false;
+        }
+
+        return _firstPaint.TryGetValue(target, out value);
+    }
 
     /// <summary>
     /// Gets interactions that update the specified target property.

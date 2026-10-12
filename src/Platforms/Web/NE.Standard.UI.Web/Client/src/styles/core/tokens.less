@@ -130,6 +130,12 @@
 // The brand's ink, not its fill: on a dark page the fill is as dark as the page, and a third of it was all but unseen.
 @ui-text-selection: color-mix(in srgb, var(--ui-color-primary-ink) 48%, transparent);
 
+// A quote's stroke, one width wherever one is drawn: a paragraph's quote line, a Markdown blockquote, the Extensions quote (its
+// `UIText.Quote` writes the same 3 px as a border, held equal by QuoteStrokeSyncTests). A quotation inside text is drawn in one
+// neutral colour; the preset's reply or pin wears the brand or its author's colour.
+@ui-quote-stroke: 3px;
+@ui-quote-ink: var(--ui-color-border);
+
 // A thing being dragged stays in its place as a ghost (a column's caption, a tab, a tree row), so the gap it will leave is what moves.
 @ui-drag-ghost-opacity: 0.45;
 // A label a loading ring stands beside rather than replacing (a button with no icon to turn into the ring) fades under it.

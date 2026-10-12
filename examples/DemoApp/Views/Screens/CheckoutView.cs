@@ -242,7 +242,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                     .SetTitle("Thank you")
                     .AsTitle(),
                 UIText.Note(string.Empty).BindDescription(nameof(CheckoutController.PlacedLine)),
-                UIButtons.Toolbar(UIButtons.Secondary("Back to the catalogue"))
+                UIButtons.Toolbar(UIButtons.Ghost("Back to the catalogue"))
                 )
             );
 }

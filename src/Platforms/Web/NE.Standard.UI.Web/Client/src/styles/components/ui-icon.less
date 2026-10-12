@@ -1,5 +1,6 @@
 @import "../mixins/glyphs.less";
 @import "../mixins/responsive.less";
+@import "../mixins/stand-in.less";
 
 .ui-icon {
     display: inline-flex;
@@ -78,6 +79,35 @@
     background-size: cover;
 }
 
+// A round picture icon with no picture (icon-stand-in.ts): the neutral circle where the picture would stand, its fallback glyph laid
+// over it. Shown whether or not a value drew, after the picture's own form, which it replaces.
+.ui-icon[data-ui-icon-failed] {
+    position: relative;
+}
+
+    .ui-icon[data-ui-icon-failed]::before {
+        content: "";
+        display: block;
+        border-radius: 50%;
+        background: @ui-stand-in-ground;
+    }
+
+// The glyph over a round picture's place, a picture icon's or a picture box's: as large as the circle it stands on allows, by the
+// circle's own size, since a tile's or a box's is no em of the words around it.
+.ui-icon.ui-icon-stand-in {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    container-type: size;
+    color: @ui-stand-in-ink;
+    pointer-events: none;
+}
+
+    .ui-icon.ui-icon-stand-in::before {
+        font-size: @ui-stand-in-glyph-share;
+    }
+
 // The three fixed sizes are steps of the icon scale: a fractional box puts the masked stroke on a fractional pixel and reads grey and ragged.
 .ui-icon-size--small {
     font-size: @ui-glyph-sm;
@@ -121,6 +151,7 @@
 .ui-glyph-rule(colorize; @ui-glyph-pipette);
 .ui-glyph-rule(arrow-up; @ui-glyph-arrow-up);
 .ui-glyph-rule(arrow-down; @ui-glyph-arrow-down);
+.ui-glyph-rule(arrow-back; @ui-glyph-arrow-back);
 .ui-glyph-rule(sort; @ui-glyph-sort);
 .ui-glyph-rule(first-page; @ui-glyph-first-page);
 .ui-glyph-rule(last-page; @ui-glyph-last-page);

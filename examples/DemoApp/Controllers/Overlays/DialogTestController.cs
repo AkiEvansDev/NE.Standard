@@ -273,13 +273,10 @@ internal sealed partial class DialogTestController() : DemoController
         return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey), new ShowNotificationEffect(UIPhrase.Of(Words + "toast.gone"), UIColorStyle.Success)]);
     }
 
+    /// <summary>The dialog's close: Cancel and Escape have shut it on the page already.</summary>
     [UICommand]
-    public UICommandResult KeepRelease()
-    {
-        ConfirmGroup.Keep();
-
-        return UICommandResult.Ok([new CloseDialogEffect(ConfirmKey)]);
-    }
+    public void KeepRelease()
+        => ConfirmGroup.Keep();
 
     [UICommand]
     public void RestoreReleases()

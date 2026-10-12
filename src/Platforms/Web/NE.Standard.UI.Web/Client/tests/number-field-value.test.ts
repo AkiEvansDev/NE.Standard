@@ -11,12 +11,22 @@ const { NumberInputEngine } = await import("../src/interactions/number-input-eng
 
 const German = JSON.stringify({ decimalSeparator: ",", groupSeparator: "." });
 
-/** A German number field on the page holding `value` as the server rendered it, and the engine that shows it. */
-function germanField(value: string): { readonly field: FakeInput; readonly engine: InstanceType<typeof NumberInputEngine> } {
+/**
+ * A German number field on the page holding `value` as the server rendered it — told to group, not to, or (null) left to its format —
+ * and the engine that shows it.
+ */
+function germanField(value: string, grouped: boolean | null = true, format: string | null = null): { readonly field: FakeInput; readonly engine: InstanceType<typeof NumberInputEngine> } {
     const field = new FakeInput("text");
     const root = FakeElement.of("ui-number-input", { "data-ui-id": "1", "data-ui-number-culture": German });
 
     field.classes.add("ui-number-input__field");
+
+    if (grouped !== null)
+        field.setAttribute(grouped ? "data-ui-number-thousands" : "data-ui-number-no-thousands", "");
+
+    if (format !== null)
+        root.setAttribute("data-ui-number-format", format);
+
     field.value = value;
     root.append(field);
     fakeDocument.body.children.length = 0;
@@ -31,6 +41,19 @@ test("a number field at rest reads as the invariant value it stands for, not the
 
     assert.equal(field.value, "1.234,5");
     assert.equal(engine.readValue(real(field)), "1234.5");
+});
+
+test("a number field left to a format it has not got shows its thousands ungrouped, in its culture's decimal separator", () => {
+    const { field, engine } = germanField("1234.5", null);
+
+    assert.equal(field.value, "1234,5");
+    assert.equal(engine.readValue(real(field)), "1234.5");
+});
+
+test("a number field left to its format groups as the format says, and one told not to never does", () => {
+    assert.equal(germanField("1234.5", null, "N2").field.value, "1.234,50");
+    assert.equal(germanField("1234.5", null, "F2").field.value, "1234,50");
+    assert.equal(germanField("1234.5", false, "N2").field.value, "1234,50");
 });
 
 test("a number field's typed text not yet committed reads as its change will send it", () => {

@@ -5,7 +5,11 @@ const EntryKey = "neEntry";
 
 /** The parts of a window the page's address is kept through. */
 export type AddressWindow = {
-    readonly location: { readonly pathname: string; readonly search: string };
+    readonly location: { readonly pathname: string; readonly search: string; readonly origin?: string };
+    // The Navigation API, where the browser has it: its entries are this site's alone, so it knows whether one stands behind.
+    readonly navigation?: { readonly canGoBack: boolean };
+    // Where the page was loaded from, which says the same where there is no Navigation API.
+    readonly document?: { readonly referrer: string };
     readonly history: {
         readonly state: unknown;
         replaceState(data: unknown, unused: string, url?: string): void;
@@ -80,6 +84,38 @@ export class AddressHistory {
         const location = this.window.location;
 
         this.write(url, url !== `${location.pathname}${location.search}`);
+    }
+
+    /**
+     * The browser's Back where the entry behind this one is of this site, answering whether it was: what it lands on is followed as
+     * any Back is — told to the controller, gone to in place, loaded, the reader with unsaved work asked first.
+     */
+    public back(): boolean {
+        if (!this.hasEntryBehind())
+            return false;
+
+        this.window.history.go(-1);
+        return true;
+    }
+
+    /**
+     * Whether the entry behind this one is of this site: the Navigation API's word where the browser has it, else an entry this route
+     * wrote or a page of this site the tab came from. Limit: without the API, a tab a page of this site opened names it as its referrer
+     * and has no entry behind, so the step goes nowhere.
+     */
+    private hasEntryBehind(): boolean {
+        const navigation = this.window.navigation;
+
+        if (navigation !== undefined)
+            return navigation.canGoBack;
+
+        if (this.entry > 0)
+            return true;
+
+        const referrer = this.window.document?.referrer ?? "";
+        const origin = this.window.location.origin;
+
+        return origin !== undefined && referrer.startsWith(`${origin}/`);
     }
 
     /** Adds the entry of another runtime of this route the page went to in place, where a link to it would have loaded it. */

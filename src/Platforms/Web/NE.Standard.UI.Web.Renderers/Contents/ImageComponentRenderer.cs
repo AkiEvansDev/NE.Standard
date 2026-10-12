@@ -8,6 +8,10 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
 
+/// <summary>
+/// A picture in a box of its own: the box takes the size, shape and corners, the picture fills it, and a round one with no picture shows
+/// its fallback glyph over the box (<c>image-fallback-engine.ts</c>), which an <c>&lt;img&gt;</c> alone could not hold.
+/// </summary>
 public sealed class ImageComponentRenderer : WebComponentRendererBase
 {
     private static readonly WebDomOperation[] SourceOperations = [WebDomOperation.Attribute("src", converter: WebDomConverters.SafeImageSource)];
@@ -18,7 +22,7 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
 
     public override string ComponentTypeKey => ImageComponent.ComponentTypeKey;
 
-    protected override string ElementName => "img";
+    protected override string ElementName => "span";
 
     protected override string ClassName => WebClassNames.Image;
 
@@ -26,25 +30,6 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
-
-        // A long list of pictures fetches only those near the viewport, and none of them holds up the frame while it decodes.
-        _ = root.Attribute("loading", "lazy");
-        _ = root.Attribute("decoding", "async");
-
-        _ = RenderProperty<string?>(context, root, ImageComponent.SourceProperty, static (target, value) =>
-        {
-            if (WebUrlSafety.IsSafeImageSource(value))
-                _ = target.Attribute("src", value);
-        }, SourceOperations);
-
-        _ = RenderProperty<string?>(context, root, ImageComponent.FallbackSourceProperty, static (target, value) =>
-        {
-            if (WebUrlSafety.IsSafeImageSource(value))
-                _ = target.Attribute(WebAttributes.FallbackSrc, value);
-        }, FallbackSourceOperations);
-
-        _ = RenderProperty<string?>(context, root, ImageComponent.AltTextProperty, static (target, value)
-            => target.Attribute("alt", value ?? string.Empty), AltTextOperations);
 
         _ = RenderProperty<UIImageFit?>(context, root, ImageComponent.FitProperty, static (target, value) =>
         {
@@ -62,5 +47,59 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
         }, ShapeOperations);
 
         RenderTooltip(context, root);
+
+        _ = ResolveRenderValue(context, ImageComponent.FallbackIconProperty, out string? fallbackIcon, out _);
+
+        if (IconValueRenderer.Draws(fallbackIcon))
+            _ = root.Attribute(WebAttributes.FallbackIcon, fallbackIcon);
+
+        _ = root.Element("img", picture => RenderPicture(context, picture));
+
+        RenderStandIn(context, root, fallbackIcon);
+    }
+
+    private static void RenderPicture(WebRenderContext context, IHtmlElementBuilder picture)
+    {
+        _ = picture.Class(WebClassNames.ImagePicture);
+
+        // A long list of pictures fetches only those near the viewport, and none of them holds up the frame while it decodes.
+        _ = picture.Attribute("loading", "lazy");
+        _ = picture.Attribute("decoding", "async");
+
+        _ = RenderProperty<string?>(context, picture, ImageComponent.SourceProperty, static (target, value) =>
+        {
+            if (WebUrlSafety.IsSafeImageSource(value))
+                _ = target.Attribute("src", value);
+        }, SourceOperations);
+
+        _ = RenderProperty<string?>(context, picture, ImageComponent.FallbackSourceProperty, static (target, value) =>
+        {
+            if (WebUrlSafety.IsSafeImageSource(value))
+                _ = target.Attribute(WebAttributes.FallbackSrc, value);
+        }, FallbackSourceOperations);
+
+        _ = RenderProperty<string?>(context, picture, ImageComponent.AltTextProperty, static (target, value)
+            => target.Attribute("alt", value ?? string.Empty), AltTextOperations);
+    }
+
+    /// <summary>
+    /// A round picture with neither a source nor a fallback source shows its glyph from the first paint; one that fails later is the
+    /// client's to answer.
+    /// </summary>
+    private static void RenderStandIn(WebRenderContext context, IHtmlElementBuilder root, string? fallbackIcon)
+    {
+        _ = ResolveRenderValue(context, ImageComponent.ShapeProperty, out UIImageShape? shape, out _);
+
+        if (shape != UIImageShape.Circle)
+            return;
+
+        _ = ResolveRenderValue(context, ImageComponent.SourceProperty, out string? source, out _);
+        _ = ResolveRenderValue(context, ImageComponent.FallbackSourceProperty, out string? fallbackSource, out _);
+
+        if (WebUrlSafety.IsSafeImageSource(source) || WebUrlSafety.IsSafeImageSource(fallbackSource))
+            return;
+
+        _ = root.Attribute(WebAttributes.ImageFailed);
+        IconValueRenderer.RenderStandInGlyph(root, fallbackIcon);
     }
 }

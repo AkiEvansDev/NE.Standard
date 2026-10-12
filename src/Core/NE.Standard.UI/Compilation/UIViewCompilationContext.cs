@@ -14,7 +14,7 @@ using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Compilation;
 
-internal sealed class UIViewCompilationResult(CompiledRegion[] regions, CompiledDialog[] dialogs, UIComponentNode[] nodes, UIComponentState[] states, CompiledUIBindingSource[] bindingSources, CompiledUIBindingTemplate[] bindingTemplates, CompiledUIContext[] contexts, CompiledUIBinding[] bindings, CompiledUIInteraction[] interactions, CompiledUIEvent[] events, CompiledUIValidationRule[] validations, KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets, string[] warnings)
+internal sealed class UIViewCompilationResult(CompiledRegion[] regions, CompiledDialog[] dialogs, UIComponentNode[] nodes, UIComponentState[] states, CompiledUIBindingSource[] bindingSources, CompiledUIBindingTemplate[] bindingTemplates, CompiledUIContext[] contexts, CompiledUIBinding[] bindings, CompiledUIInteraction[] interactions, Dictionary<UIPropertyAddress, object?> firstPaint, CompiledUIEvent[] events, CompiledUIValidationRule[] validations, KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets, string[] warnings)
 {
     public CompiledRegion[] Regions { get; } = regions;
     public CompiledDialog[] Dialogs { get; } = dialogs;
@@ -25,6 +25,7 @@ internal sealed class UIViewCompilationResult(CompiledRegion[] regions, Compiled
     public CompiledUIContext[] Contexts { get; } = contexts;
     public CompiledUIBinding[] Bindings { get; } = bindings;
     public CompiledUIInteraction[] Interactions { get; } = interactions;
+    public Dictionary<UIPropertyAddress, object?> FirstPaint { get; } = firstPaint;
     public CompiledUIEvent[] Events { get; } = events;
     public CompiledUIValidationRule[] Validations { get; } = validations;
     public KeyValuePair<UIComponentId, UIPropertyAddress>[] ValidationMessageTargets { get; } = validationMessageTargets;
@@ -172,6 +173,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             [.. contextsByTemplateId.Values],
             [.. bindings],
             interactions,
+            BuildFirstPaint(),
             events,
             validations,
             validationMessageTargets,

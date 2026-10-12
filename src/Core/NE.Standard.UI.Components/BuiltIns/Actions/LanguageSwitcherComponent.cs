@@ -7,7 +7,10 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Actions;
 
-/// <summary>A button that switches the page to another language in place: two languages switch on a press, more open a list.</summary>
+/// <summary>
+/// A button that switches the page to another language in place: two languages switch on a press, more open a list; as a field
+/// (<see cref="AsField"/>) a settings form's select of them.
+/// </summary>
 /// <remarks>
 /// It tells the session, so the next page renders in the language too. The choices are the translator's languages, each named in
 /// itself and never translated; with one language there is nothing to switch and the button is not drawn. A switch rewrites the
@@ -36,7 +39,7 @@ public abstract partial class LanguageSwitcherComponent<T> : VisualComponentBase
     public string? Icon { get; set; }
 
     /// <summary>
-    /// Gets or sets what the button shows for the page's language: its code or its name.
+    /// Gets or sets what the button shows for the page's language: its code or its name. The field always shows the name.
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = UILanguageDisplay.Code)]
     public UILanguageDisplay? Display { get; set; }
@@ -47,6 +50,18 @@ public abstract partial class LanguageSwitcherComponent<T> : VisualComponentBase
     /// </summary>
     [UIComponentProperty(IsBindable = false)]
     public IReadOnlyList<string>? Languages { get; set; }
+
+    /// <summary>
+    /// Draws the switcher as a settings form's field: its title ("Language" unless set) over a select-shaped box showing the page's
+    /// language by its name, a press opening the list whatever the number of languages; it stands in its cell as an input does, not
+    /// centred as the button, so an alignment goes after it.
+    /// </summary>
+    public T AsField()
+    {
+        HorizontalAlignment = null;
+
+        return SetVariant(UISwitcherVariant.Field);
+    }
 }
 
 /// <summary>

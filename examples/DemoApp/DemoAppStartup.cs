@@ -11,6 +11,7 @@ using DemoApp.Controllers.Contents.Separator;
 using DemoApp.Controllers.Contents.Text;
 using DemoApp.Controllers.Contents.Timestamp;
 using DemoApp.Controllers.Design.Colors;
+using DemoApp.Controllers.Design.Presets;
 using DemoApp.Controllers.Indicators.Progress;
 using DemoApp.Controllers.Indicators.Spinner;
 using DemoApp.Controllers.Inputs.Calendar;
@@ -63,6 +64,7 @@ using DemoApp.Views.Contents.Separator;
 using DemoApp.Views.Contents.Text;
 using DemoApp.Views.Contents.Timestamp;
 using DemoApp.Views.Design.Colors;
+using DemoApp.Views.Design.Presets;
 using DemoApp.Views.Indicators.Progress;
 using DemoApp.Views.Indicators.Spinner;
 using DemoApp.Views.Inputs.Calendar;
@@ -149,6 +151,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<ColorsSemanticView>("/design/colors/semantic");
         _ = application.Route<ColorsComponentsView>("/design/colors/components");
         _ = application.Route<ColorsThemeView, ColorsThemeController>("/design/colors/theme");
+        _ = application.Route<PresetsView, PresetsController>("/design/presets");
 
         // Mechanisms
         _ = application.Route<WordsView, WordsController>("/mechanisms/words");

@@ -66,7 +66,7 @@ function isSitePath(reading: string): boolean {
 
 /**
  * Whether an address as the browser reads it is a path relative to the page — `img/x.png`, `./x.png`, `x.png`: no scheme, and no
- * slash or backslash first, which only a path of this site or another host starts with; mirrors `WebUrlSafety.IsRelativePath`.
+ * slash or backslash first, which only a path of this site or another host starts with; mirrors `UIUrlSafety.IsRelativePath`.
  */
 function isRelativePath(reading: string): boolean {
     return reading.length > 0 && reading[0] !== "/" && reading[0] !== "\\" && !/^[A-Za-z][A-Za-z\d+.-]*:/.test(reading);
@@ -75,7 +75,7 @@ function isRelativePath(reading: string): boolean {
 /**
  * An address as the browser's URL parser reads it: the controls and spaces at either end (U+0000 to U+0020) stripped, and every
  * tab and line break inside removed — so neither a leading control character nor `/\t/host` hides another host; mirrors
- * `WebUrlSafety.ReadAsBrowser`.
+ * `UIUrlSafety.ReadAsBrowser`.
  */
 export function asBrowserReads(address: string): string {
     let start = 0;
@@ -98,7 +98,7 @@ export function isImageSource(address: string): boolean {
     return readImageSource(address) !== null;
 }
 
-/** The address as the browser reads it, when a picture may be fetched from it, or null; mirrors `WebUrlSafety.TryReadImageSource`. */
+/** The address as the browser reads it, when a picture may be fetched from it, or null; mirrors `UIUrlSafety.TryReadImageSource`. */
 export function readImageSource(address: string): string | null {
     const reading = asBrowserReads(address);
     const lower = reading.toLowerCase();

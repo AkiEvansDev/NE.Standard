@@ -194,7 +194,7 @@ function buildDialog(): CropParts {
     zoom.max = String(MaxCropZoom);
     zoom.step = "0.01";
 
-    const cancel = Parts.button("ui-button--outline", "cancel");
+    const cancel = Parts.button("ui-button--ghost", "cancel");
     const apply = Parts.button("ui-button--primary", "apply");
 
     surface.append(title, stage, zoom, Parts.actions(cancel, apply));
