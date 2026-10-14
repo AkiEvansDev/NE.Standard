@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
@@ -21,6 +22,8 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 
     /// <summary>A menu button whose chevron is off: its end part is not drawn, the main part being the whole button.</summary>
     public const string NoChevronClassName = "ui-split-button--no-chevron";
+
+    private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Attribute(WebAttributes.SplitPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
 
     public override string ComponentTypeKey => SplitButtonComponent.ComponentTypeKey;
 
@@ -45,10 +48,12 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 
         _ = root.Attribute(WebAttributes.SplitMode, menuButton ? "menu" : "split");
 
-        _ = ResolveRenderValue(context, SplitButtonComponent.MenuPlacementProperty, out UIPopupPlacement? placement, out _);
-
-        if (placement is UIPopupPlacement resolved && resolved != UIPopupPlacement.BottomEnd)
-            _ = root.Attribute(WebAttributes.SplitPlacement, WebClassNames.PopupPlacement(resolved));
+        // Read by the menu as it opens, so a bound placement moves the next opening.
+        _ = RenderProperty<UIPopupPlacement?>(context, root, IPopupPlacementComponent.PopupPlacementProperty, static (target, value) =>
+        {
+            if (value is UIPopupPlacement placement && placement != UIPopupPlacement.BottomEnd)
+                _ = target.Attribute(WebAttributes.SplitPlacement, WebClassNames.PopupPlacement(placement));
+        }, PlacementOperations);
 
         // A split button's end part is nothing but its chevron, so only a menu button lets it go.
         if (menuButton)

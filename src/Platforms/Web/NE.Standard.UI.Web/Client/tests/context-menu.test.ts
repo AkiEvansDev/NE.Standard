@@ -1,7 +1,8 @@
 // A context menu: opened by the pointer it holds the keyboard itself with no entry current, the first arrow entering at the near
 // end; opened by a key its first entry takes it. Closed, the focus goes back to what held it, else to its owner — never the page's
 // body —, as the opening's, the pointer's or a key's, whatever closed it; a closing press on nothing focusable is swallowed; a menu
-// opened over one still fading cuts that fade short.
+// opened over one still fading cuts that fade short. A row's own menu waiting to be wanted is drawn by the press that asks for it,
+// past the refusals, and opens once the page's engines took it in.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -64,7 +65,7 @@ installFakeDom({
     }
 });
 
-const { ContextMenuEngine, contextMenuAt } = await import("../src/interactions/context-menu-engine.ts");
+const { ContextMenuEngine, contextMenuAt, setLaterMenus } = await import("../src/interactions/context-menu-engine.ts");
 const { MenuEngine } = await import("../src/interactions/menu-engine.ts");
 const { noteKey, notePress } = await import("../src/interactions/popup-focus.ts");
 
@@ -261,4 +262,66 @@ test("a table refusing menus refuses a nested component's in its rows, wherever 
     // `CanShowContextMenu = false` on the row's template, rather than on the item.
     template.setAttribute("data-ui-no-context-menu", "");
     assert.equal(contextMenuAt(real(words)), null);
+});
+
+/** A row whose bubble's menu waits to be drawn, and the drawer the page names for it, counting what it drew. */
+function waitingRow(): { readonly row: FakeElement; readonly bubble: FakeElement; readonly drawn: FakeElement[] } {
+    const bubble = FakeElement.of("ui-surface", { "data-ui-id": "12", "data-ui-context-menu-owner": "", "data-ui-context-menu-later": "" }).append(new FakeElement("p"));
+    const row = FakeElement.of("ui-items-view__item", { "data-ui-key": "m1" }).append(bubble);
+    const drawn: FakeElement[] = [];
+
+    setLaterMenus(owner => {
+        const menu = FakeElement.of("ui-context-menu", { "data-ui-context-menu": "", role: "menu" }).append(FakeElement.of("ui-menu").append(FakeElement.of("ui-menu-item", { role: "menuitem", tabindex: "-1" })));
+
+        real<FakeElement>(owner).append(menu).removeAttribute("data-ui-context-menu-later");
+        drawn.push(menu);
+
+        return real<HTMLElement>(menu);
+    });
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(FakeElement.of("ui-items-view", { "data-ui-id": "10" }).append(FakeElement.of("", { "data-ui-items-host": "" }).append(row)));
+    fakeDocument.activeElement = fakeDocument.body;
+
+    return { row, bubble, drawn };
+}
+
+test("a row's menu waiting to be wanted is drawn by the right press there, and opens once the page has taken it in", async () => {
+    const { bubble, drawn } = waitingRow();
+
+    notePress(real(bubble));
+    bubble.dispatchEvent(new FakeMouseEvent("contextmenu", bubble));
+
+    assert.equal(drawn.length, 1);
+    assert.equal(drawn[0].classes.has("ui-context-menu--open"), false);
+
+    await Promise.resolve();
+
+    assert.equal(drawn[0].classes.has("ui-context-menu--open"), true);
+    escape();
+
+    // Drawn, it stays: the next press opens it at once.
+    notePress(real(bubble));
+    bubble.dispatchEvent(new FakeMouseEvent("contextmenu", bubble));
+
+    assert.equal(drawn.length, 1);
+    assert.equal(drawn[0].classes.has("ui-context-menu--open"), true);
+    escape();
+    setLaterMenus(null);
+});
+
+test("a refused row's waiting menu is never drawn, nor an inert owner's", () => {
+    const { row, bubble, drawn } = waitingRow();
+
+    row.setAttribute("data-ui-no-context-menu", "");
+    assert.equal(contextMenuAt(real(bubble)), null);
+
+    row.removeAttribute("data-ui-no-context-menu");
+    bubble.setAttribute("inert", "");
+    assert.equal(contextMenuAt(real(bubble)), null);
+    assert.deepEqual(drawn, []);
+
+    bubble.removeAttribute("inert");
+    assert.equal(contextMenuAt(real(bubble))?.menu, real<HTMLElement>(drawn[0]));
+    setLaterMenus(null);
 });

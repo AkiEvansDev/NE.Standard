@@ -13,6 +13,18 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
     private const string TrailingIconAttribute = "data-ui-action-icon";
     private const string TrailingTextAttribute = "data-ui-action-text";
 
+    private static readonly WebDomOperation[] TrailingTextOperations =
+    [
+        WebDomOperation.Text(),
+        WebDomOperation.ToggleAttribute(TrailingTextAttribute, target: "root", condition: WebValueCondition.HasText)
+    ];
+
+    private static readonly WebDomOperation[] TrailingIconOperations =
+    [
+        .. IconValueRenderer.Operations,
+        WebDomOperation.ToggleAttribute(TrailingIconAttribute, target: "root", condition: WebValueCondition.DrawsIcon)
+    ];
+
     public override string ComponentTypeKey => ActionComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-action";
@@ -56,10 +68,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
 
             _ = root.Attribute(TrailingTextAttribute);
             _ = target.Text(value);
-        }, [
-            WebDomOperation.Text(),
-            WebDomOperation.ToggleAttribute(TrailingTextAttribute, target: "root", condition: WebValueCondition.HasText)
-        ]);
+        }, TrailingTextOperations);
     }
 
     private static void RenderTrailingIcon(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder icon)
@@ -74,9 +83,6 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
 
             _ = root.Attribute(TrailingIconAttribute);
             IconValueRenderer.RenderIconValue(target, value);
-        }, [
-            .. IconValueRenderer.Operations,
-            WebDomOperation.ToggleAttribute(TrailingIconAttribute, target: "root", condition: WebValueCondition.DrawsIcon)
-        ]);
+        }, TrailingIconOperations);
     }
 }

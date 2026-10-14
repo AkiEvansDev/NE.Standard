@@ -5,6 +5,11 @@
 @import "../mixins/responsive.less";
 @import "../mixins/toggle.less";
 
+// The track's width at each size, which a note under the switch is set in by as well.
+@ui-switch-track: 2.25rem;
+@ui-switch-track-small: 1.75rem;
+@ui-switch-track-large: 2.75rem;
+
 // The root *is* the row, as on the checkbox. A nested row would sit too deep for the ui-text gate.
 .ui-switch {
     .ui-toggle-root();
@@ -16,7 +21,7 @@
 
 .ui-switch__box {
     .ui-toggle-box(1.25rem);
-    width: 2.25rem;
+    width: @ui-switch-track;
     .ui-responsive-property(border-radius, --ui-border-radius, 999px);
 }
 
@@ -58,7 +63,7 @@
 
 // A size steps the track and the knob with the text ui-input.less sizes; the knob's travel is written again for its own width.
 .ui-switch.ui-input--small > .ui-switch__box {
-    width: 1.75rem;
+    width: @ui-switch-track-small;
     height: 1rem;
 }
 
@@ -73,7 +78,7 @@
     }
 
 .ui-switch.ui-input--large > .ui-switch__box {
-    width: 2.75rem;
+    width: @ui-switch-track-large;
     height: 1.5rem;
 }
 
@@ -86,6 +91,10 @@
     .ui-switch.ui-input--large > .ui-switch__input:checked ~ .ui-switch__box::after {
         left: calc(100% - 0.1875rem - 1rem);
     }
+
+.ui-toggle-note-inset(~".ui-switch"; @ui-switch-track);
+.ui-toggle-note-inset(~".ui-switch.ui-input--small"; @ui-switch-track-small);
+.ui-toggle-note-inset(~".ui-switch.ui-input--large"; @ui-switch-track-large);
 
 .ui-switch__required {
     .ui-required-marker();

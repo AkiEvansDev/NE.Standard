@@ -10,7 +10,7 @@ import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom
 // The root's observers, which the test calls as a switch would: the stand-in records no mutation of its own.
 const themeObservers: (() => void)[] = [];
 // The page's observers, which the test tells of a part drawn in as the browser would.
-const pageObservers: ((records?: readonly { readonly type: string; readonly target: unknown }[]) => void)[] = [];
+const pageObservers: ((records?: readonly { readonly type: string; readonly target: unknown; readonly addedNodes: readonly unknown[]; readonly removedNodes: readonly unknown[] }[]) => void)[] = [];
 let prefersDark = false;
 
 installFakeDom({
@@ -23,9 +23,9 @@ installFakeDom({
     },
     getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr" }),
     MutationObserver: class {
-        private readonly callback: (records?: readonly { readonly type: string; readonly target: unknown }[]) => void;
+        private readonly callback: (records?: readonly { readonly type: string; readonly target: unknown; readonly addedNodes: readonly unknown[]; readonly removedNodes: readonly unknown[] }[]) => void;
 
-        public constructor(callback: (records?: readonly { readonly type: string; readonly target: unknown }[]) => void) {
+        public constructor(callback: (records?: readonly { readonly type: string; readonly target: unknown; readonly addedNodes: readonly unknown[]; readonly removedNodes: readonly unknown[] }[]) => void) {
             this.callback = callback;
         }
 
@@ -171,7 +171,7 @@ test("a field drawn after the page loaded, a list's row, shows the theme the roo
 
     assert.deepEqual(current(at), { shown: [], selected: [] });
 
-    pageObservers.forEach(observer => observer([{ type: "childList", target: real(fakeDocument.body) }]));
+    pageObservers.forEach(observer => observer([{ type: "childList", target: real(fakeDocument.body), addedNodes: [], removedNodes: [] }]));
 
     assert.deepEqual(current(at), { shown: ["dark"], selected: ["dark"] });
 });

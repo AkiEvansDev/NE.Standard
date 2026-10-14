@@ -82,7 +82,14 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
                 UIButtonType.Primary,
                 nameof(PresetsController.DialogClosed),
                 UIButtons.Ghost("Don't save").OnClick(nameof(PresetsController.LeaveWithoutSaving))
+            ),
+            UIDialogs.Form(PresetsController.FormKey, "Rename api-eu-west-1", "Its address and its backups keep the old name.",
+                new TextInputComponent().SetTitle("Name").SetValue("api-eu-west-1"),
+                UIButtons.Ghost("Cancel").InteractOn(EventNames.Click, new CloseDialogEffect(PresetsController.FormKey) { RaisesClose = true }),
+                UIButtons.Primary("Rename").OnClickLiteral(nameof(PresetsController.SaveDialog), new KeyValuePair<string, object?>("key", PresetsController.FormKey))
             )
+            .OnClose(nameof(PresetsController.DialogClosed)),
+            UIDialogs.BoundConfirm(PresetsController.BoundConfirmKey, "Archive api-eu-west-1?", nameof(PresetsController.ArchiveQuestion), "Archive", nameof(PresetsController.ArchiveServer), UIButtonType.Primary, nameof(PresetsController.DialogClosed))
         ]);
 
     private static (UIDialog[] Dialogs, string Code) Capture(UIDialog[] dialogs, [CallerArgumentExpression(nameof(dialogs))] string code = "")
@@ -93,11 +100,19 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
         _ = container
             .AddChild(CreateHeading("UIPage — the regions of a page"))
             .AddChild(CreateHeaderGroup())
-            .AddChildren(DemoUI.CreateColumns([CreateSectionGroup(), CreateLabelledGroup()], [CreateCardGroup(), CreateBannerGroup()]));
+            .AddChildren(DemoUI.CreateColumns([CreateSectionGroup(), CreateLabelledGroup()], [CreateHeadingGroup(), CreateBannerGroup()]));
 
         _ = container.AddChild(CreateLeadingHeaderGroup());
+        _ = container.AddChild(CreatePaneHeaderGroup());
 
-        _ = container.AddChildren(DemoUI.CreateColumns([CreateFoldGroup()], [CreateBoundHeaderGroup()]));
+        _ = container
+            .AddChildren(DemoUI.CreateColumns([CreateFoldGroup(), CreateStripGroup()], [CreateBoundHeaderGroup(), CreateBandGroup()]))
+            .AddChildren(DemoUI.CreateColumns([CreateEmptyGroup()], [CreateOutcomeGroup()]))
+            .AddChild(CreateColumnGroup());
+
+        _ = container
+            .AddChild(CreateHeading("UICard — a card, and one alone on a page"))
+            .AddChildren(DemoUI.CreateColumns([CreateCardGroup()], [CreateCenteredGroup()]));
 
         _ = container
             .AddChild(CreateHeading("UIForm — the parts of a form besides its fields"))
@@ -108,12 +123,15 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
             .AddChild(CreateHeading("UILayout — the arrangements"))
             .AddChildren(DemoUI.CreateColumns([CreateStackGroup()], [CreateColumnsGroup()]))
             .AddChild(CreateSplitGroup())
-            .AddChild(CreateSidebarGroup());
+            .AddChild(CreateSidebarGroup())
+            .AddChildren(DemoUI.CreateColumns([CreateEndsGroup()], [CreateBoardGroup()]))
+            .AddChild(CreatePanesGroup());
 
         _ = container
             .AddChild(CreateHeading("UIText — a line in its role"))
             .AddChildren(DemoUI.CreateColumns([CreateRolesGroup(), CreateBadgesGroup()], [CreateProseGroup(), CreateRoleExtensionsGroup()]))
-            .AddChild(CreateQuoteGroup());
+            .AddChild(CreateQuoteGroup())
+            .AddChild(CreatePersonGroup());
 
         _ = container
             .AddChild(CreateHeading("UIButtons — a button in its type, and the rows buttons go in"))
@@ -133,6 +151,7 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
             .AddChildren(DemoUI.CreateColumns([CreateSeverityGroup()], [CreateMessageCreateGroup()]))
             .AddChild(CreateHeading("UIDetails — names and values to read"))
             .AddChildren(DemoUI.CreateColumns([CreateDetailsListGroup()], [CreateDetailsRowGroup()]))
+            .AddChild(CreateSumsGroup())
             .AddChild(CreateHeading("ShownWhen, HiddenWhen, EnabledWhen — a rule run in the browser"))
             .AddChildren(DemoUI.CreateColumns([CreateShownGroup()], [CreateEnabledGroup()]));
     }
@@ -184,12 +203,12 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
                 UIPage.Labelled("Servers", UIText.Title("214")),
                 UIPage.Labelled("Region", new BadgeComponent().SetType(UIBadgeType.Surface).SetText("eu-west"))
             ),
-            note: "A component under an overline label: a value, a sample, a control with no title of its own."
+            note: "A component under an overline label: a value, a sample, a control with no title of its own. The label keeps one line; wrap: true lets a label that is a sentence run on."
         );
 
     private static ContainerComponent CreateCardGroup()
         => DemoUI.CreateExample("Card",
-            UIPage.Card("api-eu-west-1", "Pro · 4 vCPU · 16 GB · 240 GB, running for 41 days in Amsterdam since the last restart.",
+            UICard.Create("api-eu-west-1", "Pro · 4 vCPU · 16 GB · 240 GB, running for 41 days in Amsterdam since the last restart.",
                 UIDetails.List(("CPU", "42 %"), ("Memory", "61 %"), ("Requests a minute", "1,280")),
                 DemoIcons.Outline(DemoIcons.Server)
             ),
@@ -222,6 +241,26 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
             columns: 24
         );
 
+    private static ContainerComponent CreatePaneHeaderGroup()
+        => DemoUI.CreateExample("Header for a pane",
+            new SurfaceComponent()
+                .SetPadding(UIThickness.Uniform(8))
+                .SetContent(UIPage.Header(
+                    UIHeaderSize.Pane,
+                    UILayout.Row(4,
+                        UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md),
+                        new ImageComponent().SetShape(UIImageShape.Circle).SetAltText("Avatar").SetWidth(UILayoutLength.Absolute(32)).SetVerticalAlignment(UIAlignment.Center)
+                    ),
+                    "Meri Tanaka, the nightly build's owner",
+                    "Not saved",
+                    UIIconButtons.Search(),
+                    UIIconButtons.More([UIMenuItems.Rename(), UIMenuItems.Share(), UIMenuItems.Delete()])
+                        .OnItemClickWithItemKey(nameof(PresetsController.RunAction), "entry")
+                )),
+            note: "UIHeaderSize.Pane: the title row of a pane beside a list or a tree — a conversation's, an open note's. The name one line in the subtitle role, cut with its whole words as its tooltip; the line a muted caption beside it; the far end on the same row at every width; no edge of its own. Back is shown below the medium width only (ShownBelow), where the list is not beside it; a round picture with no source shows the person glyph.",
+            columns: 24
+        );
+
     private static ContainerComponent CreateFoldGroup()
         => DemoUI.CreateExample("Fold",
             UILayout.Stack(12,
@@ -247,6 +286,73 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
             {
                 ["Scale"] = nameof(PresetsController.Scale)
             })
+        );
+
+    private static ContainerComponent CreateHeadingGroup()
+        => DemoUI.CreateExample("Heading, and Section under it",
+            UIPage.Section(
+                UIPage.Heading("Firewall rules", "Applied to every server in eu-west within a minute.", UIIconButtons.Add(), UIIconButtons.More([UIMenuItems.Download(), UIMenuItems.Share()])),
+                UIDetails.List(("22/tcp", "Staff VPN only"), ("443/tcp", "Anyone"))
+            ),
+            note: "A section's heading with things at its far end — the + that adds to the list under it, a menu — the title and its line taking the rest of the row (UILayout.Ends). Section(heading, content) stands it over the content as Section(title, line, content) does."
+        );
+
+    private static ContainerComponent CreateStripGroup()
+        => DemoUI.CreateExample("Header for a strip",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Raised)
+                .SetPadding(UIThickness.All(8, 8, 8, 12))
+                .SetContent(UILayout.Stack(4,
+                    UIPage.Header(UIHeaderSize.Strip, null, "Explorer", null, UIIconButtons.New(), UIIconButtons.Refresh()),
+                    new TreeComponent().SetItems([new TreeNode { Id = "incidents", Title = "incidents" }, new TreeNode { Id = "checks", Title = "checks" }])
+                )),
+            note: "UIHeaderSize.Strip: a panel's caption over the list or the tree in it — an explorer's. The name a muted label, set in by a row's 8 px so it stands over the rows' words; the far end's icon buttons on its row."
+        );
+
+    private static ContainerComponent CreateBandGroup()
+        => DemoUI.CreateExample("Band",
+            UIPage.Band(UILayout.Ends(UIText.Body("Was this release note useful?"), UIButtons.Outline("Yes"), UIButtons.Ghost("Not really"))),
+            note: "A band across the content in the brand's faint tint, 16 px in and 12 down: the filters over a list, the question at an article's foot."
+        );
+
+    private static ContainerComponent CreateEmptyGroup()
+        => DemoUI.CreateExample("Empty",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Background)
+                .SetHeight(UILayoutLength.Absolute(200))
+                .SetContent(UIPage.Empty(DemoIcons.Outline(DemoIcons.Mail), "Pick a message", "It opens here, and stays open while you narrow the list.", UIButtons.Outline("New message"))),
+            note: "Where something would be and nothing is yet: the list's own empty state (DefaultEmptyTemplate) — the brand's icon, the muted title, the caption — with an optional action under it, in the middle of the room it is given. A pane's placeholder in UILayout.Panes."
+        );
+
+    private static ContainerComponent CreateOutcomeGroup()
+        => DemoUI.CreateExample("Outcome",
+            UIPage.Outcome(null, UIMessageSeverity.Success, "Order placed", "Six servers on Standard in eu-north start within two minutes; the invoice went to billing@bramble.example.",
+                UIButtons.Ghost("Back to the catalogue"),
+                UIButtons.Primary("Open the servers")
+            ),
+            note: "What came of a press, in place of the form it ends: the tone's mark (or one of your own) before the title, the line, the ways on at the far end. Read out as it replaces the form; on an empty page, UICard.Centered holds it."
+        );
+
+    private static ContainerComponent CreateColumnGroup()
+        => DemoUI.CreateExample("Column",
+            UIPage.Column(UIColumnWidth.Reading, UILayout.Stack(12,
+                UIText.Title("Rolling out without a window"),
+                UIText.Paragraph("The content kept to a column of a fixed width from the content's edge, however wide the page: Reading (720 px, an article, a settings page), Form (440 px, a short form, a card alone on a page) or Wide (1080 px, a form beside its summary). One of three, never a width of the page's own.")
+            )),
+            note: "Three widths, so two pages of the same kind stand alike.",
+            columns: 24
+        );
+
+    private static ContainerComponent CreateCenteredGroup()
+        => DemoUI.CreateExample("Centered",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Background)
+                .SetPadding(UIThickness.All(16, 0, 16, 0))
+                .SetContent(UICard.Centered(UICard.Create("Sign in", null, UILayout.Stack(16,
+                    new TextInputComponent().SetTitle("User name").SetAppearance(UIInputAppearance.Tonal),
+                    UIButtons.Primary("Sign in").SetHorizontalAlignment(UIAlignment.Stretch)
+                ), DemoIcons.Outline(DemoIcons.Lock)))),
+            note: "One card alone on an otherwise empty page — a sign-in, a refusal, an outcome: a form's column (440 px, the whole width on a phone) in the middle, 24 px under the top on a phone and 96 px from md."
         );
 
     private static ContainerComponent CreateFieldGroup()
@@ -323,7 +429,7 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
                 UIPage.Section("Subscription SUB-000015", "Copperline Retail · 6 servers on Standard in eu-north.",
                     UIDetails.List(("Plan", "Standard"), ("Servers", "6"), ("Billed", "Directly"))
                 ),
-                UIPage.Card("Summary", "VAT at 21 % on the subtotal after the discount.",
+                UICard.Create("Summary", "VAT at 21 % on the subtotal after the discount.",
                     UIDetails.List(("Subtotal", "€108.00"), ("ORVANE10", "−€10.80"), ("Total", "€117.61"))
                 ),
                 sideSpan: 9
@@ -346,6 +452,54 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
                 sideSpan: 6
             ),
             note: "The other way round: the side part first — a list, a tree, a filter rail — and the main part beside it.",
+            columns: 24
+        );
+
+    private static ContainerComponent CreateEndsGroup()
+        => DemoUI.CreateExample("Ends",
+            UILayout.Stack(16,
+                UILayout.Ends(UIText.Body("Signed-in devices", "Three, the last in Lisbon an hour ago.").SetDescriptionColor(UIThemeColor.Muted), UIIconButtons.Refresh(), UIIconButtons.SignOut()),
+                UILayout.Ends(UIText.Body("Nightly backups", "Kept for 14 days.").SetDescriptionColor(UIThemeColor.Muted), UIButtons.Ghost("Restore one"))
+            ),
+            note: "Something at the start and things at the far end of one row: the end as wide as it is, the start the rest, never half and half. On a phone buttons with words stand under the start at the far end; icons keep the row."
+        );
+
+    private static ContainerComponent CreateBoardGroup()
+        => DemoUI.CreateExample("Board",
+            UILayout.Board(
+                [
+                    UICard.Create("Profile", null, UIText.Note("How you appear to the staff.")),
+                    UICard.Create("Security", null, UIText.Note("What you sign in with."))
+                ],
+                [
+                    UICard.Create("Notifications", null, UIText.Note("What reaches your mail, and when it stays quiet."))
+                ]
+            ),
+            note: "Cards on two columns, each a stack read top to bottom, held by their tops, 16 px apart; one column under the other below xl, the start's first."
+        );
+
+    private static ContainerComponent CreatePanesGroup()
+        => DemoUI.CreateExample("Panes",
+            UILayout.Panes(
+                new MenuComponent()
+                    .SetItems(
+                    [
+                        new MenuItem { Id = "api-eu-west-1", Title = "api-eu-west-1", Icon = DemoIcons.Outline(DemoIcons.Server) },
+                        new MenuItem { Id = "db-us-east-2", Title = "db-us-east-2", Icon = DemoIcons.Outline(DemoIcons.Server) },
+                        new MenuItem { Id = "cache-eu-north-1", Title = "cache-eu-north-1", Icon = DemoIcons.Outline(DemoIcons.Server) }
+                    ])
+                    .OnItemClickWithItemKey(nameof(PresetsController.ShowServer)),
+                UILayout.Stack(12,
+                    UIPage.BoundHeader(UIHeaderSize.Pane, UIIconButtons.Back().OnClick(nameof(PresetsController.BackToServers)).ShownBelow(UIResponsiveTier.Md), nameof(PresetsController.OpenServer)),
+                    UIText.Paragraph(string.Empty).BindDescription(nameof(PresetsController.OpenServerLine))
+                ),
+                nameof(PresetsController.ServersVisibility),
+                nameof(PresetsController.ServerVisibility),
+                UIPage.Empty(DemoIcons.Outline(DemoIcons.Server), "Pick a server", "Its health opens here."),
+                nameof(PresetsController.NoServerVisibility)
+            )
+            .SetHeight(UILayoutLength.Absolute(220)),
+            note: "A list and the thing chosen in it: side by side from md, the list 280 px and 16 px of air (a bound splitter between them where given); below md one at a time, the detail in the list's place with its own Back. The controller holds which shows (PanesListVisibility, PanesDetailVisibility, PanesPlaceholderVisibility); the placeholder is UIPage.Empty.",
             columns: 24
         );
 
@@ -413,17 +567,27 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
             context: nameof(PresetsController.QuoteGroup)
         );
 
+    private static ContainerComponent CreatePersonGroup()
+        => DemoUI.CreateExample("Person",
+            UILayout.Row(32,
+                UIText.Person(DemoImages.Avatar, "Robin Hale", "Admin · on call this week"),
+                UIText.Person(null, "Mika Laine", "Viewer", UIPersonSize.Small)
+            ),
+            note: "A person as a list's row or a byline shows one: the round picture (the person glyph where there is none), the name in the body's role and a muted caption beside it. Medium is 40 px, Small 32; the bound overload takes the paths, as a chat's row does.",
+            columns: 24
+        );
+
     private static ContainerComponent CreateButtonTypesGroup()
         => DemoUI.CreateExample("Primary … Link: the six types",
             UILayout.Row(8,
                 UIButtons.Primary("Deploy"),
                 UIButtons.Accent("Upgrade", DemoIcons.Outline(DemoIcons.Bolt)),
-                UIButtons.Secondary("Export", DemoIcons.Outline(DemoIcons.Download)),
+                UIButtons.Outline("Export", DemoIcons.Outline(DemoIcons.Download)),
                 UIButtons.Ghost("Cancel"),
                 UIButtons.Danger("Delete server", DemoIcons.Outline(DemoIcons.FolderRemove)),
                 UIButtons.Link("View plan")
             ),
-            note: "A ButtonComponent of that type, with an optional icon; Secondary is the outlined one."
+            note: "A ButtonComponent of that type, with an optional icon."
         );
 
     private static ContainerComponent CreatePairGroup()
@@ -468,7 +632,26 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
                 UIIconButtons.Close(),
                 UIIconButtons.Back(),
                 UIIconButtons.New(),
-                UIIconButtons.Delete()
+                UIIconButtons.Refresh(),
+                UIIconButtons.Search(),
+                UIIconButtons.Filter(),
+                UIIconButtons.Settings(),
+                UIIconButtons.Share(),
+                UIIconButtons.Download(),
+                UIIconButtons.Upload(),
+                UIIconButtons.Rename(),
+                UIIconButtons.Add(),
+                UIIconButtons.Remove(),
+                UIIconButtons.Send(),
+                UIIconButtons.Attach(),
+                UIIconButtons.Menu(),
+                UIIconButtons.Stop(),
+                UIIconButtons.Undo(),
+                UIIconButtons.Redo(),
+                UIIconButtons.SignOut(),
+                UIIconButtons.Delete(),
+                UIIconButtons.More([UIMenuItems.Rename(), UIMenuItems.Share(), UIMenuItems.Delete()])
+                    .OnItemClickWithItemKey(nameof(PresetsController.RunAction), "entry")
             ),
             note: "Every standard action as an icon button: a ghost button named by its tooltip, in the framework's words; Delete's glyph in the danger colour. Give each its command with OnClick. Done ends an edit made in place with a check, where Save writes a document out; Back takes a NavigateBackEffect or a command of its own."
         );
@@ -490,7 +673,25 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
                         UIMenuItems.Close(),
                         UIMenuItems.Back(),
                         UIMenuItems.New(),
-                        UIMenuItems.Delete()
+                        UIMenuItems.Refresh(),
+                        UIMenuItems.Search(),
+                        UIMenuItems.Filter(),
+                        UIMenuItems.Settings(),
+                        UIMenuItems.Share(),
+                        UIMenuItems.Download(),
+                        UIMenuItems.Upload(),
+                        UIMenuItems.Rename(),
+                        UIMenuItems.Add(),
+                        UIMenuItems.Remove(),
+                        UIMenuItems.Send(),
+                        UIMenuItems.Attach(),
+                        UIMenuItems.Menu(),
+                        UIMenuItems.Stop(),
+                        UIMenuItems.Undo(),
+                        UIMenuItems.Redo(),
+                        UIMenuItems.SignOut(),
+                        UIMenuItems.Delete(),
+                        UIMenuItems.More([UIMenuItems.Share(), UIMenuItems.Download()])
                     ])
                     .OnItemClickWithItemKey(nameof(PresetsController.RunAction), "entry")
                 )
@@ -503,15 +704,17 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
         );
 
     private static ContainerComponent CreateDialogsGroup()
-        => DemoUI.CreateExample("Create, Content, Header, Confirm",
+        => DemoUI.CreateExample("Create, Content, Header, Confirm, Form",
             UILayout.Row(8,
                 UIButtons.Ghost("UIDialogs.Create", DemoIcons.Outline(DemoIcons.Edit)).OnClick(nameof(PresetsController.OpenCreate)),
                 UIButtons.Ghost("UIDialogs.Content", DemoIcons.Outline(DemoIcons.Server)).OnClick(nameof(PresetsController.OpenContent)),
                 UIButtons.Ghost("UIDialogs.Header", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(PresetsController.OpenHeader)),
                 UIButtons.Ghost("UIDialogs.Confirm", DemoIcons.Outline(DemoIcons.Alert)).OnClick(nameof(PresetsController.OpenConfirm)),
-                UIButtons.Ghost("Confirm with a middle answer", DemoIcons.Outline(DemoIcons.FileText)).OnClick(nameof(PresetsController.OpenLeave))
+                UIButtons.Ghost("Confirm with a middle answer", DemoIcons.Outline(DemoIcons.FileText)).OnClick(nameof(PresetsController.OpenLeave)),
+                UIButtons.Ghost("UIDialogs.BoundConfirm", DemoIcons.Outline(DemoIcons.Folder)).OnClick(nameof(PresetsController.OpenBoundConfirm)),
+                UIButtons.Ghost("UIDialogs.Form", DemoIcons.Outline(DemoIcons.Edit)).OnClick(nameof(PresetsController.OpenForm))
             ),
-            note: "Create is the whole dialog, named by its title; Content the header over the content, for a dialog that sets more of its own (a width, no close on the backdrop); Header the header alone — its × closes the dialog as Escape does and raises OnClose. Confirm asks a question answered by Cancel and one committing button, a middle answer between where given. The code is the dialogs as the view declares them.",
+            note: "Create is the whole dialog, named by its title; Content the header over the content, for a dialog that sets more of its own (a width, no close on the backdrop); Header the header alone — its × closes the dialog as Escape does and raises OnClose. Confirm asks a question answered by Cancel and one committing button, a middle answer between where given; BoundConfirm takes its words from the controller, kept as written. Form is a form's title, line, fields and the pair at its foot, a form's column wide, closed by its safe answer or Escape and not by the backdrop. The code is the dialogs as the view declares them.",
             columns: 24,
             context: nameof(PresetsController.DialogsGroup),
             code: CreatePresetDialogs().Code
@@ -522,7 +725,7 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
             UILayout.Stack(12,
                 UIMessage.Info(null, "Saved drafts are kept for 30 days, then deleted."),
                 UIMessage.Success("Payment received", "INV-2026-0412 is paid; the receipt went to billing@bramble.example."),
-                UIMessage.Warning("Your trial ends in 3 days", "Billing starts on the 14th.", UIButtons.Secondary("Upgrade")),
+                UIMessage.Warning("Your trial ends in 3 days", "Billing starts on the 14th.", UIButtons.Outline("Upgrade")),
                 UIMessage.Danger("2 errors in the form below", "The postcode and the VAT number were not accepted.", dismissible: true)
             ),
             note: "A title, a body or both; an optional action at the bottom end and an optional ×. Info and Success are a status to a screen reader, Warning and Danger an alert."
@@ -535,7 +738,7 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
                 UIMessage.Create(UIMessageSeverity.Success,
                     new TextComponent().BindTitle(nameof(PresetsController.CheckTitle)),
                     new ParagraphComponent().BindDescription(nameof(PresetsController.CheckBody)),
-                    UIButtons.Secondary("Check now").OnClick(nameof(PresetsController.CheckCertificate))
+                    UIButtons.Outline("Check now").OnClick(nameof(PresetsController.CheckCertificate))
                 )
             ),
             note: "The severity as an argument and an icon in place of its mark; or the title and the body as components of your own, bound to the controller for words that change — Check now rewrites them."
@@ -556,6 +759,17 @@ internal sealed class PresetsView : DemoView, IUIViewDefinition
             {
                 ["Resize"] = nameof(PresetsController.Resize)
             })
+        );
+
+    private static ContainerComponent CreateSumsGroup()
+        => DemoUI.CreateExample("Amount and Total",
+            UILayout.Stack(8,
+                UIDetails.Amount("Subtotal", nameof(PresetsController.SubtotalLine)),
+                UIDetails.Amount("VAT, 21 %", nameof(PresetsController.VatLine)),
+                new SeparatorComponent(),
+                UIDetails.Total("Total a month", nameof(PresetsController.TotalLine))
+            ),
+            note: "The sums over a total, bound to what the controller keeps: the name muted at the start, the amount at the far end as wide as it is, one line at every width; the total both in the subtitle role."
         );
 
     private static ContainerComponent CreateShownGroup()

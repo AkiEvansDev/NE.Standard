@@ -1,0 +1,32 @@
+// The overlay bar's room as a box keeps it (core/scrollbar.less writes which boxes keep it): each side at least the room where the bar
+// stands, else the box's own padding there.
+
+// A box's sides with no Padding of its author's — a scroller's, a region's root's; 0 on any other box, which keeps no room.
+@ui-scroll-room-padding: ~"0 max(var(--ui-scroll-room-right), var(--ui-scroll-cap)) var(--ui-scroll-room-x) max(var(--ui-scroll-room-left), var(--ui-scroll-cap))";
+
+@ui-scrollers-y: ~":is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll):is(.ui-scroll-y--auto, .ui-scroll-y--always), .ui-text-area__field";
+@ui-scrollers-x: ~":is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll):is(.ui-scroll-x--auto, .ui-scroll-x--always)";
+
+// Keeps the room down the box's inline end, where an upright bar stands in either direction.
+.ui-scroll-room-y() {
+    --ui-scroll-room-y: var(--ui-scrollbar-room);
+    --ui-scroll-room-right: var(--ui-scroll-room-y);
+
+    &:dir(rtl) {
+        --ui-scroll-room-right: 0px;
+        --ui-scroll-room-left: var(--ui-scroll-room-y);
+    }
+}
+
+// Keeps the room down the inline end only while the box holds more than it shows, read off its own scroll timeline; where none runs,
+// it keeps none. One value from end to end, so less motion's zero duration (core/preferences.less) still keeps it while the timeline runs.
+.ui-scroll-room-y-while-overflowing() {
+    @media @{ui-can-hover} and (forced-colors: none) {
+        @supports (animation-timeline: scroll()) {
+            html[data-ui-overlay-scrollbars] & {
+                animation: ui-scroll-room-overflowing linear both;
+                animation-timeline: scroll(self block);
+            }
+        }
+    }
+}

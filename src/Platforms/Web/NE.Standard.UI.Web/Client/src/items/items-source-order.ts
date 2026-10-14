@@ -51,6 +51,11 @@ export function replaceSourceItem(order: Element[], existing: Element, element: 
         order[at] = element;
 }
 
+/** Takes `order` as the host's source order, whatever was known: a refill's rows in the order the server sent them. */
+export function setSourceOrder(host: Element, order: readonly Element[]): void {
+    orderByHost.set(host, [...order]);
+}
+
 export function resetSourceOrder(host: Element): void {
     orderByHost.delete(host);
 }

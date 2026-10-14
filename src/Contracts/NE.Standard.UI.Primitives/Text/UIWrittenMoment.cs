@@ -19,8 +19,15 @@ public static partial class UIWrittenMoment
     /// page cannot read, so a server that did would show what the page's redraw drops.
     /// </remarks>
     public static bool TryRead(string? text, out DateTime moment)
+        => TryRead(text, out moment, out _);
+
+    /// <summary>
+    /// The wall clock a text in the wire's shapes names, and the offset written after it — <c>Z</c> as zero — or null when it carries none.
+    /// </summary>
+    public static bool TryRead(string? text, out DateTime moment, out TimeSpan? offset)
     {
         moment = default;
+        offset = null;
 
         if (text is null)
             return false;
@@ -44,13 +51,30 @@ public static partial class UIWrittenMoment
         var fraction = written.Groups[7].Success ? written.Groups[7].Value.PadRight(3, '0')[..3] : "0";
 
         moment = new DateTime(year, month, day, hour, minute, second, int.Parse(fraction, CultureInfo.InvariantCulture), DateTimeKind.Unspecified);
+        offset = ReadOffset(written.Groups[8]);
         return true;
     }
 
     private static int ReadField(Match written, int group)
         => written.Groups[group].Success ? int.Parse(written.Groups[group].ValueSpan, CultureInfo.InvariantCulture) : 0;
 
+    private static TimeSpan? ReadOffset(Group zone)
+    {
+        if (!zone.Success)
+            return null;
+
+        if (zone.Length == 1)
+            return TimeSpan.Zero;
+
+        // "+hh", "+hhmm" or "+hh:mm": the hours after the sign, and the minutes as the last two digits where there are any.
+        var hours = int.Parse(zone.ValueSpan.Slice(1, 2), CultureInfo.InvariantCulture);
+        var minutes = zone.Length > 3 ? int.Parse(zone.ValueSpan[^2..], CultureInfo.InvariantCulture) : 0;
+        TimeSpan offset = new(hours, minutes, 0);
+
+        return zone.ValueSpan[0] == '-' ? offset.Negate() : offset;
+    }
+
     // temporal-format.ts's WrittenMomentPattern, with ASCII digits as JavaScript's \d reads them.
-    [GeneratedRegex("^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})(?:[T ]([0-9]{1,2}):([0-9]{1,2})(?::([0-9]{1,2})(?:\\.([0-9]+))?)?)?(?:Z|[+-][0-9]{2}(?::?[0-9]{2})?)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})(?:[T ]([0-9]{1,2}):([0-9]{1,2})(?::([0-9]{1,2})(?:\\.([0-9]+))?)?)?(Z|[+-][0-9]{2}(?::?[0-9]{2})?)?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex WrittenMomentRegex();
 }

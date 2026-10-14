@@ -3,7 +3,8 @@
 // does not. The first element a popup's focus may land on, what takes the keyboard back from a field, where the focus goes back as a
 // dialog closes, and where a dialog opened again starts: at its top, on its first field. The focus a closing popup gives back after the
 // pointer opened it is the pointer's, whatever key closed it; after a keyboard's opening it is the keyboard's. The focus's ancestors up
-// to its component root say whose it is, for a field's edge and a list's quiet.
+// to its component root say whose it is, for a field's edge and a list's quiet. Escape nothing took takes the keyboard's frame off the
+// focused element, the focus staying.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,7 +12,7 @@ import { FakeElement, FakeInput, FakeKeyboardEvent, FakeLabel, FakeTextArea, fak
 
 installFakeDom();
 
-const { firstFocusable, focusByPointer, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, moveFocusIntoFromStart, noteBlur, noteFocus, noteKey, notePress, restoreFocusTo, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
+const { firstFocusable, focusByPointer, focusHolderAround, isPointerLast, liveFocusReturn, markPointerFocus, moveFocusIntoFromStart, noteBlur, noteFocus, noteKey, notePress, noteUnclaimedEscape, restoreFocusTo, tabStops, wrappedTabStop } = await import("../src/interactions/popup-focus.ts");
 
 // The runtime's DomRegistry as the focus return reads it; it may still hold an element the page redrew away.
 const stalePeer = FakeElement.of("", { "data-ui-id": "9" }, "button");
@@ -513,4 +514,49 @@ test("a list's current entry the pointer stood on stays the pointer's as a press
     noteKey(key("ArrowDown"));
 
     assert.equal(entry.hasAttribute(Mark), false);
+});
+
+test("Escape nothing took takes the keyboard's frame off the focused control, the focus staying; the next key draws it again", () => {
+    const button = FakeElement.of("ui-select__trigger", {}, "button");
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(button);
+    noteKey(key("Tab"));
+    focusBy(button);
+
+    assert.equal(button.hasAttribute(Mark), false);
+
+    const escape = key("Escape");
+
+    noteKey(escape);
+    noteUnclaimedEscape(escape);
+
+    assert.equal(button.hasAttribute(Mark), true);
+    assert.equal(fakeDocument.activeElement, button);
+
+    noteKey(key("Enter"));
+
+    assert.equal(button.hasAttribute(Mark), false);
+});
+
+test("Escape a list, a popup or a dialog took leaves the frame, and an editable entry keeps its edge", () => {
+    const button = FakeElement.of("ui-select__trigger", {}, "button");
+    const field = new FakeInput();
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(button, field);
+    noteKey(key("Tab"));
+    focusBy(button);
+
+    const taken = key("Escape");
+
+    taken.preventDefault();
+    noteUnclaimedEscape(taken);
+
+    assert.equal(button.hasAttribute(Mark), false);
+
+    focusBy(field);
+    noteUnclaimedEscape(key("Escape"));
+
+    assert.equal(field.hasAttribute(Mark), false);
 });

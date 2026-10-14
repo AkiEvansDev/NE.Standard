@@ -19,7 +19,7 @@ import {
 } from "./temporal-calendar.ts";
 import type { CalendarState } from "./temporal-calendar.ts";
 import {
-    applyPageLanguage, CalendarRootClass, clampToRange, defaultMoment, hourLabel, isDayOffered, isEndPart, isRange, isTwelveHour,
+    applyPageLanguage, CalendarRootClass, canonicalOf, clampToRange, defaultMoment, hourLabel, isDayOffered, isEndPart, isRange, isTwelveHour,
     MaxAttribute, MinAttribute, orderPeriod, parseCanonical, PickerAttributes, readBound, readCulturePack, readDayOffer, readFormat,
     readMode, readStep, readValue, readValueOf, RootClass, stepFor, TemporalRootSelector, toCanonical, typedValue, unitValue, valueInputOf,
     withUnit, writeValueOf
@@ -72,8 +72,11 @@ export class TemporalPickerEngine {
             this.renderSurface(owner, true);
         },
         hide: ({ owner, popup }) => {
-            for (const settle of this.columnSettles.values())
+            // A column scrolled and left before it settled still takes the reading standing in its middle.
+            for (const [column, settle] of [...this.columnSettles]) {
                 window.clearTimeout(settle);
+                this.chooseCentredTime(owner, column);
+            }
 
             this.columnSettles.clear();
             this.wheelTurns.clear();
@@ -262,7 +265,7 @@ export class TemporalPickerEngine {
         const typed = typedValue(picker, domEvent.target.value);
         const moment = parseCanonical(typed, readMode(picker));
         // Past Min or Max it stays as typed, refused in words by the validation engine: never pulled back to the bound.
-        const canonical = moment === null ? typed : toCanonical(moment, readMode(picker));
+        const canonical = moment === null ? typed : canonicalOf(picker, moment, isEndPart(domEvent.target));
 
         // A day the grid would not offer is not taken but written back over: no day near an unmarked one stands for it.
         if (isUnmarkedDay(picker, canonical)) {
@@ -537,18 +540,20 @@ export class TemporalPickerEngine {
     }
 
     private handleColumnScroll(domEvent: Event): void {
-        if (this.openPicker === null || !(domEvent.target instanceof Element))
+        const picker = this.openPicker;
+
+        if (picker === null || !(domEvent.target instanceof Element))
             return;
 
         const column = domEvent.target.closest<HTMLElement>(`.${TimeColumnClass}`);
 
-        if (column === null || !this.openPicker.contains(column))
+        if (column === null || !picker.contains(column))
             return;
 
         window.clearTimeout(this.columnSettles.get(column));
         this.columnSettles.set(column, window.setTimeout(() => {
             this.columnSettles.delete(column);
-            this.chooseCentredTime(column);
+            this.chooseCentredTime(picker, column);
         }, ScrollSettleDelay));
     }
 
@@ -582,10 +587,9 @@ export class TemporalPickerEngine {
             this.chooseTime(this.openPicker, unit as TimeUnit, Number(next.getAttribute(CellValueAttribute)));
     }
 
-    private chooseCentredTime(column: HTMLElement): void {
-        const picker = this.openPicker;
-
-        if (picker === null || !picker.contains(column))
+    private chooseCentredTime(picker: HTMLElement, column: HTMLElement): void {
+        // Closed because it can no longer be changed (gone, read-only, inert), it takes nothing.
+        if (!picker.isConnected || !picker.contains(column) || isReadOnly(picker) || isInert(picker))
             return;
 
         // Where this engine parked the reading itself, so its own centring cannot commit a value nobody chose.
@@ -1003,12 +1007,16 @@ function siblingColumnCell(column: HTMLElement, offset: number): HTMLElement | n
         ?? target.querySelector<HTMLElement>(`.${TimeCellClass}:not(:disabled)`);
 }
 
-// Brought to the middle rather than merely into view: the middle is where the column reads.
+// Brought to the middle rather than merely into view: the middle is where the column reads. Parked there as the engine's own centring
+// is, so the scroll's settle chooses nothing: the arrows move the keyboard, as in the day grid, and Enter or Space presses the reading.
 function scrollCellIntoColumn(cell: HTMLElement): void {
     const column = cell.closest<HTMLElement>(`.${TimeColumnClass}`);
 
-    if (column !== null)
-        centreCell(column, cell);
+    if (column === null)
+        return;
+
+    centreCell(column, cell);
+    column.setAttribute(CentredAttribute, String(column.scrollTop));
 }
 
 function isTimeCellDisabled(picker: HTMLElement, unit: TimeUnit, cellValue: number, value: Date | null): boolean {

@@ -21,7 +21,7 @@ public sealed class SetThemeEffect(UIThemeMode? mode = null) : ClientEffect
     /// <summary>Gets whether the session already holds the theme, so the page does not report it back.</summary>
     /// <remarks>
     /// Set by the platform on a switch it pushes for a session that already holds it — a command's own <c>UpdateSessionAsync</c>, another
-    /// page's switch — as <see cref="SetLanguageEffect.Href"/> is; without it the page reports the theme to its session.
+    /// page's switch — as it marks a language or colours switch; without it the page reports the theme to its session.
     /// </remarks>
     public bool Stored { get; init; }
 }

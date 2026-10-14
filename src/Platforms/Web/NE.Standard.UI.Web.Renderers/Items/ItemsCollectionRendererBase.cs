@@ -41,6 +41,14 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     /// <summary>What a virtualized static host paints before the client runs; the client takes over from these rows and holds the rest as values.</summary>
     protected const int VirtualizedFirstPaintRows = 40;
 
+    // Every items component registers these same lists, so they are built once rather than per instance.
+    private static readonly WebDomOperation[] LayoutTypeOperations = [WebDomOperation.Class(converter: WebDomConverters.ItemsViewLayoutClass)];
+    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
+    private static readonly WebDomOperation[] SelectionModeOperations = [WebDomOperation.Attribute(WebAttributes.Selection, converter: WebDomConverters.SelectionModeAttribute)];
+    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey)];
+    private static readonly WebDomOperation[] ItemsQueryOperations = [WebDomOperation.Attribute(WebAttributes.ItemsQuery)];
+    private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, $"[{WebAttributes.ItemsHost}]")];
+
     protected static void RenderLayout(WebRenderContext context, IHtmlElementBuilder root, UIProperty layoutTypeProperty, UIProperty orientationProperty, UIProperty spacingProperty)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -50,13 +58,13 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         {
             if (value is UIItemsLayoutType layoutType)
                 _ = target.Class(WebClassNames.ItemsViewLayout(layoutType));
-        }, [WebDomOperation.Class(converter: WebDomConverters.ItemsViewLayoutClass)]);
+        }, LayoutTypeOperations);
 
         _ = RenderProperty<UIOrientation?>(context, root, orientationProperty, static (target, value) =>
         {
             if (value is UIOrientation orientation)
                 _ = target.Class(WebClassNames.Orientation(orientation));
-        }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
+        }, OrientationOperations);
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, spacingProperty, "--ui-items-view-spacing");
     }
@@ -74,14 +82,14 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         {
             if (value is UISelectionMode mode)
                 _ = target.Attribute(WebAttributes.Selection, WebCssValues.SelectionMode(mode));
-        }, [WebDomOperation.Attribute(WebAttributes.Selection, converter: WebDomConverters.SelectionModeAttribute)]);
+        }, SelectionModeOperations);
 
         _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.SelectedKey);
         _ = RenderProperty<string?>(context, root, ISelectableItemsComponent.SelectedKeyProperty, static (target, value) =>
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute(WebAttributes.SelectedKey, value);
-        }, [WebDomOperation.Attribute(WebAttributes.SelectedKey)]);
+        }, SelectedKeyOperations);
 
         RenderItemsQuery(context, root);
     }
@@ -102,7 +110,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             {
                 if (value is { IsEmpty: false })
                     _ = target.Attribute(WebAttributes.ItemsQuery, JsonSerializer.Serialize(value, QueryJsonOptions));
-            }, [WebDomOperation.Attribute(WebAttributes.ItemsQuery)]);
+            }, ItemsQueryOperations);
         });
     }
 
@@ -214,7 +222,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         {
             if (value is { Count: > 0 })
                 _ = target.Attribute(WebAttributes.SelectedKeys, JsonSerializer.Serialize(value));
-        }, [WebDomOperation.Attribute(WebAttributes.SelectedKeys, $"[{WebAttributes.ItemsHost}]")]);
+        }, SelectedKeysOperations);
     }
 
     /// <summary>The keys a static render marks as chosen, read from whichever property the selection mode names.</summary>
@@ -264,45 +272,56 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = host.Attribute(WebAttributes.HostMode, "windowed");
     }
 
-    // The one operation every host's horizontal mode carries; a host with no extras shares the array rather than building one.
-    private static readonly WebDomOperation[] HostScrollXOperations = [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollXClass)];
+    /// <summary>The operation every host's horizontal mode carries, which a renderer whose mode does more starts its own list with.</summary>
+    protected static WebDomOperation HostScrollXOperation { get; } = WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollXClass);
+
+    private static readonly WebDomOperation[] HostScrollXOperations = [HostScrollXOperation];
+    private static readonly WebDomOperation[] HostScrollYOperations = [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollYClass)];
+    private static readonly WebDomOperation[] HostScrollSnapOperations = [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollSnapClass)];
+    private static readonly WebDomOperation[] HostScrollAnchorOperations = [WebDomOperation.Attribute(WebAttributes.ScrollAnchor, $"[{WebAttributes.ItemsHost}]")];
 
     /// <summary>
     /// The <see cref="IScrollableComponent"/> block as classes and the anchor attribute on the scrolling host. A table whose root
-    /// scrolls instead passes <paramref name="horizontalOperations"/> for elsewhere.
+    /// scrolls instead passes <paramref name="horizontalOperations"/>, a list starting with <see cref="HostScrollXOperation"/>.
     /// </summary>
-    protected static void ApplyHostScroll(WebRenderContext context, IHtmlElementBuilder host, params ReadOnlySpan<WebDomOperation> horizontalOperations)
+    protected static void ApplyHostScroll(WebRenderContext context, IHtmlElementBuilder host, WebDomOperation[]? horizontalOperations = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
-
-        WebDomOperation[] horizontal = horizontalOperations.Length == 0 ? HostScrollXOperations : [HostScrollXOperations[0], .. horizontalOperations];
 
         _ = RenderProperty<UIScrollMode?>(context, host, IScrollableComponent.HorizontalScrollProperty, static (target, value) =>
         {
             if (value is UIScrollMode scrollMode)
                 _ = target.Class(WebClassNames.ScrollX(scrollMode));
-        }, horizontal);
+        }, horizontalOperations ?? HostScrollXOperations);
 
         _ = RenderProperty<UIScrollMode?>(context, host, IScrollableComponent.VerticalScrollProperty, static (target, value) =>
         {
             if (value is UIScrollMode scrollMode)
                 _ = target.Class(WebClassNames.ScrollY(scrollMode));
-        }, [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollYClass)]);
+        }, HostScrollYOperations);
 
         _ = RenderProperty<UIScrollSnapMode?>(context, host, IScrollableComponent.ScrollSnapProperty, static (target, value) =>
         {
             if (value is UIScrollSnapMode scrollSnap)
                 _ = target.Class(WebClassNames.ScrollSnap(scrollSnap));
-        }, [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollSnapClass)]);
+        }, HostScrollSnapOperations);
 
         // The enum name, not a lowercased form: a patched value arrives as the name and is compared against it.
         _ = RenderProperty<UIScrollAnchor?>(context, host, IScrollableComponent.ScrollAnchorProperty, static (target, value) =>
         {
             if (value is UIScrollAnchor anchor)
                 _ = target.Attribute(WebAttributes.ScrollAnchor, anchor.ToString());
-        }, [WebDomOperation.Attribute(WebAttributes.ScrollAnchor, $"[{WebAttributes.ItemsHost}]")]);
+        }, HostScrollAnchorOperations);
     }
+
+    private static readonly WebDomOperation[] WindowPagedOperations = [WebDomOperation.ToggleAttribute(WebAttributes.WindowPaged, target: $"[{WebAttributes.ItemsHost}]", condition: WebValueCondition.IsTrue)];
+    private static readonly WebDomOperation[] WindowAggregatesOperations = [WebDomOperation.Attribute(WebAttributes.WindowAggregates, $"[{WebAttributes.ItemsHost}]")];
+    private static readonly WindowValueRender WindowOffsetRender = new(WebAttributes.WindowOffset);
+    private static readonly WindowValueRender WindowTotalRender = new(WebAttributes.WindowTotal);
+    private static readonly WindowValueRender WindowMoreBeforeRender = new(WebAttributes.WindowMoreBefore);
+    private static readonly WindowValueRender WindowMoreAfterRender = new(WebAttributes.WindowMoreAfter);
+    private static readonly WindowValueRender WindowGroupBeforeRender = new(WebAttributes.WindowGroupBefore);
 
     /// <summary>Writes the window's size, offset and has-more flags onto a windowed host, and whether its window is a page.</summary>
     protected static void ApplyWindowProperties(WebRenderContext context, IHtmlElementBuilder host, UIItemsHostMode hostMode)
@@ -317,38 +336,29 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
         _ = host.Attribute(WebAttributes.WindowSize, (windowSize ?? 0).ToString(CultureInfo.InvariantCulture));
 
-        RenderWindowValue(context, host, IItemsHostComponent.WindowOffsetProperty, WebAttributes.WindowOffset);
-        RenderWindowValue(context, host, IItemsHostComponent.WindowTotalCountProperty, WebAttributes.WindowTotal);
-        RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreBeforeProperty, WebAttributes.WindowMoreBefore);
-        RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreAfterProperty, WebAttributes.WindowMoreAfter);
-        RenderWindowValue(context, host, IItemsHostComponent.WindowGroupBeforeProperty, WebAttributes.WindowGroupBefore);
+        RenderWindowValue(context, host, IItemsHostComponent.WindowOffsetProperty, WindowOffsetRender);
+        RenderWindowValue(context, host, IItemsHostComponent.WindowTotalCountProperty, WindowTotalRender);
+        RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreBeforeProperty, WindowMoreBeforeRender);
+        RenderWindowValue(context, host, IItemsHostComponent.WindowHasMoreAfterProperty, WindowMoreAfterRender);
+        RenderWindowValue(context, host, IItemsHostComponent.WindowGroupBeforeProperty, WindowGroupBeforeRender);
 
         // A page: the scroll asks for nothing, and a pager or Page Up and Page Down ask by offset. Bindable, so it turns on and off live.
         _ = RenderProperty<bool?>(context, host, IItemsHostComponent.PagingProperty, static (target, value) =>
         {
             if (value == true)
                 _ = target.Attribute(WebAttributes.WindowPaged);
-        }, [WebDomOperation.ToggleAttribute(WebAttributes.WindowPaged, target: $"[{WebAttributes.ItemsHost}]", condition: WebValueCondition.IsTrue)]);
+        }, WindowPagedOperations);
 
         // The totals as JSON, in the wire's conventions; a live patch writes the same text through the client's own stringify.
         _ = RenderProperty<IReadOnlyDictionary<string, object>?>(context, host, IItemsHostComponent.WindowAggregatesProperty, static (target, value) =>
         {
             if (value is { Count: > 0 })
                 _ = target.Attribute(WebAttributes.WindowAggregates, JsonSerializer.Serialize(value, QueryJsonOptions));
-        }, [WebDomOperation.Attribute(WebAttributes.WindowAggregates, $"[{WebAttributes.ItemsHost}]")]);
+        }, WindowAggregatesOperations);
     }
 
-    private static void RenderWindowValue(WebRenderContext context, IHtmlElementBuilder host, UIProperty property, string attribute)
-    {
-        _ = RenderProperty<object?>(context, host, property, (target, value) =>
-        {
-            // Lowercase for a bool, matching what a live patch writes through JavaScript's String().
-            if (value is bool flag)
-                _ = target.Attribute(attribute, flag ? "true" : "false");
-            else if (value is not null)
-                _ = target.Attribute(attribute, Convert.ToString(value, CultureInfo.InvariantCulture) ?? "");
-        }, [WebDomOperation.Attribute(attribute, $"[{WebAttributes.ItemsHost}]")]);
-    }
+    private static void RenderWindowValue(WebRenderContext context, IHtmlElementBuilder host, UIProperty property, WindowValueRender window)
+        => _ = RenderProperty<object?>(context, host, property, window.Render, window.Operations);
 
     protected static void RenderTemplates(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -989,5 +999,20 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             throw new InvalidOperationException($"Item of type '{item.GetType().Name}' has no '{nameof(IBindableItem.Id)}'.");
 
         return new UIDynamicParameterScope(componentId, bindableItem.Id, item);
+    }
+
+    /// <summary>A window value's first paint and its one operation, built once per attribute rather than per host.</summary>
+    private sealed class WindowValueRender(string attribute)
+    {
+        public Action<IHtmlElementBuilder, object?> Render { get; } = (target, value) =>
+        {
+            // Lowercase for a bool, matching what a live patch writes through JavaScript's String().
+            if (value is bool flag)
+                _ = target.Attribute(attribute, flag ? "true" : "false");
+            else if (value is not null)
+                _ = target.Attribute(attribute, Convert.ToString(value, CultureInfo.InvariantCulture) ?? "");
+        };
+
+        public WebDomOperation[] Operations { get; } = [WebDomOperation.Attribute(attribute, $"[{WebAttributes.ItemsHost}]")];
     }
 }

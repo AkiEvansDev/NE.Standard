@@ -10,8 +10,10 @@
     gap: @ui-space-2;
 }
 
-// The library's own burger, so a host may install no icon pack; the same glyph either way, a changing one reading as two buttons.
-.ui-collapsible__toggle {
+// A panel's own small button — its switch, its pin: a muted glyph that takes the ink under the pointer, the keyboard's frame as every
+// pressable's (core/keyboard.less).
+.ui-collapsible__toggle,
+.ui-collapsible__pin {
     display: flex;
     flex: 0 0 auto;
     align-items: center;
@@ -28,11 +30,12 @@
 }
 
     @media @{ui-can-hover} {
-        .ui-collapsible__toggle:hover {
+        :is(.ui-collapsible__toggle, .ui-collapsible__pin):hover {
             color: @ui-text-ink;
         }
     }
 
+    // The library's own burger, so a host may install no icon pack; the same glyph either way, a changing one reading as two buttons.
     .ui-collapsible__toggle::before {
         .ui-burger-glyph(@ui-glyph-md);
     }
@@ -86,29 +89,13 @@
 
 // A sidebar menu's pin for its drawer (MenuComponent.DrawerPin, side-drawers.less shows it) at the end of its top row, the switch's
 // match beside it, filled while its side is pinned.
-.ui-collapsible__pin {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    border: 0;
-    border-radius: var(--ui-radius-button);
-    background: none;
-    color: @ui-text-muted;
-    cursor: pointer;
-    .ui-reveal-hover(@transition: false);
-    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+.ui-collapsible__pin::before {
+    .ui-pin-glyph(@ui-glyph-sm; 0);
 }
 
-    .ui-collapsible__pin::before {
-        .ui-pin-glyph(@ui-glyph-sm; 0);
-    }
-
-    .ui-collapsible__pin[aria-pressed="true"]::before {
-        .ui-pin-glyph(@ui-glyph-sm; 1);
-    }
+.ui-collapsible__pin[aria-pressed="true"]::before {
+    .ui-pin-glyph(@ui-glyph-sm; 1);
+}
 
 // Folded, the panel is its switch alone: what stood beside it, the pin too, comes back with the panel.
 .ui-collapsible[data-ui-collapsed]:not([data-ui-folding]) > .ui-collapsible__bar > :is(.ui-collapsible__bar-content, .ui-collapsible__pin) {

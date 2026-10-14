@@ -116,8 +116,10 @@
 }
 
 // Quiet: a line of muted words with the chevron right after them, standing on the ground of what holds it — no edge (unless authored),
-// fill, padding or rule, and the content flush under it. It answers in its ink alone, as a link does: no wash and no wave
-// (press-ripple-engine.ts), and the keyboard's frame goes round the line, which keeps the clip's reach for it (runtime.less).
+// fill or rule, and the content flush under it. It answers in its ink alone, as a link does: no wash and no wave
+// (press-ripple-engine.ts). Its header is padded for the keyboard's frame and pulled back out by as much, so the words stand on the
+// content's edge at rest and the frame, inside the padding as a ghost button's, clears them; a clip leaves it its reach (runtime.less),
+// square unless authored: a clip margin keeps the box's curve, which cut the frame's corners where the header stands out past it.
 // Whatever its Surface: a Raised one's shadow goes, and a Tinted one's ground and ink, written `!important`, give way here too.
 .ui-expander.ui-expander--quiet {
     --ui-surface-fill: inherit;
@@ -125,6 +127,7 @@
     --ui-ground: inherit !important;
     --ui-popup-ground: inherit;
     .ui-responsive-property(border-width, --ui-border-thickness, 0);
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
     background-color: transparent;
     box-shadow: none;
 }
@@ -133,8 +136,9 @@
         grid-template-columns: minmax(0, auto) auto;
         justify-content: start;
         width: fit-content;
-        max-width: 100%;
-        padding: 0;
+        max-width: calc(100% + 2 * @ui-quiet-header-air-x);
+        margin: -@ui-quiet-header-air-y -@ui-quiet-header-air-x;
+        padding: @ui-quiet-header-air-y @ui-quiet-header-air-x;
         color: @ui-text-muted;
         transition: color @ui-motion-fast @ui-motion-ease;
     }

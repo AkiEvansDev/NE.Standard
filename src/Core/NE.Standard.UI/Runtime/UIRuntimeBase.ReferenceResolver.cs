@@ -54,7 +54,7 @@ internal abstract partial class UIRuntimeBase : IUIReferenceResolver
         }
         catch (Exception exception)
         {
-            TryLogRuntimeResolutionFailure("value", nameof(ResolveRuntimeValue), exception);
+            TryLog(exception, static (logger, failure) => Log.RuntimeResolutionFailed(logger, failure, "value", nameof(ResolveRuntimeValue)));
             return value;
         }
     }
@@ -96,7 +96,7 @@ internal abstract partial class UIRuntimeBase : IUIReferenceResolver
         }
         catch (Exception exception)
         {
-            TryLogRuntimeResolutionFailure("effect", nameof(ResolveRuntimeEffect), exception);
+            TryLog(exception, static (logger, failure) => Log.RuntimeResolutionFailed(logger, failure, "effect", nameof(ResolveRuntimeEffect)));
             return effect;
         }
     }

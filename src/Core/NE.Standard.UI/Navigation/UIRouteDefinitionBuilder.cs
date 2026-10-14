@@ -322,10 +322,23 @@ public sealed class UIRouteDefinitionBuilder
         return () => view;
     }
 
+    /// <summary>Compiles the view on its first open, once, however many opens race to it.</summary>
+    /// <remarks>
+    /// Not a <see cref="Lazy{T}"/>: under <see cref="LazyThreadSafetyMode.ExecutionAndPublication"/> it keeps a failed compile's
+    /// exception and throws it on every later open, so a failure that would pass on a retry closed the route until a restart.
+    /// </remarks>
     private static Func<CompiledView> CreateLazyGetter(UIViewFactory factory)
     {
-        Lazy<CompiledView> lazy = new(factory.Compile, LazyThreadSafetyMode.ExecutionAndPublication);
+        CompiledView? compiled = null;
+        Lock sync = new();
 
-        return () => lazy.Value;
+        return () =>
+        {
+            if (Volatile.Read(ref compiled) is { } view)
+                return view;
+
+            lock (sync)
+                return compiled ??= factory.Compile();
+        };
     }
 }

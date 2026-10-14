@@ -22,11 +22,11 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
     protected override IVisualComponent CreateScreen()
         => new ContainerComponent()
             .SetPadding(UIThickness.All(0, 8, 0, 0))
-            .AddChild(UILayout.Split(CreateForm(), CreateSummary(), sideSpan: 9)
-                .SetMaxWidth(UILayoutLength.Absolute(1080))
+            .AddChild(UIPage.Column(UIColumnWidth.Wide, UILayout.Split(CreateForm(), CreateSummary(), sideSpan: 9))
                 .BindVisibility(nameof(CheckoutController.FormVisibility))
             )
-            .AddChild(CreatePlaced())
+            // The placed order's own cell, shown with it: left over the form, an empty band would take the presses on the form's head.
+            .AddChild(UICard.Centered(CreatePlaced()).BindVisibility(nameof(CheckoutController.PlacedVisibility)))
             .SetPlacement(1, 1, 24, 1);
 
     // Filled, set on each field: a long form whose fields stack, where the line under each finds its edge.
@@ -192,7 +192,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
 
     /// <summary>The subscription read rather than edited: the lines, the sums the server keeps, and the one field that talks to it.</summary>
     private static CardComponent CreateSummary()
-        => UIPage.Card("Your subscription", "Billed monthly, VAT added below.", UILayout.Stack(12,
+        => UICard.Create("Your subscription", "Billed monthly, VAT added below.", UILayout.Stack(12,
             UIDetails.List().BindItems(nameof(CheckoutController.Lines)),
             new SeparatorComponent(),
             // Tonal: the separators above and below already frame it, and a line under it would only add weight to the card.
@@ -210,39 +210,20 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
             UIMessage.Create(UIMessageSeverity.Danger, null, new ParagraphComponent().BindDescription(nameof(CheckoutController.PromoVerdict)))
                 .BindVisibility(nameof(CheckoutController.PromoRefusedVisibility)),
             new SeparatorComponent(),
-            CreateSumRow("Subtotal", nameof(CheckoutController.SubtotalLine)),
-            CreateSumRow("Discount", nameof(CheckoutController.DiscountLine)).BindVisibility(nameof(CheckoutController.DiscountVisibility)),
-            CreateSumRow("VAT, 21%", nameof(CheckoutController.VatLine)),
-            CreateSumRow("Total a month", nameof(CheckoutController.TotalLine), strong: true)
+            UIDetails.Amount("Subtotal", nameof(CheckoutController.SubtotalLine)),
+            UIDetails.Amount("Discount", nameof(CheckoutController.DiscountLine)).BindVisibility(nameof(CheckoutController.DiscountVisibility)),
+            UIDetails.Amount("VAT, 21%", nameof(CheckoutController.VatLine)),
+            UIDetails.Total("Total a month", nameof(CheckoutController.TotalLine))
         ), DemoIcons.Outline(DemoIcons.File))
             .SetVerticalAlignment(UIAlignment.Start);
 
-    // Placed by hand rather than as equal columns, which stand one under another on a phone: a sum and its name are one line at every width.
-    private static ContainerComponent CreateSumRow(string label, string property, bool strong = false)
-    {
-        TextComponent name = strong ? UIText.Subtitle(label) : UIText.Body(label).Muted();
-        TextComponent amount = new TextComponent().SetTextAlignment(UITextAlignment.End).AsBody().BindTitle(property);
-
-        return new ContainerComponent()
-            .AddChild(name.SetVerticalAlignment(UIAlignment.Center).SetPlacement(1, 1, 14, 1))
-            .AddChild((strong ? amount.AsSubtitle() : amount).SetVerticalAlignment(UIAlignment.Center).SetPlacement(15, 1, 10, 1));
-    }
-
+    /// <summary>What replaces the form once the order is placed.</summary>
     private static SurfaceComponent CreatePlaced()
-        => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Raised)
-            .SetWidth(UILayoutLength.Absolute(520))
-            .SetHorizontalAlignment(UIAlignment.Center)
-            .SetPadding(UIThickness.Uniform(24))
-            .BindVisibility(nameof(CheckoutController.PlacedVisibility))
-            .SetContent(UILayout.Stack(16,
-                new TextComponent()
-                    .SetIcon(DemoIcons.Outline(DemoIcons.BadgeCheck))
-                    .SetIconColor(UIThemeColor.Success)
-                    .SetTitle("Thank you")
-                    .AsTitle(),
-                UIText.Note(string.Empty).BindDescription(nameof(CheckoutController.PlacedLine)),
-                UIButtons.Toolbar(UIButtons.Ghost("Back to the catalogue"))
-                )
-            );
+        => UIPage.Outcome(
+            DemoIcons.Outline(DemoIcons.BadgeCheck),
+            UIMessageSeverity.Success,
+            "Thank you",
+            new ParagraphComponent().BindDescription(nameof(CheckoutController.PlacedLine)),
+            UIButtons.Ghost("Back to the catalogue")
+        );
 }

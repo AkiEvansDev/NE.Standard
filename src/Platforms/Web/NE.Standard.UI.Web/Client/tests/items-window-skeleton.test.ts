@@ -69,18 +69,25 @@ function pendingSpacer(host: FakeElement): FakeElement | null {
     return host.querySelector(":scope > [data-ui-window-spacer=\"pending\"]");
 }
 
-test("the row's measured height is written for the skeleton's bars; a list writes no tile", () => {
-    const { host } = scene({ boxes: [[0, 0], [0, 30], [0, 60]] });
+function bottomSpacer(host: FakeElement): FakeElement | null {
+    return host.querySelector(":scope > [data-ui-window-spacer=\"bottom\"]");
+}
 
-    assert.equal(host.style["--ui-window-row"], "30px");
-    assert.equal(host.style["--ui-window-tile"], undefined);
+// On the spacer that draws the bars, never on the host: an inherited property written there restyles every row it holds.
+test("the row's measured height is written for the skeleton's bars on the spacer; a list writes no tile", () => {
+    const { host } = scene({ boxes: [[0, 0], [0, 30], [0, 60]], total: 10 });
+
+    assert.equal(bottomSpacer(host)?.style["--ui-window-row"], "30px");
+    assert.equal(bottomSpacer(host)?.style["--ui-window-tile"], undefined);
+    assert.equal(host.style["--ui-window-row"], undefined);
 });
 
 test("a wrapping list's row is a row of tiles: its step down, the gap in it, and a tile's step across", () => {
-    const { host } = scene({ boxes: [[0, 0], [110, 0], [0, 110], [110, 110]], size: 100 });
+    const { host } = scene({ boxes: [[0, 0], [110, 0], [0, 110], [110, 110]], size: 100, total: 10 });
 
-    assert.equal(host.style["--ui-window-row"], "110px");
-    assert.equal(host.style["--ui-window-tile"], "110px");
+    assert.equal(bottomSpacer(host)?.style["--ui-window-row"], "110px");
+    assert.equal(bottomSpacer(host)?.style["--ui-window-tile"], "110px");
+    assert.equal(host.style["--ui-window-tile"], undefined);
 });
 
 test("a host that cannot count stands skeleton rows after its last one while its next rows are read, and takes them away when they land", async () => {
@@ -92,6 +99,7 @@ test("a host that cannot count stands skeleton rows after its last one while its
     assert.equal(host.getAttribute("data-ui-window-pending"), "after");
     assert.equal(host.getAttribute("aria-busy"), "true");
     assert.equal(pendingSpacer(host)?.style.height, "90px");
+    assert.equal(pendingSpacer(host)?.style["--ui-window-row"], "30px");
     assert.equal(host.children.at(-1), pendingSpacer(host));
 
     reads.release();

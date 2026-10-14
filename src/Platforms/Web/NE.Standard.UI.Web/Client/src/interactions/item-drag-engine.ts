@@ -263,7 +263,8 @@ export class ItemDragEngine {
 
     /** Raises the drop on the target, the rows moved there ahead of the answer where both hosts are lists of the kind holding their rows whole. */
     private drop(items: ItemDrag, target: HTMLElement, effect: ItemDropEffect, landing: Landing): void {
-        const ahead = effect === "move" && landing.list !== null && landing.index !== null && items.root.matches(KeyboardRowsRootSelector)
+        // A cut's source list redrawn away since (a paste much later) has no rows to move ahead: the answer moves them.
+        const ahead = effect === "move" && landing.list !== null && landing.index !== null && items.host.isConnected && items.root.matches(KeyboardRowsRootSelector)
             && target.getAttribute(DragKindAttribute) === items.kind && resolveHostMode(items.host) === "plain" && resolveHostMode(landing.list) === "plain";
 
         const detail: ItemDropDetail = {
@@ -284,10 +285,13 @@ export class ItemDragEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
             return;
 
-        // The last of the Escape chain: taken only where there was something to let go of.
+        // The last of the Escape chain: taken only where there was something to let go of the reader can still see; what a page
+        // redrew away is let go of in passing.
         if (domEvent.key === "Escape") {
             if (this.clipboard !== null && !isComposing(domEvent)) {
-                domEvent.preventDefault();
+                if (this.clipboard.items.root.isConnected)
+                    domEvent.preventDefault();
+
                 this.letGo();
             }
 

@@ -47,6 +47,16 @@ internal sealed partial class DemoChatPhoto : TextItem
     public string Source { get; init; } = string.Empty;
 }
 
+/// <summary>A file a message carries, drawn as a file tile: its name is the title, its size and type the tile's.</summary>
+internal sealed partial class DemoChatFile : TextItem
+{
+    [RecursiveMember(false)]
+    public long Size { get; init; }
+
+    [RecursiveMember(false)]
+    public string ContentType { get; init; } = string.Empty;
+}
+
 /// <summary>
 /// A message: its author, words and moment, grouped by the day it was sent so a day header stands over each day's first, and drawn on
 /// the reader's side or the other's — the template variant its <see cref="Side"/> names.
@@ -94,6 +104,14 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
     /// <summary>The photos' strip, collapsed on a message that carries none.</summary>
     [RecursiveMember(false)]
     public UIVisibility PhotosVisibility => Photos.Count > 0 ? UIVisibility.Visible : UIVisibility.Collapsed;
+
+    /// <summary>The files sent with the words, each a tile; none for most messages.</summary>
+    [RecursiveMember(false)]
+    public RecursiveCollection<DemoChatFile> Files { get; } = [];
+
+    /// <summary>The files' strip, collapsed on a message that carries none.</summary>
+    [RecursiveMember(false)]
+    public UIVisibility FilesVisibility => Files.Count > 0 ? UIVisibility.Visible : UIVisibility.Collapsed;
 
     /// <summary>Whether the message is pinned; its pin entry offers the other way round.</summary>
     public bool Pinned { get; private set; }
@@ -356,14 +374,14 @@ internal sealed partial class ChatController : UIControllerBase
     public partial UIVisibility PeopleVisibility { get; set; } = UIVisibility.Collapsed;
 
     /// <summary>
-    /// The list and the conversation: side by side from the wide breakpoint, one at a time below it — the list until a chat is
+    /// The list and the conversation: side by side from the medium breakpoint, one at a time below it — the list until a chat is
     /// pressed, the conversation until its back arrow is.
     /// </summary>
     [RecursiveMember]
-    public partial UIResponsive<UIVisibility> ListVisibility { get; set; } = UIVisibility.Visible;
+    public partial UIResponsive<UIVisibility> ListVisibility { get; set; } = UILayout.PanesListVisibility(false);
 
     [RecursiveMember]
-    public partial UIResponsive<UIVisibility> PaneVisibility { get; set; } = UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, xl: UIVisibility.Visible);
+    public partial UIResponsive<UIVisibility> PaneVisibility { get; set; } = UILayout.PanesDetailVisibility(false);
 
     [RecursiveMember]
     public partial DateOnly? JumpDay { get; set; }
@@ -441,8 +459,9 @@ internal sealed partial class ChatController : UIControllerBase
                 ("How did 482 go?", true), ("Release 482 is live, nothing pending.", false)),
             Chat("c4", "Mika Laine", DemoImages.NightStreet, "Product design", now.AddHours(-2), 1,
                 ("Amsterdam next week, lunch on Tuesday?", false)),
-            Chat("c5", "Billing", Initials("Billing", "#e2734b"), "Orvane billing desk", now.AddHours(-5), 0,
+            WithFiles(Chat("c5", "Billing", Initials("Billing", "#e2734b"), "Orvane billing desk", now.AddHours(-5), 0,
                 ("Bramble Studio's invoice is attached.", false)),
+                ("Invoice BR-2026-0412 Bramble Studio.pdf", "application/pdf", 184_320), ("Usage by project, September.xlsx", string.Empty, 52_480), ("receipts.zip", string.Empty, 3_355_443)),
             // No picture at all, and one whose picture is gone: both show the person's glyph wherever the face would stand.
             Chat("c6", "Priya Nair", string.Empty, "Reviews", now.AddHours(-9), 0,
                 ("Could you look at CHG-482?", true), ("Two comments, neither blocking.", false)),
@@ -519,6 +538,17 @@ internal sealed partial class ChatController : UIControllerBase
 
         for (var i = 0; i < sources.Length; i++)
             message.Photos.Add(new DemoChatPhoto { Id = $"{message.Id}-p{i}", Title = $"Offsite photo {i + 1}", Source = sources[i], IsContent = true });
+
+        return chat;
+    }
+
+    /// <summary>The chat's last message with files sent along, each a tile a press opens.</summary>
+    private static DemoChatItem WithFiles(DemoChatItem chat, params (string Name, string Type, long Size)[] files)
+    {
+        DemoChatMessage message = chat.History[^1];
+
+        for (var i = 0; i < files.Length; i++)
+            message.Files.Add(new DemoChatFile { Id = $"{message.Id}-f{i}", Title = files[i].Name, ContentType = files[i].Type, Size = files[i].Size, IsContent = true });
 
         return chat;
     }
@@ -654,8 +684,8 @@ internal sealed partial class ChatController : UIControllerBase
         Read(chat);
         RefreshPeople();
 
-        ListVisibility = UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, xl: UIVisibility.Visible);
-        PaneVisibility = UIVisibility.Visible;
+        ListVisibility = UILayout.PanesListVisibility(true);
+        PaneVisibility = UILayout.PanesDetailVisibility(true);
 
         await Conversation.ShowAsync(chat.History, cancellationToken).ConfigureAwait(false);
     }
@@ -669,12 +699,12 @@ internal sealed partial class ChatController : UIControllerBase
         await OpenChatAsync(id, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>The conversation's back arrow, below the wide breakpoint: the list again.</summary>
+    /// <summary>The conversation's back arrow, below the medium breakpoint: the list again.</summary>
     [UICommand]
     public void Back()
     {
-        ListVisibility = UIVisibility.Visible;
-        PaneVisibility = UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, xl: UIVisibility.Visible);
+        ListVisibility = UILayout.PanesListVisibility(false);
+        PaneVisibility = UILayout.PanesDetailVisibility(false);
     }
 
     /// <summary>The header over the conversation, and the days the calendar offers.</summary>
@@ -997,6 +1027,11 @@ internal sealed partial class ChatController : UIControllerBase
         else
             deleted.Chat.History.Insert(Math.Min(deleted.Index, deleted.Chat.History.Count), deleted.Message);
     }
+
+    /// <summary>A file tile's press: here the toast says what an application would download or open.</summary>
+    [UICommand]
+    public static UICommandResult OpenFile(string name)
+        => UICommandResult.Ok([new ShowNotificationEffect($"Downloading {name}.", UIColorStyle.Info)]);
 
     /// <summary>One more folder on the rail, before the settings.</summary>
     [UICommand]

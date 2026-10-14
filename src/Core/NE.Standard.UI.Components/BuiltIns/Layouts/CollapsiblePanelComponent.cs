@@ -15,14 +15,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
+[UIComponentPropertyDefault(nameof(ICollapsibleComponent.ShowCollapseToggle), nameof(DefaultShowCollapseToggle))]
 public abstract partial class CollapsiblePanelComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), ISurfaceComponent, IBorderedComponent, ICollapsibleComponent
     where T : CollapsiblePanelComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets or sets whether the panel draws its own switch; off means the panel is driven from the controller.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(ICollapsibleComponent), IsBindable = false, DefaultValue = true)]
-    public bool? ShowCollapseToggle { get; set; }
+    // The panel draws its own switch; off, it is driven from the controller.
+    private const bool DefaultShowCollapseToggle = true;
 
     /// <summary>
     /// Gets the content region.

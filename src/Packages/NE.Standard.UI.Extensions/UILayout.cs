@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
@@ -61,7 +62,7 @@ public static class UILayout
         var wide = children.Length > 3;
 
         for (var i = 0; i < children.Length; i++)
-            _ = columns.AddChild(Cell(children[i], i, (i * span) + 1, span, spacing, wide, cellAlignment));
+            _ = columns.AddChild(Cell(children[i], i, children.Length, (i * span) + 1, span, spacing, wide, cellAlignment));
 
         return columns;
     }
@@ -78,8 +79,8 @@ public static class UILayout
         ArgumentOutOfRangeException.ThrowIfGreaterThan(sideSpan, 23);
 
         return new ContainerComponent()
-            .AddChild(Cell(main, 0, 1, 24 - sideSpan, spacing, wide: true))
-            .AddChild(Cell(side, 1, 25 - sideSpan, sideSpan, spacing, wide: true));
+            .AddChild(Cell(main, 0, 0, 1, 24 - sideSpan, spacing, wide: true))
+            .AddChild(Cell(side, 1, 0, 25 - sideSpan, sideSpan, spacing, wide: true));
     }
 
     /// <summary>
@@ -94,27 +95,200 @@ public static class UILayout
         ArgumentOutOfRangeException.ThrowIfGreaterThan(sideSpan, 23);
 
         return new ContainerComponent()
-            .AddChild(Cell(side, 0, 1, sideSpan, spacing, wide: true))
-            .AddChild(Cell(main, 1, sideSpan + 1, 24 - sideSpan, spacing, wide: true));
+            .AddChild(Cell(side, 0, 0, 1, sideSpan, spacing, wide: true))
+            .AddChild(Cell(main, 1, 0, sideSpan + 1, 24 - sideSpan, spacing, wide: true));
     }
+
+    /// <summary>
+    /// Cards on a board of two columns, each a stack read top to bottom — a settings page's panels, an account's — the cards
+    /// <paramref name="spacing"/> apart down a column and across it, each held by its top. Below the extra-large breakpoint the
+    /// columns stand one under the other, the start's cards first: half a tablet's width is too narrow for a card's rows.
+    /// </summary>
+    public static ContainerComponent Board(IVisualComponent[] start, IVisualComponent[] end, double spacing = 16)
+    {
+        ArgumentNullException.ThrowIfNull(start);
+        ArgumentNullException.ThrowIfNull(end);
+
+        if (start.Length == 0 || end.Length == 0)
+            throw new ArgumentException("A board has two columns: give each at least one card.", start.Length == 0 ? nameof(start) : nameof(end));
+
+        // Each column's stack is its cell: a cell around it would only hold the stack.
+        return new ContainerComponent()
+            .AddChild(Place(Stack(spacing, start), 0, 2, 1, 12, spacing, wide: true, UIAlignment.Start))
+            .AddChild(Place(Stack(spacing, end), 1, 2, 13, 12, spacing, wide: true, UIAlignment.Start));
+    }
+
+    /// <summary>
+    /// Something at the start of a row and things at its far end — a title and its buttons, a line and its action, a search and its
+    /// Add: the end as wide as it is, never half the row, the start the rest, both on the row's middle, 12 px apart. On a phone
+    /// buttons with words stand under the start at the far end, as a page header's do; icons and the rest keep the row.
+    /// </summary>
+    public static ContainerComponent Ends(IVisualComponent start, params IVisualComponent[] end)
+    {
+        ArgumentNullException.ThrowIfNull(start);
+        ArgumentNullException.ThrowIfNull(end);
+
+        StackPanelComponent first = new StackPanelComponent()
+            .SetOrientation(UIOrientation.Vertical)
+            .SetVerticalAlignment(UIAlignment.Center)
+            .AddChild(start);
+
+        if (end.Length == 0)
+            return new ContainerComponent().AddChild(first.SetPlacement(1, 1, 24, 1));
+
+        // Words take a phone's row from the start, as the header's did ("Serv / ers"): judged by what the end holds, since nothing
+        // measures whether the two fit.
+        var under = Array.Exists(end, static item => item is IButtonComponent button && UIPage.ShowsWords(button));
+
+        StackPanelComponent far = new StackPanelComponent()
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetSpacing(8)
+            .SetWrap(under)
+            .SetHorizontalAlignment(UIAlignment.End)
+            .SetVerticalAlignment(UIAlignment.Center)
+            .AddChildren(end);
+
+        ContainerComponent row = new ContainerComponent().SetColumn(24, UIGridUnit.Auto());
+
+        if (!under)
+        {
+            return row
+                .AddChild(first.SetPlacement(1, 1, 23, 1))
+                .AddChild(far.SetMargin(UIThickness.All(EndsAir, 0, 0, 0)).SetPlacement(24, 1, 1, 1));
+        }
+
+        return row
+            .AddChild(first.SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 23, 1)))
+            .AddChild(far
+                .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 8, 0, 0), md: UIThickness.All(EndsAir, 0, 0, 0)))
+                .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(24, 1, 1, 1))
+            );
+    }
+
+    private const double EndsAir = 12;
+
+    /// <summary>
+    /// A list and the thing chosen in it side by side from the medium breakpoint — chats and a conversation, a tree and a note, mail
+    /// and a message — the list 280 px wide (200 to 480 where <paramref name="splitPositionPath"/> binds a splitter between them) and
+    /// 16 px of air, the list's scroller standing its overlay bar in that air (<see cref="ContainerComponent{T}.ScrollbarAir"/>), so its
+    /// rows end where a field over them does; with a splitter, the bar's room on either side of the splitter's track. Below the
+    /// breakpoint one at a time, the detail in the list's place once it is in front, with a Back of its own
+    /// (<c>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</c>). The controller holds which shows at
+    /// <paramref name="listVisibilityPath"/> and <paramref name="detailVisibilityPath"/> (<see cref="PanesListVisibility"/>,
+    /// <see cref="PanesDetailVisibility"/>), and, where a <paramref name="placeholder"/> stands in the detail's place while nothing is
+    /// chosen (<see cref="UIPage.Empty"/>), at <paramref name="placeholderVisibilityPath"/> (<see cref="PanesPlaceholderVisibility"/>).
+    /// Give it the region's height where the panes scroll inside themselves.
+    /// </summary>
+    public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string listVisibilityPath, string detailVisibilityPath, IVisualComponent? placeholder = null, string? placeholderVisibilityPath = null, string? splitPositionPath = null)
+    {
+        ArgumentNullException.ThrowIfNull(list);
+        ArgumentNullException.ThrowIfNull(detail);
+        ArgumentException.ThrowIfNullOrWhiteSpace(listVisibilityPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(detailVisibilityPath);
+
+        if ((placeholder is null) != (placeholderVisibilityPath is null))
+            throw new ArgumentException("A placeholder is shown by a visibility of its own: give both or neither.", nameof(placeholderVisibilityPath));
+
+        if (placeholderVisibilityPath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(placeholderVisibilityPath);
+
+        if (splitPositionPath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(splitPositionPath);
+
+        var detailColumn = splitPositionPath is null ? 2 : 3;
+        UIGridPlacement whole = UIGridPlacement.At(1, 1, 24, 1);
+        UIResponsive<UIGridPlacement> listPlace = UIResponsive<UIGridPlacement>.Create(whole, md: UIGridPlacement.At(1, 1, 1, 1));
+        UIResponsive<UIGridPlacement> detailPlace = UIResponsive<UIGridPlacement>.Create(whole, md: UIGridPlacement.At(detailColumn, 1, 25 - detailColumn, 1));
+
+        // The list's scroller stands its bar in the air after it: all of it without a splitter, the bar's room before a splitter's track,
+        // whose grip the bar must not cover, and as much after it, so the line stands mid-air. Rejected: 4 px after the track (the line
+        // stood against the detail's edge).
+        var listEnd = splitPositionPath is null ? 0 : ScrollbarRoom;
+        UIThickness listAir = UIThickness.All(0, 0, listEnd, 0);
+        UIThickness detailAir = UIThickness.All(splitPositionPath is null ? PanesAir : ScrollbarRoom, 0, 0, 0);
+
+        ContainerComponent panes = new ContainerComponent()
+            .SetColumn(1, splitPositionPath is null ? UIGridUnit.Absolute(PanesListWidth) : UIGridUnit.Absolute(PanesListWidth, min: 200, max: 480))
+            .AddChild(Pane(list, listVisibilityPath, listPlace, listAir).SetScrollbarAir(UIResponsive<double>.Create(0, md: splitPositionPath is null ? PanesAir : listEnd)));
+
+        if (splitPositionPath is not null)
+        {
+            _ = panes
+                .SetColumn(2, UIGridUnit.Auto())
+                .AddChild(new GridSplitterComponent()
+                    .BindPosition(splitPositionPath)
+                    .ShownFrom(UIResponsiveTier.Md)
+                    .SetPlacement(2, 1, 1, 1)
+                );
+        }
+
+        if (placeholder is not null)
+            _ = panes.AddChild(Pane(placeholder, placeholderVisibilityPath!, detailPlace, detailAir));
+
+        return panes.AddChild(Pane(detail, detailVisibilityPath, detailPlace, detailAir));
+    }
+
+    private const double PanesListWidth = 280;
+    private const double PanesAir = 16;
+
+    // The overlay bar's room, core/scrollbar.less's --ui-scrollbar-room.
+    private const double ScrollbarRoom = 12;
+
+    /// <summary>A pane's cell: the region's height, beside the other one from the medium breakpoint, shown as the controller says.</summary>
+    /// <remarks>
+    /// A grid of one cell, not a stack: its child, unplaced, fills it, so a pane that sets no height of its own stands as tall as
+    /// the other.
+    /// </remarks>
+    private static ContainerComponent Pane(IVisualComponent child, string visibilityPath, UIResponsive<UIGridPlacement> placement, UIThickness air)
+        => new ContainerComponent()
+            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.Uniform(0), md: air))
+            .SetPlacement(placement)
+            .BindVisibility(visibilityPath)
+            .AddChild(child);
+
+    /// <summary>The list's visibility in <see cref="Panes"/>: shown, but below the medium breakpoint hidden while the detail is in front.</summary>
+    public static UIResponsive<UIVisibility> PanesListVisibility(bool detailInFront)
+        => detailInFront ? UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible) : UIVisibility.Visible;
+
+    /// <summary>
+    /// The detail's visibility in <see cref="Panes"/>: below the medium breakpoint shown only while in front, from it beside the list
+    /// while something is <paramref name="chosen"/> — always, where no placeholder stands in for nothing.
+    /// </summary>
+    public static UIResponsive<UIVisibility> PanesDetailVisibility(bool detailInFront, bool chosen = true)
+    {
+        if (!chosen)
+            return UIVisibility.Collapsed;
+
+        return detailInFront ? UIVisibility.Visible : UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
+    }
+
+    /// <summary>The placeholder's visibility in <see cref="Panes"/>: beside the list from the medium breakpoint while nothing is chosen.</summary>
+    public static UIResponsive<UIVisibility> PanesPlaceholderVisibility(bool chosen)
+        => chosen ? UIVisibility.Collapsed : UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
 
     // A cell, not a placement on the child (which may be any component). The presets set their own air by margins, leaving the
     // container's Spacing off: a cell's margin is above it while the cells stand one under another, before it once side by side.
     // The cell is only as tall as its child, so the child's VerticalAlignment has no room to act in it: the cell takes it over,
     // unless the caller names one alignment for every cell.
-    private static StackPanelComponent Cell(IVisualComponent child, int index, int column, int span, double spacing, bool wide, UIAlignment? alignment = null)
+    private static StackPanelComponent Cell(IVisualComponent child, int index, int count, int column, int span, double spacing, bool wide, UIAlignment? alignment = null)
+        => Place(new StackPanelComponent().SetOrientation(UIOrientation.Vertical).AddChild(child), index, count, column, span, spacing, wide, alignment ?? child.VerticalAlignment ?? UIAlignment.Start);
+
+    /// <summary>
+    /// A cell in its column from the breakpoint and under the one before it below. Beside, one of <paramref name="count"/> equal
+    /// columns takes its share of the air on both sides, so every column loses the same width; with no count (a main part and a side)
+    /// the air stands before the later one.
+    /// </summary>
+    private static StackPanelComponent Place(StackPanelComponent cell, int index, int count, int column, int span, double spacing, bool wide, UIAlignment alignment)
     {
         var air = index == 0 ? 0 : spacing;
         UIThickness under = UIThickness.All(0, air, 0, 0);
-        UIThickness beside = UIThickness.All(air, 0, 0, 0);
+        UIThickness beside = count > 0 ? UIThickness.All(spacing * index / count, 0, spacing * (count - 1 - index) / count, 0) : UIThickness.All(air, 0, 0, 0);
         UIGridPlacement stacked = UIGridPlacement.At(1, index + 1, 24, 1);
         UIGridPlacement placed = UIGridPlacement.At(column, 1, span, 1);
 
-        return new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetVerticalAlignment(alignment ?? child.VerticalAlignment ?? UIAlignment.Start)
+        return cell
+            .SetVerticalAlignment(alignment)
             .SetMargin(wide ? UIResponsive<UIThickness>.Create(under, xl: beside) : UIResponsive<UIThickness>.Create(under, md: beside))
-            .SetPlacement(wide ? UIResponsive<UIGridPlacement>.Create(stacked, xl: placed) : UIResponsive<UIGridPlacement>.Create(stacked, md: placed))
-            .AddChild(child);
+            .SetPlacement(wide ? UIResponsive<UIGridPlacement>.Create(stacked, xl: placed) : UIResponsive<UIGridPlacement>.Create(stacked, md: placed));
     }
 }

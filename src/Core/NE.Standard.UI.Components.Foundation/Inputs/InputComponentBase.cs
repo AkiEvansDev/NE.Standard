@@ -16,13 +16,18 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 /// <remarks><see cref="InputTemplatedComponentBase{TComponent, TItem, TValue, TTemplate}"/> is the same thing over an items host.</remarks>
 [UIComponentPropertyBlock(typeof(IInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextBaseComponent))]
+[UIComponentPropertyDefault(nameof(ITextBaseComponent.IconColor), nameof(DefaultIconColor))]
+[UIComponentPropertyDefault(nameof(ITextBaseComponent.TitleType), nameof(DefaultTitleType))]
+[UIComponentPropertyDefault(nameof(ITextBaseComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
 public abstract partial class InputComponentBase<TComponent, TValue> : VisualComponentBase<TComponent>, IInputComponent, ITextBaseComponent
     where TComponent : InputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
     private readonly List<UIValidationRule> _validations = [];
 
+    // A field's caption differs from a text's on these three, the same in InputComponentBase and InputTemplatedComponentBase.
     private static readonly UIThemeColor DefaultIconColor = UIThemeColor.FromStyle(UIColorStyle.Primary);
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Caption;
+    private const UITextBadgePlacement DefaultBadgePlacement = UITextBadgePlacement.Trailing;
 
     /// <summary>
     /// Centers the field in its track, since a field is only as tall as its own content and would otherwise sit at the top of a
@@ -39,20 +44,6 @@ public abstract partial class InputComponentBase<TComponent, TValue> : VisualCom
 
     /// <inheritdoc/>
     object? IInputComponent.Value => Value;
-
-    // The four label properties a field's caption differs on, the same four as InputTemplatedComponentBase; the rest come from the ITextBaseComponent block.
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultIconColor))]
-    public UIThemeColor? IconColor { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultTitleType))]
-    public UITextAppearance? TitleType { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = UITextBadgePlacement.Trailing)]
-    public UITextBadgePlacement? BadgePlacement { get; set; }
 
     /// <inheritdoc/>
     public UIPropertyReference? ValidationTarget { get; set; }

@@ -137,8 +137,8 @@ test("the blur's layer stands under the content on the pseudo-element the root l
 
     assert.match(declarations(`.ui-container${blur}`) ?? "", /isolation: isolate;[\s\S]*position: relative;/);
     assert.match(declarations(`.ui-container${blur}::after`) ?? "", /z-index: -1;[\s\S]*backdrop-filter: blur\(var\(--ui-surface-image-blur\)\);[\s\S]*inset: 0;/);
-    assert.match(declarations(`.ui-button${blur}:not(.ui-items-view__item > .ui-pressing)::before`) ?? "", /backdrop-filter/, "a button's ::after is its press's wave, and a pressed tile's ::before");
-    assert.match(declarations(`.ui-scroll${blur}:not(.ui-items-view__item > .ui-pressing)::before`) ?? "", /position: sticky;[\s\S]*float: inline-start;[\s\S]*height: 100%;/);
+    assert.match(declarations(`.ui-button${blur}::before`) ?? "", /backdrop-filter/, "a button's ::after may be its glyph");
+    assert.match(declarations(`.ui-scroll${blur}::before`) ?? "", /position: sticky;[\s\S]*float: inline-start;[\s\S]*height: calc\(100% \+ var\(--ui-scroll-room-x\)\);/);
     assert.doesNotMatch(declarations(`.ui-scroll${blur}`) ?? "", /position: relative/);
 });
 

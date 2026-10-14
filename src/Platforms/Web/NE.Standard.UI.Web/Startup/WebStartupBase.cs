@@ -8,7 +8,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Shell.Files;
-using NE.Standard.UI.Shell.Services;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Startup;
 using NE.Standard.UI.Web.Abstractions.Assets;
@@ -78,7 +77,6 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton<WebHubCallLimiter>();
         services.TryAddSingleton<WebUIMetrics>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
-        services.TryAddSingleton<IUIDialogService, StandardWebDialogService>();
         services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();
         services.TryAddSingleton<IUIContentAddressResolver>(new UIContentAddress(WebContentEndpoint.Prefix));
 

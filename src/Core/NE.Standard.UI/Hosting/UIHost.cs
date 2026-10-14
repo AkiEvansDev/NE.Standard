@@ -199,8 +199,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     {
         UIClientServices clientServices = new(
             Updates: _services.GetRequiredService<IUIUpdateSink>(),
-            Dialogs: _services.GetRequiredService<IUIDialogService>(),
-            Downloads: _services.GetRequiredService<IUIDownloadService>(),
+            Downloads: _services.GetRequiredService<IUIDownloadStager>(),
             Uploads: _services.GetRequiredService<IUIUploadService>()
         );
 
@@ -1003,6 +1002,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
         return identity.ToString();
     }
 
+    /// <summary>
+    /// Appends one identity value, each escaped as the client's <c>encodeURIComponent</c> does, so a value holding <c>&amp;</c>,
+    /// <c>=</c> or <c>,</c> cannot read as a different set of values.
+    /// </summary>
     private static void AppendIdentityValue(StringBuilder identity, object? value)
     {
         switch (value)
@@ -1010,7 +1013,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             case null:
                 break;
             case string text:
-                _ = identity.Append(text);
+                _ = identity.Append(Uri.EscapeDataString(text));
                 break;
             case IEnumerable many:
                 var first = true;
@@ -1026,7 +1029,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
                 break;
             default:
-                _ = identity.Append(Convert.ToString(value, CultureInfo.InvariantCulture));
+                _ = identity.Append(Uri.EscapeDataString(Convert.ToString(value, CultureInfo.InvariantCulture) ?? ""));
                 break;
         }
     }
@@ -1061,7 +1064,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             runtime.OwnServices(scope);
             runtime.JoinBroadcast(Broadcast);
 
-            UIContext context = new(_logger, scope.ServiceProvider, _application.Translator, _application.ContentOrNull, route, handle, clientServices.Dialogs, clientServices.Downloads, clientServices.Uploads);
+            UIContext context = new(_logger, scope.ServiceProvider, _application.Translator, _application.ContentOrNull, route, handle, clientServices.Downloads, clientServices.Uploads);
 
             context.AttachRuntime(runtime);
             contextController.AttachContext(context);

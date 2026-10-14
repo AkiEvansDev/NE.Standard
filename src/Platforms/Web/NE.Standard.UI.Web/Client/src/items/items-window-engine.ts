@@ -1,6 +1,7 @@
 // With its extensions, and the types as types: the node test runner loads this module as it is.
 import {
-    ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowPagedAttribute, WindowPendingAttribute, WindowSizeAttribute, WindowTotalAttribute
+    ComponentKeyAttribute, ComponentSelector, HostModeAttribute, ItemsHostAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowOffsetAttribute, WindowPagedAttribute, WindowPendingAttribute, WindowSizeAttribute, WindowSpacerAttribute,
+    WindowTotalAttribute
 } from "../addressing/dom-attributes.ts";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { DefaultItemSize, readWindowFlag, readWindowNumber, resolveHostMode } from "./items-host-mode.ts";
@@ -46,6 +47,9 @@ type WindowState = {
     itemSize: number;
     // Per host, not per engine: one timer for the page drops a scroll in a second list while the first is pending.
     scheduled: number;
+    // The skeleton's row and tile, as last measured: 0 and null until a row was.
+    skeletonRow: number;
+    skeletonTile: number | null;
 };
 
 /** The windowed hosts as a package reaches them: a window asked for by offset, which a pager over a host marked `data-ui-window-paged` does. */
@@ -150,9 +154,19 @@ export class ItemsWindowEngine {
         return offset * itemSize + (measured > 0 ? measured : items.length * itemSize);
     }
 
-    /** Re-places the spacers after a change set moved a window, and follows a window that moved. */
-    public sync(): void {
+    /**
+     * Re-places the spacers after a change set moved a window, and follows a window that moved: of the hosts the set changed — its
+     * `changed` elements in them, around them or the hosts themselves. Laying a host out measures it, which a set that left it alone
+     * would pay for nothing.
+     */
+    public sync(changed: readonly Element[]): void {
+        if (changed.length === 0)
+            return;
+
         for (const host of this.hosts()) {
+            if (!changed.some(element => element.contains(host) || host.contains(element)))
+                continue;
+
             this.layout(host);
 
             // A window with a read in flight is where the viewer was; following it would undo their scroll, and the read realigns.
@@ -322,8 +336,10 @@ export class ItemsWindowEngine {
         host.setAttribute("aria-busy", "true");
 
         // A host that cannot count has no spacer to stand for the rows on their way, so a few skeleton rows follow its last one.
-        if (anchor === "After" && readWindowNumber(host, WindowTotalAttribute) === null && drawsSkeleton(host))
+        if (anchor === "After" && readWindowNumber(host, WindowTotalAttribute) === null && drawsSkeleton(host)) {
             ensureSpacer(host, PendingSpacer, PendingRows * this.rowSize(host));
+            writeSkeletonSizes(host, state);
+        }
 
         // A host with no offset reads by its edges alone: after a read that brought rows it decides again, since a reader still at the
         // edge, with a wheel that raises no scroll there, would otherwise ask for nothing more. Rows read in above keep the first one
@@ -398,7 +414,8 @@ export class ItemsWindowEngine {
                 // A skeleton row's step is from one row's top to the next, the gap between them in it.
                 const step = rows > 1 ? (itemBox(items[items.length - 1]).top - itemBox(items[0]).top) / (rows - 1) : measured;
 
-                writeSkeletonSizes(host, step, across > 1 ? itemBox(items[1]).left - itemBox(items[0]).left : null);
+                state.skeletonRow = step;
+                state.skeletonTile = across > 1 ? itemBox(items[1]).left - itemBox(items[0]).left : null;
             }
         }
 
@@ -407,6 +424,7 @@ export class ItemsWindowEngine {
 
         ensureSpacer(host, TopSpacer, before);
         ensureSpacer(host, BottomSpacer, after);
+        writeSkeletonSizes(host, state);
 
         // The spacers stand for rows at an estimated height, so a row a jump brought into view is put back where it was shown.
         keepHeldRow(host);
@@ -414,9 +432,9 @@ export class ItemsWindowEngine {
 
     /** How tall a row stands, as the skeleton draws one; an item's size until a row was measured. */
     private rowSize(host: Element): number {
-        const written = Number.parseFloat((host as HTMLElement).style.getPropertyValue(RowSizeProperty));
+        const state = this.getState(host);
 
-        return Number.isFinite(written) && written > 0 ? written : this.getState(host).itemSize;
+        return state.skeletonRow > 0 ? roundedPixels(state.skeletonRow) : state.itemSize;
     }
 
     private windowSize(host: Element): number {
@@ -429,7 +447,7 @@ export class ItemsWindowEngine {
         let state = this.states.get(host);
 
         if (state === undefined) {
-            state = { pending: false, restless: false, itemSize: DefaultItemSize, scheduled: 0 };
+            state = { pending: false, restless: false, itemSize: DefaultItemSize, scheduled: 0, skeletonRow: 0, skeletonTile: null };
             this.states.set(host, state);
         }
 
@@ -453,21 +471,34 @@ function drawsSkeleton(host: Element): boolean {
     return getComputedStyle(host).getPropertyValue(LookProperty).trim() === "skeleton";
 }
 
-/** The row's height, and a tile's step across where a row holds several, as the stylesheet draws the skeleton's bars by them. */
-function writeSkeletonSizes(host: Element, row: number, tile: number | null): void {
-    const style = (host as HTMLElement).style;
-    const rowText = `${Math.round(row * 100) / 100}px`;
-    const tileText = tile !== null && tile > 0 ? `${Math.round(tile * 100) / 100}px` : "";
+/**
+ * The row's height, and a tile's step across where a row holds several, on each spacer, as the stylesheet draws the skeleton's bars
+ * by them. Not on the host: a custom property is inherited, so one written there restyles every row it holds, on every layout.
+ */
+function writeSkeletonSizes(host: Element, state: WindowState): void {
+    if (state.skeletonRow <= 0)
+        return;
 
-    if (style.getPropertyValue(RowSizeProperty) !== rowText)
-        style.setProperty(RowSizeProperty, rowText);
+    const rowText = `${roundedPixels(state.skeletonRow)}px`;
+    const tileText = state.skeletonTile !== null && state.skeletonTile > 0 ? `${roundedPixels(state.skeletonTile)}px` : "";
 
-    if (style.getPropertyValue(TileSizeProperty) !== tileText) {
-        if (tileText.length === 0)
-            style.removeProperty(TileSizeProperty);
-        else
-            style.setProperty(TileSizeProperty, tileText);
+    for (const spacer of host.querySelectorAll<HTMLElement>(`:scope > [${WindowSpacerAttribute}]`)) {
+        const style = spacer.style;
+
+        if (style.getPropertyValue(RowSizeProperty) !== rowText)
+            style.setProperty(RowSizeProperty, rowText);
+
+        if (style.getPropertyValue(TileSizeProperty) !== tileText) {
+            if (tileText.length === 0)
+                style.removeProperty(TileSizeProperty);
+            else
+                style.setProperty(TileSizeProperty, tileText);
+        }
     }
+}
+
+function roundedPixels(size: number): number {
+    return Math.round(size * 100) / 100;
 }
 
 /** Whether a read at an edge brought rows: the row at that edge is no longer the one the read was asked from. */

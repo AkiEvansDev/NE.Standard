@@ -54,6 +54,14 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     protected const string PinnedEdgeModifier = "--pinned-edge";
     private const string PinnedClassName = "ui-table--pinned";
 
+    // The host's horizontal mode lands on the root as well, whose box is the scroller, and names the host's viewport.
+    private static readonly WebDomOperation[] RootScrollXOperations =
+    [
+        HostScrollXOperation,
+        WebDomOperation.Class("root", WebDomConverters.ScrollXClass),
+        WebDomOperation.Attribute(WebAttributes.HostViewport, $"[{WebAttributes.ItemsHost}]", WebDomConverters.HostViewport)
+    ];
+
     public override string ComponentTypeKey => TableComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-table";
@@ -448,7 +456,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             if (ResolveHorizontalScroll(context) is UIScrollMode.Auto or UIScrollMode.Always)
                 _ = host.Attribute(WebAttributes.HostViewport, ParentViewport);
 
-            ApplyHostScroll(context, host, WebDomOperation.Class("root", WebDomConverters.ScrollXClass), WebDomOperation.Attribute(WebAttributes.HostViewport, $"[{WebAttributes.ItemsHost}]", WebDomConverters.HostViewport));
+            ApplyHostScroll(context, host, RootScrollXOperations);
             ApplyHostMode(host, hostMode);
             ApplyWindowProperties(context, host, hostMode);
             RenderSelectedKeys(context, host);

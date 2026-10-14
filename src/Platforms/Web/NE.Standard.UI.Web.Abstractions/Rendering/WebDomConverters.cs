@@ -89,6 +89,9 @@ public static class WebDomConverters
     /// own grounds; nothing where there is none.
     /// </summary>
     public const string ThemeOnColorCss = "themeOnColorCss";
+
+    /// <summary>The ground a surface of this colour names (<c>WebCssValues.ThemeGround</c>): the colour, or <c>inherit</c> for one of no opacity.</summary>
+    public const string ThemeGroundCss = "themeGroundCss";
     public const string SelectionModeAttribute = "selectionModeAttribute";
 
     /// <summary>The parts of a <c>UISelectionStyle</c>, one custom property each.</summary>
@@ -192,6 +195,9 @@ public static class WebDomConverters
 
     /// <summary>A thickness tier (<c>WebCssValues.Thickness</c>): a padding's, a margin's or a border's at that breakpoint.</summary>
     public static readonly WebResponsiveConverters ResponsiveThicknessCss = new("responsiveThickness", "Css");
+
+    /// <summary>A padding tier (<c>WebCssValues.Padding</c>): the thickness, each side at least the overlay bar's room where its box keeps it.</summary>
+    public static readonly WebResponsiveConverters ResponsivePaddingCss = new("responsivePadding", "Css");
 
     /// <summary>A margin tier's left and right summed (<c>WebCssValues.ThicknessSum</c>), what a <c>Fill</c> width leaves out.</summary>
     public static readonly WebResponsiveConverters ResponsiveThicknessHorizontalCss = new("responsiveThicknessHorizontal", "Css");

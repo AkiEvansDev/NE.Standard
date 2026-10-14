@@ -23,15 +23,14 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.settings.description";
 
     protected override IVisualComponent CreateScreen()
-        => UILayout.Stack(24, CreateProfile(), CreateDisplay(), CreateNotifications(), CreateSecurity(), CreateDangerZone())
-            .SetMaxWidth(UILayoutLength.Absolute(760))
+        => UIPage.Column(UIColumnWidth.Reading, UILayout.Stack(24, CreateProfile(), CreateDisplay(), CreateNotifications(), CreateSecurity(), CreateDangerZone()))
             .SetPadding(UIThickness.All(0, 8, 0, 0))
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>Filled fields, each committing on blur through the same command; the note under the card names the save.</summary>
     /// <remarks>Filled, as a long form whose fields stack is; the danger zone's one field beside its button is Tonal.</remarks>
     private static CardComponent CreateProfile()
-        => UIPage.Card("Profile", "How you appear to the rest of the staff.", UILayout.Stack(16,
+        => UICard.Create("Profile", "How you appear to the rest of the staff.", UILayout.Stack(16,
             new ImageInputComponent()
                 .SetTitle("Picture")
                 .SetShape(UIImageInputShape.Avatar)
@@ -70,14 +69,14 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
     /// need no command, no binding and no save.
     /// </summary>
     private static CardComponent CreateDisplay()
-        => UIPage.Card("Display", "How these pages look to you, on this device and the next.", UIForm.Row(
+        => UICard.Create("Display", "How these pages look to you, on this device and the next.", UIForm.Row(
             UIForm.Field(new ThemeSwitcherComponent().AsField(), "System follows the device, light or dark as it is set."),
             UIForm.Field(new LanguageSwitcherComponent().AsField(), "The page is rewritten in place; nothing typed is lost.")
         ), DemoIcons.Outline(DemoIcons.LightMode));
 
     /// <summary>A list of switches, a choice made across, and a pair of times a switch reveals.</summary>
     private static CardComponent CreateNotifications()
-        => UIPage.Card("Notifications", "What reaches your mail, and when it stays quiet.", UILayout.Stack(16,
+        => UICard.Create("Notifications", "What reaches your mail, and when it stays quiet.", UILayout.Stack(16,
             CreateSwitch("Mentions", "Every time someone writes your name.", nameof(WorkspaceSettingsController.MentionMail)),
             CreateSwitch("The daily digest", "One mail with everything you missed.", nameof(WorkspaceSettingsController.DigestMail)),
             CreateSwitch("Deploys", "A release out, or rolled back.", nameof(WorkspaceSettingsController.DeployMail)),
@@ -117,7 +116,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
 
     /// <summary>Rows edited in place — the pencil opens one, Save hands the draft back by the row's id — and one line with a press.</summary>
     private static CardComponent CreateSecurity()
-        => UIPage.Card("Security", "What you sign in with, and where you are signed in.", UILayout.Stack(12,
+        => UICard.Create("Security", "What you sign in with, and where you are signed in.", UILayout.Stack(12,
             new KeyValueActionComponent()
                 .SetRowHoverable(true)
                 .SetBorderThickness(UIThickness.Uniform(0))
@@ -133,16 +132,15 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 )
                 .EnableEditing(nameof(WorkspaceSettingsController.SaveRow), nameof(WorkspaceSettingsController.OpenRow)),
             new SeparatorComponent(),
-            UILayout.Columns(16,
+            UILayout.Ends(
                 UIText.Body("Signed-in devices").BindDescription(nameof(WorkspaceSettingsController.DevicesLine)).SetDescriptionColor(UIThemeColor.Muted).SetWrapMode(UITextWrapMode.Wrap),
-                UIButtons.Toolbar(UIButtons.Ghost("Sign out the others").OnClick(nameof(WorkspaceSettingsController.SignOutOthers)))
-                    .SetHorizontalAlignment(UIAlignment.End)
+                UIButtons.Ghost("Sign out the others").OnClick(nameof(WorkspaceSettingsController.SignOutOthers))
             )
         ), DemoIcons.Outline(DemoIcons.Lock));
 
     /// <summary>The button is disabled until the typed name matches — compared in the browser, so nothing is sent until it does.</summary>
     private static CardComponent CreateDangerZone()
-        => UIPage.Card("Danger zone", "The one thing on this page that cannot be undone.", UILayout.Stack(16,
+        => UICard.Create("Danger zone", "The one thing on this page that cannot be undone.", UILayout.Stack(16,
             UIMessage.Warning(null, $"Deleting **{WorkspaceSettingsController.AccountName}** removes every server, bucket and invoice in it, for good."),
             UIText.Paragraph("Type the account's name to unlock the button."),
             UIForm.Row(

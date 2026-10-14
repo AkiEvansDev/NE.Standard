@@ -1,37 +1,42 @@
 // A tree's rows as a flat list in walking order: depth, fold (kept in the browser), keys, lazy children, rename and drag/drop.
 
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
     ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemsHostAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
     TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute,
     TreeDropMarkAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UnrenamableAttribute,
     UnselectableAttribute
-} from "../addressing/dom-attributes";
-import { findOwningComponentId } from "../addressing/dom-registry";
-import { EffectRegistry } from "../effects/effect-registry";
-import { ActiveSort, compareItems, getActiveSorts, hasActiveFilters, itemMatchesFilters, ItemsQuery, readItemsQuery } from "../items/items-filter-sort";
-import { TreeRulesEventName } from "../items/items-host-sync";
-import type { ItemsTemplateRenderer } from "../items/items-template-renderer";
-import { getIdValue, MetadataIndex, RenameNodeClientEffect, WebRenderItemsFilterSortMetadata } from "../metadata/metadata-index";
-import { motion, prefersReducedMotion } from "../rendering/motion";
-import { clientStrings } from "../runtime/client-strings";
-import { logWarn } from "../runtime/logger";
-import { ClientBootPatch, ClientStore } from "../state/client-store";
-import type { PropertyStateStore } from "../state/property-state-store";
-import { observeComponents } from "./dom-mutations";
-import { clearDragMarks, giveDragPayload, leftAltogether, markDragStart } from "./drag-marks";
-import { allowedEffect, beginItemsDrag, carriedRows, isDraggableRow, offeredItems } from "./item-drags";
-import { openInlineRename } from "./inline-rename";
-import { chooseOnMove, enterRow, removeRows, spaceRow } from "./items-selection-engine";
-import { ownControlOf } from "./own-control";
-import { isInert, isItemDisabled, isItemRefused } from "./interactive-state";
-import { raiseItemMove } from "./items-reorder-engine";
-import { isPointerLast } from "./popup-focus";
-import { dispatchRowEvent, enterRowCursor, focusedRow, hostKeyTarget, isRowKey, keepRowCursorShown, litRow, nameRowBy, resolveRowTarget, setRowFocus } from "./row-cursor";
-import { isComposing, isPlainKey } from "./keyboard-shortcut";
-import type { SelectionGesture } from "./row-selection";
-import { keyGestureOf, PlainGesture, rowKey } from "./row-selection";
-import type { TreeKeyMove, TreeMovePlace, TreeNodePlace } from "./tree-drop";
-import { folderTakesDrop, keyMovePlace, markTreeDrop, nodeOf, placeMoves, siblingAfter, takesDrop } from "./tree-drop";
+} from "../addressing/dom-attributes.ts";
+import { findOwningComponentId } from "../addressing/dom-registry.ts";
+import type { EffectRegistry } from "../effects/effect-registry.ts";
+import { compareItems, getActiveSorts, hasActiveFilters, itemMatchesFilters, readItemsQuery } from "../items/items-filter-sort.ts";
+import type { ActiveSort, ItemsQuery } from "../items/items-filter-sort.ts";
+import { TreeRulesEventName } from "../items/items-host-sync.ts";
+import type { ItemsTemplateRenderer } from "../items/items-template-renderer.ts";
+import { getIdValue } from "../metadata/metadata-index.ts";
+import type { MetadataIndex, RenameNodeClientEffect, WebRenderItemsFilterSortMetadata } from "../metadata/metadata-index.ts";
+import { motion, prefersReducedMotion } from "../rendering/motion.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
+import { logWarn } from "../runtime/logger.ts";
+import { ClientStore } from "../state/client-store.ts";
+import type { ClientBootPatch } from "../state/client-store.ts";
+import type { PropertyStateStore } from "../state/property-state-store.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { clearDragMarks, giveDragPayload, leftAltogether, markDragStart } from "./drag-marks.ts";
+import { allowedEffect, beginItemsDrag, carriedRows, isDraggableRow, offeredItems } from "./item-drags.ts";
+import { openInlineRename } from "./inline-rename.ts";
+import { chooseOnMove, enterRow, removeRows, spaceRow } from "./items-selection-engine.ts";
+import { ownControlOf } from "./own-control.ts";
+import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
+import { raiseItemMove } from "./items-reorder-engine.ts";
+import { isPointerLast } from "./popup-focus.ts";
+import { dispatchRowEvent, enterRowCursor, focusedRow, hostKeyTarget, isRowKey, keepRowCursorShown, litRow, nameRowBy, resolveRowTarget, setRowFocus } from "./row-cursor.ts";
+import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
+import { announceMoved } from "./live-announcer.ts";
+import type { SelectionGesture } from "./row-selection.ts";
+import { keyGestureOf, PlainGesture, rowKey } from "./row-selection.ts";
+import type { TreeKeyMove, TreeMovePlace, TreeNodePlace } from "./tree-drop.ts";
+import { folderTakesDrop, keyMovePlace, markTreeDrop, nodeOf, placeMoves, siblingAfter, takesDrop } from "./tree-drop.ts";
 
 const FoldedClass = "ui-tree__row--folded";
 const BootHiddenSlot = "fold-hidden";
@@ -491,7 +496,8 @@ export class TreeEngine {
             return;
         }
 
-        if (!ActionKeys.has(domEvent.key) && !isRowKey(domEvent.key, "vertical"))
+        // Any other Alt chord is the browser's: Alt+Left takes the page back rather than folding the node.
+        if (domEvent.altKey || (!ActionKeys.has(domEvent.key) && !isRowKey(domEvent.key, "vertical")))
             return;
 
         const rows = this.rowsOf(tree);
@@ -561,10 +567,18 @@ export class TreeEngine {
         if (current === null || !current.draggable || ((move === "up" || move === "down") && this.isSorted(tree)))
             return;
 
-        const place = keyMovePlace(nodePlaces(rows), rowKey(current), move);
+        const nodes = nodePlaces(rows);
+        const key = rowKey(current);
+        const place = keyMovePlace(nodes, key, move);
 
-        if (place !== null)
-            this.moveRows(tree, [current], place, move === "in" ? rows.find(row => rowKey(row) === place.parent) ?? null : null);
+        if (place === null)
+            return;
+
+        const [index] = this.moveRows(tree, [current], place, move === "in" ? rows.find(row => rowKey(row) === place.parent) ?? null : null);
+        // Its place among the nodes of the folder it now stands in, itself counted once.
+        const count = nodes.filter(node => node.parent === place.parent && node.key !== key).length + 1;
+
+        announceMoved(index + 1, count);
     }
 
     /** Whether a sort orders the tree's siblings now: a node put among them would be put back by it. */
@@ -738,9 +752,9 @@ export class TreeEngine {
 
     /**
      * Writes the folder each node lands in on its text and raises `move` per node with the index it takes among that folder's nodes,
-     * read by `UIAction.ArgEventValue` as a row's move is; the controller moves them, a folder dropped into opens.
+     * read by `UIAction.ArgEventValue` as a row's move is; the controller moves them, a folder dropped into opens. Answers those indexes.
      */
-    private moveRows(tree: HTMLElement, rows: readonly HTMLElement[], place: TreeMovePlace, folder: HTMLElement | null): void {
+    private moveRows(tree: HTMLElement, rows: readonly HTMLElement[], place: TreeMovePlace, folder: HTMLElement | null): number[] {
         const indexes = placeMoves(nodePlaces(this.rowsOf(tree)), rows.map(rowKey), place);
 
         if (folder !== null)
@@ -757,6 +771,8 @@ export class TreeEngine {
             text.dispatchEvent(new Event("change", { bubbles: true }));
             raiseItemMove(row, indexes[position]);
         });
+
+        return indexes;
     }
 
     private handleDragEnd(domEvent: Event): void {

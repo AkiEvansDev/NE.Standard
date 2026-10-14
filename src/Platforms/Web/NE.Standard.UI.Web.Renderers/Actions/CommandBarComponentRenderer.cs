@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -16,6 +17,9 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-command-bar__item";
 
+    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
+    private static readonly WebDomOperation[] GroupSeparatorOperations = [WebDomOperation.Class(converter: WebDomConverters.GroupSeparatorClass)];
+
     public override string ComponentTypeKey => CommandBarComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-command-bar";
@@ -25,25 +29,25 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, CommandBarComponent.OrientationProperty, static (target, value) =>
+        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
         {
             if (value is UIOrientation orientation)
                 _ = target.Class(WebClassNames.Orientation(orientation));
-        }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
+        }, OrientationOperations);
 
         RenderFlagClass(context, root, CommandBarComponent.WrapProperty, "ui-command-bar--wrap");
 
         // One Tab stop walked by the arrows (command-bar-engine.ts), as the action bar and the pager are.
         _ = root.Attribute("role", "toolbar");
 
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, CommandBarComponent.SpacingProperty, "--ui-command-bar-spacing");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-command-bar-spacing");
 
         // A modifier on the root, read by the stylesheet from the group headers inside the items host.
         _ = RenderProperty<UIGroupSeparator?>(context, root, CommandBarComponent.GroupSeparatorProperty, static (target, value) =>
         {
             if (value is UIGroupSeparator separator)
                 _ = target.Class(WebClassNames.GroupSeparator(separator));
-        }, [WebDomOperation.Class(converter: WebDomConverters.GroupSeparatorClass)]);
+        }, GroupSeparatorOperations);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName);

@@ -1,3 +1,4 @@
+@import "../mixins/field.less";
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/popup.less";
@@ -10,13 +11,8 @@
 // shaped as a select's and is no `.ui-select`, whose engine would take it: the switcher's own engine drives it.
 .ui-switcher-field {
     position: relative;
-    display: inline-flex;
-    flex-direction: column;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(height, --ui-height, fit-content);
+    .ui-input-root(inline-flex);
     .ui-responsive-floor(min-width, --ui-min-width, ~"min(12rem, 100%)", --ui-width);
-    gap: @ui-space-1;
-    font: inherit;
 }
 
     // The open list's box reads as active (ui-input.less), its chevron turned up as a select's.

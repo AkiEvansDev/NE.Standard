@@ -3,6 +3,7 @@
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
+@import "../mixins/surface-image.less";
 
 // A field's strip cut into segments: the field's ground and edge, a hairline between segments, the current one filled.
 .ui-button-group {
@@ -14,7 +15,8 @@
     // The field's list after the root's: the strip is a component root, and the field's list alone would stop it fading for Hide.
     transition: @ui-root-transition, border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
     background-color: var(--ui-surface-color, var(--ui-field-rest));
-    .ui-surface-image();
+    // On `::before`, the strip's first item, so the blur's layer stays over what is in view while the strip scrolls.
+    .ui-surface-image(before; row);
     // Reset on the root carrying [data-ui-id]; the size rules below re-read the chain with their own defaults.
     .ui-selected-scope();
     // A strip longer than its room scrolls sideways rather than cutting its last segments off; the rounded ends still clip.

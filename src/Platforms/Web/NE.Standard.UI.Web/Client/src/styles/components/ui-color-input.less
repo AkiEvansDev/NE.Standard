@@ -11,15 +11,8 @@
 
 // --ui-color-input-color: the colour with opacity; -solid: the same opaque; -on-color: whichever of black or white reads on top of it.
 .ui-color-input {
-    display: inline-flex;
-    flex-direction: column;
-    gap: @ui-space-1;
-    // Centred across a row, like the rest of the family; down a column the panel decides the alignment.
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(height, --ui-height, fit-content);
+    .ui-input-root(inline-flex);
     position: relative;
-    font: inherit;
 }
 
 // A pointer over the whole row, not only the button: a click anywhere on the closed control opens the picker.
@@ -167,12 +160,11 @@
 
 .ui-color-input__popup {
     .ui-popup-surface();
-    .ui-popup-scroll();
+    .ui-popup-scroll(@ui-space-2);
     .ui-popup-closed();
     flex-direction: column;
     gap: @ui-space-2;
     width: 17rem;
-    padding: @ui-space-2;
 }
 
 .ui-color-input--open > .ui-color-input__popup {

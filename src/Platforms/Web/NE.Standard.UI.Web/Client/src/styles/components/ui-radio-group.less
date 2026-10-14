@@ -1,3 +1,4 @@
+@import "../mixins/field.less";
 @import "../core/tokens.less";
 @import "../mixins/focus.less";
 @import "../mixins/interactive.less";
@@ -6,12 +7,7 @@
 
 .ui-radio-group {
     // Options are wrapped client-side and kept in step by RadioGroupSyncEngine, since one bound Value has to reach N radios.
-    display: flex;
-    flex-direction: column;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    gap: @ui-space-1;
-    font: inherit;
+    .ui-input-root();
 }
 
 // Starting at the group's edge, under its caption: the options have no field whose inset the message would keep.

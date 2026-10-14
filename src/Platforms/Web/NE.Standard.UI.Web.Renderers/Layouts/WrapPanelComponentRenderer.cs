@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -21,7 +22,7 @@ public sealed class WrapPanelComponentRenderer : WebComponentRendererBase
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
 
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, WrapPanelComponent.SpacingProperty, "--ui-wrap-panel-spacing");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-wrap-panel-spacing");
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, WrapPanelComponent.LineSpacingProperty, "--ui-wrap-panel-line-spacing");
 
         // Render-time: the columns are a grid where the flow was a flex line, a switch a bound value could not make.

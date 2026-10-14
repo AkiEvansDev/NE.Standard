@@ -37,11 +37,15 @@ internal abstract partial class UIRuntimeBase
 
         ArgumentNullException.ThrowIfNull(action);
 
-        // Held as a command holds it. Where something holds it already — the command this is called from — it goes on even once
-        // the runtime is asked to go, since the runtime stays until that holder ends anyway.
+        // Held as a command holds it. Called from the flow of what holds it already — the command it runs in — it goes on even once
+        // the runtime is asked to go, since the runtime stays until that holder ends anyway; a call from anywhere else, while some
+        // other command runs, is refused as a new command is. Read before the hold marks this flow.
+        var nested = HoldsRuntime;
+
         await using ConfiguredAsyncDisposable hold = HoldAsCommand(out var alone).ConfigureAwait(false);
 
-        if (alone)
+        // Alone, the flow's mark is stale — work it started that outlived it — and nothing keeps the runtime for it.
+        if (alone || !nested)
             ThrowIfAskedToGo();
 
         return await DrainAsync(action, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
@@ -132,6 +136,9 @@ internal abstract partial class UIRuntimeBase
     private async Task RunPostedAsync(string operation, Func<CancellationToken, Task> action)
     {
         var inTurn = false;
+
+        // Counted when it was posted: its own calls back in are the holder's.
+        MarkFlowAsHolding();
 
         try
         {
@@ -229,6 +236,8 @@ internal abstract partial class UIRuntimeBase
     /// <summary>Runs a job the runtime owns to its end and lets go of its hold; never faults: a failure goes to the controller.</summary>
     private async Task RunStartedAsync(Func<CancellationToken, Task> action)
     {
+        MarkFlowAsHolding();
+
         try
         {
             // Read under the hold: a runtime not yet asked to go keeps its token until this job leaves.

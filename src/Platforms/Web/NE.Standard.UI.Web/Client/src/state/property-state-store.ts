@@ -1,4 +1,4 @@
-import { getIdValue } from "../metadata/metadata-index.ts";
+import { getIdValue, rowKeysText } from "../metadata/metadata-index.ts";
 import type { WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index";
 import { areValuesEqual } from "./value-equality.ts";
 
@@ -47,20 +47,30 @@ export class PropertyStateStore {
         return this.values.has(this.createKey(reference, dynamicParameters));
     }
 
-    /** Records a value; `rows` are the rows its element stands in, innermost first. */
-    public set(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, rows: readonly PropertyStateRow[] = []): boolean {
+    /**
+     * Records a value; `rows` are the rows its element stands in, innermost first — read only where they can change what is recorded,
+     * since finding them walks up the page, and most pushes repeat a value already placed.
+     */
+    public set(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, rows: readonly PropertyStateRow[] | (() => readonly PropertyStateRow[]) = []): boolean {
         const key = this.createKey(reference, dynamicParameters);
         const previous = this.values.get(key);
+        const unchanged = previous !== undefined && areValuesEqual(previous.value, value);
 
-        if (rows.length > 0) {
-            this.recordRows(key, rows);
+        // The same value again has its rows recorded already, unless it came while its row was not drawn and this one places it.
+        if (unchanged && !this.unplacedPathByEntry.has(key))
+            return false;
+
+        const standsIn = typeof rows === "function" ? rows() : rows;
+
+        if (standsIn.length > 0) {
+            this.recordRows(key, standsIn);
             this.removeUnplaced(key);
         }
         else if (dynamicParameters.length > 0 && !this.unplacedPathByEntry.has(key)) {
             this.recordUnplaced(key, dynamicParameters);
         }
 
-        if (previous !== undefined && areValuesEqual(previous.value, value))
+        if (unchanged)
             return false;
 
         this.values.set(key, { reference, dynamicParameters, value });
@@ -79,7 +89,7 @@ export class PropertyStateStore {
 
         for (const key of keys) {
             this.forgetRow(scope, key);
-            this.forgetUnplaced(pathKey([...hostParameters, key]));
+            this.forgetUnplaced(rowKeysText([...hostParameters, key]));
         }
     }
 
@@ -87,7 +97,7 @@ export class PropertyStateStore {
     public forgetHost(host: number, hostParameters: readonly unknown[]): void {
         this.forgetScope(scopeKey(host, hostParameters));
 
-        const node = this.unplaced.get(pathKey(hostParameters));
+        const node = this.unplaced.get(rowKeysText(hostParameters));
 
         for (const child of [...node?.children ?? []])
             this.forgetUnplaced(child);
@@ -150,13 +160,13 @@ export class PropertyStateStore {
 
     /** Files the entry under its address's full key path, each shorter path a parent of the next, down from the page's. */
     private recordUnplaced(entry: string, dynamicParameters: readonly unknown[]): void {
-        let parent = this.unplacedNode(pathKey([]), null);
+        let parent = this.unplacedNode(rowKeysText([]), null);
         let path = "";
 
         for (let length = 1; length <= dynamicParameters.length; length++) {
-            path = pathKey(dynamicParameters.slice(0, length));
+            path = rowKeysText(dynamicParameters.slice(0, length));
             parent.children.add(path);
-            parent = this.unplacedNode(path, pathKey(dynamicParameters.slice(0, length - 1)));
+            parent = this.unplacedNode(path, rowKeysText(dynamicParameters.slice(0, length - 1)));
         }
 
         parent.entries.add(entry);
@@ -239,29 +249,12 @@ export class PropertyStateStore {
         return state;
     }
 
+    // The parameters as text, as every other key is: a push naming a row by a number and a local edit naming it by its digits are one value.
     private createKey(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[]): string {
-        return `${getIdValue(reference.componentId)}:${reference.propertyId}:${serializeDynamicParameters(dynamicParameters)}`;
+        return `${getIdValue(reference.componentId)}:${reference.propertyId}:${rowKeysText(dynamicParameters)}`;
     }
 }
 
-// Parameters compare as text, as the DOM registry matches them: the server may send a number where the DOM holds its digits.
 function scopeKey(host: number, hostParameters: readonly unknown[]): string {
-    return JSON.stringify([host, ...hostParameters.map(parameter => String(parameter ?? ""))]);
-}
-
-// Text, as a scope's parameters are: a key sent as a number and read off the DOM as digits is one row.
-function pathKey(parameters: readonly unknown[]): string {
-    return JSON.stringify(parameters.map(parameter => String(parameter ?? "")));
-}
-
-function serializeDynamicParameters(dynamicParameters: readonly unknown[]): string {
-    if (dynamicParameters.length === 0)
-        return "";
-
-    try {
-        return JSON.stringify(dynamicParameters);
-    }
-    catch {
-        return String(dynamicParameters);
-    }
+    return `${host}:${rowKeysText(hostParameters)}`;
 }

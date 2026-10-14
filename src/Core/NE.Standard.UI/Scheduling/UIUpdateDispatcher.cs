@@ -140,7 +140,8 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
             }
             catch (Exception exception)
             {
-                // The queue keeps going: one client's failed send is not a reason to stop the ones behind it.
+                // The queue keeps going: one client's failed send is not a reason to stop the ones behind it. The delivery sent the
+                // others theirs and asked for the resync that brings the failed one back.
                 Log.SendFailed(_logger, exception, runtime.Handle.Instance.Id);
             }
         }

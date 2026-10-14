@@ -110,6 +110,8 @@ public static class RecursiveValueCoercion
                 _ when value is IDictionary<string, object?> or object?[] && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
                 // Invariant text carries no group separator: "1,5" is a decimal comma typed in another culture, never fifteen.
                 _ when value is string fractionalText && IsFractional(underlyingType) => ParseFractional(fractionalText, underlyingType),
+                // A whole-number property takes a whole number, from a number or from text alike: a fraction is refused, never rounded.
+                _ when IsIntegral(underlyingType) && value is string or double or float or decimal => ToWholeNumber(value, underlyingType),
 
                 _ when underlyingType != typeof(string) && value is IConvertible => Convert.ChangeType(value, underlyingType, CultureInfo.InvariantCulture),
                 _ => null
@@ -167,16 +169,17 @@ public static class RecursiveValueCoercion
         if (type == typeof(TimeOnly))
             return TimeOnly.TryParseExact(text.Trim(), WrittenClockFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out TimeOnly clock) ? clock : null;
 
-        if (!UIWrittenMoment.TryRead(text, out DateTime moment))
+        if (!UIWrittenMoment.TryRead(text, out DateTime moment, out TimeSpan? offset))
             return null;
 
         // A picker's canonical moment to a date-only field: its day.
         if (type == typeof(DateOnly))
             return DateOnly.FromDateTime(moment);
 
-        // The written offset kept, which names the instant; one written without stands in the server's zone.
+        // The written offset kept, which names the instant — the date-time input writes its value's own, or the reader's for a new one.
+        // Text without one (an older page, a plain text field) stands in the server's zone: no session reaches a static coercion.
         if (type == typeof(DateTimeOffset))
-            return DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal);
+            return offset is TimeSpan written ? new DateTimeOffset(moment, written) : new DateTimeOffset(moment);
 
         // The wall clock as written, a zone after it dropped rather than shifting the moment into the server's.
         return moment;
@@ -214,6 +217,17 @@ public static class RecursiveValueCoercion
             return float.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
 
         return decimal.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
+    }
+
+    private static bool IsIntegral(Type type)
+        => Type.GetTypeCode(type) is TypeCode.SByte or TypeCode.Byte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 && !type.IsEnum;
+
+    /// <summary>The number as the integral type, or null when it has a fraction; one out of the type's range throws, as a conversion does.</summary>
+    private static object? ToWholeNumber(object value, Type type)
+    {
+        var number = value is string text ? decimal.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture) : Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+
+        return decimal.Truncate(number) == number ? Convert.ChangeType(number, type, CultureInfo.InvariantCulture) : null;
     }
 
     /// <summary>Whether an enum value is one of its named members, or, for a <c>[Flags]</c> enum, a union of them.</summary>

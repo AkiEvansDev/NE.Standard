@@ -2,6 +2,7 @@
 @import "../mixins/glyphs.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
+@import "../mixins/scroll-room.less";
 @import "../mixins/selected.less";
 @import "../mixins/text.less";
 
@@ -37,6 +38,8 @@
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
+    // The overlay bar's room, on the side the bar stands while the rows scroll (core/scrollbar.less).
+    padding: @ui-scroll-room-padding;
 }
 
     .ui-tree__host > [data-ui-empty-placeholder] {

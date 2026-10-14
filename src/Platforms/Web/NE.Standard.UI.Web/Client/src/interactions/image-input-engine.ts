@@ -8,8 +8,8 @@
 // `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
 import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageCropAttribute, ImageCropSizeAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
-import { fileGlyph } from "../rendering/file-glyphs.ts";
-import { applyIconValue } from "../rendering/icon-value.ts";
+import { fileTileParts } from "../rendering/file-tile.ts";
+import type { FileFace } from "../rendering/file-tile.ts";
 import { clientStrings, forgetWords } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
@@ -22,7 +22,7 @@ import type { CropFrame } from "./image-crop.ts";
 import { cropPictureAsync } from "./image-crop-dialog.ts";
 import type { CropImaging } from "./image-crop-dialog.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
-import { formatFileSize, publishSelection, readSelectionAsync, takeWithinSizeLimit, uploadedFileUrl, uploadFilesAsync } from "./file-upload.ts";
+import { publishSelection, readSelectionAsync, takeWithinSizeLimit, uploadedFileUrl, uploadFilesAsync } from "./file-upload.ts";
 import type { StoredFile } from "./file-upload.ts";
 import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
 import type { FieldValidation } from "./validation-engine.ts";
@@ -39,10 +39,6 @@ const TilesClass = "ui-image-input__tiles";
 const TileClass = "ui-image-input__tile";
 const RemoveClass = "ui-image-input__remove";
 const ProgressClass = "ui-image-input__progress";
-const FileTileClass = "ui-image-input__tile--file";
-const FileGlyphClass = "ui-image-input__file-glyph";
-const FileNameClass = "ui-image-input__file-name";
-const FileSizeClass = "ui-image-input__file-size";
 
 /** The property whose emptying from the controller clears a single picture. */
 const SelectionIdProperty = "SelectionId";
@@ -63,14 +59,6 @@ type Tile = {
     /** The object URL of the file the reader chose; null for a square drawn from what the server holds. */
     readonly url: string | null;
     selectionId: string | null;
-};
-
-/** What a square shows of its file: a chosen `File` has these, and so has one the server read back. */
-type FileFace = {
-    readonly name: string;
-    readonly type: string;
-    /** Null where the server could not be asked: the square says what kind of thing it holds, not how large. */
-    readonly size: number | null;
 };
 
 /** The chosen file standing in for the controller's picture, and whether its handle has gone to the controller. */
@@ -719,24 +707,11 @@ function drawFace(element: HTMLElement, face: FileFace, source: string): void {
     }
 }
 
-/** A file's square's face: its kind's glyph, its name and its size, the whole name on its title, and a cross that says it takes a file away. */
+/** A file's square's face: a file tile's (file-tile.ts), and a cross that says it takes a file away. */
 function fileParts(element: HTMLElement, remove: HTMLElement, file: FileFace): HTMLElement[] {
-    const glyph = document.createElement("span");
-    const label = document.createElement("span");
-    const size = document.createElement("span");
-
-    element.classList.add(FileTileClass);
-    element.setAttribute("title", file.name);
-    glyph.className = FileGlyphClass;
-    glyph.setAttribute("aria-hidden", "true");
-    applyIconValue(glyph, fileGlyph(file.name, file.type));
-    label.className = FileNameClass;
-    label.textContent = file.name;
-    size.className = FileSizeClass;
-    size.textContent = file.size === null ? "" : formatFileSize(file.size, clientStrings.language);
     clientStrings.write(remove, "aria-label", "ui.file.remove");
 
-    return [glyph, label, size];
+    return fileTileParts(element, file, clientStrings.language);
 }
 
 /** Writes the inline row's text — a file's name or the controller's caption — only when it changes. */

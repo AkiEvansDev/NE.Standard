@@ -15,6 +15,8 @@ internal sealed partial class PresetsController() : DemoController
     internal const string HeaderKey = "presets-dialog-header";
     internal const string ConfirmKey = "presets-dialog-confirm";
     internal const string LeaveKey = "presets-dialog-leave";
+    internal const string FormKey = "presets-dialog-form";
+    internal const string BoundConfirmKey = "presets-dialog-bound-confirm";
 
     private static readonly string[] Plans = ["Standard", "Pro", "Dedicated"];
 
@@ -57,6 +59,36 @@ internal sealed partial class PresetsController() : DemoController
     [RecursiveMember]
     public partial string ReleaseLine { get; set; } = "Rolled out to eu-west at 12:04, 4 replicas healthy.";
 
+    /// <summary>The panes sample: which server is open, and which pane a phone shows.</summary>
+    [RecursiveMember]
+    public partial string? OpenServer { get; set; }
+
+    [RecursiveMember]
+    public partial string OpenServerLine { get; set; } = string.Empty;
+
+    [RecursiveMember]
+    public partial UIResponsive<UIVisibility> ServersVisibility { get; set; } = UILayout.PanesListVisibility(false);
+
+    [RecursiveMember]
+    public partial UIResponsive<UIVisibility> ServerVisibility { get; set; } = UILayout.PanesDetailVisibility(false, chosen: false);
+
+    [RecursiveMember]
+    public partial UIResponsive<UIVisibility> NoServerVisibility { get; set; } = UILayout.PanesPlaceholderVisibility(false);
+
+    /// <summary>The sums under a summary, which the controller keeps.</summary>
+    [RecursiveMember]
+    public partial string SubtotalLine { get; set; } = "€108.00";
+
+    [RecursiveMember]
+    public partial string VatLine { get; set; } = "€20.41";
+
+    [RecursiveMember]
+    public partial string TotalLine { get; set; } = "€128.41";
+
+    /// <summary>The bound confirmation's words, naming the thing it is about.</summary>
+    [RecursiveMember]
+    public partial string ArchiveQuestion { get; set; } = "api-eu-west-1 and its 14 days of logs go to cold storage; it can be restored within a month.";
+
     [RecursiveMember]
     public partial string CheckTitle { get; set; } = "Not checked yet";
 
@@ -86,6 +118,14 @@ internal sealed partial class PresetsController() : DemoController
     [UICommand]
     public UICommandResult OpenLeave()
         => Open(LeaveKey);
+
+    [UICommand]
+    public UICommandResult OpenForm()
+        => Open(FormKey);
+
+    [UICommand]
+    public UICommandResult OpenBoundConfirm()
+        => Open(BoundConfirmKey);
 
     private UICommandResult Open(string key)
     {
@@ -120,6 +160,34 @@ internal sealed partial class PresetsController() : DemoController
     {
         DialogsGroup.LogEvent("left without saving");
         return UICommandResult.Ok([new CloseDialogEffect(LeaveKey)]);
+    }
+
+    [UICommand]
+    public UICommandResult ArchiveServer()
+    {
+        DialogsGroup.LogEvent("api-eu-west-1 archived");
+        return UICommandResult.Ok([new CloseDialogEffect(BoundConfirmKey)]);
+    }
+
+    /// <summary>A server pressed in the panes sample: it opens beside the list, or on a phone in its place.</summary>
+    [UICommand]
+    public void ShowServer(string id)
+    {
+        OpenServer = id;
+        OpenServerLine = $"{id} answers in 42 ms; its last restart was 41 days ago.";
+        ServersVisibility = UILayout.PanesListVisibility(true);
+        ServerVisibility = UILayout.PanesDetailVisibility(true);
+        NoServerVisibility = UILayout.PanesPlaceholderVisibility(true);
+    }
+
+    /// <summary>The panes sample's Back, on a phone: the list again, the server closed.</summary>
+    [UICommand]
+    public void BackToServers()
+    {
+        OpenServer = null;
+        ServersVisibility = UILayout.PanesListVisibility(false);
+        ServerVisibility = UILayout.PanesDetailVisibility(false, chosen: false);
+        NoServerVisibility = UILayout.PanesPlaceholderVisibility(false);
     }
 
     /// <summary>The ×, Escape and the safe answer, heard through the dialog's <c>OnClose</c>.</summary>

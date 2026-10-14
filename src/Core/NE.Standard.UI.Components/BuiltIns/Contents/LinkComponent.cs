@@ -13,16 +13,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// </summary>
 /// <remarks>Glyph and title default to <see cref="UIColorStyle.Default"/>, which renders as <c>inherit</c> and follows the link's colour.</remarks>
 [UIComponentPropertyBlock(typeof(ITextBaseComponent))]
+[UIComponentPropertyDefault(nameof(ITextBaseComponent.TitleType), nameof(DefaultTitleType))]
 public abstract partial class LinkComponent<T> : VisualComponentBase<T>, ITextBaseComponent
     where T : LinkComponent<T>, IUIComponentDefinition
 {
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Body;
-
-    /// <summary>
-    /// Gets or sets the text style used to render the title.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultTitleType))]
-    public UITextAppearance? TitleType { get; set; }
 
     /// <summary>
     /// Gets or sets the address opened on activation, written verbatim into the anchor's <c>href</c>.

@@ -1,10 +1,12 @@
-import { componentParts } from "../addressing/dom-registry";
-import { PropertyPatchEngine } from "../updates/property-patch-engine";
-import { OwnedPopups } from "./owned-popup";
-import { observeComponents } from "./dom-mutations";
-import { isReadOnly } from "./interactive-state";
-import { PointerDrag } from "./pointer-drag";
-import { clampByte, onColorToken, toHexByte } from "../rendering/color-bytes";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { cssAttributeValue } from "../addressing/dom-attributes.ts";
+import { componentParts } from "../addressing/dom-registry.ts";
+import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { OwnedPopups } from "./owned-popup.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { isReadOnly } from "./interactive-state.ts";
+import { PointerDrag } from "./pointer-drag.ts";
+import { clampByte, onColorToken, toHexByte } from "../rendering/color-bytes.ts";
 
 const RootClass = "ui-color-input";
 const OpenClass = "ui-color-input--open";
@@ -245,7 +247,7 @@ export class ColorInputEngine {
         }
 
         // The palette entry before any shade or tint: what the factor slider's track runs through.
-        const chip = state.name === null ? null : input.querySelector<HTMLElement>(`[${NameAttribute}="${state.name}"]`);
+        const chip = state.name === null ? null : input.querySelector<HTMLElement>(`[${NameAttribute}="${cssAttributeValue(state.name)}"]`);
         const base = chip === null ? null : parseHex(chip.style.getPropertyValue("--ui-color-input-chip").trim());
 
         writeStyle(input, "--ui-color-input-base", base === null ? "transparent" : toRgbaCss(base[0], base[1], base[2], 255));
@@ -273,7 +275,7 @@ export class ColorInputEngine {
         if (state.name === null)
             return hsvToRgb(state.hue, state.saturation, state.value);
 
-        const chip = input.querySelector<HTMLElement>(`[${NameAttribute}="${state.name}"]`);
+        const chip = input.querySelector<HTMLElement>(`[${NameAttribute}="${cssAttributeValue(state.name)}"]`);
         const base = chip === null ? null : parseHex(chip.style.getPropertyValue("--ui-color-input-chip").trim());
 
         if (base === null)

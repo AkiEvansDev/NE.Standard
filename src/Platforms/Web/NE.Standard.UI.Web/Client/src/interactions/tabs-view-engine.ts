@@ -26,7 +26,8 @@ import { OverflowButtonClass, StripFitter } from "./strip-overflow";
 import { trackInnerPointer } from "./surface-press-engine";
 import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch";
 import {
-    MenuRow, PinEntry, RemoveSeparatorEntry, RenameEntry, SeparatorEntry, TabMenuName, TabMenuPrefix, UnpinEntry, readTabMenuChoice, shownRules, tabMenuEntries
+    MenuRow, PinEntry, RemoveSeparatorEntry, RenameEntry, SeparatorEntry, TabMenuName, TabMenuPrefix, UnpinEntry, readTabMenuChoice, shownRules, tabMenuEntries,
+    tabMenuEntryParameters
 } from "./tab-menu";
 import { raiseItemMove } from "./items-reorder-engine";
 import { StripTab, pinnedBoundary } from "./tab-order";
@@ -48,17 +49,20 @@ const SelectedModifier = "ui-tab-item--selected";
 
 const MenuEntrySelector = `.${MenuItemClass}`;
 
-/** An application's entry of the tab menu, raised on the strip: EventNames.TabMenuEntry. */
+/** An application's entry of the tab menu, raised on the tab the menu was opened on: EventNames.TabMenuEntry. */
 const TabMenuEntryEventName = "tab-menu-entry";
 
 type TabMenuEntryDetail = {
-    readonly keys: readonly string[];
+    readonly entry: string;
 };
 
-/** How the pipeline reads the tab menu's entry event: its keys are the entry's and the tab's, in place of the chain above the strip. */
+/**
+ * How the pipeline reads the tab menu's entry event: the entry's key rides after the keys that address the tab, where
+ * `UIAction.ArgEventValue` reads it, so the tab answers for it as for its own events, in a strip standing in a row too.
+ */
 export const TabMenuEntryEvent: { readonly name: string; readonly registration: Omit<EventRegistration<CustomEvent<TabMenuEntryDetail>>, "name"> } = {
     name: TabMenuEntryEventName,
-    registration: { dynamicParameters: context => context.domEvent.detail?.keys ?? null }
+    registration: { dynamicParameters: context => tabMenuEntryParameters(context.domEvent.detail?.entry, context.dynamicParameters) }
 };
 
 /** A tab pinned or unpinned from its menu, raised on the tab once its pin is written: EventNames.TabPin. */
@@ -365,7 +369,7 @@ export class TabsViewEngine {
             return true;
 
         if (!key.startsWith(TabMenuPrefix)) {
-            root.dispatchEvent(new CustomEvent<TabMenuEntryDetail>(TabMenuEntryEventName, { bubbles: true, detail: { keys: [key, tabKey(item)] } }));
+            item.dispatchEvent(new CustomEvent<TabMenuEntryDetail>(TabMenuEntryEventName, { bubbles: true, detail: { entry: key } }));
             return true;
         }
 
@@ -538,8 +542,8 @@ export class TabsViewEngine {
         if (label === null || root === null)
             return;
 
-        // F2 renames the caption the caret is on, the key the tree's rows answer too.
-        if (domEvent.key === "F2") {
+        // F2 renames the caption the caret is on, the key the tree's rows answer too. A chord with it is another's.
+        if (domEvent.key === "F2" && isPlainKey(domEvent)) {
             if (!root.hasAttribute(TabsRenamableAttribute))
                 return;
 

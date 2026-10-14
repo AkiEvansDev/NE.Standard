@@ -1,10 +1,12 @@
-import { EffectRegistration } from "../effects/effect-registry";
-import { EventRegistration } from "../events/event-descriptor";
-import { ValueConverterRegistration } from "../extensions/converters";
-import { ValueReaderRegistration } from "../extensions/value-readers";
-import { CollectionSinkRegistration } from "../updates/collection-sinks";
-import { getLogLevel, LogLevel, setLogLevel } from "./logger";
-import { DomOperationRegistration } from "../updates/dom-operation-registry";
+// `.ts` on the value imports, the rest as types: `node --test` loads this module as it is.
+import type { EffectRegistration } from "../effects/effect-registry";
+import type { EventRegistration } from "../events/event-descriptor";
+import type { ValueConverterRegistration } from "../extensions/converters";
+import type { ValueReaderRegistration } from "../extensions/value-readers";
+import type { CollectionSinkRegistration } from "../updates/collection-sinks";
+import { getLogLevel, logError, setLogLevel } from "./logger.ts";
+import type { LogLevel } from "./logger.ts";
+import type { DomOperationRegistration } from "../updates/dom-operation-registry";
 import type { PluginEngine, WebUIRuntime } from "./web-ui-runtime";
 
 export type WebUIPluginEventRegistration<TEvent extends Event = Event> =
@@ -123,13 +125,23 @@ function applyPendingRegistrations(runtime: WebUIRuntime, api: NEStandardUIGloba
 
     for (const registration of pending) {
         if (!registration.engine)
-            registration.apply(runtime);
+            applyRegistration(registration, runtime);
     }
 
     // Last, after the words: an engine may write them as it starts.
     for (const registration of pending) {
         if (registration.engine)
-            registration.apply(runtime);
+            applyRegistration(registration, runtime);
+    }
+}
+
+/** One package's registration that throws (a converter with no name) is logged and passed over: the others, already taken off the queue, still apply. */
+function applyRegistration(registration: PendingRegistration, runtime: WebUIRuntime): void {
+    try {
+        registration.apply(runtime);
+    }
+    catch (error) {
+        logError("a package registration failed.", error);
     }
 }
 

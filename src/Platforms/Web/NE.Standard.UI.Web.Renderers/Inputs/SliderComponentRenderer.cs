@@ -27,6 +27,21 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         WebDomOperation.Text(".ui-slider__bubble--end", optional: true)
     ];
 
+    // Every slider registers these same lists, so they are built once rather than per slider.
+    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
+    private static readonly WebDomOperation[] MinDistanceOperations = [WebDomOperation.Attribute(WebAttributes.SliderMinDistance)];
+
+    private static readonly WebDomOperation[] ValueOperations =
+    [
+        WebDomOperation.Property("value"),
+        WebDomOperation.Text(target: ".ui-slider__value"),
+        WebDomOperation.Text(target: ".ui-slider__bubble")
+    ];
+
+    private static readonly WebDomOperation[] MinOperations = [WebDomOperation.Attribute("min"), WebDomOperation.Text(target: ".ui-slider__min")];
+    private static readonly WebDomOperation[] MaxOperations = [WebDomOperation.Attribute("max"), WebDomOperation.Text(target: ".ui-slider__max")];
+    private static readonly WebDomOperation[] StepOperations = [WebDomOperation.Attribute("step")];
+
     public override string ComponentTypeKey => SliderComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-slider";
@@ -43,11 +58,11 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         RenderInputSize(context, root);
         RenderInputHeader(context, root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, SliderComponent.OrientationProperty, static (target, value) =>
+        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
         {
             if (value is UIOrientation orientation)
                 _ = target.Class(WebClassNames.Orientation(orientation));
-        }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
+        }, OrientationOperations);
 
         RenderFlagClass(context, root, SliderComponent.ShowValueProperty, "ui-slider--show-value");
 
@@ -66,7 +81,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         {
             if (value is decimal distance)
                 _ = target.Attribute(WebAttributes.SliderMinDistance, distance.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SliderMinDistance)]);
+        }, MinDistanceOperations);
 
         // One RenderProperty list per property, driving every target at once: registering the same property with another list is rejected.
         _ = ResolveRenderValue(context, IInputComponent.ValueProperty, out decimal? initialValue, out _);
@@ -106,11 +121,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
                     {
                         if (Clamp(value, initialMin, initialMax) is decimal current)
                             _ = target.Attribute("value", current.ToString(CultureInfo.InvariantCulture));
-                    }, [
-                        WebDomOperation.Property("value"),
-                        WebDomOperation.Text(target: ".ui-slider__value"),
-                        WebDomOperation.Text(target: ".ui-slider__bubble")
-                    ]);
+                    }, ValueOperations);
                 });
 
                 RenderBubble(track, Clamp(initialValue, initialMin, initialMax), end: false);
@@ -167,25 +178,19 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         {
             if (value is decimal min)
                 _ = target.Attribute("min", min.ToString(CultureInfo.InvariantCulture));
-        }, [
-            WebDomOperation.Attribute("min"),
-            WebDomOperation.Text(target: ".ui-slider__min")
-        ]);
+        }, MinOperations);
 
         _ = RenderProperty<decimal?>(context, input, SliderComponent.MaxProperty, static (target, value) =>
         {
             if (value is decimal max)
                 _ = target.Attribute("max", max.ToString(CultureInfo.InvariantCulture));
-        }, [
-            WebDomOperation.Attribute("max"),
-            WebDomOperation.Text(target: ".ui-slider__max")
-        ]);
+        }, MaxOperations);
 
         _ = RenderProperty<decimal?>(context, input, SliderComponent.StepProperty, static (target, value) =>
         {
             if (value is decimal step)
                 _ = target.Attribute("step", step.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute("step")]);
+        }, StepOperations);
 
         NativeInputRendererBase.RenderFormId(context, input);
         NativeInputRendererBase.RenderFieldName(context, input, part);

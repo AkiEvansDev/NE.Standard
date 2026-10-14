@@ -47,7 +47,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
             .BindRemovable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Removable)}")
             .BindShowOverflow($"{TabsViewGroup}.{nameof(TabsViewGroupContext.ShowOverflow)}")
             .BindItems(nameof(TabsViewController.Documents))
-            .OnItemRemove(nameof(TabsViewController.RemoveDocument))
+            .OnItemRemoveWithItemKey(nameof(TabsViewController.RemoveDocument))
             // The page is a template over the item, bound to whichever document the tab stands for.
             .SetPageTemplate(new ParagraphComponent()
                 .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)

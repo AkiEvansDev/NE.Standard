@@ -90,7 +90,7 @@ function scene(options: { readonly value?: string; readonly term?: string } = {}
 
         option.dataset.uiKey = key;
         // What the trigger draws a chosen option from; the fake tree clones nothing, so the copy is an empty one.
-        Object.assign(option, { cloneNode: () => ({ attributes: [], childNodes: [], querySelectorAll: () => [], removeAttribute: () => undefined }) });
+        Object.assign(option, { cloneNode: () => ({ childNodes: [], querySelectorAll: () => [], getAttributeNames: () => [], removeAttribute: () => undefined }) });
         option.append(Object.assign(FakeElement.of("ui-text__title", {}, "span"), { textContent: city }));
         return option;
     });
@@ -369,7 +369,7 @@ test("a chosen option the answer to a new term leaves out stays drawn on the tri
     at.options[0].remove();
 
     for (const observer of observers)
-        observer([{ type: "childList", addedNodes: [], target: at.list }]);
+        observer([{ type: "childList", addedNodes: [], removedNodes: [], target: at.list }]);
 
     assert.notEqual(at.trigger.querySelector(".ui-select__trigger-content"), null);
     assert.equal(placeholder.style.display, "none");

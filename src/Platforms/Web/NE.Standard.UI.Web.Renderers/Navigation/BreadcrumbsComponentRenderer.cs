@@ -41,7 +41,7 @@ public sealed class BreadcrumbsComponentRenderer : ItemsCollectionRendererBase
             _ = root.Style("--ui-breadcrumbs-separator", WebCssValues.CssString(separator));
         }
 
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, BreadcrumbsComponent.SpacingProperty, "--ui-breadcrumbs-spacing");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-breadcrumbs-spacing");
 
         RenderTemplates(context, root);
 

@@ -12,9 +12,20 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// <summary>Renders a display-only field of the chosen names, with a pick button over a hidden native <c>&lt;input type="file"&gt;</c>.</summary>
 public sealed class FileInputComponentRenderer : TextContentRendererBase
 {
+    private const string RootClassName = "ui-file-input";
+
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
+
+    private static readonly WebDomOperation[] ReadOnlyOperations =
+    [
+        NativeInputRendererBase.ReadOnlyMarkOperation,
+        WebDomOperation.ToggleAttribute("aria-disabled", target: $".{RootClassName}__pick", condition: WebValueCondition.IsTrue, value: "true"),
+        WebDomOperation.ToggleAttribute("disabled", target: $".{RootClassName}__native", condition: WebValueCondition.IsTrue)
+    ];
+
     public override string ComponentTypeKey => FileInputComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-file-input";
+    protected override string ClassName => RootClassName;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -78,7 +89,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
                 {
                     if (!string.IsNullOrEmpty(value))
                         _ = target.Attribute("value", value);
-                }, [WebDomOperation.Property("value")]);
+                }, ValueOperations);
             });
 
             // The selection id needs its own hidden element, since the field's own value is the file names; it's the component's
@@ -112,10 +123,6 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
             _ = root.Class(WebClassNames.ReadOnly);
             _ = pickButton.Attribute("aria-disabled", "true");
             _ = nativeInput.Attribute("disabled");
-        }, [
-            NativeInputRendererBase.ReadOnlyMarkOperation,
-            WebDomOperation.ToggleAttribute("aria-disabled", target: $".{ClassName}__pick", condition: WebValueCondition.IsTrue, value: "true"),
-            WebDomOperation.ToggleAttribute("disabled", target: $".{ClassName}__native", condition: WebValueCondition.IsTrue)
-        ]);
+        }, ReadOnlyOperations);
     }
 }

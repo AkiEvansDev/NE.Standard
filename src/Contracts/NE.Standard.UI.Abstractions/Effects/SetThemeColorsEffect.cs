@@ -8,7 +8,8 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// </summary>
 /// <remarks>
 /// Like <see cref="SetThemeEffect"/>, it reports back: the page hands the colours to its session and draws what the server derives from
-/// them, the same block a page render of that session carries.
+/// them, the same block a page render of that session carries. Pushed for a session that already holds the colours, the platform
+/// sends them with that block, so the page does not hand them back.
 /// </remarks>
 public sealed class SetThemeColorsEffect(UIThemeColors? colors = null) : ClientEffect
 {
@@ -22,11 +23,4 @@ public sealed class SetThemeColorsEffect(UIThemeColors? colors = null) : ClientE
     /// Gets the colours to use, or <see langword="null"/> for the application's palette.
     /// </summary>
     public UIThemeColors? Colors { get; } = colors is { IsEmpty: false } ? colors : null;
-
-    /// <summary>Gets the stylesheet the colours make, so the page draws it without handing the colours to its session.</summary>
-    /// <remarks>
-    /// Named by the platform on a switch it pushes for a session that already holds the colours, as <see cref="SetLanguageEffect.Href"/>
-    /// names the words; empty for the application's palette. Without it the page hands the colours to its session and draws its answer.
-    /// </remarks>
-    public string? Css { get; init; }
 }

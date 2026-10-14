@@ -90,6 +90,43 @@ export function formatShortcut(shortcut: KeyboardShortcut, isMac: boolean = isMa
     return `${control ? "⌃" : ""}${shortcut.alt ? "⌥" : ""}${shortcut.shift ? "⇧" : ""}${command ? "⌘" : ""}${key}`;
 }
 
+/**
+ * The chord as `aria-keyshortcuts` names it, in the UI Events words a screen reader reads: `Control+Shift+S`. An authored Ctrl that ⌘
+ * presses too on macOS (`matchesShortcut`) is both chords there: `Control+S Meta+S`.
+ */
+export function ariaShortcut(shortcut: KeyboardShortcut, isMac: boolean = isMacPlatform()): string {
+    const key = ariaKey(shortcut.code);
+    const chord = (control: boolean, meta: boolean): string => [control ? "Control" : "", shortcut.alt ? "Alt" : "", shortcut.shift ? "Shift" : "", meta ? "Meta" : "", key].filter(part => part.length > 0).join("+");
+
+    return shortcut.ctrl && !shortcut.meta && isMac ? `${chord(true, false)} ${chord(false, true)}` : chord(shortcut.ctrl, shortcut.meta);
+}
+
+/** A physical key as UI Events names it: the letter, the digit or the sign it carries, else its code, which is its name there too. */
+function ariaKey(code: string): string {
+    if (/^Key[A-Z]$/.test(code))
+        return code.slice(3);
+
+    if (/^Digit[0-9]$/.test(code))
+        return code.slice(5);
+
+    return AriaKeyNames[code] ?? code;
+}
+
+// The sign a key carries; any other key's code is its UI Events name as well (`Escape`, `ArrowUp`, `Space`).
+const AriaKeyNames: Record<string, string> = {
+    Comma: ",",
+    Period: ".",
+    Slash: "/",
+    Backslash: "\\",
+    Semicolon: ";",
+    Quote: "'",
+    BracketLeft: "[",
+    BracketRight: "]",
+    Minus: "-",
+    Equal: "=",
+    Backquote: "`"
+};
+
 /** A physical key as a reader names it: the letter or the sign it carries, else its name, or the Mac's own glyph for it. */
 function keyLabel(code: string, isMac: boolean): string {
     if (/^Key[A-Z]$/.test(code))
@@ -164,6 +201,11 @@ export const shortcutWords = {
         const shortcut = parseShortcut(chord);
 
         return shortcut === null ? null : formatShortcut(shortcut);
+    },
+    aria(chord: string): string | null {
+        const shortcut = parseShortcut(chord);
+
+        return shortcut === null ? null : ariaShortcut(shortcut);
     },
     matches(domEvent: KeyboardEvent, chord: string): boolean {
         const shortcut = parseShortcut(chord);

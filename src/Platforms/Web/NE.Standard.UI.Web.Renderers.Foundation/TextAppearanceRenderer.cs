@@ -36,6 +36,14 @@ public static class TextAppearanceRenderer
         _ = WebComponentRendererBase.RenderProperty<UITextAppearance?>(context, target, property, static (t, value) => WriteAppearance(t, value), Operations);
     }
 
+    /// <summary>An appearance no property carries — an item's badge drawn from its values: a role by its class, a size inline.</summary>
+    public static void RenderTextAppearance(IHtmlElementBuilder target, UITextAppearance value)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        WriteAppearance(target, value);
+    }
+
     /// <summary>A text body's description appearance, its role also written on <paramref name="text"/>, the body around it.</summary>
     public static void RenderDescriptionAppearance(WebRenderContext context, IHtmlElementBuilder description, IHtmlElementBuilder text, UIProperty property)
     {

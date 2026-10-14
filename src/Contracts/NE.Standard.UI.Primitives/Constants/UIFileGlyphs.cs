@@ -6,7 +6,7 @@ namespace NE.Standard.UI.Primitives.Constants;
 
 /// <summary>
 /// The <see cref="UIGlyphs"/> mark a file is shown by — a PDF, text, a document, a spreadsheet, slides, an archive, audio, video, a
-/// picture, code, or a blank page for anything else — as an image input's shelf draws a file's square.
+/// picture, code, or a blank page for anything else — as a file tile and an image input's shelf draw a file's square.
 /// </summary>
 /// <remarks>
 /// The extension decides first, since a browser guesses the type from it anyway and guesses wrong (<c>.ts</c> as a video); the MIME

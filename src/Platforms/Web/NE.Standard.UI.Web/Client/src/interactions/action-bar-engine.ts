@@ -15,6 +15,7 @@ import { escapeIsClaimed } from "./field-escape.ts";
 import { isInert } from "./interactive-state.ts";
 import { OpenDialogSelector } from "./open-dialogs.ts";
 import { ownControlOf } from "./own-control.ts";
+import { onlyPressWaves } from "./press-wave.ts";
 import { FocusableSelector, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
 import type { ComponentIndex } from "./popup-focus.ts";
 import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
@@ -365,7 +366,11 @@ export class ActionBarEngine {
         if (this.identity === null)
             return;
 
-        this.scopeObserver = new MutationObserver(() => this.scopeChanged());
+        this.scopeObserver = new MutationObserver(records => {
+            // A press's wave in the chosen row is no new row.
+            if (!onlyPressWaves(records))
+                this.scopeChanged();
+        });
         this.scopeObserver.observe(this.identity.scope, { childList: true, subtree: true, characterData: true });
     }
 
@@ -432,7 +437,10 @@ export class ActionBarEngine {
         bar.classList.toggle(OutClass, isClippedOut(host));
 
         // An entry's words, state and mark change while the bar stands — a push, a language switch: the bar is drawn again.
-        const observer = new MutationObserver(() => this.redraw(host));
+        const observer = new MutationObserver(records => {
+            if (!onlyPressWaves(records))
+                this.redraw(host);
+        });
 
         observer.observe(menu, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: EntryStateAttributes });
 

@@ -1,12 +1,16 @@
 // The theme's overlay scrollbars (`data-ui-overlay-scrollbars`, UITheme.OverlayScrollbars): where a pointer hovers, no scroller draws
-// a bar or keeps room for one (core/scrollbar.less), and this draws a thin thumb per axis over the edge of the scroller the pointer is
-// over — and of one that moves while the pointer is elsewhere, until it settles — which the pointer may drag. Wheel, keys and touch
-// scroll natively; the thumb is only the sight of where the reader is, and a handle. One layer for the page, in the top layer, so a
-// popover's list shows its thumb too — inside an open modal <dialog> while one of its scrollers is shown, since the page outside it
-// is inert and painted under it; each thumb is clipped to what can be seen of its scroller.
+// the platform's bar (core/scrollbar.less, where the framework's scrollers keep this one's room), and this draws a thin thumb per axis
+// over the edge of the scroller the pointer is over — and of one the reader's keys move while the pointer is elsewhere — which the
+// pointer may drag. As the platforms' own overlay bars, it shows while the reader scrolls, until the scroll settles, and while the
+// pointer nears the edge it stands at, not all the while the pointer rests over the words: a feed being read keeps its words clear. A
+// script's scroll (a list held at its end as a reply streams in) shows nothing. Wheel, keys and touch scroll natively; the thumb is only
+// the sight of where the reader is, and a handle. One layer for the page, in the top layer, so a popover's list shows its thumb too —
+// inside an open modal <dialog> while one of its scrollers is shown, since the page outside it is inert and painted under it; each
+// thumb is clipped to what can be seen of its scroller.
 
 // `.ts` on the value imports: `node --test` loads this module directly.
 import { setPressStandIn } from "./popup-dismissal.ts";
+import { isComposing } from "./keyboard-shortcut.ts";
 import { releaseScrollHolds } from "./scroll-anchor-engine.ts";
 
 const LayerClass = "ui-overlay-scrollbar";
@@ -22,12 +26,19 @@ const OverlayQuery = "(hover: hover) and (forced-colors: none)";
 // A scroller that draws no bar on purpose — a strip whose ends say it scrolls, a wheel's column — says so here, and gets no thumb.
 const ThumbProperty = "--ui-overlay-thumb";
 
+// What a scroller hangs of the bar's room past its box, as a transparent end border, where its upright thumb stands (core/scrollbar.less).
+const HungProperty = "--ui-scroll-hung";
+
 // The thumb's strip, which takes the pointer, wider than the bar the stylesheet draws in it; off the scroller's ends by `Inset`.
 const Strip = 12;
 const Inset = 2;
 const LeastThumb = 24;
-// How long a scroller moved under no pointer keeps its thumb, and one the pointer left.
+// How far past the strip a pointer nearing the edge brings the thumb in.
+const Approach = 16;
+// How long a scroll keeps its thumb shown after it settles, and a scroller the pointer left stays the one.
 const SettleDelay = 900;
+// How soon after the reader's wheel or key a scroll counts as theirs, rather than a script's.
+const InputWindow = 400;
 // A wheel's line, where the wheel counts in lines rather than pixels.
 const WheelLine = 16;
 
@@ -40,7 +51,7 @@ type Track = { readonly start: number; readonly length: number; readonly thumb: 
 /** Where a thumb stands on the viewport. */
 type ThumbBox = { readonly left: number; readonly top: number; readonly width: number; readonly height: number };
 
-type Placement = { readonly view: Box; readonly thumb: ThumbBox };
+type Placement = { readonly view: Box; readonly thumb: ThumbBox; readonly rtl: boolean };
 
 type Drag = {
     readonly axis: Axis;
@@ -52,7 +63,10 @@ type Drag = {
     readonly rtl: boolean;
 };
 
-type Bar = { readonly box: HTMLElement; readonly thumb: HTMLElement; scroller: Element | null };
+type Point = { readonly x: number; readonly y: number };
+
+/** `view`, the scroller's seen box as the last frame measured it, and `rtl` its side, answer whether the pointer nears the bar between frames. */
+type Bar = { readonly axis: Axis; readonly box: HTMLElement; readonly thumb: HTMLElement; scroller: Element | null; view: Box | null; rtl: boolean; near: boolean };
 
 export class OverlayScrollbarEngine {
     private readonly doc: Document;
@@ -65,7 +79,7 @@ export class OverlayScrollbarEngine {
     private active: boolean;
     private target: Element | null = null;
     // Where the pointer last stood: what lies under it changes when a page scrolls under a still pointer.
-    private point: { readonly x: number; readonly y: number } | null = null;
+    private point: Point | null = null;
     // What the next frame picks from: the element the pointer moved onto, or whatever stands under it now.
     private pickTarget = false;
     private repick = false;
@@ -73,6 +87,11 @@ export class OverlayScrollbarEngine {
     private drag: Drag | null = null;
     private frame = 0;
     private settle = 0;
+    // The reader is scrolling: the thumbs show until it settles.
+    private scrolling = false;
+    private fade = 0;
+    // When the reader last turned a wheel or pressed a key, which a scroll soon after is taken to come from.
+    private inputAt = Number.NEGATIVE_INFINITY;
 
     public constructor(doc: Document = document) {
         this.doc = doc;
@@ -101,6 +120,12 @@ export class OverlayScrollbarEngine {
         doc.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), { capture: true, passive: true });
         doc.documentElement.addEventListener("pointerleave", () => this.leave());
         doc.addEventListener("scroll", domEvent => this.handleScroll(domEvent), { capture: true, passive: true });
+        doc.addEventListener("wheel", domEvent => this.noteInput(domEvent), { capture: true, passive: true });
+        doc.addEventListener("keydown", domEvent => this.noteInput(domEvent), { capture: true, passive: true });
+        // On the window, first to hear a key, as a handle's drag (pointer-drag.ts): Escape mid-drag puts the scroller back rather than
+        // closing the popup it scrolls in. A drag of its own, not that one: the thumb lives on a layer over the page, and a capture
+        // taken away with no release ends it.
+        window.addEventListener("keydown", domEvent => this.cancelDrag(domEvent), true);
         window.addEventListener("resize", () => this.schedule());
     }
 
@@ -122,7 +147,7 @@ export class OverlayScrollbarEngine {
         // A wheel over the thumb is the scroller's: the layer is no ancestor of it, so the browser would scroll nothing.
         thumb.addEventListener("wheel", domEvent => this.forwardWheel(domEvent, axis), { passive: false });
 
-        return { box, thumb, scroller: null };
+        return { axis, box, thumb, scroller: null, view: null, rtl: false, near: false };
     }
 
     /** The overlay starts or stops as the pointer's hover and the forced colours come and go. */
@@ -131,6 +156,10 @@ export class OverlayScrollbarEngine {
         this.drag = null;
         this.target = null;
         this.hovered = false;
+        this.scrolling = false;
+        this.bars.y.near = false;
+        this.bars.x.near = false;
+        window.clearTimeout(this.fade);
         this.forget();
 
         if (this.active) {
@@ -198,6 +227,7 @@ export class OverlayScrollbarEngine {
         const target = domEvent.target instanceof Element ? domEvent.target : null;
 
         this.point = { x: domEvent.clientX, y: domEvent.clientY };
+        this.approach();
 
         // Over a thumb, the scroller it stands for stays the one.
         if (target === this.target || (target !== null && this.layer.contains(target)))
@@ -219,6 +249,10 @@ export class OverlayScrollbarEngine {
             return;
 
         if (scroller === this.bars.y.scroller || scroller === this.bars.x.scroller) {
+            // A scroll under way goes on showing, however it carries on (a smooth one, a fling).
+            if (this.scrolling || this.drag !== null || this.readerScrolled(domEvent))
+                this.flash();
+
             this.schedule();
 
             if (!this.hovered && this.drag === null)
@@ -235,10 +269,56 @@ export class OverlayScrollbarEngine {
             return;
         }
 
-        // A scroller moved by keys or by a script while the pointer is elsewhere shows where it went, until it settles.
+        // A scroller the reader's keys moved while the pointer is elsewhere shows where it went, until it settles; a script's, nothing.
+        if (!this.readerScrolled(domEvent))
+            return;
+
         this.pick(canScroll(scroller, "y") ? scroller : null, canScroll(scroller, "x") ? scroller : null, false);
+        this.flash();
         this.settleLater();
         this.schedule();
+    }
+
+    private noteInput(domEvent: Event): void {
+        this.inputAt = domEvent.timeStamp;
+    }
+
+    /** Whether the scroll came soon after the reader's wheel or key, rather than from a script. */
+    private readerScrolled(domEvent: Event): boolean {
+        return domEvent.timeStamp - this.inputAt < InputWindow;
+    }
+
+    /** The thumbs show while the reader scrolls, and fade once the scroll has settled. */
+    private flash(): void {
+        this.scrolling = true;
+        window.clearTimeout(this.fade);
+        this.fade = window.setTimeout(() => {
+            this.fade = 0;
+            this.scrolling = false;
+            this.paint();
+        }, SettleDelay);
+        this.paint();
+    }
+
+    /** Whether the pointer nears each bar, on the box the last frame measured; read on every move, so it lays nothing out. */
+    private approach(): void {
+        let changed = false;
+
+        for (const bar of [this.bars.y, this.bars.x]) {
+            const near = this.point !== null && bar.view !== null && nearsBar(this.point, bar.view, bar.axis, bar.rtl);
+
+            changed ||= near !== bar.near;
+            bar.near = near;
+        }
+
+        if (changed)
+            this.paint();
+    }
+
+    /** Each measured thumb shown or faded as the reader scrolls, nears it or holds it. */
+    private paint(): void {
+        for (const bar of [this.bars.y, this.bars.x])
+            bar.box.classList.toggle(ShownClass, bar.view !== null && (this.scrolling || bar.near || this.drag?.axis === bar.axis));
     }
 
     private pick(y: Element | null, x: Element | null, hovered: boolean): void {
@@ -285,6 +365,8 @@ export class OverlayScrollbarEngine {
 
     private leave(): void {
         this.target = null;
+        this.point = null;
+        this.approach();
 
         if (this.drag === null) {
             this.hovered = false;
@@ -336,6 +418,10 @@ export class OverlayScrollbarEngine {
 
         this.apply(this.bars.y, y);
         this.apply(this.bars.x, x);
+
+        // The page may have moved the bars under a still pointer.
+        this.approach();
+        this.paint();
     }
 
     /** What the pointer stands over, as a move there finds it; over a thumb, the scroller it stands for stays the one. */
@@ -360,20 +446,21 @@ export class OverlayScrollbarEngine {
 
         const both = this.bars[axis === "y" ? "x" : "y"].scroller === scroller;
 
-        return { view, thumb: thumbBox(scroller, axis, clientBox(scroller), both) };
+        return { view, thumb: thumbBox(scroller, axis, axis === "y" ? barBox(scroller) : clientBox(scroller), both), rtl: isRightToLeft(scroller) };
     }
 
+    /** Where the thumb stands; whether it shows is paint's. */
     private apply(bar: Bar, placement: Placement | null): void {
-        if (placement === null) {
-            bar.box.classList.remove(ShownClass);
+        bar.view = placement?.view ?? null;
+
+        if (placement === null)
             return;
-        }
 
         const { view, thumb } = placement;
 
+        bar.rtl = placement.rtl;
         Object.assign(bar.box.style, { left: `${view.left}px`, top: `${view.top}px`, width: `${view.width}px`, height: `${view.height}px` });
         Object.assign(bar.thumb.style, { left: `${thumb.left - view.left}px`, top: `${thumb.top - view.top}px`, width: `${thumb.width}px`, height: `${thumb.height}px` });
-        bar.box.classList.add(ShownClass);
     }
 
     private grab(domEvent: PointerEvent, axis: Axis): void {
@@ -438,11 +525,37 @@ export class OverlayScrollbarEngine {
         this.settleLater();
     }
 
+    /** Escape mid-drag: the scroller back where the press found it, the thumb let go. */
+    private cancelDrag(domEvent: KeyboardEvent): void {
+        const drag = this.drag;
+
+        if (drag === null || domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent))
+            return;
+
+        domEvent.preventDefault();
+
+        if (drag.axis === "y")
+            drag.scroller.scrollTop = dragScroll(drag.scroll, 0, drag.ratio, false);
+        else
+            drag.scroller.scrollLeft = dragScroll(drag.scroll, 0, drag.ratio, drag.rtl);
+
+        // Let go before the capture is released, so the `lostpointercapture` it raises finds no drag to end again.
+        this.endDrag();
+
+        try {
+            this.bars[drag.axis].thumb.releasePointerCapture(drag.pointerId);
+        }
+        catch {
+            // Already released, or never held (a synthesized press): there is nothing to let go of.
+        }
+    }
+
     private endDrag(): void {
         if (this.drag !== null)
             this.bars[this.drag.axis].thumb.classList.remove(HeldClass);
 
         this.drag = null;
+        this.paint();
     }
 
     private forwardWheel(domEvent: WheelEvent, axis: Axis): void {
@@ -466,6 +579,22 @@ export class OverlayScrollbarEngine {
         releaseScrollHolds(moved);
         moved.scrollBy({ left, top });
     }
+}
+
+/**
+ * Whether the pointer stands near enough the bar along `axis` to bring it in: over the strip at the edge it stands at in `view` (the
+ * left one in a right-to-left scroller), or a little short of it.
+ */
+export function nearsBar(point: Point, view: Box, axis: Axis, rtl: boolean): boolean {
+    const reach = Strip + Approach;
+
+    if (axis === "x")
+        return point.x >= view.left && point.x <= view.right && point.y <= view.bottom && point.y > view.bottom - reach;
+
+    if (point.y < view.top || point.y > view.bottom)
+        return false;
+
+    return rtl ? point.x >= view.left && point.x < view.left + reach : point.x <= view.right && point.x > view.right - reach;
 }
 
 /** The nearest element at or above `start` that scrolls along `axis`: the document's scroller at the top. */
@@ -551,18 +680,34 @@ function scaleOf(drawn: number, laidOut: number | undefined): number {
     return laidOut === undefined || laidOut <= 0 || drawn <= 0 ? 1 : drawn / laidOut;
 }
 
+/** The scrollport with the room the scroller hangs past it taken in: where its upright bar stands. */
+export function barBox(scroller: Element): Box {
+    const client = clientBox(scroller);
+
+    if (scroller === document.scrollingElement)
+        return client;
+
+    const hung = Number.parseFloat(getComputedStyle(scroller).getPropertyValue(HungProperty));
+
+    if (!(hung > 0))
+        return client;
+
+    return isRightToLeft(scroller) ? box(client.left - hung, client.top, client.right, client.bottom) : box(client.left, client.top, client.right + hung, client.bottom);
+}
+
 /**
- * What can be seen of the scroller: its scrollport cut by every box above it that clips, and by the viewport; null where nothing. A
- * fixed box or one in the top layer (a popup's list, a modal dialog) is cut by none of the boxes around it in the document.
+ * What can be seen of the scroller and the room it hangs past it: cut by every box above it that clips, as far as it clips — along an
+ * axis it clips, past its `overflow-clip-margin` where it clips with `clip` — and by the viewport; null where nothing. A fixed box or
+ * one in the top layer (a popup's list, a modal dialog) is cut by none of the boxes around it in the document.
  */
 export function visibleBox(scroller: Element): Box | null {
-    let seen = clientBox(scroller);
+    let seen = barBox(scroller);
 
     for (let current: Element | null = scroller; current !== null && current !== document.documentElement; current = current.parentElement) {
         const style = getComputedStyle(current);
 
         if (current !== scroller && (style.overflowX !== "visible" || style.overflowY !== "visible"))
-            seen = cut(seen, clientBox(current));
+            seen = cut(seen, clipBox(current, style));
 
         if (style.position === "fixed" || current.matches(":popover-open, dialog:modal"))
             break;
@@ -571,6 +716,17 @@ export function visibleBox(scroller: Element): Box | null {
     seen = cut(seen, box(0, 0, document.documentElement.clientWidth, document.documentElement.clientHeight));
 
     return seen.width > 0 && seen.height > 0 ? seen : null;
+}
+
+/** What a box clips its content to: its padding box along an axis it clips, widened by its clip margin where that is `clip`. */
+function clipBox(element: Element, style: CSSStyleDeclaration): Box {
+    const client = clientBox(element);
+    // The margin's reference box is the padding box unless it names another, which nothing here does.
+    const margin = Number.parseFloat((style.overflowClipMargin ?? "").split(" ").at(-1) ?? "") || 0;
+    const x = style.overflowX === "visible" ? Number.POSITIVE_INFINITY : style.overflowX === "clip" ? margin : 0;
+    const y = style.overflowY === "visible" ? Number.POSITIVE_INFINITY : style.overflowY === "clip" ? margin : 0;
+
+    return box(client.left - x, client.top - y, client.right + x, client.bottom + y);
 }
 
 /** Where the thumb along `axis` stands over the scroller's scrollport `client`, for how far it has scrolled. */

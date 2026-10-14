@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -14,28 +13,23 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// <summary>
 /// A horizontal or vertical bar of button items, typically used for toolbars and action rows.
 /// </summary>
-/// <remarks>Items carrying a <c>Group</c> are set apart by <see cref="GroupSeparator"/>; groups keep the order of their first item.</remarks>
-public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IItemClickComponent
+/// <remarks>
+/// Items carrying a <c>Group</c> are set apart by <see cref="GroupSeparator"/>; groups keep the order of their first item. Unset,
+/// <c>Spacing</c> is the stylesheet's 8 px: the commands keep a button's corners, and two rounded grounds need air between them.
+/// </remarks>
+[UIComponentPropertyBlock(typeof(IOrientationComponent))]
+[UIComponentPropertyDefault(nameof(IOrientationComponent.Orientation), nameof(DefaultOrientation))]
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
+public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IItemClickComponent, IOrientationComponent, ISpacingComponent
     where T : CommandBarComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets or sets the layout direction of the command bar's items.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Horizontal)]
-    public UIOrientation? Orientation { get; set; }
+    private const UIOrientation DefaultOrientation = UIOrientation.Horizontal;
 
     /// <summary>
     /// Gets or sets whether items wrap onto additional lines instead of overflowing.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? Wrap { get; set; }
-
-    /// <summary>
-    /// Gets or sets the spacing between items, optionally overridden per breakpoint.
-    /// </summary>
-    /// <remarks>Unset, the stylesheet's 8 px: the commands keep a button's corners, and two rounded grounds need air between them.</remarks>
-    [UIComponentProperty]
-    public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
     /// Gets or sets what is drawn between two groups of items — nothing, a step of air, or a hairline.

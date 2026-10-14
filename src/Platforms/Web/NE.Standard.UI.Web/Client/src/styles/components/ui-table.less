@@ -410,8 +410,10 @@
 }
 
 // Column lines on the cells' inner edges; before the per-index rules, which tie with them and take the last column's line away.
-.ui-table--column-lines > .ui-table__scroll > * > :is(.ui-table__cell, .ui-table__header-cell):not(:last-child),
-.ui-table--column-lines > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-table__cell:not(:last-child),
+// The last of the cells, not the row's last child: a press's wave stands after them while it plays (press-wave.ts). `:where` keeps
+// the tie, at `:last-child`'s weight.
+.ui-table--column-lines > .ui-table__scroll > * > :is(.ui-table__cell, .ui-table__header-cell):not(:nth-last-child(1 of :where(.ui-table__cell, .ui-table__header-cell))),
+.ui-table--column-lines > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-table__cell:not(:nth-last-child(1 of :where(.ui-table__cell))),
 .ui-table--column-lines[data-ui-table-last] > .ui-table__scroll > * > :is(.ui-table__cell, .ui-table__header-cell),
 .ui-table--column-lines[data-ui-table-last] > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-table__cell {
     border-right: 1px solid var(--ui-color-border);

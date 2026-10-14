@@ -114,7 +114,7 @@ export class PropertyPatchEngine {
         }
 
         // A restore changes no state but must still be heard; a held element hears nothing, or its editor would overwrite the reader's value.
-        if ((!this.state.set(reference, dynamicParameters, value, rowsOf(resolvedAddresses[0]?.component)) && !this.restoring) || held)
+        if ((!this.state.set(reference, dynamicParameters, value, () => rowsOf(resolvedAddresses[0]?.component)) && !this.restoring) || held)
             return;
 
         this.notifyValueChanged({
@@ -150,7 +150,7 @@ export class PropertyPatchEngine {
     public recordValue(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown): PropertyValueChange | null {
         const resolvedAddresses = this.addressResolver.resolveProperties(reference, dynamicParameters);
 
-        if (!this.state.set(reference, dynamicParameters, value, rowsOf(resolvedAddresses[0]?.component)))
+        if (!this.state.set(reference, dynamicParameters, value, () => rowsOf(resolvedAddresses[0]?.component)))
             return null;
 
         return {

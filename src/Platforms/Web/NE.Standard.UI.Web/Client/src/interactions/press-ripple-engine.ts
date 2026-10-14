@@ -2,12 +2,15 @@
 // the pressed thing to its farthest corner, and fading once the pointer lifts — at once on a cancel, as a touch turning into a scroll
 // is one. Under a button, an action, a menu or list entry, and a row whose press does something. An icon-only face (an icon button,
 // a rail's entry) also shrinks its icon while held, which the stylesheet draws off the held class.
-// Cheap: one listener per phase on the root, one rect read at the press, and two registered properties animated on the element.
+// Cheap: one listener per phase on the root, one rect read at the press, and a wave of its own (press-wave.ts) whose circle's scale
+// and whose opacity are all that animates — the two things the compositor runs alone, so a long task (a runtime's page applied)
+// leaves the wave growing rather than stopped half-way, as a property drawn by the page's own frames was.
 
 import { ButtonClass, ComponentIdAttribute, MenuItemClass, NoRowSelectAttribute, PopupRoleSelector, RowEditingAttribute, SelectionAttribute, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import { ownControlOf } from "./own-control.ts";
+import { PressInkClass, PressWaveClass } from "./press-wave.ts";
 import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
 // A press inside one of these is its own, ahead of the button around it: a tabs view's whole caption (its label a button only for its
@@ -22,11 +25,6 @@ const TargetSelector = `${EntrySelector}, ${RowSelector}`;
 
 const PressingClass = "ui-pressing";
 const HeldClass = "ui-press-held";
-const XVariable = "--ui-press-x";
-const YVariable = "--ui-press-y";
-// Registered in styles/mixins/ripple.less, so they animate as a length and a number, and not inherited: a frame restyles one element.
-const RadiusVariable = "--ui-ripple-radius";
-const OpacityVariable = "--ui-ripple-opacity";
 
 export type PressRippleEngineOptions = {
     readonly root?: ParentNode;
@@ -36,6 +34,7 @@ export type PressRippleEngineOptions = {
 
 type Press = {
     readonly element: HTMLElement;
+    readonly wave: HTMLElement;
     readonly started: number;
     readonly grow: Animation;
     fade: Animation | null;
@@ -84,13 +83,16 @@ export class PressRippleEngine {
         // To the farthest corner, so the circle reaches every corner of the frame and is never an ellipse.
         const radius = Math.hypot(Math.max(x, bounds.width - x), Math.max(y, bounds.height - y));
 
-        element.style.setProperty(XVariable, `${x}px`);
-        element.style.setProperty(YVariable, `${y}px`);
+        // The wave stands in the padding box, inside the border the rect counts.
+        const { wave, ink } = createWave(x - element.clientLeft, y - element.clientTop, radius);
+
         element.classList.add(PressingClass, HeldClass);
+        // Last, after the element's own parts: a script reading its first child (a wrapped row's scope) reads what it did.
+        element.append(wave);
 
-        const grow = element.animate([{ [RadiusVariable]: "0px" }, { [RadiusVariable]: `${radius}px` }], { duration: motion.ripple, easing: motion.ease, fill: "forwards" });
+        const grow = ink.animate([{ transform: "scale(0)" }, { transform: "scale(1)" }], { duration: motion.ripple, easing: motion.ease, fill: "forwards" });
 
-        this.presses.set(domEvent.pointerId, { element, started: performance.now(), grow, fade: null });
+        this.presses.set(domEvent.pointerId, { element, wave, started: performance.now(), grow, fade: null });
     }
 
     /** The element a press lands on that answers it with the wave, or null: the nearest one, and only if it takes the press. */
@@ -173,17 +175,38 @@ export class PressRippleEngine {
             press.grow.updatePlaybackRate(remaining / delay);
         }
 
-        press.fade = press.element.animate([{ [OpacityVariable]: 1 }, { [OpacityVariable]: 0 }], { duration: motion.normal, delay, easing: motion.exit, fill: "forwards" });
+        press.fade = press.wave.animate([{ opacity: 1 }, { opacity: 0 }], { duration: motion.normal, delay, easing: motion.exit, fill: "forwards" });
         press.fade.addEventListener("finish", () => this.finish(pointerId, press));
     }
 
-    /** Takes a press's wave away whole: its animations, its class, and its entry, unless another press of the pointer replaced it. */
+    /**
+     * Takes a press's wave away whole: its animations, its element, its class, and its entry, unless another press of the pointer
+     * replaced it.
+     */
     private finish(pointerId: number, press: Press): void {
         press.grow.cancel();
         press.fade?.cancel();
+        press.wave.remove();
         press.element.classList.remove(PressingClass, HeldClass);
 
         if (this.presses.get(pointerId) === press)
             this.presses.delete(pointerId);
     }
+}
+
+/** The wave over the pressed thing's frame, its ink a circle of `radius` round the point (`x`, `y`) of the frame's padding box. */
+function createWave(x: number, y: number, radius: number): { readonly wave: HTMLElement; readonly ink: HTMLElement } {
+    const wave = document.createElement("span");
+    const ink = document.createElement("span");
+
+    wave.className = PressWaveClass;
+    wave.setAttribute("aria-hidden", "true");
+    ink.className = PressInkClass;
+    ink.style.setProperty("left", `${x - radius}px`);
+    ink.style.setProperty("top", `${y - radius}px`);
+    ink.style.setProperty("width", `${radius * 2}px`);
+    ink.style.setProperty("height", `${radius * 2}px`);
+    wave.append(ink);
+
+    return { wave, ink };
 }

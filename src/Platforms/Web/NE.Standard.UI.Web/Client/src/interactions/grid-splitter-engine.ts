@@ -96,6 +96,8 @@ type SplitContext = {
     readonly sizes: readonly number[];
     readonly runs: GridSplitRuns;
     readonly tier: ResponsiveTier;
+    /** The tier's own division as the gesture found it, empty for none: what Escape mid-drag puts back. */
+    readonly before: string;
 };
 
 export type GridSplitterEngineOptions = {
@@ -135,7 +137,8 @@ export class GridSplitterEngine {
                 this.remember(context);
                 this.reportPosition(splitter);
                 this.writeBack(splitter, context);
-            }
+            },
+            cancel: (splitter, context) => this.putBack(splitter, context)
         });
 
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
@@ -387,6 +390,18 @@ export class GridSplitterEngine {
             this.apply(context, delta, DragMove);
     }
 
+    /** Escape mid-drag: the division the drag found, nothing kept in the browser or told to the controller. */
+    private putBack(splitter: HTMLElement, context: SplitContext): void {
+        const variable = responsiveVariable(context.axis.split, context.tier);
+
+        if (context.before.length === 0)
+            context.container.style.removeProperty(variable);
+        else
+            context.container.style.setProperty(variable, context.before);
+
+        this.reportPosition(splitter);
+    }
+
     /** Writes the division `delta` pixels from where the gesture began, a step's by default; answers whether anything moved. */
     private apply(context: SplitContext, delta: number, move = StepMove): boolean {
         const moved = moveSplit(context.tracks, context.sizes, context.runs, delta, move);
@@ -461,7 +476,7 @@ export class GridSplitterEngine {
             return null;
         }
 
-        return { splitter, container, axis, tracks, sizes, runs, tier };
+        return { splitter, container, axis, tracks, sizes, runs, tier, before: container.style.getPropertyValue(responsiveVariable(axis.split, tier)) };
     }
 
     /**

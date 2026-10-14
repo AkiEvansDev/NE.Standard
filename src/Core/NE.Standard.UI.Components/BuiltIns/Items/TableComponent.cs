@@ -30,6 +30,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+[UIComponentPropertyBlock(typeof(IDraggableRowsComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
 public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBindableItem, DefaultRowTemplate>, IItemsHostComponent, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent
     where T : TableComponent<T>, IUIComponentDefinition
@@ -86,29 +87,6 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? ReorderableColumns { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether a row whose item does not refuse it (<c>CanDrag</c>) can be dragged to another place among the rows, or
-    /// moved one place by Alt+Up and Alt+Down; the move raises <c>move</c> (<see cref="OnRowMove"/>). Refused while a sort orders the
-    /// rows, which would put the row back.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
-    public bool? Draggable { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether a <c>Draggable</c> row is dragged only by a grip in a narrow track past the last column or before the first
-    /// (<see cref="DragHandlePlacement"/>); the rest of the row keeps its text selection and its presses, and the keyboard still moves
-    /// rows by Alt+Up and Alt+Down.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
-    public bool? DragHandle { get; set; }
-
-    /// <summary>
-    /// Gets or sets where the grips' column stands (<see cref="DragHandle"/>): past the last column by default, or before the first,
-    /// pinned with it where the first column is pinned.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = UIDragHandlePlacement.End)]
-    public UIDragHandlePlacement? DragHandlePlacement { get; set; }
 
     /// <summary>
     /// Initializes a table with the built-in empty template and the row template every row is a copy of.
@@ -248,12 +226,6 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// </summary>
     public T OnRowMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRowTemplate(row => _ = row.On(EventNames.Move, command, arguments));
-
-    /// <summary>
-    /// Drags a <c>Draggable</c> row only by a grip at <paramref name="placement"/> (<see cref="DragHandle"/>).
-    /// </summary>
-    public T SetDragHandle(UIDragHandlePlacement placement)
-        => SetDragHandle(true).SetDragHandlePlacement(placement);
 
     /// <summary>
     /// Keeps only the rows in view in the document, for a collection the client holds whole.

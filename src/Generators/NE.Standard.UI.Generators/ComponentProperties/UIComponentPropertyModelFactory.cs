@@ -174,7 +174,7 @@ internal static class UIComponentPropertyModelFactory
             diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.ContractPropertyNotFound, model.Property, values.Contract.ToDisplayString(), GetContractPropertyName(model)));
 
         if (!string.IsNullOrWhiteSpace(values.DefaultValueMember))
-            ValidateDefaultValueMember(model, diagnostics);
+            ValidateDefaultValueMember(compilation, model, diagnostics);
     }
 
     private static void ValidateDefaultValueConfiguration(Compilation compilation, PropertySymbols model, List<DiagnosticInfo> diagnostics)
@@ -217,21 +217,24 @@ internal static class UIComponentPropertyModelFactory
     /// </summary>
     private static bool IsDefaultValueAssignable(Compilation compilation, ITypeSymbol valueType, ITypeSymbol propertyType)
     {
-        ITypeSymbol target = propertyType is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
-            ? nullable.TypeArguments[0]
-            : propertyType;
+        // Boxed, a nullable value is the value it holds or null: both sides are compared by what they hold.
+        ITypeSymbol source = UnwrapNullable(valueType);
+        ITypeSymbol target = UnwrapNullable(propertyType);
 
-        if (SymbolEqualityComparer.Default.Equals(valueType, target))
+        if (SymbolEqualityComparer.Default.Equals(source, target))
             return true;
 
-        if (target.SpecialType == SpecialType.System_Decimal && valueType.SpecialType is SpecialType.System_Int32 or SpecialType.System_Int64 or SpecialType.System_Single or SpecialType.System_Double)
+        if (target.SpecialType == SpecialType.System_Decimal && source.SpecialType is SpecialType.System_Int32 or SpecialType.System_Int64 or SpecialType.System_Single or SpecialType.System_Double)
             return true;
 
-        CommonConversion conversion = compilation.ClassifyCommonConversion(valueType, target);
+        CommonConversion conversion = compilation.ClassifyCommonConversion(source, target);
 
         // Identity, reference or boxing: an instance of the property type as it is, never a number converted to another.
         return conversion.Exists && conversion.IsImplicit && !conversion.IsNumeric && !conversion.IsUserDefined && !conversion.IsNullable;
     }
+
+    private static ITypeSymbol UnwrapNullable(ITypeSymbol type)
+        => type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable ? nullable.TypeArguments[0] : type;
 
     private static void ValidateGeneratedPropertyMember(PropertySymbols model, string memberName, List<DiagnosticInfo> diagnostics)
     {
@@ -294,41 +297,50 @@ internal static class UIComponentPropertyModelFactory
             ? model.Values.ContractPropertyName!
             : model.Property.Name + "Property";
 
-    private static void ValidateDefaultValueMember(PropertySymbols model, List<DiagnosticInfo> diagnostics)
+    private static void ValidateDefaultValueMember(Compilation compilation, PropertySymbols model, List<DiagnosticInfo> diagnostics)
     {
         var memberName = model.Values.DefaultValueMember!;
+        INamedTypeSymbol owner = GetDefaultValueOwner(model);
 
-        // A block property's default lives with the contract that declares it, not with the type it lands on.
-        INamedTypeSymbol owner = model.DefaultValueOwner ?? model.ContainingType;
+        ITypeSymbol? memberType;
 
-        foreach (ISymbol member in owner.GetMembers(memberName))
+        switch (FindDefaultValueMember(model))
         {
-            if (member is IFieldSymbol field)
-            {
-                if (!field.IsStatic)
-                    ReportInvalidDefaultValueMemberKind(model, owner, memberName, diagnostics);
-
+            case IFieldSymbol { IsStatic: true } field:
+                memberType = field.Type;
+                break;
+            case IPropertySymbol { IsStatic: true } property:
+                memberType = property.Type;
+                break;
+            case IMethodSymbol { IsStatic: true, Parameters.Length: 0, ReturnsVoid: false } method:
+                memberType = method.ReturnType;
+                break;
+            case null:
+                diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.DefaultValueMemberNotFound, model.Property, memberName, owner.ToDisplayString()));
                 return;
-            }
-
-            if (member is IPropertySymbol property)
-            {
-                if (!property.IsStatic)
-                    ReportInvalidDefaultValueMemberKind(model, owner, memberName, diagnostics);
-
+            default:
+                ReportInvalidDefaultValueMemberKind(model, owner, memberName, diagnostics);
                 return;
-            }
-
-            if (member is IMethodSymbol method)
-            {
-                if (!method.IsStatic || method.Parameters.Length != 0)
-                    ReportInvalidDefaultValueMemberKind(model, owner, memberName, diagnostics);
-
-                return;
-            }
         }
 
-        diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.DefaultValueMemberNotFound, model.Property, memberName, owner.ToDisplayString()));
+        if (!IsDefaultValueAssignable(compilation, memberType, model.Property.Type))
+            ReportInvalidDefaultValueConfiguration(model, $"Property '{model.Property.Name}' DefaultValueMember '{memberName}' of type '{memberType.ToDisplayString()}' is not a '{model.Property.Type.ToDisplayString()}'", diagnostics);
+    }
+
+    /// <summary>A block property's default lives with the contract that declares it, not with the type it lands on.</summary>
+    private static INamedTypeSymbol GetDefaultValueOwner(PropertySymbols model)
+        => model.DefaultValueOwner ?? model.ContainingType;
+
+    /// <summary>The field, property or method <c>DefaultValueMember</c> names on its owner, or null when it names none.</summary>
+    private static ISymbol? FindDefaultValueMember(PropertySymbols model)
+    {
+        foreach (ISymbol member in GetDefaultValueOwner(model).GetMembers(model.Values.DefaultValueMember!))
+        {
+            if (member is IFieldSymbol or IPropertySymbol or IMethodSymbol)
+                return member;
+        }
+
+        return null;
     }
 
     private static void ReportInvalidDefaultValueMemberKind(PropertySymbols model, INamedTypeSymbol owner, string memberName, List<DiagnosticInfo> diagnostics)
@@ -377,7 +389,10 @@ internal static class UIComponentPropertyModelFactory
         return contractType + "." + contractPropertyName;
     }
 
-    /// <summary>The registration's default value expression: the literal given, else the member named, qualified by the type a block's default lives on.</summary>
+    /// <summary>
+    /// The registration's default value expression: the literal given, else the member named — called when it is a method — qualified
+    /// by the type a block's default lives on.
+    /// </summary>
     private static string? GetDefaultValue(PropertySymbols model)
     {
         UIComponentPropertyAttributeValues values = model.Values;
@@ -388,9 +403,11 @@ internal static class UIComponentPropertyModelFactory
         if (string.IsNullOrWhiteSpace(values.DefaultValueMember))
             return null;
 
-        return model.DefaultValueOwner is null
+        var member = model.DefaultValueOwner is null
             ? values.DefaultValueMember
             : model.DefaultValueOwner.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) + "." + values.DefaultValueMember;
+
+        return FindDefaultValueMember(model) is IMethodSymbol ? member + "()" : member;
     }
 
     /// <summary>

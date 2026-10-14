@@ -19,6 +19,9 @@ public sealed class ButtonGroupComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-button-group__item";
 
+    private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonGroupSizeClass)];
+    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey)];
+
     public override string ComponentTypeKey => ButtonGroupComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-button-group";
@@ -38,7 +41,7 @@ public sealed class ButtonGroupComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is UIButtonSize size)
                 _ = target.Class(WebClassNames.ButtonGroupSize(size));
-        }, [WebDomOperation.Class(converter: WebDomConverters.ButtonGroupSizeClass)]);
+        }, SizeOperations);
 
         // The same reader and attribute as an items view's one key: a written value that is not a field's is read by kind.
         _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.SelectedKey);
@@ -46,7 +49,7 @@ public sealed class ButtonGroupComponentRenderer : ItemsCollectionRendererBase
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute(WebAttributes.SelectedKey, value);
-        }, [WebDomOperation.Attribute(WebAttributes.SelectedKey)]);
+        }, SelectedKeyOperations);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName);

@@ -96,7 +96,7 @@ export class SplitButtonEngine {
         if (menu === null || list === null)
             return;
 
-        // Against the whole pill — under it, its end at the button's end, unless the author placed it otherwise (`MenuPlacement`): the
+        // Against the whole pill — under it, its end at the button's end, unless the author placed it otherwise (`PopupPlacement`): the
         // list belongs to the button, not to the part that opened it.
         const token = button.getAttribute(SplitPlacementAttribute) ?? "";
         const opened = this.menus.open({

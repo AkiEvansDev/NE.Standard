@@ -18,6 +18,16 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// <summary>The shared class every part of the shell is named after, and what the client engine matches on.</summary>
     protected const string SharedClassName = TemporalCalendarRenderer.TemporalClassName;
 
+    private static readonly WebDomOperation[] DisplayFormatOperations = [WebDomOperation.Attribute(WebAttributes.TemporalFormat, target: "root")];
+
+    private static readonly WebDomOperation[] ReadOnlyOperations =
+    [
+        NativeInputRendererBase.ReadOnlyMarkOperation,
+        WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field:not([{WebAttributes.TemporalEnd}])", condition: WebValueCondition.IsTrue),
+        WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field[{WebAttributes.TemporalEnd}]", condition: WebValueCondition.IsTrue, optional: true),
+        WebDomOperation.ToggleAttribute("aria-disabled", target: $".{SharedClassName}__toggle", condition: WebValueCondition.IsTrue, value: "true")
+    ];
+
     public override string ComponentTypeKey => TComponent.ComponentTypeKey;
 
     /// <summary>Which surfaces the popup opens with: <c>date</c>, <c>time</c> or <c>date-time</c>.</summary>
@@ -87,7 +97,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = target.Attribute(WebAttributes.TemporalFormat, value);
-        }, [WebDomOperation.Attribute(WebAttributes.TemporalFormat, target: "root")]);
+        }, DisplayFormatOperations);
 
         // DisplayFormat can be patched to nothing, so the client needs a format to fall back on.
         _ = root.Attribute(WebAttributes.TemporalDefaultFormat, defaultDisplayFormat);
@@ -270,12 +280,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             _ = target.Attribute("readonly");
             _ = endField?.Attribute("readonly");
             _ = toggle.Attribute("aria-disabled", "true");
-        }, [
-            NativeInputRendererBase.ReadOnlyMarkOperation,
-            WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field:not([{WebAttributes.TemporalEnd}])", condition: WebValueCondition.IsTrue),
-            WebDomOperation.ToggleAttribute("readonly", target: $".{SharedClassName}__field[{WebAttributes.TemporalEnd}]", condition: WebValueCondition.IsTrue, optional: true),
-            WebDomOperation.ToggleAttribute("aria-disabled", target: $".{SharedClassName}__toggle", condition: WebValueCondition.IsTrue, value: "true")
-        ]);
+        }, ReadOnlyOperations);
     }
 
     /// <summary>Names the part a value is entered in: a period's start or end by its own word, a single value by the field's caption.</summary>

@@ -19,6 +19,7 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// <remarks><c>Value</c> paints the picture and the upload rides back on its own hidden input, as <c>SelectionId</c> or, under <c>Multiple</c>, <c>SelectionIds</c> as a JSON list.</remarks>
 public sealed class ImageInputComponentRenderer : TextContentRendererBase
 {
+    private const string RootClassName = "ui-image-input";
     private const string MultipleClassName = "ui-image-input--multiple";
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string PlaceholderAttribute = "data-ui-image-placeholder";
@@ -31,9 +32,32 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         WebDomOperation.ToggleAttribute("aria-disabled", target: $"[{WebAttributes.FilePick}]", condition: WebValueCondition.IsTrue, value: "true", optional: true)
     ];
 
+    // Every image input registers these same lists, so they are built once rather than per instance.
+    private static readonly WebDomOperation[] FitOperations = [WebDomOperation.Class(target: $".{RootClassName}__picture", converter: WebDomConverters.ImageFitClass)];
+    private static readonly WebDomOperation[] CaptionOperations = [WebDomOperation.Attribute(WebAttributes.ImageCaption)];
+    private static readonly WebDomOperation[] PlaceholderIconOperations =
+    [
+        .. IconValueRenderer.Operations,
+        WebDomOperation.ToggleAttribute(WebAttributes.Icon, target: "root", condition: WebValueCondition.DrawsIcon)
+    ];
+
+    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute(PlaceholderAttribute)];
+
+    private static readonly WebDomOperation[] ValueOperations =
+    [
+        WebDomOperation.Property("value", converter: WebDomConverters.SafeImageSource),
+        WebDomOperation.Attribute(WebAttributes.ImageSource, target: "root", converter: WebDomConverters.SafeImageSource)
+    ];
+
+    private static readonly WebDomOperation[] SelectionsOperations =
+    [
+        WebDomOperation.Attribute(WebAttributes.SelectedKeys),
+        WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root")
+    ];
+
     public override string ComponentTypeKey => ImageInputComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-image-input";
+    protected override string ClassName => RootClassName;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -137,7 +161,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
                 {
                     if (fit is UIImageFit resolved)
                         _ = target.Class(WebClassNames.ImageFit(resolved));
-                }, [WebDomOperation.Class(target: $".{ClassName}__picture", converter: WebDomConverters.ImageFitClass)]);
+                }, FitOperations);
             });
 
             RenderPlaceholderGlyph(context, root, surface);
@@ -147,7 +171,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             {
                 if (!string.IsNullOrEmpty(caption))
                     _ = target.Attribute(WebAttributes.ImageCaption, caption);
-            }, [WebDomOperation.Attribute(WebAttributes.ImageCaption)]);
+            }, CaptionOperations);
 
             RenderPlaceholderText(context, surface);
 
@@ -215,10 +239,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
                 _ = root.Attribute(WebAttributes.Icon);
                 IconValueRenderer.RenderIconValue(target, icon);
-            }, [
-                .. IconValueRenderer.Operations,
-                WebDomOperation.ToggleAttribute(WebAttributes.Icon, target: "root", condition: WebValueCondition.DrawsIcon)
-            ]);
+            }, PlaceholderIconOperations);
         });
     }
 
@@ -233,7 +254,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             {
                 if (!string.IsNullOrEmpty(placeholder))
                     _ = target.Attribute(PlaceholderAttribute, placeholder);
-            }, [WebDomOperation.Attribute(PlaceholderAttribute)]);
+            }, PlaceholderOperations);
         });
     }
 
@@ -274,10 +295,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
                 // The picture itself too, or the placeholder glyph stands in for it until the engine copies the source over.
                 _ = picture.Attribute("src", value);
-            }, [
-                WebDomOperation.Property("value", converter: WebDomConverters.SafeImageSource),
-                WebDomOperation.Attribute(WebAttributes.ImageSource, target: "root", converter: WebDomConverters.SafeImageSource)
-            ]);
+            }, ValueOperations);
         });
 
         // The picture's URL above is the component's value; the handle is a second one beside it.
@@ -305,10 +323,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
                 _ = target.Attribute(WebAttributes.SelectedKeys, json);
                 _ = root.Attribute(WebAttributes.SelectedKeys, json);
-            }, [
-                WebDomOperation.Attribute(WebAttributes.SelectedKeys),
-                WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root")
-            ]);
+            }, SelectionsOperations);
 
             if (binding is not null)
                 _ = selections.Attribute(WebAttributes.BindValue, binding.Id.Value.ToString(CultureInfo.InvariantCulture));

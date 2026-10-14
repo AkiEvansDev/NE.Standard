@@ -21,8 +21,9 @@
         justify-content: flex-end;
     }
 
-// A chip is the chosen option's words and its own cross, tinted with the selection's colour so it reads as chosen on any ground.
-.ui-multi-select__chip {
+// A chip is the chosen option's words and its own cross, tinted with the selection's colour so it reads as chosen on any ground; a badge
+// select's chip is the option's badge instead, below.
+.ui-multi-select__chip:not(.ui-badge) {
     display: inline-flex;
     align-items: center;
     gap: 0.125rem;
@@ -66,7 +67,7 @@
     gap: 0.125rem;
 }
 
-.ui-input--small .ui-multi-select__chip {
+.ui-input--small .ui-multi-select__chip:not(.ui-badge) {
     height: 1.125rem;
     padding-left: 0.375rem;
     font-size: var(--ui-text-overline-font-size);
@@ -77,7 +78,7 @@
         height: 0.875rem;
     }
 
-.ui-input--large .ui-multi-select__chip {
+.ui-input--large .ui-multi-select__chip:not(.ui-badge) {
     height: 1.75rem;
     font-size: var(--ui-text-body-font-size);
     line-height: var(--ui-text-body-line-height);
@@ -142,9 +143,27 @@
 }
 
 // Read-only: the chips stay readable and lose their remove (ui-select.less), so each keeps even air on both sides.
-.ui-multi-select.ui-readonly .ui-multi-select__chip {
+.ui-multi-select.ui-readonly .ui-multi-select__chip:not(.ui-badge) {
     padding-right: @ui-space-2;
 }
+
+// A badge select's chip is its option's badge, as the list draws it, in its own size whatever the field's: its words, then its cross inside
+// it, on the badge's ink. A pill always, even round words' (two characters) or a bare icon's, which the cross widens.
+.ui-badge-select .ui-multi-select__chips > .ui-multi-select__chip.ui-badge {
+    max-width: 100%;
+    aspect-ratio: auto;
+    padding-inline-end: 0.125em;
+    cursor: default;
+
+    > .ui-multi-select__chip-remove {
+        width: 1.375em;
+        height: 1.375em;
+    }
+}
+
+    .ui-badge-select.ui-readonly .ui-multi-select__chips > .ui-multi-select__chip.ui-badge {
+        padding-inline-end: 0.5em;
+    }
 
 // An option says it is chosen by the check at its end, its room kept either way so the list lines up, as a menu's check entries do.
 .ui-multi-select .ui-select__option {

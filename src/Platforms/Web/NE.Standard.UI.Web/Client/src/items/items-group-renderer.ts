@@ -2,7 +2,7 @@
 import { ComponentKeyAttribute, GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes.ts";
 import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort.ts";
 import { findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer.ts";
-import { bucketByGroup, drawGroupHeader, firstShownRow } from "./items-group-runs.ts";
+import { bucketByGroup, drawGroupHeader, firstShownRow, markGroupHeader } from "./items-group-runs.ts";
 import { placeInOrder } from "./items-dom-order.ts";
 import { getSourceOrder } from "./items-source-order.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
@@ -11,6 +11,9 @@ import type { MetadataIndex } from "../metadata/metadata-index";
 import type { PropertyStateStore } from "../state/property-state-store";
 
 const bucketOrderByHost = new WeakMap<Element, string[]>();
+
+// Each group's header as the last pass drew it: kept while its group stands, so a sync redraws only the header of a group new to the host.
+const headersByHost = new WeakMap<Element, Map<string, Element>>();
 
 function removeGroupHeaders(host: Element): void {
     // The host's own: a grouped list nested in a row keeps its headers.
@@ -29,8 +32,10 @@ export function regroupHost(host: Element, componentId: number, templates: Items
     const activeSorts = getActiveSorts(metadata.getItemsFilterSortMetadata(componentId), state, readItemsQuery(host));
 
     // A header the last pass drew is stale the moment the list stops carrying groups, emptying included.
-    if (canGroup && !isGrouped)
+    if (canGroup && !isGrouped) {
         removeGroupHeaders(host);
+        headersByHost.delete(host);
+    }
 
     if (items.length === 0) {
         bucketOrderByHost.set(host, []);
@@ -45,10 +50,10 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         return;
     }
 
-    removeGroupHeaders(host);
-
     const { buckets, order } = bucketByGroup(items, item => item.getAttribute(GroupAttribute) ?? "", bucketOrderByHost.get(host) ?? []);
     const ancestors = renderer.getAncestorStack(host);
+    const drawn = headersByHost.get(host);
+    const headers = new Map<string, Element>();
 
     bucketOrderByHost.set(host, order);
 
@@ -64,14 +69,35 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         const anchor = key === "" ? undefined : firstShownRow(bucketItems);
 
         if (anchor !== undefined) {
-            const header = drawGroupHeader(groupTemplate, renderer, renderer.getItemValue(anchor), anchor.getAttribute(ComponentKeyAttribute), ancestors);
+            const header = keptHeader(host, drawn?.get(key), anchor) ?? drawGroupHeader(groupTemplate, renderer, renderer.getItemValue(anchor), anchor.getAttribute(ComponentKeyAttribute), ancestors);
 
-            if (header !== null)
+            if (header !== null) {
+                headers.set(key, header);
                 orderedNodes.push(header);
+            }
         }
 
         orderedNodes.push(...bucketItems);
     }
 
+    // A header of a group gone, or one the server drew before any pass, goes; the rest move with their groups, the focus in them kept.
+    const kept = new Set(headers.values());
+
+    for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`)) {
+        if (!kept.has(header))
+            header.remove();
+    }
+
+    headersByHost.set(host, headers);
     placeInOrder(host, [...orderedNodes, ...toNodes(placeholder)]);
+}
+
+/** The group's header from the last pass while it still stands in the host, now standing in the bucket's first shown row, as a virtualized host keeps one. */
+function keptHeader(host: Element, header: Element | undefined, anchor: Element): Element | undefined {
+    if (header === undefined || header.parentElement !== host)
+        return undefined;
+
+    markGroupHeader(header, anchor.getAttribute(ComponentKeyAttribute));
+
+    return header;
 }

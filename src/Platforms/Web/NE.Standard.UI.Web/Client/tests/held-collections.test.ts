@@ -1,5 +1,6 @@
 // The collection a host inside an item template shares with every row's copy, held for the rows built after it arrived: a refill
-// replaces it, and every later change is applied to it as a host applies it to its rows.
+// replaces it, and every later change is applied to it as a host applies it to its rows. A row's own collection for its menu waiting
+// to be drawn is held by the rows it stands in, written by a patch to an entry's part, and let go of with its rows.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -12,6 +13,12 @@ const Select = 42;
 function change(action: string, items: readonly ServerCollectionItemChange[] = [], moves: ServerCollectionChangeUIUpdate["moves"] = []): ServerCollectionChangeUIUpdate {
     return { kind: "CollectionChange", action, component: { id: Select, dynamicParameters: [] }, items, moves } as ServerCollectionChangeUIUpdate;
 }
+
+function rowChange(action: string, dynamicParameters: readonly unknown[], items: readonly ServerCollectionItemChange[] = []): ServerCollectionChangeUIUpdate {
+    return { kind: "CollectionChange", action, component: { id: Menu, dynamicParameters }, items, moves: [] } as ServerCollectionChangeUIUpdate;
+}
+
+const Menu = 13;
 
 function keysOf(held: HeldCollections): string[] {
     return (held.get(Select) ?? []).map(row => row.key);
@@ -82,4 +89,63 @@ test("a row's host waiting to be drawn is drawn from the held rows as they stand
     assert.deepEqual(held.takeWaiting(host)?.map(row => row.key), ["water", "ice"]);
     assert.equal(held.isWaiting(host), false);
     assert.equal(held.takeWaiting(host), undefined);
+});
+
+test("a row's own collection is held by the rows it stands in, apart from every other row's", () => {
+    const held = new HeldCollections();
+
+    held.holdRow(Menu, ["m1"], [{ key: "pin", item: { Title: "Pin" } }, { key: "edit" }]);
+    held.applyRow(rowChange("Remove", ["m1"], [{ key: "edit" }]));
+    // A key sent as a number is the page's digits.
+    held.applyRow(rowChange("Insert", [7], [{ key: "copy" }]));
+
+    assert.deepEqual(held.getRow(Menu, ["m1"])?.map(row => row.key), ["pin"]);
+    assert.deepEqual(held.getRow(Menu, ["7"])?.map(row => row.key), ["copy"]);
+    assert.equal(held.getRow(Menu, ["m2"]), undefined);
+    assert.equal(held.get(Menu), undefined);
+});
+
+test("a patch to an entry's part writes its held item, in its own menu's list at its rows alone", () => {
+    const held = new HeldCollections();
+    const other = 31;
+
+    held.holdRow(Menu, ["m1"], [{ key: "pin", item: { Title: "Pin" } }]);
+    held.holdRow(Menu, ["m2"], [{ key: "pin", item: { Title: "Pin" } }]);
+    held.holdRow(other, ["m1"], [{ key: "pin", item: { Title: "Pin" } }]);
+
+    const written = held.writeRowItem(["m1"], "pin", componentId => componentId === Menu, item => ({ ...item as object, Title: "Unpin" }));
+
+    assert.equal(written, true);
+    assert.deepEqual(held.getRow(Menu, ["m1"])?.[0].item, { Title: "Unpin" });
+    assert.deepEqual(held.getRow(Menu, ["m2"])?.[0].item, { Title: "Pin" });
+    assert.deepEqual(held.getRow(other, ["m1"])?.[0].item, { Title: "Pin" });
+    assert.equal(held.writeRowItem(["m1"], "gone", () => true, item => item), false);
+});
+
+test("the rows' own collections go with the rows they stand in, and every row's below them", () => {
+    const held = new HeldCollections();
+    const other = 31;
+
+    held.holdRow(Menu, ["m1"], [{ key: "pin" }]);
+    held.holdRow(Menu, ["m1", "pin"], [{ key: "sub" }]);
+    held.holdRow(Menu, ["m2"], [{ key: "pin" }]);
+    held.holdRow(other, ["m1"], [{ key: "pin" }]);
+
+    held.forgetRows(["m1"], componentId => componentId === Menu);
+
+    assert.equal(held.getRow(Menu, ["m1"]), undefined);
+    assert.equal(held.getRow(Menu, ["m1", "pin"]), undefined);
+    assert.notEqual(held.getRow(Menu, ["m2"]), undefined);
+    assert.notEqual(held.getRow(other, ["m1"]), undefined);
+});
+
+test("every held row is visited with its component, shared or a row's own", () => {
+    const held = new HeldCollections();
+    const visited: string[] = [];
+
+    held.hold(Select, [{ key: "fire" }]);
+    held.holdRow(Menu, ["m1"], [{ key: "pin" }]);
+    held.forEachRow((componentId, row) => visited.push(`${componentId}:${row.key}`));
+
+    assert.deepEqual(visited, [`${Select}:fire`, `${Menu}:pin`]);
 });

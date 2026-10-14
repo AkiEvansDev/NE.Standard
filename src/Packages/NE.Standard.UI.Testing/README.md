@@ -88,7 +88,8 @@ filters and authorization all run:
 - `SetValueAsync(value)` types and leaves a field: its change rules, the interactions reading it, the write to the
   server (or, under `OnSubmit`, held for its form — a push waits behind the edit until a `DiscardFormEffect`), its change
   command, its blur rules. A number or a date past its `Min`/`Max` stays in the field, refused in words, and is not sent;
-  a value no reader could give — a slider past its bounds, a negative where none is taken — throws.
+  a value no reader could give — a slider past its bounds, a negative where none is taken — throws. It answers a
+  `UITestCommandResult`: refused for a value the page or the server refused, else what the change command did.
 - `ClickAsync()` presses: a button submitting a form is refused while a field of the form is in error, as the browser
   refuses it, and the result says so (`Sent` false).
 - `DispatchAsync(eventName, eventKeys)` raises any event a component declares; one that submits its field's form (a

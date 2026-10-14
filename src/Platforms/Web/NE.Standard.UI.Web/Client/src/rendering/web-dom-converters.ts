@@ -319,6 +319,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["themeInkCss", value => toThemeInk(value)],
     ["roleInkCss", value => toRoleInk(value)],
     ["themeOnColorCss", value => toThemeOnColor(value)],
+    ["themeGroundCss", value => toThemeGround(value)],
     // Mirrors ThemeColorRenderer: a style colour is a class (an ink), so it writes no inline colour that would override the class.
     ["themeColorInlineCss", value => isStyleOnlyThemeColor(value) ? "" : toThemeColor(value)],
     ["themeColorCanonical", value => toThemeColorCanonical(value)],
@@ -330,6 +331,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ...tierConverters("responsiveWidth", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "horizontal")),
     ...tierConverters("responsiveHeight", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "vertical")),
     ...tierConverters("responsiveThickness", "Css", (value, tier) => toThickness(toResponsiveTier(value, tier))),
+    ...tierConverters("responsivePadding", "Css", (value, tier) => toPadding(toResponsiveTier(value, tier))),
     ...tierConverters("responsiveThicknessHorizontal", "Css", (value, tier) => toThicknessSum(toResponsiveTier(value, tier), "horizontal")),
     ...tierConverters("responsiveThicknessVertical", "Css", (value, tier) => toThicknessSum(toResponsiveTier(value, tier), "vertical")),
     ...tierConverters("responsiveRadius", "Css", (value, tier) => toRadius(toResponsiveTier(value, tier))),
@@ -577,6 +579,17 @@ function toThickness(value: unknown): string {
     const sides = toThicknessSides(value);
 
     return sides === undefined ? String(value) : `${sides.top}px ${sides.right}px ${sides.bottom}px ${sides.left}px`;
+}
+
+// Mirrors WebCssValues.Padding: each side at least the overlay bar's room where its box keeps it, and across a capped column's inset.
+function toPadding(value: unknown): string {
+    const sides = value === null || value === undefined ? undefined : toThicknessSides(value);
+
+    if (sides === undefined) {
+        return "";
+    }
+
+    return `${sides.top}px max(${sides.right}px, var(--ui-scroll-room-right), var(--ui-scroll-cap)) max(${sides.bottom}px, var(--ui-scroll-room-x)) max(${sides.left}px, var(--ui-scroll-room-left), var(--ui-scroll-cap))`;
 }
 
 // Mirrors WebCssValues.ThicknessSum: a margin's two sides along an axis, the room a Fill size leaves out.
@@ -885,6 +898,21 @@ function toThemeOnColor(value: unknown): string {
     return varName ? `var(${varName})` : "";
 }
 
+// Mirrors WebCssValues.ThemeGround: the ground a surface of this colour names, `inherit` for one of no opacity, which is no ground,
+// so the one around it shows through rather than a surface style naming the transparent fill.
+function toThemeGround(value: unknown): string {
+    if (value !== null && typeof value === "object") {
+        const model = value as { light?: unknown; dark?: unknown };
+        const clear = isColorVariantModel(value) ? isClear(value) : isClear(model.light ?? model.dark) && isClear(model.dark ?? model.light);
+
+        if (clear) {
+            return "inherit";
+        }
+    }
+
+    return toThemeColor(value);
+}
+
 function isClear(value: unknown): boolean {
     return toColorVariantBytes(value)?.[3] === 0;
 }
@@ -975,7 +1003,11 @@ const WideRanges: readonly number[] = [
 
 /** Writes a count the page computed into a badge a renderer drew: its text, and the fit the renderer's own patch would write. */
 export function writeBadgeCount(badge: Element, count: number): void {
-    const text = String(count);
+    writeBadgeWords(badge, String(count));
+}
+
+/** Writes words the page settled into a badge a renderer drew — a count, a chip's label — with the fit its own patch would write. */
+export function writeBadgeWords(badge: Element, text: string): void {
     const words = badge.querySelector(".ui-badge__text");
 
     if (words !== null)

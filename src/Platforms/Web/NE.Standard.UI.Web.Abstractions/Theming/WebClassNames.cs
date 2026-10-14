@@ -40,6 +40,15 @@ public static class WebClassNames
     /// <summary>The part of a timestamp holding its text.</summary>
     public const string TimestampText = "ui-timestamp__text";
 
+    /// <summary>A file shown as a tile — a file tile's root, an image input shelf's square for a file that is no picture — and its parts (<c>file-tile.ts</c>).</summary>
+    public const string FileTile = "ui-file-tile";
+
+    public const string FileTileGlyph = "ui-file-tile__glyph";
+
+    public const string FileTileName = "ui-file-tile__name";
+
+    public const string FileTileSize = "ui-file-tile__size";
+
     /// <summary>A select's root, a multi-select's and a search's: the field whose list the reader picks from.</summary>
     public const string Select = "ui-select";
 

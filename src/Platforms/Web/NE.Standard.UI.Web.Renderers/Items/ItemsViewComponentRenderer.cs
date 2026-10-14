@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
@@ -22,12 +23,13 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-items-view__item";
     private const string FirstVisibleClassName = "ui-items-view__first-visible";
+    private const string LastVisibleClassName = "ui-items-view__last-visible";
 
     // What a row may be drawn from and still be an option: words, marks, pictures and the boxes they stand in.
     private static readonly FrozenSet<string> PassiveTypeKeys = new[]
     {
         TextComponent.ComponentTypeKey, ParagraphComponent.ComponentTypeKey, IconComponent.ComponentTypeKey, BadgeComponent.ComponentTypeKey,
-        ImageComponent.ComponentTypeKey, SeparatorComponent.ComponentTypeKey, SpinnerComponent.ComponentTypeKey, ProgressComponent.ComponentTypeKey,
+        ImageComponent.ComponentTypeKey, FileTileComponent.ComponentTypeKey, SeparatorComponent.ComponentTypeKey, SpinnerComponent.ComponentTypeKey, ProgressComponent.ComponentTypeKey,
         ContainerComponent.ComponentTypeKey, StackPanelComponent.ComponentTypeKey, WrapPanelComponent.ComponentTypeKey, SurfaceComponent.ComponentTypeKey,
         CardComponent.ComponentTypeKey, CardHeaderRegion.ComponentTypeKey, DefaultTextTemplate.ComponentTypeKey, DefaultEmptyTemplate.ComponentTypeKey,
         DefaultGroupTemplate.ComponentTypeKey
@@ -42,11 +44,11 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        RenderLayout(context, root, ItemsViewComponent.LayoutTypeProperty, ItemsViewComponent.OrientationProperty, ItemsViewComponent.SpacingProperty);
-        // Not `--ui-padding`, which every root reads as its own: the host, the scroll box, reads this one (ui-items-view.less).
-        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ItemsViewComponent.PaddingProperty, "--ui-items-view-padding");
+        RenderLayout(context, root, ItemsViewComponent.LayoutTypeProperty, IOrientationComponent.OrientationProperty, ISpacingComponent.SpacingProperty);
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ItemsViewComponent.ContentMaxWidthProperty, "--ui-items-view-content-max-width");
         RenderSelection(context, root);
-        RenderFirstVisibleKey(context, root);
+        RenderVisibleKey(context, root, ItemsViewComponent.FirstVisibleKeyProperty, FirstVisibleClassName, WebValueKinds.FirstVisibleKey);
+        RenderVisibleKey(context, root, ItemsViewComponent.LastVisibleKeyProperty, LastVisibleClassName, WebValueKinds.LastVisibleKey);
 
         // An option may hold no control of its own, so rows with buttons or fields are a list's items whatever the selection; rows that
         // are pressed without being chosen are options too, since the keyboard walks and presses them as a listbox's.
@@ -76,18 +78,18 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
-    /// The element the page writes the key of the row at the top onto, its own since the root's one writable value is the chosen key;
-    /// drawn only where the key is bound, so a list nobody asks about reports nothing. Empty at first: the page always reports once.
+    /// The element the page writes the key of the row at the top or the foot onto, its own since the root's one writable value is the
+    /// chosen key; drawn only where the key is bound, so a list nobody asks about reports nothing. Empty at first: the page always reports once.
     /// </summary>
-    private static void RenderFirstVisibleKey(WebRenderContext context, IHtmlElementBuilder root)
+    private static void RenderVisibleKey(WebRenderContext context, IHtmlElementBuilder root, UIProperty property, string className, string valueKind)
     {
-        if (context.IsPresentationCopy || ResolveRenderValue<string?>(context, ItemsViewComponent.FirstVisibleKeyProperty, out _, out _) != WebRenderValueKind.Binding)
+        if (context.IsPresentationCopy || ResolveRenderValue<string?>(context, property, out _, out _) != WebRenderValueKind.Binding)
             return;
 
         _ = root.Element("div", holder =>
         {
-            _ = holder.Class(FirstVisibleClassName).Attribute("hidden").Attribute(WebAttributes.ValueKind, WebValueKinds.FirstVisibleKey);
-            _ = RenderProperty<string?>(context, holder, ItemsViewComponent.FirstVisibleKeyProperty, static (_, _) => { });
+            _ = holder.Class(className).Attribute("hidden").Attribute(WebAttributes.ValueKind, valueKind);
+            _ = RenderProperty<string?>(context, holder, property, static (_, _) => { });
         });
     }
 
@@ -138,6 +140,8 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         RenderItemsHost(context, root, "ui-items-view__host", items, isBound, ItemClassName, configureHost: host =>
         {
             ApplyHostScroll(context, host);
+            // On the host, the scroll box: the overlay bar's room its tiers yield to is the scroller's own (ui-items-view.less).
+            ResponsiveRenderer.ApplyResponsivePadding(context, host, ItemsViewComponent.PaddingProperty, "--ui-items-view-padding", $"[{WebAttributes.ItemsHost}]");
             ApplyHostMode(host, hostMode);
             ApplyWindowProperties(context, host, hostMode);
             RenderSelectedKeys(context, host);

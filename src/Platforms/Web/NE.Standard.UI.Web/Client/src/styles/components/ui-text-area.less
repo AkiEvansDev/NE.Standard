@@ -4,11 +4,7 @@
 
 .ui-text-area {
     // Same header/row/message shell as .ui-text-input, with a resizable multi-line field.
-    display: flex;
-    flex-direction: column;
-    gap: @ui-space-1;
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
-    font: inherit;
+    .ui-input-root();
 }
 
 // A <textarea> holds its own text, so it wears .ui-field-box for its ground and states instead of a row.
@@ -19,6 +15,8 @@
     max-width: 100%;
     min-height: @ui-control-height;
     padding: @ui-space-2 @ui-space-3;
+    // At least the overlay bar's room, which its words wrap before (core/scrollbar.less).
+    padding-inline-end: max(@ui-space-3, var(--ui-scroll-room-y));
     font: inherit;
 }
 
@@ -40,6 +38,7 @@
         width: auto;
         min-height: 0;
         padding: @ui-space-1 0;
+        padding-inline-end: var(--ui-scroll-room-y);
     }
 
 // Each group as tall as one line of the text, so its buttons centre on the last line however many lines stand above it.

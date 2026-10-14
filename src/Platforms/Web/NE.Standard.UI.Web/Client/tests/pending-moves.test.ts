@@ -170,3 +170,15 @@ test("a host gone from the page is let go without a move", () => {
 
     assert.deepEqual(list.host.order, ["b", "c", "a"]);
 });
+
+test("a server change that throws part way still puts the rows moved ahead back on top of what it did", () => {
+    const list = rows("a", "b", "c", "d");
+
+    list.moves.ahead(list.element, "a", 2);
+
+    assert.throws(() => list.moves.around(list.element, [], () => {
+        list.host.order.push("e");
+        throw new Error("a row could not be drawn");
+    }));
+    assert.deepEqual(list.host.order, ["b", "c", "a", "d", "e"]);
+});

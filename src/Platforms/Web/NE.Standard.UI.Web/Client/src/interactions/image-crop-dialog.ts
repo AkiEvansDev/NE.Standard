@@ -210,6 +210,13 @@ function buildDialog(): CropParts {
             void applyAsync();
     });
 
+    // Closed by another than itself — every dialog the page had, as it goes to another runtime: the crop answers as a Cancel, or the
+    // session would outlive its dialog and refuse every crop after it.
+    new MutationObserver(() => {
+        if (session !== null && dialog.hasAttribute("hidden"))
+            session.finish("cancelled");
+    }).observe(dialog, { attributes: true, attributeFilter: ["hidden"] });
+
     dialog.addEventListener("keydown", domEvent => handleKeyDown(crop, domEvent));
     zoom.addEventListener("input", () => zoomTo(crop, Number(zoom.value)));
     stage.addEventListener("wheel", domEvent => handleWheel(crop, domEvent), { passive: false });

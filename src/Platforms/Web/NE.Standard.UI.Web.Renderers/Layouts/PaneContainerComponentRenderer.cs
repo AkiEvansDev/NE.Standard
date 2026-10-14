@@ -80,6 +80,8 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
                 {
                     _ = grip.Class(GripClassName);
                     _ = grip.Attribute("type", "button");
+                    // Pressed while the keyboard holds the pane up (pane-container-engine.ts), which also names it after the pane's title.
+                    _ = grip.Attribute("aria-pressed", "false");
                     WebWords.Write(context, grip, "aria-label", UIStrings.PaneMove);
                 });
 

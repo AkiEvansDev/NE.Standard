@@ -4,13 +4,7 @@
 
 .ui-number-input {
     // Same shell as .ui-text-input, over a text field rather than a native number input, for the custom stepper and grouping.
-    display: flex;
-    flex-direction: column;
-    gap: @ui-space-1;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    font: inherit;
+    .ui-input-root();
 }
 
 .ui-number-input__row {

@@ -9,6 +9,7 @@ import { carryPopupGround, isAnchoredPopupPlacement, placeAnchoredPopup, release
 import { takesTyping } from "./caret-fields.ts";
 import { isClippedOut, isLaidOut } from "./element-visibility.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
+import { LongPress } from "./long-press.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
 
@@ -89,19 +90,13 @@ export function startTooltips(root: ParentNode = document): void {
     host.addEventListener("focusout", onFocusOut, true);
     host.addEventListener("scroll", onScroll, true);
     host.addEventListener("pointerdown", onPointerDown, true);
-    host.addEventListener("pointermove", onHoldMove, true);
-    host.addEventListener("pointerup", cancelHold, true);
-    host.addEventListener("pointercancel", cancelHold, true);
-    host.addEventListener("contextmenu", onHoldContextMenu, true);
     host.addEventListener("click", onClick, true);
-    // On the window, ahead of every engine's click on the document: a hold's release presses nothing.
-    window.addEventListener("click", onHoldClick, true);
+    // The context menu's long press, answered with the words: its release presses nothing, caught on the window ahead of every
+    // engine's click on the document.
+    new LongPress({ root: host, first: window, holds: holdsWords, answer: showHeld });
     // On the window, ahead of every closer on the document: a tooltip on screen is the innermost thing Escape can take away.
     window.addEventListener("keydown", onKeyDown, true);
-    window.addEventListener("blur", () => {
-        pinned = null;
-        hide(true);
-    });
+    window.addEventListener("blur", dismiss);
 }
 
 function onPointerOver(event: Event): void {
@@ -126,8 +121,7 @@ function dropOrphan(): void {
     if (anchor === null || anchor.isConnected)
         return;
 
-    pinned = null;
-    hide(true);
+    dismiss();
 }
 
 /** Closes a tooltip whose control the scroll just took out of sight, where it would float against nothing the reader sees. */
@@ -143,10 +137,8 @@ function onScroll(event: Event): void {
     if (scrolled instanceof Node && !(scrolled instanceof Document) && !scrolled.contains(anchor))
         return;
 
-    if (isClippedOut(anchor)) {
-        pinned = null;
-        hide(true);
-    }
+    if (isClippedOut(anchor))
+        dismiss();
 }
 
 function onPointerOut(event: Event): void {
@@ -197,8 +189,7 @@ function onFocusOut(event: Event): void {
     if (findAnchor(event.target) !== anchor)
         return;
 
-    pinned = null;
-    hide(true);
+    dismiss();
 }
 
 /**
@@ -212,19 +203,13 @@ function onKeyDown(event: KeyboardEvent): void {
     if (!escapeIsClaimed(event))
         event.preventDefault();
 
-    pinned = null;
-    hide(true);
+    dismiss();
 }
 
 // A press outside makes the tooltip stale; a press inside it is the reader following a link.
 function onPointerDown(event: Event): void {
-    cancelHold();
-    heldShown = null;
-
     if (isInsideTooltip(event.target))
         return;
-
-    startHold(event);
 
     const target = pressAnchor(event.target);
 
@@ -235,8 +220,7 @@ function onPointerDown(event: Event): void {
             return;
         }
 
-        pinned = null;
-        hide(true);
+        dismiss();
         show(target);
         held = anchor;
         return;
@@ -248,81 +232,26 @@ function onPointerDown(event: Event): void {
 
 // A finger held still on a control with words and no context menu asks for them, as Android's long press does: a touch never hovers,
 // and a glyph alone (or a line cut short) named nothing on a phone. A context menu's owner keeps the long press for its menu, a field
-// for its caret. The words stay until the next press, and the release presses nothing.
-const HoldDelayMs = 500;
-// How far the finger may drift, in pixels, and still be held still: past it the press is a scroll.
-const HoldSlop = 10;
+// for its caret, and a control whose words a press shows has them already. The words stay until the next press.
 const ContextMenuOwnerSelector = `[${ContextMenuOwnerAttribute}]`;
 
-let hold: { readonly pointerId: number; readonly x: number; readonly y: number; readonly target: Element; readonly timer: number } | null = null;
-// The control a held finger brought the words up for, until the next press: the click its release raises is spent.
-let heldShown: Element | null = null;
+function holdsWords(target: Element): boolean {
+    const words = target.closest(ContextMenuOwnerSelector) === null && !takesTyping(target) ? findAnchor(target) : null;
 
-function startHold(event: Event): void {
-    const pointer = event as Partial<PointerEvent>;
-
-    if (pointer.pointerType !== "touch" || !(event.target instanceof Element) || event.target.closest(ContextMenuOwnerSelector) !== null || takesTyping(event.target))
-        return;
-
-    const target = findAnchor(event.target);
-
-    if (target === null || target.hasAttribute(PressAttribute))
-        return;
-
-    hold = { pointerId: pointer.pointerId ?? 0, x: pointer.clientX ?? 0, y: pointer.clientY ?? 0, target, timer: window.setTimeout(showHeld, HoldDelayMs) };
+    return words !== null && !words.hasAttribute(PressAttribute);
 }
 
-function cancelHold(): void {
-    if (hold === null)
-        return;
+function showHeld(target: Element): boolean {
+    const words = findAnchor(target);
 
-    window.clearTimeout(hold.timer);
-    hold = null;
-}
+    if (words === null)
+        return false;
 
-function onHoldMove(event: Event): void {
-    const pointer = event as Partial<PointerEvent>;
-
-    if (hold !== null && pointer.pointerId === hold.pointerId && Math.hypot((pointer.clientX ?? hold.x) - hold.x, (pointer.clientY ?? hold.y) - hold.y) > HoldSlop)
-        cancelHold();
-}
-
-function showHeld(): void {
-    const target = hold?.target ?? null;
-
-    hold = null;
-
-    if (target === null)
-        return;
-
-    pinned = null;
-    hide(true);
-    show(target);
+    dismiss();
+    show(words);
     held = anchor;
-    heldShown = anchor;
-}
 
-// The browser's own menu for the press the finger holds (Android's, at about the same time) is spent, and shows the words if it comes first.
-function onHoldContextMenu(event: Event): void {
-    if (hold !== null && event.target instanceof Node && hold.target.contains(event.target)) {
-        event.preventDefault();
-        window.clearTimeout(hold.timer);
-        showHeld();
-        return;
-    }
-
-    if (heldShown !== null && event.target instanceof Node && heldShown.contains(event.target))
-        event.preventDefault();
-}
-
-// The release of a hold that brought the words up is no press of the control.
-function onHoldClick(event: Event): void {
-    if (heldShown === null || !(event.target instanceof Node) || !heldShown.contains(event.target))
-        return;
-
-    heldShown = null;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+    return true;
 }
 
 // The press on a control whose words are all it holds asked for them and nothing else: a checkbox's label around it would tick the box,
@@ -603,8 +532,7 @@ export function updateTooltip(element: Element): void {
         return;
 
     if ((element.getAttribute(TooltipAttribute) ?? "").trim().length === 0) {
-        pinned = null;
-        hide(true);
+        dismiss();
         return;
     }
 
@@ -626,6 +554,12 @@ function readPlacement(target: Element): AnchoredPopupPlacement {
     const token = target.getAttribute(PlacementAttribute);
 
     return token !== null && isAnchoredPopupPlacement(token) ? token : DefaultPlacement;
+}
+
+/** Takes the words away at once, a focus-pinned mark's too. */
+function dismiss(): void {
+    pinned = null;
+    hide(true);
 }
 
 function hide(immediate: boolean): void {

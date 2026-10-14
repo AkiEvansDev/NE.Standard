@@ -2,6 +2,7 @@ import {
     BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, GroupAttribute, ItemsHostAttribute, NoContextMenuAttribute, UndraggableAttribute, UnremovableAttribute,
     UnrenamableAttribute, UnselectableAttribute, cssAttributeValue, toKebabCase
 } from "../addressing/dom-attributes";
+import type { ResolvedPropertyAddress } from "../addressing/address-resolver";
 import { resolveOperationElements } from "../addressing/operation-targets";
 import { readComponentId } from "../addressing/dom-registry";
 import { ExtensionRegistry } from "../extensions/extension-registry";
@@ -28,6 +29,9 @@ export class ItemsTemplateRenderer {
 
     // What a row built from its template is given before its bindings: the collections its hosts share with every row's copy.
     private fillRow: ((row: Element) => void) | null = null;
+
+    // A component root's selector by its id, built once rather than for every bound element of every row.
+    private readonly componentSelectors = new Map<number, string>();
 
     public constructor(
         private readonly metadata: MetadataIndex,
@@ -141,6 +145,24 @@ export class ItemsTemplateRenderer {
         return root;
     }
 
+    /**
+     * Clones a part of a row drawn after the row — its menu, drawn when it is wanted (`row-menus.ts`) — and populates it against the
+     * item scopes `within` stands in, as it was populated when it was cloned with its row; the part opens no scope of its own.
+     */
+    public renderPart(template: HTMLTemplateElement, within: Element): Element | null {
+        const root = (template.content.cloneNode(true) as DocumentFragment).firstElementChild;
+
+        if (root === null) {
+            logWarn("template is empty.", { template });
+            return null;
+        }
+
+        this.fillRow?.(root);
+        this.populateBoundElements(root, this.stackOf(within));
+
+        return root;
+    }
+
     /** Names what a row built from its template is given before its bindings (the update processor's held collections). */
     public setRowFiller(fill: (row: Element) => void): void {
         this.fillRow = fill;
@@ -159,7 +181,7 @@ export class ItemsTemplateRenderer {
 
                 // A row the server drew holds no scope for an item nested in it (a slot's value): the words it was drawn with stay.
                 if (holdsScopes(binding, stack))
-                    this.applyBoundAttribute(element, String(getIdValue(binding.bindingId)), stack, only);
+                    this.applyBoundAttribute(element, binding, stack, only);
             }
         }
     }
@@ -248,24 +270,18 @@ export class ItemsTemplateRenderer {
 
     /** A cloned element's binding, unless it belongs to a row the server drew inside the template, whose values are written already. */
     private populateBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[]): void {
-        const binding = this.metadata.getBindingById(Number(bindingIdText));
+        const bindingId = Number(bindingIdText);
+        const binding = Number.isInteger(bindingId) && bindingId > 0 ? this.metadata.getBindingById(bindingId) : undefined;
 
-        if (binding !== undefined && readsDrawnRow(element, binding.itemTemplateParameters, stack))
-            return;
-
-        this.applyBoundAttribute(element, bindingIdText, stack);
+        if (binding !== undefined && !readsDrawnRow(element, binding.itemTemplateParameters, stack))
+            this.applyBoundAttribute(element, binding, stack);
     }
 
-    private applyBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[], only?: (value: unknown) => boolean): void {
-        const bindingId = Number(bindingIdText);
+    private applyBoundAttribute(element: Element, binding: WebRenderBindingMetadata, stack: readonly ItemStackEntry[], only?: (value: unknown) => boolean): void {
+        const bindingId = getIdValue(binding.bindingId);
+        const definition = this.metadata.getPropertyDefinition(binding.propertyId);
 
-        if (!Number.isInteger(bindingId) || bindingId <= 0)
-            return;
-
-        const binding = this.metadata.getBindingById(bindingId);
-        const definition = binding === undefined ? undefined : this.metadata.getPropertyDefinition(binding.propertyId);
-
-        if (binding === undefined || definition === undefined)
+        if (definition === undefined)
             return;
 
         // No item template means the binding is not item-scoped, so its value is the last one the server pushed.
@@ -292,12 +308,28 @@ export class ItemsTemplateRenderer {
         const value = shownValue(held, () => this.metadata.isTranslatable(binding) && !isContentItem(scope));
 
         const componentId = getIdValue(binding.componentId);
-        const componentRoot = element.closest<Element>(`[${ComponentIdAttribute}="${componentId}"]`);
+        const componentRoot = element.closest<Element>(this.componentSelector(componentId));
 
         if (componentRoot === null) {
             logWarn("item binding component root was not found in the cloned template.", { binding });
             return;
         }
+
+        // One address for every operation of the element: this runs for each bound element of each row drawn.
+        const resolved: ResolvedPropertyAddress = {
+            componentId,
+            propertyId: binding.propertyId,
+            propertyName: definition.propertyName,
+            dynamicParameters: [],
+            component: componentRoot,
+            definition,
+            address: {
+                component: { id: componentId, dynamicParameters: [] },
+                property: definition.propertyName
+            },
+            bindingId,
+            bindingSelector: null
+        };
 
         for (const operation of definition.operations) {
             const target = resolveOperationElements(componentRoot, operation, () => [element])[0] ?? null;
@@ -307,28 +339,19 @@ export class ItemsTemplateRenderer {
 
             const convertedValue = this.extensions.converters.convert(operation.converter, value);
 
-            this.operations.apply({
-                resolved: {
-                    componentId,
-                    propertyId: binding.propertyId,
-                    propertyName: definition.propertyName,
-                    dynamicParameters: [],
-                    component: componentRoot,
-                    definition,
-                    address: {
-                        component: { id: componentId, dynamicParameters: [] },
-                        property: definition.propertyName
-                    },
-                    bindingId,
-                    bindingSelector: null
-                },
-                operation,
-                target,
-                value,
-                convertedValue,
-                local: false
-            });
+            this.operations.apply({ resolved, operation, target, value, convertedValue, local: false });
         }
+    }
+
+    private componentSelector(componentId: number): string {
+        let selector = this.componentSelectors.get(componentId);
+
+        if (selector === undefined) {
+            selector = `[${ComponentIdAttribute}="${componentId}"]`;
+            this.componentSelectors.set(componentId, selector);
+        }
+
+        return selector;
     }
 }
 

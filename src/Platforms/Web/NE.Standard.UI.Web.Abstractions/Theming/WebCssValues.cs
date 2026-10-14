@@ -114,6 +114,13 @@ public static class WebCssValues
     public static string Thickness(UIThickness value)
         => string.Create(CultureInfo.InvariantCulture, $"{value.Top}px {value.Right}px {value.Bottom}px {value.Left}px");
 
+    /// <summary>
+    /// A padding: each side at least the overlay bar's room where its box keeps it, and across, at least a capped column's centring inset
+    /// (the stylesheet sets both, <c>core/scrollbar.less</c>; elsewhere both are 0 and the thickness stands as written).
+    /// </summary>
+    public static string Padding(UIThickness value)
+        => string.Create(CultureInfo.InvariantCulture, $"{value.Top}px max({value.Right}px, var(--ui-scroll-room-right), var(--ui-scroll-cap)) max({value.Bottom}px, var(--ui-scroll-room-x)) max({value.Left}px, var(--ui-scroll-room-left), var(--ui-scroll-cap))");
+
     public static string Radius(UICornerRadius radius)
     {
         radius.Validate();
@@ -352,6 +359,19 @@ public static class WebCssValues
         return value.Style is UIColorStyle style && OnStyleVar(style) is string varName
             ? $"var({varName})"
             : string.Empty;
+    }
+
+    /// <summary>
+    /// The ground a surface of this colour names for what is cut out of it or veiled over it (<c>--ui-ground</c>): the colour itself;
+    /// <c>inherit</c> for a colour of no opacity, which is no ground — the one around it shows through, and a surface style's class
+    /// would otherwise name the transparent fill.
+    /// </summary>
+    public static string ThemeGround(UIThemeColor value)
+    {
+        ColorVariant? light = value.Light ?? value.Dark;
+        ColorVariant? dark = value.Dark ?? value.Light;
+
+        return light is { Opacity: 0 } && dark is { Opacity: 0 } ? "inherit" : ThemeColor(value);
     }
 
     /// <summary>

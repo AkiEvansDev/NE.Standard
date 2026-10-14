@@ -24,6 +24,11 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 
     protected override string ClassName => "ui-number-input";
 
+    private static readonly WebDomOperation[] StepOperations = [WebDomOperation.Attribute(WebAttributes.NumberStep)];
+    private static readonly WebDomOperation[] MinOperations = [WebDomOperation.Attribute(WebAttributes.NumberMin)];
+    private static readonly WebDomOperation[] MaxOperations = [WebDomOperation.Attribute(WebAttributes.NumberMax)];
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
+
     public override string ComponentTypeKey => NumberInputComponent.ComponentTypeKey;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
@@ -90,20 +95,20 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 // Live like Min and Max: NumberInputEngine reads the attribute on every step press.
                 _ = RenderProperty<decimal?>(context, input, NumberInputComponent.StepProperty, static (target, value) =>
                     _ = target.Attribute(WebAttributes.NumberStep, (value ?? 1m).ToString(CultureInfo.InvariantCulture)),
-                [WebDomOperation.Attribute(WebAttributes.NumberStep)]);
+                StepOperations);
 
                 // Min/Max stay live-patchable: resolving them statically would let a bound one compile and do nothing.
                 _ = RenderProperty<decimal?>(context, input, NumberInputComponent.MinProperty, static (target, value) =>
                 {
                     if (value is decimal min)
                         _ = target.Attribute(WebAttributes.NumberMin, min.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Attribute(WebAttributes.NumberMin)]);
+                }, MinOperations);
 
                 _ = RenderProperty<decimal?>(context, input, NumberInputComponent.MaxProperty, static (target, value) =>
                 {
                     if (value is decimal max)
                         _ = target.Attribute(WebAttributes.NumberMax, max.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Attribute(WebAttributes.NumberMax)]);
+                }, MaxOperations);
 
                 NativeInputRendererBase.RenderPlaceholder(context, input);
                 NativeInputRendererBase.RenderFormId(context, input);
@@ -119,7 +124,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 {
                     if (value is decimal current)
                         _ = target.Attribute("value", trimZeros ? TrimTrailingZeros(current) : current.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Property("value")]);
+                }, ValueOperations);
             });
 
             _ = row.Element("span", suffix => RenderInputAffixText(context, suffix, suffix: true));

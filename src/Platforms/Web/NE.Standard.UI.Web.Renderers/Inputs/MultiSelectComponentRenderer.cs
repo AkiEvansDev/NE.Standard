@@ -7,6 +7,7 @@ using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -22,11 +23,19 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// The select's shell down to its <c>ui-select__*</c> names, so one client engine drives both; the field holds a chip per chosen
 /// option and the list says it takes several. The value is a JSON list of keys, read the way an items view's chosen keys are.
 /// </summary>
-public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
+public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 {
+    private const string ChipLabelClassName = "ui-multi-select__chip-label";
+
+    private static readonly WebDomOperation[] MaxSelectedOperations = [WebDomOperation.Attribute(WebAttributes.SelectMax, target: "root", converter: WebDomConverters.PositiveCount)];
+    private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root")];
+
     public override string ComponentTypeKey => MultiSelectComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-multi-select";
+
+    /// <summary>Whether each chip is its option's badge (<see cref="BadgeSelectComponentRenderer"/>) rather than its words on the selection's tint.</summary>
+    protected virtual bool ChipsAreBadges => false;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -34,6 +43,9 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         _ = root.Class(WebClassNames.Select);
+
+        if (ChipsAreBadges)
+            _ = root.Class(BadgeSelectComponentRenderer.BadgeSelectClassName);
 
         RenderTooltip(context, root);
         TextContentRendererBase.RenderInputAppearance(context, root);
@@ -57,7 +69,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        RenderTrigger(context, root, items, chosenKeys, freeText);
+        RenderTrigger(context, root, items, chosenKeys, freeText, ChipsAreBadges);
         RenderValueInput(context, root, valueKind, chosenKeys, valueBinding);
         SelectComponentRenderer.RenderPopup(context, root, items, isBound, new HashSet<string>(chosenKeys, StringComparer.Ordinal));
 
@@ -69,7 +81,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is int max && max > 0)
                 _ = target.Attribute(WebAttributes.SelectMax, max.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SelectMax, target: "root", converter: WebDomConverters.PositiveCount)]);
+        }, MaxSelectedOperations);
 
     /// <summary>
     /// The chosen keys live in one root-level attribute, as the select's one key does; a key given twice is taken once, since the
@@ -85,7 +97,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is { Count: > 0 })
                 _ = target.Attribute(WebAttributes.SelectedKeys, JsonSerializer.Serialize(Distinct(value)));
-        }, [WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root")]);
+        }, SelectedKeysOperations);
 
         return valueKind;
     }
@@ -112,7 +124,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
     /// The field's box: the chips, then — taking free text — the entry the reader types in, which is then the combobox in the box's
     /// place, so the same names, read-only mark and caption land on whichever control the reader reaches.
     /// </summary>
-    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, IReadOnlyList<string> chosenKeys, bool freeText)
+    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, IReadOnlyList<string> chosenKeys, bool freeText, bool badges)
     {
         _ = root.Element("div", trigger =>
         {
@@ -141,15 +153,15 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
                 for (var i = 0; i < chosenKeys.Count; i++)
                 {
-                    if (FindOptionTitle(items, chosenKeys[i], out var content) is UIPhrase title)
+                    if (FindOptionTitle(items, chosenKeys[i], badges, out var content, out IBadgeModel? badge) is UIPhrase title)
                     {
-                        RenderChip(context, chips, chosenKeys[i], title, content);
+                        RenderChip(context, chips, chosenKeys[i], title, content, badges ? badge ?? new BadgeItem() : null);
                         drawn++;
                     }
                     else if (freeText)
                     {
-                        // A value the reader typed has no option: its key is its words, as written.
-                        RenderChip(context, chips, chosenKeys[i], UIPhrase.Text(chosenKeys[i]), content: true);
+                        // A value the reader typed has no option: its key is its words, as written, on a badge of no look of its own.
+                        RenderChip(context, chips, chosenKeys[i], UIPhrase.Text(chosenKeys[i]), content: true, badges ? new BadgeItem() : null);
                         drawn++;
                     }
                 }
@@ -182,6 +194,7 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         RenderPopupTrigger(control, "listbox");
         NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, control);
         TextContentRendererBase.RenderFieldLabel(context, control);
+        SelectComponentRenderer.RenderClearKey(context, control);
     }
 
     /// <summary>
@@ -203,17 +216,22 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
-    /// What a chip shows for the option a key names: its title, else the key itself; null where no option has the key. Content where
-    /// the option says its words are (<see cref="IContentItem"/>), and where there are no words to look up.
+    /// What a chip shows for the option a key names: its title — a badge's words first, where the chips are badges — else the key
+    /// itself; null where no option has the key. Content where the option says its words are (<see cref="IContentItem"/>), and where
+    /// there are no words to look up.
     /// </summary>
-    private static UIPhrase? FindOptionTitle(IReadOnlyList<object?> items, string key, out bool content)
+    private static UIPhrase? FindOptionTitle(IReadOnlyList<object?> items, string key, bool badges, out bool content, out IBadgeModel? badge)
     {
         for (var i = 0; i < items.Count; i++)
         {
             if (items[i] is IBindableItem item && string.Equals(item.Id, key, StringComparison.Ordinal))
             {
+                badge = items[i] as IBadgeModel;
+
                 // A blank title from data falls to the key, and a blank key stands as it is: data must not fail the page.
-                UIPhrase title = items[i] is ITextBaseModel { Title: { } words } && (!words.IsText || !string.IsNullOrWhiteSpace(words.Key)) ? words : UIPhrase.Text(key);
+                UIPhrase title = badges && badge?.BadgeText is UIPhrase badgeWords && Says(badgeWords) ? badgeWords
+                    : items[i] is ITextBaseModel { Title: { } words } && Says(words) ? words
+                    : UIPhrase.Text(key);
 
                 content = items[i] is IContentItem { IsContent: true } || (title.IsText && string.IsNullOrWhiteSpace(title.Key));
                 return title;
@@ -221,32 +239,42 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         }
 
         content = false;
+        badge = null;
         return null;
     }
+
+    private static bool Says(UIPhrase words)
+        => !words.IsText || !string.IsNullOrWhiteSpace(words.Key);
 
     /// <summary>
     /// One chosen option in the field: its words, translated as its row's are, and the button that takes it out, named for the
     /// option it removes; both marked, so a language switch writes them again. A content option's words stand as written, a phrase is
     /// always its words.
     /// </summary>
-    private static void RenderChip(WebRenderContext context, IHtmlElementBuilder chips, string key, UIPhrase title, bool content)
+    private static void RenderChip(WebRenderContext context, IHtmlElementBuilder chips, string key, UIPhrase title, bool content, IBadgeModel? badge)
     {
         _ = chips.Element("span", chip =>
         {
             _ = chip.Class("ui-multi-select__chip");
             _ = chip.Attribute(WebAttributes.SelectChip, key);
 
-            _ = chip.Element("span", text =>
+            // A badge chip is the option's badge itself, its words the badge's text and its remove inside it.
+            if (badge is not null)
             {
-                _ = text.Class("ui-multi-select__chip-label");
-
-                if (!title.IsText)
-                    WebWords.Write(context, text, null, title.Key, title.Arguments);
-                else if (content)
-                    _ = text.Text(title.Key);
-                else
-                    WebWords.WriteText(context, text, null, title.Key);
-            });
+                BadgeRenderer.RenderBadge(chip, badge, Words(context, title, content), text =>
+                {
+                    _ = text.Class(ChipLabelClassName);
+                    WriteWords(context, text, title, content);
+                });
+            }
+            else
+            {
+                _ = chip.Element("span", text =>
+                {
+                    _ = text.Class(ChipLabelClassName);
+                    WriteWords(context, text, title, content);
+                });
+            }
 
             _ = chip.Element("button", remove =>
             {
@@ -258,6 +286,22 @@ public sealed class MultiSelectComponentRenderer : ItemsCollectionRendererBase
             });
         });
     }
+
+    private static void WriteWords(WebRenderContext context, IHtmlElementBuilder text, UIPhrase title, bool content)
+    {
+        if (!title.IsText)
+            WebWords.Write(context, text, null, title.Key, title.Arguments);
+        else if (content)
+            _ = text.Text(title.Key);
+        else
+            WebWords.WriteText(context, text, null, title.Key);
+    }
+
+    /// <summary>The words <see cref="WriteWords"/> writes, in the page's language: what a badge's fit is measured by.</summary>
+    private static string Words(WebRenderContext context, UIPhrase title, bool content)
+        => !title.IsText ? context.Translate(title.Key, title.Arguments)
+            : content ? title.Key
+            : context.Translator.Translate(context.ViewResolution.Session.Language, title.Key) ?? title.Key;
 
     /// <summary>The option's words as the removal's argument: an author's text of a content option as written (a literal), else the phrase.</summary>
     private static object? LabelArgument(UIPhrase title, bool content)

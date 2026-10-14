@@ -1,6 +1,7 @@
 // The overlay scrollbar's geometry: a scroller under a transform (a canvas's zoom) gets its thumb on its scaled box; a fixed popup's
 // list is clipped by none of the boxes around it in the document; a right-to-left scroller's horizontal thumb starts at its right end
-// and drags back towards it; a scroller that draws no bar on purpose gets no thumb.
+// and drags back towards it; a scroller that draws no bar on purpose gets no thumb; the pointer brings a bar in only near its edge; a
+// scroller hanging the bar's room past its box stands its thumb there, seen through the clip margins of the boxes around it.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -19,7 +20,7 @@ installFakeDom({
 
 fakeDocument.documentElement.rect = { left: 0, top: 0, width: 1000, height: 800 };
 
-const { canScroll, clientBox, dragScroll, thumbBox, visibleBox } = await import("../src/interactions/overlay-scrollbar-engine.ts");
+const { barBox, canScroll, clientBox, dragScroll, nearsBar, thumbBox, visibleBox } = await import("../src/interactions/overlay-scrollbar-engine.ts");
 
 /** A scroller laid out `width` by `height`, holding `scrollWidth` by `scrollHeight`, drawn on the viewport at `rect`. */
 function scroller(rect: { left: number; top: number; width: number; height: number }, laidOut: { width: number; height: number }, held: { width: number; height: number }, style: Readonly<Record<string, string>> = {}): FakeElement {
@@ -28,7 +29,7 @@ function scroller(rect: { left: number; top: number; width: number; height: numb
     element.rect = rect;
     Object.defineProperty(element, "offsetWidth", { value: laidOut.width });
     Object.defineProperty(element, "offsetHeight", { value: laidOut.height });
-    Object.defineProperty(element, "clientWidth", { value: laidOut.width });
+    Object.defineProperty(element, "clientWidth", { value: laidOut.width, configurable: true });
     Object.defineProperty(element, "clientHeight", { value: laidOut.height });
     Object.assign(element, { scrollWidth: held.width, scrollHeight: held.height });
     styles.set(element, { overflowX: "auto", overflowY: "auto", ...style });
@@ -68,6 +69,32 @@ test("a fixed popup's list is clipped by the viewport alone, not by the boxes ar
     assert.equal(visibleBox(real(list))?.height, 20);
 });
 
+test("a list hanging the bar's room past its box stands its thumb there, seen as far as the boxes around it clip with a margin", () => {
+    const column = FakeElement.of("column");
+    const list = scroller({ left: 0, top: 0, width: 292, height: 400 }, { width: 292, height: 400 }, { width: 280, height: 1200 }, { "--ui-scroll-hung": "12px" });
+
+    // Its end border is the hung room: the scrollport is 280 wide in a box of 292.
+    Object.defineProperty(list, "clientWidth", { value: 280 });
+
+    column.rect = { left: 0, top: 0, width: 280, height: 400 };
+    styles.set(column, { overflowX: "clip", overflowY: "clip", overflowClipMargin: "12px" });
+    column.append(list);
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(column);
+
+    // The rows end at 280, where the column's other children do; the thumb stands in the 12 past it.
+    assert.equal(barBox(real(list)).right, 292);
+    assert.equal(thumbBox(real(list), "y", barBox(real(list)), false).left, 280);
+    assert.equal(visibleBox(real(list))?.right, 292);
+
+    // A box clipping with `hidden` takes no margin, and cuts the hung room off; one clipping only down lets it through across.
+    styles.set(column, { overflowX: "hidden", overflowY: "hidden", overflowClipMargin: "12px" });
+    assert.equal(visibleBox(real(list))?.right, 280);
+
+    styles.set(column, { overflowX: "visible", overflowY: "clip", overflowClipMargin: "0px" });
+    assert.equal(visibleBox(real(list))?.right, 292);
+});
+
 test("a right-to-left scroller's horizontal thumb starts at its right end, and a drag to the right goes back towards it", () => {
     const strip = scroller({ left: 0, top: 0, width: 400, height: 100 }, { width: 400, height: 100 }, { width: 1600, height: 100 }, { direction: "rtl" });
     const client = clientBox(real(strip));
@@ -93,4 +120,22 @@ test("a scroller that draws no bar on purpose gets no thumb; one that only holds
     assert.equal(canScroll(real(list), "y"), true);
     assert.equal(canScroll(real(list), "x"), false);
     assert.equal(canScroll(real(clipped), "y"), false);
+});
+
+test("a pointer brings the bar in near the edge it stands at, not over the words in the middle of the scroller", () => {
+    const view = { left: 100, top: 50, right: 500, bottom: 450, width: 400, height: 400 };
+
+    // Over the strip, and a little short of it.
+    assert.equal(nearsBar({ x: 495, y: 200 }, view, "y", false), true);
+    assert.equal(nearsBar({ x: 475, y: 200 }, view, "y", false), true);
+    // Over the words, past the scroller, or beyond its ends.
+    assert.equal(nearsBar({ x: 300, y: 200 }, view, "y", false), false);
+    assert.equal(nearsBar({ x: 505, y: 200 }, view, "y", false), false);
+    assert.equal(nearsBar({ x: 495, y: 460 }, view, "y", false), false);
+    // A right-to-left scroller's bar stands at its left edge.
+    assert.equal(nearsBar({ x: 105, y: 200 }, view, "y", true), true);
+    assert.equal(nearsBar({ x: 495, y: 200 }, view, "y", true), false);
+    // The bar across stands at the bottom.
+    assert.equal(nearsBar({ x: 300, y: 440 }, view, "x", false), true);
+    assert.equal(nearsBar({ x: 300, y: 300 }, view, "x", false), false);
 });

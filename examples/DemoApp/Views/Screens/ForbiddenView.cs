@@ -13,17 +13,15 @@ internal sealed class ForbiddenView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.forbidden.description";
 
     protected override IVisualComponent CreateScreen()
-        => new ContainerComponent()
-            .SetPadding(UIThickness.All(0, 24, 0, 0))
-            .AddChild(UIPage.Card("Not for this account", null, UILayout.Stack(16,
-                    UIText.Note(string.Empty).BindDescription(nameof(ForbiddenController.DeniedLine)),
-                    UIButtons.Pair(
-                        UIButtons.Ghost("Back to the account").OnClick(nameof(ForbiddenController.BackToAccount)),
-                        UIButtons.Primary("Sign in as someone else").OnClick(nameof(ForbiddenController.SwitchAccountAsync))
-                    )
-                ), DemoIcons.Outline(DemoIcons.Lock))
-                .SetWidth(UILayoutLength.Absolute(460))
-                .SetHorizontalAlignment(UIAlignment.Center)
-            )
-            .SetPlacement(1, 1, 24, 1);
+        => UICard.Centered(CreateOutcome()).SetPlacement(1, 1, 24, 1);
+
+    private static SurfaceComponent CreateOutcome()
+        => UIPage.Outcome(
+            DemoIcons.Outline(DemoIcons.Lock),
+            UIMessageSeverity.Warning,
+            "Not for this account",
+            new ParagraphComponent().BindDescription(nameof(ForbiddenController.DeniedLine)),
+            UIButtons.Ghost("Back to the account").OnClick(nameof(ForbiddenController.BackToAccount)),
+            UIButtons.Primary("Sign in as someone else").OnClick(nameof(ForbiddenController.SwitchAccountAsync))
+        );
 }

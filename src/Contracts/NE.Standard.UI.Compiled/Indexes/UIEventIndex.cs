@@ -23,11 +23,12 @@ public sealed class UIEventIndex
     /// <summary>
     /// Initializes the event index and validates event uniqueness and argument references.
     /// </summary>
-    public UIEventIndex(CompiledUIEvent[] events, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
+    public UIEventIndex(CompiledUIEvent[] events, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates, UIComponentGraph graph)
     {
         ArgumentNullException.ThrowIfNull(events);
         ArgumentNullException.ThrowIfNull(sources);
         ArgumentNullException.ThrowIfNull(templates);
+        ArgumentNullException.ThrowIfNull(graph);
 
         _all = [.. events];
 
@@ -39,7 +40,7 @@ public sealed class UIEventIndex
         {
             CompiledUIEvent compiledEvent = events[i];
 
-            ValidateEvent(compiledEvent, sources, templates);
+            ValidateEvent(compiledEvent, sources, templates, graph);
 
             if (!byId.TryAdd(compiledEvent.Id, compiledEvent))
                 throw new InvalidOperationException($"Event '{compiledEvent.Id}' is already registered.");
@@ -103,7 +104,7 @@ public sealed class UIEventIndex
             ? compiledEvent
             : throw new InvalidOperationException($"Event '{address}' was not found.");
 
-    private static void ValidateEvent(CompiledUIEvent compiledEvent, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
+    private static void ValidateEvent(CompiledUIEvent compiledEvent, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates, UIComponentGraph graph)
     {
         ArgumentNullException.ThrowIfNull(compiledEvent);
 
@@ -124,14 +125,14 @@ public sealed class UIEventIndex
         {
             CompiledUIActionArgument argument = compiledEvent.Arguments[i];
 
-            ValidateArgument(compiledEvent, argument, sources, templates);
+            ValidateArgument(compiledEvent, argument, sources, templates, graph);
 
             if (!argumentNames.Add(argument.Name))
                 throw new InvalidOperationException($"Event '{compiledEvent.Id}' has duplicate argument '{argument.Name}'.");
         }
     }
 
-    private static void ValidateArgument(CompiledUIEvent compiledEvent, CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
+    private static void ValidateArgument(CompiledUIEvent compiledEvent, CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates, UIComponentGraph graph)
     {
         ArgumentNullException.ThrowIfNull(argument);
         ArgumentException.ThrowIfNullOrWhiteSpace(argument.Name);
@@ -171,7 +172,7 @@ public sealed class UIEventIndex
             case CompiledUIActionArgumentKind.CurrentItemKey:
             case CompiledUIActionArgumentKind.GroupKey:
             case CompiledUIActionArgumentKind.Binding:
-                ValidateBindingLikeArgument(compiledEvent, argument, sources, templates);
+                ValidateBindingLikeArgument(compiledEvent, argument, sources, templates, graph);
                 break;
 
             default:
@@ -179,7 +180,7 @@ public sealed class UIEventIndex
         }
     }
 
-    private static void ValidateBindingLikeArgument(CompiledUIEvent compiledEvent, CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
+    private static void ValidateBindingLikeArgument(CompiledUIEvent compiledEvent, CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates, UIComponentGraph graph)
     {
         if (argument.Value is not null)
             throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must not specify literal value.");
@@ -191,5 +192,36 @@ public sealed class UIEventIndex
             throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' must specify template id.");
 
         UICompiledBindingIndex.ValidateReference($"Event '{compiledEvent.Id}' argument '{argument.Name}'", argument.SourceId.Value, argument.TemplateId.Value, argument.Parameters, argument.DynamicParameterComponentIds, sources, templates);
+
+        ValidateArgumentScopes(compiledEvent, argument, graph);
+    }
+
+    /// <summary>
+    /// An argument reads only the rows the component raising it stands in: a click carries that component's row address, so a scope off
+    /// its stack has no key in it, and the chain's first keys would name another row's value.
+    /// </summary>
+    private static void ValidateArgumentScopes(CompiledUIEvent compiledEvent, CompiledUIActionArgument argument, UIComponentGraph graph)
+    {
+        IReadOnlyList<UIComponentId> scopes = graph.GetItemScopes(compiledEvent.Address.ComponentId);
+
+        foreach (CompiledUIBindingParameter parameter in argument.Parameters)
+        {
+            if (parameter.Kind is not (CompiledUIBindingParameterKind.Dynamic or CompiledUIBindingParameterKind.Scope))
+                continue;
+
+            if (parameter.ComponentId is not UIComponentId scope || !Contains(scopes, scope))
+                throw new InvalidOperationException($"Event '{compiledEvent.Id}' argument '{argument.Name}' reads item scope '{parameter.ComponentId}', which component '{compiledEvent.Address.ComponentId}' does not stand in.");
+        }
+    }
+
+    private static bool Contains(IReadOnlyList<UIComponentId> scopes, UIComponentId scope)
+    {
+        for (var i = 0; i < scopes.Count; i++)
+        {
+            if (scopes[i] == scope)
+                return true;
+        }
+
+        return false;
     }
 }

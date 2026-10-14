@@ -287,6 +287,9 @@ test("the Navigation API's word wins over what the page wrote and where it came 
 
 test("two queries name different runtimes only where an identity parameter differs, its values in order", () => {
     assert.equal(differsInIdentity("?with=ann&reply=m1", "?with=ann", ["with"]), false);
+    // One value holding a comma is not the two values it would join into; one holding `&` or `=` is its own.
+    assert.equal(differsInIdentity("?tag=a%2Cb", "?tag=a&tag=b", ["tag"]), true);
+    assert.equal(differsInIdentity("?with=ann%26tag%3Db", "?with=ann&tag=b", ["with", "tag"]), true);
     assert.equal(differsInIdentity("?with=ann", "?with=bob", ["with"]), true);
     assert.equal(differsInIdentity("?tag=a&tag=b", "?tag=b&tag=a", ["tag"]), true);
     assert.equal(differsInIdentity("", "?with=", ["with"]), false);

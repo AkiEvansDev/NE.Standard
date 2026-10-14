@@ -200,7 +200,8 @@ function readEntry(state: unknown): number | null {
 
 /**
  * Whether two queries name different runtimes of a route keyed by `identity`: a parameter of it with other values, in order, as the
- * server keys them — a value given more than once is the list of them, one not given is none.
+ * server keys them (`UIHost.CreateRouteIdentity`) — a value given more than once is the list of them, one not given or empty is none,
+ * and each value escaped, so a comma in one is not two values.
  */
 export function differsInIdentity(search: string, other: string, identity: readonly string[]): boolean {
     if (identity.length === 0)
@@ -209,7 +210,11 @@ export function differsInIdentity(search: string, other: string, identity: reado
     const parameters = new URLSearchParams(search);
     const others = new URLSearchParams(other);
 
-    return identity.some(name => parameters.getAll(name).join(",") !== others.getAll(name).join(","));
+    return identity.some(name => identityValue(parameters, name) !== identityValue(others, name));
+}
+
+function identityValue(parameters: URLSearchParams, name: string): string {
+    return parameters.getAll(name).map(encodeURIComponent).join(",");
 }
 
 /** A query as the route's parameters: a key given more than once is an array of its values, in order; no key is none. */

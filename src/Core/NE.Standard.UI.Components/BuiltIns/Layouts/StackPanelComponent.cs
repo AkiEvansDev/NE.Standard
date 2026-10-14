@@ -2,7 +2,6 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
@@ -10,23 +9,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// A layout container that stacks its children along a single axis with configurable spacing and wrapping.
 /// </summary>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
-public abstract partial class StackPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent
+[UIComponentPropertyBlock(typeof(IOrientationComponent))]
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
+[UIComponentPropertyDefault(nameof(ISpacingComponent.Spacing), nameof(DefaultSpacing))]
+public abstract partial class StackPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, IOrientationComponent, ISpacingComponent
     where T : StackPanelComponent<T>, IUIComponentDefinition
 {
     // A field, not an attribute literal: an attribute argument cannot be a UIResponsive<double>.
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
-
-    /// <summary>
-    /// Gets or sets the orientation the children are stacked along.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Vertical)]
-    public UIOrientation? Orientation { get; set; }
-
-    /// <summary>
-    /// Gets or sets the spacing between children, optionally overridden per breakpoint.
-    /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
-    public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
     /// Gets or sets whether children wrap onto additional lines when they exceed the available space.

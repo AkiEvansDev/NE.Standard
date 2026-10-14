@@ -1,3 +1,5 @@
+import { isPressWaveRecord } from "./press-wave.ts";
+
 /** What an engine watches the document with when its answer to a mutation is to re-read whole components. */
 export type SubtreeObserverInit = {
     readonly childList?: boolean;
@@ -15,7 +17,9 @@ export function observeComponents(root: ParentNode, selector: string, init: Subt
         return null;
 
     const observer = new MutationObserver(mutations => {
-        const components = collectComponents(root, init.relevant === undefined ? mutations : mutations.filter(init.relevant), selector);
+        // A press's wave put in or taken out changes nothing a component is read for.
+        const records = mutations.filter(mutation => !isPressWaveRecord(mutation) && (init.relevant?.(mutation) ?? true));
+        const components = collectComponents(root, records, selector);
 
         if (components !== null)
             handler(components);
@@ -32,15 +36,19 @@ export function observeComponents(root: ParentNode, selector: string, init: Subt
     return observer;
 }
 
-function collectComponents(root: ParentNode, mutations: readonly MutationRecord[], selector: string): Set<HTMLElement> | null {
+export function collectComponents(root: ParentNode, mutations: readonly MutationRecord[], selector: string): Set<HTMLElement> | null {
     const components = new Set<HTMLElement>();
+    // A list's rows put in one by one are a record each on the same host: it is looked into once, not once a row.
+    const searched = new Set<Element>();
 
     for (const mutation of mutations) {
         // A characterData record names the text node itself, which has no `closest` of its own.
         const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
 
-        if (target === null)
+        if (target === null || searched.has(target))
             continue;
+
+        searched.add(target);
 
         // The component the change happened inside first; only a change above one has to be looked into.
         const owner = target.closest<HTMLElement>(selector);

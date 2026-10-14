@@ -14,6 +14,20 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string ValueShownAttribute = "data-ui-progress-value";
 
+    // Every bar registers these same lists, so they are built once rather than per instance.
+    private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.ProgressVariantClass)];
+    private static readonly WebDomOperation[] MinOperations = [WebDomOperation.Style("--ui-progress-min"), WebDomOperation.Attribute("aria-valuemin", target: "root")];
+    private static readonly WebDomOperation[] MaxOperations = [WebDomOperation.Style("--ui-progress-max"), WebDomOperation.Attribute("aria-valuemax", target: "root")];
+    private static readonly WebDomOperation[] LabelOperations = [WebDomOperation.Text(), WebDomOperation.Attribute("aria-label", target: "root")];
+    private static readonly WebDomOperation[] UnitOperations = [WebDomOperation.Text()];
+
+    private static readonly WebDomOperation[] ValueOperations =
+    [
+        WebDomOperation.Style("--ui-progress-value"),
+        WebDomOperation.Text(target: ".ui-progress__number", converter: WebDomConverters.ProgressValueText),
+        WebDomOperation.Attribute("aria-valuenow", target: "root")
+    ];
+
     public override string ComponentTypeKey => ProgressComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-progress";
@@ -30,7 +44,7 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
         {
             if (value is UIProgressVariant variant)
                 _ = target.Class(WebClassNames.ProgressVariant(variant));
-        }, [WebDomOperation.Class(converter: WebDomConverters.ProgressVariantClass)]);
+        }, VariantOperations);
 
         ThemeColorRenderer.RenderThemeColor(context, root, ProgressComponent.ColorProperty);
 
@@ -39,14 +53,14 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
             var min = FormatNumber(value ?? 0m);
 
             _ = target.Style("--ui-progress-min", min).Attribute("aria-valuemin", min);
-        }, [WebDomOperation.Style("--ui-progress-min"), WebDomOperation.Attribute("aria-valuemin", target: "root")]);
+        }, MinOperations);
 
         _ = RenderProperty<decimal?>(context, root, ProgressComponent.MaxProperty, static (target, value) =>
         {
             var max = FormatNumber(value ?? 100m);
 
             _ = target.Style("--ui-progress-max", max).Attribute("aria-valuemax", max);
-        }, [WebDomOperation.Style("--ui-progress-max"), WebDomOperation.Attribute("aria-valuemax", target: "root")]);
+        }, MaxOperations);
 
         RenderFlagAttribute(context, root, ProgressComponent.ShowValueProperty, ValueShownAttribute);
 
@@ -62,7 +76,7 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
                 _ = target.Text(value);
                 _ = root.Attribute("aria-label", value);
-            }, [WebDomOperation.Text(), WebDomOperation.Attribute("aria-label", target: "root")]);
+            }, LabelOperations);
         });
 
         _ = root.Element("span", track =>
@@ -113,7 +127,7 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
                     {
                         if (!string.IsNullOrWhiteSpace(value))
                             _ = target.Text(value);
-                    }, [WebDomOperation.Text()]);
+                    }, UnitOperations);
                 });
             });
         });
@@ -125,12 +139,7 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
             if (value is decimal reading)
                 _ = target.Attribute("aria-valuenow", FormatNumber(reading));
-        },
-        [
-            WebDomOperation.Style("--ui-progress-value"),
-            WebDomOperation.Text(target: ".ui-progress__number", converter: WebDomConverters.ProgressValueText),
-            WebDomOperation.Attribute("aria-valuenow", target: "root")
-        ]);
+        }, ValueOperations);
     }
 
     // Radius plus half the stroke must equal the box half (16 + 2 of 18), or the ring's outer edge overhangs.

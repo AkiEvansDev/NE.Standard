@@ -7,8 +7,8 @@ import { clientStrings } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import type { AuthorText, Phrase } from "../runtime/words.ts";
-import { LiveAnnouncer } from "./live-announcer.ts";
-import type { Politeness } from "./live-announcer.ts";
+import { putUpAnnouncer } from "./live-announcer.ts";
+import type { LiveAnnouncer, Politeness } from "./live-announcer.ts";
 import { bottomBarTop } from "./anchored-popup.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { liveFocusReturn, restoreFocusTo } from "./popup-focus.ts";
@@ -84,7 +84,7 @@ export class NotificationEngine {
 
         // Up before the first toast: the host is the live region, and one inserted along with its words is not reliably read.
         this.ensureHost();
-        this.announcer = new LiveAnnouncer(this.root instanceof Document ? this.root.body : this.root);
+        this.announcer = putUpAnnouncer(this.root instanceof Document ? this.root.body : this.root);
     }
 
     /** Speaks words to a screen reader and shows nothing (AnnounceEffect), through the hidden live regions beside the host. */

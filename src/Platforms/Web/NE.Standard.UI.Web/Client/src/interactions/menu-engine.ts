@@ -7,6 +7,7 @@ import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingT
 import type { TooltipWordsProvider } from "./tooltip-engine.ts";
 import { isComposing, isPlainKey, SpaceRelease } from "./keyboard-shortcut.ts";
 import { isBottomBar, isFlyoutGroup, menuWalk, submenuGroupOf, towardContent, walkRootOf } from "./menu-group-engine.ts";
+import { isPressWaveRecord } from "./press-wave.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 import { typeAheadCharacter } from "./type-ahead.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
@@ -30,6 +31,8 @@ export type MenuEngineOptions = {
 export class MenuEngine {
     private readonly root: ParentNode;
     private tabStopsScheduled = false;
+    // The menus a change touched since the last rebuild: only their walks are rebuilt.
+    private readonly touched = new Set<HTMLElement>();
 
     // The entry a Space went down on: it presses on the key's release, as a button does.
     private readonly space = new SpaceRelease();
@@ -46,12 +49,17 @@ export class MenuEngine {
         // The page's tooltip engine opens and closes an entry's hidden or cut title as any tooltip; this engine only says what it is.
         registerTooltipWords(EntryTitleWords);
 
-        this.applyTabStops();
+        this.applyTabStops(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         if (this.root instanceof Node) {
-            // Not observeComponents: tab stops rebuild only for a change that touched a menu, not every row a table draws.
+            // Not observeComponents: tab stops rebuild only for the menus a change touched, not every row a table draws.
             const observer = new MutationObserver(mutations => {
-                if (mutations.some(touchesMenu))
+                for (const mutation of mutations) {
+                    if (!isPressWaveRecord(mutation))
+                        collectTouchedMenus(mutation, this.touched);
+                }
+
+                if (this.touched.size > 0)
                     this.scheduleTabStops();
             });
 
@@ -69,16 +77,24 @@ export class MenuEngine {
         // A timer, not requestAnimationFrame: a background tab gets no frames.
         setTimeout(() => {
             this.tabStopsScheduled = false;
-            this.applyTabStops();
+
+            const menus = [...this.touched];
+
+            this.touched.clear();
+            this.applyTabStops(menus);
         }, 0);
     }
 
-    /** Gives every menu exactly one tab stop, so it can be entered from the keyboard; a group's inline block is its menu's. */
-    private applyTabStops(): void {
-        for (const menu of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)) {
-            if (walkRootOf(menu) !== menu)
-                continue;
+    /** Gives each menu's walk exactly one tab stop, so it can be entered from the keyboard; a group's inline block is its menu's. */
+    private applyTabStops(menus: Iterable<HTMLElement>): void {
+        const walks = new Set<HTMLElement>();
 
+        for (const menu of menus) {
+            if (menu.isConnected)
+                walks.add(walkRootOf(menu));
+        }
+
+        for (const menu of walks) {
             const items = menuWalk(menu);
 
             if (items.length === 0)
@@ -315,17 +331,22 @@ const EntryTitleWords: TooltipWordsProvider = {
     }
 };
 
-/** Whether a mutation happened in a menu or brought one: only then are the tab stops worth laying out again. */
-function touchesMenu(mutation: MutationRecord): boolean {
+/** The menus a mutation touched — the one it happened in, and any it brought — whose tab stops are worth laying out again. */
+function collectTouchedMenus(mutation: MutationRecord, into: Set<HTMLElement>): void {
     const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+    const menu = target?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
-    if (target !== null && target.closest(`.${RootClass}`) !== null)
-        return true;
+    if (menu !== null)
+        into.add(menu);
 
     for (const node of mutation.addedNodes) {
-        if (node instanceof Element && (node.classList.contains(RootClass) || node.querySelector(`.${RootClass}`) !== null))
-            return true;
-    }
+        if (!(node instanceof HTMLElement))
+            continue;
 
-    return false;
+        if (node.classList.contains(RootClass))
+            into.add(node);
+
+        for (const nested of node.querySelectorAll<HTMLElement>(`.${RootClass}`))
+            into.add(nested);
+    }
 }

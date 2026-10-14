@@ -84,7 +84,7 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateWeekdaysGroup(), CreateStaffGroup(), CreateLabelsGroup()], [CreateRegionsGroup(), CreateSizesGroup()]);
+        => DemoUI.CreateColumns([CreateWeekdaysGroup(), CreateStaffGroup(), CreateLabelsGroup()], [CreateRegionsGroup(), CreateBadgeLabelsGroup(), CreateSizesGroup()]);
 
     /// <summary>The ordinary case: a set out of a short list, kept in the order it was chosen.</summary>
     private static ContainerComponent CreateWeekdaysGroup()
@@ -168,6 +168,31 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
         );
     }
 
+    /// <summary>
+    /// A badge select: the options are badges, each with its own look, and the chosen ones stand in the field as those badges, their
+    /// remove inside them — the input for a row a reader sees as a title over its badges (UIText.WithBadges).
+    /// </summary>
+    private static ContainerComponent CreateBadgeLabelsGroup()
+    {
+        return DemoUI.CreateExample("Labels, as badges",
+            UILayout.Stack(12)
+                .AddChild(new BadgeSelectComponent()
+                    .SetTitle("Labels on the ticket")
+                    .SetPlaceholder("Pick labels")
+                    .SetOptions(BadgeLabels())
+                    .SetValue(["bug", "needs-repro"])
+                    .SetShowClearButton()
+                )
+                .AddChild(UIText.Note("BadgeSelectComponent takes options as badges: BadgeText is the words, BadgeStyle, BadgeColor, BadgeFill and BadgeIcon the look, a Description what the label means."))
+                .AddChild(new BadgeSelectComponent()
+                    .SetTitle("Read-only")
+                    .SetIsReadOnly(true)
+                    .SetOptions(BadgeLabels())
+                    .SetValue(["feature", "docs", "good-first-issue"])
+                )
+        );
+    }
+
     /// <summary>The field's three sizes, a caption inside the box, and a field that shows its chips but takes nothing.</summary>
     private static ContainerComponent CreateSizesGroup()
     {
@@ -225,6 +250,16 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
             new() { Id = "needs-repro", Title = "needs-repro" },
             new() { Id = "security", Title = "security" },
             new() { Id = "docs", Title = "docs" }
+        ];
+
+    private static OptionItem[] BadgeLabels()
+        => [
+            new() { Id = "bug", BadgeText = "bug", BadgeStyle = UIBadgeType.Danger, BadgeFill = UIBadgeFill.Tinted, Description = "Something is not working" },
+            new() { Id = "feature", BadgeText = "feature", BadgeStyle = UIBadgeType.Accent, BadgeFill = UIBadgeFill.Tinted, Description = "A new ability asked for" },
+            new() { Id = "needs-repro", BadgeText = "needs repro", BadgeStyle = UIBadgeType.Warning, BadgeFill = UIBadgeFill.Tinted, Description = "Steps wanted before work starts" },
+            new() { Id = "docs", BadgeText = "docs", BadgeStyle = UIBadgeType.Info, BadgeFill = UIBadgeFill.Tinted, BadgeIcon = DemoIcons.Outline(DemoIcons.File), Description = "The guides, not the code" },
+            new() { Id = "good-first-issue", BadgeText = "good first issue", BadgeStyle = UIBadgeType.Success, BadgeFill = UIBadgeFill.Tinted, Description = "Small and well understood" },
+            new() { Id = "wontfix", BadgeText = "wontfix", BadgeStyle = UIBadgeType.Surface, Description = "Kept as it is" }
         ];
 
     private static OptionItem[] Staff()

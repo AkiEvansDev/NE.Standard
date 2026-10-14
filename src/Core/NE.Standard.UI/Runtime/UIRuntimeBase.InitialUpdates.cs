@@ -145,6 +145,7 @@ internal abstract partial class UIRuntimeBase
             ClearPendingUpdatesNoLock();
 
             _pendingUpdates.AddRange(pendingUpdates);
+            NoteQueuedValueAddressesNoLock(pendingUpdates);
             _pendingFullResync = pendingFullResync;
             _dirtyItemWindows = dirtyItemWindows;
         }

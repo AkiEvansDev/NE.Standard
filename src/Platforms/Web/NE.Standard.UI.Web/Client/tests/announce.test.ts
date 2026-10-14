@@ -3,26 +3,19 @@
 // the page's language, and gone again after a while; no toast is shown.
 
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
-// The removals the announcer asks for, run by the test when it says their time has come.
-const timers: (() => void)[] = [];
+// The removals the announcer asks for wait on the test's clock, which says when their time has come.
+mock.timers.enable({ apis: ["setTimeout"] });
 
-installFakeDom({
-    window: {
-        addEventListener: () => undefined,
-        setTimeout: (run: () => void) => timers.push(run),
-        clearTimeout: () => undefined
-    }
-});
+installFakeDom({ window: { addEventListener: () => undefined } });
 
 const { NotificationEngine } = await import("../src/interactions/notification-engine.ts");
 const { clientStrings } = await import("../src/runtime/client-strings.ts");
 
 function engine(): InstanceType<typeof NotificationEngine> {
     fakeDocument.body.children.length = 0;
-    timers.length = 0;
 
     return new NotificationEngine({ root: real<ParentNode>(fakeDocument.body) });
 }
@@ -71,8 +64,7 @@ test("the same words twice running are two lines, so a reader says them twice", 
 test("a line is taken away after its hold, leaving the region standing", () => {
     engine().announce({ text: "Saved." });
 
-    for (const run of timers)
-        run();
+    mock.timers.tick(7000);
 
     assert.equal(region("polite").children.length, 0);
     assert.ok(region("polite").isConnected);

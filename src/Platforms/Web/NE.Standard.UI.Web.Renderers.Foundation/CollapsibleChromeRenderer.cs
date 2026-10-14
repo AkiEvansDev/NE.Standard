@@ -26,6 +26,8 @@ public static class CollapsibleChromeRenderer
     private const string CollapsedAttribute = WebAttributes.Collapsed;
     private const string ToggleAttribute = WebAttributes.CollapseToggle;
 
+    private static readonly WebDomOperation[] ExpandedOperations = [WebDomOperation.ToggleAttribute(CollapsedAttribute, condition: WebValueCondition.IsFalse)];
+
     /// <summary>
     /// Writes the chrome; a control that takes a shape with nothing to fold (<paramref name="folds"/> false, a menu's rail) keeps its
     /// edge, its toggle content and its switch but no fold: a rail kept a phone's drawer is drawn there as a list, whose switch puts the
@@ -50,7 +52,7 @@ public static class CollapsibleChromeRenderer
             {
                 if (value == false)
                     _ = target.Attribute(CollapsedAttribute);
-            }, [WebDomOperation.ToggleAttribute(CollapsedAttribute, condition: WebValueCondition.IsFalse)]);
+            }, ExpandedOperations);
         }
 
         _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? toggle, out _);

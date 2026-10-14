@@ -1,5 +1,6 @@
-import { webDomConverters } from "../rendering/web-dom-converters";
-import { logWarn } from "../runtime/logger";
+// `.ts` on the value imports: `node --test` loads this module as it is.
+import { webDomConverters } from "../rendering/web-dom-converters.ts";
+import { logError, logWarn } from "../runtime/logger.ts";
 
 export type ValueConverterContext = {
     readonly name: string;
@@ -50,13 +51,21 @@ export class ConverterRegistry {
         const exactConverter = this.converters.get(converterName);
         const context = { name: converterName, value };
 
-        if (exactConverter !== undefined && exactConverter.canConvert(context))
-            return exactConverter.convert(context);
+        // One that throws (a package's, on a value it did not expect) gives the value as it came, as a converter not found does: the
+        // patch goes on to the property's other operations and records the value.
+        try {
+            if (exactConverter !== undefined && exactConverter.canConvert(context))
+                return exactConverter.convert(context);
 
-        const fallbackConverter = this.converters.get("*");
+            const fallbackConverter = this.converters.get("*");
 
-        if (fallbackConverter !== undefined && fallbackConverter.canConvert(context))
-            return fallbackConverter.convert(context);
+            if (fallbackConverter !== undefined && fallbackConverter.canConvert(context))
+                return fallbackConverter.convert(context);
+        }
+        catch (error) {
+            logError("a converter failed; the value is written as it came.", { converter: converterName, value, error });
+            return value;
+        }
 
         logWarn("converter was not found.", { converter: converterName });
         return value;

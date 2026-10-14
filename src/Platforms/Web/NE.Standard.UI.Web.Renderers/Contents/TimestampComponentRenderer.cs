@@ -21,6 +21,8 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 /// </remarks>
 public sealed class TimestampComponentRenderer : WebComponentRendererBase
 {
+    private static readonly WebDomOperation[] DateTimeOperations = [WebDomOperation.Attribute("datetime")];
+
     public override string ComponentTypeKey => TimestampComponent.ComponentTypeKey;
 
     protected override string ClassName => WebClassNames.Timestamp;
@@ -59,6 +61,6 @@ public sealed class TimestampComponentRenderer : WebComponentRendererBase
 
             _ = target.Attribute("datetime", UIMomentJsonConverter.InstantText(instant));
             _ = text!.Text(WebMoments.FirstPaint(instant, shown, culture, context.Temporal));
-        }, [WebDomOperation.Attribute("datetime")]);
+        }, DateTimeOperations);
     }
 }

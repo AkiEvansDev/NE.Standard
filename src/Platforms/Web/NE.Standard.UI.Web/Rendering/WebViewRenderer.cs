@@ -34,6 +34,8 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private const string DrawerTogglesAttribute = "data-ui-drawer-toggles";
     // On a side whose root names its own width, which its drawer keeps.
     internal const string SideSizedAttribute = "data-ui-side-sized";
+    // On the content of a view with no right side, which stands along the page's bar where the document scrolls.
+    private const string PageEndAttribute = "data-ui-page-end";
     private const string DialogSurfaceAttribute = "data-ui-dialog-surface";
     private const string DrawerToggleClass = "ui-shell__drawer-toggle";
 
@@ -136,6 +138,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
                 if (IsDrawer(region.Key, leftDrawer, rightDrawer) && SideSized(view, region))
                     _ = section.Attribute(SideSizedAttribute);
+
+                if (!rightDrawer && string.Equals(region.Key, RegionNames.Content, StringComparison.Ordinal))
+                    _ = section.Attribute(PageEndAttribute);
 
                 // What the drawer's buttons name as the region they open.
                 if (view.Options.SideDrawers != UISideDrawers.Never && IsDrawer(region.Key, leftDrawer, rightDrawer))

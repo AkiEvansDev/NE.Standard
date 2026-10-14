@@ -18,37 +18,34 @@ internal sealed class SignInView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.sign-in.description";
 
     protected override IVisualComponent CreateScreen()
-        => new ContainerComponent()
-            .SetPadding(UIThickness.All(0, 24, 0, 0))
-            .AddChild(UIPage.Card("Sign in", null, UILayout.Stack(16,
-                    UIText.Note(string.Empty).BindDescription(nameof(SignInController.ReasonLine)),
-                    // Tonal: two fields on a neat centred card, which frames them; the line is for long forms that stack.
-                    new TextInputComponent()
-                        .SetTitle("User name")
-                        .SetAppearance(UIInputAppearance.Tonal)
-                        .SetAutocomplete(UIAutocomplete.Username)
-                        .SetFormId(FormId)
-                        .BindValue(nameof(SignInController.UserName))
-                        .Required("A user name is required.", UIValidationTrigger.Submit),
-                    new TextInputComponent()
-                        .SetTitle("Password")
-                        .SetType(UITextInputType.Password)
-                        .SetAppearance(UIInputAppearance.Tonal)
-                        .SetAutocomplete(UIAutocomplete.CurrentPassword)
-                        .SetFormId(FormId)
-                        .BindValue(nameof(SignInController.Password))
-                        .BindValidation(nameof(SignInController.Notice))
-                        .Required("A password is required.", UIValidationTrigger.Submit),
-                    UIButtons.Toolbar(
-                        UIButtons.Ghost("Use Robin, an admin", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(SignInController.UseAdmin)),
-                        UIButtons.Ghost("Use Mika, a viewer", DemoIcons.Outline(DemoIcons.User)).OnClick(nameof(SignInController.UseViewer))
-                    ),
-                    UIButtons.Primary("Sign in")
-                        .SetHorizontalAlignment(UIAlignment.Stretch)
-                        .OnSubmit(FormId, nameof(SignInController.SignInAsync))
-                ), DemoIcons.Outline(DemoIcons.Lock))
-                .SetWidth(UILayoutLength.Absolute(420))
-                .SetHorizontalAlignment(UIAlignment.Center)
-            )
-            .SetPlacement(1, 1, 24, 1);
+        => UICard.Centered(CreateCard()).SetPlacement(1, 1, 24, 1);
+
+    private static CardComponent CreateCard()
+        => UICard.Create("Sign in", null, UILayout.Stack(16,
+            UIText.Note(string.Empty).BindDescription(nameof(SignInController.ReasonLine)),
+            // Tonal: two fields on a neat centred card, which frames them; the line is for long forms that stack.
+            new TextInputComponent()
+                .SetTitle("User name")
+                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAutocomplete(UIAutocomplete.Username)
+                .SetFormId(FormId)
+                .BindValue(nameof(SignInController.UserName))
+                .Required("A user name is required.", UIValidationTrigger.Submit),
+            new TextInputComponent()
+                .SetTitle("Password")
+                .SetType(UITextInputType.Password)
+                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAutocomplete(UIAutocomplete.CurrentPassword)
+                .SetFormId(FormId)
+                .BindValue(nameof(SignInController.Password))
+                .BindValidation(nameof(SignInController.Notice))
+                .Required("A password is required.", UIValidationTrigger.Submit),
+            UIButtons.Toolbar(
+                UIButtons.Ghost("Use Robin, an admin", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(SignInController.UseAdmin)),
+                UIButtons.Ghost("Use Mika, a viewer", DemoIcons.Outline(DemoIcons.User)).OnClick(nameof(SignInController.UseViewer))
+            ),
+            UIButtons.Primary("Sign in")
+                .SetHorizontalAlignment(UIAlignment.Stretch)
+                .OnSubmit(FormId, nameof(SignInController.SignInAsync))
+        ), DemoIcons.Outline(DemoIcons.Lock));
 }

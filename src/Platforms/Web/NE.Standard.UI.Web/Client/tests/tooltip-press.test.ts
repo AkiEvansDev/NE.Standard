@@ -208,3 +208,13 @@ test("the browser's own menu for the held press is spent, and shows the words if
 
     tooltips.hide();
 });
+
+test("a second finger before the time is a pinch: the held press shows nothing, as a context menu's long press opens nothing", async () => {
+    const { button } = page();
+
+    touch("pointerdown", button);
+    touch("pointerdown", button, 60, 10);
+    await held();
+
+    assert.equal(shows(button), false);
+});

@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -10,6 +11,8 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 
 public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 {
+    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
+
     public override string ComponentTypeKey => StackPanelComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-stack-panel";
@@ -21,13 +24,13 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, StackPanelComponent.OrientationProperty, static (target, value) =>
+        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
         {
             if (value is UIOrientation orientation)
                 _ = target.Class(WebClassNames.Orientation(orientation));
-        }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
+        }, OrientationOperations);
 
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, StackPanelComponent.SpacingProperty, "--ui-stack-panel-spacing");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-stack-panel-spacing");
 
         RenderFlagClass(context, root, StackPanelComponent.WrapProperty, "ui-stack-panel--wrap");
 

@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 
 public sealed class BadgeComponentRenderer : WebComponentRendererBase
 {
-    private static readonly WebIconShapeSite IconShapeSite = new(BadgeComponent.IconProperty, BadgeComponent.IconShapeProperty, BadgeComponent.IconFallbackProperty, BadgeRenderer.IconShownAttribute);
+    private static readonly WebIconShapeSite IconShapeSite = new(BadgeComponent.IconProperty, BadgeComponent.IconShapeProperty, BadgeComponent.IconFallbackProperty, WebAttributes.BadgeIcon);
 
     public override string ComponentTypeKey => BadgeComponent.ComponentTypeKey;
 

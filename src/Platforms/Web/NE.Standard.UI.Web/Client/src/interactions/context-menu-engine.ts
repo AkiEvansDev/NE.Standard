@@ -1,10 +1,11 @@
 // Right-click menus, shown at the pointer. An owner may carry several by name — the part pressed says which
 // (`data-ui-context-menu-use`), the unnamed one takes the rest — and one with nothing to offer a press hands it to the owner around it.
 // A long press on a part with an action bar opens the menu with the bar's icons in a row atop it; the bar's "more" opens it under
-// itself, as a menu button opens its list, without the bar's own entries where the host asks for the rest alone.
+// itself, as a menu button opens its list, without the bar's own entries where the host asks for the rest alone. A row's own menu
+// waits to be drawn until it is wanted (`row-menus.ts`): asked for here, it is drawn, and opens once the page's engines took it in.
 
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentSelector, ContextMenuAttribute, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentSelector, ContextMenuAttribute, ContextMenuLaterAttribute, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
 import { ActionBarMoreClass, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAtPoint } from "./anchored-popup.ts";
 import { takesTyping } from "./caret-fields.ts";
@@ -38,6 +39,16 @@ export type ContextMenuOpeningDetail = {
     readonly actionBar?: boolean;
 };
 
+
+// What draws a row's menu waiting to be wanted into its owner (`RowMenus.draw`); none where the page has no such menu.
+let drawLater: ((owner: HTMLElement) => HTMLElement | null) | null = null;
+// A menu drawn for the opening that asked for it, which opens once the page's engines have taken it in.
+const justDrawn = new WeakSet<HTMLElement>();
+
+/** Names what draws a row's menu that waits to be wanted (`RowMenus.draw`). */
+export function setLaterMenus(draw: ((owner: HTMLElement) => HTMLElement | null) | null): void {
+    drawLater = draw;
+}
 
 export type ContextMenuEngineOptions = {
     readonly root?: ParentNode;
@@ -81,7 +92,7 @@ export class ContextMenuEngine {
         new LongPress({
             root: this.root,
             first: typeof window === "undefined" ? undefined : window,
-            opensMenu: target => target.closest(`[${ContextMenuOwnerAttribute}]`) !== null && !takesTyping(target),
+            holds: target => target.closest(`[${ContextMenuOwnerAttribute}]`) !== null && !takesTyping(target),
             closeMenu: () => this.menus.close(this.menus.current, "outside")
         });
 
@@ -120,7 +131,17 @@ export class ContextMenuEngine {
         domEvent.preventDefault();
 
         // A finger's long press: the bar's icons stand atop the menu, its frequent entries one press away.
-        this.open(opened.owner, opened.menu, domEvent.clientX, domEvent.clientY, isTouchOpening(domEvent) ? target : null, target.closest<HTMLElement>(MoreSelector), keyboard ? boxOf(target) : null);
+        const touched = isTouchOpening(domEvent) ? target : null;
+        const more = target.closest<HTMLElement>(MoreSelector);
+        const box = keyboard ? boxOf(target) : null;
+        const open = (): void => this.open(opened.owner, opened.menu, domEvent.clientX, domEvent.clientY, touched, more, box);
+
+        // A menu drawn for this opening is measured once the engines that answer a menu arriving (its groups, its icons) took it in:
+        // they answer in the microtask its arrival queued, before this one.
+        if (justDrawn.delete(opened.menu))
+            queueMicrotask(open);
+        else
+            open();
     }
 
     private open(owner: HTMLElement, menu: HTMLElement, x: number, y: number, touched: Element | null, more: HTMLElement | null, box: Element | null): void {
@@ -184,16 +205,15 @@ export function contextMenuAt(target: Element): { readonly owner: HTMLElement; r
         if (refusing !== null && owner.contains(refusing))
             return null;
 
-        const candidates = candidateMenus(owner, target);
-
         // A strip with only its captions' named menu has nothing for its pages, nor has an inert owner: the owner around answers.
-        if (candidates.length === 0 || isInert(owner))
+        if (!offersMenu(owner, target) || isInert(owner))
             continue;
 
         if (isRefused(owner))
             return null;
 
-        const menu = candidates.find(candidate => prepareMenu(candidate, target, false));
+        // Asked only now, past the refusals: a row's menu waiting to be drawn is drawn by the asking.
+        const menu = candidateMenus(owner, target).find(candidate => prepareMenu(candidate, target, false));
 
         // Every menu the owner has kept itself shut for this press — a tab menu with nothing to offer a tab: the owner around it answers.
         if (menu !== undefined)
@@ -252,10 +272,20 @@ function ownerInRow(row: HTMLElement): Element {
  * unnamed one, which also takes a name with no menu or nothing to offer.
  */
 function candidateMenus(owner: HTMLElement, target: Element): HTMLElement[] {
+    return menuNames(owner, target).map(name => ownMenu(owner, name)).filter((menu): menu is HTMLElement => menu !== null);
+}
+
+/** Whether a press on `target` inside `owner` has a menu of the owner's to ask, drawn or waiting to be: asking draws a waiting one. */
+function offersMenu(owner: HTMLElement, target: Element): boolean {
+    return menuNames(owner, target).some(name => ownMenu(owner, name, false) !== null || (name.length === 0 && owner.hasAttribute(ContextMenuLaterAttribute)));
+}
+
+/** The names of the menus a press on `target` inside `owner` asks, in order: the pressed part's, then the owner's unnamed one. */
+function menuNames(owner: HTMLElement, target: Element): string[] {
     const part = target.closest(`[${ContextMenuUseAttribute}]`);
     const name = part !== null && owner.contains(part) ? part.getAttribute(ContextMenuUseAttribute) ?? "" : "";
 
-    return [name.length > 0 ? ownMenu(owner, name) : null, ownMenu(owner, "")].filter((menu): menu is HTMLElement => menu !== null);
+    return name.length > 0 ? [name, ""] : [""];
 }
 
 /** Lets an engine set the menu's entries for what it was opened on; false when it kept the menu shut. */
@@ -393,14 +423,25 @@ function keepFocusThroughPress(): void {
     setTimeout(() => document.removeEventListener("mousedown", keep, true));
 }
 
-/** This owner's own menu of that name: a renderer may nest menus, but a nested owner's menu must not open for the outer one. */
-function ownMenu(owner: HTMLElement, name: string): HTMLElement | null {
+/**
+ * This owner's own menu of that name: a renderer may nest menus, but a nested owner's menu must not open for the outer one. A row's
+ * unnamed one waiting to be wanted is drawn now, unless `draw` is off.
+ */
+function ownMenu(owner: HTMLElement, name: string, draw = true): HTMLElement | null {
     for (const menu of owner.querySelectorAll<HTMLElement>(`[${MenuAttribute}]`)) {
         if ((menu.getAttribute(MenuAttribute) ?? "") === name && menu.closest(`[${ContextMenuOwnerAttribute}]`) === owner)
             return menu;
     }
 
-    return null;
+    if (!draw || name.length > 0 || drawLater === null || !owner.hasAttribute(ContextMenuLaterAttribute))
+        return null;
+
+    const drawn = drawLater(owner);
+
+    if (drawn !== null)
+        justDrawn.add(drawn);
+
+    return drawn;
 }
 
 /**

@@ -25,10 +25,6 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent
     where T : TabsViewComponent<T>, IUIComponentDefinition
 {
-    // A UIStrings key, spelled here because the words are the framework's and the component cannot reach the shell's constants;
-    // the other entries are standard actions (UIStandardAction).
-    private const string RenameKey = "ui.tab.rename";
-
     private readonly Dictionary<string, IVisualComponent> _regions;
     private readonly List<MenuItem> _entries = [];
 
@@ -59,7 +55,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// <remarks>
     /// Assigning it directly skips the refusal of Close and Delete together that <see cref="SetTabMenuEntries"/> applies. Pin sets
     /// the tab's <see cref="ITabItemModel.Pinned"/> and moves it to the boundary of the pinned tabs, written back as a drag writes
-    /// its order. The remove entry raises what the tab's cross does, so it needs <see cref="OnItemRemove(string, string)"/> and is
+    /// its order. The remove entry raises what the tab's cross does, so it needs <see cref="OnItemRemoveWithItemKey"/> and is
     /// never offered on a pinned tab.
     /// </remarks>
     [UIComponentProperty(DefaultValue = UITabMenuEntries.None, GenerateSetter = false)]
@@ -103,7 +99,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     {
         List<MenuItem> items =
         [
-            new MenuItem { Id = UITabMenu.Rename, Title = RenameKey, Icon = UIGlyphs.Edit },
+            UIStandardAction.Rename.ToMenuItem(UITabMenu.Rename),
             UIStandardAction.Pin.ToMenuItem(UITabMenu.Pin),
             UIStandardAction.Unpin.ToMenuItem(UITabMenu.Unpin),
             new MenuItem { Id = UITabMenu.Separator, Kind = UIMenuItemKind.Separator }
@@ -183,8 +179,9 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// Registers a command invoked when an appended tab menu entry is clicked, with UI action arguments —
     /// <see cref="UITabMenu.Entry"/> and <see cref="UITabMenu.Tab"/> name its two keys.
     /// </summary>
+    /// <remarks>Raised on the tab the menu was opened on, as its own events are, so the tab's state and abilities answer for it.</remarks>
     public T OnTabMenuEntry(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => On(EventNames.TabMenuEntry, command, arguments);
+        => OnItemTemplate(template => _ = template.On(EventNames.TabMenuEntry, command, arguments));
 
     /// <summary>
     /// Sets the page rendered for every tab, leaving the built-in caption in place.
@@ -200,7 +197,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// <summary>
     /// Registers a command invoked when a tab's close is pressed, passing the tab's key; the controller removes the tab or leaves it.
     /// </summary>
-    public T OnItemRemove(string command, string argumentName = "id")
+    public T OnItemRemoveWithItemKey(string command, string argumentName = "id")
         => OnItemRemove(command, UIAction.ArgCurrentItemKey(argumentName));
 
     /// <summary>
@@ -213,7 +210,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// Registers a command invoked when a caption is renamed in place, passing the tab's key.
     /// </summary>
     /// <remarks>Optional: a two-way caption already writes the new text back; this is for refusing or normalizing it.</remarks>
-    public T OnItemRename(string command, string argumentName = "id")
+    public T OnItemRenameWithItemKey(string command, string argumentName = "id")
         => OnItemRename(command, UIAction.ArgCurrentItemKey(argumentName));
 
     /// <summary>

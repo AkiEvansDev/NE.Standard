@@ -18,6 +18,7 @@ const Sources = [
     "mixins/responsive.less",
     "mixins/focus.less",
     "mixins/drag-bar.less",
+    "mixins/scroll-room.less",
     "mixins/popup.less",
     "mixins/lift.less",
     "mixins/dialog.less",

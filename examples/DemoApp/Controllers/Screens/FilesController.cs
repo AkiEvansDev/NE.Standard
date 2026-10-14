@@ -74,6 +74,13 @@ internal sealed partial class FilesController : UIControllerBase
     [RecursiveMember]
     public partial string Status { get; set; } = "Two files open; the report is pinned.";
 
+    /// <summary>The tree and the editor: side by side from the medium breakpoint, on a phone the editor once a file is pressed.</summary>
+    [RecursiveMember]
+    public partial UIResponsive<UIVisibility> ExplorerVisibility { get; set; } = UILayout.PanesListVisibility(false);
+
+    [RecursiveMember]
+    public partial UIResponsive<UIVisibility> EditorVisibility { get; set; } = UILayout.PanesDetailVisibility(false);
+
     private static List<TreeNode> CreateTree()
     {
         List<TreeNode> nodes = [];
@@ -139,7 +146,20 @@ internal sealed partial class FilesController : UIControllerBase
         }
 
         Show(id);
+        BringEditorForward(true);
     }
+
+    /// <summary>On a phone, the editor in the tree's place, or the tree back again.</summary>
+    private void BringEditorForward(bool forward)
+    {
+        ExplorerVisibility = UILayout.PanesListVisibility(forward);
+        EditorVisibility = UILayout.PanesDetailVisibility(forward);
+    }
+
+    /// <summary>The editor's way back to the tree, on a phone.</summary>
+    [UICommand]
+    public void ShowExplorer()
+        => BringEditorForward(false);
 
     /// <summary>A new file, untitled, open at once: a rename gives it a name.</summary>
     [UICommand]
@@ -166,6 +186,7 @@ internal sealed partial class FilesController : UIControllerBase
 
         Status = $"Created {title}: double-click its tab to name it.";
         Show(id);
+        BringEditorForward(true);
     }
 
     private double NextOrder()

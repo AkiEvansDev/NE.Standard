@@ -13,13 +13,7 @@
 
 .ui-temporal-input {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    gap: @ui-space-1;
-    font: inherit;
+    .ui-input-root();
 }
 
 .ui-temporal-input__row {
@@ -28,13 +22,9 @@
 }
 
 // A calendar drawn in place: its caption over the grid a temporal input's popup draws (temporal-picker-engine.ts), no surface of its own.
+// Its width the grid's cap (below), not an authored MaxWidth.
 .ui-calendar {
-    display: inline-flex;
-    flex-direction: column;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    gap: @ui-space-1;
-    font: inherit;
+    .ui-input-root(inline-flex; @capped: false);
 }
 
 // Never wider than the popup's grid, whatever room it is given (Fill, a stretched column, a dialog): its least width is the grid's
@@ -172,11 +162,10 @@
 
 .ui-temporal-input__popup {
     .ui-popup-surface();
-    .ui-popup-scroll();
+    .ui-popup-scroll(@ui-space-2);
     .ui-popup-closed();
     flex-direction: column;
     gap: @ui-space-2;
-    padding: @ui-space-2;
 }
 
 .ui-temporal-input--open > .ui-temporal-input__popup {

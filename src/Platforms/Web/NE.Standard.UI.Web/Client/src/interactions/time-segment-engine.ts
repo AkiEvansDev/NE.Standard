@@ -1,18 +1,21 @@
 // TimeInput edits its value in place, as one focusable span per clock unit, which cannot produce an invalid value.
 
-import { componentParts } from "../addressing/dom-registry";
-import { clockHour12, formatTemporal, matchTemporalToken, TemporalCulturePack } from "../rendering/temporal-format";
-import { clientStrings } from "../runtime/client-strings";
-import { PropertyPatchEngine } from "../updates/property-patch-engine";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { componentParts } from "../addressing/dom-registry.ts";
+import { clockHour12, formatTemporal, matchTemporalToken } from "../rendering/temporal-format.ts";
+import type { TemporalCulturePack } from "../rendering/temporal-format.ts";
+import { clientStrings } from "../runtime/client-strings.ts";
+import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import {
     clampToRange, defaultMoment, isEndPart, orderPeriod, PickerAttributes, readCulturePack, readFormat, readMode,
-    readStep, readValueOf, RootClass, stepFor, TimeUnit, unitValue, withUnit, writeValueOf
-} from "./temporal-dom";
-import { observeComponents } from "./dom-mutations";
-import { isReadOnly } from "./interactive-state";
-import { isPlainKey } from "./keyboard-shortcut";
-import { resolveRovingTarget } from "./roving-focus";
-import { turnWheel, wheelPixels } from "./wheel-notches";
+    readStep, readValueOf, RootClass, stepFor, unitValue, withUnit, writeValueOf
+} from "./temporal-dom.ts";
+import type { TimeUnit } from "./temporal-dom.ts";
+import { observeComponents } from "./dom-mutations.ts";
+import { isReadOnly } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { resolveRovingTarget } from "./roving-focus.ts";
+import { turnWheel, wheelPixels } from "./wheel-notches.ts";
 
 const SegmentsClass = "ui-temporal-input__segments";
 const SegmentClass = "ui-temporal-input__segment";
@@ -25,6 +28,9 @@ const StepDirectionAttribute = "data-ui-temporal-step-direction";
 const BuiltFromAttribute = "data-ui-temporal-segments-of";
 
 const EmptyText = "--";
+
+// The steps a key takes on a segment, as on a number field: an arrow one, a page key ten.
+const SegmentSteps: ReadonlyMap<string, number> = new Map([["ArrowUp", 1], ["ArrowDown", -1], ["PageUp", 10], ["PageDown", -10]]);
 
 /** `hour12` is the same underlying hour, read and written through a 12-hour dial with a meridiem beside it. */
 type SegmentUnit = TimeUnit | "hour12" | "meridiem";
@@ -135,10 +141,12 @@ export class TimeSegmentEngine {
         const unit = segment.getAttribute(SegmentAttribute) as SegmentUnit;
         const end = endOf(segment);
 
-        if (domEvent.key === "ArrowUp" || domEvent.key === "ArrowDown") {
+        const step = SegmentSteps.get(domEvent.key);
+
+        if (step !== undefined) {
             domEvent.preventDefault();
             this.resetBuffer(root);
-            this.applyStep(root, unit, domEvent.key === "ArrowUp" ? 1 : -1, end);
+            this.applyStep(root, unit, step, end);
             return;
         }
 
@@ -256,7 +264,7 @@ export class TimeSegmentEngine {
             this.resetBuffer(root);
     }
 
-    private applyStep(root: HTMLElement, unit: SegmentUnit, direction: number, end: boolean): void {
+    private applyStep(root: HTMLElement, unit: SegmentUnit, steps: number, end: boolean): void {
         // Held inside Min and Max as every other step is; a typed A or P, as typed digits, may go past them and is refused in words.
         if (unit === "meridiem") {
             const current = readValueOf(root, end);
@@ -268,7 +276,7 @@ export class TimeSegmentEngine {
 
         const base = this.baseValue(root, end);
         const clock = clockUnit(unit);
-        const increment = stepFor(readStep(root), clock) * direction;
+        const increment = stepFor(readStep(root), clock) * steps;
         const limit = clock === "hour" ? 24 : 60;
         const next = ((unitValue(base, clock) + increment) % limit + limit) % limit;
 

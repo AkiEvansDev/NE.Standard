@@ -47,6 +47,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, LinkComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, IconComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ImageComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, FileTileComponentRenderer>());
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ButtonComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SplitButtonComponentRenderer>());
@@ -77,6 +78,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, RadioGroupComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SelectComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, MultiSelectComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, BadgeSelectComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SearchComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SliderComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, DateInputComponentRenderer>());

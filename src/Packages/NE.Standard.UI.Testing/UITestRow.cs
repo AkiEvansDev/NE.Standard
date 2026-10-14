@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
@@ -30,9 +31,9 @@ public sealed class UITestRow
     /// <remarks>The server's own object: a property it changed since shows here before a <c>Batch</c> runtime's flush sends it.</remarks>
     public object? Item => _entry.Item;
 
-    /// <summary>Gets the component the row's template drew it with: the variant its item names, else the list's template.</summary>
+    /// <summary>Gets the component the row's template drew it with: the variant its item names, a composite's row, else the list's template.</summary>
     public UITestComponent Root
-        => _page.At(_page.RowTemplate(_host.ComponentId, _hostKeys, _entry.Item), [.. _hostKeys, _entry.Key]);
+        => _page.At(_page.RowTemplate(_host.ComponentId, _hostKeys, _entry.Item), RowKeys);
 
     /// <summary>Gets the component shown on a right click or a long press on the row.</summary>
     public UITestComponent ContextMenu => Root.ContextMenu;
@@ -44,15 +45,19 @@ public sealed class UITestRow
 
     /// <summary>Gets the component with the authored id <paramref name="id"/> in this row.</summary>
     public UITestComponent Component(string id)
-        => Root.Component(id);
+        => _page.Find(id, Scope, RowKeys);
 
     /// <summary>Gets the one component in this row bound to <paramref name="path"/> on the item.</summary>
     public UITestComponent ComponentBoundTo(string path)
-        => Root.ComponentBoundTo(path);
+        => _page.FindBoundTo(path, Scope, RowKeys);
 
     /// <summary>Gets the one component in this row a reader knows by <paramref name="name"/>.</summary>
     public UITestComponent ComponentNamed(string name)
-        => Root.ComponentNamed(name);
+        => _page.FindNamed(name, Scope, RowKeys);
+
+    private UIComponentId Scope => _page.RowScope(_host.ComponentId, _hostKeys, _entry.Item);
+
+    private object?[] RowKeys => [.. _hostKeys, _entry.Key];
 
     /// <summary>Presses the row: its template's click command, with the row's key.</summary>
     public Task<UITestCommandResult> ClickAsync(CancellationToken cancellationToken = default)

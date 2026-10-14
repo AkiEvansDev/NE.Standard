@@ -4,7 +4,7 @@ import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import type { EffectRegistry } from "../effects/effect-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
-import { getIdValue, getInteractionActionKind } from "../metadata/metadata-index.ts";
+import { getIdValue, getInteractionActionKind, rowKeysText } from "../metadata/metadata-index.ts";
 import type {
     ClientEffect,
     MetadataIndex,
@@ -298,7 +298,7 @@ function withScopeParameters(effect: ClientEffect, dynamicParameters: readonly u
 
 /** A source and its row, the row's parameters as text: a key sent as a number and read off the DOM as digits is one row. */
 function sourceKey(source: WebRenderPropertyReferenceMetadata | null | undefined, dynamicParameters: readonly unknown[]): string {
-    return JSON.stringify([getIdValue(source?.componentId), source?.propertyId ?? "", ...dynamicParameters.map(parameter => String(parameter ?? ""))]);
+    return JSON.stringify([getIdValue(source?.componentId), source?.propertyId ?? ""]) + rowKeysText(dynamicParameters);
 }
 
 function isValidTarget(target: WebRenderPropertyReferenceMetadata | null | undefined): target is WebRenderPropertyReferenceMetadata {

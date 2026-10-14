@@ -382,8 +382,7 @@
     // "Current inside": a short piece of the current entry's line on the same edge, half its length, so it never reads as the
     // current entry itself nor as the pointer's wash — on a dark palette, whose descendant wash is none, it is the group's one mark,
     // so it is whole: at 0.6 it read 1.8:1.
-    // Not while a press's wave plays: the wave is the same pseudo-element (core/press.less).
-    &:not(.ui-pressing)::before {
+    &::before {
         content: "";
         position: absolute;
         inset: var(--ui-menu-group-mark-inset, 25% auto 25% 0);

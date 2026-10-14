@@ -4,7 +4,7 @@
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    ComponentSelector, cssAttributeValue, HostModeAttribute, ItemsHostAttribute, PagerPageAttribute, PagerSizeAttribute, PagerTargetAttribute, WindowMoreAfterAttribute,
+    ComponentSelector, HostModeAttribute, ItemsHostAttribute, PagerPageAttribute, PagerSizeAttribute, PagerTargetAttribute, WindowMoreAfterAttribute,
     WindowOffsetAttribute, WindowPagedAttribute, WindowSizeAttribute, WindowTotalAttribute
 } from "../addressing/dom-attributes.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
@@ -112,24 +112,34 @@ export class PagerEngine {
             this.sync(pager);
     }
 
+    /** The pagers found, and those aimed at the component each host found stands in, each drawn once. */
     private syncFound(found: Iterable<HTMLElement>): void {
+        const pagers = new Set<HTMLElement>();
+        const targets = new Set<string>();
+
         for (const element of found) {
             if (element.matches(PagerSelector)) {
-                this.sync(element);
+                pagers.add(element);
                 continue;
             }
 
-            for (const pager of this.pagersOf(element))
-                this.sync(pager);
+            const owner = element.closest(ComponentSelector);
+            const componentId = owner === null ? 0 : readComponentId(owner);
+
+            if (componentId > 0)
+                targets.add(String(componentId));
         }
-    }
 
-    /** The pagers aimed at the component a host stands in. */
-    private pagersOf(host: Element): HTMLElement[] {
-        const owner = host.closest(ComponentSelector);
-        const componentId = owner === null ? 0 : readComponentId(owner);
+        // One look over the page for every host's pagers: a switch to another runtime puts in a hundred hosts, most aimed at by none.
+        if (targets.size > 0) {
+            for (const pager of this.root.querySelectorAll<HTMLElement>(PagerSelector)) {
+                if (targets.has(pager.getAttribute(PagerTargetAttribute) ?? ""))
+                    pagers.add(pager);
+            }
+        }
 
-        return componentId > 0 ? [...this.root.querySelectorAll<HTMLElement>(`${PagerSelector}[${PagerTargetAttribute}="${cssAttributeValue(componentId)}"]`)] : [];
+        for (const pager of pagers)
+            this.sync(pager);
     }
 
     /** The host a pager is aimed at: the items host of the target's root, the first copy of it on the page that has one. */

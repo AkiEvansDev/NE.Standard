@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Models;
 
@@ -58,6 +59,85 @@ public static class UIMenuItems
     /// <summary>Delete it: the danger colour on the words and the mark.</summary>
     public static MenuItem Delete(string id = "delete")
         => Create(UIStandardAction.Delete, id);
+
+    /// <summary>An entry that opens a submenu of more actions, <paramref name="items"/>.</summary>
+    public static MenuItem More(IEnumerable<MenuItem> items, string id = "more")
+    {
+        MenuItem more = Create(UIStandardAction.More, id);
+
+        foreach (MenuItem item in items)
+            more.Items.Add(item);
+
+        return more;
+    }
+
+    /// <summary>Load it afresh.</summary>
+    public static MenuItem Refresh(string id = "refresh")
+        => Create(UIStandardAction.Refresh, id);
+
+    /// <summary>Search it.</summary>
+    public static MenuItem Search(string id = "search")
+        => Create(UIStandardAction.Search, id);
+
+    /// <summary>Narrow what is shown.</summary>
+    public static MenuItem Filter(string id = "filter")
+        => Create(UIStandardAction.Filter, id);
+
+    /// <summary>Open its settings.</summary>
+    public static MenuItem Settings(string id = "settings")
+        => Create(UIStandardAction.Settings, id);
+
+    /// <summary>Share it.</summary>
+    public static MenuItem Share(string id = "share")
+        => Create(UIStandardAction.Share, id);
+
+    /// <summary>Download it.</summary>
+    public static MenuItem Download(string id = "download")
+        => Create(UIStandardAction.Download, id);
+
+    /// <summary>Upload a file.</summary>
+    public static MenuItem Upload(string id = "upload")
+        => Create(UIStandardAction.Upload, id);
+
+    /// <summary>Rename it.</summary>
+    public static MenuItem Rename(string id = "rename")
+        => Create(UIStandardAction.Rename, id);
+
+    /// <summary>Put one more in the list; <see cref="New"/> makes a new thing.</summary>
+    public static MenuItem Add(string id = "add")
+        => Create(UIStandardAction.Add, id);
+
+    /// <summary>Take it out of the list, the thing itself kept; <see cref="Delete"/> destroys it.</summary>
+    public static MenuItem Remove(string id = "remove")
+        => Create(UIStandardAction.Remove, id);
+
+    /// <summary>Send it: a composer's message, a form's answer.</summary>
+    public static MenuItem Send(string id = "send")
+        => Create(UIStandardAction.Send, id);
+
+    /// <summary>Attach a file.</summary>
+    public static MenuItem Attach(string id = "attach")
+        => Create(UIStandardAction.Attach, id);
+
+    /// <summary>Open the application's menu.</summary>
+    public static MenuItem Menu(string id = "menu")
+        => Create(UIStandardAction.Menu, id);
+
+    /// <summary>Stop what is running.</summary>
+    public static MenuItem Stop(string id = "stop")
+        => Create(UIStandardAction.Stop, id);
+
+    /// <summary>Undo the last change.</summary>
+    public static MenuItem Undo(string id = "undo")
+        => Create(UIStandardAction.Undo, id);
+
+    /// <summary>Redo what was undone.</summary>
+    public static MenuItem Redo(string id = "redo")
+        => Create(UIStandardAction.Redo, id);
+
+    /// <summary>Sign out.</summary>
+    public static MenuItem SignOut(string id = "sign-out")
+        => Create(UIStandardAction.SignOut, id);
 
     private static MenuItem Create(UIStandardAction action, string id)
     {

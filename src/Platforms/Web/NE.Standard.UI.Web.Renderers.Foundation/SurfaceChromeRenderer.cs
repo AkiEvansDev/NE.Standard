@@ -14,7 +14,7 @@ public static class SurfaceChromeRenderer
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
+        ResponsiveRenderer.ApplyResponsivePadding(context, root, ISurfaceComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
 
         SurfaceStyleRenderer.RenderBackground(context, root, ISurfaceComponent.BackgroundProperty);
         SurfaceStyleRenderer.RenderBackgroundImage(context, root);

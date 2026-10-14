@@ -1,7 +1,7 @@
 // What every temporal control reads off its own root: the wire contract the C# renderers write, so a name changed here changes there too.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { clockHour12, dateTimePattern, formatTemporal, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
+import { clockHour12, dateTimePattern, formatTemporal, localDate, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
 import type { TemporalCulturePack, TemporalLanguage, TemporalPatterns } from "../rendering/temporal-format.ts";
 import type { Phrase } from "../runtime/words.ts";
 import { orderPeriod as orderedPeriod } from "./temporal-range.ts";
@@ -199,8 +199,50 @@ export function valueInputOf(root: HTMLElement, end: boolean): HTMLInputElement 
     return root.querySelector<HTMLInputElement>(`.${end ? EndValueInputClass : ValueInputClass}`);
 }
 
+/**
+ * A Min or a Max as the wall clock the value stands on. One written with an offset is read at the value's offset — the reader's for a
+ * value not written yet, which takes it — so comparing the two compares instants, as the server does; else as written.
+ */
 export function readBound(root: HTMLElement, attribute: string): Date | null {
-    return parseCanonical(root.getAttribute(attribute) ?? "", readMode(root));
+    const text = root.getAttribute(attribute) ?? "";
+    const bound = parseCanonical(text, readMode(root));
+    const written = writtenOffset(text);
+
+    if (bound === null || written === null)
+        return bound;
+
+    const held = heldOffset(root, false);
+    const instant = new Date(wallAsUtc(bound) - (offsetMinutes(written) * 60000));
+
+    if (held !== null) {
+        const shifted = new Date(instant.getTime() + (offsetMinutes(held) * 60000));
+
+        return localDate(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate(), shifted.getUTCHours(), shifted.getUTCMinutes(), shifted.getUTCSeconds(), shifted.getUTCMilliseconds());
+    }
+
+    // A value written with no offset stands on its own wall clock, which the bound's is compared with as written.
+    return hasValue(root) ? bound : instant;
+}
+
+/** A wall clock's fields read as UTC, in milliseconds; the years 0 to 99 as themselves. */
+function wallAsUtc(wall: Date): number {
+    const utc = new Date(0);
+
+    utc.setUTCFullYear(wall.getFullYear(), wall.getMonth(), wall.getDate());
+    utc.setUTCHours(wall.getHours(), wall.getMinutes(), wall.getSeconds(), wall.getMilliseconds());
+
+    return utc.getTime();
+}
+
+/** A written offset — `Z`, `+02:00`, `+0530`, `-05` — in minutes east of UTC. */
+function offsetMinutes(offset: string): number {
+    const match = /^([+-])(\d{2}):?(\d{2})?$/.exec(offset);
+
+    return match === null ? 0 : (match[1] === "-" ? -1 : 1) * ((Number(match[2]) * 60) + Number(match[3] ?? "0"));
+}
+
+function hasValue(root: HTMLElement): boolean {
+    return (valueInputOf(root, false)?.value.trim() ?? "").length > 0 || (valueInputOf(root, true)?.value.trim() ?? "").length > 0;
 }
 
 /** Which days a control lets be chosen, read once for a whole grid: its bounds' days, and its marked days. */
@@ -234,14 +276,44 @@ export function isDayOffered(offer: DayOffer, day: string): boolean {
 
 /** Writes the start, or the end, through the hidden input and a "change" — the two-way path a typed value takes. */
 export function writeValueOf(root: HTMLElement, value: Date | null, end: boolean): void {
+    writeTextOf(root, value === null ? "" : canonicalOf(root, value, end), end);
+}
+
+/**
+ * A value's canonical text for the start, or a period's end. A date-time's carries an offset: the one its value is written with, so the
+ * server reads back the instant it sent, else the reader's own at that wall clock for a value written fresh.
+ */
+export function canonicalOf(root: HTMLElement, value: Date, end: boolean): string {
+    const mode = readMode(root);
+    const canonical = toCanonical(value, mode);
+
+    return mode === "date-time" ? canonical + (heldOffset(root, end) ?? readerOffset(value)) : canonical;
+}
+
+// The zone after a canonical date-time's clock; a date alone carries none, or its day would read as one.
+const WrittenOffsetPattern = /T\d{1,2}:\d{1,2}(?::\d{1,2}(?:\.\d+)?)?(Z|[+-]\d{2}(?::?\d{2})?)$/i;
+
+/** The offset the end's value is written with, else the other end's: a period's two ends are read in one zone. */
+function heldOffset(root: HTMLElement, end: boolean): string | null {
+    return writtenOffset(valueInputOf(root, end)?.value ?? "") ?? writtenOffset(valueInputOf(root, !end)?.value ?? "");
+}
+
+function writtenOffset(canonical: string): string | null {
+    return WrittenOffsetPattern.exec(canonical.trim())?.[1] ?? null;
+}
+
+/** The reader's offset at a wall clock, as `+hh:mm`: the zone's at that date, daylight saving included. */
+function readerOffset(value: Date): string {
+    const minutes = -value.getTimezoneOffset();
+    const absolute = Math.abs(minutes);
+
+    return `${minutes < 0 ? "-" : "+"}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
+}
+
+function writeTextOf(root: HTMLElement, canonical: string, end: boolean): void {
     const valueInput = valueInputOf(root, end);
 
-    if (valueInput === null)
-        return;
-
-    const canonical = value === null ? "" : toCanonical(value, readMode(root));
-
-    if (valueInput.value === canonical)
+    if (valueInput === null || valueInput.value === canonical)
         return;
 
     valueInput.value = canonical;
@@ -270,8 +342,12 @@ export function orderPeriod(root: HTMLElement): void {
     if (ordered === period)
         return;
 
-    writeValueOf(root, ordered.start, false);
-    writeValueOf(root, ordered.end, true);
+    // The ends trade their texts rather than being written again, so each instant keeps the offset it is written with.
+    const start = valueInputOf(root, false)?.value ?? "";
+    const end = valueInputOf(root, true)?.value ?? "";
+
+    writeTextOf(root, end, false);
+    writeTextOf(root, start, true);
 }
 
 /**

@@ -13,8 +13,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// <summary>
 /// The trail back to where the current page sits, one step per entry of a collection.
 /// </summary>
-/// <remarks>Fed by the controller, not the router; the last step is the current page, marked by position rather than by a flag.</remarks>
-public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel, IButtonComponent>, IItemClickComponent
+/// <remarks>
+/// Fed by the controller, not the router; the last step is the current page, marked by position rather than by a flag. <c>Spacing</c>
+/// is the gap between a step and the mark beside it.
+/// </remarks>
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
+[UIComponentPropertyDefault(nameof(ISpacingComponent.Spacing), nameof(DefaultSpacing))]
+public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IBreadcrumbItemModel, IButtonComponent>, IItemClickComponent, ISpacingComponent
     where T : BreadcrumbsComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 2d;
@@ -25,12 +30,6 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
     /// <remarks>Render-time only, not bindable: it is drawn by the platform after every step but the last.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? Separator { get; set; }
-
-    /// <summary>
-    /// Gets or sets the gap between a step and the mark beside it, optionally overridden per breakpoint.
-    /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
-    public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
     /// Initializes the trail with the built-in step template.

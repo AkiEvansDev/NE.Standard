@@ -81,7 +81,7 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
     private static ContainerComponent CreateSettingsGroup()
     {
         return DemoUI.CreateExample("In a settings form",
-            UIPage.Card("Display", "How the pages look to you.", UIForm.Row(
+            UICard.Create("Display", "How the pages look to you.", UIForm.Row(
                 UIForm.Field(new ThemeSwitcherComponent().AsField(), "System follows the device, light or dark as it is set."),
                 UIForm.Field(new LanguageSwitcherComponent().AsField(), "The page is rewritten in place; nothing typed is lost.")
             ))

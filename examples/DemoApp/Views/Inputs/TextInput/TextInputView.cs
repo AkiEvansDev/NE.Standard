@@ -190,7 +190,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Renewal reminder subject")
                     .SetValue("Your plan renews on ")
                     .SetTrailingAction(new FlyoutComponent()
-                        .SetFlyoutPlacement(UIPopupPlacement.BottomEnd)
+                        .SetPopupPlacement(UIPopupPlacement.BottomEnd)
                         .SetAnchor(new ButtonComponent()
                             .SetType(UIButtonType.Ghost)
                             .SetIcon(DemoIcons.Outline(DemoIcons.Add))

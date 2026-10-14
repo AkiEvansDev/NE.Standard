@@ -9,6 +9,7 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Navigation;
+using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Runtime;
@@ -61,8 +62,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
             {
                 // Over whatever the startup registered for a platform: the pages are the platform here.
                 _ = services.RemoveAll<IUIUpdateSink>();
-                _ = services.RemoveAll<IUIDialogService>();
-                _ = services.RemoveAll<IUIDownloadService>();
+                _ = services.RemoveAll<IUIDownloadStager>();
                 _ = services.RemoveAll<IUIUploadService>();
                 AddClient(services, client);
 
@@ -78,8 +78,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
     private static void AddClient(IServiceCollection services, UITestClient client)
     {
         services.TryAddSingleton<IUIUpdateSink>(client);
-        services.TryAddSingleton<IUIDialogService>(client);
-        services.TryAddSingleton<IUIDownloadService>(client);
+        services.TryAddSingleton<IUIDownloadStager>(client);
         services.TryAddSingleton<IUIUploadService>(client);
     }
 

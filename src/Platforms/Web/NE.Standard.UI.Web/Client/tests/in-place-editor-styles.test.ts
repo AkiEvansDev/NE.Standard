@@ -70,5 +70,5 @@ function escape(text: string): string {
 test("a field's note stands where the field's words and message do: the field's inset, read off the field before it", () => {
     assert.match(rule(":is(.ui-input--filled, .ui-input--tonal, .ui-input--outline) + .ui-paragraph--field-note"), new RegExp(`--ui-field-inset: calc\\(0\\.75rem \\+ ${escape(Border)}\\);`));
     assert.match(rule(".ui-input--underline + .ui-paragraph--field-note"), /--ui-field-inset: 0px;/);
-    assert.match(rule(".ui-paragraph--field-note > .ui-text__body"), /padding-inline: var\(--ui-field-inset, 0px\);/);
+    assert.match(rule(".ui-paragraph--field-note > .ui-text__body"), /padding-inline: var\(--ui-field-inset, 0px\) var\(--ui-field-note-end, var\(--ui-field-inset, 0px\)\);/);
 });

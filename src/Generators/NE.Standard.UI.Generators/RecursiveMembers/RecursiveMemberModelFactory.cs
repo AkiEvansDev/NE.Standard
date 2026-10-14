@@ -132,9 +132,27 @@ internal static class RecursiveMemberModelFactory
 
     /// <summary>Whether a declared type can hold a <c>RecursiveObservable</c> and needs generated descent; not "any reference type" — emitting the pattern against an unrelated class fails to compile (CS8121).</summary>
     private static bool CanHoldRecursiveObservable(ITypeSymbol type, INamedTypeSymbol recursiveObservableType)
-        => type.InheritsFromOrEquals(recursiveObservableType) ||
-           type.TypeKind == TypeKind.Interface ||
-           type.SpecialType == SpecialType.System_Object;
+        => type is ITypeParameterSymbol parameter
+            ? CanTypeArgumentBeRecursiveObservable(parameter, recursiveObservableType)
+            : type.InheritsFromOrEquals(recursiveObservableType) || type.TypeKind == TypeKind.Interface || type.SpecialType == SpecialType.System_Object;
+
+    /// <summary>
+    /// Whether a type parameter's argument may be a <c>RecursiveObservable</c>: unless a constraint rules it out — a value type, or a class
+    /// neither below nor above it. An open type takes the <c>is</c> pattern whatever its constraints, so this decides descent alone.
+    /// </summary>
+    private static bool CanTypeArgumentBeRecursiveObservable(ITypeParameterSymbol parameter, INamedTypeSymbol recursiveObservableType)
+    {
+        if (parameter.HasValueTypeConstraint || parameter.HasUnmanagedTypeConstraint)
+            return false;
+
+        foreach (ITypeSymbol constraint in parameter.ConstraintTypes)
+        {
+            if (!CanHoldRecursiveObservable(constraint, recursiveObservableType) && !(constraint is INamedTypeSymbol named && recursiveObservableType.InheritsFrom(named)))
+                return false;
+        }
+
+        return true;
+    }
 
     private static string GetAccessibility(Accessibility accessibility)
         => accessibility switch

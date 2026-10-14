@@ -1,7 +1,8 @@
 // The page's one registry of key chords: a control's chord presses it from anywhere, a modified one in a field too (what was typed
 // committed first), an unmodified key typed into a field is the text's; a chord claimed twice fires neither, and an open modal keeps
 // what is outside it out of reach. A view's own chord is raised on its content; a context menu's entry presses for the row under the
-// keyboard's cursor, else its chosen row, and for no row where neither is.
+// keyboard's cursor, else its chosen row, and for no row where neither is — a row's menu waiting to be drawn too, its chord named
+// before it is, and drawn by it.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -28,6 +29,7 @@ installFakeDom({
 });
 
 const { ChordTooltipWords, ShortcutEngine } = await import("../src/interactions/shortcut-engine.ts");
+const { setLaterMenus } = await import("../src/interactions/context-menu-engine.ts");
 const { inlineMarkupToPlainText } = await import("../src/rendering/inline-markup.ts");
 
 const root = fakeDocument.body;
@@ -60,7 +62,7 @@ function button(chord: string): { readonly element: FakeElement; presses: number
 }
 
 /** A fresh page holding the given parts, with its own registry. */
-function page(parts: readonly FakeElement[], view?: { readonly name: string; readonly content: FakeElement }): void {
+function page(parts: readonly FakeElement[], view?: { readonly name: string; readonly content: FakeElement }, laterChords?: { readonly version: number; chords(): Iterable<string> }): void {
     // Each page a body of its own, so the registries of the pages before it hear none of its keys.
     root.replaceChildren(FakeElement.of("ui-page").append(...parts));
     fakeDocument.activeElement = root;
@@ -68,7 +70,8 @@ function page(parts: readonly FakeElement[], view?: { readonly name: string; rea
     new ShortcutEngine({
         root: real<ParentNode>(root.children[0]),
         viewShortcuts: view === undefined ? [] : [{ name: view.name, componentId: 4 }],
-        componentOf: () => real<Element>(view?.content ?? null)
+        componentOf: () => real<Element>(view?.content ?? null),
+        laterChords
     });
 }
 
@@ -254,4 +257,38 @@ test("a caret's chord in a field is the field's, a page chord on the same key fi
 
     assert.equal(press(checkbox, "ArrowRight", "ArrowRight", { ctrl: true }), true);
     assert.equal(next.presses, 1);
+});
+
+test("a chord only a row's menu waiting to be drawn names draws that row's menu and presses its entry, the other rows' left waiting", () => {
+    const pinned: string[] = [];
+    const drawn: string[] = [];
+    const rows = ["a", "b"].map(key => FakeElement.of("ui-items-view__item", { "data-ui-key": key })
+        .append(FakeElement.of("ui-surface", { "data-ui-context-menu-owner": "", "data-ui-context-menu-later": "" })));
+    const host = FakeElement.of("ui-items-view", { tabindex: "0" }).append(...rows);
+
+    setLaterMenus(owner => {
+        const bubble = real<FakeElement>(owner);
+        const key = bubble.parent?.getAttribute("data-ui-key") ?? "";
+        const entry = FakeElement.of("ui-menu-item", { "data-ui-shortcut": "P" }, "a");
+        const menu = FakeElement.of("ui-context-menu", { "data-ui-context-menu": "" }).append(FakeElement.of("ui-menu").append(entry));
+
+        menu.laidOut = false;
+        entry.addEventListener("click", () => pinned.push(key));
+        bubble.append(menu).removeAttribute("data-ui-context-menu-later");
+        drawn.push(key);
+
+        return real<HTMLElement>(menu);
+    });
+
+    page([host], undefined, { version: 0, chords: () => ["P"] });
+    fakeDocument.activeElement = host;
+    rows[1].attributes.set("data-ui-row-focus", "");
+
+    assert.equal(press(host, "p", "KeyP"), true);
+    // A key no waiting menu names asks none to be drawn.
+    press(host, "q", "KeyQ");
+
+    assert.deepEqual(pinned, ["b"]);
+    assert.deepEqual(drawn, ["b"]);
+    setLaterMenus(null);
 });

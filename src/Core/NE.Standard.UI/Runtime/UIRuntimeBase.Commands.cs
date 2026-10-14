@@ -13,7 +13,6 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
-using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Recursive;
@@ -48,7 +47,10 @@ internal abstract partial class UIRuntimeBase
         return await ProcessEventInFlightAsync(invoker, request, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Counts a call as a command, holding the runtime until the answer is disposed.</summary>
+    /// <summary>
+    /// Counts a call as a command, holding the runtime until the answer is disposed, and marks the calling flow as one that holds it for
+    /// the rest of the async method that took the hold.
+    /// </summary>
     private CommandRelease HoldAsCommand()
         => HoldAsCommand(out _);
 
@@ -56,9 +58,32 @@ internal abstract partial class UIRuntimeBase
     private CommandRelease HoldAsCommand(out bool alone)
     {
         alone = Interlocked.Increment(ref _commandsInFlight) == 1;
+        MarkFlowAsHolding();
 
         return _commandRelease;
     }
+
+    /// <summary>Marks the current flow as one holding this runtime (<see cref="HeldRuntime"/>).</summary>
+    private void MarkFlowAsHolding()
+    {
+        // Written only on a change: a write copies the flow's context.
+        if (!HoldsRuntime)
+            HeldRuntime.Value = this;
+    }
+
+    /// <summary>
+    /// The runtime the current flow holds — a command, a value write, posted work or a job, and what it awaits — so its own call back in
+    /// goes on while the runtime waits for it to end; any other caller is refused once the runtime is asked to go. Static, as the flow it
+    /// marks is the caller's.
+    /// </summary>
+    /// <remarks>
+    /// Set in an async method, it reverts when that method returns. A count of holds could not tell the two apart: a call from outside
+    /// while a command ran counted as the command's own.
+    /// </remarks>
+    private static readonly AsyncLocal<UIRuntimeBase?> HeldRuntime = new();
+
+    /// <summary>Whether the current flow holds this runtime (<see cref="HeldRuntime"/>).</summary>
+    private bool HoldsRuntime => ReferenceEquals(HeldRuntime.Value, this);
 
     /// <summary>Lets go of one command's hold when disposed.</summary>
     /// <remarks>
@@ -574,17 +599,7 @@ internal abstract partial class UIRuntimeBase
             : Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
 
     private void TryLogDetachedCommandFailure(string operation, Exception exception)
-    {
-        try
-        {
-            if (Controller is IUIContextController contextController)
-                Log.DetachedCommandFailed(contextController.Context.Logger, exception, operation);
-        }
-        catch
-        {
-            // A logger that throws must not turn a failure already recovered from into a new one.
-        }
-    }
+        => TryLog((operation, exception), static (logger, state) => Log.DetachedCommandFailed(logger, state.exception, state.operation));
 
     /// <summary>
     /// Answers a tab whose accepted command failed past its own result — a throwing exception handler, a result the sink

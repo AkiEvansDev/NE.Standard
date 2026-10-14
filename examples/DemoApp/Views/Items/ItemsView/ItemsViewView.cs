@@ -417,6 +417,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                     .AddChild(new ItemsViewComponent()
                         .BindItems(nameof(RowMenusGroupContext.Entries), UIBindingScope.Relative)
                         .BindFirstVisibleKey(nameof(RowMenusGroupContext.TopEntry), UIBindingScope.Relative)
+                        .BindLastVisibleKey(nameof(RowMenusGroupContext.BottomEntry), UIBindingScope.Relative)
                         .SetTemplateKeyProperty(nameof(DemoFeedItem.Kind))
                         .SetFallbackTemplateKey(RowMenusGroupContext.NoteKind)
                         .AddTemplateVariant(RowMenusGroupContext.NoteKind, new SurfaceComponent()
@@ -460,9 +461,9 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                         .SetSpacing(8)
                         .SetHeight(UILayoutLength.Absolute(300))
                     )
-                    // The page writes the entry at the feed's top back as the reader scrolls; the setter words it here.
+                    // The page writes the entries at the feed's top and foot back as the reader scrolls; the setters word them here.
                     .AddChild(new TextComponent()
-                        .BindTitle(nameof(RowMenusGroupContext.AtTop), UIBindingScope.Relative)
+                        .BindTitle(nameof(RowMenusGroupContext.InView), UIBindingScope.Relative)
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.Muted)
                     )
@@ -471,7 +472,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
             columns: 24,
             note: "Press a file, or Tab into the list and arrow to one: share, download and delete stand in a bar above the row's end, and the … opens the rest of the menu (a right click opens all of it); Tab again goes into the bar. A press on the row opens the file and shows its bar; a press on the bar runs only its entry. On a phone a tap does the same, and a long press opens the menu with the bar's icons atop it. "
                 + "Right-click or long-press a feed entry: a note offers copy and pin, a picture open and save — the menu is the entry's own list. Flip the newest and right-click it again: the row is drawn in the other kind with the other kind's menu. Post a picture: its size is not known until it has loaded, and the feed stays at its end as the row grows. "
-                + "Scroll the feed: once it comes to rest, the line under it names the entry at its top — the page writes the key back (`BindFirstVisibleKey`), and the controller's setter words it.",
+                + "Scroll the feed: once it comes to rest, the line under it names the entries at its top and its foot — the page writes the keys back (`BindFirstVisibleKey`, `BindLastVisibleKey`), and the controller's setters word them.",
             context: RowMenusGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {

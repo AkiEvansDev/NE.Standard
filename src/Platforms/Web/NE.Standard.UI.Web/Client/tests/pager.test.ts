@@ -31,10 +31,17 @@ const localStorage = {
     }
 };
 
+// What the engine watches the page with, so a test can hand it a batch of records as the browser would.
+const observers: ((records: readonly MutationRecord[]) => void)[] = [];
+
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900, localStorage },
     getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr" }),
     MutationObserver: class {
+        public constructor(callback: (records: readonly MutationRecord[]) => void) {
+            observers.push(callback);
+        }
+
         public observe(): void {
         }
 
@@ -239,6 +246,25 @@ test("a page turned from the pager opens at its first row in a list that scrolls
     await new Promise(settle => setTimeout(settle, 0));
 
     assert.equal(host.scrollTop, 0);
+});
+
+test("a window moved under its pager redraws it, though the batch put in rows under many other hosts", () => {
+    const watched = observers.length;
+    const { root, host, pager } = scene(0, 812);
+    const others = Array.from({ length: 40 }, (_, index) => FakeElement.of("ui-items-view", { "data-ui-id": String(100 + index) }).append(FakeElement.of("ui-items-view__host", { "data-ui-items-host": "" })));
+
+    root.append(...others);
+    host.setAttribute("data-ui-window-offset", "380");
+
+    const records = [
+        ...others.map(other => real<MutationRecord>({ type: "childList", target: other.children[0], addedNodes: [], removedNodes: [] })),
+        real<MutationRecord>({ type: "attributes", target: host, attributeName: "data-ui-window-offset", addedNodes: [], removedNodes: [] })
+    ];
+
+    for (const observer of observers.slice(watched))
+        observer(records);
+
+    assert.deepEqual(numbers(pager), ["1", "…", "19", "20", "21", "…", "41"]);
 });
 
 test("a host whose window is not a page — a bound Paging turned off — leaves its pager hidden", () => {

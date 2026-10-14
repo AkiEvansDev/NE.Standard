@@ -46,6 +46,10 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         WebDomOperation.ToggleAttribute("aria-disabled", target: ".ui-color-input__swatch--button", condition: WebValueCondition.IsTrue, value: "true")
     ];
 
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value", converter: WebDomConverters.ThemeColorCanonical)];
+    private static readonly WebDomOperation[] TextFormatOperations = [WebDomOperation.Attribute(WebAttributes.ColorFormat, converter: WebDomConverters.ColorTextFormatAttribute)];
+    private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Attribute(WebAttributes.ColorVariant, converter: WebDomConverters.ColorInputVariantAttribute)];
+
     public override string ComponentTypeKey => ColorInputComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-color-input";
@@ -83,7 +87,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
     {
         _ = RenderProperty<UIColorTextFormat?>(context, root, ColorInputComponent.TextFormatProperty, static (target, value)
             => target.Attribute(WebAttributes.ColorFormat, value == UIColorTextFormat.Rgb ? "rgb" : "hex"),
-            [WebDomOperation.Attribute(WebAttributes.ColorFormat, converter: WebDomConverters.ColorTextFormatAttribute)]);
+            TextFormatOperations);
     }
 
     /// <summary>Which variant shows, and which of the popup's parts are refused — all four on the root.</summary>
@@ -91,7 +95,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
     {
         _ = RenderProperty<UIColorInputVariant?>(context, root, ColorInputComponent.VariantProperty, static (target, value)
             => target.Attribute(WebAttributes.ColorVariant, value == UIColorInputVariant.Swatch ? "swatch" : "field"),
-            [WebDomOperation.Attribute(WebAttributes.ColorVariant, converter: WebDomConverters.ColorInputVariantAttribute)]);
+            VariantOperations);
 
         // A refusal rather than an offer: each defaults to shown, so an unset or null value, first paint and live patch alike, marks nothing.
         RenderFlagAttribute(context, root, ColorInputComponent.ShowPickerProperty, WebAttributes.ColorNoPicker, WebValueCondition.IsFalse);
@@ -372,7 +376,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
 
                 foreach (IHtmlElementBuilder text in texts)
                     _ = text.Text(described);
-            }, [WebDomOperation.Property("value", converter: WebDomConverters.ThemeColorCanonical)]);
+            }, ValueOperations);
         });
     }
 

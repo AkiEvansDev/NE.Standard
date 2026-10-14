@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -137,41 +136,45 @@ internal abstract partial class UIRuntimeBase
     /// </remarks>
     private UIItemsQuery BuildItemsQueryNoLock(UIComponentId componentId)
     {
-        List<UIItemFilterTerm> filters = [];
-        List<UIItemSortTerm> sorts = [];
-
         // The viewer's terms first: a sort chosen by a header outranks the authored one.
-        if (ReadItemsQueryNoLock(componentId) is { IsEmpty: false } query)
+        UIItemsQuery query = ReadItemsQueryNoLock(componentId) ?? UIItemsQuery.Empty;
+
+        if (!View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue)
+            || propertyValue is not { IsBind: false, Value: CompiledUIItemsView itemsView }
+            || itemsView.IsEmpty)
         {
-            filters.AddRange(query.Filters);
-            sorts.AddRange(query.Sorts);
+            return query.IsEmpty ? UIItemsQuery.Empty : query;
         }
 
-        if (View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue)
-            && propertyValue is { IsBind: false, Value: CompiledUIItemsView itemsView }
-            && !itemsView.IsEmpty)
+        List<UIItemFilterTerm> filters = [.. query.Filters];
+
+        for (var i = 0; i < itemsView.Filters.Length; i++)
         {
-            for (var i = 0; i < itemsView.Filters.Length; i++)
-            {
-                CompiledUIItemsFilter filter = itemsView.Filters[i];
+            CompiledUIItemsFilter filter = itemsView.Filters[i];
 
-                if (!TryResolveRuleNoLock(filter.Source, out var sourceValue))
-                    continue;
-
+            if (TryResolveRuleNoLock(filter.Source, out var sourceValue))
                 filters.Add(new UIItemFilterTerm(filter.ItemProperty, filter.Operator, filter.Source.Source is null ? filter.Value : sourceValue));
-            }
+        }
 
-            List<CompiledUIItemsSort> active = [];
+        List<UIItemSortTerm> sorts = [.. query.Sorts];
+        List<int> priorities = new(itemsView.Sorts.Length);
+        var authored = sorts.Count;
 
-            for (var i = 0; i < itemsView.Sorts.Length; i++)
-            {
-                if (TryResolveRuleNoLock(itemsView.Sorts[i].Source, out _))
-                    active.Add(itemsView.Sorts[i]);
-            }
+        for (var i = 0; i < itemsView.Sorts.Length; i++)
+        {
+            CompiledUIItemsSort sort = itemsView.Sorts[i];
 
-            // OrderBy rather than List.Sort: only OrderBy is stable, matching the client's Array.sort for equal-priority rules.
-            foreach (CompiledUIItemsSort sort in active.OrderBy(static rule => rule.Priority))
-                sorts.Add(new UIItemSortTerm(sort.ItemProperty, sort.Direction));
+            if (!TryResolveRuleNoLock(sort.Source, out _))
+                continue;
+
+            // Placed after every active rule of its priority or less: a stable order, as the client's Array.sort keeps equal priorities.
+            var at = priorities.Count;
+
+            while (at > 0 && priorities[at - 1] > sort.Priority)
+                at--;
+
+            priorities.Insert(at, sort.Priority);
+            sorts.Insert(authored + at, new UIItemSortTerm(sort.ItemProperty, sort.Direction));
         }
 
         return filters.Count == 0 && sorts.Count == 0

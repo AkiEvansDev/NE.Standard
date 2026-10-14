@@ -10,14 +10,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// <summary>
 /// A thin dividing line, optionally with a centered label, used to separate content groups.
 /// </summary>
-public abstract partial class SeparatorComponent<T>(string? id = null) : VisualComponentBase<T>(id)
+[UIComponentPropertyBlock(typeof(IOrientationComponent))]
+[UIComponentPropertyDefault(nameof(IOrientationComponent.Orientation), nameof(DefaultOrientation))]
+public abstract partial class SeparatorComponent<T>(string? id = null) : VisualComponentBase<T>(id), IOrientationComponent
     where T : SeparatorComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets or sets the orientation of the separator line.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Horizontal)]
-    public UIOrientation? Orientation { get; set; }
+    private const UIOrientation DefaultOrientation = UIOrientation.Horizontal;
 
     /// <summary>
     /// Gets or sets the label text shown on the separator.

@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
@@ -23,7 +24,7 @@ public static class UIButtons
     /// An outlined button, where a bare one would not read as a button: an action on a message's colour, an alternative stretched under
     /// a stretched primary, a choice drawn as a card. Beside a filled button the other way is a <see cref="Ghost"/>.
     /// </summary>
-    public static ButtonComponent Secondary(string title, string? icon = null)
+    public static ButtonComponent Outline(string title, string? icon = null)
         => Create(UIButtonType.Outline, title, icon);
 
     /// <summary>A bare button: the safe answer, the cancel, the thing that costs nothing.</summary>
@@ -50,9 +51,9 @@ public static class UIButtons
     /// <summary>
     /// The pair at a form's foot: the safe answer first, the committing one last, both pushed to the far edge.
     /// </summary>
-    public static StackPanelComponent Pair(ButtonComponent secondary, ButtonComponent primary)
+    public static StackPanelComponent Pair(ButtonComponent safe, ButtonComponent primary)
     {
-        ArgumentNullException.ThrowIfNull(secondary);
+        ArgumentNullException.ThrowIfNull(safe);
         ArgumentNullException.ThrowIfNull(primary);
 
         return new StackPanelComponent()
@@ -61,12 +62,12 @@ public static class UIButtons
             .SetSpacing(8)
             // On a phone the two may not fit on one line: the primary goes under, still at the far edge, rather than past it.
             .SetWrap(true)
-            .AddChild(secondary)
+            .AddChild(safe)
             .AddChild(primary);
     }
 
-    /// <summary>A row of buttons with a toolbar's tight air, starting at the near edge.</summary>
-    public static StackPanelComponent Toolbar(params ButtonComponent[] buttons)
+    /// <summary>A row of buttons with a toolbar's tight air, starting at the near edge; a menu button (<c>UIIconButtons.More(items)</c>) among them.</summary>
+    public static StackPanelComponent Toolbar(params IButtonComponent[] buttons)
     {
         ArgumentNullException.ThrowIfNull(buttons);
 
@@ -75,7 +76,7 @@ public static class UIButtons
             .SetHorizontalAlignment(UIAlignment.Start)
             .SetSpacing(4)
             .SetWrap(true)
-            .AddChildren(buttons);
+            .AddChildren([.. buttons]);
     }
 
     private static ButtonComponent Create(UIButtonType type, string title, string? icon)

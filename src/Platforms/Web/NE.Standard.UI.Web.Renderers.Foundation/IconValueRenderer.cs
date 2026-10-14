@@ -37,13 +37,24 @@ public static class IconValueRenderer
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
 
-        _ = WebComponentRendererBase.RenderProperty<UIIconSize?>(context, target, sizeProperty, static (t, value) =>
-        {
-            if (value is UIIconSize size)
-                _ = t.Class(WebClassNames.IconSize(size));
-        }, SizeOperations);
+        _ = WebComponentRendererBase.RenderProperty<UIIconSize?>(context, target, sizeProperty, static (t, value) => WriteSize(t, value), SizeOperations);
 
         ThemeColorRenderer.RenderThemeColor(context, target, colorProperty);
+    }
+
+    /// <summary>The same from values no property carries — an item's badge drawn from its own.</summary>
+    public static void RenderIconAppearance(IHtmlElementBuilder target, UIIconSize? size, UIThemeColor color)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        WriteSize(target, size);
+        ThemeColorRenderer.RenderThemeColor(target, color);
+    }
+
+    private static void WriteSize(IHtmlElementBuilder target, UIIconSize? value)
+    {
+        if (value is UIIconSize size)
+            _ = target.Class(WebClassNames.IconSize(size));
     }
 
     /// <summary>

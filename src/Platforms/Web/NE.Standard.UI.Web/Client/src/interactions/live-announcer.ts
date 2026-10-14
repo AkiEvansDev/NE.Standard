@@ -1,5 +1,6 @@
 // What a controller says to a screen reader and shows nothing of (AnnounceEffect): two visually hidden live regions beside the
-// notification host, a polite one and an assertive one, which the notification engine owns and puts up with its host.
+// notification host, a polite one and an assertive one, which the notification engine owns and puts up with its host. An engine's own
+// words (a keyboard move, a pane lifted) go through the same regions (`announce`).
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { clientStrings } from "../runtime/client-strings.ts";
@@ -11,6 +12,26 @@ const AnnouncerClass = "ui-announcer";
 const HoldMs = 7000;
 
 export type Politeness = "polite" | "assertive";
+
+// The page's announcer, which the engines speak through: the notification host's, else one put up on the body at the first words.
+let pageAnnouncer: LiveAnnouncer | null = null;
+
+/** Speaks words through the page's announcer, as `LiveAnnouncer.announce` does. */
+export function announce(message: string | Phrase | AuthorText, politeness: Politeness = "polite"): void {
+    (pageAnnouncer ?? putUpAnnouncer(document.body)).announce(message, politeness);
+}
+
+/** Puts the page's announcer up in a container, the notification host's: the one every engine's words go through. */
+export function putUpAnnouncer(container: ParentNode): LiveAnnouncer {
+    pageAnnouncer = new LiveAnnouncer(container);
+
+    return pageAnnouncer;
+}
+
+/** Says where a thing the keyboard moved now stands, 1-based, in the one word every keyboard move uses. */
+export function announceMoved(index: number, count: number): void {
+    announce({ key: "ui.move.done", args: { index, count } });
+}
 
 export class LiveAnnouncer {
     private readonly container: ParentNode;
@@ -35,7 +56,7 @@ export class LiveAnnouncer {
 
         // A line of its own each time rather than the region's text rewritten: the same words twice running are spoken twice.
         this.ensureRegion(politeness).append(line);
-        window.setTimeout(() => line.remove(), HoldMs);
+        setTimeout(() => line.remove(), HoldMs);
 
         return line;
     }

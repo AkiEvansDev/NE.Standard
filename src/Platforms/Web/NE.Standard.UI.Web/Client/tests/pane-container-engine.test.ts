@@ -3,7 +3,7 @@
 // arrives is arranged as its own; a grip shows only over its pane's top band.
 
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 class FakePointerEvent extends FakeEvent {
@@ -20,7 +20,7 @@ class FakePointerEvent extends FakeEvent {
 }
 
 /** A record as the engine reads one: the element it happened on and what was added under it. */
-type FakeRecord = { readonly type: "attributes" | "childList"; readonly target: FakeElement; readonly addedNodes: FakeElement[] };
+type FakeRecord = { readonly type: "attributes" | "childList"; readonly target: FakeElement; readonly addedNodes: FakeElement[]; readonly removedNodes: FakeElement[] };
 
 class FakeObserver {
     public static readonly all: FakeObserver[] = [];
@@ -54,6 +54,9 @@ class FakePlace extends FakeElement {
 }
 
 const stored = new Map<string, string>();
+
+// A spoken line is taken away on the test's clock, which never runs: nothing waits on it.
+mock.timers.enable({ apis: ["setTimeout"] });
 
 installFakeDom({
     window: {
@@ -109,7 +112,7 @@ function gripOf(pane: FakeElement | undefined): FakeElement {
 
 function push(container: FakeElement, layout: string): void {
     container.setAttribute("data-ui-pane-layout", layout);
-    FakeObserver.notify({ type: "attributes", target: container, addedNodes: [] });
+    FakeObserver.notify({ type: "attributes", target: container, addedNodes: [], removedNodes: [] });
 }
 
 function pointer(element: FakeElement, type: string, x: number, y = 50): void {
@@ -241,7 +244,7 @@ test("a container that arrives nested in another's pane takes the layout this vi
     start(context, outer);
     stored.set("ne.ui:board:panes", "alerts,deploys");
     host.append(inner.container);
-    FakeObserver.notify({ type: "childList", target: host, addedNodes: [inner.container] });
+    FakeObserver.notify({ type: "childList", target: host, addedNodes: [inner.container], removedNodes: [] });
 
     assert.deepEqual(standing(inner.places), ["alerts", "deploys"]);
     assert.deepEqual(standing(outer.places), ["main", "side"]);
@@ -268,4 +271,90 @@ test("a pane's grip shows while the pointer is over the pane's top band, not any
 
     pointer(tasks, "pointermove", 150, 80);
     assert.equal(tasks.hasAttribute("data-ui-pane-near"), false);
+});
+
+/** The words the page's polite live region said last, as their mark carries them. */
+function lastSaid(): string {
+    return fakeDocument.body.querySelector(".ui-announcer[aria-live=\"polite\"]")?.children.at(-1)?.getAttribute("data-ui-words") ?? "";
+}
+
+/** A title-sized text holding `words`, as a pane's header leads with. */
+function title(words: string): FakeElement {
+    const text = FakeElement.of("ui-text ui-text-type--subtitle");
+
+    text.textContent = words;
+
+    return text;
+}
+
+test("a grip is named after its own pane's title; a pane with none, or only a nested pane's, keeps the panel's name", context => {
+    const space = workspace(["chat", "tasks"]);
+    const inner = workspace(["deploys", "alerts"], {});
+
+    space.panes.get("chat")!.append(title("Conversation"));
+    inner.panes.get("deploys")!.append(title("Deploys"));
+    space.panes.get("tasks")!.append(inner.container);
+    start(context, space);
+
+    assert.match(gripOf(space.panes.get("chat")).getAttribute("data-ui-words") ?? "", /"ui\.pane\.grip",\{"name":"Conversation"\}/);
+    assert.match(gripOf(space.panes.get("tasks")).getAttribute("data-ui-words") ?? "", /"ui\.pane\.move"/);
+
+    // A title that changed since is read again as the keyboard comes to the grip.
+    space.panes.get("tasks")!.append(title("Tasks"));
+    gripOf(space.panes.get("tasks")).dispatchEvent(new FakeEvent("focusin"));
+
+    assert.match(gripOf(space.panes.get("tasks")).getAttribute("data-ui-words") ?? "", /"name":"Tasks"/);
+});
+
+test("the keyboard's lift presses the grip, which owns its keys, and says the lift, each place aimed at and where the pane lands", async context => {
+    const { escapeIsClaimed } = await import("../src/interactions/field-escape.ts");
+    const space = workspace(["chat", "tasks", "tree"]);
+    const grip = gripOf(space.panes.get("chat"));
+
+    start(context, space);
+    key(grip, " ");
+
+    assert.equal(grip.getAttribute("aria-pressed"), "true");
+    assert.equal(escapeIsClaimed(real<KeyboardEvent>(new FakeKeyboardEvent("Escape", grip))), true, "a dialog or a flyout around it leaves its Escape alone");
+    assert.match(lastSaid(), /ui\.pane\.lifted/);
+
+    key(grip, "ArrowRight");
+    assert.match(lastSaid(), /"ui\.pane\.target",\{"index":2,"count":3\}/);
+
+    key(grip, "Enter");
+    assert.deepEqual(standing(space.places), ["tasks", "chat", "tree"]);
+    assert.match(lastSaid(), /"ui\.move\.done",\{"index":2,"count":3\}/);
+    assert.equal(grip.getAttribute("aria-pressed"), "false");
+    assert.equal(grip.hasAttribute("data-ui-owns-keys"), false);
+
+    key(grip, " ");
+    key(grip, "Escape");
+    assert.match(lastSaid(), /ui\.pane\.back/);
+    assert.equal(grip.getAttribute("aria-pressed"), "false");
+});
+
+test("the pointer's band is measured as it comes onto an element, not on every move", context => {
+    const space = workspace(["chat", "tasks"]);
+    const chat = space.panes.get("chat")!;
+    let reads = 0;
+
+    chat.rect = { left: 0, top: 0, width: 100, height: 100 };
+    Object.assign(chat, {
+        getBoundingClientRect: () => {
+            reads++;
+            return chat.rect;
+        }
+    });
+    start(context, space);
+
+    pointer(chat, "pointermove", 50, 60);
+    pointer(chat, "pointermove", 50, 10);
+    pointer(chat, "pointermove", 50, 20);
+    assert.equal(reads, 1);
+    assert.equal(chat.hasAttribute("data-ui-pane-near"), true);
+
+    chat.dispatchEvent(new FakeEvent("pointerover"));
+    pointer(chat, "pointermove", 50, 70);
+    assert.equal(reads, 2);
+    assert.equal(chat.hasAttribute("data-ui-pane-near"), false);
 });

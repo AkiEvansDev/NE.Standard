@@ -79,7 +79,7 @@ installFakeDom({
 const { clientStrings } = await import("../src/runtime/client-strings.ts");
 const { ImageInputEngine } = await import("../src/interactions/image-input-engine.ts");
 const { FileInputEngine } = await import("../src/interactions/file-input-engine.ts");
-const { formatFileSize } = await import("../src/interactions/file-upload.ts");
+const { formatFileSize } = await import("../src/rendering/file-tile.ts");
 
 /** A mark the engines put on a field, as the validation engine would show it. */
 type Mark = { readonly field: Element; readonly severity: FieldMarkSeverity | null; readonly words: FieldMarkWords | null | undefined };
@@ -267,7 +267,7 @@ test("a shelf names the pictures it left out, takes the rest, and says the limit
     assert.deepEqual(marks.at(-1)?.words, { key: "ui.file.leftout", args: { limit: "1,5 МБ", names: "huge.png, wide.png" } });
 });
 
-test("a shelf taking any file shows a picture as its thumbnail and any other file as its kind's glyph over its name and size", async () => {
+test("a shelf taking any file shows a picture as its thumbnail and any other file as a file tile: its kind's glyph over its name and size", async () => {
     const { tiles, native } = shelfWithComposer({}, "");
 
     pick(native, fileOf("cat.png", 10), fileOf("minutes.pdf", 10, "application/pdf"), fileOf("setup.exe", 10, "application/x-msdownload"));
@@ -277,16 +277,19 @@ test("a shelf taking any file shows a picture as its thumbnail and any other fil
 
     assert.equal(tiles.children.length, 3);
     assert.equal(picture.children[0].tagName, "img");
-    assert.equal(picture.classes.has("ui-image-input__tile--file"), false);
+    assert.equal(picture.classes.has("ui-file-tile"), false);
 
-    assert.equal(pdf.classes.has("ui-image-input__tile--file"), true);
+    assert.equal(pdf.classes.has("ui-file-tile"), true);
     assert.equal(pdf.getAttribute("title"), "minutes.pdf");
-    assert.equal(pdf.querySelector(".ui-image-input__file-glyph")?.classes.has("ui-icon-glyph--ne-picture-as-pdf"), true);
-    assert.equal(pdf.querySelector(".ui-image-input__file-name")?.textContent, "minutes.pdf");
-    assert.equal(pdf.querySelector(".ui-image-input__file-size")?.textContent, "10 bytes");
+    assert.equal(pdf.getAttribute("data-ui-file-name"), "minutes.pdf");
+    assert.equal(pdf.getAttribute("data-ui-file-type"), "application/pdf");
+    assert.equal(pdf.getAttribute("data-ui-file-size"), "10");
+    assert.equal(pdf.querySelector(".ui-file-tile__glyph")?.classes.has("ui-icon-glyph--ne-picture-as-pdf"), true);
+    assert.equal(pdf.querySelector(".ui-file-tile__name")?.textContent, "minutes.pdf");
+    assert.equal(pdf.querySelector(".ui-file-tile__size")?.textContent, "10 bytes");
     assert.match(pdf.querySelector(".ui-image-input__remove")?.getAttribute("data-ui-words") ?? "", /ui\.file\.remove/);
 
-    assert.equal(other.querySelector(".ui-image-input__file-glyph")?.classes.has("ui-icon-glyph--ne-draft"), true);
+    assert.equal(other.querySelector(".ui-file-tile__glyph")?.classes.has("ui-icon-glyph--ne-draft"), true);
 });
 
 test("a size reads in the step it fits, in the page's language", () => {
@@ -437,8 +440,8 @@ test("a shelf draws the handles its controller names and it has no square for, i
         assert.equal(input.hasAttribute("data-ui-image-tiles"), true);
         assert.equal(real<HTMLImageElement>(picture.children[0]).src, "/_ne/files/upload/file-a");
         assert.equal(picture.classes.has("ui-loading"), false);
-        assert.equal(pdf.querySelector(".ui-image-input__file-name")?.textContent, "minutes.pdf");
-        assert.equal(pdf.querySelector(".ui-image-input__file-size")?.textContent, "2 kB");
+        assert.equal(pdf.querySelector(".ui-file-tile__name")?.textContent, "minutes.pdf");
+        assert.equal(pdf.querySelector(".ui-file-tile__size")?.textContent, "2 kB");
         // What the shelf shows is what the controller holds already: nothing is sent back.
         assert.deepEqual(sent, []);
     });

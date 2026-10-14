@@ -274,7 +274,7 @@ test("Home in a windowed host whose window starts past its first row scrolls the
     host.replaceChildren(row("k0", 0), row("k1", 40));
 
     for (const observer of observers)
-        observer.callback([{ target: host, type: "childList" }]);
+        observer.callback([{ target: host, type: "childList", addedNodes: [], removedNodes: [] }]);
 
     assert.equal(cursorKey(root), "k0");
 });

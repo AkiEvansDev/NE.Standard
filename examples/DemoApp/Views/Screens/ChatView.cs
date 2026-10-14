@@ -8,7 +8,7 @@ namespace DemoApp.Views.Screens;
 /// <summary>
 /// A chat application: its sections on a rail that is the page's whole left side — the column of icons on a wide screen, the bottom
 /// navigation bar on a phone, with no drawer — the chats or the people of the one open, and the conversation of the chat pressed:
-/// beside the list on a wide screen, in its place on a narrow one, with a back arrow to the list.
+/// beside the list from the medium width (<see cref="UILayout.Panes"/>), in its place on a phone, with a back arrow to the list.
 /// </summary>
 /// <remarks>
 /// The conversation is a windowed source read from its end backwards, a day header over each day, the message chosen carrying a bar
@@ -32,9 +32,6 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     private const string WallpaperBlurId = "chat-wallpaper-blur";
 
     private static readonly string[] Emoji = ["😀", "😂", "😍", "🤔", "😢", "👍", "👀", "🙏", "🎉", "🔥", "🚀", "✅"];
-
-    /// <summary>Shown only below the wide breakpoint, where the conversation stands in the list's place.</summary>
-    private static readonly UIResponsive<UIVisibility> NarrowOnly = UIResponsive<UIVisibility>.Create(UIVisibility.Visible, xl: UIVisibility.Collapsed);
 
     public static string ViewKey => "demo.screens.chat";
 
@@ -64,76 +61,56 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
 
     /// <summary>
     /// "Go to a day": the dialog is the calendar, its days from the chat's first message to today, the days with messages the only
-    /// ones on offer, and a press on one the whole of it.
+    /// ones on offer, and a press on one the whole of it; "Wallpaper": the picture behind the messages, which follows its controls as
+    /// they move.
     /// </summary>
     protected override IReadOnlyList<UIDialog> CreateDialogs()
-        => [
-            new UIDialog
-            {
-                Key = ChatController.DayKey,
-                Label = "Go to a day",
-                Content = UILayout.Stack(12)
-                    .AsContentTree()
-                    .AddChild(new ParagraphComponent()
-                        .SetTitle("Go to a day")
-                        .SetTitleType(UITextAppearance.Title)
-                        .SetDescription("The days with messages are marked; a press on one goes there.")
-                    )
-                    .AddChild(new CalendarComponent()
-                        .SetHorizontalAlignment(UIAlignment.Center)
-                        .BindValue(nameof(ChatController.JumpDay))
-                        .BindMin(nameof(ChatController.FirstDay))
-                        .BindMax(nameof(ChatController.LastDay))
-                        .BindMarkedDays(nameof(ChatController.MessageDays))
-                        .SetMarkedDaysOnly()
-                        .OnChange(nameof(ChatController.GoToDayAsync))
-                    )
-            },
-            new UIDialog
-            {
-                Key = ChatController.WallpaperKey,
-                Label = "Wallpaper",
-                Content = UILayout.Stack(16)
-                    .AsContentTree()
-                    .AddChild(new ParagraphComponent()
-                        .SetTitle("Wallpaper")
-                        .SetTitleType(UITextAppearance.Title)
-                        .SetDescription("A picture behind the messages, dimmed toward the page's ground so they read in either theme.")
-                    )
-                    .AddChild(new SwitchComponent()
-                        .SetTitle("Show a picture")
-                        .BindValue(nameof(ChatController.WallpaperShown))
-                        .OnChange(nameof(ChatController.UpdateWallpaper))
-                    )
-                    .AddChild(new SliderComponent(WallpaperDimId)
-                        .SetTitle("Dim")
-                        .SetRange(0, 0.9m)
-                        .SetStep(0.05m)
-                        .SetShowValue()
-                        .BindValue(nameof(ChatController.WallpaperDim))
-                        .OnChange(nameof(ChatController.UpdateWallpaper))
-                    )
-                    .AddChild(new SliderComponent(WallpaperBlurId)
-                        .SetTitle("Blur, pixels")
-                        .SetRange(0, 32)
-                        .SetStep(1)
-                        .SetShowValue()
-                        .BindValue(nameof(ChatController.WallpaperBlur))
-                        .OnChange(nameof(ChatController.UpdateWallpaper))
-                    )
-            }
+    {
+        UIDialog[] dialogs =
+        [
+            UIDialogs.Create(ChatController.DayKey, "Go to a day", UILayout.Stack(12,
+                UIText.Note("The days with messages are marked; a press on one goes there."),
+                new CalendarComponent()
+                    .SetHorizontalAlignment(UIAlignment.Center)
+                    .BindValue(nameof(ChatController.JumpDay))
+                    .BindMin(nameof(ChatController.FirstDay))
+                    .BindMax(nameof(ChatController.LastDay))
+                    .BindMarkedDays(nameof(ChatController.MessageDays))
+                    .SetMarkedDaysOnly()
+                    .OnChange(nameof(ChatController.GoToDayAsync))
+            )),
+            UIDialogs.Create(ChatController.WallpaperKey, "Wallpaper", UILayout.Stack(16,
+                UIText.Note("A picture behind the messages, dimmed toward the page's ground so they read in either theme."),
+                new SwitchComponent()
+                    .SetTitle("Show a picture")
+                    .BindValue(nameof(ChatController.WallpaperShown))
+                    .OnChange(nameof(ChatController.UpdateWallpaper)),
+                new SliderComponent(WallpaperDimId)
+                    .SetTitle("Dim")
+                    .SetRange(0, 0.9m)
+                    .SetStep(0.05m)
+                    .SetShowValue()
+                    .BindValue(nameof(ChatController.WallpaperDim))
+                    .OnChange(nameof(ChatController.UpdateWallpaper)),
+                new SliderComponent(WallpaperBlurId)
+                    .SetTitle("Blur, pixels")
+                    .SetRange(0, 32)
+                    .SetStep(1)
+                    .SetShowValue()
+                    .BindValue(nameof(ChatController.WallpaperBlur))
+                    .OnChange(nameof(ChatController.UpdateWallpaper))
+            ))
         ];
 
+        // The screen's words are its content, the dialogs' too.
+        foreach (UIDialog dialog in dialogs)
+            _ = ((StackPanelComponent)dialog.Content).AsContentTree();
+
+        return dialogs;
+    }
+
     protected override IVisualComponent CreateScreen()
-        => new ContainerComponent()
-            .AddChild(CreateList()
-                .BindVisibility(nameof(ChatController.ListVisibility))
-                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), xl: UIGridPlacement.At(1, 1, 9, 1)))
-            )
-            .AddChild(CreateConversation()
-                .BindVisibility(nameof(ChatController.PaneVisibility))
-                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), xl: UIGridPlacement.At(10, 1, 15, 1)))
-            )
+        => UILayout.Panes(CreateList(), CreateConversation(), nameof(ChatController.ListVisibility), nameof(ChatController.PaneVisibility))
             .SetHeight(UILayoutLength.Fill())
             .SetPlacement(1, 1, 24, 1);
 
@@ -146,21 +123,15 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .SetRow(1, UIGridUnit.Auto())
             .AddRow(UIGridUnit.Auto())
             .AddRow(UIGridUnit.Star())
-            .SetSpacing(12)
-            .AddChild(new ContainerComponent()
-                .SetColumn(24, UIGridUnit.Auto())
-                .AddChild(UIText.Title(string.Empty)
-                    .BindTitle(nameof(ChatController.Heading))
-                    .SetVerticalAlignment(UIAlignment.Center)
-                    .SetPlacement(1, 1, 23, 1)
-                )
-                .AddChild(UIButtons.Toolbar(
-                        // Folder glyphs, not a bare cross and plus: at a screen's top corner a cross reads as closing the screen.
-                        UIButtons.Icon(DemoIcons.Outline(DemoIcons.FolderRemove), "Remove a folder").OnClick(nameof(ChatController.RemoveFolder)),
-                        UIButtons.Icon(DemoIcons.Outline(DemoIcons.FolderAdd), "Add a folder").OnClick(nameof(ChatController.AddFolder))
-                    )
-                    .SetVerticalAlignment(UIAlignment.Center)
-                    .SetPlacement(24, 1, 1, 1)
+            .SetHeight(UILayoutLength.Fill())
+            .AddChild(UIPage.BoundHeader(
+                    UIHeaderSize.Pane,
+                    null,
+                    nameof(ChatController.Heading),
+                    null,
+                    // Folder glyphs, not a bare cross and plus: at a screen's top corner a cross reads as closing the screen.
+                    UIButtons.Icon(DemoIcons.Outline(DemoIcons.FolderRemove), "Remove a folder").OnClick(nameof(ChatController.RemoveFolder)),
+                    UIButtons.Icon(DemoIcons.Outline(DemoIcons.FolderAdd), "Add a folder").OnClick(nameof(ChatController.AddFolder))
                 )
                 .SetPlacement(1, 1, 24, 1)
             )
@@ -170,6 +141,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                 .SetSearch("Search chats")
                 .SetDebounceMilliseconds(150)
                 .BindVisibility(nameof(ChatController.ChatsVisibility))
+                .SetMargin(UIThickness.All(0, 12, 0, 12))
                 .SetPlacement(1, 2, 24, 1)
             )
             .AddChild(new ItemsViewComponent()
@@ -200,6 +172,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                     .SetPlacement(1, 1, 24, 1)
                 )
                 .BindVisibility(nameof(ChatController.PeopleVisibility))
+                .SetMargin(UIThickness.All(0, 12, 0, 0))
                 .SetPlacement(1, 2, 24, 2)
             );
 
@@ -207,26 +180,9 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     /// A chat as a messenger lists it: the picture, the name over the last words, and when they came over what is unread.
     /// </summary>
     private static ContainerComponent CreateChatRow()
-        => new ContainerComponent()
-            // Wider than the wash's own inset: the scrollbar drawn over the list's edge stays clear of the time.
-            .SetPadding(UIThickness.All(6, 6, 6, 6))
-            .SetColumn(1, UIGridUnit.Auto())
-            .SetColumn(24, UIGridUnit.Auto())
-            .AddChild(CreateAvatar(44)
-                .BindSource(nameof(DemoChatItem.Avatar), UIBindingScope.Relative)
-                .BindAltText(nameof(DemoChatItem.Title), UIBindingScope.Relative)
-                .SetPlacement(1, 1, 1, 1)
-            )
-            .AddChild(new TextComponent()
-                .BindTitle(nameof(DemoChatItem.Title), UIBindingScope.Relative)
-                .AsBody()
-                .BindDescription(nameof(DemoChatItem.Description), UIBindingScope.Relative)
-                .SetDescriptionColor(UIThemeColor.Muted)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetMargin(UIThickness.All(12, 0, 8, 0))
-                .SetPlacement(2, 1, 22, 1)
-            )
-            .AddChild(UILayout.Stack(4,
+        => UILayout.Ends(
+                UIText.Person(nameof(DemoChatItem.Avatar), nameof(DemoChatItem.Title), nameof(DemoChatItem.Description), UIBindingScope.Relative),
+                UILayout.Stack(4,
                     new TimestampComponent()
                         .SetFormat(UITimestampFormat.Relative)
                         .BindValue(nameof(DemoChatItem.At), UIBindingScope.Relative)
@@ -239,16 +195,14 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .BindVisibility(nameof(DemoChatItem.UnreadVisibility), UIBindingScope.Relative)
                         .SetHorizontalAlignment(UIAlignment.End)
                 )
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetPlacement(24, 1, 1, 1)
-            );
+            )
+            .SetPadding(UIThickness.All(2, 6, 2, 6));
 
     /// <summary>The open chat: who it is with, its messages read from the end, and the composer.</summary>
     private static SurfaceComponent CreateConversation()
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Raised)
             .SetPadding(UIThickness.Uniform(0))
-            .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.Uniform(0), xl: UIThickness.All(20, 0, 0, 0)))
             // Rows, not a stack: the messages take what the header and the composer leave, so the composer never drops out of sight.
             .SetContent(new ContainerComponent()
                 .SetRow(1, UIGridUnit.Auto())
@@ -259,52 +213,28 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                 .AddChild(CreateComposer().SetPlacement(1, 3, 24, 1))
             );
 
-    /// <summary>The back arrow on a narrow screen, the picture, the name over who they are, and the conversation's own menu.</summary>
+    /// <summary>The back arrow on a phone, the picture, the name and who they are, and the conversation's own menu.</summary>
     private static ContainerComponent CreateConversationHeader()
-        => new ContainerComponent()
-            .SetPadding(UIThickness.All(12, 10, 12, 10))
-            .SetColumn(1, UIGridUnit.Auto())
-            .SetColumn(2, UIGridUnit.Auto())
-            .SetColumn(24, UIGridUnit.Auto())
-            .AddChild(UIButtons.Icon(DemoIcons.Outline(DemoIcons.ArrowBack), "Back to the chats")
-                .OnClick(nameof(ChatController.Back))
-                .SetVisibility(NarrowOnly)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetMargin(UIThickness.All(0, 0, 8, 0))
-                .SetPlacement(1, 1, 1, 1)
+        => UIPage.BoundHeader(
+                UIHeaderSize.Pane,
+                UILayout.Row(4,
+                    UIIconButtons.Back().OnClick(nameof(ChatController.Back)).ShownBelow(UIResponsiveTier.Md),
+                    new ImageComponent()
+                        .BindSource(nameof(ChatController.OpenAvatar))
+                        .SetShape(UIImageShape.Circle)
+                        .SetWidth(UILayoutLength.Absolute(32))
+                        .SetHeight(UILayoutLength.Absolute(32))
+                        .SetVerticalAlignment(UIAlignment.Center)
+                ),
+                nameof(ChatController.OpenName),
+                nameof(ChatController.OpenStatus),
+                // On a phone the menu holds it: the name needs the room.
+                UIButtons.Icon(DemoIcons.Outline(DemoIcons.Calendar), "Go to a day")
+                    .OnClick(nameof(ChatController.OpenDayPicker))
+                    .ShownFrom(UIResponsiveTier.Md),
+                UIIconButtons.More(ChatController.ConversationMenu()).OnItemClickWithItemKey(nameof(ChatController.ConversationActionAsync))
             )
-            .AddChild(CreateAvatar(40)
-                .BindSource(nameof(ChatController.OpenAvatar))
-                .BindAltText(nameof(ChatController.OpenName))
-                .SetPlacement(2, 1, 1, 1)
-            )
-            .AddChild(new TextComponent()
-                .BindTitle(nameof(ChatController.OpenName))
-                .AsBody()
-                .BindDescription(nameof(ChatController.OpenStatus))
-                .SetDescriptionColor(UIThemeColor.Muted)
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetMargin(UIThickness.All(12, 0, 8, 0))
-                .SetPlacement(3, 1, 21, 1)
-            )
-            .AddChild(UILayout.Row(4,
-                    // On a phone the menu holds it: the name needs the room.
-                    UIButtons.Icon(DemoIcons.Outline(DemoIcons.Calendar), "Go to a day")
-                        .OnClick(nameof(ChatController.OpenDayPicker))
-                        .SetVisibility(UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)),
-                    // The "⋮" says it opens a menu by itself, so it draws no chevron after it.
-                    new SplitButtonComponent()
-                        .SetMode(UISplitButtonMode.Menu)
-                        .SetType(UIButtonType.Ghost)
-                        .SetIcon(DemoIcons.Outline(DemoIcons.MoreVertical))
-                        .SetShowChevron(false)
-                        .SetTooltip("More")
-                        .SetItems(ChatController.ConversationMenu())
-                        .OnItemClickWithItemKey(nameof(ChatController.ConversationActionAsync))
-                )
-                .SetVerticalAlignment(UIAlignment.Center)
-                .SetPlacement(24, 1, 1, 1)
-            );
+            .SetPadding(UIThickness.All(12, 10, 12, 10));
 
     /// <summary>
     /// The reader's wallpaper behind the messages alone, evenly dimmed in the theme's ground so the words read in either theme, and
@@ -324,7 +254,30 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .BindBackgroundImageBlur(nameof(ChatController.WallpaperBlurLength))
             .InteractCopyValue(WallpaperDimId, ISurfaceComponent.BackgroundImageDimProperty)
             .InteractCopyValue(WallpaperBlurId, ISurfaceComponent.BackgroundImageBlurProperty)
-            .AddChild(CreateMessages().SetPlacement(1, 1, 24, 1));
+            .AddChild(CreateMessages().SetPlacement(1, 1, 24, 1))
+            .AddChild(CreatePinnedBar().SetPlacement(1, 1, 24, 1));
+
+    /// <summary>
+    /// The conversation's pinned message, a raised bar over the head of the messages in their cell: laid after them, it stands over
+    /// them, and the rows scrolled up pass under it.
+    /// </summary>
+    private static SurfaceComponent CreatePinnedBar()
+        => new SurfaceComponent()
+            .SetSurface(UISurfaceStyle.Raised)
+            .SetVerticalAlignment(UIAlignment.Start)
+            // As wide as the messages' column under it, and centred with it in a wide pane.
+            .SetHorizontalAlignment(UIAlignment.Center)
+            .SetWidth(UILayoutLength.Fill())
+            .SetMaxWidth(UILayoutLength.Absolute(760))
+            .SetMargin(UIThickness.All(16, 8, 16, 0))
+            .SetPadding(UIThickness.All(12, 6, 12, 6))
+            .SetContent(new ParagraphComponent()
+                .SetTitle("Pinned")
+                .SetTitleType(UITextAppearance.Caption)
+                .SetTitleColor(UIThemeColor.Primary)
+                .SetDescription("The release moves to Thursday, 10:30; the checklist is in the files.")
+                .SetMaxLines(1)
+            );
 
     /// <summary>
     /// The messages, a window of thirty read from the end: theirs on the page's ground with the author's name in a group, the reader's
@@ -346,8 +299,11 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             // A bubble is its own card: the row its bar stands over takes no wash across the conversation's width.
             .SetSelectionStyle(new UISelectionStyle(null, null, null, null, ActionBarBackground: UIThemeColor.Transparent))
             .SetSpacing(6)
-            // Inside the scroll, not around it: the scrollbar drawn over its edge runs in this air, clear of the bubbles.
-            .SetPadding(UIThickness.All(16, 8, 16, 8));
+            // Inside the scroll, not around it: the rows scroll through it, and the top keeps the first message clear of the pinned bar
+            // standing over the head.
+            .SetPadding(UIThickness.All(16, 64, 16, 8))
+            // A conversation reads as a column in a wide pane, its bar at the pane's edge rather than beside the bubbles.
+            .SetContentMaxWidth(760);
 
     /// <summary>
     /// A message on its side of the conversation, its author over it in a group and its time under it; its own menu behind a right
@@ -375,6 +331,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .BindDescription(nameof(DemoChatMessage.Text), UIBindingScope.Relative)
                         .SetDescriptionType(UITextAppearance.Body),
                     CreatePhotos(),
+                    CreateFiles(),
                     new TimestampComponent()
                         .SetFormat(UITimestampFormat.Time)
                         .BindValue(nameof(DemoChatMessage.Sent), UIBindingScope.Relative)
@@ -408,6 +365,26 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                     .SetHeight(UILayoutLength.Absolute(88))
                 )
                 .OnClickShowImage(amongRows: true)
+            );
+
+    /// <summary>
+    /// The files sent with a message, tiles in a wrap — the kind's glyph, the name on two lines, the size — as the composer's shelf
+    /// draws a file; a press on one opens it.
+    /// </summary>
+    private static ItemsViewComponent CreateFiles()
+        => new ItemsViewComponent()
+            .BindItems(nameof(DemoChatMessage.Files), UIBindingScope.Relative)
+            .BindVisibility(nameof(DemoChatMessage.FilesVisibility), UIBindingScope.Relative)
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetLayoutType(UIItemsLayoutType.Wrap)
+            .SetSpacing(4)
+            .SetMargin(UIThickness.All(0, 4, 0, 2))
+            .SetTemplate(new FileTileComponent()
+                .BindFileName(nameof(DemoChatFile.Title), UIBindingScope.Relative)
+                .BindFileSize(nameof(DemoChatFile.Size), UIBindingScope.Relative)
+                .BindContentType(nameof(DemoChatFile.ContentType), UIBindingScope.Relative)
+                .SetClickable(true)
+                .OnClick(nameof(ChatController.OpenFile), UIAction.ArgRelative("name", nameof(DemoChatFile.Title)))
             );
 
     /// <summary>
@@ -456,15 +433,10 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .SetSubmitOnEnter()
                         .BindValue(nameof(ChatController.Draft))
                         // In the press itself, not from a command: a browser opens a chooser only inside the reader's own gesture.
-                        .AddLeadingAction(new ButtonComponent()
-                            .SetType(UIButtonType.Ghost)
-                            .SetIcon(DemoIcons.Outline(DemoIcons.Attach))
-                            .SetTooltip("Attach files")
-                            .InteractOn(EventNames.Click, new OpenPickerEffect(AttachmentsId))
-                        )
+                        .AddLeadingAction(UIIconButtons.Attach().InteractOn(EventNames.Click, new OpenPickerEffect(AttachmentsId)))
                         // A tile's press puts its emoji at the caret on the page itself: no round trip, and the draft's own undo takes it back.
                         .AddLeadingAction(new FlyoutComponent()
-                            .SetFlyoutPlacement(UIPopupPlacement.TopStart)
+                            .SetPopupPlacement(UIPopupPlacement.TopStart)
                             .SetAnchor(new ButtonComponent()
                                 .SetType(UIButtonType.Ghost)
                                 .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
@@ -488,25 +460,12 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                             .SetType(UIButtonType.Ghost)
                             .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
                             .SetTooltip("Quick replies")
-                            .SetMenuPlacement(UIPopupPlacement.TopStart)
+                            .SetPopupPlacement(UIPopupPlacement.TopStart)
                             .SetItems(ChatController.QuickReplies())
                             .OnItemClickWithItemKey(nameof(ChatController.InsertQuickReply))
                         )
-                        .AddTrailingAction(new ButtonComponent()
-                            .SetType(UIButtonType.Ghost)
-                            .SetIcon(DemoIcons.Outline(DemoIcons.Send))
-                            .SetTooltip("Send")
-                            .OnSubmit(ComposerFormId, nameof(ChatController.SendAsync))
-                        )
+                        .AddTrailingAction(UIIconButtons.Send().OnSubmit(ComposerFormId, nameof(ChatController.SendAsync)))
                 )
                 .SetPlacement(1, 1, 24, 1)
             );
-
-    /// <summary>A face, or a name's initials, in a circle: its shape squares the box and crops the picture rather than fitting it.</summary>
-    private static ImageComponent CreateAvatar(double size)
-        => new ImageComponent()
-            .SetShape(UIImageShape.Circle)
-            .SetWidth(UILayoutLength.Absolute(size))
-            .SetHeight(UILayoutLength.Absolute(size))
-            .SetVerticalAlignment(UIAlignment.Center);
 }

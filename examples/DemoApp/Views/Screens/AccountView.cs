@@ -16,30 +16,33 @@ internal sealed class AccountView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.account.description";
 
     protected override IVisualComponent CreateScreen()
-        => UILayout.Stack(16,
-            UILayout.Columns(16,
-                UIPage.Card("This session", "What SignInAsync was handed, read back from the session.", UILayout.Stack(12,
-                    CreateLine("User", nameof(AccountController.UserLine)),
-                    CreateLine("Roles", nameof(AccountController.RolesLine)),
-                    CreateLine("Permissions", nameof(AccountController.PermissionsLine)),
-                    UIButtons.Toolbar(
-                        UIButtons.Ghost("Sign out", DemoIcons.Outline(DemoIcons.Close)).OnClick(nameof(AccountController.SignOutAsync))
-                    )
-                ), DemoIcons.Outline(DemoIcons.User)),
-                UIPage.Card("Reports", "Every account may view; only reports.export may export; only an admin opens the console.", UILayout.Stack(12,
-                    UIText.Note(string.Empty).BindDescription(nameof(AccountController.ReportLine)),
-                    UILayout.Row(8,
-                        UIButtons.Primary("View the revenue report").OnClick(nameof(AccountController.ViewReport)),
-                        UIButtons.Ghost("Export it", DemoIcons.Outline(DemoIcons.Download)).OnClick(nameof(AccountController.ExportReport)),
-                        UIButtons.Ghost("Open the admin console", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(AccountController.OpenAdmin))
-                    )
-                ), DemoIcons.Outline(DemoIcons.FileText))
-            ),
-            UIPage.Card("Audit trail", "Written by [AuditCommand] on this controller: who ran what, how it ended, how long it took. The filter writes after the command has answered, so a press shows up on the next read; a refused press never reaches it.", UILayout.Stack(12,
-                UIText.Paragraph(string.Empty).BindDescription(nameof(AccountController.AuditLines)),
-                UIButtons.Toolbar(UIButtons.Ghost("Refresh", DemoIcons.Outline(DemoIcons.Refresh)).OnClick(nameof(AccountController.RefreshAudit)))
-            ), DemoIcons.Outline(DemoIcons.History))
-        ).SetPlacement(1, 1, 24, 1);
+        => UILayout.Stack(16, UILayout.Board([CreateSession()], [CreateReports()]), CreateAudit()).SetPlacement(1, 1, 24, 1);
+
+    private static CardComponent CreateSession()
+        => UICard.Create("This session", "What SignInAsync was handed, read back from the session.", UILayout.Stack(12,
+            CreateLine("User", nameof(AccountController.UserLine)),
+            CreateLine("Roles", nameof(AccountController.RolesLine)),
+            CreateLine("Permissions", nameof(AccountController.PermissionsLine)),
+            UIButtons.Toolbar(
+                UIButtons.Ghost("Sign out", DemoIcons.Outline(DemoIcons.Close)).OnClick(nameof(AccountController.SignOutAsync))
+            )
+        ), DemoIcons.Outline(DemoIcons.User));
+
+    private static CardComponent CreateReports()
+        => UICard.Create("Reports", "Every account may view; only reports.export may export; only an admin opens the console.", UILayout.Stack(12,
+            UIText.Note(string.Empty).BindDescription(nameof(AccountController.ReportLine)),
+            UILayout.Row(8,
+                UIButtons.Primary("View the revenue report").OnClick(nameof(AccountController.ViewReport)),
+                UIButtons.Ghost("Export it", DemoIcons.Outline(DemoIcons.Download)).OnClick(nameof(AccountController.ExportReport)),
+                UIButtons.Ghost("Open the admin console", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(AccountController.OpenAdmin))
+            )
+        ), DemoIcons.Outline(DemoIcons.FileText));
+
+    private static CardComponent CreateAudit()
+        => UICard.Create("Audit trail", "Written by [AuditCommand] on this controller: who ran what, how it ended, how long it took. The filter writes after the command has answered, so a press shows up on the next read; a refused press never reaches it.", UILayout.Stack(12,
+            UIText.Paragraph(string.Empty).BindDescription(nameof(AccountController.AuditLines)),
+            UIButtons.Toolbar(UIButtons.Ghost("Refresh", DemoIcons.Outline(DemoIcons.Refresh)).OnClick(nameof(AccountController.RefreshAudit)))
+        ), DemoIcons.Outline(DemoIcons.History));
 
     /// <summary>A caption over the value: the label small and muted, the session's word under it in body type.</summary>
     private static TextComponent CreateLine(string label, string path)

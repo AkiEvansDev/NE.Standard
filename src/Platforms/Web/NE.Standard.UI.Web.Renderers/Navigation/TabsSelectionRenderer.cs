@@ -11,6 +11,8 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// </summary>
 internal static class TabsSelectionRenderer
 {
+    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root")];
+
     public static void RenderSelectedKey(WebRenderContext context, IHtmlElementBuilder root, UIProperty selectedKeyProperty)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -21,6 +23,6 @@ internal static class TabsSelectionRenderer
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = target.Attribute(WebAttributes.TabsSelected, value);
-        }, [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root")]);
+        }, SelectedKeyOperations);
     }
 }

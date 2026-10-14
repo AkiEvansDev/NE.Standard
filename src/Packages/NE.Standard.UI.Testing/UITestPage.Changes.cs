@@ -430,6 +430,10 @@ public sealed partial class UITestPage
             _resync = false;
             _values.Clear();
             _rows.Clear();
+
+            // A held field keeps the reader's edit through the rebuild, as the page's input does; the snapshot's value waits aside.
+            foreach (KeyValuePair<UIPropertyAddress, object?> held in _held)
+                _values[held.Key] = held.Value;
         }
 
         await StartAsync(_resolution, cancellationToken).ConfigureAwait(false);

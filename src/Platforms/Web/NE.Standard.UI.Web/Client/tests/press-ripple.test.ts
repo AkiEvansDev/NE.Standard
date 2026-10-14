@@ -1,6 +1,8 @@
 // The press ripple: a wave from the press point that grows to the farthest corner while held, finishes quickly and fades on release,
 // fades where it stands on a cancel (a touch turning into a scroll is one), and plays nowhere under reduced motion. It reaches buttons,
 // list entries and the rows whose press does something; an icon that is the whole face shrinks while held, and nothing else does.
+// The wave is an element of its own, the pressed thing's last child while it plays, and only its circle's scale and its opacity
+// animate: what the compositor runs without the page's script.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -59,6 +61,7 @@ class FakeAnimation {
 
 let reducedMotion = false;
 let clock = 0;
+// By the pressed thing: the circle's growth, then the wave's fade.
 const animations = new Map<FakeElement, FakeAnimation[]>();
 
 installFakeDom({ PointerEvent: FakePointerEvent, matchMedia: () => ({ matches: reducedMotion }) });
@@ -66,8 +69,9 @@ Object.defineProperty(globalThis, "performance", { value: { now: () => clock }, 
 Object.assign(FakeElement.prototype, {
     animate(this: FakeElement, keyframes: Record<string, unknown>[], options: KeyframeAnimationOptions): FakeAnimation {
         const animation = new FakeAnimation(keyframes, options);
+        const pressed = this.classes.has("ui-press-wave") ? this.parent! : this.parent!.parent!;
 
-        animations.set(this, [...animations.get(this) ?? [], animation]);
+        animations.set(pressed, [...animations.get(pressed) ?? [], animation]);
 
         return animation;
     }
@@ -120,17 +124,27 @@ function rippling(element: FakeElement): boolean {
     return element.classes.has("ui-pressing");
 }
 
+function waveOf(element: FakeElement): FakeElement | undefined {
+    return element.children.find(child => child.classes.has("ui-press-wave"));
+}
+
 test("a press grows a circle from its point to the farthest corner, and holds it there while the pointer is held", () => {
     const button = placed(FakeElement.of("ui-button", {}, "button"), 100, 50, 120, 40);
 
     page(button);
     down(button, 110, 60);
 
+    const radius = Math.hypot(110, 30);
+    const wave = waveOf(button)!;
+    const ink = wave.children[0];
+
     assert.equal(rippling(button), true);
     assert.equal(button.classes.has("ui-press-held"), true);
-    assert.equal(button.style["--ui-press-x"], "10px");
-    assert.equal(button.style["--ui-press-y"], "10px");
-    assert.deepEqual(grow(button).keyframes, [{ "--ui-ripple-radius": "0px" }, { "--ui-ripple-radius": `${Math.hypot(110, 30)}px` }]);
+    assert.equal(button.children.at(-1), wave, "the wave stands after the button's own parts");
+    assert.equal(wave.getAttribute("aria-hidden"), "true");
+    assert.equal(ink.classes.has("ui-press-wave__ink"), true);
+    assert.deepEqual([ink.style.left, ink.style.top, ink.style.width, ink.style.height], [`${10 - radius}px`, `${10 - radius}px`, `${radius * 2}px`, `${radius * 2}px`]);
+    assert.deepEqual(grow(button).keyframes, [{ transform: "scale(0)" }, { transform: "scale(1)" }]);
     assert.equal(grow(button).options.duration, motion.ripple);
     assert.equal(grow(button).options.fill, "forwards");
 
@@ -138,6 +152,19 @@ test("a press grows a circle from its point to the farthest corner, and holds it
 
     assert.equal(fade(button), undefined, "the wave fades while the pointer is still down");
     assert.equal(rippling(button), true);
+});
+
+test("the circle stands round the press point inside a border, which the frame's rect counts and the wave's box does not", () => {
+    const button = placed(FakeElement.of("ui-button", {}, "button"), 100, 50, 120, 40);
+
+    Object.assign(button, { clientLeft: 2, clientTop: 1 });
+    page(button);
+    down(button, 110, 60);
+
+    const radius = Math.hypot(110, 30);
+    const ink = waveOf(button)!.children[0];
+
+    assert.deepEqual([ink.style.left, ink.style.top], [`${8 - radius}px`, `${9 - radius}px`]);
 });
 
 test("a quick click finishes the growth in a short step and then fades, so it still shows a wave", () => {
@@ -152,13 +179,15 @@ test("a quick click finishes the growth in a short step and then fades, so it st
 
     assert.equal(button.classes.has("ui-press-held"), false);
     assert.equal(grow(button).rate, remaining / motion.fast);
-    assert.deepEqual(fade(button)!.keyframes, [{ "--ui-ripple-opacity": 1 }, { "--ui-ripple-opacity": 0 }]);
+    assert.deepEqual(fade(button)!.keyframes, [{ opacity: 1 }, { opacity: 0 }]);
     assert.equal(fade(button)!.options.delay, motion.fast);
     assert.equal(rippling(button), true, "the wave is gone before it faded");
+    assert.notEqual(waveOf(button), undefined);
 
     fade(button)!.finish();
 
     assert.equal(rippling(button), false);
+    assert.equal(waveOf(button), undefined, "the wave stayed in the button");
     assert.equal(grow(button).cancelled, true);
     assert.equal(fade(button)!.cancelled, true);
 });
@@ -197,6 +226,7 @@ test("a drag starting from the press takes its wave away at once, before the bro
     row.dispatchEvent(new FakeEvent("dragstart"));
 
     assert.equal(rippling(row), false);
+    assert.equal(waveOf(row), undefined);
     assert.equal(row.classes.has("ui-press-held"), false);
     assert.equal(grow(row).cancelled, true);
     assert.equal(fade(row), undefined);
@@ -212,6 +242,7 @@ test("nothing plays under reduced motion, an icon's shrink included", () => {
     assert.equal(rippling(button), false);
     assert.equal(button.classes.has("ui-press-held"), false);
     assert.equal(animations.size, 0);
+    assert.equal(waveOf(button), undefined);
 });
 
 test("a press again on a wave still fading replaces it; another pointer's release leaves it alone", () => {
@@ -223,11 +254,14 @@ test("a press again on a wave still fading replaces it; another pointer's releas
     up(button);
 
     const first = grow(button);
+    const firstWave = waveOf(button);
 
     down(button, 20, 20, 2);
 
     assert.equal(first.cancelled, true);
     assert.equal(rippling(button), true);
+    assert.equal(button.children.filter(child => child.classes.has("ui-press-wave")).length, 1, "the replaced wave stayed beside the new one");
+    assert.notEqual(waveOf(button), firstWave);
 
     up(button, 1);
 
@@ -386,16 +420,31 @@ test("an icon that is the whole face shrinks while held and springs back; a butt
         assert.doesNotMatch(match[2], /\b(?:scale|transform):/, `${match[1].trim()} scales the pressed element`);
 });
 
-test("the wave is a layer of the element's own frame and corners, cut to the circle, so the element itself clips nothing", () => {
-    const layer = rule(".ui-button:not(.ui-tab-header, .ui-menu-item).ui-pressing:not(.ui-loading)::after");
+test("the wave is a layer of the element's own frame and corners, cutting the circle, so the element itself clips nothing", () => {
+    const layer = rule(".ui-pressing > .ui-press-wave {");
 
+    assert.match(layer, /position: absolute;/);
     assert.match(layer, /inset: 0;/);
     assert.match(layer, /border-radius: inherit;/);
-    assert.match(layer, /clip-path: circle\(var\(--ui-ripple-radius\) at var\(--ui-press-x, 50%\) var\(--ui-press-y, 50%\)\);/);
-    assert.doesNotMatch(css, /\.ui-pressing[^{]*\{[^}]*overflow: hidden/);
+    assert.match(layer, /overflow: hidden;/);
+    assert.match(layer, /pointer-events: none;/);
+    assert.match(layer, /grid-area: auto;/, "a grid's `> *` placement made a cell the wave's box");
+    assert.match(rule(".ui-pressing > .ui-press-wave > .ui-press-wave__ink {"), /border-radius: 50%;[\s\S]*background: color-mix\(in srgb, currentColor 16%, transparent\);/);
 
-    // A tab's line and a menu entry's chevron are their ::after; the wave takes ::before there, rounded on a tab's square caption.
-    assert.ok(css.includes(".ui-tab-header.ui-pressing:not(.ui-loading)::before"));
-    assert.ok(css.includes(".ui-menu-item.ui-pressing:not(.ui-loading)::before"));
-    assert.match(rule(".ui-tab-header.ui-pressing:not(.ui-loading)::before {"), /border-radius: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
+    // On the pressed element itself nothing is clipped, so an adornment overhanging it stays whole.
+    for (const match of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+        if (match[1].split(",").some(selector => selector.trim().endsWith(".ui-pressing")))
+            assert.doesNotMatch(match[2], /overflow/, match[1].trim());
+    }
+
+    // Nothing animates through a property the page's own frames draw: no registered radius, no clip of a circle.
+    assert.doesNotMatch(css, /--ui-ripple-radius|clip-path: circle\(var/);
+    assert.match(rule(".ui-loading > .ui-press-wave {"), /display: none;/);
+    assert.match(rule(".ui-table__row > .ui-press-wave {"), /z-index: 2;/);
+    assert.match(rule(".ui-tab-header > .ui-press-wave {"), /border-radius: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
+});
+
+test("a table's column lines stop at the last cell, not the row's last child, so a wave standing after the cells adds none", () => {
+    assert.ok(css.includes(".ui-table__row > .ui-table__cell:not(:nth-last-child(1 of :where(.ui-table__cell)))"));
+    assert.doesNotMatch(css, /\.ui-table__cell:not\(:last-child\)/);
 });

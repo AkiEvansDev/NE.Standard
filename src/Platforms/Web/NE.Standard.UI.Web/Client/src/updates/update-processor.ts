@@ -1,12 +1,13 @@
 import { CollectionSinkAttribute, ComponentKeyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
 import { DomRegistry, findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry";
-import { ItemStackEntry, onNotCarried } from "../items/binding-template-evaluator";
+import { ItemStackEntry, onNotCarried, readItemValuePath } from "../items/binding-template-evaluator";
 import { findSlotRoots } from "../items/composite-slots";
 import { HeldCollections } from "../items/held-collections";
+import type { HeldRow } from "../items/held-collections";
 import { ItemProjections, readItemProjections } from "../items/item-projections";
 import { itemsHostOf } from "../items/item-reveal";
 import { getRealItemElements } from "../items/items-empty-renderer";
-import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder } from "../items/items-source-order";
+import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder, setSourceOrder } from "../items/items-source-order";
 import { focusedElement, handFocusOnIfHidden } from "../interactions/focus-handoff";
 import { unmarkDraggedRow } from "../interactions/items-reorder-engine";
 import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, takeRowCursor } from "../interactions/row-cursor";
@@ -15,9 +16,10 @@ import { resolveHostMode, windowOffset } from "../items/items-host-mode";
 import { syncItemsHost } from "../items/items-host-sync";
 import { renderItemRow } from "../items/items-row-renderer";
 import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
-import { ItemsTemplateRenderer } from "../items/items-template-renderer";
+import { ItemsTemplateRenderer, writeItemValuePath } from "../items/items-template-renderer";
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
 import { PendingMoves } from "../items/pending-moves";
+import type { RowMenus } from "../items/row-menus";
 import type { TakenRow } from "../items/pending-transfers";
 import { PendingTransfers } from "../items/pending-transfers";
 import {
@@ -42,6 +44,7 @@ import { readCollectionRefill } from "./collection-refill";
 import type { CollectionRefill } from "./collection-refill";
 import { CollectionSinkRegistry, toCollectionChange } from "./collection-sinks";
 import { PropertyPatchEngine } from "./property-patch-engine";
+import type { PropertyValueChange } from "./property-patch-engine";
 
 /** What a change that moves no row confirms of the rows moved ahead: nothing. */
 const NoKeys: readonly string[] = [];
@@ -60,6 +63,10 @@ export class UpdateProcessor {
 
     // What each host's rows carry, on a page in development; empty elsewhere, and nothing is marked.
     private readonly projections: ItemProjections;
+
+    // What the change set being applied changed — hosts whose rows changed, components a value landed on — for the windows over them
+    // to be laid out again; null between sets.
+    private touched: Set<Element> | null = null;
 
     /** The rows the reader moved ahead of their commands, put where the server says once the answers are in. */
     public readonly moves = new PendingMoves({
@@ -85,9 +92,12 @@ export class UpdateProcessor {
         private readonly itemsTemplates: ItemsTemplateRegistry,
         private readonly dom: DomRegistry,
         private readonly virtualization: ItemsVirtualizationEngine,
-        private readonly sinks: CollectionSinkRegistry
+        private readonly sinks: CollectionSinkRegistry,
+        private readonly rowMenus: RowMenus
     ) {
         itemsRenderer.setRowFiller(row => this.fillHeldCollections(row));
+        propertyPatchEngine.addValueChangeHandler(change => this.writeHeldItemValue(change));
+        propertyPatchEngine.addValueChangeHandler(change => this.touch(change.components));
         this.projections = readItemProjections(metadata);
 
         if (!this.projections.isEmpty)
@@ -130,6 +140,92 @@ export class UpdateProcessor {
         return dynamicParameters.length === 0 && this.itemsTemplates.isTemplateComponent(componentId);
     }
 
+    /** Whether a collection is a row's own for its menu waiting to be drawn (`row-menus.ts`), held for the menu drawn later. */
+    private holdsRowCollection(componentId: number, dynamicParameters: readonly unknown[]): boolean {
+        return dynamicParameters.length > 0 && this.rowMenus.holds(componentId);
+    }
+
+    /** Every held row with its component: the chords a menu waiting to be drawn carries are read off them. */
+    public forEachHeldRow(visit: (componentId: number, row: HeldRow) => void): void {
+        this.held.forEachRow(visit);
+    }
+
+    /**
+     * A row's menu just drawn into it (`row-menus.ts`): indexed, a server-drawn one's rows given the items the render published, and
+     * each of its lists drawn now from what is held for it — the row's own collection, else the one every row shares — so the menu
+     * opens, or its bar shows, with its entries.
+     */
+    public fillDrawnPart(part: Element): void {
+        this.dom.invalidate(part);
+        this.registerRenderedRows(part);
+
+        const done = new Set<Element>();
+
+        // A list drawn may hold lists of its own (a submenu's), drawn in turn.
+        for (let host = nextHost(part, done); host !== null; host = nextHost(part, done)) {
+            done.add(host);
+
+            const owner = findOwningComponentAddress(host);
+
+            if (owner === null)
+                continue;
+
+            // A server-drawn menu's shared list was painted before the page took the collection in: drawn from it as well.
+            const items = owner.dynamicParameters.length > 0
+                ? this.held.getRow(owner.componentId, owner.dynamicParameters)
+                : this.held.takeWaiting(host) ?? this.held.get(owner.componentId);
+
+            if (items !== undefined)
+                this.refillHost(host, { componentId: owner.componentId, dynamicParameters: owner.dynamicParameters, items });
+        }
+    }
+
+    /**
+     * A patch to a part of a row's menu entry (a pin's words): the entry's held item takes the value as it was sent, whether the menu
+     * is drawn or not, so a menu drawn later — or drawn again with its row — shows it, in the reader's language then.
+     */
+    private writeHeldItemValue(change: PropertyValueChange): void {
+        const componentId = getIdValue(change.reference.componentId);
+        const parameters = change.dynamicParameters;
+
+        if (parameters.length < 2 || !this.rowMenus.holds(componentId))
+            return;
+
+        const binding = this.metadata.getBindingByComponentAndPropertyId(componentId, change.reference.propertyId);
+        const path = binding === undefined ? null : readItemValuePath(binding);
+
+        // Only a path into the entry itself: one into the row around the menu is the row's item, which the rule watcher keeps.
+        if (path === null || (path.scopeComponentId > 0 && !this.rowMenus.inOneMenu(path.scopeComponentId, componentId)))
+            return;
+
+        const value = this.state.get(change.reference, parameters);
+        const written = this.held.writeRowItem(parameters.slice(0, -1), String(parameters[parameters.length - 1] ?? ""), held => this.rowMenus.inOneMenu(held, componentId), item => writeItemValuePath(item, path.steps, value));
+
+        if (written)
+            this.rowMenus.heldChanged();
+    }
+
+    private touch(elements: Iterable<Element>): void {
+        if (this.touched === null)
+            return;
+
+        for (const element of elements)
+            this.touched.add(element);
+    }
+
+    /** Lets go of what is held for rows taken away (their menus' own collections), or for every row of the host where `keys` is null. */
+    private forgetHeldRows(componentId: number, dynamicParameters: readonly unknown[], keys: readonly string[] | null): void {
+        const belongs = (menuComponentId: number): boolean => this.rowMenus.standsInRowsOf(menuComponentId, componentId);
+
+        if (keys === null) {
+            this.held.forgetRows(dynamicParameters, belongs);
+            return;
+        }
+
+        for (const key of keys)
+            this.held.forgetRows([...dynamicParameters, key], belongs);
+    }
+
     /** Records what every server-rendered row holds, from the render metadata and the pending insert, before anything is applied. */
     public registerServerRenderedItems(changeSet?: ServerChangeSet | null): void {
         const rowsByHost = new Map<Element, Map<string, Element>>();
@@ -144,21 +240,7 @@ export class UpdateProcessor {
             return rows;
         };
 
-        // By the host's whole address: a list inside every row of another is one host per row, each with values of its own.
-        for (const host of this.dom.root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
-            const owner = findOwningComponentAddress(host);
-
-            if (owner === null)
-                continue;
-
-            const values = this.metadata.getItemValues(owner.componentId, owner.dynamicParameters);
-
-            if (!this.projections.isEmpty)
-                this.projections.mark(owner.componentId, values);
-
-            for (const value of values)
-                this.registerItemValue(owner.componentId, rowsOf(host), value.key, value.item);
-        }
+        this.registerRenderedRows(this.dom.root, rowsOf);
 
         for (const update of changeSet?.updates ?? []) {
             if (getUpdateKind(update) !== "CollectionChange")
@@ -177,6 +259,25 @@ export class UpdateProcessor {
                 for (const change of insert.items ?? [])
                     this.registerItemValue(componentId, rows, change.key, change.item);
             }
+        }
+    }
+
+    /** The items the render published for the server-drawn rows of every host under `root`. */
+    private registerRenderedRows(root: ParentNode, rowsOf: (host: Element) => ReadonlyMap<string, Element> = host => indexItemElements(host)): void {
+        // By the host's whole address: a list inside every row of another is one host per row, each with values of its own.
+        for (const host of root.querySelectorAll<Element>(`[${ItemsHostAttribute}]`)) {
+            const owner = findOwningComponentAddress(host);
+
+            if (owner === null)
+                continue;
+
+            const values = this.metadata.getItemValues(owner.componentId, owner.dynamicParameters);
+
+            if (!this.projections.isEmpty)
+                this.projections.mark(owner.componentId, values);
+
+            for (const value of values)
+                this.registerItemValue(owner.componentId, rowsOf(host), value.key, value.item);
         }
     }
 
@@ -244,16 +345,37 @@ export class UpdateProcessor {
         });
     }
 
-    public applyChangeSet(changeSet: ServerChangeSet | null | undefined): void {
+    /** Applies a change set; returns what it changed — the hosts whose rows changed, the components a value landed on. */
+    public applyChangeSet(changeSet: ServerChangeSet | null | undefined): Element[] {
         const updates = changeSet?.updates;
 
         if (updates === undefined || updates.length === 0)
-            return;
+            return [];
 
         const started = isDebugEnabled() ? performance.now() : -1;
         // A set hiding what holds the focus (a pushed Visibility) hands it on, as an interaction's write does; asked once, after the whole set.
         const focused = focusedElement();
+        const touched = new Set<Element>();
 
+        this.touched = touched;
+
+        try {
+            this.applyUpdates(updates);
+        }
+        finally {
+            this.touched = null;
+        }
+
+        if (focused !== null)
+            handFocusOnIfHidden(focused);
+
+        if (started >= 0)
+            logElapsed(`applied ${updates.length} server update(s)`, started);
+
+        return [...touched];
+    }
+
+    private applyUpdates(updates: readonly ServerUIUpdate[]): void {
         for (let index = 0; index < updates.length; index++) {
             const update = updates[index];
 
@@ -275,12 +397,6 @@ export class UpdateProcessor {
                 logError("applying an update failed.", { update, error });
             }
         }
-
-        if (focused !== null)
-            handFocusOnIfHidden(focused);
-
-        if (started >= 0)
-            logElapsed(`applied ${updates.length} server update(s)`, started);
     }
 
     private namesSink(refill: CollectionRefill): boolean {
@@ -290,15 +406,21 @@ export class UpdateProcessor {
     /** Applies a reset-then-whole-collection pair by reconciling against the rows on screen, rather than rebuilding them. */
     private applyCollectionRefill(refill: CollectionRefill): void {
         const holds = this.holdsCollection(refill.componentId, refill.dynamicParameters);
+        const holdsRow = this.holdsRowCollection(refill.componentId, refill.dynamicParameters);
 
         if (holds)
             this.held.hold(refill.componentId, refill.items);
 
+        if (holdsRow) {
+            this.held.holdRow(refill.componentId, refill.dynamicParameters, refill.items);
+            this.rowMenus.heldChanged();
+        }
+
         const hosts = this.findItemsHosts(refill.componentId, refill.dynamicParameters);
 
         if (hosts.length === 0) {
-            // A host inside an item template while no row wears it: held, and drawn into the rows built later.
-            if (holds)
+            // A host inside an item template while no row wears it, or in a row's menu not drawn yet: held, and drawn from there.
+            if (holds || holdsRow)
                 logDebug("a collection for a host inside an item template is held until a row draws it.", { componentId: refill.componentId });
             else
                 logWarn("items host was not found for a collection refill.", refill.items);
@@ -318,16 +440,25 @@ export class UpdateProcessor {
     }
 
     private refillHostRows(host: Element, refill: CollectionRefill): void {
-        // A virtualized host takes the values and draws what is in view itself.
-        if (resolveHostMode(host) === "virtualized") {
-            const redrawn = this.virtualization.refill(host, refill.items.filter(change => change.key !== null && change.key !== undefined).map(change => ({ key: change.key!, item: change.item })));
+        try {
+            // A virtualized host takes the values and draws what is in view itself.
+            if (resolveHostMode(host) === "virtualized") {
+                const redrawn = this.virtualization.refill(host, refill.items.filter(change => change.key !== null && change.key !== undefined).map(change => ({ key: change.key!, item: change.item })));
 
-            this.state.forgetRows(refill.componentId, refill.dynamicParameters, redrawn);
-            this.syncItemsHost(host, refill.componentId);
-            this.dom.invalidate(host);
-            return;
+                this.state.forgetRows(refill.componentId, refill.dynamicParameters, redrawn);
+            }
+            else {
+                this.reconcileRows(host, refill);
+            }
         }
+        finally {
+            // Even when the refill threw part way: a host left half-changed still shows its rules, its empty state and its groups.
+            this.afterRowsChanged(host, refill.componentId);
+        }
+    }
 
+    /** Lays the host's rows out as the refill lists them, keeping each row whose item did not change. */
+    private reconcileRows(host: Element, refill: CollectionRefill): void {
         const ancestors = this.itemsRenderer.getAncestorStack(host);
         const existing = indexItemElements(host);
         const ordered: Element[] = [];
@@ -384,7 +515,10 @@ export class UpdateProcessor {
         }
 
         this.state.forgetRows(refill.componentId, refill.dynamicParameters, forgotten);
+        this.forgetHeldRows(refill.componentId, refill.dynamicParameters, forgotten);
         placeItemsInOrder(host, ordered);
+        // The refill's order is the source order now: merged with the one known, a refill that only reorders would be put back.
+        setSourceOrder(host, ordered);
 
         if (cursor !== null)
             giveRowCursor(host, cursor.row, cursor.held);
@@ -393,9 +527,6 @@ export class UpdateProcessor {
             for (const row of ordered)
                 restoreWaitingCursor(host, row);
         }
-
-        this.syncItemsHost(host, refill.componentId);
-        this.dom.invalidate(host);
     }
 
     /** Validation updates are routed out to ValidationEngine rather than patched onto the DOM here. */
@@ -515,15 +646,21 @@ export class UpdateProcessor {
         this.forgetRowState(componentId, dynamicParameters, update);
 
         const holds = this.holdsCollection(componentId, dynamicParameters);
+        const holdsRow = this.holdsRowCollection(componentId, dynamicParameters);
 
         if (holds)
             this.held.apply(update);
+
+        if (holdsRow) {
+            this.held.applyRow(update);
+            this.rowMenus.heldChanged();
+        }
 
         const hosts = this.findItemsHosts(componentId, dynamicParameters);
 
         if (hosts.length === 0) {
             // A template's host holds what it is sent; an empty reset is no fault (a menu's sub-entries render only with entries); else a fault.
-            if (holds)
+            if (holds || holdsRow)
                 logDebug("a collection change for a host inside an item template is held until a row draws it.", { componentId });
             else if (getCollectionUpdateAction(update.action) !== "Reset" || (update.items ?? []).length > 0)
                 logWarn("items host was not found for a collection change update.", update);
@@ -540,12 +677,19 @@ export class UpdateProcessor {
     }
 
     private applyCollectionChangeToHost(host: Element, componentId: number, update: ServerCollectionChangeUIUpdate): void {
-        if (resolveHostMode(host) === "virtualized") {
-            this.applyVirtualizedCollectionChange(host, update);
-            this.afterRowsChanged(host, componentId);
-            return;
+        try {
+            if (resolveHostMode(host) === "virtualized")
+                this.applyVirtualizedCollectionChange(host, update);
+            else
+                this.applyRowsChange(host, componentId, update);
         }
+        finally {
+            // Even when the change threw part way: a host left half-changed still shows its rules, its empty state and its groups.
+            this.afterRowsChanged(host, componentId);
+        }
+    }
 
+    private applyRowsChange(host: Element, componentId: number, update: ServerCollectionChangeUIUpdate): void {
         switch (getCollectionUpdateAction(update.action)) {
             case "Insert":
                 this.applyCollectionInsert(host, componentId, update.items ?? []);
@@ -565,14 +709,14 @@ export class UpdateProcessor {
                 break;
             default:
                 logWarn("collection update action is not supported.", update);
-                return;
+                break;
         }
-
-        this.afterRowsChanged(host, componentId);
     }
 
     /** A host's rows changed: its empty state, groups and rules again, and the registry told. */
     private afterRowsChanged(host: Element, componentId: number | null = findOwningComponentId(host)): void {
+        this.touched?.add(host);
+
         if (componentId !== null)
             this.syncItemsHost(host, componentId);
 
@@ -658,11 +802,16 @@ export class UpdateProcessor {
     private forgetRowState(componentId: number, dynamicParameters: readonly unknown[], update: ServerCollectionChangeUIUpdate): void {
         switch (getCollectionUpdateAction(update.action)) {
             case "Remove":
-            case "Replace":
-                this.state.forgetRows(componentId, dynamicParameters, (update.items ?? []).map(change => change.oldKey ?? change.key).filter((key): key is string => typeof key === "string"));
+            case "Replace": {
+                const keys = (update.items ?? []).map(change => change.oldKey ?? change.key).filter((key): key is string => typeof key === "string");
+
+                this.state.forgetRows(componentId, dynamicParameters, keys);
+                this.forgetHeldRows(componentId, dynamicParameters, keys);
                 break;
+            }
             case "Reset":
                 this.state.forgetHost(componentId, dynamicParameters);
+                this.forgetHeldRows(componentId, dynamicParameters, null);
                 break;
             default:
                 break;
@@ -749,8 +898,15 @@ export class UpdateProcessor {
         }
     }
 
+    /** A row drawn from its item; one whose drawing throws is left out, as one that draws nothing is, so the rest of the change lands. */
     private renderItemElement(componentId: number, item: unknown, key: string, ancestors: readonly ItemStackEntry[]): Element | null {
-        return renderItemRow(componentId, item, key, ancestors, { metadata: this.metadata, templates: this.itemsTemplates, renderer: this.itemsRenderer });
+        try {
+            return renderItemRow(componentId, item, key, ancestors, { metadata: this.metadata, templates: this.itemsTemplates, renderer: this.itemsRenderer });
+        }
+        catch (error) {
+            logError("drawing an item row failed; the row is left out.", { componentId, key, error });
+            return null;
+        }
     }
 
     private applyCollectionReplace(host: Element, componentId: number, items: readonly ServerCollectionItemChange[]): void {
@@ -862,6 +1018,16 @@ function placeItemsInOrder(host: Element, ordered: readonly Element[]): void {
 
         previous = element;
     }
+}
+
+/** The first items host under `part` not drawn from yet, in the page's order: a list drawn may add hosts of its own under it. */
+function nextHost(part: Element, done: ReadonlySet<Element>): Element | null {
+    for (const host of part.querySelectorAll(`[${ItemsHostAttribute}]`)) {
+        if (!done.has(host))
+            return host;
+    }
+
+    return null;
 }
 
 /** The compiled component a Dynamic binding parameter names; for a wrapped item that is the child inside the key-carrying wrapper. */

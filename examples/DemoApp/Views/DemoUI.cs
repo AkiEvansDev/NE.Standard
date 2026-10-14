@@ -305,16 +305,11 @@ internal static class DemoUI
         => UILayout.Stack(spacing).SetPlacement(1, 1, 24, 1);
 
     /// <summary>
-    /// A sample under its label, as <c>UIPage.Labelled</c> lays it out, the label told to wrap: the demo's labels are sentences, which a
-    /// label keeps to one line unless the view says so.
+    /// A sample under its label, the label told to wrap: the demo's labels are sentences, which a label keeps to one line unless the
+    /// view says so.
     /// </summary>
     public static StackPanelComponent CreateLabelled(string label, IVisualComponent content)
-        => new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetVerticalAlignment(UIAlignment.Start)
-            .SetSpacing(6)
-            .AddChild(UIText.Label(label).SetTitleWrap(true))
-            .AddChild(content);
+        => UIPage.Labelled(label, content, wrap: true);
 
     /// <summary>
     /// The heading over a component page's examples, across the page's width under a rule, so the options above read as finished.
@@ -510,7 +505,7 @@ internal static class DemoUI
                 .AddTab("controller", "demo.code.controller", CreateCodePane(controller, rows));
 
         return new FlyoutComponent()
-            .SetFlyoutPlacement(UIPopupPlacement.BottomEnd)
+            .SetPopupPlacement(UIPopupPlacement.BottomEnd)
             .SetHorizontalAlignment(UIAlignment.End)
             .SetVerticalAlignment(UIAlignment.Center)
             // Smaller than a small button's 28px, to fit the title row a group without the button has.

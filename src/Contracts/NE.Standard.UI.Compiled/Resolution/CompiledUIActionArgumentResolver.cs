@@ -23,8 +23,10 @@ public static class CompiledUIActionArgumentResolver
     /// <remarks>
     /// <paramref name="scopes"/> names the item scope each key of <paramref name="dynamicParameters"/> belongs to, outermost first:
     /// the argument takes the keys of the scopes it reads wherever they stand in the chain — the middle key of three for a value of
-    /// the middle row. Without it, or when it does not name every scope the argument reads, the argument takes the chain's first keys.
+    /// the middle row. Without it, or when it holds another count of scopes than the chain has keys, the argument takes the chain's
+    /// first keys.
     /// </remarks>
+    /// <exception cref="InvalidOperationException">The argument reads a scope <paramref name="scopes"/> does not name.</exception>
     public static CompiledUIActionArgumentResolution Resolve(CompiledUIActionArgument argument, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates, object?[] dynamicParameters, IReadOnlyList<UIComponentId>? scopes)
     {
         ArgumentNullException.ThrowIfNull(argument);
@@ -51,15 +53,19 @@ public static class CompiledUIActionArgumentResolver
 
         CompiledUIBindingSource source = sources.GetRequired(sourceId);
 
-        var parameters = CompiledUIBindingParameterResolver.Build(argument.Parameters, SelectKeys(argument.Parameters, dynamicParameters, scopes));
+        var parameters = CompiledUIBindingParameterResolver.Build(argument.Parameters, SelectKeys(argument, dynamicParameters, scopes));
         RecursivePath path = templates.Materialize(templateId, parameters);
 
         return new CompiledUIActionArgumentResolution(argument, source, path, null);
     }
 
-    /// <summary>The keys of the scopes the argument reads, in its own order; the chain's first keys when a scope cannot be placed.</summary>
-    private static object?[] SelectKeys(CompiledUIBindingParameter[] parameters, object?[] dynamicParameters, IReadOnlyList<UIComponentId>? scopes)
+    /// <summary>
+    /// The keys of the scopes the argument reads, in its own order. A scope the click does not stand in is refused, not read off the
+    /// chain's first keys, which would answer with another row's value; <see cref="UIEventIndex"/> refuses it when the view compiles.
+    /// </summary>
+    private static object?[] SelectKeys(CompiledUIActionArgument argument, object?[] dynamicParameters, IReadOnlyList<UIComponentId>? scopes)
     {
+        CompiledUIBindingParameter[] parameters = argument.Parameters;
         var required = CompiledUIBindingParameterResolver.CountDynamic(parameters);
 
         if (scopes is not null && scopes.Count == dynamicParameters.Length)
@@ -75,7 +81,7 @@ public static class CompiledUIActionArgumentResolver
                 var index = parameter.ComponentId is UIComponentId scope ? IndexOf(scopes, scope) : -1;
 
                 if (index < 0)
-                    return FirstKeys(dynamicParameters, required);
+                    throw new InvalidOperationException($"Argument '{argument.Name}' reads item scope '{parameter.ComponentId}', which the component raising it does not stand in.");
 
                 keys[at++] = dynamicParameters[index];
             }

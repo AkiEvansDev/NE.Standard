@@ -155,7 +155,7 @@ public static class UIGlyphs
     public const string Error = "ne-error";
     public const string Help = "ne-help";
 
-    /// <summary>What a control's chrome offers: copy, undo, redo, refresh, settings, links, files sent and fetched, a secret shown, zoom, the whole screen, a drag handle, a fold, what came before.</summary>
+    /// <summary>What a control's chrome offers: copy, undo, redo, refresh, settings, links, files sent and fetched, a secret shown, zoom, the whole screen, a drag handle, a fold, what came before, a share, a send, a rename.</summary>
     public const string Copy = "ne-copy";
     public const string Undo = "ne-undo";
     public const string Redo = "ne-redo";
@@ -174,6 +174,9 @@ public static class UIGlyphs
     public const string DragIndicator = "ne-drag-indicator";
     public const string UnfoldLess = "ne-unfold-less";
     public const string History = "ne-history";
+    public const string Share = "ne-share";
+    public const string Send = "ne-send";
+    public const string Rename = "ne-rename";
 
     /// <summary>Files and data, and an application's own frame: folders, a new file, code, an object, a terminal, the cloud, a store, locks, a star, home, the way out.</summary>
     public const string Folder = "ne-folder";

@@ -48,7 +48,7 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     {
         TextComponent title = new TextComponent().BindTitle($"{MessageGroup}.{nameof(MessageGroupContext.Title)}");
         ParagraphComponent body = new ParagraphComponent().BindDescription($"{MessageGroup}.{nameof(MessageGroupContext.Body)}");
-        ButtonComponent action = UIButtons.Secondary("Upgrade")
+        ButtonComponent action = UIButtons.Outline("Upgrade")
             .OnClick(nameof(MessageController.Upgrade))
             .BindVisibility($"{MessageGroup}.{nameof(MessageGroupContext.ActionVisibility)}");
 
@@ -96,7 +96,7 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     private static ContainerComponent CreateActionGroup()
     {
         return DemoUI.CreateExample("With an action",
-            UIMessage.Warning("Your trial ends in 3 days", "Billing starts on the 14th.", UIButtons.Secondary("Upgrade").OnClick(nameof(MessageController.Upgrade))),
+            UIMessage.Warning("Your trial ends in 3 days", "Billing starts on the 14th.", UIButtons.Outline("Upgrade").OnClick(nameof(MessageController.Upgrade))),
             note: "The action stands at the message's bottom end, as a toast's does: beside the words from the medium breakpoint, under them on a phone.",
             context: ActionGroup
         );

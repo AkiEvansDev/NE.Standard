@@ -208,9 +208,10 @@ export class MenuGroupEngine {
         const open = this.flyouts.current;
         const submenu = open === null ? null : this.submenuOf(open);
 
-        // An entry in an open flyout navigates and takes the flyout with it; a check toggles in place, so the list stays.
-        if (entry !== null && submenu !== null && submenu.contains(entry)) {
-            if (choosesMenuEntry(entry))
+        // An entry in an open flyout navigates and takes the flyout with it; a check toggles in place, so the list stays. A press on
+        // the flyout between its entries — its padding, a gap, a sheet's handle — is inside it and closes nothing.
+        if (submenu !== null && submenu.contains(domEvent.target)) {
+            if (entry !== null && submenu.contains(entry) && choosesMenuEntry(entry))
                 this.flyouts.close();
 
             return;

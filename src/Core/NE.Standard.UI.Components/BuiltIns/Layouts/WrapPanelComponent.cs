@@ -8,19 +8,15 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>A layout container that flows children left to right, wrapping onto additional lines as needed.</summary>
 /// <remarks>
 /// A child takes its content's width, or a placement's span of the 24-column grid instead (a span of 6 fits four to a line); with
-/// <see cref="ItemMinWidth"/> every child takes one of the even columns instead.
+/// <see cref="ItemMinWidth"/> every child takes one of the even columns instead. <c>Spacing</c> is the gap between children in a line.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
-public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
+[UIComponentPropertyDefault(nameof(ISpacingComponent.Spacing), nameof(DefaultSpacing))]
+public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, ISpacingComponent
     where T : WrapPanelComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
-
-    /// <summary>
-    /// Gets or sets the spacing between children in a line, optionally overridden per breakpoint.
-    /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultSpacing))]
-    public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
     /// Gets or sets the spacing between wrapped lines, falling back to <see cref="Spacing"/> when unset.

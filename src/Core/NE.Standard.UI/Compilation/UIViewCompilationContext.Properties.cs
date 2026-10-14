@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Shell.Data;
 
@@ -37,7 +39,8 @@ internal sealed partial class UIViewCompilationContext
 
     /// <summary>
     /// Refuses a text area whose Enter submits its form (<c>SubmitOnEnter</c>, set or bound) but that also runs a command on Enter
-    /// (<c>OnEnter</c>) — one key cannot do both — or that belongs to no form: Enter would press no button and break no line either.
+    /// (<c>OnEnter</c>) or drives an interaction from its <c>enter</c> — one key cannot do both, and on the page the other wins — or
+    /// that belongs to no form: Enter would press no button and break no line either.
     /// </summary>
     private void EnsureSubmitOnEnterIsSound(IVisualComponent component)
     {
@@ -47,8 +50,34 @@ internal sealed partial class UIViewCompilationContext
         if (HasEvent(component, EventNames.Enter))
             throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' both submits on Enter and runs a command on Enter ('OnEnter'); Enter does one of them, so drop 'SubmitOnEnter' or the 'OnEnter' command.");
 
+        if (FindEnterInteractionOwner(component.Id) is { } owner)
+            throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' both submits on Enter and drives an interaction of '{owner.Id}' on its 'enter'; Enter does one of them, so drop 'SubmitOnEnter' or the interaction.");
+
         if (!HasForm(component, input))
             throw new InvalidOperationException($"Component '{component.Id}' of type '{component.TypeKey}' submits on Enter but has no 'FormId', so Enter would have no form to submit.");
+    }
+
+    /// <summary>The component holding an interaction that runs on the source's <c>enter</c> event, or null where none does.</summary>
+    private IVisualComponent? FindEnterInteractionOwner(string sourceId)
+    {
+        for (var i = 0; i < _componentOrder.Count; i++)
+        {
+            IVisualComponent owner = _componentOrder[i];
+
+            for (var j = 0; j < owner.Interactions.Count; j++)
+            {
+                UIInteraction interaction = owner.Interactions[j];
+
+                if (interaction.SourceKind == UIInteractionSourceKind.Event
+                    && string.Equals(interaction.SourceEvent, EventNames.Enter, StringComparison.Ordinal)
+                    && string.Equals(interaction.ComponentId, sourceId, StringComparison.Ordinal))
+                {
+                    return owner;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

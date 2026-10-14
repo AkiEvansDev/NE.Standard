@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Views;
-using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
@@ -143,17 +142,7 @@ internal sealed partial class UIDirectRuntime(UIHandle handle, CompiledView view
     }
 
     private void TryLogDirectPublishingFailure(Exception exception)
-    {
-        try
-        {
-            if (Controller is IUIContextController contextController)
-                Log.DirectChangePublishingFailed(contextController.Context.Logger, exception, Connection.Handle.Instance.Id);
-        }
-        catch
-        {
-            // A logger that throws must not turn a failure already recovered from into a new one.
-        }
-    }
+        => TryLog((exception, Connection.Handle.Instance.Id), static (logger, state) => Log.DirectChangePublishingFailed(logger, state.exception, state.Id));
 
     protected override void OnStoppingNoLock()
     {
@@ -171,9 +160,17 @@ internal sealed partial class UIDirectRuntime(UIHandle handle, CompiledView view
 
         RuntimeConnection connection = Connection;
 
-        await UIChangeDelivery
-            .SendAsync(connection.ClientServices.Updates, this, connection.Handle, AttachedInstanceIds, changes, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            await UIChangeDelivery
+                .SendAsync(connection.ClientServices.Updates, this, connection.Handle, AttachedInstanceIds, changes, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            // The delivery asked for the resync that brings the instance it missed back; the write or the drain that sent it stands.
+            TryLogDirectPublishingFailure(exception);
+        }
 
         return changes;
     }

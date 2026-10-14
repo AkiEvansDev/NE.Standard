@@ -18,13 +18,7 @@
 .ui-image-input {
     // The box its hidden file input stands in (`.ui-visually-hidden()`).
     position: relative;
-    display: flex;
-    flex-direction: column;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    gap: @ui-space-1;
-    font: inherit;
+    .ui-input-root();
 }
 
 .ui-image-input__native {
@@ -425,37 +419,13 @@
         object-fit: cover;
     }
 
-// A file that is no picture, where a picture's thumbnail would be: its kind's `ne-` glyph over its name and size, on a faint ground of its own.
-.ui-image-input__tile--file {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: @ui-space-1;
-    padding: @ui-space-1;
-    background: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
-    color: var(--ui-text-muted);
+// A file that is no picture, where a picture's thumbnail would be, is a file tile (ui-file-tile.less); a 5rem square holds one line of
+// its name.
+.ui-image-input__tile > .ui-file-tile__name {
+    display: block;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
-
-    .ui-image-input__file-glyph {
-        font-size: 1.75rem;
-    }
-
-    .ui-image-input__file-name {
-        max-width: 100%;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        color: var(--ui-color-on-surface);
-        font-size: 0.75rem;
-        line-height: 1.2;
-    }
-
-    .ui-image-input__file-size {
-        font-size: 0.6875rem;
-        line-height: 1.2;
-        white-space: nowrap;
-    }
 
 // The cross over a square: a veil the pointer or the keyboard brings up, the same weight as every other clear control.
 .ui-image-input__remove {
@@ -492,7 +462,8 @@
         display: none;
     }
 
-// While the picture loads the remove veil stays down and runtime.less's shared veil and ring cover the square; no ring of its own.
+// While the picture loads the remove veil stays down and runtime.less's shared veil and ring cover the square, a file tile's ring
+// turning in its glyph's place; no ring of its own.
 .ui-image-input__tile.ui-loading > .ui-image-input__remove {
     display: none;
 }

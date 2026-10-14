@@ -1,7 +1,9 @@
 import {
-    BindingAttributePrefix, ComponentContextAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute,
-    ensureElementId, HiddenClass, ListTriggerClass as TriggerClass, PointerFocusAttribute, SelectClass, SelectedKeysAttribute
+    BadgeIconAttribute, BadgeTextAttribute, BindingAttributePrefix, ComponentContextAttribute, ComponentIdAttribute, ComponentKeyAttribute,
+    ComponentParameterCountAttribute, ensureElementId, HiddenClass, ListTriggerClass as TriggerClass, PointerFocusAttribute, SelectClass,
+    SelectedKeysAttribute
 } from "../addressing/dom-attributes.ts";
+import { writeBadgeWords } from "../rendering/web-dom-converters.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
 import { isCaretField } from "./caret-fields.ts";
@@ -13,6 +15,7 @@ import { ownDescendants } from "./own-descendants.ts";
 import { entryWords } from "./search-terms.ts";
 import { isInert, isItemDisabled, isReadOnly } from "./interactive-state.ts";
 import { focusAsLastInput, focusByPointer, isPointerLast, isTouchLast, markPointerFocus } from "./popup-focus.ts";
+import { isPressWaveRecord, removePressWaves } from "./press-wave.ts";
 import { applyRovingTabIndex, moveRovingFocus } from "./roving-focus.ts";
 import { resolveRowTarget } from "./row-cursor.ts";
 import { narrowToTerm, refreshEmptyState } from "./search-input-engine.ts";
@@ -34,6 +37,8 @@ const ListClass = "ui-select__list";
 const OptionClass = "ui-select__option";
 const ValueInputClass = "ui-select__value-input";
 const ClearAttribute = "data-ui-select-clear";
+// On a select, multi-select or search that shows its clear (ShowClearButton).
+const ClearableClass = "ui-select--clearable";
 // A select whose open list carries a text field over its options; the field holds the keyboard while the list is open.
 const SearchClass = "ui-search";
 const SearchInputClass = "ui-search__input";
@@ -50,6 +55,15 @@ const ChipsClass = "ui-multi-select__chips";
 const ChipClass = "ui-multi-select__chip";
 const ChipLabelClass = "ui-multi-select__chip-label";
 const ChipRemoveClass = "ui-multi-select__chip-remove";
+// A badge select (BadgeSelectComponent): each chip is a copy of the badge its option's row draws, its remove inside it.
+const BadgeSelectClass = "ui-badge-select";
+const TextBadgeClass = "ui-text__badge";
+const BadgeClass = "ui-badge";
+const BadgeIconClass = "ui-badge__icon";
+const BadgeTextClass = "ui-badge__text";
+// What BadgeRenderer.RenderBadge falls back to for an item that says nothing: an Info style, an overline's words.
+const BlankBadgeClasses = "ui-badge-style--info ui-text-type--overline";
+const BlankBadgeTextClass = "ui-text-type--overline";
 // On a chip, the key of the option it stands for.
 const ChipAttribute = "data-ui-select-chip";
 // On the chips' host while a chip stands, as the render writes it: the field's clear shows by it.
@@ -68,8 +82,14 @@ export type SelectInteractionEngineOptions = {
     readonly validation?: FieldValidation & EntryValidation;
 };
 
-// Never an attribute this engine writes itself: answering its own writes is a loop and a sync on every scroll frame.
-const ObservedAttributes = [SelectValueAttribute, SelectedKeysAttribute, MaxAttribute, "class", ComponentKeyAttribute];
+// Never an attribute this engine writes itself: answering its own writes is a loop and a sync on every scroll frame. On the page, a
+// select's own value and cap; inside each select alone, an option's state, key and words, which a watch of the whole page would hear
+// for every class any element changes.
+const ObservedAttributes = [SelectValueAttribute, SelectedKeysAttribute, MaxAttribute];
+const OptionAttributes = ["class", ComponentKeyAttribute];
+// A badge select's chips copy their options' badges, whose colour a patch writes inline: a badge's style is heard there too, and only
+// a badge's, since the engine writes an option's own (a narrowed list hides by it).
+const BadgeOptionAttributes = [...OptionAttributes, "style"];
 
 /** A read-only select, search or multi-select keeps its field focusable and readable, and offers no list and no change. */
 function isFixed(select: HTMLElement | null): boolean {
@@ -146,9 +166,9 @@ function stripAddressingAttributes(element: Element): void {
         node.removeAttribute(ComponentParameterCountAttribute);
         node.removeAttribute(ComponentContextAttribute);
 
-        for (const attribute of [...node.attributes]) {
-            if (attribute.name.startsWith(BindingAttributePrefix))
-                node.removeAttribute(attribute.name);
+        for (const name of node.getAttributeNames()) {
+            if (name.startsWith(BindingAttributePrefix))
+                node.removeAttribute(name);
         }
     }
 }
@@ -182,27 +202,35 @@ export class SelectInteractionEngine {
     // The free-text fields whose line says why a tag was refused, until the reader edits the entry again.
     private readonly refusedEntries = new WeakSet<HTMLElement>();
 
+    // The one watch of every select's own options, and the selects it is on.
+    private readonly optionWatch: MutationObserver | null;
+    private readonly watched = new WeakSet<HTMLElement>();
+
     public constructor(options: SelectInteractionEngineOptions = {}) {
         this.root = options.root ?? document;
         this.validation = options.validation;
 
+        // Hand-rolled rather than observeComponents: only the record says which select it names; each syncs once per batch.
+        const answer = (mutations: MutationRecord[]): void => {
+            const selects = new Set<HTMLElement>();
+
+            for (const mutation of mutations) {
+                // A press's wave in an option is no option changed.
+                if (!isPressWaveRecord(mutation))
+                    collectMutatedSelects(mutation, selects);
+            }
+
+            for (const select of selects)
+                this.sync(select);
+        };
+
+        this.optionWatch = this.root instanceof Node ? new MutationObserver(answer) : null;
+
+        if (this.root instanceof Node)
+            new MutationObserver(answer).observe(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true, subtree: true });
+
         for (const select of this.root.querySelectorAll<HTMLElement>(`.${SelectClass}`))
             this.sync(select);
-
-        if (this.root instanceof Node) {
-            // Hand-rolled rather than observeComponents: only the record says which select it names; each syncs once per batch.
-            const observer = new MutationObserver(mutations => {
-                const selects = new Set<HTMLElement>();
-
-                for (const mutation of mutations)
-                    collectMutatedSelects(mutation, selects);
-
-                for (const select of selects)
-                    this.sync(select);
-            });
-
-            observer.observe(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true, characterData: true, subtree: true });
-        }
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
@@ -353,6 +381,8 @@ export class SelectInteractionEngine {
     }
 
     private sync(select: HTMLElement): void {
+        this.watchOptions(select);
+
         // Options drawn again lose their marks: the list's follows.
         markListKeyboard(select);
 
@@ -388,6 +418,17 @@ export class SelectInteractionEngine {
         refreshEmptyState(select);
     }
 
+    /** Watches a select's own options — their state, keys and words — once, as the page-wide watch does not. */
+    private watchOptions(select: HTMLElement): void {
+        if (this.optionWatch === null || this.watched.has(select))
+            return;
+
+        this.watched.add(select);
+        const attributeFilter = select.classList.contains(BadgeSelectClass) ? BadgeOptionAttributes : OptionAttributes;
+
+        this.optionWatch.observe(select, { attributes: true, attributeFilter, characterData: true, subtree: true });
+    }
+
     /** Draws a multi-select's value: its chips in chosen order, the chosen options checked, the rest refused once it is full. */
     private syncMultiple(select: HTMLElement): void {
         const keys = parseChosenKeys(select.getAttribute(SelectedKeysAttribute));
@@ -402,7 +443,14 @@ export class SelectInteractionEngine {
         // A key no option has is a tag the reader typed, where the field takes free text; anywhere else, nothing to show.
         const shown = entry === null ? keys.filter(key => byKey.has(key)) : keys;
 
-        renderChips(select, shown.map(key => ({ key, label: chipLabel(byKey.get(key) ?? null, key) })));
+        const badges = select.classList.contains(BadgeSelectClass);
+
+        renderChips(select, shown.map(key => {
+            const option = byKey.get(key) ?? null;
+            const badge = badges ? optionBadge(option) : undefined;
+
+            return { key, label: chipLabel(option, key, badge ?? null), badge };
+        }));
 
         if (entry !== null && entry.readOnly !== isFixed(select))
             entry.readOnly = isFixed(select);
@@ -482,6 +530,8 @@ export class SelectInteractionEngine {
 
         // Or the copy resolves as the same component as the option it was cloned from, and patches land on either.
         stripAddressingAttributes(clone);
+        // The option pressed to choose it holds its wave still.
+        removePressWaves(clone);
         content.replaceChildren(...clone.childNodes);
 
         return true;
@@ -625,6 +675,9 @@ export class SelectInteractionEngine {
 
         // Only a key inside the open select: the arrows of a field focus has since reached are that field's.
         if (this.openSelect !== null && domEvent.target instanceof Node && this.openSelect.contains(domEvent.target) && this.handleOpenListKey(domEvent, this.openSelect))
+            return;
+
+        if (this.handleClearKey(domEvent))
             return;
 
         // Down or Up opens, Alt+Down too, as a combobox's does; any other chord is the browser's.
@@ -921,6 +974,28 @@ export class SelectInteractionEngine {
         field.value = character;
         field.setSelectionRange(character.length, character.length);
         field.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    /**
+     * Delete on a closed field that shows its clear does the clear's work, which no Tab reaches: a select's field is a button, and a
+     * button holds no other. Backspace does too where the field holds one option; a multi-select's takes its last chip. A free-text
+     * entry clears only while it is empty, its text being the reader's to delete; an open search's field is text, and keeps both keys.
+     */
+    private handleClearKey(domEvent: KeyboardEvent): boolean {
+        if ((domEvent.key !== "Delete" && domEvent.key !== "Backspace") || !isPlainKey(domEvent) || !(domEvent.target instanceof HTMLElement))
+            return false;
+
+        const select = domEvent.target.closest<HTMLElement>(`.${SelectClass}`);
+
+        if (select === null || select === this.openSelect || !select.classList.contains(ClearableClass) || isFixed(select))
+            return false;
+
+        if (domEvent.target !== controlOf(select) || (domEvent.key === "Backspace" && isMultiple(select)) || (entryOf(select)?.value ?? "") !== "")
+            return false;
+
+        domEvent.preventDefault();
+        this.clearValue(select);
+        return true;
     }
 
     /** A multi-select's field, a focusable box rather than a button: Enter and Space open it, Backspace takes the last chip. */
@@ -1314,15 +1389,27 @@ function optionKeyNamed(select: HTMLElement, text: string): string | null {
     return null;
 }
 
-/** What a chip says: the option's words as a field shows them, or its key where the option shows none. */
-function chipLabel(option: HTMLElement | null, key: string): string {
-    const label = optionLabel(option)?.trim() ?? "";
+/** The badge an option's row draws, which a badge select's chip is drawn from; null where its row has none. */
+function optionBadge(option: HTMLElement | null): HTMLElement | null {
+    return option?.querySelector<HTMLElement>(`.${TextBadgeClass}`) ?? null;
+}
+
+/** What a chip says: the option's words as a field shows them — a badge's own where it has words — or its key where it shows none. */
+function chipLabel(option: HTMLElement | null, key: string, badge: HTMLElement | null = null): string {
+    const words = badge?.hasAttribute(BadgeTextAttribute) === true ? badge.querySelector(`.${BadgeTextClass}`)?.textContent ?? null : null;
+    const label = (words ?? optionLabel(option))?.trim() ?? "";
 
     return label.length > 0 ? label : key;
 }
 
-/** Draws a multi-select's chips before the placeholder, rebuilt only when the chosen options or their words changed. */
-function renderChips(select: HTMLElement, chips: readonly { readonly key: string; readonly label: string }[]): void {
+/**
+ * One chip to draw: its key and words, and for a badge select the badge it copies — the option's row's, or none for a value no option
+ * has, which stands on a badge of no look of its own.
+ */
+type ChipDraft = { readonly key: string; readonly label: string; readonly badge?: HTMLElement | null };
+
+/** Draws a multi-select's chips before the placeholder, rebuilt only when the chosen options, their words or their badges changed. */
+function renderChips(select: HTMLElement, chips: readonly ChipDraft[]): void {
     const host = select.querySelector<HTMLElement>(`.${ChipsClass}`);
 
     if (host === null)
@@ -1333,7 +1420,9 @@ function renderChips(select: HTMLElement, chips: readonly { readonly key: string
 
     const existing = [...host.querySelectorAll<HTMLElement>(`:scope > .${ChipClass}`)];
     const unchanged = existing.length === chips.length && existing.every((chip, index) =>
-        chip.getAttribute(ChipAttribute) === chips[index].key && chip.querySelector(`.${ChipLabelClass}`)?.textContent === chips[index].label
+        chip.getAttribute(ChipAttribute) === chips[index].key
+        && chip.querySelector(`.${ChipLabelClass}`)?.textContent === chips[index].label
+        && (chips[index].badge === undefined || badgeLook(chip) === badgeLook(chips[index].badge ?? createBlankBadge()))
     );
 
     // Only on a change, so the chips the server drew stay.
@@ -1343,28 +1432,82 @@ function renderChips(select: HTMLElement, chips: readonly { readonly key: string
     for (const chip of existing)
         chip.remove();
 
-    host.prepend(...chips.map(chip => createChip(chip.key, chip.label)));
+    host.prepend(...chips.map(createChip));
 }
 
-function createChip(key: string, label: string): HTMLElement {
-    const chip = document.createElement("span");
-    const text = document.createElement("span");
+function createChip(draft: ChipDraft): HTMLElement {
     const remove = document.createElement("button");
+    const chip = draft.badge === undefined ? createWordsChip(draft.label) : createBadgeChip(draft.label, draft.badge);
 
-    chip.className = ChipClass;
-    chip.setAttribute(ChipAttribute, key);
-
-    text.className = ChipLabelClass;
-    text.textContent = label;
+    chip.classList.add(ChipClass);
+    chip.setAttribute(ChipAttribute, draft.key);
 
     remove.className = ChipRemoveClass;
     remove.type = "button";
     // As the server draws it: Backspace and the list reach every chip without a tab stop per chip.
     remove.tabIndex = -1;
-    clientStrings.write(remove, "aria-label", "ui.select.remove", { label });
+    clientStrings.write(remove, "aria-label", "ui.select.remove", { label: draft.label });
 
-    chip.append(text, remove);
+    // Inside a badge chip too, after its words: the badge is the chip.
+    chip.append(remove);
     return chip;
+}
+
+function createWordsChip(label: string): HTMLElement {
+    const chip = document.createElement("span");
+    const text = document.createElement("span");
+
+    text.className = ChipLabelClass;
+    text.textContent = label;
+
+    chip.append(text);
+    return chip;
+}
+
+/** A copy of the option's badge — its look and its words, none of its row's addressing — or a badge of no look of its own. */
+function createBadgeChip(label: string, badge: HTMLElement | null): HTMLElement {
+    const chip = badge === null ? createBlankBadge() : badge.cloneNode(true) as HTMLElement;
+
+    // Or the copy resolves as the row it was cloned from, and patches land on either.
+    stripAddressingAttributes(chip);
+    chip.classList.remove(TextBadgeClass);
+
+    const text = chip.querySelector<HTMLElement>(`:scope > .${BadgeTextClass}`);
+
+    text?.classList.add(ChipLabelClass);
+
+    // An option with no badge words stands as a badge of the words it reads as.
+    if (text !== null && !chip.hasAttribute(BadgeTextAttribute))
+        writeBadgeWords(chip, label);
+
+    return chip;
+}
+
+/** A badge as the server draws one an item says nothing about: Info, an overline's words (BadgeRenderer.RenderBadge). */
+function createBlankBadge(): HTMLElement {
+    const badge = document.createElement("span");
+    const icon = document.createElement("span");
+    const text = document.createElement("span");
+
+    badge.className = `${BadgeClass} ${BlankBadgeClasses}`;
+    icon.className = `${BadgeIconClass} ui-icon`;
+    text.className = `${BadgeTextClass} ${BlankBadgeTextClass}`;
+
+    badge.append(icon, text);
+    return badge;
+}
+
+/** What a badge looks like, its words aside: its classes but the chip's and the row's own, its colours, and its icon's. */
+function badgeLook(badge: HTMLElement): string {
+    const icon = badge.querySelector(`:scope > .${BadgeIconClass}`);
+
+    return `${lookOf(badge)}|${icon === null ? "" : lookOf(icon)}`;
+}
+
+function lookOf(element: Element): string {
+    const classes = [...element.classList].filter(name => name !== ChipClass && name !== TextBadgeClass).sort().join(" ");
+
+    return `${classes};${element.getAttribute("style") ?? ""};${element.hasAttribute(BadgeIconAttribute)}`;
 }
 
 /** Adds the selects a record calls to be synced: one arriving whole, one whose value moved, one whose popup changed. */
@@ -1391,6 +1534,10 @@ function collectMutatedSelects(mutation: MutationRecord, selects: Set<HTMLElemen
     }
 
     const target = mutation.target instanceof HTMLElement ? mutation.target : mutation.target.parentElement;
+
+    if (mutation.attributeName === "style" && target?.classList.contains(BadgeClass) !== true)
+        return;
+
     const select = target?.closest(`.${PopupClass}`)?.closest<HTMLElement>(`.${SelectClass}`);
 
     if (select !== null && select !== undefined)

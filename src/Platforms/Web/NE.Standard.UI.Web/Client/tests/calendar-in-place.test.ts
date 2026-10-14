@@ -509,3 +509,66 @@ test("a month chosen in the month pane opens its days on the day the keyboard wa
     assert.equal(choose(3), "2026-04-28");
     assert.equal(choose(10), "2026-11-20");
 });
+
+/** A date-time input on 14:30 on a page of its own, its popup opened by the toggle. */
+function dateTimeInput(): { readonly toggle: FakeElement; readonly popup: FakeElement; readonly value: FakeInput } {
+    const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
+    const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
+    const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-03T14:30:00" });
+    const root = FakeElement.of("ui-temporal-input ui-date-time-input", {
+        "data-ui-id": "12",
+        "data-ui-temporal-mode": "date-time",
+        "data-ui-temporal-default-format": "yyyy-MM-dd HH:mm",
+        "data-ui-temporal-months": Months,
+        "data-ui-temporal-months-short": Months,
+        "data-ui-temporal-weekdays": Weekdays
+    }).append(FakeElement.of("ui-temporal-input__row").append(toggle), popup, value);
+
+    new TemporalPickerEngine({ root: real<ParentNode>(place(root)) });
+
+    return { toggle, popup, value };
+}
+
+/** The open popup's minute column laid out as a 50-pixel window over 10-pixel readings, minute `middle` in its middle. */
+function minutesAt(popup: FakeElement, middle: number): FakeElement {
+    const column = popup.querySelectorAll(".ui-temporal-input__time-column")[1];
+
+    column.rect = { left: 0, top: 0, width: 40, height: 50 };
+    column.querySelectorAll(".ui-temporal-input__time-cell").forEach((cell, index) => {
+        cell.rect = { left: 0, top: 20 + ((index - middle) * 10), width: 40, height: 10 };
+    });
+
+    return column;
+}
+
+test("the clock's arrows move the keyboard down a column and choose nothing, as the day grid's do", async () => {
+    const { toggle, popup, value } = dateTimeInput();
+
+    toggle.click();
+
+    const minutes = minutesAt(popup, 45);
+    const half = minutes.querySelector("[data-ui-temporal-cell=\"30\"]")!;
+
+    half.focus();
+    half.dispatchEvent(new FakeKeyboardEvent("ArrowDown", half));
+    // The column scrolled to the reading the arrow came to, and settles there.
+    minutes.dispatchEvent(new FakeEvent("scroll"));
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    assert.equal(fakeDocument.activeElement?.getAttribute("data-ui-temporal-cell"), "31");
+    assert.equal(value.value, "2026-09-03T14:30:00");
+});
+
+test("a clock column scrolled and left before it settles takes the reading in its middle as the popup closes", () => {
+    const { toggle, popup, value } = dateTimeInput();
+
+    toggle.click();
+
+    const minutes = minutesAt(popup, 45);
+
+    minutes.scrollTop = 450;
+    minutes.dispatchEvent(new FakeEvent("scroll"));
+    toggle.click();
+
+    assert.match(value.value, /T14:45/);
+});

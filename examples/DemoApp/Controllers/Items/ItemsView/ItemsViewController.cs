@@ -23,8 +23,8 @@ internal sealed partial class DemoFeedItem : TextItem
 
 /// <summary>
 /// Rows whose menus are their own: files that open on a press and carry their actions in a bar, a delete taking the row away; and a
-/// feed, with what the page does to it — a note or a picture posted at its end, and the newest entry changing kind — and the entry at its
-/// top, which the page writes back as the reader scrolls.
+/// feed, with what the page does to it — a note or a picture posted at its end, and the newest entry changing kind — and the entries at its
+/// top and its foot, which the page writes back as the reader scrolls.
 /// </summary>
 internal sealed partial class RowMenusGroupContext : DemoGroupContext
 {
@@ -33,6 +33,7 @@ internal sealed partial class RowMenusGroupContext : DemoGroupContext
 
     private static readonly string[] Pictures = [DemoImages.NightStreet, DemoImages.SunsetRuins, DemoImages.MeteorShore, DemoImages.HarbourSky];
     private static readonly PathSegment TopEntrySegment = PathSegment.ForProperty(nameof(TopEntry));
+    private static readonly PathSegment BottomEntrySegment = PathSegment.ForProperty(nameof(BottomEntry));
 
     private int _posted;
 
@@ -44,12 +45,27 @@ internal sealed partial class RowMenusGroupContext : DemoGroupContext
         set
         {
             if (SetRecursiveProperty(ref field, value, TopEntrySegment))
-                AtTop = $"At the top: {value ?? "nothing"}";
+                InView = DescribeInView();
+        }
+    }
+
+    /// <summary>The key of the feed's entry at its foot, as the page writes it; followed the same way.</summary>
+    [RecursiveMember(false)]
+    public string? BottomEntry
+    {
+        get;
+        set
+        {
+            if (SetRecursiveProperty(ref field, value, BottomEntrySegment))
+                InView = DescribeInView();
         }
     }
 
     [RecursiveMember]
-    public partial string AtTop { get; set; } = "At the top: not reported yet";
+    public partial string InView { get; set; } = "In view: not reported yet";
+
+    private string DescribeInView()
+        => $"In view: {TopEntry ?? "nothing"} to {BottomEntry ?? "nothing"}";
 
     [RecursiveMember(false)]
     public RecursiveCollection<TextItem> Files { get; } =

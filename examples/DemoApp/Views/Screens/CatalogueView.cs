@@ -31,10 +31,8 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
     /// <summary>The controls the rules read, on one band, each written into the address as it changes; the order at its far end.</summary>
     /// <remarks>Its fields are Tonal: the band frames them, a toolbar's lone controls, not a form whose fields stack.</remarks>
     private static SurfaceComponent CreateFilters()
-        => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Tinted)
-            .SetPadding(UIThickness.All(16, 12, 16, 12))
-            .SetContent(UILayout.Row(16,
+        => UIPage.Band(
+            UILayout.Row(16,
                 new TextInputComponent(SearchId)
                     .SetAppearance(UIInputAppearance.Tonal)
                     .SetSearch("Search the offers")
@@ -92,8 +90,8 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                     .BindBadgeText(nameof(CatalogueController.OrderLine))
                     .SetBadgeStyle(UIBadgeType.Primary)
                     .SetVerticalAlignment(UIAlignment.Center)
-                )
-            );
+            )
+        );
 
     /// <summary>
     /// Five filters and three sorts on one list. A filter is active while its control holds a value; the region rule while

@@ -13,7 +13,6 @@ using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.Foundation.Inputs;
-using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -31,7 +30,8 @@ internal abstract partial class UIRuntimeBase
     /// </summary>
     /// <remarks>
     /// Refused as an unauthorised command is, so the reader is told the same way; what only the client knows is not read. A drop
-    /// (<c>OnDrop</c>) is the command's to judge, as <c>UIDrop</c> says.
+    /// (<c>OnDrop</c>) is the command's to judge, as <c>UIDrop</c> says. A row is named by its key, a text: anything else where a
+    /// row's key stands is a forged address, which would reach a row by its place past every gate read by key.
     /// </remarks>
     private void EnsureEventTargetOpenNoLock(CompiledUIEvent compiledEvent, object?[] dynamicParameters)
     {
@@ -42,26 +42,54 @@ internal abstract partial class UIRuntimeBase
 
         UIComponentId componentId = compiledEvent.Address.ComponentId;
 
-        // The row's template root stands under the host, so its chain answers for the host too. A row is named by its key, a
-        // text; a number past the host's own keys is a value the event carries (a list's row dropped at an index), not a row.
+        // The row's template root stands under the host, so its chain answers for the host too. Past the host's own keys stands a row's
+        // key, unless the event reads a value of its own there (a row's index, a drop).
         if (gates.TryGetRows(componentId, out UIRowGates rows)
-            && rows.TemplateRootId is UIComponentId rootId
             && dynamicParameters.Length >= rows.Abilities.RowParameterCount
-            && dynamicParameters[rows.Abilities.RowParameterCount - 1] is string)
+            && !ReadsEventValueAt(compiledEvent, rows.Abilities.RowParameterCount - 1))
         {
-            componentId = rootId;
+            if (dynamicParameters[rows.Abilities.RowParameterCount - 1] is not string)
+                throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' names a row by something other than its key.");
+
+            if (rows.TemplateRootId is UIComponentId rootId)
+                componentId = rootId;
         }
 
         if (gates.TryGet(componentId, out UIComponentGates? target) && IsClosedNoLock(target!.Chain, dynamicParameters))
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a component that is disabled, loading or hidden.");
 
-        if (EventAbility(compiledEvent.Address.EventName) is UIComponentGateKind ability
-            && gates.TryGetRowRoot(compiledEvent.Address.ComponentId, out UIRowAbilities? row)
-            && IsRowRefusedNoLock(row!, ability, dynamicParameters))
-        {
+        if (!gates.TryGetRowRoot(compiledEvent.Address.ComponentId, out UIRowAbilities? row) || !IsRowsOwnEvent(compiledEvent.Address.EventName))
+            return;
+
+        // A row's own event is the row's whatever its ability: one named by anything but its key is a forged address.
+        if (!IsNamedByKey(row!, dynamicParameters))
+            throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' names a row by something other than its key.");
+
+        if (EventAbility(compiledEvent.Address.EventName) is UIComponentGateKind ability && IsRowRefusedNoLock(row!, ability, dynamicParameters))
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a row whose {ability} is false.");
-        }
     }
+
+    /// <summary>Whether one of the event's arguments reads the value it carries at <paramref name="position"/> of its keys.</summary>
+    private static bool ReadsEventValueAt(CompiledUIEvent compiledEvent, int position)
+    {
+        for (var i = 0; i < compiledEvent.Arguments.Length; i++)
+        {
+            CompiledUIActionArgument argument = compiledEvent.Arguments[i];
+
+            if (argument.Kind == CompiledUIActionArgumentKind.EventKey && argument.Value switch { int at => at, long at => at, _ => -1L } == position)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether an event is a row's own — a move, a removal, a rename, an entry of a tab's menu — rather than a component's in it.</summary>
+    private static bool IsRowsOwnEvent(string eventName)
+        => eventName is EventNames.TabMenuEntry || EventAbility(eventName) is not null;
+
+    /// <summary>Whether the keys name the row by its key, a text, where the row's key stands.</summary>
+    private static bool IsNamedByKey(UIRowAbilities row, object?[] dynamicParameters)
+        => dynamicParameters.Length >= row.RowParameterCount && dynamicParameters[row.RowParameterCount - 1] is string;
 
     /// <summary>The ability a row's own event needs: a move its <c>CanDrag</c>, a removal its <c>CanRemove</c>, a rename its <c>CanRename</c>.</summary>
     private static UIComponentGateKind? EventAbility(string eventName)
@@ -75,7 +103,8 @@ internal abstract partial class UIRuntimeBase
 
     /// <summary>
     /// Whether the row the keys name may not do what <paramref name="ability"/> asks: its template's ability closes, or its own item
-    /// says false. A row not named by a key, or not there, refuses nothing — as a gate the server cannot read closes nothing.
+    /// says false; or the row is not named by its key, a text — an index would reach a row by its place, past its item's word. A row
+    /// not there refuses nothing, as a gate the server cannot read closes nothing.
     /// </summary>
     /// <remarks>The item is read only here, on a row's own event or write, never on a render or an ordinary value.</remarks>
     private bool IsRowRefusedNoLock(UIRowAbilities row, UIComponentGateKind ability, object?[] dynamicParameters)
@@ -83,7 +112,7 @@ internal abstract partial class UIRuntimeBase
         var count = row.RowParameterCount;
 
         if (dynamicParameters.Length < count || dynamicParameters[count - 1] is not string key)
-            return false;
+            return true;
 
         var rowParameters = TakeDynamicParameters(dynamicParameters, count);
 
@@ -160,8 +189,8 @@ internal abstract partial class UIRuntimeBase
             {
                 // Said in the log, unlike a disabled or loading one's: a page writes to a hidden field only by the author's design (a
                 // picker opened from elsewhere) or by a forged call, and the field going back to its value says nothing to either.
-                if (closing.Kind == UIComponentGateKind.Visibility)
-                    TryLogHiddenWrite(update);
+                if (closing.Kind == UIComponentGateKind.Visibility && View.Graph.TryGet(componentId, out UIComponentNode? node))
+                    TryLog((property, node), static (logger, state) => Log.HiddenWriteRefused(logger, state.property.Name, state.node.TypeKey, state.node.AuthoringId));
 
                 return true;
             }
@@ -177,22 +206,6 @@ internal abstract partial class UIRuntimeBase
             return gates.TryGetRows(componentId, out UIRowGates rows) && IsChoiceRefusedNoLock(gates, rows, update, resolution);
 
         return WriteAbility(property) is UIComponentGateKind ability && gates.TryGetRowRoot(componentId, out UIRowAbilities? row) && IsRowRefusedNoLock(row!, ability, dynamicParameters);
-    }
-
-    /// <summary>
-    /// Logs a write refused for a hidden component, swallowing a logging failure of its own.
-    /// </summary>
-    private void TryLogHiddenWrite(ClientValueUIUpdate update)
-    {
-        try
-        {
-            if (Controller is IUIContextController contextController && View.Graph.TryGet(update.Address.Component.Id, out UIComponentNode? node))
-                Log.HiddenWriteRefused(contextController.Context.Logger, update.Address.Property.Name, node.TypeKey, node.AuthoringId);
-        }
-        catch
-        {
-            // A logger that throws must not turn a refused write into a failed one.
-        }
     }
 
     /// <summary>

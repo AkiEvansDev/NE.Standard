@@ -53,11 +53,11 @@ class FakeCustomEvent extends FakeEvent {
 // The observers the engine leaves on a shown bar's menu and on a chosen row's list, so a test can tell one its target changed.
 class FakeObserver {
     public static readonly all: FakeObserver[] = [];
-    public readonly callback: () => void;
+    public readonly callback: (records: MutationRecord[]) => void;
     public target: unknown = null;
     public connected = false;
 
-    public constructor(callback: () => void) {
+    public constructor(callback: (records: MutationRecord[]) => void) {
         this.callback = callback;
         FakeObserver.all.push(this);
     }
@@ -65,7 +65,7 @@ class FakeObserver {
     /** Tells every observer still watching `target` that it changed. */
     public static changed(target: FakeElement): void {
         for (const observer of FakeObserver.all.filter(candidate => candidate.connected && candidate.target === target))
-            observer.callback();
+            observer.callback([real<MutationRecord>({ type: "childList", target, addedNodes: [], removedNodes: [] })]);
     }
 
     public observe(target: unknown): void {

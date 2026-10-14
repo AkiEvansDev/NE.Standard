@@ -107,6 +107,19 @@ test("a press on a flyout's entry puts it away; one on a caption or a check keep
     check.remove();
 });
 
+test("a press on the flyout between its entries — its padding, a gap — keeps it up", () => {
+    openByPress(layouts.parts);
+
+    layouts.parts.submenu.dispatchEvent(new FakeEvent("click"));
+    assert.equal(layouts.element.hasAttribute("data-ui-menu-open"), true);
+
+    layouts.parts.entries[0].parentElement?.dispatchEvent(new FakeEvent("click"));
+    assert.equal(layouts.element.hasAttribute("data-ui-menu-open"), true);
+
+    layouts.parts.entries[0].dispatchEvent(new FakeEvent("click"));
+    assert.equal(layouts.element.hasAttribute("data-ui-menu-open"), false);
+});
+
 test("a submenu from a context menu's entry stands the popup gap off the menu, its first entry level with the entry", () => {
     const color = group("color");
     const menu = FakeElement.of("ui-context-menu").append(FakeElement.of("ui-menu").append(FakeElement.of("ui-menu__host").append(color.element)));

@@ -24,6 +24,10 @@ export type ResolvedPropertyAddress = {
 };
 
 export class AddressResolver {
+    // Built once per binding and per property, not on every push: a kebab-cased name is a regular expression run.
+    private readonly bindingSelectors = new Map<number, string>();
+    private readonly intoSelectors = new Map<string, string>();
+
     public constructor(
         private readonly dom: DomRegistry,
         private readonly metadata: MetadataIndex
@@ -61,9 +65,7 @@ export class AddressResolver {
             return [];
 
         const bindingId = getIdValue(this.metadata.getBindingByComponentAndPropertyId(componentId, reference.propertyId)?.bindingId);
-        const bindingSelector = bindingId > 0
-            ? `[${BindingAttributePrefix}${toKebabCase(definition.propertyName)}="${cssAttributeValue(bindingId)}"]`
-            : null;
+        const bindingSelector = bindingId > 0 ? this.bindingSelector(bindingId, definition.propertyName) : null;
 
         return components.map(component => ({
             componentId,
@@ -82,6 +84,17 @@ export class AddressResolver {
                 property: definition.propertyName
             }
         }));
+    }
+
+    private bindingSelector(bindingId: number, propertyName: string): string {
+        let selector = this.bindingSelectors.get(bindingId);
+
+        if (selector === undefined) {
+            selector = `[${BindingAttributePrefix}${toKebabCase(propertyName)}="${cssAttributeValue(bindingId)}"]`;
+            this.bindingSelectors.set(bindingId, selector);
+        }
+
+        return selector;
     }
 
     /** The property on one component element the caller holds — a part a package drew, perhaps one of several clones of a template. */
@@ -110,7 +123,7 @@ export class AddressResolver {
         return resolveOperationElements(resolved.component, operation, () => {
             // An unbound property is patched only as a validation target, whose element the renderer marked; with neither mark, the root's.
             if (resolved.bindingSelector === null) {
-                const into = resolved.component.querySelector<Element>(`[${IntoAttributePrefix}${toKebabCase(resolved.propertyName)}]`);
+                const into = resolved.component.querySelector<Element>(this.intoSelector(resolved.propertyName));
 
                 return [into ?? resolved.component];
             }
@@ -122,5 +135,16 @@ export class AddressResolver {
 
             return elements;
         });
+    }
+
+    private intoSelector(propertyName: string): string {
+        let selector = this.intoSelectors.get(propertyName);
+
+        if (selector === undefined) {
+            selector = `[${IntoAttributePrefix}${toKebabCase(propertyName)}]`;
+            this.intoSelectors.set(propertyName, selector);
+        }
+
+        return selector;
     }
 }

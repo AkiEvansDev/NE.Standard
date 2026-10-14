@@ -18,7 +18,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// stars re-weight; a neighboring fixed or content track is written in pixels, and a double-click restores the authored layout — an
 /// unbound <see cref="Position"/> included.
 /// </remarks>
-public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>, IGridSplitterComponent
+public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>, IGridSplitterComponent, IOrientationComponent
     where T : GridSplitterComponent<T>, IUIComponentDefinition
 {
     protected GridSplitterComponent(string? id = null) : base(id)
@@ -30,7 +30,8 @@ public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>,
     /// <summary>
     /// Gets or sets which way the bar runs: <c>Vertical</c> moves the columns either side, <c>Horizontal</c> the rows.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, DefaultValue = UIOrientation.Vertical)]
+    // Declared here, not by the block: it says whether the placement names a column or a row, checked once at compile, so it never binds.
+    [UIComponentProperty(Contract = typeof(IOrientationComponent), IsBindable = false, DefaultValue = UIOrientation.Vertical)]
     public UIOrientation? Orientation { get; set; }
 
     /// <summary>

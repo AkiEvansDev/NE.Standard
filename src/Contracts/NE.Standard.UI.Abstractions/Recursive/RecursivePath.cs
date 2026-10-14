@@ -239,7 +239,8 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
 
             if (c == '"')
             {
-                if (i + 1 >= span.Length || span[i + 1] != ']')
+                // An empty key names no element, as an empty [] does.
+                if (i + 1 >= span.Length || span[i + 1] != ']' || builder.Length == 0)
                     throw new FormatException($"Invalid quoted key segment in path '{path}'.");
 
                 segments.Add(PathSegment.WithKey(builder.ToString()));

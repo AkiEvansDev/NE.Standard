@@ -9,6 +9,9 @@ public static class WebAttributes
     /// <summary>A badge's text shown, "compact" while it fits a circle; the client writes it too for a count the page computes itself.</summary>
     public const string BadgeText = "data-ui-badge-text";
 
+    /// <summary>A badge's icon shown; a badge select's chips copy their option's badge by it with the rest of its look.</summary>
+    public const string BadgeIcon = "data-ui-badge-icon";
+
     /// <summary>A badge's text given at all, blank included: an empty text is a badge with nothing to say, which a menu's icon corner draws as a dot.</summary>
     public const string BadgeSet = "data-ui-badge-set";
 
@@ -84,6 +87,12 @@ public static class WebAttributes
     public const string ContextMenu = "data-ui-context-menu";
 
     public const string ContextMenuOwner = "data-ui-context-menu-owner";
+
+    /// <summary>On a menu's owner in a row: its menu is not drawn yet, and waits in a template the client draws it from when it is wanted.</summary>
+    public const string ContextMenuLater = "data-ui-context-menu-later";
+
+    /// <summary>On the template a row's menu waits in: the owner's component id, by which every row's owner finds it.</summary>
+    public const string ContextMenuTemplate = "data-ui-context-menu-template";
 
     /// <summary>On a part inside a menu's owner: the name of the owner's menu a right press there opens, rather than its unnamed one.</summary>
     public const string ContextMenuUse = "data-ui-context-menu-use";
@@ -175,6 +184,15 @@ public static class WebAttributes
     /// <summary>On a file or image input: the component id whose dropped and pasted files the input takes (<c>DropTargetId</c>).</summary>
     public const string FileDropTargetId = "data-ui-file-drop-target-id";
 
+    /// <summary>On a file tile: its file's name, MIME type, size in bytes and the author's glyph, which <c>file-tile-engine.ts</c> draws its glyph and size from.</summary>
+    public const string FileTileName = "data-ui-file-name";
+
+    public const string FileTileType = "data-ui-file-type";
+
+    public const string FileTileSize = "data-ui-file-size";
+
+    public const string FileTileIcon = "data-ui-file-icon";
+
     public const string PressRipple = "data-ui-press-ripple";
 
     /// <summary>On <c>&lt;html&gt;</c>: the theme draws its scrollbars over the content (<c>UITheme.OverlayScrollbars</c>).</summary>
@@ -259,6 +277,9 @@ public static class WebAttributes
 
     /// <summary>On an items view's first-visible element: the key of the row at the view's top, as the page last wrote it back.</summary>
     public const string FirstVisibleKey = "data-ui-first-visible-key";
+
+    /// <summary>On an items view's last-visible element: the key of the row at the view's foot, as the page last wrote it back.</summary>
+    public const string LastVisibleKey = "data-ui-last-visible-key";
 
     /// <summary>The number culture pack as JSON; an engine formats by the nearest one above the element.</summary>
     public const string NumberCulture = "data-ui-number-culture";

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -482,7 +481,7 @@ internal sealed partial class WebUIHub : Hub
         // The snapshot also marks this connection's starting point: nothing queued before it is pushed to it, everything after it is.
         ServerChangeSet initialChanges = runtime.Runtime is null
             ? ServerChangeSet.Empty
-            : await runtime.Runtime.BuildAttachChangesAsync(Context.ConnectionId, [.. initBindingIds.Select(static bindingId => new UIBindingId(bindingId))], request.Since, Context.ConnectionAborted).ConfigureAwait(false);
+            : await runtime.Runtime.BuildAttachChangesAsync(Context.ConnectionId, WebInitialChanges.ToBindingIds(initBindingIds), request.Since, Context.ConnectionAborted).ConfigureAwait(false);
 
         if (runtime.Runtime is not null)
             Context.Items[HandleContextItemKey] = runtime.Handle;
@@ -867,9 +866,16 @@ internal sealed partial class WebUIHub : Hub
         // Every update is read and every token checked before any token is taken: a token spends once, and a batch failing on its
         // last field must not have burnt its first ones' staged values.
         UIPropertyAddress[] addresses = new UIPropertyAddress[request.Updates.Length];
+        HashSet<string>? tokens = null;
 
         for (var i = 0; i < addresses.Length; i++)
+        {
             addresses[i] = ReadAddress(handle, request.Updates[i]);
+
+            // Two updates naming one token would pass the check and then fail on the second take, the first's value spent.
+            if (request.Updates[i].ValueToken is string token && !(tokens ??= new(StringComparer.Ordinal)).Add(token))
+                throw new InvalidOperationException("A staged value is taken once; the change set names it twice.");
+        }
 
         ClientUIUpdate[] updates = new ClientUIUpdate[addresses.Length];
 

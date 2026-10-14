@@ -27,6 +27,8 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
         WebDomOperation.ToggleAttribute(WebAttributes.TabPinned, target: "." + PinClass, condition: WebValueCondition.IsTrue)
     ];
 
+    private static readonly WebDomOperation[] RenamedTitleOperations = [WebDomOperation.Attribute(WebAttributes.TabCaption, target: "." + LabelClass)];
+
     public override string ComponentTypeKey => TabItemComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-tab-item";
@@ -75,7 +77,7 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
                 {
                     if (!string.IsNullOrWhiteSpace(value))
                         _ = target.Attribute(WebAttributes.TabCaption, value);
-                }, [WebDomOperation.Attribute(WebAttributes.TabCaption, target: "." + LabelClass)]);
+                }, RenamedTitleOperations);
 
                 RenderRegion(context, label, RegionNames.Header);
             });

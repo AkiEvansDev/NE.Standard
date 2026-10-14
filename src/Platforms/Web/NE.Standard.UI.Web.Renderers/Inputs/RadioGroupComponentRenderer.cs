@@ -32,6 +32,9 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         WebDomOperation.ToggleAttribute("aria-readonly", target: $".{HostClassName}", condition: WebValueCondition.IsTrue, value: "true")
     ];
 
+    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")];
+
     public override string ComponentTypeKey => RadioGroupComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-radio-group";
@@ -45,13 +48,13 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         TextContentRendererBase.RenderInputSize(context, root);
         TextContentRendererBase.RenderInputHeader(context, root);
 
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, RadioGroupComponent.SpacingProperty, "--ui-radio-group-spacing");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-radio-group-spacing");
 
-        _ = RenderProperty<UIOrientation?>(context, root, RadioGroupComponent.OrientationProperty, static (target, value) =>
+        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
         {
             if (value is UIOrientation orientation)
                 _ = target.Class(WebClassNames.Orientation(orientation));
-        }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
+        }, OrientationOperations);
 
         // One RenderProperty drives one element, but this value has to reach N radios: the initial `checked` is
         // decided here, and live changes fan out from a root attribute RadioGroupSyncEngine watches.
@@ -62,7 +65,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute(WebAttributes.RadioValue, value);
-        }, [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")]);
+        }, ValueOperations);
 
         // On the root alone: the radios stay in the page's form, all of them, as a name groups radios only within one form and the
         // client adds radios for the rows it builds; a choice is nothing a browser fills in.

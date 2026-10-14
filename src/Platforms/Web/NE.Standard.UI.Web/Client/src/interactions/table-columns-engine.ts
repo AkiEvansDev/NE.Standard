@@ -13,6 +13,7 @@ import { ClientStore } from "../state/client-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { observeSize } from "./element-size.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
+import { announceMoved } from "./live-announcer.ts";
 import { applyGridTrackLimits, bigStep, formatGridTracks, moveSplit, parseGridTrackLimits, parseGridTracks, pinOffsets, zeroTracks } from "./grid-tracks.ts";
 import type { GridTrack } from "./grid-tracks.ts";
 import { PointerDrag, swallowReleaseClick } from "./pointer-drag.ts";
@@ -85,6 +86,12 @@ type ReorderContext = {
     readonly index: number;
     readonly origin: number;
     readonly places: readonly Column[];
+    /** The middle of each place's caption as the press found it, and the box scrolling the captions with how far it stood then. */
+    readonly middles: readonly number[];
+    readonly scroll: HTMLElement | null;
+    readonly scrolledAt: number;
+    /** The row runs from the right: a pointer passes a middle going left. */
+    readonly rightToLeft: boolean;
     readonly from: number;
     target: number;
 };
@@ -99,6 +106,8 @@ type ResizeContext = {
     readonly sizes: readonly number[];
     /** The floors the author set, by index — not the ones the tracks carry, which are the authored widths themselves. */
     readonly floors: ReadonlyMap<number, number>;
+    /** The viewer's widths as the gesture found them, null for the authored: what Escape mid-drag puts back. */
+    readonly before: GridTrack[] | null;
 };
 
 export type TableColumnsEngineOptions = {
@@ -139,7 +148,8 @@ export class TableColumnsEngine {
             begin: handle => this.resolveContext(handle),
             coordinate: () => "clientX",
             move: (context, delta) => this.apply(context, delta),
-            end: (_, context) => this.remember(context.table)
+            end: (_, context) => this.remember(context.table),
+            cancel: (_, context) => this.putBack(context)
         });
 
         this.reorder = new PointerDrag<ReorderContext>({
@@ -609,6 +619,15 @@ export class TableColumnsEngine {
         // A step to the right lands before the column after the one it passes, which is the end of the row when there is none.
         this.moveColumn(table, index, step < 0 ? movable[to].index : movable[to + 1]?.index ?? null);
         cell.focus({ preventScroll: true });
+
+        // Where it stands among the columns shown, as a reader counts them across the row.
+        const state = this.columnStates.get(table);
+
+        if (state !== undefined) {
+            const shown = columnsInOrder(state.places).filter(column => !state.hidden.has(column));
+
+            announceMoved(shown.indexOf(index) + 1, shown.length);
+        }
     }
 
     private handleDoubleClick(domEvent: Event): void {
@@ -645,6 +664,12 @@ export class TableColumnsEngine {
         this.layout(context.table);
 
         return true;
+    }
+
+    /** Escape mid-drag: the widths the drag found, nothing kept. */
+    private putBack(context: ResizeContext): void {
+        this.widths.set(context.table, context.before);
+        this.layout(context.table);
     }
 
     /** Keeps the widths, and the boot patch that paints them and the hidden columns before the next page's first frame. */
@@ -684,7 +709,8 @@ export class TableColumnsEngine {
         if (table === null)
             return null;
 
-        const widths = this.widths.get(table) ?? this.authoredTracks(table);
+        const before = this.widths.get(table) ?? null;
+        const widths = before ?? this.authoredTracks(table);
 
         if (widths === null)
             return null;
@@ -717,7 +743,7 @@ export class TableColumnsEngine {
             return null;
         }
 
-        return { table, index, after, tracks, sizes, floors };
+        return { table, index, after, tracks, sizes, floors, before };
     }
 
     /** The caption a press landed on, if its column is one the viewer may drag; not the handle at its edge. */
@@ -746,10 +772,15 @@ export class TableColumnsEngine {
         if (from < 0 || places.length < 2)
             return null;
 
+        // Measured once: a move compares the pointer with them rather than reading every caption's box again.
+        const middles = places.map(middleOf);
+        const scroll = table.querySelector<HTMLElement>(ScrollSelector);
+        const rightToLeft = getComputedStyle(table).direction === "rtl";
+
         table.setAttribute(TableReorderingAttribute, "");
         cell.setAttribute(TableDraggingAttribute, "");
 
-        return { table, index, origin, places, from, target: from };
+        return { table, index, origin, places, middles, scroll, scrolledAt: scroll?.scrollLeft ?? 0, rightToLeft, from, target: from };
     }
 
     /** The columns the viewer may drag, in view and in the order they stand. */
@@ -769,19 +800,24 @@ export class TableColumnsEngine {
         return movable;
     }
 
-    /** Aims the drop by how many column middles the pointer has passed, and marks the edge it would take. */
+    /** Aims the drop by how many column middles the pointer has passed along the row, and marks the edge it would take. */
     private aimDrop(context: ReorderContext, delta: number): void {
-        const at = context.origin + delta;
+        // The captions scrolled sideways since the press stand that much further back.
+        const at = context.origin + delta + ((context.scroll?.scrollLeft ?? 0) - context.scrolledAt);
         let passed = 0;
 
-        while (passed < context.places.length && at > middleOf(context.places[passed]))
+        while (passed < context.middles.length && (context.rightToLeft ? at < context.middles[passed] : at > context.middles[passed]))
             passed++;
 
-        context.target = Math.min(Math.max(passed > context.from ? passed - 1 : passed, 0), context.places.length - 1);
+        const target = Math.min(Math.max(passed > context.from ? passed - 1 : passed, 0), context.places.length - 1);
 
+        if (target === context.target)
+            return;
+
+        context.target = target;
         clearDropMarks(context.table);
 
-        if (context.target === context.from)
+        if (target === context.from)
             return;
 
         const rest = context.places.filter((_, place) => place !== context.from);

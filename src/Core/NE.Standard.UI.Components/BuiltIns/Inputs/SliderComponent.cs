@@ -15,9 +15,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// on one track pick a band, <c>Value</c> its start and <see cref="EndValue"/> its end.
 /// </summary>
 [UIComponentPropertyBlock(typeof(ISizedInputComponent))]
-public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id), IOrderedRangeComponent, ISizedInputComponent, IPeriodInputComponent
+[UIComponentPropertyBlock(typeof(IOrientationComponent))]
+[UIComponentPropertyDefault(nameof(IOrientationComponent.Orientation), nameof(DefaultOrientation))]
+public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id), IOrderedRangeComponent, ISizedInputComponent, IPeriodInputComponent, IOrientationComponent
     where T : SliderComponent<T>, IUIComponentDefinition
 {
+    private const UIOrientation DefaultOrientation = UIOrientation.Horizontal;
+
     /// <summary>
     /// Gets or sets the minimum selectable value.
     /// </summary>
@@ -37,12 +41,6 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// </summary>
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     public decimal? Step { get; set; }
-
-    /// <summary>
-    /// Gets or sets the layout orientation of the slider track.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Horizontal)]
-    public UIOrientation? Orientation { get; set; }
 
     /// <summary>
     /// Gets or sets whether the current value is displayed alongside the slider.

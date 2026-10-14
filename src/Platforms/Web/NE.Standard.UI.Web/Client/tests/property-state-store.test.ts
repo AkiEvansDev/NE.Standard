@@ -142,3 +142,33 @@ test("a value placed once its row is drawn is forgotten only by that row's host"
 
     assert.equal(store.has(title, ["a"]), false);
 });
+
+test("a row named by a number in a push and by its digits in a local edit is one value", () => {
+    const store = new PropertyStateStore();
+
+    assert.equal(store.set(title, [7], "pushed"), true);
+    assert.equal(store.get(title, ["7"]), "pushed");
+    assert.equal(store.set(title, ["7"], "pushed"), false);
+});
+
+test("the same value again does not walk up for its rows once it is placed, and still places one that came before its row was drawn", () => {
+    const store = new PropertyStateStore();
+    const row = [{ host: 7, hostParameters: [], key: "a" }];
+    let walks = 0;
+    const rowsOf = (): typeof row => {
+        walks++;
+        return row;
+    };
+
+    assert.equal(store.set(title, ["a"], "first", rowsOf), true);
+    assert.equal(store.set(title, ["a"], "first", rowsOf), false);
+    assert.equal(walks, 1);
+
+    // Came while its row was not drawn: the same value again, its row drawn now, is filed under it, and leaves with it.
+    assert.equal(store.set(color, ["b"], "red", () => []), true);
+    assert.equal(store.set(color, ["b"], "red", () => [{ host: 7, hostParameters: [], key: "b" }]), false);
+
+    store.forgetRows(7, [], ["b"]);
+
+    assert.equal(store.has(color, ["b"]), false);
+});

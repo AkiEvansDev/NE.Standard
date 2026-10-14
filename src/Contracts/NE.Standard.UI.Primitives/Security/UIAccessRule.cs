@@ -128,13 +128,8 @@ public sealed class UIAccessRule
         }
     }
 
+    // A list given at all names a value: "," or " " read as none would drop the requirement and admit any signed-in user, so it is
+    // kept empty for Validate to refuse.
     private static string[]? Split(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        var parts = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-
-        return parts.Length == 0 ? null : parts;
-    }
+        => value?.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 }

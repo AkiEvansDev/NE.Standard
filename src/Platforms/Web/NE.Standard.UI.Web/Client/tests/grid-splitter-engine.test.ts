@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 /** The laid-out sizes of the three columns: a pane, the bar's track, a pane. */
 const sizes = [300, 8, 700];
@@ -40,11 +40,28 @@ class FakeResizeObserver {
     }
 }
 
+class FakePointerEvent extends FakeEvent {
+    public readonly button = 0;
+    public readonly pointerId = 1;
+    public readonly clientX: number;
+    public readonly clientY = 0;
+
+    public constructor(type: string, clientX: number) {
+        super(type);
+        this.clientX = clientX;
+    }
+}
+
+// The window's key listeners, a drag's among them, and what the browser was asked to keep.
+const windowKeys: ((domEvent: FakeEvent) => void)[] = [];
+const kept: string[] = [];
+
 installFakeDom({
     window: {
-        addEventListener: () => undefined,
-        localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined }
+        addEventListener: (type: string, listener: (domEvent: FakeEvent) => void) => void (type === "keydown" && windowKeys.push(listener)),
+        localStorage: { getItem: () => null, setItem: (key: string) => void kept.push(key), removeItem: (key: string) => void kept.push(key) }
     },
+    PointerEvent: FakePointerEvent,
     MutationObserver: class {
         public observe(): void {
         }
@@ -163,4 +180,31 @@ test("a side taken to nothing is folded away on both axes, and the bar beside it
     assert.equal(rows.hasAttribute("data-ui-split-folded"), true, "the rows' bar across the folded columns goes with them");
     assert.equal(rows.hasAttribute("data-ui-split-edge"), false);
     assert.equal((container.children[0]).hasAttribute("data-ui-split-folded"), false);
+});
+
+test("Escape mid-drag puts back the division the drag found, keeping nothing and telling the controller nothing", context => {
+    const { container, splitter } = split(context, "0.5", true);
+    const changes: string[] = [];
+
+    windowKeys.length = 0;
+    new GridSplitterEngine({ root: real<ParentNode>(container) });
+    splitter.addEventListener("change", () => void changes.push("change"));
+
+    const found = division(container);
+
+    kept.length = 0;
+    splitter.dispatchEvent(new FakePointerEvent("pointerdown", 300));
+    splitter.dispatchEvent(new FakePointerEvent("pointermove", 450));
+    assert.notEqual(division(container), found, "the drag moved the bar");
+
+    const escape = new FakeKeyboardEvent("Escape");
+
+    for (const listener of windowKeys)
+        listener(escape);
+
+    assert.equal(escape.defaultPrevented, true);
+    assert.equal(division(container), found);
+    assert.deepEqual(kept, []);
+    assert.deepEqual(changes, []);
+    assert.equal(splitter.hasAttribute("data-ui-splitting"), false);
 });

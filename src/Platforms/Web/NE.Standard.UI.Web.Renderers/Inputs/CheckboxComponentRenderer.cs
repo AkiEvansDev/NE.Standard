@@ -9,6 +9,8 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 public sealed class CheckboxComponentRenderer : TextContentRendererBase
 {
+    private static readonly WebDomOperation[] CheckedOperations = [WebDomOperation.Property("checked")];
+
     public override string ComponentTypeKey => CheckboxComponent.ComponentTypeKey;
 
     protected override string ElementName => "label";
@@ -53,7 +55,7 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
             {
                 if (value == true)
                     _ = target.Attribute("checked");
-            }, [WebDomOperation.Property("checked")]);
+            }, CheckedOperations);
         });
 
         _ = root.Element("span", box =>

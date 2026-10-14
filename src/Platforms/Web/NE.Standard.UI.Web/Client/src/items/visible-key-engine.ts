@@ -1,6 +1,7 @@
-// The key of the row at the top of an items view, written back where its `FirstVisibleKey` is bound: once the reader's scroll settles,
-// once after the first layout, and again as the rows or the view's box change. A view nobody binds draws no element for it and is never
-// measured. The value goes the way every client value goes: the element's attribute, then a `change` the value binding sends.
+// The keys of the rows at the top and at the foot of an items view, each written back where its `FirstVisibleKey` or `LastVisibleKey`
+// is bound: once the reader's scroll settles, once after the first layout, and again as the rows or the view's box change. A view nobody
+// binds draws no element for them and is never measured. The value goes the way every client value goes: the element's attribute, then
+// a `change` the value binding sends.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import {
@@ -11,6 +12,8 @@ import {
     GroupHeaderAttribute,
     HiddenClass,
     ItemsHostAttribute,
+    LastVisibleKeyAttribute,
+    LastVisibleKeyValueKind,
     ValueKindAttribute
 } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "../interactions/dom-mutations.ts";
@@ -19,11 +22,8 @@ import { isInert } from "../interactions/interactive-state.ts";
 import { itemBox, viewportOf } from "./items-viewport.ts";
 
 const ViewSelector = ".ui-items-view";
-const HolderSelector = `:scope > [${ValueKindAttribute}="${FirstVisibleKeyValueKind}"]`;
 const HostSelector = `:scope > [${ItemsHostAttribute}]`;
 const HeaderSelector = `:scope > [${GroupHeaderAttribute}]`;
-// The holder carries it only where the key is bound, never on a presentation copy.
-const BoundAttribute = `${BindingAttributePrefix}first-visible-key`;
 const AcrossClass = "ui-orientation--horizontal";
 
 /**
@@ -44,18 +44,41 @@ type Band = { readonly start: number; readonly end: number };
 /** One row's stretch along the view's axis, and the key the view knows it by. */
 export type RowSpan = Band & { readonly key: string };
 
+/** Which end of the view a key is read at: its top (`FirstVisibleKey`) or its foot (`LastVisibleKey`). */
+export type VisibleEdge = "first" | "last";
+
+/** The rows drawn in view and the band they are seen through; null for a view with no rows at all. */
+type Measured = { readonly rows: readonly RowSpan[]; readonly band: Band } | null;
+
 type Box = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
 
 type Waiting = { readonly since: number; readonly timer: ReturnType<typeof setTimeout> };
 
-export type FirstVisibleKeyEngineOptions = {
+/** Each end's holder — the hidden element the renderer draws only where its key is bound — and the attribute its key is written in. */
+const Edges: readonly { readonly edge: VisibleEdge; readonly holder: string; readonly bound: string; readonly attribute: string }[] = [
+    {
+        edge: "first",
+        holder: `:scope > [${ValueKindAttribute}="${FirstVisibleKeyValueKind}"]`,
+        // The holder carries it only where the key is bound, never on a presentation copy.
+        bound: `${BindingAttributePrefix}first-visible-key`,
+        attribute: FirstVisibleKeyAttribute
+    },
+    {
+        edge: "last",
+        holder: `:scope > [${ValueKindAttribute}="${LastVisibleKeyValueKind}"]`,
+        bound: `${BindingAttributePrefix}last-visible-key`,
+        attribute: LastVisibleKeyAttribute
+    }
+];
+
+export type VisibleKeyEngineOptions = {
     readonly root?: ParentNode;
 };
 
-export class FirstVisibleKeyEngine {
+export class VisibleKeyEngine {
     private readonly root: ParentNode;
 
-    // The views whose key is bound, found as they arrive: a scroll anywhere on the page asks only these, none on most pages.
+    // The views with a key bound, found as they arrive: a scroll anywhere on the page asks only these, none on most pages.
     private readonly views = new Set<HTMLElement>();
     private readonly waiting = new Map<HTMLElement, Waiting>();
 
@@ -63,13 +86,15 @@ export class FirstVisibleKeyEngine {
     // on the page hides rows by a class, which neither a scroll nor a change of rows tells.
     private readonly sized = new Map<HTMLElement, { readonly host: Element; readonly stop: () => void }>();
 
-    public constructor(options: FirstVisibleKeyEngineOptions = {}) {
+    public constructor(options: VisibleKeyEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        // A window read, rows drawn anew, a view arriving: whatever changes the rows under the top asks again.
+        // A window read, rows drawn anew, a view arriving: whatever changes the rows in view asks again.
         observeComponents(this.root, ViewSelector, { childList: true }, views => this.findEach(views));
 
-        this.findEach(Array.from(this.root.querySelectorAll(`[${ValueKindAttribute}="${FirstVisibleKeyValueKind}"]`), holder => holder.parentElement).filter(view => view !== null));
+        const holders = this.root.querySelectorAll(`[${ValueKindAttribute}="${FirstVisibleKeyValueKind}"], [${ValueKindAttribute}="${LastVisibleKeyValueKind}"]`);
+
+        this.findEach(new Set(Array.from(holders, holder => holder.parentElement).filter(view => view !== null)));
 
         this.root.addEventListener("scroll", domEvent => this.handleScroll(domEvent), { capture: true, passive: true });
     }
@@ -141,11 +166,11 @@ export class FirstVisibleKeyEngine {
         });
     }
 
-    /** Writes the key of the row at the top onto the view's holder and sends it, where it changed; a list emptied clears it. */
+    /** Writes the key of the row at each bound end onto its holder and sends it, where it changed; a list emptied clears it. */
     private report(view: HTMLElement): void {
-        const holder = view.querySelector(HolderSelector);
+        const bound = view.isConnected ? boundHolders(view) : [];
 
-        if (!view.isConnected || holder === null || !holder.hasAttribute(BoundAttribute)) {
+        if (bound.length === 0) {
             this.forget(view);
             return;
         }
@@ -153,20 +178,25 @@ export class FirstVisibleKeyEngine {
         const host = view.querySelector(HostSelector);
 
         // A disabled or loading view takes no value from the page (`isInert`); it is read again at the next scroll or change of rows.
-        if (host === null || isInert(holder))
+        if (host === null || isInert(bound[0].holder))
             return;
 
-        const key = readFirstVisibleKey(view, host);
+        // Measured once for both ends: the rows' boxes and the band are the costly part.
+        const measured = measureRows(view, host);
 
-        if (key === undefined || key === holder.getAttribute(FirstVisibleKeyAttribute))
-            return;
+        for (const { holder, edge, attribute } of bound) {
+            const key = keyAt(measured, edge);
 
-        if (key === null)
-            holder.removeAttribute(FirstVisibleKeyAttribute);
-        else
-            holder.setAttribute(FirstVisibleKeyAttribute, key);
+            if (key === undefined || key === holder.getAttribute(attribute))
+                continue;
 
-        holder.dispatchEvent(new Event("change", { bubbles: true }));
+            if (key === null)
+                holder.removeAttribute(attribute);
+            else
+                holder.setAttribute(attribute, key);
+
+            holder.dispatchEvent(new Event("change", { bubbles: true }));
+        }
     }
 
     private forget(view: HTMLElement): void {
@@ -199,14 +229,44 @@ export class FirstVisibleKeyEngine {
 }
 
 function isBound(view: Element): boolean {
-    return view.querySelector(HolderSelector)?.hasAttribute(BoundAttribute) === true;
+    return boundHolders(view).length > 0;
+}
+
+function boundHolders(view: Element): { readonly holder: Element; readonly edge: VisibleEdge; readonly attribute: string }[] {
+    const bound = [];
+
+    for (const { holder: selector, bound: boundAttribute, edge, attribute } of Edges) {
+        const holder = view.querySelector(selector);
+
+        if (holder?.hasAttribute(boundAttribute) === true)
+            bound.push({ holder, edge, attribute });
+    }
+
+    return bound;
 }
 
 /**
- * The key of the row at the top of the view: the first, in the rows' order, whose box shows below the edge its scroll is read from. Null
- * where the view has no rows; undefined where none of them shows — only rows still on their way stand in view, or the view is off screen.
+ * The key of the row at the view's top — the first, in the rows' order, whose box shows below the edge its scroll is read from — or at
+ * its foot, the last whose box shows above the far edge. Null where the view has no rows; undefined where none of them shows — only rows
+ * still on their way stand in view, or the view is off screen.
  */
-export function readFirstVisibleKey(view: Element, host: Element): string | null | undefined {
+export function readVisibleKey(view: Element, host: Element, edge: VisibleEdge): string | null | undefined {
+    return keyAt(measureRows(view, host), edge);
+}
+
+function keyAt(measured: Measured, edge: VisibleEdge): string | null | undefined {
+    if (measured === null)
+        return null;
+
+    const { rows, band } = measured;
+
+    if (band.end - band.start <= EdgeSlack)
+        return undefined;
+
+    return (edge === "first" ? firstKeyInBand(rows, band) : lastKeyInBand(rows, band)) ?? undefined;
+}
+
+function measureRows(view: Element, host: Element): Measured {
     const across = view.classList.contains(AcrossClass);
     const backwards = across && getComputedStyle(host).direction === "rtl";
     const rows: RowSpan[] = [];
@@ -227,12 +287,7 @@ export function readFirstVisibleKey(view: Element, host: Element): string | null
             rows.push({ key, ...spanOf(box, across, backwards) });
     }
 
-    if (!hasRows)
-        return null;
-
-    const band = visibleBand(host, across, backwards);
-
-    return band.end - band.start <= EdgeSlack ? undefined : firstKeyInBand(rows, band) ?? undefined;
+    return hasRows ? { rows, band: visibleBand(host, across, backwards) } : null;
 }
 
 /** A box's stretch along the view's axis: down a column, across a row, and across a right-to-left row read from its right. */
@@ -245,7 +300,8 @@ function spanOf(box: Box, across: boolean, backwards: boolean): Band {
 
 /**
  * Where the rows can be seen: the scroll box inside its padding — room the rows scroll through, laid under what stands over the list's
- * edge (a bar over a feed's top) — cut by every box around it that clips and by the window, and below a group header held at its top.
+ * edges (a bar over a feed's top, a composer over its foot) — cut by every box around it that clips and by the window, and below a group
+ * header held at its top.
  */
 function visibleBand(host: Element, across: boolean, backwards: boolean): Band {
     const viewport = viewportOf(host);
@@ -304,9 +360,24 @@ function belowHeldHeaders(host: Element, band: Band, across: boolean, backwards:
 /** The key of the first row, in the rows' order, that shows inside the band; null where none does. */
 export function firstKeyInBand(rows: Iterable<RowSpan>, band: Band): string | null {
     for (const row of rows) {
-        if (row.key.length > 0 && row.end > band.start + EdgeSlack && row.start < band.end)
+        if (shows(row, band))
             return row.key;
     }
 
     return null;
+}
+
+/** The key of the last row, in the rows' order, that shows inside the band; null where none does. */
+export function lastKeyInBand(rows: readonly RowSpan[], band: Band): string | null {
+    for (let index = rows.length - 1; index >= 0; index--) {
+        if (shows(rows[index], band))
+            return rows[index].key;
+    }
+
+    return null;
+}
+
+/** Whether a keyed row reaches into the band by more than the slack at either edge. */
+function shows(row: RowSpan, band: Band): boolean {
+    return row.key.length > 0 && row.end > band.start + EdgeSlack && row.start < band.end - EdgeSlack;
 }

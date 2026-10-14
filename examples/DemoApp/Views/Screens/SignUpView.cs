@@ -19,14 +19,10 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.sign-up.description";
 
     protected override IVisualComponent CreateScreen()
-        => new ContainerComponent()
-            .SetPadding(UIThickness.All(0, 24, 0, 0))
-            .AddChild(CreateForm())
-            .AddChild(CreateDone())
-            .SetPlacement(1, 1, 24, 1);
+        => UICard.Centered(UILayout.Stack(16, CreateForm(), CreateDone())).SetPlacement(1, 1, 24, 1);
 
     private static CardComponent CreateForm()
-        => UIPage.Card("Start with the basics", "Servers from €6 a month, in five regions. No card until the first one.", UILayout.Stack(16,
+        => UICard.Create("Start with the basics", "Servers from €6 a month, in five regions. No card until the first one.", UILayout.Stack(16,
                 new TextInputComponent()
                     .SetTitle("Full name")
                     .SetAppearance(UIInputAppearance.Tonal)
@@ -46,11 +42,10 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                     .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur),
                 UIForm.Field(CreatePasswordField(), "Eight characters or more. A phrase beats a word."),
                 // A sentence a toggle's one-line description would cut on a phone goes under it, starting where its title does.
-                UILayout.Stack(2,
-                    new SwitchComponent(CompanySwitchId)
-                        .SetTitle("I'm signing up for a company")
-                        .BindValue(nameof(SignUpController.ForCompany)),
-                    UIText.Note("Invoices carry its name, and VAT goes by its country.").SetMargin(UIThickness.All(44, 0, 0, 0))
+                UIForm.Field(new SwitchComponent(CompanySwitchId)
+                    .SetTitle("I'm signing up for a company")
+                    .BindValue(nameof(SignUpController.ForCompany)),
+                    "Invoices carry its name, and VAT goes by its country."
                 ),
                 // Revealed by the switch, in the browser: nothing here is required, so the fields can stay folded away.
                 UILayout.Stack(16,
@@ -81,14 +76,12 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                 )
                 .ShownWhen(CompanySwitchId),
                 // The links live in a note under the box, which takes inline marks and runs on; a title is one line of plain words.
-                UILayout.Stack(2,
-                    new CheckboxComponent()
-                        .SetTitle("I agree to the terms")
-                        .SetFormId(FormId)
-                        .BindValue(nameof(SignUpController.AcceptsTerms))
-                        .Required("You have to agree before we can make the account.", UIValidationTrigger.Submit),
-                    UIText.Note("The [terms of service](https://orvane.example/terms) and the [privacy policy](https://orvane.example/privacy), a page each.")
-                        .SetMargin(UIThickness.All(26, 0, 0, 0))
+                UIForm.Field(new CheckboxComponent()
+                    .SetTitle("I agree to the terms")
+                    .SetFormId(FormId)
+                    .BindValue(nameof(SignUpController.AcceptsTerms))
+                    .Required("You have to agree before we can make the account.", UIValidationTrigger.Submit),
+                    "The [terms of service](https://orvane.example/terms) and the [privacy policy](https://orvane.example/privacy), a page each."
                 ),
                 UIButtons.Pair(
                     UIButtons.Link("I already have an account"),
@@ -98,8 +91,6 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                         .InteractAfterClick(IVisualComponent.LoadingProperty, false)
                 )
             ), DemoIcons.Outline(DemoIcons.Shield))
-            .SetWidth(UILayoutLength.Absolute(460))
-            .SetHorizontalAlignment(UIAlignment.Center)
             .BindVisibility(nameof(SignUpController.FormVisibility));
 
     /// <summary>Two rules on one field, the graver heard first; the info one only says its piece.</summary>
@@ -117,26 +108,15 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
 
     /// <summary>What replaces the form: the confirmation, and the two ways on from it.</summary>
     private static SurfaceComponent CreateDone()
-        => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Raised)
-            .SetWidth(UILayoutLength.Absolute(460))
-            .SetHorizontalAlignment(UIAlignment.Center)
-            .SetPadding(UIThickness.Uniform(24))
-            .BindVisibility(nameof(SignUpController.DoneVisibility))
-            // The line under the title is a paragraph: it names the address, and a title's description would end in an ellipsis.
-            .SetContent(UILayout.Stack(16,
-                new TextComponent()
-                    .SetIcon(DemoIcons.Outline(DemoIcons.BadgeCheck))
-                    .SetIconColor(UIThemeColor.Success)
-                    .SetTitle("Check your inbox")
-                    .AsTitle(),
-                UIText.Note(string.Empty).BindDescription(nameof(SignUpController.DoneLine)),
-                UIButtons.Pair(
-                    UIButtons.Ghost("Start over").OnClick(nameof(SignUpController.StartOver)),
-                    // A button that goes somewhere goes through a command: a navigation is an effect a command answers with, not one
-                    // an interaction may run.
-                    UIButtons.Primary("Open the inbox").OnClick(nameof(SignUpController.OpenInbox))
-                )
-                )
-            );
+        => UIPage.Outcome(
+            DemoIcons.Outline(DemoIcons.BadgeCheck),
+            UIMessageSeverity.Success,
+            "Check your inbox",
+            new ParagraphComponent().BindDescription(nameof(SignUpController.DoneLine)),
+            UIButtons.Ghost("Start over").OnClick(nameof(SignUpController.StartOver)),
+            // A button that goes somewhere goes through a command: a navigation is an effect a command answers with, not one an
+            // interaction may run.
+            UIButtons.Primary("Open the inbox").OnClick(nameof(SignUpController.OpenInbox))
+        )
+        .BindVisibility(nameof(SignUpController.DoneVisibility));
 }

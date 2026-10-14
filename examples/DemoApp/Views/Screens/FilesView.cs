@@ -5,7 +5,8 @@ using NE.Standard.UI.Components.BuiltIns.Templates;
 namespace DemoApp.Views.Screens;
 
 /// <summary>
-/// An editor of the operator's files: the folders as a tree, the files open in a strip of tabs over the text, and a status line. The
+/// An editor of the operator's files: the folders as a tree, the files open in a strip of tabs over the text, and a status line —
+/// beside the tree from the medium width, in its place on a phone once a file is pressed (<see cref="UILayout.Panes"/>). The
 /// strip is an items view, so every gesture on it — open, close, rename, pin, drag — is a change to one document the controller sees
 /// and may refuse.
 /// </summary>
@@ -19,20 +20,13 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
     protected override string Header => "demo.screens.files.header";
     protected override string HeaderDescription => "demo.screens.files.description";
 
-    /// <summary>An editor's panes are the region's height from the medium width up, the text scrolling inside; on a phone they stack.</summary>
+    /// <summary>An editor's panes are the region's height from the medium width up, the text scrolling inside.</summary>
     protected override UIResponsive<UILayoutLength>? ScreenHeight => PaneHeight;
 
     private static readonly UIResponsive<UILayoutLength> PaneHeight = UIResponsive<UILayoutLength>.Create(UILayoutLength.Auto(), md: UILayoutLength.Fill());
 
     protected override IVisualComponent CreateScreen()
-        => new ContainerComponent()
-            .AddChild(CreateExplorer()
-                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), md: UIGridPlacement.At(1, 1, 10, 1), xl: UIGridPlacement.At(1, 1, 6, 1)))
-            )
-            .AddChild(CreateEditor()
-                .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 16, 0, 0), md: UIThickness.All(16, 0, 0, 0)))
-                .SetPlacement(UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 2, 24, 1), md: UIGridPlacement.At(11, 1, 14, 1), xl: UIGridPlacement.At(7, 1, 18, 1)))
-            )
+        => UILayout.Panes(CreateExplorer(), CreateEditor(), nameof(FilesController.ExplorerVisibility), nameof(FilesController.EditorVisibility))
             .SetPadding(UIThickness.All(0, 8, 0, 24))
             .SetHeight(PaneHeight)
             .SetPlacement(1, 1, 24, 1);
@@ -50,20 +44,7 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                 .SetRow(1, UIGridUnit.Auto())
                 .AddRow(UIGridUnit.Star())
                 .SetSpacing(4)
-                .AddChild(new ContainerComponent()
-                    .SetColumn(24, UIGridUnit.Auto())
-                    .SetPadding(UIThickness.All(8, 0, 0, 0))
-                    .AddChild(UIText.Label("Explorer")
-                        .SetVerticalAlignment(UIAlignment.Center)
-                        .SetPlacement(1, 1, 23, 1)
-                    )
-                    .AddChild(UIButtons.Icon(DemoIcons.Outline(DemoIcons.Add), "New file")
-                        .OnClick(nameof(FilesController.NewFile))
-                        .SetVerticalAlignment(UIAlignment.Center)
-                        .SetPlacement(24, 1, 1, 1)
-                    )
-                    .SetPlacement(1, 1, 24, 1)
-                )
+                .AddChild(UIPage.Header(UIHeaderSize.Strip, null, "Explorer", null, UIIconButtons.New().OnClick(nameof(FilesController.NewFile))).SetPlacement(1, 1, 24, 1))
                 .AddChild(new TreeComponent()
                     .BindItems(nameof(FilesController.Tree))
                     .SetSelectionMode(UISelectionMode.One)
@@ -84,9 +65,16 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
             .SetPadding(UIThickness.Uniform(0))
             // Rows, not a stack: the text takes what the strip and the status line leave, so the line never drops out of sight.
             .SetContent(new ContainerComponent()
-                .SetRow(1, UIGridUnit.Star())
+                .SetRow(1, UIGridUnit.Auto())
+                .AddRow(UIGridUnit.Star())
                 .AddRow(UIGridUnit.Auto())
                 .AddRow(UIGridUnit.Auto())
+                // On a phone the editor stands in the tree's place: the way back to it.
+                .AddChild(UIPage.Header(UIHeaderSize.Strip, UIIconButtons.Back().OnClick(nameof(FilesController.ShowExplorer)), "Explorer")
+                    .ShownBelow(UIResponsiveTier.Md)
+                    .SetMargin(UIThickness.All(8, 8, 8, 0))
+                    .SetPlacement(1, 1, 24, 1)
+                )
                 .AddChild(new TabsViewComponent(TabsId)
                     .BindItems(nameof(FilesController.Documents))
                     .BindSelectedKey(nameof(FilesController.SelectedKey))
@@ -95,8 +83,8 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                     .SetTabMenuEntries(UITabMenuEntries.Rename | UITabMenuEntries.Pin | UITabMenuEntries.Close)
                     .AddTabMenuEntries(new MenuItem { Id = FilesController.CloseOthersAction, Title = "Close others", Icon = DemoIcons.Outline(DemoIcons.Close) })
                     .OnTabMenuEntry(nameof(FilesController.TabAction))
-                    .OnItemRemove(nameof(FilesController.CloseDocument))
-                    .OnItemRename(nameof(FilesController.RenameDocument), UIAction.ArgCurrentItemKey("id"))
+                    .OnItemRemoveWithItemKey(nameof(FilesController.CloseDocument))
+                    .OnItemRenameWithItemKey(nameof(FilesController.RenameDocument))
                     // The text is the document's own: an edit stays with its tab, as an editor's buffer does until it is saved.
                     .SetPageTemplate(new CodeInputComponent()
                         .BindValue(nameof(DemoFileDocument.Body), UIBindingScope.Relative)
@@ -113,9 +101,9 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                     .SetMargin(UIThickness.All(8, 4, 8, 0))
-                    .SetPlacement(1, 1, 24, 1)
+                    .SetPlacement(1, 2, 24, 1)
                 )
-                .AddChild(new SeparatorComponent().SetPlacement(1, 2, 24, 1))
+                .AddChild(new SeparatorComponent().SetPlacement(1, 3, 24, 1))
                 .AddChild(new ContainerComponent()
                     .SetColumn(24, UIGridUnit.Auto())
                     .SetPadding(UIThickness.All(16, 6, 16, 6))
@@ -135,7 +123,7 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                         .SetMargin(UIThickness.All(12, 0, 0, 0))
                         .SetPlacement(24, 1, 1, 1)
                     )
-                    .SetPlacement(1, 3, 24, 1)
+                    .SetPlacement(1, 4, 24, 1)
                 )
             );
 }

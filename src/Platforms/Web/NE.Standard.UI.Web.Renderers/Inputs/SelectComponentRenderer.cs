@@ -36,6 +36,21 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     private const string ClearableClassName = "ui-select--clearable";
     private const string NoChevronClassName = "ui-select--no-chevron";
 
+    // The key that does the clear's work from the closed field (select-interaction-engine.ts), said on the control the reader stands on
+    // while the clear shows: a select's or a search's trigger, a multi-select's box or its free-text entry.
+    private const string ClearKey = "Delete";
+    private const string ClearKeyTarget = "[role=\"combobox\"]:is(.ui-select__trigger, .ui-multi-select__entry)";
+
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.SelectValue, target: "root")];
+    private static readonly WebDomOperation[] TextOperations = [WebDomOperation.Text()];
+    private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Attribute(WebAttributes.SelectPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
+
+    private static readonly WebDomOperation[] ClearableOperations =
+    [
+        WebDomOperation.ToggleClass(ClearableClassName, condition: WebValueCondition.IsTrue),
+        WebDomOperation.ToggleAttribute("aria-keyshortcuts", target: ClearKeyTarget, condition: WebValueCondition.IsTrue, value: ClearKey, optional: true)
+    ];
+
     public override string ComponentTypeKey => SelectComponent.ComponentTypeKey;
 
     protected override string ClassName => WebClassNames.Select;
@@ -67,21 +82,28 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
     /// <summary>
     /// Whether the clear button and the chevron show, as two classes on the root, both always in the tree; and where the list
-    /// opens, when that is not the default.
+    /// opens, when that is not the default. The field's Delete clears it as well, said on its control (<see cref="RenderClearKey"/>) and
+    /// kept there as the clear comes and goes.
     /// </summary>
     public static void RenderAdornmentState(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        RenderFlagClass(context, root, SelectComponent.ShowClearButtonProperty, ClearableClassName);
+        _ = RenderProperty<bool?>(context, root, SelectComponent.ShowClearButtonProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Class(ClearableClassName);
+        }, ClearableOperations);
 
         RenderFlagClass(context, root, SelectComponent.ShowChevronProperty, NoChevronClassName, WebValueCondition.IsFalse);
 
-        _ = ResolveRenderValue(context, SelectComponent.PopupPlacementProperty, out UIPopupPlacement? placement, out _);
-
-        if (placement is UIPopupPlacement resolved && resolved != UIPopupPlacement.BottomStart)
-            _ = root.Attribute(WebAttributes.SelectPlacement, WebClassNames.PopupPlacement(resolved));
+        // Read by the list as it opens, so a bound placement moves the next opening.
+        _ = RenderProperty<UIPopupPlacement?>(context, root, IPopupPlacementComponent.PopupPlacementProperty, static (target, value) =>
+        {
+            if (value is UIPopupPlacement placement && placement != UIPopupPlacement.BottomStart)
+                _ = target.Attribute(WebAttributes.SelectPlacement, WebClassNames.PopupPlacement(placement));
+        }, PlacementOperations);
     }
 
     /// <summary>
@@ -99,7 +121,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute(WebAttributes.SelectValue, value);
-        }, [WebDomOperation.Attribute(WebAttributes.SelectValue, target: "root")]);
+        }, ValueOperations);
 
         return valueKind;
     }
@@ -150,6 +172,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             // A select-only combobox: the caption is its name and the chosen option drawn inside it is its value.
             _ = trigger.Attribute("role", "combobox");
             TextContentRendererBase.RenderFieldLabel(context, trigger);
+            RenderClearKey(context, trigger);
 
             TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
 
@@ -197,7 +220,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
                     WebWords.Write(context, target, null, UIStrings.SelectPlaceholder);
                 else
                     _ = target.Text(value);
-            }, [WebDomOperation.Text()]);
+            }, TextOperations);
         });
     }
 
@@ -214,6 +237,16 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             _ = clear.Attribute("role", "button");
             WebWords.Write(context, clear, "aria-label", UIStrings.SelectClear);
         });
+    }
+
+    /// <summary>The key that clears the field, on the control the reader stands on, while the clear shows.</summary>
+    public static void RenderClearKey(WebRenderContext context, IHtmlElementBuilder control)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(control);
+
+        if (ReadRenderValue<bool?>(context, SelectComponent.ShowClearButtonProperty, false) == true)
+            _ = control.Attribute("aria-keyshortcuts", ClearKey);
     }
 
     /// <summary>The mark that says the field opens a list.</summary>

@@ -2,7 +2,8 @@
 // is timed here and a `contextmenu` raised for it; where the browser sends its own as well (Android), whichever comes first opens the
 // menu and the other is spent, so the menu opens once. A long press is never also a click. On a part that drags as well, holding still
 // opens the menu and moving on without lifting closes it, the drag going on: the browser's own drag, which starts before the time is
-// up (Android's, at about 400 ms), opens the menu as it starts.
+// up (Android's, at about 400 ms), opens the menu as it starts. The same hold, given an `answer`, does something else — a control's
+// tooltip words (tooltip-engine.ts) — timed, spent and cancelled by a second finger alike.
 
 // `.ts` on the value import: `node --test` loads this module as it is.
 import { ContextMenuAttribute, SplittingAttribute } from "../addressing/dom-attributes.ts";
@@ -31,14 +32,20 @@ export type LongPressOptions = {
     readonly root: ParentNode;
     /** Where the click a long press's release may still raise is caught first, ahead of every engine listening on the root. */
     readonly first?: Pick<EventTarget, "addEventListener">;
-    /** Whether a press there may open a menu at all: nothing is timed elsewhere. */
-    readonly opensMenu: (target: Element) => boolean;
+    /** Whether a finger held there asks for anything at all: nothing is timed elsewhere. */
+    readonly holds: (target: Element) => boolean;
+    /**
+     * What a held finger does other than a menu (a tooltip's words), answering whether it did anything; the browser's own `contextmenu`
+     * for the held part, coming first, does it at once and is spent. Left out, the hold raises a `contextmenu` where the finger went down.
+     */
+    readonly answer?: (target: Element) => boolean;
     /** Closes the menu a long press opened, as a press outside it would: the finger moved on to drag what it held. */
     readonly closeMenu?: () => void;
 };
 
 export class LongPress {
-    private readonly opensMenu: (target: Element) => boolean;
+    private readonly holds: (target: Element) => boolean;
+    private readonly answer: ((target: Element) => boolean) | undefined;
     private readonly closeMenu: () => void;
     private press: Press | null = null;
 
@@ -53,7 +60,8 @@ export class LongPress {
     private dragging = false;
 
     public constructor(options: LongPressOptions) {
-        this.opensMenu = options.opensMenu;
+        this.holds = options.holds;
+        this.answer = options.answer;
         this.closeMenu = options.closeMenu ?? (() => undefined);
 
         // Capturing, and registered before the context menu engine's own listener, so a spent `contextmenu` never reaches it.
@@ -83,7 +91,7 @@ export class LongPress {
             return;
         }
 
-        if (pointer.pointerType !== "touch" || !(domEvent.target instanceof Element) || !this.opensMenu(domEvent.target))
+        if (pointer.pointerType !== "touch" || !(domEvent.target instanceof Element) || !this.holds(domEvent.target))
             return;
 
         const target = domEvent.target;
@@ -142,6 +150,12 @@ export class LongPress {
         if (!press.target.isConnected)
             return;
 
+        // Not a menu: nothing to slide to or to leave for a drag, only the browser's menu and the release's click to spend.
+        if (this.answer !== undefined) {
+            this.answered = this.answer(press.target) ? press.target : null;
+            return;
+        }
+
         const opening = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: press.x, clientY: press.y });
 
         raised.add(opening);
@@ -161,6 +175,16 @@ export class LongPress {
         if (this.answered !== null && domEvent.target instanceof Node && this.answered.contains(domEvent.target)) {
             domEvent.preventDefault();
             domEvent.stopImmediatePropagation();
+            return;
+        }
+
+        const press = this.press;
+
+        // The browser's own menu for the press a hold answers otherwise (Android's, at about the same time) does it now and is spent.
+        if (this.answer !== undefined && press !== null && domEvent.target instanceof Node && press.target.contains(domEvent.target)) {
+            domEvent.preventDefault();
+            this.cancel();
+            this.fire(press);
             return;
         }
 

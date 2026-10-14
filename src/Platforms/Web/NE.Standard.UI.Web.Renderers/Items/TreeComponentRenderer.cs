@@ -41,6 +41,8 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         ]
     };
 
+    private static readonly WebDomOperation[] IndentOperations = [WebDomOperation.Style(IndentVariable, converter: WebDomConverters.NonNegativeNumber)];
+
     public override string ComponentTypeKey => TreeComponent.ComponentTypeKey;
 
     protected override string ClassName => WebClassNames.Tree;
@@ -59,7 +61,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is double indent && indent >= 0)
                 _ = target.Style(IndentVariable, indent.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Style(IndentVariable, converter: WebDomConverters.NonNegativeNumber)]);
+        }, IndentOperations);
 
         // The switches: the engine reads the attributes, the stylesheet the classes.
         RenderFlagAttribute(context, root, TreeComponent.RenamableProperty, WebAttributes.TreeRenamable);

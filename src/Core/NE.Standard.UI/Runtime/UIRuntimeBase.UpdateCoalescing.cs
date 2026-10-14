@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -5,21 +7,36 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
+    // Every address a value update was queued for since the queue was last emptied: one not here has nothing queued to replace, so the
+    // queue is scanned only for an address written twice. One withdrawn since stays, and costs that address a scan for nothing.
+    private readonly HashSet<UIPropertyAddress> _queuedValueAddresses = [];
+
+    /// <summary>Queues a value update in place of one still queued for the same address, which it supersedes.</summary>
     private void AddPendingValueUpdateNoLock(ServerValueUIUpdate update)
     {
-        for (var i = _pendingUpdates.Count - 1; i >= 0; i--)
+        if (!_queuedValueAddresses.Add(update.Address))
         {
-            if (_pendingUpdates[i].Update is not ServerValueUIUpdate existing)
-                continue;
-
-            if (!existing.Address.Equals(update.Address))
-                continue;
-
-            _pendingUpdates.RemoveAt(i);
-            break;
+            for (var i = _pendingUpdates.Count - 1; i >= 0; i--)
+            {
+                if (_pendingUpdates[i].Update is ServerValueUIUpdate existing && existing.Address.Equals(update.Address))
+                {
+                    _pendingUpdates.RemoveAt(i);
+                    break;
+                }
+            }
         }
 
         QueueUpdateNoLock(update);
+    }
+
+    /// <summary>Notes the value updates put back in the queue, which <see cref="AddPendingValueUpdateNoLock"/> must still find.</summary>
+    private void NoteQueuedValueAddressesNoLock(List<PendingUpdate> updates)
+    {
+        for (var i = 0; i < updates.Count; i++)
+        {
+            if (updates[i].Update is ServerValueUIUpdate value)
+                _ = _queuedValueAddresses.Add(value.Address);
+        }
     }
 
     private void AddPendingCollectionUpdateNoLock(ServerCollectionChangeUIUpdate update)

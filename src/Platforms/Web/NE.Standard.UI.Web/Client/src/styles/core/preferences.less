@@ -8,7 +8,7 @@
 // win ties.
 
 // Every loading ring on the page, by its wearer: the one thing both answers below keep.
-@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, @{ui-window-indicator}";
+@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
 
 // The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
 @ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar], .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-bar], .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-bar]";
@@ -39,7 +39,8 @@
         animation-iteration-count: infinite !important;
     }
 
-    // A strip's end fade follows the reader's own scroll, no movement of its own; a zero duration would pin it at its end state.
+    // A strip's end fade follows the scroll's own timeline, no movement of its own; a zero duration would pin it at its end state. A
+    // popup's room for the overlay bar needs no exception: one value from end to end (mixins/scroll-room.less).
     .ui-button-group {
         animation-duration: auto !important;
     }

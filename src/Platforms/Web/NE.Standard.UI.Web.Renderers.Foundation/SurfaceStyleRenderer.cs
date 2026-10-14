@@ -11,7 +11,7 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 
 /// <summary>
 /// The author's colour, written to <c>--ui-surface-color</c> so <see cref="UISurfaceStyle"/> decides how to use it, and to
-/// <c>--ui-ground</c> for a part cut out of it, with its on-colour as the muted text's base; the picture over it to
+/// <c>--ui-ground</c> for a part cut out of it (the ground around it for a transparent one), with its on-colour as the muted text's base; the picture over it to
 /// <c>--ui-surface-image</c>.
 /// </summary>
 public static class SurfaceStyleRenderer
@@ -25,7 +25,7 @@ public static class SurfaceStyleRenderer
     private static readonly WebDomOperation[] BackgroundOperations =
     [
         WebDomOperation.Style("--ui-surface-color", converter: WebDomConverters.ThemeColorCss),
-        WebDomOperation.Style("--ui-ground", converter: WebDomConverters.ThemeColorCss),
+        WebDomOperation.Style("--ui-ground", converter: WebDomConverters.ThemeGroundCss),
         WebDomOperation.Style("--ui-faint-base", converter: WebDomConverters.ThemeOnColorCss)
     ];
 
@@ -61,8 +61,9 @@ public static class SurfaceStyleRenderer
             {
                 _ = element.Style("--ui-surface-color", css);
 
-                // A part cut out of this ground (a chart's hollow marker) paints this colour; a Tinted surface overrides it with its mix.
-                _ = element.Style("--ui-ground", css);
+                // A part cut out of this ground (a chart's hollow marker) paints this colour, and a picture's dim veils with it; a Tinted
+                // surface overrides it with its mix. A transparent one names the ground around it: its own would veil with nothing.
+                _ = element.Style("--ui-ground", WebCssValues.ThemeGround(background));
 
                 // Muted text and links on this ground take its on-colour, not the page's ink (.ui-color--muted, a link read the base);
                 // the page's own grounds (Surface, Background) reset it, so a card of them reads as the page does.

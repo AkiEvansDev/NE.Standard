@@ -15,10 +15,10 @@ using NE.Standard.UI.Shell.Updates.Server;
 namespace NE.Standard.UI.Testing;
 
 /// <summary>
-/// The platform's side of the host for a test: what the runtimes push, the dialogs they open and the files they send reach the open
-/// page they are addressed to, by its instance id, as a connection would carry them. No file is ever picked for an upload.
+/// The platform's side of the host for a test: what the runtimes push — the dialogs they open among it — and the files they send reach
+/// the open page they are addressed to, by its instance id, as a connection would carry them. No file is ever picked for an upload.
 /// </summary>
-internal sealed class UITestClient : IUIUpdateSink, IUIDialogService, IUIDownloadService, IUIUploadService
+internal sealed class UITestClient : IUIUpdateSink, IUIDownloadStager, IUIUploadService
 {
     private const string NoFiles = "A test page picks no files.";
 
@@ -59,47 +59,23 @@ internal sealed class UITestClient : IUIUpdateSink, IUIDialogService, IUIDownloa
         return Task.CompletedTask;
     }
 
-    public Task<bool> ShowAsync(UIHandle handle, string dialogName, CancellationToken cancellationToken = default)
-        => SendEffect(handle, new OpenDialogEffect(dialogName));
 
-    public Task<bool> HideAsync(UIHandle handle, string dialogName, CancellationToken cancellationToken = default)
-        => SendEffect(handle, new CloseDialogEffect(dialogName));
-
-    // As the web's dialog service sends it: an effect in a command result, so the page's Effects lists it as the browser runs it.
-    private Task<bool> SendEffect(UIHandle handle, ClientEffect effect)
-    {
-        ArgumentNullException.ThrowIfNull(handle);
-
-        if (!_pages.TryGetValue(handle.Instance.Id, out UITestPage? page))
-            return Task.FromResult(false);
-
-        page.Receive(new UICommandExecutionResult { Command = UICommandResult.Ok([effect]), Changes = ServerChangeSet.Empty });
-
-        return Task.FromResult(true);
-    }
-
-    public async Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(content);
-
-        using MemoryStream copy = new();
-
-        await content.CopyToAsync(copy, cancellationToken).ConfigureAwait(false);
-
-        return await DownloadAsync(handle, fileName, contentType, copy.ToArray(), cancellationToken).ConfigureAwait(false);
-    }
-
-    public Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, byte[] content, CancellationToken cancellationToken = default)
+    // Delivered here, as an in-process platform delivers a file itself: the page holds the bytes, and no fetch is sent.
+    public async Task<ClientEffect?> StageAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
         ArgumentNullException.ThrowIfNull(content);
 
-        if (_pages.TryGetValue(handle.Instance.Id, out UITestPage? page))
-            page.Receive(new UITestDownload(fileName, contentType, content));
+        using MemoryStream copy = new();
 
-        return Task.FromResult(UITransferResult.Ok());
+        await content.CopyToAsync(copy, cancellationToken).ConfigureAwait(false);
+
+        if (_pages.TryGetValue(handle.Instance.Id, out UITestPage? page))
+            page.Receive(new UITestDownload(fileName, contentType, copy.ToArray()));
+
+        return null;
     }
 
     public Task<UIUploadSelection> GetSelectionAsync(UIHandle handle, string selectionId, CancellationToken cancellationToken = default)

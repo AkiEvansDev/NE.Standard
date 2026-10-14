@@ -3,12 +3,13 @@
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
 @import "../mixins/row-grip.less";
+@import "../mixins/scroll-room.less";
 @import "../mixins/selected.less";
 
 // Flex column: a block parent's definite height doesn't constrain a self-sizing child, so the scroller couldn't be bounded.
 .ui-items-view {
     .ui-responsive-reset(--ui-items-view-spacing);
-    .ui-responsive-reset(--ui-items-view-padding);
+    .ui-responsive-reset(--ui-items-view-content-max-width);
     .ui-selected-scope();
 
     display: flex;
@@ -30,8 +31,12 @@
     display: block;
     min-width: 0;
     min-height: 0;
-    // The view's Padding, inside the scroll box the host is: the rows scroll through it.
-    .ui-responsive-property(padding, --ui-items-view-padding, 0);
+    // The view's Padding, written on the scroll box the host is: the rows scroll through it. The overlay bar's room stands past it, and
+    // a capped column (ContentMaxWidth) is centred by the sides growing, so the bar stays at the scroller's edge (core/scrollbar.less).
+    .ui-responsive-reset(--ui-items-view-padding);
+    .ui-responsive-property(padding, --ui-items-view-padding, @ui-scroll-room-padding);
+    @cap: .ui-responsive-chain(--ui-items-view-content-max-width; 100%)[@value];
+    --ui-scroll-cap: calc((100% - @{cap}) / 2);
 }
 
 .ui-items-view--stack > .ui-items-view__host,
@@ -110,7 +115,7 @@
 
 // A list held at its end ends a step past its newest row: the scroller clips at its edge, so a raised row's shadow and the fraction of
 // a pixel a row's height rounds away would otherwise read as the list stopping short. A Padding of the view's own says its end instead.
-.ui-items-view:not([style*="--ui-items-view-padding"]) > [data-ui-scroll-anchor="End"] {
+.ui-items-view > [data-ui-scroll-anchor="End"]:not([style*="--ui-items-view-padding"]) {
     padding-block-end: @ui-space-1;
 }
 
@@ -120,8 +125,8 @@
 }
 
 // A windowed list draws the rows it has not fetched as grey bars in their shape, never a spinner: a spacer stands for them, and the
-// window engine writes the row's measured height (`--ui-window-row`) and, in a wrapping list, a tile's step (`--ui-window-tile`) for
-// the masks that cut the bars. It reads `--ui-window-look` to put a few such rows after a list that cannot count while its next
+// window engine writes on it the row's measured height (`--ui-window-row`) and, in a wrapping list, a tile's step (`--ui-window-tile`)
+// for the masks that cut the bars — on the spacer, not the host, whose every row an inherited property written there would restyle. It reads `--ui-window-look` to put a few such rows after a list that cannot count while its next
 // rows come. A shimmer runs while a window is read; reduced motion stops it (core/preferences.less) and the bars stay.
 @ui-skeleton-host: ~".ui-items-view:not(.ui-items-view--indicator) > [data-ui-host-mode='windowed']";
 

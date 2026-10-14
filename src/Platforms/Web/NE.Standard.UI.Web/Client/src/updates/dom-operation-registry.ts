@@ -7,7 +7,7 @@ import { toIconClassName } from "../rendering/icon-value.ts";
 import { applyInlineMarkup } from "../rendering/inline-markup.ts";
 import { getClassFamily } from "../rendering/web-dom-converters.ts";
 import { forgetWords } from "../runtime/client-strings.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logError, logWarn } from "../runtime/logger.ts";
 import { CardHeaderShownOperationKind, writeCardHeaderShown } from "./card-header.ts";
 import { ContentFillsOperationKind, writeContentFills } from "./content-fills.ts";
 import { FormOwnerOperationKind, writeFormOwner } from "./form-owner.ts";
@@ -62,7 +62,14 @@ export class DomOperationRegistry {
             return;
         }
 
-        handler(context);
+        // One operation that throws (a package's, or one missing its name) is logged and passed over: the property's other operations
+        // and targets are still written, and the patch still records the value.
+        try {
+            handler(context);
+        }
+        catch (error) {
+            logError("a DOM operation failed.", { kind: context.operation.kind, operation: context.operation, error });
+        }
     }
 
     private registerDefaults(): void {

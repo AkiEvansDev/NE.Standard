@@ -4,6 +4,7 @@
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { FileMaxSizeAttribute } from "../addressing/dom-attributes.ts";
 import { acceptsFile } from "./file-drop.ts";
+import { formatFileSize } from "../rendering/file-tile.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { logElapsed, logWarn } from "../runtime/logger.ts";
 import type { FieldValidation } from "./validation-engine.ts";
@@ -11,9 +12,6 @@ import type { FieldValidation } from "./validation-engine.ts";
 const UploadPath = "/_ne/files/upload";
 const SelectionPath = "/_ne/files/selection/";
 const UploadedPath = "/_ne/files/upload/";
-
-/** Past the byte, the steps a size is written in, each 1024 of the one before, as a file manager counts. */
-const SizeUnits = ["kilobyte", "megabyte", "gigabyte"] as const;
 
 /** A pick refused for size, kept so a language switch writes the limit again in the new language's units. */
 type SizeRefusal = {
@@ -77,31 +75,6 @@ function sayRefusal(root: HTMLElement, refusal: SizeRefusal): void {
     refusal.validation.mark(root, "error", refusal.names === null
         ? { key: "ui.file.oversized", args: { limit } }
         : { key: "ui.file.leftout", args: { limit, names: refusal.names.join(", ") } });
-}
-
-/** A size in bytes as a reader reads one — "1 MB", "1,5 МБ" — in the page's language, by the browser's own unit words. */
-export function formatFileSize(bytes: number, language: string): string {
-    let value = bytes;
-    let unit = "byte";
-
-    for (const next of SizeUnits) {
-        if (value < 1024)
-            break;
-
-        value /= 1024;
-        unit = next;
-    }
-
-    // "512 bytes", not the short form's "512 byte".
-    const options: Intl.NumberFormatOptions = { style: "unit", unit, unitDisplay: unit === "byte" ? "long" : "short", maximumFractionDigits: 1 };
-
-    try {
-        return new Intl.NumberFormat(language.length > 0 ? language : undefined, options).format(value);
-    }
-    catch {
-        // A language tag the browser does not know: its own language's words, rather than no limit at all.
-        return new Intl.NumberFormat(undefined, options).format(value);
-    }
 }
 
 /** Writes the refusals again on a language switch, once the page's own rewrite has put the old language's limit back. */

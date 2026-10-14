@@ -16,6 +16,9 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 /// <remarks><see cref="InputComponentBase{TComponent, TValue}"/> is the same thing over a plain visual component.</remarks>
 [UIComponentPropertyBlock(typeof(IInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextBaseComponent))]
+[UIComponentPropertyDefault(nameof(ITextBaseComponent.IconColor), nameof(DefaultIconColor))]
+[UIComponentPropertyDefault(nameof(ITextBaseComponent.TitleType), nameof(DefaultTitleType))]
+[UIComponentPropertyDefault(nameof(ITextBaseComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
 public abstract partial class InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate> : GroupedItemsComponentBase<TComponent, TItem, TTemplate>, IInputComponent, ITextBaseComponent
     where TComponent : InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate>, IUIComponentDefinition
     where TItem : class
@@ -23,8 +26,10 @@ public abstract partial class InputTemplatedComponentBase<TComponent, TItem, TVa
 {
     private readonly List<UIValidationRule> _validations = [];
 
+    // A field's caption differs from a text's on these three, the same in InputComponentBase and InputTemplatedComponentBase.
     private static readonly UIThemeColor DefaultIconColor = UIThemeColor.FromStyle(UIColorStyle.Primary);
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Caption;
+    private const UITextBadgePlacement DefaultBadgePlacement = UITextBadgePlacement.Trailing;
 
     /// <summary>
     /// Initializes a field centred in its track, as <see cref="InputComponentBase{TComponent, TValue}"/> does.
@@ -40,20 +45,6 @@ public abstract partial class InputTemplatedComponentBase<TComponent, TItem, TVa
 
     /// <inheritdoc/>
     object? IInputComponent.Value => Value;
-
-    // The four label properties a field's caption differs on, the same four as InputComponentBase; the rest come from the ITextBaseComponent block.
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultIconColor))]
-    public UIThemeColor? IconColor { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultTitleType))]
-    public UITextAppearance? TitleType { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = UITextBadgePlacement.Trailing)]
-    public UITextBadgePlacement? BadgePlacement { get; set; }
 
     /// <inheritdoc/>
     public UIPropertyReference? ValidationTarget { get; set; }

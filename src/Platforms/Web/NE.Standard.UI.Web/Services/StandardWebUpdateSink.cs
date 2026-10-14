@@ -92,8 +92,9 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
     /// <summary>
     /// A switch pushed for a session that already holds the setting — a command's own <c>UpdateSessionAsync</c>, another page's switch
     /// reaching this one — goes out marked stored, so the page applies it without telling the session again, whose write would
-    /// reach the session's pages once more and could put an older value back: a language names where its words are, colours carry
-    /// their stylesheet, a theme is marked stored. On a copy: the runtime's own result stays as it was.
+    /// reach the session's pages once more and could put an older value back: a language names where its words are and colours carry
+    /// their stylesheet (<see cref="WebStoredLanguageEffect"/>, <see cref="WebStoredThemeColorsEffect"/>, the page's wire shapes), a
+    /// theme is marked stored. On a copy: the runtime's own result stays as it was.
     /// </summary>
     private UICommandExecutionResult MarkStoredSettings(UIHandle handle, UICommandExecutionResult result)
     {
@@ -119,15 +120,11 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
     private ClientEffect? MarkStored(IUserSessionContext session, ClientEffect effect)
         => effect switch
         {
-            SetLanguageEffect { Href: null } language when string.Equals(language.Language, session.Language, StringComparison.Ordinal) => new SetLanguageEffect(language.Language)
-            {
-                Href = WebWordsEndpoint.Resolve(_services.GetRequiredService<UIApplication>(), language.Language, _services.GetServices<IUIStringsSource>()).Href
-            },
+            SetLanguageEffect language when string.Equals(language.Language, session.Language, StringComparison.Ordinal)
+                => new WebStoredLanguageEffect(language.Language, WebWordsEndpoint.Resolve(_services.GetRequiredService<UIApplication>(), language.Language, _services.GetServices<IUIStringsSource>()).Href),
             SetThemeEffect { Stored: false } theme when theme.Mode == session.ThemeMode => new SetThemeEffect(theme.Mode) { Stored = true },
-            SetThemeColorsEffect { Css: null } colors when Equals(colors.Colors, session.ThemeColors) => new SetThemeColorsEffect(colors.Colors)
-            {
-                Css = WebThemeColorsCss.For(_services.GetRequiredService<UIApplication>().Theme, colors.Colors)
-            },
+            SetThemeColorsEffect colors when Equals(colors.Colors, session.ThemeColors)
+                => new WebStoredThemeColorsEffect(colors.Colors, WebThemeColorsCss.For(_services.GetRequiredService<UIApplication>().Theme, colors.Colors)),
             _ => null
         };
 }

@@ -7,10 +7,13 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>Calendar and clock columns committed together; the canonical string drops the offset, so it cannot round-trip one.</summary>
+/// <summary>
+/// Calendar and clock columns committed together. The canonical string carries the value's offset and the page edits the wall clock it
+/// names, writing the offset back with it, so the instant round-trips whatever zone the reader sits in.
+/// </summary>
 public sealed class DateTimeInputComponentRenderer : TemporalInputRendererBase<DateTimeInputComponent, DateTimeOffset?>
 {
-    private const string CanonicalDateTimeFormat = "yyyy-MM-ddTHH:mm:ss";
+    private const string CanonicalDateTimeFormat = "yyyy-MM-ddTHH:mm:sszzz";
 
     protected override string ClassName => "ui-date-time-input";
 

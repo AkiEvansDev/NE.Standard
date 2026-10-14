@@ -37,7 +37,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
             .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindIsOpen($"{FlyoutGroup}.{nameof(FlyoutGroupContext.IsOpen)}")
-            .BindFlyoutPlacement($"{FlyoutGroup}.{nameof(FlyoutGroupContext.FlyoutPlacement)}")
+            .BindPopupPlacement($"{FlyoutGroup}.{nameof(FlyoutGroupContext.FlyoutPlacement)}")
             .BindCloseOnBackdrop($"{FlyoutGroup}.{nameof(FlyoutGroupContext.CloseOnBackdrop)}")
             .BindCloseOnEscape($"{FlyoutGroup}.{nameof(FlyoutGroupContext.CloseOnEscape)}")
             .SetAnchor(new ButtonComponent()
@@ -84,7 +84,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A panel that belongs to one button",
             new FlyoutComponent()
-                .SetFlyoutPlacement(UIPopupPlacement.BottomStart)
+                .SetPopupPlacement(UIPopupPlacement.BottomStart)
                 // The wrapper leaves the anchor the box it would have had, so the flyout says where it sits.
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetAnchor(new ButtonComponent()
@@ -123,7 +123,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                 .SetContent(UILayout.Stack(4)
                     .AddChild(new FlyoutComponent()
                         // To the side: below is where the next row is.
-                        .SetFlyoutPlacement(UIPopupPlacement.RightStart)
+                        .SetPopupPlacement(UIPopupPlacement.RightStart)
                         .SetAnchor(new ActionComponent()
                             .SetType(UIButtonType.Ghost)
                             .SetSize(UIButtonSize.Small)
@@ -170,7 +170,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
             UILayout.Stack(14)
                 .AddChild(UIText.Label("Both — a press outside, or Escape"))
                 .AddChild(new FlyoutComponent()
-                    .SetFlyoutPlacement(UIPopupPlacement.BottomStart)
+                    .SetPopupPlacement(UIPopupPlacement.BottomStart)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetAnchor(new ButtonComponent()
                         .SetType(UIButtonType.Ghost)
@@ -188,7 +188,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(UIText.Label("Neither — only its own control"))
                 .AddChild(new FlyoutComponent()
-                    .SetFlyoutPlacement(UIPopupPlacement.BottomStart)
+                    .SetPopupPlacement(UIPopupPlacement.BottomStart)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetCloseOnBackdrop(false)
                     .SetCloseOnEscape(false)
@@ -255,7 +255,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(UIText.Label("Flyout — anything else, and nothing decided for you").SetTitleWrap(true))
                 .AddChild(new FlyoutComponent()
-                    .SetFlyoutPlacement(UIPopupPlacement.BottomStart)
+                    .SetPopupPlacement(UIPopupPlacement.BottomStart)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetAnchor(UIButtons.Ghost("Open a panel"))
                     // A width and nothing else: the panel already is a surface, so a Surface inside it would be a second frame.

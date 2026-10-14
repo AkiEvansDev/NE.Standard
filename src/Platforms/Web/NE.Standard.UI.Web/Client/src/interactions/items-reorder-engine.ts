@@ -10,14 +10,14 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
     ComponentIdAttribute, DragKindAttribute, GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass,
-    RowsDraggableAttribute, RowsDragHandleAttribute
+    RowsDraggableAttribute, RowsDragHandleAttribute, WindowTotalAttribute
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { getRealItemElements } from "../items/items-empty-renderer.ts";
 import { getActiveSorts, readItemsQuery } from "../items/items-filter-sort.ts";
-import { resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
+import { readWindowNumber, resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
 import { getSourceOrder } from "../items/items-source-order.ts";
 import type { PendingMove, PendingMoves } from "../items/pending-moves.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
@@ -26,6 +26,7 @@ import { clearDragMarks, leftAltogether, markDragStart } from "./drag-marks.ts";
 import { isInert } from "./interactive-state.ts";
 import { allowedEffect, beginItemsDrag, carriedRows, isLiftable, offeredItems } from "./item-drags.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
+import { announceMoved } from "./live-announcer.ts";
 import { ownControlOf } from "./own-control.ts";
 import { dispatchRowEvent, focusedRow, hostKeyTarget, lineNeighbour, setRowFocus } from "./row-cursor.ts";
 import { hostOf, KeyboardRowsRootSelector, rowBox, rowKey, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
@@ -391,8 +392,11 @@ export class ItemsReorderEngine {
             : rows[rows.indexOf(current) + (forward ? 1 : -1)] ?? null;
         const index = anchor === null ? null : this.indexOf({ host, row: current }, anchor, forward ? "after" : "before");
 
-        if (index !== null)
-            raiseItemMove(current, index);
+        if (index === null)
+            return;
+
+        raiseItemMove(current, index);
+        announceMoved(index + 1, readWindowNumber(host, WindowTotalAttribute) ?? windowOffset(host) + rowOrder(host, this.services?.keysOf).length);
     }
 }
 

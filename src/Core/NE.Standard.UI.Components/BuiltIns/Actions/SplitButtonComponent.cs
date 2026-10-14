@@ -15,10 +15,19 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// A button whose end opens a menu of commands: the main part fires its own click, the end part opens the menu; in
 /// <see cref="UISplitButtonMode.Menu"/> the whole button does.
 /// </summary>
-/// <remarks>Entries are a <see cref="MenuComponent"/> of <see cref="MenuItem"/>, the same model a sidebar uses, drawn in a popup.</remarks>
-public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IRegionContainerComponent, ISplitButtonComponent, IItemClickComponent
+/// <remarks>
+/// Entries are a <see cref="MenuComponent"/> of <see cref="MenuItem"/>, the same model a sidebar uses, drawn in a popup. The menu opens
+/// below the button, its end at the button's end, unless <c>PopupPlacement</c> says otherwise — a leading button (a composer's quick
+/// replies) opens from its start.
+/// </remarks>
+[UIComponentPropertyBlock(typeof(IPopupPlacementComponent))]
+[UIComponentPropertyDefault(nameof(IPopupPlacementComponent.PopupPlacement), nameof(DefaultPopupPlacement))]
+public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IRegionContainerComponent, ISplitButtonComponent, IItemClickComponent, IPopupPlacementComponent
     where T : SplitButtonComponent<T>, IUIComponentDefinition
 {
+    // A button at a bar's end, as most are: the menu lines up under it rather than running past the bar.
+    private const UIPopupPlacement DefaultPopupPlacement = UIPopupPlacement.BottomEnd;
+
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
 
     /// <summary>
@@ -43,14 +52,6 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowChevron { get; set; }
-
-    /// <summary>
-    /// Gets or sets where the menu opens against the button: below it, its end at the button's end, by default — a button at a bar's
-    /// end — flipping where there is no room; a leading button (a composer's quick replies) opens from its start.
-    /// </summary>
-    /// <remarks>Render-time only, as a select's list placement is.</remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = UIPopupPlacement.BottomEnd)]
-    public UIPopupPlacement? MenuPlacement { get; set; }
 
     /// <summary>
     /// Gets the menu the button drops — its entries, their template and the command an entry runs.

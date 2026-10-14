@@ -3,7 +3,7 @@
 // sort that would put the row back, a place in another group — and the row standing in its new place until the command's answer.
 
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 class FakeDragEvent extends FakeEvent {
@@ -26,6 +26,9 @@ class FakeCustomEvent extends FakeEvent {
         this.detail = init.detail ?? null;
     }
 }
+
+// A spoken line is taken away on the test's clock, which never runs: nothing waits on it.
+mock.timers.enable({ apis: ["setTimeout"] });
 
 installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent, getComputedStyle: () => ({ direction: "ltr" }) });
 
@@ -82,12 +85,18 @@ function altKey(target: FakeElement, key: string): FakeKeyboardEvent {
     return domEvent;
 }
 
+/** The words the page's polite live region said last, as their mark carries them. */
+function lastSaid(): string {
+    return fakeDocument.body.querySelector(".ui-announcer[aria-live=\"polite\"]")?.children.at(-1)?.getAttribute("data-ui-words") ?? "";
+}
+
 test("Alt+Down and Alt+Up move the keyboard's row one place past its neighbour, and take the keys at an end", () => {
     const view = list();
 
     new ItemsReorderEngine({ root: real(view.root) });
 
     assert.equal(altKey(view.root, "ArrowDown").defaultPrevented, true);
+    assert.match(lastSaid(), /"ui\.move\.done",\{"index":3,"count":3\}/, "a screen reader hears where the row now stands");
     assert.equal(altKey(view.root, "ArrowUp").defaultPrevented, true);
     assert.deepEqual(view.moves, [2, 0]);
 
@@ -153,10 +162,12 @@ test("in a wrap Alt+Down and Alt+Up move the row a line, to the place under or o
 test("a windowed host's row takes its place in the whole query, the window's offset added", () => {
     const view = list({ "data-ui-host-mode": "windowed", "data-ui-window-offset": "40" });
 
+    view.host.setAttribute("data-ui-window-total", "90");
     new ItemsReorderEngine({ root: real(view.root) });
     altKey(view.root, "ArrowUp");
 
     assert.deepEqual(view.moves, [40]);
+    assert.match(lastSaid(), /"index":41,"count":90/, "counted in the whole query");
 });
 
 test("a row that may not move, a host whose rows do not and a sorted host leave Alt and an arrow alone", () => {

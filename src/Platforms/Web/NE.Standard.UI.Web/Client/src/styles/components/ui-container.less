@@ -58,6 +58,14 @@
     .ui-placement-line(grid-row, row, 1);
 }
 
+// Children laid in one cell stand as their order reads, the later over the earlier: a bar or a composer over a list's head and foot.
+// Positioned, as a list with a loading ring or a button already is, a static child would paint under every positioned one whatever
+// its order. Weightless, so a component's own position (a dialog's fixed, a sticky band) stands; no z-index, so a popup inside is
+// still drawn over the page, which a stacking context per child would hold under its later siblings.
+:where(@{ui-placement-hosts}) > :where([data-ui-id], .ui-pane-container__place) {
+    position: relative;
+}
+
 // An authored width is capped at the parent's room less the child's own margins (core/runtime.less), so it is not cut off on a
 // phone; in-flow children only (a popup keeps its width), an authored MaxWidth still rules, and a scroll container's content keeps
 // its size.

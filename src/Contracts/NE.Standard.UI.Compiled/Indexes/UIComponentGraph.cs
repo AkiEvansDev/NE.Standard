@@ -22,6 +22,7 @@ public sealed class UIComponentGraph
     private readonly FrozenDictionary<ComponentSlotKindKey, UIComponentSlot[]> _slotsByKind;
     private readonly FrozenDictionary<ComponentSlotExactKey, UIComponentSlot> _slotsByExactKey;
     private readonly FrozenDictionary<string, UIComponentId> _componentIdsByAuthoringId;
+    private readonly FrozenDictionary<UIComponentId, UIComponentId[]> _itemScopes;
     private readonly UIComponentNode[] _all;
 
     /// <summary>
@@ -79,10 +80,43 @@ public sealed class UIComponentGraph
         for (var i = 0; i < nodes.Length; i++)
             ValidateNodeReferences(nodes[i], nodeBuilder);
 
+        // Read on every command: worked out once per view, and a component that starts no row shares its parent's array.
+        Dictionary<UIComponentId, UIComponentId[]> itemScopes = new(nodes.Length);
+
+        for (var i = 0; i < nodes.Length; i++)
+            ResolveItemScopes(nodes[i], nodeBuilder, itemScopes);
+
         _nodes = nodeBuilder.ToFrozenDictionary();
         _slotsByKind = GroupingIndex.Freeze(slotsByKindBuilder);
         _slotsByExactKey = slotsByExactKeyBuilder.ToFrozenDictionary();
         _componentIdsByAuthoringId = idsByAuthoringId.ToFrozenDictionary(StringComparer.Ordinal);
+        _itemScopes = itemScopes.ToFrozenDictionary();
+    }
+
+    /// <summary>A node's item scopes, outermost first, built down from the nearest ancestor already resolved.</summary>
+    private static void ResolveItemScopes(UIComponentNode node, Dictionary<UIComponentId, UIComponentNode> nodes, Dictionary<UIComponentId, UIComponentId[]> resolved)
+    {
+        List<UIComponentNode> unresolved = [];
+        UIComponentId[] scopes = [];
+
+        for (UIComponentNode? current = node; current is not null; current = current.ParentId is UIComponentId parent ? nodes[parent] : null)
+        {
+            if (resolved.TryGetValue(current.ComponentId, out UIComponentId[]? known))
+            {
+                scopes = known;
+                break;
+            }
+
+            unresolved.Add(current);
+        }
+
+        for (var i = unresolved.Count - 1; i >= 0; i--)
+        {
+            if (unresolved[i].DefinesContextParameter)
+                scopes = [.. scopes, unresolved[i].ComponentId];
+
+            resolved[unresolved[i].ComponentId] = scopes;
+        }
     }
 
     /// <summary>
@@ -150,19 +184,7 @@ public sealed class UIComponentGraph
     /// key of its row address begins. Empty for a component the graph does not hold.
     /// </summary>
     public IReadOnlyList<UIComponentId> GetItemScopes(UIComponentId componentId)
-    {
-        List<UIComponentId> scopes = [];
-
-        for (UIComponentNode? node = TryGet(componentId, out UIComponentNode? own) ? own : null; node is not null; node = node.ParentId is UIComponentId parent && TryGet(parent, out UIComponentNode? above) ? above : null)
-        {
-            if (node.DefinesContextParameter)
-                scopes.Add(node.ComponentId);
-        }
-
-        scopes.Reverse();
-
-        return scopes;
-    }
+        => !componentId.IsEmpty && _itemScopes.TryGetValue(componentId, out UIComponentId[]? scopes) ? scopes : EmptyChildren;
 
     /// <summary>
     /// Attempts to get a compiled component id by authoring component id.

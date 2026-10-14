@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "./elevation.less";
 @import "./focus.less";
+@import "./scroll-room.less";
 
 // A floating panel's look alone — edge, corners, ground, elevation — for a panel not placed as a popup (a find panel in its field).
 .ui-popup-look() {
@@ -101,10 +102,15 @@
     }
 }
 
-// Caps a list-shaped popup to the viewport height; skip it where a tail is drawn outside the box, since overflow would clip it.
-.ui-popup-scroll() {
+// Caps a list-shaped popup to the viewport height, padded @padding, its inline end widened to the room only while it overflows: sized as
+// it opens, it has no rows to jump, and one that fits stays even on both sides (core/scrollbar.less). Where no scroll timeline runs, the
+// thumb stands over the entries' own padding. Skip it where a tail is drawn outside the box, since overflow would clip it.
+.ui-popup-scroll(@padding: 0px) {
     max-height: calc(100dvh - 2 * @ui-popup-viewport-margin);
     overflow: auto;
+    padding: @padding;
+    padding-inline-end: max(if((length(@padding) > 1), extract(@padding, 2), @padding), var(--ui-scroll-room-y));
+    .ui-scroll-room-y-while-overflowing();
 }
 
 // A list of entries floating over the page — a context menu, a split button's, a collapsed menu's flyout, a tab strip's overflow, the
@@ -112,10 +118,9 @@
 // round its entries.
 .ui-popup-list(@min-width: 10rem) {
     .ui-popup-surface(@ui-z-list);
-    .ui-popup-scroll();
+    .ui-popup-scroll(@ui-space-1);
     .ui-popup-closed();
     min-width: @min-width;
-    padding: @ui-space-1;
 }
 
 // A short strip of icons floating over what it acts on — a row's action bar, a code field's format bar — placed as every popup is,

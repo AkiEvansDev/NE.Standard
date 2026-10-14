@@ -23,12 +23,16 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
+[UIComponentPropertyDefault(nameof(IRowHoverableComponent.RowHoverable), nameof(DefaultRowHoverable))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
 public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDragSourceComponent, IEmptyStateComponent
     where T : TreeComponent<T>, IUIComponentDefinition
 {
     private const double DefaultIndent = 16;
+
+    // Rows highlight under the pointer, as a file list's do.
+    private const bool DefaultRowHoverable = true;
 
     /// <summary>
     /// Gets or sets how far each level steps in from the one above, in pixels.
@@ -70,12 +74,6 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowFoldChevron { get; set; }
-
-    /// <summary>
-    /// Whether rows highlight under the pointer — on by default, as a file list's are.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IRowHoverableComponent), DefaultValue = true)]
-    public bool? RowHoverable { get; set; }
 
     /// <summary>
     /// Gets the node template a node is drawn with when no variant matches its kind.

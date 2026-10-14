@@ -31,7 +31,7 @@ import { TemporalPickerEngine } from "../interactions/temporal-picker-engine";
 import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
 import { LanguageSwitcherEngine } from "../interactions/language-switcher-engine";
 import { ActionBarEngine } from "../interactions/action-bar-engine";
-import { ContextMenuEngine } from "../interactions/context-menu-engine";
+import { ContextMenuEngine, setLaterMenus } from "../interactions/context-menu-engine";
 import { MenuEngine } from "../interactions/menu-engine";
 import { ShortcutEngine, viewShortcutsOf } from "../interactions/shortcut-engine";
 import { PagerEngine } from "../interactions/pager-engine";
@@ -56,6 +56,7 @@ import { TabMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions/
 import { TextFoldEngine } from "../interactions/text-fold-engine";
 import { TimeSegmentEngine } from "../interactions/time-segment-engine";
 import { TimestampEngine } from "../interactions/timestamp-engine";
+import { FileTileEngine } from "../interactions/file-tile-engine";
 import { holdAtEnd, holdsOlderWindow, isEndAnchored, ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
 import { SurfacePressEngine } from "../interactions/surface-press-engine";
 import { TextSelectionEngine } from "../interactions/text-selection-engine";
@@ -75,7 +76,7 @@ import { componentStates } from "../interactions/interactive-state";
 import { wheel } from "../interactions/wheel-notches";
 import { seriesColors } from "../rendering/series-colors";
 import { pluginShortcutWords } from "../interactions/caret-fields";
-import { FirstVisibleKeyEngine } from "../items/first-visible-key-engine";
+import { VisibleKeyEngine } from "../items/visible-key-engine";
 import { createItemRows, ItemRows } from "../items/item-rows";
 import { ItemsRuleWatcher } from "../items/items-rule-watcher";
 import { ItemsWindowEngine, ItemWindows } from "../items/items-window-engine";
@@ -84,6 +85,7 @@ import { ItemsSelectionEngine } from "../interactions/items-selection-engine";
 import type { HeldRows } from "../interactions/items-selection-engine";
 import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
 import { ItemsTemplateRegistry } from "../items/items-template-registry";
+import { RowMenus } from "../items/row-menus";
 import { ItemsTemplateRenderer } from "../items/items-template-renderer";
 import {
     ClientEffectKinds, ConfirmLeaveClientEffect, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, SetThemeColorsClientEffect, WebUIAttachRequest,
@@ -98,6 +100,7 @@ import { ClientStateReporter } from "./client-state";
 import { startServiceWorker } from "./service-worker";
 import type { NotificationClick } from "./worker-messages";
 import { decideReload, forgetReload, sessionMemory } from "./reload-guard";
+import { getOrCreateWindowId } from "./window-id";
 import { ConnectionWatch } from "./connection-watch";
 import { CommandDispatcher } from "../transport/command-dispatcher";
 import { afterAppliedAsync } from "../transport/inbound-order";
@@ -243,6 +246,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom })],
     ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
     ["timestamp", ({ root, propertyPatchEngine }) => new TimestampEngine({ root, propertyPatchEngine })],
+    ["file tile", ({ root, propertyPatchEngine }) => new FileTileEngine({ root, propertyPatchEngine })],
     ["context menu", ({ root, dom }) => new ContextMenuEngine({ root, dom })],
     ["split button", ({ root }) => new SplitButtonEngine({ root })],
     ["toggle button", ({ root }) => new ToggleButtonEngine({ root })],
@@ -263,7 +267,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["command bar", ({ root }) => new CommandBarEngine({ root })],
     ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
     ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
-    ["first visible key", ({ root }) => new FirstVisibleKeyEngine({ root })],
+    ["visible keys", ({ root }) => new VisibleKeyEngine({ root })],
     ["surface press", ({ root }) => new SurfacePressEngine({ root })],
     ["text selection", ({ root }) => new TextSelectionEngine({ root })],
     ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
@@ -289,6 +293,8 @@ export class WebUIRuntime {
     private readonly transport: SignalRTransport;
     private readonly dispatcher: CommandDispatcher;
     private readonly updateProcessor: UpdateProcessor;
+    // The rows' menus waiting to be drawn, whose chords the page's registry names before they are.
+    private readonly rowMenus: RowMenus;
     private readonly eventPipeline: EventPipeline;
     private readonly extensions: ExtensionRegistry;
     private readonly engineContext: EngineContext;
@@ -350,7 +356,7 @@ export class WebUIRuntime {
     public constructor(options: WebUIRuntimeOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
-        this.windowId = getOrCreateWindowId(options.windowIdStorageKey ?? DefaultWindowIdStorageKey);
+        this.windowId = getOrCreateWindowId(options.windowIdStorageKey ?? DefaultWindowIdStorageKey, id => this.reloadAsOwnTab(id));
         this.dom = new DomRegistry(this.root);
 
         // Before any engine: the first thing one draws may already need a word.
@@ -428,6 +434,17 @@ export class WebUIRuntime {
         });
         const itemsTemplates = new ItemsTemplateRegistry(this.dom);
         const itemsRenderer = new ItemsTemplateRenderer(this.metadata, itemsTemplates, this.extensions, operations, propertyState);
+        // Before any row is cloned: a row's menu is taken out of its template, and drawn only when it is wanted.
+        const rowMenus = new RowMenus({
+            root: this.root,
+            render: (template, owner) => itemsRenderer.renderPart(template, owner),
+            drawn: menu => this.updateProcessor.fillDrawnPart(menu),
+            heldRows: visit => this.updateProcessor.forEachHeldRow(visit)
+        });
+
+        rowMenus.scan();
+        setLaterMenus(owner => rowMenus.draw(owner));
+        this.rowMenus = rowMenus;
 
         this.virtualization = new ItemsVirtualizationEngine({
             root: this.root,
@@ -446,7 +463,8 @@ export class WebUIRuntime {
             itemsTemplates,
             this.dom,
             this.virtualization,
-            this.extensions.collectionSinks
+            this.extensions.collectionSinks,
+            rowMenus
         );
 
         // First among the listeners, before any engine's: the page's words are written again before a package hears the change.
@@ -653,7 +671,8 @@ export class WebUIRuntime {
         startEngine("shortcuts", ({ root, dom }) => new ShortcutEngine({
             root,
             viewShortcuts: viewShortcutsOf(this.metadata.metadata),
-            componentOf: componentId => dom.findComponent(componentId, [])
+            componentOf: componentId => dom.findComponent(componentId, []),
+            laterChords: this.rowMenus
         }), this.engineContext);
         // After the chords, so a view's own Ctrl+C or Ctrl+V is heard first; a drag between hosts lands where the view takes its kind.
         startEngine("item drag", ({ root, dom }) => new ItemDragEngine({
@@ -1081,6 +1100,18 @@ export class WebUIRuntime {
     }
 
     /**
+     * Reloads a page another live tab shares its id with — one copied from the other while that sat in the back/forward cache — under
+     * the id it was just given (`window-id.ts`), so it gets a runtime of its own. Not attached again in place: a connection attaches to
+     * one page's runtime only, and the PerWindow runtime it held is keyed by the id the other tab keeps, so the server would answer
+     * the attach as a fresh runtime and reload it anyway.
+     */
+    private reloadAsOwnTab(id: string): void {
+        logWarn("another live tab holds this tab's id; reloading under one of its own.", { id });
+        this.leaveGuard.release();
+        window.location.reload();
+    }
+
+    /**
      * Reloads a page whose runtime is gone — a restart, an eviction, a retention run out — rather than apply a new one's snapshot over
      * what it shows; once, through the same guard, and asked again it offers the reload instead.
      */
@@ -1269,8 +1300,7 @@ export class WebUIRuntime {
 
     // A window that moved leaves its spacers standing for the wrong count.
     private applyNow(changes: ServerChangeSet | undefined): void {
-        this.updateProcessor.applyChangeSet(changes);
-        this.windows.sync();
+        this.windows.sync(this.updateProcessor.applyChangeSet(changes));
     }
 
     private async attachAsync(): Promise<void> {
@@ -1370,8 +1400,8 @@ export class WebUIRuntime {
             if (request.switchRuntime)
                 showFromStart(content);
 
-            this.inertContent?.removeAttribute("inert");
-            this.inertContent = null;
+            // Already let go of as the snapshot landed, unless it never did.
+            this.releaseInertContent();
             this.windows.start();
 
             logElapsed("runtime attached", started, {
@@ -1439,12 +1469,22 @@ export class WebUIRuntime {
     /** The snapshot's changes, a staged value among them fetched first; one that cannot be fetched asks for another attach. */
     private async applyAttachChangesAsync(changes: ServerChangeSet | undefined): Promise<void> {
         try {
-            this.applyNow(hasStagedValues(changes) ? await fetchStagedValuesAsync(changes, this.transport.instanceId) : changes);
+            const snapshot = hasStagedValues(changes) ? await fetchStagedValuesAsync(changes, this.transport.instanceId) : changes;
+
+            // In the same turn as the snapshot, so no press lands between: let go of after it, the whole content would restyle twice.
+            this.releaseInertContent();
+            this.applyNow(snapshot);
         }
         catch (error) {
             logError("a staged value of the attach could not be fetched; the page attaches again.", error);
             this.reattachRequested = true;
         }
+    }
+
+    /** Gives the content a switch to another runtime turned inert its presses and keys back. */
+    private releaseInertContent(): void {
+        this.inertContent?.removeAttribute("inert");
+        this.inertContent = null;
     }
 }
 
@@ -1502,51 +1542,6 @@ function documentParsedAsync(): Promise<void> {
         return Promise.resolve();
 
     return new Promise(resolve => document.addEventListener("DOMContentLoaded", () => resolve(), { once: true }));
-}
-
-/** The tab's own id, kept across reloads; best-effort, since neither sessionStorage nor crypto.randomUUID is guaranteed. */
-function getOrCreateWindowId(storageKey: string): string {
-    let storage: Storage | null = null;
-
-    try {
-        storage = window.sessionStorage;
-    }
-    catch (error) {
-        logWarn("session storage is unavailable, so this tab is new on every load.", error);
-    }
-
-    try {
-        const existing = storage?.getItem(storageKey);
-
-        if (existing !== undefined && existing !== null && existing.length > 0)
-            return existing;
-    }
-    catch (error) {
-        logWarn("reading the tab id failed.", error);
-    }
-
-    const value = createWindowId();
-
-    try {
-        storage?.setItem(storageKey, value);
-    }
-    catch (error) {
-        logWarn("storing the tab id failed.", error);
-    }
-
-    return value;
-}
-
-function createWindowId(): string {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function")
-        return crypto.randomUUID();
-
-    // Not a UUID: the id only has to be unique among this browser's open tabs.
-    const random = typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function"
-        ? [...crypto.getRandomValues(new Uint8Array(16))].map(byte => byte.toString(16).padStart(2, "0")).join("")
-        : Math.random().toString(16).slice(2).padEnd(16, "0");
-
-    return `tab-${random}-${performance.now().toString(36).replace(".", "")}`;
 }
 
 /** The navigation a page standing in for another was rendered for, off the shell's root; null on a page that is what was asked for. */

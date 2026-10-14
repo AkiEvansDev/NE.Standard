@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
 
 /// <summary>
-/// A list of names and values that is read rather than operated: an order's summary, a record's facts, what a thing is.
+/// A list of names and values that is read rather than operated: an order's summary, a record's facts, what a thing is; and the sums
+/// over a total.
 /// </summary>
 public static class UIDetails
 {
@@ -45,5 +48,36 @@ public static class UIDetails
             Key = new TextItem { Title = key, TitleColor = UIThemeColor.Muted },
             Value = new TextItem { Title = value }
         };
+    }
+
+    /// <summary>
+    /// One of the sums over a total — "Subtotal", "VAT, 21%" — the name muted at the start and the amount the controller holds at
+    /// <paramref name="valuePath"/> at the far end, as wide as it is; one line at every width, as a receipt's.
+    /// </summary>
+    public static ContainerComponent Amount(string label, string valuePath)
+        => Sum(label, valuePath, strong: false);
+
+    /// <summary>The line the sums come to — "Total a month" — the name and the amount both in the subtitle role.</summary>
+    public static ContainerComponent Total(string label, string valuePath)
+        => Sum(label, valuePath, strong: true);
+
+    private static ContainerComponent Sum(string label, string valuePath, bool strong)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        ArgumentException.ThrowIfNullOrWhiteSpace(valuePath);
+
+        TextComponent name = strong ? UIText.Subtitle(label) : UIText.Body(label).Muted();
+        TextComponent amount = new TextComponent().BindTitle(valuePath);
+
+        // Placed rather than equal columns, which stand one under another on a phone: a sum and its name are one line at every width.
+        return new ContainerComponent()
+            .SetColumn(24, UIGridUnit.Auto())
+            .AddChild(name.SetVerticalAlignment(UIAlignment.Center).SetPlacement(1, 1, 23, 1))
+            .AddChild((strong ? amount.AsSubtitle() : amount.AsBody())
+                .SetTextAlignment(UITextAlignment.End)
+                .SetVerticalAlignment(UIAlignment.Center)
+                .SetMargin(UIThickness.All(12, 0, 0, 0))
+                .SetPlacement(24, 1, 1, 1)
+            );
     }
 }

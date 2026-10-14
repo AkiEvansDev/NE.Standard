@@ -28,6 +28,14 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         WebDomOperation.Attribute("aria-label", $"[{PlaceholderNamesAttribute}]", optional: true)
     ];
 
+    // Every field registers these same lists, so they are built once rather than per field.
+    private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Attribute("type", converter: WebDomConverters.TextInputTypeAttribute)];
+    private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
+    private static readonly WebDomOperation[] AutocompleteOperations = [WebDomOperation.Attribute("autocomplete")];
+    private static readonly WebDomOperation[] InputModeOperations = [WebDomOperation.Attribute("inputmode", converter: WebDomConverters.InputModeAttribute)];
+    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)];
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
+
     public override string ComponentTypeKey => TextInputComponent.ComponentTypeKey;
 
     protected override string ElementName => "label";
@@ -65,13 +73,13 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
                 _ = RenderProperty<UITextInputType?>(context, input, TextInputComponent.TypeProperty, static (target, value)
                     => _ = target.Attribute("type", WebClassNames.TextInputType(value ?? UITextInputType.Text))
-                , [WebDomOperation.Attribute("type", converter: WebDomConverters.TextInputTypeAttribute)]);
+                , TypeOperations);
 
                 _ = RenderProperty<int?>(context, input, TextInputComponent.MaxLengthProperty, static (target, value) =>
                 {
                     if (value is int maxLength)
                         _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Attribute("maxlength")]);
+                }, MaxLengthOperations);
 
                 // What the browser may fill in. A password manager reads the sign-in pair from these words and the form the
                 // field stands in: the page's, or its FormId's, so a sign-in pair shares one.
@@ -79,30 +87,21 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 {
                     if (!string.IsNullOrWhiteSpace(value))
                         _ = target.Attribute("autocomplete", value);
-                }, [WebDomOperation.Attribute("autocomplete")]);
+                }, AutocompleteOperations);
 
                 // The keyboard a phone raises, apart from the type: a one-time code stays text and asks for digits.
                 _ = RenderProperty<UIInputMode?>(context, input, TextInputComponent.InputModeProperty, static (target, value) =>
                 {
                     if (value is UIInputMode mode)
                         _ = target.Attribute("inputmode", WebClassNames.InputMode(mode));
-                }, [WebDomOperation.Attribute("inputmode", converter: WebDomConverters.InputModeAttribute)]);
+                }, InputModeOperations);
 
                 var namedByPlaceholder = !IsNamed(context);
 
                 if (namedByPlaceholder)
                     _ = input.Attribute(PlaceholderNamesAttribute);
 
-                _ = RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, (target, value) =>
-                {
-                    if (string.IsNullOrEmpty(value))
-                        return;
-
-                    _ = target.Attribute("placeholder", value);
-
-                    if (namedByPlaceholder)
-                        _ = target.Attribute("aria-label", value);
-                }, PlaceholderOperations);
+                _ = RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, namedByPlaceholder ? RenderNamingPlaceholder : RenderPlaceholder, PlaceholderOperations);
 
                 // A blank one where the author gave none, so :placeholder-shown says the field is empty and the clear goes.
                 if (string.IsNullOrEmpty(ReadRenderValue<string?>(context, IPlaceholderInputComponent.PlaceholderProperty, null)))
@@ -117,7 +116,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 {
                     if (value is int milliseconds and >= 0)
                         _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-                }, [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)]);
+                }, DebounceOperations);
 
                 NativeInputRendererBase.RenderRunsOnEnter(context, input);
                 NativeInputRendererBase.RenderRunsOnEscape(context, input, TextInputComponent.CancelOnEscapeProperty);
@@ -129,7 +128,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 {
                     if (!string.IsNullOrEmpty(value))
                         _ = target.Attribute("value", value);
-                }, [WebDomOperation.Property("value")]);
+                }, ValueOperations);
             });
 
             _ = row.Element("span", suffix => RenderInputAffixText(context, suffix, suffix: true));
@@ -162,5 +161,17 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         WebRenderValueKind title = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? caption, out _);
 
         return title == WebRenderValueKind.Binding || (title == WebRenderValueKind.Static && !string.IsNullOrWhiteSpace(caption));
+    }
+
+    private static void RenderNamingPlaceholder(IHtmlElementBuilder target, string? value)
+    {
+        if (!string.IsNullOrEmpty(value))
+            _ = target.Attribute("placeholder", value).Attribute("aria-label", value);
+    }
+
+    private static void RenderPlaceholder(IHtmlElementBuilder target, string? value)
+    {
+        if (!string.IsNullOrEmpty(value))
+            _ = target.Attribute("placeholder", value);
     }
 }

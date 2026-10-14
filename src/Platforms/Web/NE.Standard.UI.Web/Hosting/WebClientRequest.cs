@@ -60,12 +60,10 @@ internal static class WebClientRequest
 
             if (quality > 0 && !string.IsNullOrWhiteSpace(tag) && tag != "*")
                 wanted.Add((tag, quality));
-
-            if (wanted.Count == MaxLanguages)
-                break;
         }
 
-        // A stable sort: languages of one quality keep the order the client wrote them in.
-        return [.. wanted.OrderByDescending(static language => language.Quality).Select(static language => language.Tag)];
+        // Sorted before the cap, so a most-wanted language written late is kept; a stable sort keeps one quality's languages in the
+        // order the client wrote them in.
+        return [.. wanted.OrderByDescending(static language => language.Quality).Take(MaxLanguages).Select(static language => language.Tag)];
     }
 }

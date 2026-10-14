@@ -11,8 +11,15 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A grid-based layout container that positions its children using column/row definitions and per-child placement.
 /// </summary>
+/// <remarks>
+/// <c>Spacing</c> sets the children apart across columns and down rows. A container too narrow for twenty-four columns of it narrows
+/// the space between columns instead of overflowing, less what its absolute columns and floors take; an auto column's content is not
+/// counted, so a container with auto columns wants a responsive spacing with a small base on a narrow screen.
+/// </remarks>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
-public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>, IOverflowComponent, IGridTracksComponent
+// No spacing default of its own: the stylesheet's zero stands, and a container that is given none writes nothing.
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
+public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>, IOverflowComponent, IGridTracksComponent, ISpacingComponent
     where T : ContainerComponent<T>, IUIComponentDefinition
 {
     private readonly UIGridUnit[] _columns = new UIGridUnit[UIGridPlacement.GridColumns];
@@ -44,15 +51,19 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UIGridUnit> Rows => _rows;
 
-    /// <summary>Gets or sets the spacing between children, across columns and down rows, optionally overridden per breakpoint.</summary>
+    /// <summary>
+    /// Gets or sets the free air its parent leaves after the container's end, optionally per breakpoint, which the scroller along that
+    /// end takes for its overlay bar: the scroller keeps no room for the bar inside, so its rows end where the container's other children
+    /// do (a list under its search field), and the bar stands in the air. Unset, a scroller keeps its room inside.
+    /// </summary>
     /// <remarks>
-    /// A container too narrow for twenty-four columns of it narrows the space between columns instead of overflowing, less what its
-    /// absolute columns and floors take; an auto column's content is not counted, so a container with auto columns wants a responsive
-    /// spacing with a small base on a narrow screen.
+    /// The air is taken up to the bar's room (<c>--ui-scrollbar-room</c>, 12 px); what it lacks stays inside. Taken by the outermost
+    /// scroller reached through containers and stacks with no padding, border or fill of their own — a padded, framed or filled box
+    /// between, or a scroller framed or filled itself, keeps the room inside — whose own end margin gives way to it; a screen where
+    /// nothing hovers keeps no room.
     /// </remarks>
-    // No default of its own: the stylesheet's zero stands, and a container that is given none writes nothing.
-    [UIComponentProperty(DefaultValue = null)]
-    public UIResponsive<double>? Spacing { get; set; }
+    [UIComponentProperty]
+    public UIResponsive<double>? ScrollbarAir { get; set; }
 
     /// <summary>
     /// Sets a grid column definition. <paramref name="index"/> is 1-based, matching <see cref="UIGridPlacement.Column"/>.

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,7 @@ public sealed class UIContext
     // The connection that raised the current command; differs from the attached connection only under UIRuntimeLifetime.PerClient sharing.
     private readonly AsyncLocal<UIHandle?> _invokingHandle = new();
 
-    internal UIContext(ILogger logger, IServiceProvider services, ITranslator translator, IUIContentAddressResolver? content, UIRouteDefinition route, UIHandle handle, IUIDialogService dialogs, IUIDownloadService downloads, IUIUploadService uploads)
+    internal UIContext(ILogger logger, IServiceProvider services, ITranslator translator, IUIContentAddressResolver? content, UIRouteDefinition route, UIHandle handle, IUIDownloadStager downloads, IUIUploadService uploads)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(services);
@@ -31,7 +32,6 @@ public sealed class UIContext
 
         ArgumentNullException.ThrowIfNull(route);
         ArgumentNullException.ThrowIfNull(handle);
-        ArgumentNullException.ThrowIfNull(dialogs);
         ArgumentNullException.ThrowIfNull(downloads);
         ArgumentNullException.ThrowIfNull(uploads);
 
@@ -44,7 +44,9 @@ public sealed class UIContext
             Content = content;
 
         Route = route;
-        _connection = new ConnectionState(handle, dialogs, downloads, uploads);
+        _connection = new ConnectionState(handle, downloads, uploads);
+        Dialogs = new RuntimeDialogs(this);
+        Downloads = new RuntimeDownloads(this);
     }
 
     /// <summary>
@@ -86,7 +88,7 @@ public sealed class UIContext
     // then split across old and new connections.
     private volatile ConnectionState _connection;
 
-    private sealed record ConnectionState(UIHandle Handle, IUIDialogService Dialogs, IUIDownloadService Downloads, IUIUploadService Uploads);
+    private sealed record ConnectionState(UIHandle Handle, IUIDownloadStager DownloadStager, IUIUploadService Uploads);
 
     /// <summary>
     /// Gets the UI handle a command is running for — the connection that raised it, or the connection the
@@ -144,14 +146,79 @@ public sealed class UIContext
         => UITimeZones.StartOfDayUtc(TimeZone, day);
 
     /// <summary>
-    /// Gets the dialog service for the current client connection.
+    /// Gets the dialog service: opens and closes a dialog on a page of this runtime, sent as <see cref="SendEffectsAsync"/> sends.
     /// </summary>
-    public IUIDialogService Dialogs => _connection.Dialogs;
+    public IUIDialogService Dialogs { get; }
 
     /// <summary>
-    /// Gets the download service for the current client connection.
+    /// A dialog shown or hidden outside a command's answer is an effect sent outside a command, so it goes the runtime's one way for
+    /// those (<see cref="IUIRuntimeAccess.SendEffectsToAsync"/>): resolved, and with the page state any such send carries.
     /// </summary>
-    public IUIDownloadService Downloads => _connection.Downloads;
+    private sealed class RuntimeDialogs(UIContext context) : IUIDialogService
+    {
+        public Task<bool> ShowAsync(UIHandle handle, string dialogName, CancellationToken cancellationToken = default)
+            => SendAsync(handle, new OpenDialogEffect(dialogName), cancellationToken);
+
+        public Task<bool> HideAsync(UIHandle handle, string dialogName, CancellationToken cancellationToken = default)
+            => SendAsync(handle, new CloseDialogEffect(dialogName), cancellationToken);
+
+        // "Handled", not "the dialog is now on screen": delivery is one-way, with nothing to await for confirmation.
+        private async Task<bool> SendAsync(UIHandle handle, ClientEffect effect, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(handle);
+
+            handle.Instance.Validate();
+
+            await context.Runtime.SendEffectsToAsync([handle], [effect], cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Gets the download service: stages a file through the platform's <see cref="IUIDownloadStager"/> and has the page fetch it, the
+    /// fetch sent as <see cref="SendEffectsAsync"/> sends.
+    /// </summary>
+    public IUIDownloadService Downloads { get; }
+
+    /// <summary>
+    /// The stager owns the file; the effect that has the page fetch it is one sent outside a command, so it goes the runtime's one way for
+    /// those (<see cref="IUIRuntimeAccess.SendEffectsToAsync"/>), as a dialog does.
+    /// </summary>
+    private sealed class RuntimeDownloads(UIContext context) : IUIDownloadService
+    {
+        public async Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(handle);
+            ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+            ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
+            ArgumentNullException.ThrowIfNull(content);
+
+            handle.Instance.Validate();
+
+            try
+            {
+                if (await context._connection.DownloadStager.StageAsync(handle, fileName, contentType, content, cancellationToken).ConfigureAwait(false) is ClientEffect fetch)
+                    await context.Runtime.SendEffectsToAsync([handle], [fetch], cancellationToken).ConfigureAwait(false);
+
+                return UITransferResult.Ok();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return UITransferResult.Cancel();
+            }
+        }
+
+        public async Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, byte[] content, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(content);
+
+            MemoryStream stream = new(content, writable: false);
+
+            await using (stream.ConfigureAwait(false))
+                return await DownloadAsync(handle, fileName, contentType, stream, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Gets the upload service for the current client connection.
@@ -255,16 +322,15 @@ public sealed class UIContext
         _runtime = runtime;
     }
 
-    internal void RefreshConnection(UIHandle handle, IUIDialogService dialogs, IUIDownloadService downloads, IUIUploadService uploads)
+    internal void RefreshConnection(UIHandle handle, IUIDownloadStager downloads, IUIUploadService uploads)
     {
         ArgumentNullException.ThrowIfNull(handle);
-        ArgumentNullException.ThrowIfNull(dialogs);
         ArgumentNullException.ThrowIfNull(downloads);
         ArgumentNullException.ThrowIfNull(uploads);
 
         handle.Instance.Validate();
 
-        _connection = new ConnectionState(handle, dialogs, downloads, uploads);
+        _connection = new ConnectionState(handle, downloads, uploads);
 
         Validate();
     }
@@ -352,7 +418,6 @@ public sealed class UIContext
         ArgumentNullException.ThrowIfNull(Route);
         ArgumentNullException.ThrowIfNull(_runtime);
         ArgumentNullException.ThrowIfNull(Handle);
-        ArgumentNullException.ThrowIfNull(Dialogs);
         ArgumentNullException.ThrowIfNull(Downloads);
         ArgumentNullException.ThrowIfNull(Uploads);
 

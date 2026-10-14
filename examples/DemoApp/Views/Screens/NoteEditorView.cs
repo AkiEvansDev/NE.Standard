@@ -23,8 +23,7 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
         => DemoUI.CreateHeader(Header, HeaderDescription, UIIconButtons.Back().InteractOn(EventNames.Click, new NavigateBackEffect("/screens/inbox")));
 
     protected override IVisualComponent CreateScreen()
-        => UILayout.Stack(24, CreateNote(), CreateWaysOff())
-            .SetMaxWidth(UILayoutLength.Absolute(760))
+        => UIPage.Column(UIColumnWidth.Reading, UILayout.Stack(24, CreateNote(), CreateWaysOff()))
             .SetPadding(UIThickness.All(0, 8, 0, 24))
             .SetPlacement(1, 1, 24, 1);
 
@@ -34,7 +33,7 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
     /// </summary>
     /// <remarks>Both Tonal: the card already frames them.</remarks>
     private static CardComponent CreateNote()
-        => UIPage.Card("The note", "Saved only by Save: the controller holds unsaved work while the text differs from what it kept.", UILayout.Stack(16,
+        => UICard.Create("The note", "Saved only by Save: the controller holds unsaved work while the text differs from what it kept.", UILayout.Stack(16,
             new TextInputComponent()
                 .SetTitle("Title")
                 .SetAppearance(UIInputAppearance.Tonal)
@@ -59,13 +58,12 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
     /// a controller that overrides <c>OnLeaveRequestedAsync</c> and one that leaves it to the framework.
     /// </summary>
     private static CardComponent CreateWaysOff()
-        => UIPage.Card("Ways off the page", "Who asks: the note's own dialog — Save, Don't save, Cancel — or, with the switch off, the framework's Leave or Stay.", UILayout.Stack(12,
-            UILayout.Stack(2,
-                new SwitchComponent()
-                    .SetTitle("Ask in the note's own dialog")
-                    .BindValue(nameof(NoteEditorController.OwnDialog)),
-                // Under the switch rather than its description, which keeps one line: the sentence reads whole on a phone.
-                UIText.Note("Off, OnLeaveRequestedAsync hands the leave to the base.").SetMargin(UIThickness.All(44, 0, 0, 0))
+        => UICard.Create("Ways off the page", "Who asks: the note's own dialog — Save, Don't save, Cancel — or, with the switch off, the framework's Leave or Stay.", UILayout.Stack(12,
+            // Under the switch rather than its description, which keeps one line: the sentence reads whole on a phone.
+            UIForm.Field(new SwitchComponent()
+                .SetTitle("Ask in the note's own dialog")
+                .BindValue(nameof(NoteEditorController.OwnDialog)),
+                "Off, OnLeaveRequestedAsync hands the leave to the base."
             ),
             UIText.Paragraph("A press on any page in the sidebar, or on the link below, asks first. So does a command that answers with a NavigateEffect. The browser's back button, a reload or closing the tab ask the browser's own question instead — the only one a browser allows there. The arrow before the page's title is the browser's Back too, and asks as it does; with nothing of this site behind the tab, it goes to the inbox, asking first as a link does."),
             new LinkComponent().SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight)).SetTitle("The inbox, by a link").SetUrl("/screens/inbox").SetHorizontalAlignment(UIAlignment.Start),
@@ -81,10 +79,10 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
     /// </summary>
     protected override IReadOnlyList<UIDialog> CreateDialogs()
     {
-        UIDialog leave = UIDialogs.Confirm(
+        UIDialog leave = UIDialogs.BoundConfirm(
             NoteEditorController.LeaveDialogKey,
             "Save your changes?",
-            UIText.Paragraph(string.Empty).BindDescription(nameof(NoteEditorController.LeaveQuestion)),
+            nameof(NoteEditorController.LeaveQuestion),
             "Save",
             nameof(NoteEditorController.SaveAndLeave),
             UIButtonType.Primary,

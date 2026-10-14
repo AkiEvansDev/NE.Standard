@@ -77,7 +77,7 @@ public abstract class UIStartupBase
         services.TryAddSingleton<IUserSessionStore, UserSessionMemoryStore>();
         services.TryAddSingleton<IUIFileStore, FileSystemUIFileStore>();
         services.TryAddSingleton<IUIUploadService, StandardUploadService>();
-        services.TryAddSingleton<IUIDownloadService, StandardDownloadService>();
+        services.TryAddSingleton<IUIDownloadStager, StandardDownloadStager>();
         services.TryAddSingleton<IUserSessionResolver, StoredUserSessionResolver>();
         services.TryAddSingleton<IUserClaimsMapper, StandardUserClaimsMapper>();
         services.TryAddSingleton<IUIAuthorizationService, StandardAuthorizationService>();
@@ -100,8 +100,7 @@ public abstract class UIStartupBase
             .Required<IUIAuthorizationService>()
             .Required<IResolveExceptionViewHandler>()
             .Required<IUIUpdateSink>()
-            .Required<IUIDialogService>()
-            .Required<IUIDownloadService>()
+            .Required<IUIDownloadStager>()
             .Required<IUIUploadService>();
     }
 }

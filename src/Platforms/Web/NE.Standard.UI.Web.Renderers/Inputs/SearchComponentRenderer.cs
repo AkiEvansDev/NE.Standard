@@ -22,6 +22,10 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 {
     private static readonly WebDomOperation[] FieldAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
 
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
+    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.SearchDebounce, converter: WebDomConverters.NonNegativeCount)];
+    private static readonly WebDomOperation[] MinLengthOperations = [WebDomOperation.Attribute(WebAttributes.SearchMinLength, converter: WebDomConverters.PositiveCount)];
+
     public override string ComponentTypeKey => SearchComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-search";
@@ -102,7 +106,7 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute("value", value);
-        }, [WebDomOperation.Property("value")]);
+        }, ValueOperations);
 
         // Bound to SearchText, not Value: the field holds what is being typed, Value the option picked.
         _ = ResolveRenderValue(context, SearchComponent.SearchTextProperty, out string? _, out CompiledUIBinding? searchTextBinding);
@@ -114,13 +118,13 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         {
             if (value is int milliseconds && milliseconds >= 0)
                 _ = target.Attribute(WebAttributes.SearchDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SearchDebounce, converter: WebDomConverters.NonNegativeCount)]);
+        }, DebounceOperations);
 
         _ = RenderProperty<int?>(context, input, SearchComponent.MinSearchLengthProperty, static (target, value) =>
         {
             if (value is int length && length > 0)
                 _ = target.Attribute(WebAttributes.SearchMinLength, length.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SearchMinLength, converter: WebDomConverters.PositiveCount)]);
+        }, MinLengthOperations);
 
         RenderFlagAttribute(context, input, SearchComponent.AutoSearchProperty, WebAttributes.SearchManual, WebValueCondition.IsFalse);
 

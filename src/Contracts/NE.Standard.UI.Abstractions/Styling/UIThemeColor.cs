@@ -260,6 +260,7 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
         return Style is UIColorStyle style ? $"@{style}" : string.Empty;
     }
 
+    /// <summary>A readable form for logs and the debugger, no platform's syntax: the colour, or its light and dark pair, else the role.</summary>
     public override string ToString()
     {
         if (Light is not null || Dark is not null)
@@ -267,7 +268,7 @@ public readonly record struct UIThemeColor(UIColorStyle? Style, ColorVariant? Li
             var lightHex = (Light ?? Dark)!.Value.ToHex();
             var darkHex = (Dark ?? Light)!.Value.ToHex();
 
-            return lightHex == darkHex ? lightHex : $"light-dark({lightHex}, {darkHex})";
+            return lightHex == darkHex ? lightHex : $"{lightHex} light, {darkHex} dark";
         }
 
         return Style?.ToString() ?? "(none)";

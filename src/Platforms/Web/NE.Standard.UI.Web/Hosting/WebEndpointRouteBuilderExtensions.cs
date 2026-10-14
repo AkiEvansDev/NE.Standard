@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Navigation;
@@ -598,7 +598,11 @@ public static partial class WebEndpointRouteBuilderExtensions
     {
         WebRenderResult render = renderer.Render(resolution);
 
-        int[] initBindingIds = [.. render.Metadata.InitBindingIds.Select(static bindingId => bindingId.Value)];
+        IReadOnlyList<UIBindingId> bindingIds = render.Metadata.InitBindingIds;
+        var initBindingIds = new int[bindingIds.Count];
+
+        for (var i = 0; i < initBindingIds.Length; i++)
+            initBindingIds[i] = bindingIds[i].Value;
 
         // A page with a controller is rendered again with its session's values, so of its shape it keeps only the init bindings.
         if (resolution.HasController)

@@ -2,6 +2,7 @@ import { ValueBindingAttribute } from "../addressing/dom-attributes";
 import { RadioInputClass } from "../items/radio-row-decorator";
 import { isItemDisabled } from "./interactive-state";
 import { ownDescendants } from "./own-descendants";
+import { isPressWaveRecord } from "./press-wave";
 
 const RadioValueAttribute = "data-ui-radio-value";
 const RadioGroupClass = "ui-radio-group";
@@ -40,6 +41,9 @@ export class RadioGroupSyncEngine {
                     this.sync(mutation.target.closest<HTMLElement>(`.${RadioGroupClass}`));
                     continue;
                 }
+
+                if (isPressWaveRecord(mutation))
+                    continue;
 
                 for (const node of mutation.addedNodes) {
                     if (node instanceof HTMLElement)

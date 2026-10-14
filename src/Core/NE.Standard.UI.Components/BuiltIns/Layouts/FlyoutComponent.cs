@@ -6,14 +6,14 @@ using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
 /// A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.
 /// </summary>
-public abstract partial class FlyoutComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), IOpenableComponent
+[UIComponentPropertyBlock(typeof(IPopupPlacementComponent))]
+public abstract partial class FlyoutComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), IOpenableComponent, IPopupPlacementComponent
     where T : FlyoutComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -21,12 +21,6 @@ public abstract partial class FlyoutComponent<T>(string? id = null) : RegionCont
     /// </summary>
     [UIComponentProperty(Contract = typeof(IOpenableComponent), DefaultValue = false, BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
     public bool? IsOpen { get; set; }
-
-    /// <summary>
-    /// Gets or sets the preferred placement of the flyout relative to its anchor.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIPopupPlacement.BottomStart)]
-    public UIPopupPlacement? FlyoutPlacement { get; set; }
 
     /// <summary>
     /// Gets or sets whether clicking outside the flyout closes it.

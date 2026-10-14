@@ -11,6 +11,12 @@ public sealed class SpinnerComponentRenderer : WebComponentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string LabelAttribute = "data-ui-spinner-label";
 
+    private static readonly WebDomOperation[] LabelOperations =
+    [
+        WebDomOperation.Text(),
+        WebDomOperation.ToggleAttribute(LabelAttribute, target: "root", condition: WebValueCondition.HasText)
+    ];
+
     public override string ComponentTypeKey => SpinnerComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-spinner";
@@ -41,10 +47,7 @@ public sealed class SpinnerComponentRenderer : WebComponentRendererBase
                     _ = root.Attribute(LabelAttribute);
                     _ = target.Text(value);
                 }
-            }, [
-                WebDomOperation.Text(),
-                WebDomOperation.ToggleAttribute(LabelAttribute, target: "root", condition: WebValueCondition.HasText)
-            ]);
+            }, LabelOperations);
         });
     }
 }

@@ -17,15 +17,22 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// An items view that lays out a collection, held whole, virtualized or windowed from a source, with grouping, scrolling and
 /// configurable orientation/spacing.
 /// </summary>
-/// <remarks>Row choice is two-way through <c>SelectionMode</c>; <c>SelectionStyle</c> says what a chosen row looks like.</remarks>
+/// <remarks>
+/// Row choice is two-way through <c>SelectionMode</c>; <c>SelectionStyle</c> says what a chosen row looks like. Unset, <c>Spacing</c> is
+/// the stylesheet's by the shape: none down a column or across a wrap, whose rows and tiles keep their own air, and a step between
+/// rows laid across, which would otherwise run their words together.
+/// </remarks>
+[UIComponentPropertyBlock(typeof(IOrientationComponent))]
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
 [UIComponentPropertyBlock(typeof(IItemsHostComponent))]
 [UIComponentPropertyBlock(typeof(IScrollableComponent))]
 [UIComponentPropertyBlock(typeof(ISelectableItemsComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+[UIComponentPropertyBlock(typeof(IDraggableRowsComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
-public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent, IItemClickComponent
+public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IOrientationComponent, ISpacingComponent, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent, IItemClickComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -86,12 +93,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
         => OnItemTemplate(template => _ = template.On(EventNames.Move, command, arguments));
 
     /// <summary>
-    /// Drags a <c>Draggable</c> row only by a grip at <paramref name="placement"/> (<see cref="DragHandle"/>).
-    /// </summary>
-    public T SetDragHandle(UIDragHandlePlacement placement)
-        => SetDragHandle(true).SetDragHandlePlacement(placement);
-
-    /// <summary>
     /// Registers a command invoked when the Delete key is pressed on an item that may be removed, with the item's key.
     /// </summary>
     public T OnItemRemoveWithItemKey(string command, string argumentName = "id")
@@ -102,28 +103,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </summary>
     public T OnItemRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnItemTemplate(template => _ = template.On(EventNames.Remove, command, arguments));
-
-    /// <summary>
-    /// Gets or sets whether a row whose item does not refuse it (<c>CanDrag</c>) can be dragged to another place among the rows, or
-    /// moved one place by Alt+Up and Alt+Down; the move raises <c>move</c> (<see cref="OnItemMove"/>). Refused while a sort orders the
-    /// rows, which would put the row back.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
-    public bool? Draggable { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether a <c>Draggable</c> row is dragged only by a grip drawn at its end or its start
-    /// (<see cref="DragHandlePlacement"/>); the rest of the row keeps its text selection and its presses, and the keyboard still moves
-    /// rows by Alt+Up and Alt+Down. A wrapped layout draws no grip, and its tiles drag whole.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = false)]
-    public bool? DragHandle { get; set; }
-
-    /// <summary>
-    /// Gets or sets where a row's grip stands (<see cref="DragHandle"/>): at its end by default, or at its start.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IDraggableRowsComponent), DefaultValue = UIDragHandlePlacement.End)]
-    public UIDragHandlePlacement? DragHandlePlacement { get; set; }
 
     /// <summary>
     /// Gets or sets what a windowed view shows while it reads rows it does not have yet: grey bars in the rows' shape, the default,
@@ -140,33 +119,25 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     public UIItemsLayoutType? LayoutType { get; set; }
 
     /// <summary>
-    /// Gets or sets the orientation used to arrange items.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Vertical)]
-    public UIOrientation? Orientation { get; set; }
-
-    /// <summary>
-    /// Gets or sets the spacing between items, optionally overridden per breakpoint.
-    /// </summary>
-    /// <remarks>
-    /// Unset, the stylesheet decides by the shape: none down a column or across a wrap, whose rows and tiles keep their own air, and a
-    /// step between rows laid across, which would otherwise run their words together.
-    /// </remarks>
-    [UIComponentProperty]
-    public UIResponsive<double>? Spacing { get; set; }
-
-    /// <summary>
     /// Gets or sets the room inside the view's scroll around its rows, optionally overridden per breakpoint: the rows scroll through it,
     /// so a list ending under something laid over its foot (a composer) shows its last row clear of it. A list held at its end stays there
     /// as the padding changes.
     /// </summary>
     /// <remarks>
-    /// An overlay spanning the view's width stands over its scrollbar too, a strip that comes and goes with the rows' overflow.
-    /// <c>VerticalScroll = UIScrollMode.Always</c> keeps the strip whether the rows overflow or not, so the overlay's margin can count
-    /// it; a screen where nothing hovers (a touch screen) draws no scrollbar and reserves no strip either way.
+    /// On the side the bar is drawn it is at least the overlay bar's room (<c>--ui-scrollbar-room</c>), whether the rows overflow or not,
+    /// so a padding of 12 or more holds the thumb and a smaller one is widened; the classic bar's own strip stands past it while they
+    /// do. A screen where nothing hovers (a touch screen) keeps none.
     /// </remarks>
     [UIComponentProperty(DefaultValue = null)]
     public UIResponsive<UIThickness>? Padding { get; set; }
+
+    /// <summary>
+    /// Gets or sets the widest the rows' column stands inside the view, optionally overridden per breakpoint: wider, the column is
+    /// centred and the view's own width stays the scroll's, so its bar stands at the region's edge rather than beside the words — a
+    /// conversation's or a document's column in a wide pane. Unset, the rows take the view's width.
+    /// </summary>
+    [UIComponentProperty]
+    public UIResponsive<double>? ContentMaxWidth { get; set; }
 
     /// <summary>
     /// Gets the key of the row at the top of the view where the reader stands: the first row whose box shows below the scroll's top edge,
@@ -179,6 +150,18 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </remarks>
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false, BindingCapabilities = UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.OneWayToSource)]
     public string? FirstVisibleKey { get; set; }
+
+    /// <summary>
+    /// Gets the key of the row at the foot of the view where the reader stands: the last row whose box shows above the scroll's bottom
+    /// edge, past the view's <see cref="Padding"/> (room a composer laid over the list's foot stands in). Written as
+    /// <see cref="FirstVisibleKey"/> is: once the reader's scroll settles, once after the first layout, and again as the rows change.
+    /// </summary>
+    /// <remarks>
+    /// Bound one way, from the page: a value the controller sets scrolls nothing and is not sent. Unbound, the page reports nothing.
+    /// A windowed view reports a row of the window it holds; while only rows still on their way stand in view, it reports nothing.
+    /// </remarks>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false, BindingCapabilities = UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.OneWayToSource)]
+    public string? LastVisibleKey { get; set; }
 
     /// <summary>
     /// Initializes a new items view with the built-in text, empty and group templates.

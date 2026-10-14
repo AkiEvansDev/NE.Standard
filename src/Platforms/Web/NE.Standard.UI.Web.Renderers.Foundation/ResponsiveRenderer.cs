@@ -60,6 +60,17 @@ public static class ResponsiveRenderer
     public static void ApplyResponsiveThickness(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName)
         => ApplyResponsive<UIThickness>(context, target, propertyOwnerTypeKey, property, cssVariableName, WebCssValues.Thickness, WebDomConverters.ResponsiveThicknessCss);
 
+    /// <summary>
+    /// A padding's tiers (<see cref="WebCssValues.Padding"/>), each side at least the overlay bar's room where the box keeps it, written on
+    /// the box that keeps it, which a patch finds by <paramref name="part"/> where it is not the root: the room they name is read where they
+    /// are written.
+    /// </summary>
+    public static void ApplyResponsivePadding(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, string cssVariableName, string? part = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ApplyResponsive<UIThickness>(context, target, context.Node.TypeKey, property, cssVariableName, WebCssValues.Padding, WebDomConverters.ResponsivePaddingCss, part: part);
+    }
+
     public static void ApplyResponsiveRadius(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, string cssVariableName)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -78,17 +89,21 @@ public static class ResponsiveRenderer
     public static void ApplyResponsiveSpacing(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName)
         => ApplyResponsive<double>(context, target, propertyOwnerTypeKey, property, cssVariableName, WebCssValues.Pixels, WebDomConverters.ResponsivePixelsCss);
 
-    private static void ApplyResponsive<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName, Func<T, string> formatter, WebResponsiveConverters converters, WebDomOperation? after = null)
+    private static void ApplyResponsive<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName, Func<T, string> formatter, WebResponsiveConverters converters, WebDomOperation? after = null, string? part = null)
         where T : struct
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentException.ThrowIfNullOrWhiteSpace(cssVariableName);
         ArgumentNullException.ThrowIfNull(formatter);
 
-        // Built once per variable, its converters and what runs after, since a size and a plain length may share a name: every
-        // component renders its sizes and padding through here.
-        ResponsiveProperty<T> responsive = ResponsiveProperty<T>.ByVariable.GetOrAdd((cssVariableName, converters, after), static (key, formatter)
-            => new ResponsiveProperty<T>(key.Variable, formatter, key.After is null ? TierOperations(key.Variable, key.Converters) : [.. TierOperations(key.Variable, key.Converters), key.After]), formatter);
+        // Built once per variable, its converters, what runs after and the part it is written on, since a size and a plain length may
+        // share a name: every component renders its sizes and padding through here.
+        ResponsiveProperty<T> responsive = ResponsiveProperty<T>.ByVariable.GetOrAdd((cssVariableName, converters, after, part), static (key, formatter) =>
+        {
+            WebDomOperation[] tiers = TierOperations(key.Variable, key.Converters, (name, _, converter) => WebDomOperation.Style(name, key.Part, converter));
+
+            return new ResponsiveProperty<T>(key.Variable, formatter, key.After is null ? tiers : [.. tiers, key.After]);
+        }, formatter);
 
         _ = WebComponentRendererBase.RenderProperty(context, target, propertyOwnerTypeKey, property, responsive.Write, responsive.Operations);
     }
@@ -114,7 +129,7 @@ public static class ResponsiveRenderer
     private sealed class ResponsiveProperty<T>(string cssVariableName, Func<T, string> formatter, WebDomOperation[] operations)
         where T : struct
     {
-        public static readonly ConcurrentDictionary<(string Variable, WebResponsiveConverters Converters, WebDomOperation? After), ResponsiveProperty<T>> ByVariable = new();
+        public static readonly ConcurrentDictionary<(string Variable, WebResponsiveConverters Converters, WebDomOperation? After, string? Part), ResponsiveProperty<T>> ByVariable = new();
 
         public WebDomOperation[] Operations { get; } = operations;
 

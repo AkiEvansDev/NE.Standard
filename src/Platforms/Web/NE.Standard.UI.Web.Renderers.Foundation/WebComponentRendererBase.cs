@@ -104,9 +104,9 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     private static readonly ConcurrentDictionary<string, string> BindingAttributeNames = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, string> IntoAttributeNames = new(StringComparer.Ordinal);
 
-    // A flag's one operation per name and condition: a table alone renders seven of them per instance.
-    private static readonly ConcurrentDictionary<(string Name, WebValueCondition Condition), WebDomOperation[]> FlagAttributeOperations = new();
-    private static readonly ConcurrentDictionary<(string Name, WebValueCondition Condition), WebDomOperation[]> FlagClassOperations = new();
+    // A flag's first paint and its one operation per name and condition: a table alone renders seven of them per instance.
+    private static readonly ConcurrentDictionary<(string Name, WebValueCondition Condition), FlagRender> FlagAttributeRenders = new();
+    private static readonly ConcurrentDictionary<(string Name, WebValueCondition Condition), FlagRender> FlagClassRenders = new();
 
     public abstract string ComponentTypeKey { get; }
 
@@ -306,6 +306,26 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     {
         _ = root.Attribute(WebAttributes.ContextMenuOwner);
 
+        // A row's own menu is drawn when it is wanted — opened, pressed by its chord, shown as the row's action bar — not into every
+        // row: it was two thirds of a feed's row. It waits in an inert template: a row template's is taken out once and cloned for any
+        // row the client builds, a row drawn here moves its own in. A named menu (a strip's, a canvas's) is one per component already.
+        if (name is null && !context.IsPresentationCopy && context.Node.ContextParameterCount > 0)
+        {
+            _ = root.Attribute(WebAttributes.ContextMenuLater);
+            _ = root.Element("template", template =>
+            {
+                _ = template.Attribute(WebAttributes.ContextMenuTemplate, context.Node.ComponentId.Value.ToString(CultureInfo.InvariantCulture));
+                RenderContextMenuElement(context, template, slot, name);
+            });
+
+            return;
+        }
+
+        RenderContextMenuElement(context, root, slot, name);
+    }
+
+    private static void RenderContextMenuElement(WebRenderContext context, IHtmlElementBuilder root, UIComponentSlot slot, string? name)
+    {
         _ = root.Element("div", host =>
         {
             _ = host.Class("ui-context-menu");
@@ -633,18 +653,19 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
         var live = ReadRenderValue(context, IVisualComponent.EnabledProperty, true) && !ReadRenderValue(context, IVisualComponent.LoadingProperty, false);
 
-        _ = RenderProperty<string?>(context, target, urlProperty, (element, value) =>
-        {
-            if (!WebUrlSafety.IsSafeLink(value))
-                return;
+        _ = RenderProperty<string?>(context, target, urlProperty, live ? RenderLiveLinkAddress : RenderInertLinkAddress, LinkAddressOperations);
+    }
 
-            _ = element.Attribute(WebAttributes.Href, value);
+    private static void RenderLiveLinkAddress(IHtmlElementBuilder element, string? value)
+    {
+        if (WebUrlSafety.IsSafeLink(value))
+            _ = element.Attribute(WebAttributes.Href, value).Attribute("href", value);
+    }
 
-            if (live)
-                _ = element.Attribute("href", value);
-            else
-                _ = element.Attribute("tabindex", "0");
-        }, LinkAddressOperations);
+    private static void RenderInertLinkAddress(IHtmlElementBuilder element, string? value)
+    {
+        if (WebUrlSafety.IsSafeLink(value))
+            _ = element.Attribute(WebAttributes.Href, value).Attribute("tabindex", "0");
     }
 
     /// <summary>A control that opens a popup: the kind it opens, and closed until its engine says otherwise.</summary>
@@ -659,25 +680,35 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// <summary>A boolean property as an attribute on the target, present when the condition holds; a live patch lands on the same element.</summary>
     protected static void RenderFlagAttribute(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, string attribute, WebValueCondition condition = WebValueCondition.IsTrue)
     {
-        var whenTrue = condition == WebValueCondition.IsTrue;
-
-        _ = RenderProperty<bool?>(context, target, property, (element, value) =>
+        FlagRender flag = FlagAttributeRenders.GetOrAdd((attribute, condition), static key =>
         {
-            if (value == whenTrue)
-                _ = element.Attribute(attribute);
-        }, FlagAttributeOperations.GetOrAdd((attribute, condition), static key => [WebDomOperation.ToggleAttribute(key.Name, condition: key.Condition)]));
+            var whenTrue = key.Condition == WebValueCondition.IsTrue;
+
+            return new FlagRender((element, value) =>
+            {
+                if (value == whenTrue)
+                    _ = element.Attribute(key.Name);
+            }, [WebDomOperation.ToggleAttribute(key.Name, condition: key.Condition)]);
+        });
+
+        _ = RenderProperty(context, target, property, flag.Render, flag.Operations);
     }
 
     /// <summary>A boolean property as a modifier class on the target, worn when the condition holds; a live patch lands on the same element.</summary>
     protected static void RenderFlagClass(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, string className, WebValueCondition condition = WebValueCondition.IsTrue)
     {
-        var whenTrue = condition == WebValueCondition.IsTrue;
-
-        _ = RenderProperty<bool?>(context, target, property, (element, value) =>
+        FlagRender flag = FlagClassRenders.GetOrAdd((className, condition), static key =>
         {
-            if (value == whenTrue)
-                _ = element.Class(className);
-        }, FlagClassOperations.GetOrAdd((className, condition), static key => [WebDomOperation.ToggleClass(key.Name, condition: key.Condition)]));
+            var whenTrue = key.Condition == WebValueCondition.IsTrue;
+
+            return new FlagRender((element, value) =>
+            {
+                if (value == whenTrue)
+                    _ = element.Class(key.Name);
+            }, [WebDomOperation.ToggleClass(key.Name, condition: key.Condition)]);
+        });
+
+        _ = RenderProperty(context, target, property, flag.Render, flag.Operations);
     }
 
     public static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, Action<IHtmlElementBuilder, T?> renderStatic, params ReadOnlySpan<WebDomOperation> operations)
@@ -974,6 +1005,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// static value was translated from, whether that value was read off the row's item rather than the component's own, and the
     /// phrase the painted value was, whatever its source — a moment in it is written again before the body paints.
     /// </summary>
+    private sealed record FlagRender(Action<IHtmlElementBuilder, bool?> Render, WebDomOperation[] Operations);
+
     private readonly record struct RenderedWord(bool Translatable, bool Content, object? Key, bool FromItem, UIPhrase? Painted = null);
 
     protected static bool TryResolveStaticBindingValue(WebRenderContext context, CompiledUIBinding binding, out object? value)

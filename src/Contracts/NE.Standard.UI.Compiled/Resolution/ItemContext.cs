@@ -247,6 +247,40 @@ public sealed class ItemContext(object? item)
     }
 
     /// <summary>
+    /// Attempts to read a dotted property path (<c>Customer.Address.City</c>) of any object, a step at a time as
+    /// <see cref="TryReadProperty(object?, string, out object?)"/> reads one; false where a step cannot be read or is empty.
+    /// </summary>
+    public static bool TryReadPath(object? item, string path, out object? value)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        value = item;
+
+        // A lone "." is the item itself, as a template's is.
+        if (path == ".")
+            return TryReadProperty(item, path, out value);
+
+        var start = 0;
+
+        while (true)
+        {
+            var dot = path.IndexOf('.', start);
+            var end = dot < 0 ? path.Length : dot;
+
+            if (path.AsSpan(start, end - start).IsWhiteSpace() || !TryReadProperty(value, start == 0 && dot < 0 ? path : path[start..end], out value))
+            {
+                value = null;
+                return false;
+            }
+
+            if (dot < 0)
+                return true;
+
+            start = dot + 1;
+        }
+    }
+
+    /// <summary>
     /// Attempts to read a property of the item by name.
     /// </summary>
     public bool TryReadProperty(string propertyName, out object? value)
@@ -274,15 +308,9 @@ public sealed class ItemContext(object? item)
             return true;
         }
 
-        if (item is IReadOnlyDictionary<string, object?> readOnlyDictionary)
+        if (item is IReadOnlyDictionary<string, object?> or IDictionary<string, object?>)
         {
-            _ = TryReadDictionary(readOnlyDictionary, propertyName, out value);
-            return true;
-        }
-
-        if (item is IDictionary<string, object?> dictionary)
-        {
-            _ = dictionary.TryGetValue(propertyName, out value);
+            _ = TryReadDictionary(item, propertyName, out value);
             return true;
         }
 
@@ -296,16 +324,19 @@ public sealed class ItemContext(object? item)
         return true;
     }
 
-    /// <summary>Reads a property out of a dictionary item by exact, then camelCase, then case-insensitive key.</summary>
-    private static bool TryReadDictionary(IReadOnlyDictionary<string, object?> item, string propertyName, out object? value)
+    /// <summary>
+    /// Reads a property out of a dictionary item by exact, then camelCase, then case-insensitive key, whichever of the two dictionary
+    /// interfaces it wears — an <c>ExpandoObject</c> wears only the mutable one.
+    /// </summary>
+    private static bool TryReadDictionary(object item, string propertyName, out object? value)
     {
-        if (item.TryGetValue(propertyName, out value))
+        if (TryGetEntry(item, propertyName, out value))
             return true;
 
-        if (item.TryGetValue(ToCamelCase(propertyName), out value))
+        if (TryGetEntry(item, ToCamelCase(propertyName), out value))
             return true;
 
-        foreach (KeyValuePair<string, object?> entry in item)
+        foreach (KeyValuePair<string, object?> entry in (IEnumerable<KeyValuePair<string, object?>>)item)
         {
             if (string.Equals(entry.Key, propertyName, StringComparison.OrdinalIgnoreCase))
             {
@@ -317,6 +348,11 @@ public sealed class ItemContext(object? item)
         value = null;
         return false;
     }
+
+    private static bool TryGetEntry(object item, string key, out object? value)
+        => item is IReadOnlyDictionary<string, object?> readOnlyDictionary
+            ? readOnlyDictionary.TryGetValue(key, out value)
+            : ((IDictionary<string, object?>)item).TryGetValue(key, out value);
 
     private static string ToCamelCase(string value)
     {
@@ -330,16 +366,37 @@ public sealed class ItemContext(object? item)
     private static PropertyInfo? ResolveProperty(Type type, string propertyName)
         => PropertyCache.GetOrAdd((type, propertyName), static key => FindProperty(key.Type, key.Name));
 
+    /// <summary>
+    /// The public instance property of that name: the exact name first, else the one name it matches ignoring case — none where two
+    /// differ only in case. A property a derived type hides with <c>new</c> is the derived one; an indexer is no property here.
+    /// </summary>
     private static PropertyInfo? FindProperty(Type type, string propertyName)
     {
-        try
+        PropertyInfo? exact = null;
+        PropertyInfo? folded = null;
+        var foldedTwice = false;
+
+        // Walked rather than asked of GetProperty, which throws on a hidden property and on two names differing only in case.
+        foreach (PropertyInfo property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
-            return type.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
+            if (property.GetIndexParameters().Length > 0)
+                continue;
+
+            if (string.Equals(property.Name, propertyName, StringComparison.Ordinal))
+            {
+                exact = MoreDerived(exact, property);
+            }
+            else if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                foldedTwice |= folded is not null && !string.Equals(folded.Name, property.Name, StringComparison.Ordinal);
+                folded = MoreDerived(folded, property);
+            }
         }
-        catch (AmbiguousMatchException)
-        {
-            // Two properties differing only in case: fall back to the exact name the caller asked for.
-            return type.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
-        }
+
+        return exact ?? (foldedTwice ? null : folded);
     }
+
+    /// <summary>Of two properties of one name, the one the more derived type declares.</summary>
+    private static PropertyInfo MoreDerived(PropertyInfo? current, PropertyInfo candidate)
+        => current?.DeclaringType is { } declaring && candidate.DeclaringType is { } other && declaring.IsSubclassOf(other) ? current : candidate;
 }

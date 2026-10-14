@@ -61,7 +61,8 @@ export class CommandBarEngine {
 
         // Commands arriving, leaving or regrouped. A label or a Visibility changing moves a command's own width, which the fitter
         // watches; the fit's own classes are not watched here, or every fit would ask for the next.
-        observeComponents(this.root, `.${RootClass}`, { childList: true }, roots => this.applyAll(roots));
+        // Not a change inside a command (a label's words, a badge's count): a fit reads the layout, and a streamed page changes often.
+        observeComponents(this.root, `.${RootClass}`, { childList: true, relevant: changesCommands }, roots => this.applyAll(roots));
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {
@@ -163,6 +164,21 @@ export class CommandBarEngine {
         if (command?.isConnected === true && !isInert(command))
             pressTargetOf(command).click();
     }
+}
+
+/** A record of a bar itself, its host or a command's place in it, or one that brought a bar: not one from inside a command. */
+function changesCommands(mutation: MutationRecord): boolean {
+    const target = mutation.target;
+
+    if (target instanceof Element && (target.classList.contains(RootClass) || target.classList.contains(HostClass) || target.classList.contains(ItemClass)))
+        return true;
+
+    for (const node of mutation.addedNodes) {
+        if (node instanceof Element && (node.classList.contains(RootClass) || node.querySelector(`.${RootClass}`) !== null))
+            return true;
+    }
+
+    return false;
 }
 
 function hostOf(root: HTMLElement): HTMLElement | null {

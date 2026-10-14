@@ -1,3 +1,6 @@
+@import "../mixins/scroll-room.less";
+@import "../mixins/side-drawers.less";
+
 // One scrollbar everywhere: `scrollbar-color` inherits (on `html`), `scrollbar-width` doesn't (on `*`); `::-webkit-scrollbar`
 // excludes both, so it is gated behind `@supports` for engines lacking them.
 html {
@@ -52,9 +55,9 @@ html {
     }
 }
 
-// The theme's overlay scrollbars (UITheme.OverlayScrollbars): where a pointer hovers, no scroller draws a bar or keeps room for one —
-// a padding reads the same on both sides, and nothing narrows as a bar comes — and overlay-scrollbar-engine.ts draws a thin thumb over
-// the edge of the scroller under the pointer, in its own layer. Forced colours keep the platform's bar, drawn in the system's colours
+// The theme's overlay scrollbars (UITheme.OverlayScrollbars): where a pointer hovers, no scroller draws a bar or keeps the platform's
+// strip for one — the scrollers the framework draws keep the overlay bar's room themselves, below — and overlay-scrollbar-engine.ts
+// draws a thin thumb over the edge of a scroller the reader scrolls or nears, in its own layer. Forced colours keep the platform's bar, drawn in the system's colours
 // as no thumb of a theme's colour would be; the engine reads the same condition.
 @media @{ui-can-hover} and (forced-colors: none) {
     html[data-ui-overlay-scrollbars],
@@ -68,6 +71,201 @@ html {
             width: 0;
             height: 0;
         }
+    }
+}
+
+// The overlay bar's room: the edge a box keeps on the side its bar stands on — its Padding there, widened to this where it is less —
+// so no word runs under the thumb (2 to 8 px in) and no application pads for it: a Padding of 12 or more holds the thumb in itself.
+// Rejected: the room past the Padding — a list padded 12 on both sides stood 12 and 24. The framework's scrollers keep it (a list's, a
+// tree's, a scroll container, a text area), the roots of the shell's regions along a bar, and a popup while it overflows (mixins/
+// popup.less). An application may set it (0 gives the room back); the classic bar keeps its own room and this none.
+:root {
+    --ui-scrollbar-room: 12px;
+}
+
+// What a scroller keeps along each axis — the room, or nothing where it does not scroll that way — and the physical sides a
+// padding's shorthand takes it on (the bar's side flips with the direction). Not inherited: a list in a row of a scrolling list is no
+// scroller of its own.
+@property --ui-scroll-room-y {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --ui-scroll-room-x {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --ui-scroll-room-right {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --ui-scroll-room-left {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+// The room a container lends down from its end (ScrollbarAir), and what a scroller hangs of it past its box, which the engine reads.
+@property --ui-scroll-hang {
+    syntax: "<length>";
+    inherits: true;
+    initial-value: 0px;
+}
+
+@property --ui-scroll-hung {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --ui-scroll-clip-reach {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+[style*="--ui-scrollbar-air"] {
+    .ui-responsive-fence(--ui-scrollbar-air);
+}
+
+// What draws a box's edge, which the hung room stops at: an authored border, or a fill of its own.
+@ui-scroll-hang-frame: ~'[style*="--ui-border-thickness"], [style*="--ui-surface-color"], .ui-surface--raised, .ui-surface--flat, .ui-surface--tinted';
+
+// The inset that centres a capped column in its scroller (an items view's ContentMaxWidth), which the room stands inside.
+@property --ui-scroll-cap {
+    syntax: "<length-percentage>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+// Kept whether or not the scroller holds more than it shows, so its rows never narrow as it starts to scroll: a list that only grows
+// with its rows ends the room short of its edge too. Rejected: the room only while it overflows (read off its scroll timeline) — the
+// rows jumped 12 px the moment it did, as the classic bar's do; a popup alone keeps it so, sized as it opens.
+@media @{ui-can-hover} and (forced-colors: none) {
+    html[data-ui-overlay-scrollbars] {
+        @{ui-scrollers-y} {
+            .ui-scroll-room-y();
+        }
+
+        @{ui-scrollers-x} {
+            --ui-scroll-room-x: var(--ui-scrollbar-room);
+        }
+
+        // A container that leaves free air after its end (ScrollbarAir; UILayout.Panes's list) lends it, up to the room, to the scroller
+        // along that end: the scroller keeps only what the air lacks inside, and hangs the rest past its box as a transparent end border,
+        // where the engine draws its thumb — its rows end where the field over them does. Rejected: a margin and a wider padding, which
+        // took the author's end Padding with it; the thumb drawn past the box alone, which a wheel or a pointer in the air missed.
+        [style*="--ui-scrollbar-air"] {
+            @air: .ui-responsive-chain(--ui-scrollbar-air; 0px)[@value];
+            --ui-scroll-hang: min(@air, var(--ui-scrollbar-room));
+        }
+
+        // It reaches down plain grids and stacks only: a padded, framed or filled box between (a raised surface round a tree, a list
+        // with a border) stands the scroller off the end, where the hung room would run under its frame or past its fill.
+        [style*="--ui-scrollbar-air"]:is([style*="--ui-padding"], @{ui-scroll-hang-frame}),
+        [style*="--ui-scrollbar-air"] :is([data-ui-id]:not(.ui-container, .ui-stack-panel, .ui-items-view, .ui-tree, .ui-scroll), [data-ui-id][style*="--ui-padding"], [data-ui-id]:is(@{ui-scroll-hang-frame})) {
+            > * {
+                --ui-scroll-hang: 0px;
+            }
+        }
+
+        // The outermost scroller takes it, unless it is framed or filled itself; one inside a row takes none.
+        [style*="--ui-scrollbar-air"] :is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll:not(@{ui-scroll-hang-frame})):is(.ui-scroll-y--auto, .ui-scroll-y--always) {
+            --ui-scroll-hung: var(--ui-scroll-hang);
+            --ui-scroll-room-y: calc(var(--ui-scrollbar-room) - var(--ui-scroll-hung));
+            margin-inline-end: calc(-1 * var(--ui-scroll-hung));
+            border-inline-end: var(--ui-scroll-hung) solid transparent;
+
+            > * {
+                --ui-scroll-hang: 0px;
+            }
+        }
+
+        // The grids and stacks between, which clip, let the hung room through; one clipping inline keeps its reach past its edge as
+        // well (core/runtime.less).
+        [style*="--ui-scrollbar-air"]:is(.ui-container, .ui-stack-panel),
+        [style*="--ui-scrollbar-air"] :is(.ui-container, .ui-stack-panel) {
+            overflow-clip-margin: var(--ui-scroll-hang);
+
+            // Through a registered length: Chrome takes no math function in overflow-clip-margin, and a max() there clipped at 0.
+            &[style*="overflow: clip"] {
+                --ui-scroll-clip-reach: max(@ui-keyboard-frame-reach, var(--ui-scroll-hang));
+                overflow-clip-margin: var(--ui-scroll-clip-reach);
+            }
+        }
+
+        // A region that scrolls by itself keeps it in its root, which holds the page's Padding: the sides wherever the content
+        // scrolls alone, unless their root fills the height, the content from the medium breakpoint up unless it fills the height and
+        // its panes scroll themselves.
+        [data-ui-root][data-ui-scroll-content] > :is([data-ui-region="left-side"]:not([data-ui-bottom-bar]), [data-ui-region="right-side"]) {
+            .ui-region-room(@scrolls-alone: true);
+        }
+
+        @media (min-width: @ui-breakpoint-md) {
+            [data-ui-root][data-ui-scroll-content]:not([data-ui-content-fills]) > [data-ui-region="content"] {
+                .ui-region-room();
+            }
+        }
+
+        // Where the document scrolls, the roots its bar stands over: the header's, the footer's, the right side's, and the content's
+        // where no right side stands in its column — none in the view (WebViewRenderer marks it), or a drawer.
+        [data-ui-root]:not([data-ui-scroll-content]) {
+            .ui-scroll-room-page-edge();
+        }
+
+        @media (max-width: (@ui-breakpoint-md - 0.02px)) {
+            [data-ui-root][data-ui-scroll-content]:not([data-ui-content-fills]) {
+                .ui-scroll-room-page-edge();
+            }
+        }
+
+        // A drawer scrolls by itself.
+        .ui-side-drawer-bands({
+            @{ui-drawers}@{ui-drawers-left} > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar])),
+            @{ui-drawers}@{ui-drawers-right} > [data-ui-region="right-side"] {
+                .ui-region-room(@scrolls-alone: true);
+            }
+
+            @{ui-drawers}@{ui-drawers-right}:not([data-ui-scroll-content]) > [data-ui-region="content"] {
+                .ui-region-room();
+            }
+        });
+    }
+}
+
+.ui-scroll-room-page-edge() {
+    > :is([data-ui-region="header"], [data-ui-region="footer"], [data-ui-region="right-side"]),
+    > [data-ui-region="content"][data-ui-page-end] {
+        .ui-region-room();
+    }
+}
+
+// The room a region keeps in its root: never 12 past 12. Not in a list's or a tree's, whose host keeps its own — one that does not
+// scroll takes the region's — nor in a rail or a collapsed panel, centred icons the room would push off centre; and in a region that
+// scrolls alone, not in a root filling its height (Fill, as content-fills.ts reads it): the region never scrolls, its panes do.
+.ui-region-room(@scrolls-alone: false) {
+    @unfilled: if((@scrolls-alone), ~':not([style*="--ui-height: var(--ui-fill-height"])', ~"");
+
+    > [data-ui-id]:not(.ui-items-view, .ui-tree, .ui-menu--rail, .ui-collapsible[data-ui-collapsed]:not([data-ui-folding]))@{unfilled} {
+        .ui-scroll-room-y();
+    }
+
+    > .ui-items-view@{unfilled} > :is(.ui-items-view__host, [data-ui-items-host]).ui-scroll-y--disabled,
+    > .ui-tree@{unfilled} > .ui-tree__host.ui-scroll-y--disabled {
+        .ui-scroll-room-y();
+    }
+}
+
+// What a popup keeps while it overflows (.ui-scroll-room-y-while-overflowing): its scroll timeline runs only then.
+@keyframes ui-scroll-room-overflowing {
+    from,
+    to {
+        --ui-scroll-room-y: var(--ui-scrollbar-room);
     }
 }
 

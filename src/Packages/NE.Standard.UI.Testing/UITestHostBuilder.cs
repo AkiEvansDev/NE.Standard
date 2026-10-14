@@ -45,14 +45,11 @@ internal static class UITestHostBuilder
         UIHost? built = null;
         UIStartupBase.AddHostServices(services, _ => built ?? throw new InvalidOperationException("The test host is not built yet."));
 
-        UIApplication application;
-
-        using (ServiceProvider bootstrapProvider = services.BuildServiceProvider(validateScopes: true))
-            application = applicationBuilder.Build(bootstrapProvider);
-
-        _ = services.AddSingleton(application);
+        // Built in the container the host keeps, as the startup does: a lazily compiled view resolves through it on first use.
+        _ = services.AddSingleton(applicationBuilder.Build);
 
         ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
+        UIApplication application = provider.GetRequiredService<UIApplication>();
         UIHost host = new(application, provider, createLogger(provider));
 
         built = host;

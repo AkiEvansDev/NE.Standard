@@ -95,3 +95,23 @@ test("a button group's chosen segment hands its ground and ink on, as every fill
     assert.match(chosen, /--ui-faint-base: var\(--ui-selected-foreground, var\(--ui-color-on-primary\)\);/);
     assert.match(chosen, /--ui-ground: var\(--ui-selected-background, var\(--ui-color-primary\)\);/);
 });
+
+test("every input's root is the one shell: a column centred across a row, as tall as it stands, never wider than its room — a calendar its grid", () => {
+    const roots = [".ui-color-input", ".ui-file-input", ".ui-image-input", ".ui-number-input", ".ui-radio-group", ".ui-select", ".ui-slider", ".ui-switcher-field", ".ui-temporal-input", ".ui-calendar", ".ui-text-input", ".ui-text-area"];
+
+    for (const root of roots) {
+        const shell = rules.filter(rule => rule.selector === root).map(rule => rule.body).join("\n");
+
+        assert.match(shell, /display: (inline-)?flex;/, root);
+        assert.match(shell, /flex-direction: column;/, root);
+        assert.match(shell, /gap: 0\.25rem;/, root);
+        assert.match(shell, /align-self: var\(--ui-align-v, center\);/, root);
+        if (root === ".ui-calendar")
+            assert.doesNotMatch(shell, /max-width/);
+        else
+            assert.match(shell, /max-width: var\(--ui-max-width-xxl, [^;]*var\(--ui-max-width, 100%\)\)\)\)\);/, root);
+
+        assert.match(shell, /height: var\(--ui-height-xxl, [^;]*var\(--ui-height, fit-content\)\)\)\)\);/, root);
+        assert.match(shell, /font: inherit;/, root);
+    }
+});

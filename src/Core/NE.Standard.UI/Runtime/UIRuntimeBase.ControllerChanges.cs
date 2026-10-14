@@ -174,34 +174,42 @@ internal abstract partial class UIRuntimeBase
             if (!TryBuildDynamicParameters(binding, baseParameters, out var dynamicParameters))
                 continue;
 
-            RecursivePath bindingPath = View.Bindings.MaterializePath(binding, baseParameters);
-            UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
+            AppendWholeCollectionNoLock(binding, View.Bindings.MaterializePath(binding, baseParameters), dynamicParameters);
+        }
+    }
 
-            // Always sent, not only the first time: a row drawn again later in the round withdraws what was queued under it.
-            _ = _wholeLists.Add(component);
+    /// <summary>
+    /// Sends one bound collection whole — a reset, then its rows — and each row's own collections after it, which the row's insert
+    /// does not carry: without them a nested host stays empty.
+    /// </summary>
+    private void AppendWholeCollectionNoLock(CompiledUIBinding binding, RecursivePath path, object?[] dynamicParameters)
+    {
+        UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
 
-            AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
-            {
-                Action = CollectionUpdateAction.Reset,
-                Component = component,
-                Items = []
-            });
+        // Always sent, not only the first time: a row drawn again later in the round withdraws what was queued under it.
+        _ = _wholeLists.Add(component);
 
-            if (!TryBuildCollectionItems(bindingPath, binding, out ServerCollectionItemChange[] items) || items.Length == 0)
-                continue;
+        AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
+        {
+            Action = CollectionUpdateAction.Reset,
+            Component = component,
+            Items = []
+        });
 
-            AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
-            {
-                Action = CollectionUpdateAction.Insert,
-                Component = component,
-                Items = items
-            });
+        if (!TryBuildCollectionItems(path, binding, out ServerCollectionItemChange[] items) || items.Length == 0)
+            return;
 
-            for (var j = 0; j < items.Length; j++)
-            {
-                if (items[j].Key is string nestedKey)
-                    AppendDescendantCollectionUpdatesNoLock(bindingPath.AppendKey(nestedKey));
-            }
+        AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
+        {
+            Action = CollectionUpdateAction.Insert,
+            Component = component,
+            Items = items
+        });
+
+        for (var i = 0; i < items.Length; i++)
+        {
+            if (items[i].Key is string key)
+                AppendDescendantCollectionUpdatesNoLock(path.AppendKey(key));
         }
     }
 
@@ -396,7 +404,10 @@ internal abstract partial class UIRuntimeBase
 
     private static readonly ConcurrentDictionary<(Type Type, string Name), PropertyInfo?> ItemProperties = new();
 
-    /// <summary>Re-sends a bound collection whose whole instance was assigned, as a reset followed by its items.</summary>
+    /// <summary>
+    /// Re-sends every bound collection a <c>Set</c> replaced: one bound at the path itself (a list assigned anew), and one under it (a
+    /// list inside an object assigned anew), each as a reset followed by its rows and their own lists.
+    /// </summary>
     /// <remarks>
     /// Needed because <see cref="RecursiveChangeKind.Reset"/> fires only from inside a collection, not when the instance is <c>Set</c>.
     /// </remarks>
@@ -417,27 +428,10 @@ internal abstract partial class UIRuntimeBase
             if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
-            UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
-
-            _ = _wholeLists.Add(component);
-
-            AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
-            {
-                Action = CollectionUpdateAction.Reset,
-                Component = component,
-                Items = []
-            });
-
-            if (!TryBuildCollectionItems(path, binding, out ServerCollectionItemChange[] items) || items.Length == 0)
-                continue;
-
-            AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
-            {
-                Action = CollectionUpdateAction.Insert,
-                Component = component,
-                Items = items
-            });
+            AppendWholeCollectionNoLock(binding, path, dynamicParameters);
         }
+
+        AppendDescendantCollectionUpdatesNoLock(path);
     }
 
     private void DrainControllerChangesNoLock()
@@ -480,58 +474,95 @@ internal abstract partial class UIRuntimeBase
         MarkHeldValuesNoLock();
     }
 
+    // The paths of the Sets and Resets a compaction has kept so far, from the newest; empty between compactions.
+    private readonly HashSet<PathPrefix> _coveringPaths = new(PathPrefixComparer.Instance);
+
+    /// <summary>
+    /// The round's changes without the ones a later <c>Set</c> or <c>Reset</c> supersedes — of the same path, or of one above it — in
+    /// their order.
+    /// </summary>
+    /// <remarks>
+    /// Walked from the newest, each change asking the covering paths kept so far by each of its own prefixes: linear in the changes,
+    /// where dropping the covered ones as each Set arrived compared every change with every change kept.
+    /// </remarks>
     private RecursiveChange[] CompactControllerChangesNoLock()
     {
         if (_changeBuffer.Count <= 1)
             return [.. _changeBuffer];
 
-        List<RecursiveChange> result = new(_changeBuffer.Count);
+        RecursiveChange[] kept = new RecursiveChange[_changeBuffer.Count];
+        var first = kept.Length;
 
-        for (var i = 0; i < _changeBuffer.Count; i++)
+        try
         {
-            RecursiveChange change = _changeBuffer[i];
-
-            ArgumentNullException.ThrowIfNull(change);
-
-            RecursivePath path = change.Path;
-
-            switch (change.Kind)
+            for (var i = _changeBuffer.Count - 1; i >= 0; i--)
             {
-                case RecursiveChangeKind.Set:
-                    RemovePreviousChangesCoveredByPath(result, path);
-                    result.Add(change);
-                    break;
+                RecursiveChange change = _changeBuffer[i];
 
-                case RecursiveChangeKind.Reset:
-                    RemovePreviousChangesCoveredByPath(result, path);
-                    result.Add(change);
-                    break;
+                ArgumentNullException.ThrowIfNull(change);
 
-                case RecursiveChangeKind.Add:
-                case RecursiveChangeKind.Remove:
-                case RecursiveChangeKind.Replace:
-                case RecursiveChangeKind.Move:
-                    result.Add(change);
-                    break;
+                if (IsCoveredNoLock(change.Path))
+                    continue;
 
-                default:
-                    throw new UnreachableException();
+                kept[--first] = change;
+
+                // A change a later one covers needs no entry: what it would cover, the later one covers too.
+                if (change.Kind is RecursiveChangeKind.Set or RecursiveChangeKind.Reset)
+                    _ = _coveringPaths.Add(new PathPrefix(change.Path, change.Path.Count));
             }
         }
+        finally
+        {
+            _coveringPaths.Clear();
+        }
 
-        return [.. result];
+        return first == 0 ? kept : kept[first..];
     }
 
-    /// <summary>Drops every earlier change the new one supersedes — the same path, or anything under it.</summary>
-    /// <remarks>
-    /// Compares segment by segment rather than via <c>Path.ToString()</c>, since this runs for every change against every kept change.
-    /// </remarks>
-    private static void RemovePreviousChangesCoveredByPath(List<RecursiveChange> changes, RecursivePath path)
+    /// <summary>Whether a kept Set or Reset stands at the path or above it.</summary>
+    private bool IsCoveredNoLock(RecursivePath path)
     {
-        for (var i = changes.Count - 1; i >= 0; i--)
+        if (_coveringPaths.Count == 0)
+            return false;
+
+        for (var length = 0; length <= path.Count; length++)
         {
-            if (IsSameOrDescendantPath(path, changes[i].Path))
-                changes.RemoveAt(i);
+            if (_coveringPaths.Contains(new PathPrefix(path, length)))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The first <see cref="Length"/> segments of a path, compared without building the shorter path.</summary>
+    private readonly record struct PathPrefix(RecursivePath Path, int Length);
+
+    private sealed class PathPrefixComparer : IEqualityComparer<PathPrefix>
+    {
+        public static readonly PathPrefixComparer Instance = new();
+
+        public bool Equals(PathPrefix x, PathPrefix y)
+        {
+            if (x.Length != y.Length)
+                return false;
+
+            for (var i = 0; i < x.Length; i++)
+            {
+                if (!x.Path[i].Equals(y.Path[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        public int GetHashCode(PathPrefix obj)
+        {
+            HashCode hash = new();
+
+            for (var i = 0; i < obj.Length; i++)
+                hash.Add(obj.Path[i]);
+
+            return hash.ToHashCode();
         }
     }
 

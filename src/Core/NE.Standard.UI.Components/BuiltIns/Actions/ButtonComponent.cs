@@ -19,44 +19,29 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 [UIComponentPropertyBlock(typeof(ITextComponent))]
+[UIComponentPropertyDefault(nameof(ITextComponent.IconColor), nameof(DefaultIconColor))]
+[UIComponentPropertyDefault(nameof(ITextComponent.TitleType), nameof(DefaultTitleType))]
+[UIComponentPropertyDefault(nameof(ITextComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
+[UIComponentPropertyDefault(nameof(ITextComponent.DescriptionType), nameof(DefaultDescriptionType))]
+[UIComponentPropertyDefault(nameof(ITextComponent.TextAlignment), nameof(DefaultTextAlignment))]
 [UIComponentPropertyBlock(typeof(ITextMarkAlignmentComponent))]
 [UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
 public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButtonComponent, ISurfaceComponent, IBorderedComponent, IOverflowComponent, ITextComponent, ITextMarkAlignmentComponent, IAccessibleNameComponent
     where T : ButtonComponent<T>, IUIComponentDefinition
 {
-    // Declared as registered defaults, not set in the constructor, so tooling reads the value a button wears.
+    // Declared as registered defaults, not set in the constructor, so tooling reads the value a button wears. Default resolves to
+    // `color: inherit`, so the glyph follows the button's contrast colour.
     private static readonly UIThemeColor DefaultIconColor = UIThemeColor.Default;
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Body;
+    private const UITextBadgePlacement DefaultBadgePlacement = UITextBadgePlacement.Trailing;
     private static readonly UITextAppearance DefaultDescriptionType = UITextAppearance.Caption;
+
+    // Centred; a row-shaped control that wears the button (an action, a menu entry, a breadcrumb) left-aligns it in its own constructor.
+    private const UITextAlignment DefaultTextAlignment = UITextAlignment.Center;
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = UIButtonType.Primary)]
     public UIButtonType? Type { get; set; }
-
-    /// <inheritdoc/>
-    /// <remarks><c>Default</c> resolves to <c>color: inherit</c>, so the glyph follows the button's contrast colour.</remarks>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultIconColor))]
-    public UIThemeColor? IconColor { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultTitleType))]
-    public UITextAppearance? TitleType { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = UITextBadgePlacement.Trailing)]
-    public UITextBadgePlacement? BadgePlacement { get; set; }
-
-    /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(ITextComponent), DefaultValueMember = nameof(DefaultDescriptionType))]
-    public UITextAppearance? DescriptionType { get; set; }
-
-    /// <inheritdoc/>
-    /// <remarks>
-    /// The label is centered by default; a row-shaped control that wears the button (an action, a menu entry, a breadcrumb)
-    /// left-aligns it in its own constructor.
-    /// </remarks>
-    [UIComponentProperty(Contract = typeof(ITextComponent), DefaultValue = UITextAlignment.Center)]
-    public UITextAlignment? TextAlignment { get; set; }
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = UIButtonSize.Medium)]

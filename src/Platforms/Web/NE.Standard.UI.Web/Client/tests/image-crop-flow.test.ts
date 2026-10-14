@@ -73,10 +73,20 @@ class FakeWheelEvent extends FakeEvent {
 // The window's key listeners, the drag's among them: it hears Escape before the dialog does.
 const windowKeys: ((domEvent: FakeEvent) => void)[] = [];
 
+// What each observer watches, so a test can say a watched element changed as the browser would; none is told on its own.
+const watchers: { readonly target: unknown; readonly callback: () => void }[] = [];
+
 installFakeDom({
     window: { addEventListener: (type: string, listener: (domEvent: FakeEvent) => void) => void (type === "keydown" && windowKeys.push(listener)), setTimeout, clearTimeout },
     MutationObserver: class {
-        public observe(): void {
+        private readonly callback: () => void;
+
+        public constructor(callback: () => void) {
+            this.callback = callback;
+        }
+
+        public observe(target: unknown): void {
+            watchers.push({ target, callback: this.callback });
         }
     },
     XMLHttpRequest: FakeRequest,
@@ -403,4 +413,35 @@ test("Escape mid-drag puts the picture back where the drag began, zoom and all, 
     await settle();
 
     assert.deepEqual(imaging.written, [{ rect: { x: 100, y: 0, side: 600 }, side: 600, type: "image/png" }]);
+});
+
+test("a crop whose dialog another closed — every dialog, as the page goes to another runtime — answers as a Cancel, and the next crop opens", async () => {
+    const { native, picture } = croppedPicture("square");
+
+    pick(native, new File([new Uint8Array(40)], "left.png", { type: "image/png" }));
+    await settle();
+
+    const { dialog } = cropDialog();
+    const opened = dialogs.opened.length;
+
+    // The dialog engine's closeAll hides it, raising nothing of the crop's own.
+    dialog.setAttribute("hidden", "");
+
+    for (const watcher of watchers.filter(candidate => candidate.target === dialog))
+        watcher.callback();
+
+    await settle();
+
+    assert.equal(uploads.length, 0);
+    assert.equal(picture.getAttribute("src"), "/covers/old.png");
+
+    pick(native, new File([new Uint8Array(40)], "next.png", { type: "image/png" }));
+    await settle();
+
+    assert.equal(dialogs.opened.length, opened + 1, "the next picture opens the dialog rather than being refused");
+
+    cropDialog().apply.dispatchEvent(new FakeEvent("click"));
+    await settle();
+
+    assert.equal(uploads.length, 1);
 });

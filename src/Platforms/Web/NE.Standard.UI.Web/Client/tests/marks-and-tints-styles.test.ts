@@ -41,7 +41,7 @@ test("a popup's list marks no line: a folded menu's flyout's current entry is it
 });
 
 test("a folded group holding the current page wears a short, whole piece of the line on the current entry's edge, its words in the ink, by its mark", () => {
-    const mark = /\.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\]:not\(\[data-ui-menu-open\]\) > \.ui-menu-item:not\(\.ui-menu-item--selected\):not\(\.ui-pressing\)::before,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const mark = /\.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\]:not\(\[data-ui-menu-open\]\) > \.ui-menu-item:not\(\.ui-menu-item--selected\)::before,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "";
 
     assert.match(mark, /inset: var\(--ui-menu-group-mark-inset, 25% auto 25% 0\);/);
     assert.match(mark, /width: var\(--ui-menu-group-mark-width, 2px\);/);
@@ -68,7 +68,7 @@ test("a current entry writes in the text's ink, never the brand's: the brand sta
 
     assert.doesNotMatch(css, /\.ui-menu-item--selected(?: [^{),]*)? \{[^}]*--ui-color-primary-ink/);
     assert.doesNotMatch(declarations(".ui-multi-select .ui-select__option::after") ?? "", /--ui-color-primary-ink/);
-    assert.match(declarations(".ui-multi-select__chip") ?? "", /color: var\(--ui-color-primary-ink-on-tint\);/);
+    assert.match(declarations(".ui-multi-select__chip:not(.ui-badge)") ?? "", /color: var\(--ui-color-primary-ink-on-tint\);/);
 });
 
 test("a tint mixes over the mode's own ground at the mode's share", () => {

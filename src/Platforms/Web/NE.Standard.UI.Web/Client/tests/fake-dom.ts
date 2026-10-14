@@ -101,6 +101,19 @@ export class FakeElement {
         return element;
     }
 
+    /** A copy of its tag, classes, attributes, data and words, and with `deep` its children's as well; no listeners, as the browser's. */
+    public cloneNode(deep = false): FakeElement {
+        const copy = FakeElement.of(this.className, Object.fromEntries(this.attributes), this.tagName);
+
+        Object.assign(copy.dataset, this.dataset);
+        copy.text = this.text;
+
+        if (deep)
+            copy.append(...this.children.map(child => child.cloneNode(true)));
+
+        return copy;
+    }
+
     public append(...children: FakeElement[]): this {
         for (const child of children) {
             child.parent = this;
@@ -164,10 +177,12 @@ export class FakeElement {
             this.classes.add(name);
     }
 
-    public get classList(): { contains(name: string): boolean; toggle(name: string, force?: boolean): boolean; add(...names: string[]): void; remove(...names: string[]): void } {
+    public get classList(): Iterable<string> & { contains(name: string): boolean; toggle(name: string, force?: boolean): boolean; add(...names: string[]): void; remove(...names: string[]): void } {
         const classes = this.classes;
 
         return {
+            // Walked as a token list is: an icon value clears the glyph before it through `Array.from`.
+            [Symbol.iterator]: () => [...classes][Symbol.iterator](),
             contains: name => classes.has(name),
             add: (...names) => names.forEach(name => classes.add(name)),
             remove: (...names) => names.forEach(name => classes.delete(name)),
@@ -656,7 +671,7 @@ function matchesComplex(element: FakeElement, compounds: readonly string[], comb
     return false;
 }
 
-const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:=['"]?([^'"\]]*)['"]?)?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope|active|focus-visible|modal|popover-open))/;
+const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:="((?:[^"\\]|\\.)*)"|=['"]?([^'"\]]*)['"]?)?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope|active|focus-visible|modal|popover-open))/;
 
 function matchesCompound(element: FakeElement, compound: string, scope: FakeElement | null): boolean {
     let rest = compound.trim();
@@ -673,7 +688,9 @@ function matchesCompound(element: FakeElement, compound: string, scope: FakeElem
         if (token === null)
             throw new Error(`The stand-in does not read "${compound}".`);
 
-        const [whole, tag, className, attribute, value, negated, alternatives, pseudo] = token;
+        const [whole, tag, className, attribute, quoted, plain, negated, alternatives, pseudo] = token;
+        // A double-quoted value as CSS escapes it (`cssAttributeValue`): a backslash takes the character after it as itself.
+        const value = quoted === undefined ? plain : quoted.replace(/\\(.)/g, "$1");
 
         if (tag !== undefined && element.tagName !== tag)
             return false;

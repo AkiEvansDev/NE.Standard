@@ -2,6 +2,7 @@
 // static options. A list the server answers `OnSearch` with stands as it is until the answer, and shows that answer whole.
 
 import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, SelectClass } from "../addressing/dom-attributes.ts";
+import { CommitPauses } from "./debounced-commit-engine.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
@@ -22,10 +23,12 @@ export type SearchInputEngineOptions = {
 
 export class SearchInputEngine {
     private readonly root: ParentNode;
-    private readonly timers = new WeakMap<HTMLInputElement, number>();
+    // One of the page's pauses: a leave commits a query still waiting, and a field's cancel drops it, as a debounced field's.
+    private readonly pauses: CommitPauses;
 
     public constructor(options: SearchInputEngineOptions = {}) {
         this.root = options.root ?? document;
+        this.pauses = new CommitPauses(this.root);
 
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
         // A composed character arrives whole at its end; the keystrokes that build it are not a query yet.
@@ -38,21 +41,16 @@ export class SearchInputEngine {
         if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SearchInputClass))
             return;
 
-        if (domEvent instanceof InputEvent && domEvent.isComposing)
+        if ((domEvent as Partial<InputEvent>).isComposing === true)
             return;
 
         const input = domEvent.target;
         narrowToTerm(input);
 
-        const existing = this.timers.get(input);
-
-        if (existing !== undefined)
-            window.clearTimeout(existing);
-
         const debounceText = input.getAttribute(DebounceAttribute);
         const debounce = debounceText === null ? DefaultDebounceMilliseconds : Number(debounceText);
 
-        this.timers.set(input, window.setTimeout(() => this.commit(input), Number.isFinite(debounce) && debounce >= 0 ? debounce : DefaultDebounceMilliseconds));
+        this.pauses.wait(input, Number.isFinite(debounce) && debounce >= 0 ? debounce : DefaultDebounceMilliseconds, () => this.commit(input));
     }
 
     /** Enter no option took asks at once: a manual search's way to ask, an automatic one's past its debounce; the list stays open. */
@@ -64,15 +62,9 @@ export class SearchInputEngine {
             return;
 
         const input = domEvent.target;
-        const existing = this.timers.get(input);
 
         domEvent.preventDefault();
-
-        if (existing !== undefined) {
-            window.clearTimeout(existing);
-            this.timers.delete(input);
-        }
-
+        this.pauses.drop(input);
         this.commit(input, true);
     }
 

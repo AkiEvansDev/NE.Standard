@@ -4,14 +4,14 @@
 // Under the pointer it washes and presses only where no control of its own takes the pointer: `data-ui-inner-pointer` says so.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { ComponentIdAttribute, DisabledClass, InnerPointerAttribute, LoadingClass } from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, DisabledClass, FileTileClass, InnerPointerAttribute, LoadingClass } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isPlainKey, SpaceRelease } from "./keyboard-shortcut.ts";
 import { ControlSelector, isOwnControlOf, soleControlOf } from "./own-control.ts";
 import { KeyboardRowsRootSelector, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
-// Component roots only: a picture of a surface (a select's chosen option) carries no id, and takes no press.
-const SurfaceSelector = `:is(.ui-surface, .ui-card)[${ComponentIdAttribute}]`;
+// Component roots only: a picture of a surface (a select's chosen option) carries no id, and takes no press. A file tile is pressed as one.
+const SurfaceSelector = `:is(.ui-surface, .ui-card, .${FileTileClass})[${ComponentIdAttribute}]`;
 const ClickableClass = "ui-surface--clickable";
 
 /** What the pointer does on a control inside a clickable surface (or a column's edge in its caption): rests over it, or holds it pressed. */

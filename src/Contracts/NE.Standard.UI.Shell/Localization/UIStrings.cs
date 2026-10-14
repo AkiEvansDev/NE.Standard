@@ -59,9 +59,26 @@ public static partial class UIStrings
     public const string ActionBack = "ui.action.back";
     public const string ActionNew = "ui.action.new";
     public const string ActionDelete = "ui.action.delete";
+    public const string ActionMore = "ui.action.more";
+    public const string ActionRefresh = "ui.action.refresh";
+    public const string ActionSearch = "ui.action.search";
+    public const string ActionFilter = "ui.action.filter";
+    public const string ActionSettings = "ui.action.settings";
+    public const string ActionShare = "ui.action.share";
+    public const string ActionDownload = "ui.action.download";
+    public const string ActionUpload = "ui.action.upload";
+    public const string ActionRename = "ui.action.rename";
+    public const string ActionAdd = "ui.action.add";
+    public const string ActionRemove = "ui.action.remove";
+    public const string ActionSend = "ui.action.send";
+    public const string ActionAttach = "ui.action.attach";
+    public const string ActionMenu = "ui.action.menu";
+    public const string ActionStop = "ui.action.stop";
+    public const string ActionUndo = "ui.action.undo";
+    public const string ActionRedo = "ui.action.redo";
+    public const string ActionSignOut = "ui.action.signout";
     public const string TabsMore = "ui.tabs.more";
     public const string CommandBarMore = "ui.commandbar.more";
-    public const string TabRename = "ui.tab.rename";
     public const string SelectClear = "ui.select.clear";
     public const string SelectPlaceholder = "ui.select.placeholder";
     public const string SelectRemove = "ui.select.remove";
@@ -115,6 +132,17 @@ public static partial class UIStrings
 
     /// <summary>The name of a pane's grip, which carries the pane to another place in its pane container.</summary>
     public const string PaneMove = "ui.pane.move";
+
+    /// <summary>A pane's grip where the pane has a title, which <c>{name}</c> holds.</summary>
+    public const string PaneGrip = "ui.pane.grip";
+
+    /// <summary>What a screen reader hears as the keyboard lifts a pane, aims it at a place and puts it back.</summary>
+    public const string PaneLifted = "ui.pane.lifted";
+    public const string PaneTarget = "ui.pane.target";
+    public const string PaneBack = "ui.pane.back";
+
+    /// <summary>What a screen reader hears after any keyboard move — a row's, a column's, a node's, a pane's: its place, <c>{index}</c> of <c>{count}</c>.</summary>
+    public const string MoveDone = "ui.move.done";
     public const string SplitButtonMore = "ui.split.more";
     public const string ImageChoose = "ui.image.choose";
     public const string ImageChange = "ui.image.change";
@@ -248,9 +276,26 @@ public static partial class UIStrings
         [ActionBack] = "Back",
         [ActionNew] = "New",
         [ActionDelete] = "Delete",
+        [ActionMore] = "More",
+        [ActionRefresh] = "Refresh",
+        [ActionSearch] = "Search",
+        [ActionFilter] = "Filter",
+        [ActionSettings] = "Settings",
+        [ActionShare] = "Share",
+        [ActionDownload] = "Download",
+        [ActionUpload] = "Upload",
+        [ActionRename] = "Rename",
+        [ActionAdd] = "Add",
+        [ActionRemove] = "Remove",
+        [ActionSend] = "Send",
+        [ActionAttach] = "Attach",
+        [ActionMenu] = "Menu",
+        [ActionStop] = "Stop",
+        [ActionUndo] = "Undo",
+        [ActionRedo] = "Redo",
+        [ActionSignOut] = "Sign out",
         [TabsMore] = "More tabs",
         [CommandBarMore] = "More commands",
-        [TabRename] = "Rename",
         [SelectClear] = "Clear selection",
         [SelectPlaceholder] = "Select…",
         [SelectRemove] = "Remove {label}",
@@ -287,6 +332,11 @@ public static partial class UIStrings
         [FileChoose] = "Choose files",
         [SplitterLabel] = "Resize",
         [PaneMove] = "Move the panel",
+        [PaneGrip] = "Move {name}",
+        [PaneLifted] = "Lifted: the arrow keys choose a place, Space or Enter puts the panel there, Escape puts it back",
+        [PaneTarget] = "Place {index} of {count}",
+        [PaneBack] = "Put back",
+        [MoveDone] = "Moved to {index} of {count}",
         [SplitButtonMore] = "More actions",
         [ImageChoose] = "Choose a picture",
         [ImageChange] = "Change the picture",

@@ -15,7 +15,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(IAffixedInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
-public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IAffixedInputComponent, IPlaceholderInputComponent
+[UIComponentPropertyBlock(typeof(IPopupPlacementComponent))]
+public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IAffixedInputComponent, IPlaceholderInputComponent, IPopupPlacementComponent
     where T : SelectComponentBase<T, TItem, TValue>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
@@ -30,13 +31,6 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowChevron { get; set; }
-
-    /// <summary>
-    /// Gets or sets where the list opens against the field — below its start edge by default, flipping when there's no room.
-    /// Decided once at render.
-    /// </summary>
-    [UIComponentProperty(IsBindable = false, DefaultValue = UIPopupPlacement.BottomStart)]
-    public UIPopupPlacement? PopupPlacement { get; set; }
 
     /// <summary>
     /// Initializes the input with the default item, empty and group templates.

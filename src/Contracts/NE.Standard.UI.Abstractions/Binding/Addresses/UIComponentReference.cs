@@ -30,7 +30,8 @@ public readonly record struct UIComponentReference
     /// <summary>
     /// Gets dynamic reference parameters used for templated or repeated component instances.
     /// </summary>
-    public object?[] DynamicParameters { get; }
+    // A default instance, never constructed, holds none rather than null: its hash, text and count read it.
+    public object?[] DynamicParameters => field ?? [];
 
     /// <summary>
     /// Gets whether this reference contains dynamic parameters.

@@ -5,13 +5,7 @@
 
 .ui-text-input {
     // Static header-over-field shell: __header, then __row (field, affixes, clear), then __message. Deliberately not a floating label.
-    display: flex;
-    flex-direction: column;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    gap: @ui-space-1;
-    font: inherit;
+    .ui-input-root();
     cursor: text;
 }
 

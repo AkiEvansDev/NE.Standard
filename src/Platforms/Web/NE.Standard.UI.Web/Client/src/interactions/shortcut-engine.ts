@@ -1,5 +1,6 @@
 // The page's one registry of key chords. A control's or a menu entry's (`data-ui-shortcut`) presses it from anywhere on the page; a
-// context menu's entry presses it for the row under the keyboard, as the menu opened there would; the view's own
+// context menu's entry presses it for the row under the keyboard, as the menu opened there would — a row's menu waiting to be drawn
+// (`row-menus.ts`) names its chords all the same, and is drawn by the chord; the view's own
 // (`UIViewBase.CreateShortcuts`) is raised as `shortcut:<chord>` on the view's content, where its command or effect is compiled. One set
 // of rules for all three: a modified chord fires in a field unless the field took it (the listener is in the bubble phase), an
 // unmodified key typed into a field is the text's, an open modal keeps everything outside it out of reach, and a chord claimed twice
@@ -14,6 +15,7 @@ import { isCaretField, isFieldKey } from "./caret-fields.ts";
 import { contextMenuAt, keyboardPlace } from "./context-menu-engine.ts";
 import { CommitInPlaceEventName } from "./field-keys-engine.ts";
 import { isInert } from "./interactive-state.ts";
+import { onlyPressWaves } from "./press-wave.ts";
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
 import { formatShortcut, isComposing, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
 import { findOpenModalDialog } from "./open-dialogs.ts";
@@ -41,6 +43,8 @@ export type ShortcutEngineOptions = {
     readonly viewShortcuts?: readonly ViewShortcut[];
     /** The element a view's chord is raised on. */
     readonly componentOf?: (componentId: number) => Element | null;
+    /** The chords the rows' menus waiting to be drawn carry (`RowMenus`), read again as their version moves. */
+    readonly laterChords?: { readonly version: number; chords(): Iterable<string> };
 };
 
 /** One page-wide claim: a control pressed, or a view's chord raised on its content. */
@@ -58,6 +62,8 @@ export class ShortcutEngine {
     // The chords some context menu's entry carries, so a key no entry names never asks a menu to open.
     private readonly entryShortcuts = new Map<string, KeyboardShortcut>();
     private stale = true;
+    // The waiting menus' chords' version the registry was built on.
+    private laterVersion = -1;
 
     public constructor(options: ShortcutEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -73,6 +79,10 @@ export class ShortcutEngine {
         if (this.root instanceof Node) {
             // Any change stales the registry, rebuilt on the next key; an entry's words are written as it arrives or its chord changes.
             const observer = new MutationObserver(mutations => {
+                // A press's wave in an entry changes no chord.
+                if (onlyPressWaves(mutations))
+                    return;
+
                 this.stale = true;
 
                 for (const mutation of mutations)
@@ -87,7 +97,7 @@ export class ShortcutEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
-        if (this.stale)
+        if (this.stale || this.laterVersion !== (this.options.laterChords?.version ?? -1))
             this.rebuild();
 
         // A key the field keeps â€” typing, and a caret's chord such as Ctrl+Left â€” is not the page's.
@@ -191,6 +201,16 @@ export class ShortcutEngine {
             else
                 this.claim({ shortcut, element, view: null });
         }
+
+        // A row's menu waiting to be drawn has no entries on the page: its chords are named by its template and the rows' held items.
+        for (const value of this.options.laterChords?.chords() ?? []) {
+            const shortcut = parseShortcut(value);
+
+            if (shortcut !== null)
+                this.entryShortcuts.set(shortcutKey(shortcut), shortcut);
+        }
+
+        this.laterVersion = this.options.laterChords?.version ?? -1;
 
         for (const view of this.options.viewShortcuts ?? []) {
             const shortcut = parseShortcut(view.name.slice(ViewShortcutPrefix.length));

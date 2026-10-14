@@ -99,8 +99,17 @@ export class PendingMoves {
         for (let index = moves.length - 1; index >= 0; index--)
             this.mover.move(host, moves[index].move.key, moves[index].from);
 
-        change();
+        try {
+            change();
+        }
+        finally {
+            // Even after a change that threw: the moves still waiting stand again, rather than left taken back with nothing to answer them.
+            this.restand(host, moves);
+        }
+    }
 
+    /** Puts the moves still waiting again, oldest first, each from where the change left its row. */
+    private restand(host: Element, moves: Waiting[]): void {
         for (let index = 0; index < moves.length;) {
             const waiting = moves[index];
             const from = this.mover.indexOf(host, waiting.move.key);

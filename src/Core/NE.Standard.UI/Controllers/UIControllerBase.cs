@@ -43,6 +43,9 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
 
     private static readonly ConcurrentDictionary<Type, FrozenDictionary<string, UICommandDescriptor>> CommandCache = new();
 
+    // The filters each controller type declares on itself, for the framework's own commands, which no method declares.
+    private static readonly ConcurrentDictionary<Type, IUICommandFilter[]> ControllerFilterCache = new();
+
     private readonly Lock _changesLock = new();
     private readonly List<RecursiveChange> _changes = [];
 
@@ -374,7 +377,47 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             return await descriptor.Invoker.Invoke(this, parameters, cancellationToken).ConfigureAwait(false);
         }
 
-        return await ExecuteFilteredCommandAsync(descriptor, globalFilters, parameters, cancellationToken).ConfigureAwait(false);
+        return await ExecuteFilteredCommandAsync(descriptor, descriptor.OrderedFilters(globalFilters), parameters, token => descriptor.Invoker.Invoke(this, parameters, token), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs a command the framework raises for itself (<c>UIBuiltInCommands</c>: a tab's move or pin) as a declared command runs: its
+    /// session checked against the route, through the application's command filters and the controller's own; its body is the
+    /// framework's.
+    /// </summary>
+    /// <remarks>No method declares it, so no method's filter holds; one the controller declares holds for every command it runs.</remarks>
+    internal async Task<UICommandResult> ExecuteBuiltInCommandAsync(IUICommandMetadata command, IReadOnlyDictionary<string, object?> parameters, Func<CancellationToken, Task<UICommandResult>> body, CancellationToken cancellationToken)
+    {
+        ThrowIfDisposed();
+        EnsureContextAttached();
+
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(body);
+
+        IUICommandFilter[] globalFilters = Context.Services.GetRequiredService<UIApplication>().CommandFilters;
+        IUICommandFilter[] controllerFilters = ControllerFilterCache.GetOrAdd(GetType(), ReadControllerFilters);
+
+        if (globalFilters.Length == 0 && controllerFilters.Length == 0)
+        {
+            await EnsureCommandAuthorizedAsync(command, cancellationToken).ConfigureAwait(false);
+
+            return await body(cancellationToken).ConfigureAwait(false);
+        }
+
+        // A stable sort, as a declared command's run orders them: filters of one order keep global then controller.
+        return await ExecuteFilteredCommandAsync(command, [.. globalFilters.Concat(controllerFilters).OrderBy(static filter => filter.Order)], parameters, body, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>The filters a controller type declares on itself, ordered: the ones every command of it passes.</summary>
+    private static IUICommandFilter[] ReadControllerFilters(Type controllerType)
+    {
+        List<IUICommandFilter> filters = [];
+
+        AddCommandFilters(filters, controllerType.GetCustomAttributes(inherit: true));
+
+        return filters.Count == 0
+            ? []
+            : [.. filters.OrderBy(static filter => filter.Order)];
     }
 
     /// <summary>
@@ -382,18 +425,16 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// controller then command.
     /// </summary>
     /// <remarks>The authorization filter is pinned outermost so no other filter can bypass it.</remarks>
-    private async Task<UICommandResult> ExecuteFilteredCommandAsync(UICommandDescriptor descriptor, IUICommandFilter[] globalFilters, IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken)
+    private async Task<UICommandResult> ExecuteFilteredCommandAsync(IUICommandMetadata command, IUICommandFilter[] filters, IReadOnlyDictionary<string, object?>? parameters, Func<CancellationToken, Task<UICommandResult>> body, CancellationToken cancellationToken)
     {
-        UICommandFilterContext context = new(descriptor, parameters ?? FrozenDictionary<string, object?>.Empty, Context.Handle, Context.Route, Context.Services)
+        UICommandFilterContext context = new(command, parameters ?? FrozenDictionary<string, object?>.Empty, Context.Handle, Context.Route, Context.Services)
         {
             CancellationToken = cancellationToken
         };
 
-        IUICommandFilter[] filters = descriptor.OrderedFilters(globalFilters);
-
         Func<Task> next = async () =>
         {
-            context.Result = await descriptor.Invoker.Invoke(this, parameters, cancellationToken).ConfigureAwait(false);
+            context.Result = await body(cancellationToken).ConfigureAwait(false);
             context.MarkInvoked();
         };
 
@@ -413,7 +454,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         await next().ConfigureAwait(false);
 
         return context.Result
-            ?? throw new InvalidOperationException($"A command filter short-circuited '{descriptor.Name}' without leaving a result.");
+            ?? throw new InvalidOperationException($"A command filter short-circuited '{command.Name}' without leaving a result.");
     }
 
     /// <summary>
@@ -428,7 +469,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             ArgumentNullException.ThrowIfNull(context);
             ArgumentNullException.ThrowIfNull(next);
 
-            await controller.EnsureCommandAuthorizedAsync((UICommandDescriptor)context.Command, context.CancellationToken).ConfigureAwait(false);
+            await controller.EnsureCommandAuthorizedAsync(context.Command, context.CancellationToken).ConfigureAwait(false);
 
             await next().ConfigureAwait(false);
         }
@@ -540,7 +581,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
 
     /// <summary>Checks a command against the current session, not the snapshot taken when the connection attached.</summary>
     /// <remarks>A revoked or signed-out session must be refused immediately, not once an already-open tab reloads.</remarks>
-    private async ValueTask EnsureCommandAuthorizedAsync(UICommandDescriptor command, CancellationToken cancellationToken)
+    private async ValueTask EnsureCommandAuthorizedAsync(IUICommandMetadata command, CancellationToken cancellationToken)
     {
         // No attribute of its own: inherit the route's resolved answer (view + controller + DefaultPolicy) instead of defaulting closed.
         if (command.AllowAnonymous ?? Context.Route.AllowAnonymous)
@@ -551,7 +592,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             ?? throw new UnauthorizedAccessException($"Command '{command.Name}' has no live session; it was signed out or has expired.");
 
         IUIAuthorizationService authorization = Context.Services.GetRequiredService<IUIAuthorizationService>();
-        UIRouteAccessVerdict verdict = UIRouteAccess.Check(allowAnonymous: false, command.AccessRules, session, authorization);
+        UIRouteAccessVerdict verdict = UIRouteAccess.Check(allowAnonymous: false, command is UICommandDescriptor descriptor ? descriptor.AccessRules : [.. command.AccessRules], session, authorization);
 
         // The route's rules as well as the command's: a role the page needs, revoked while the page stays open, must stop its
         // commands too. An anonymous route's rules are not the page's either, so they do not hold here.

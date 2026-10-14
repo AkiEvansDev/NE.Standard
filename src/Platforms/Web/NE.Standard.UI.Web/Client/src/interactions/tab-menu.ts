@@ -74,3 +74,11 @@ export function shownRules(rows: readonly MenuRow[]): boolean[] {
 
     return shown;
 }
+
+/**
+ * The keys an application's tab-menu entry is sent with, raised on the tab: the tab's own — the outer rows' and its key — then the
+ * entry's, where `UIAction.ArgEventValue` reads it; null for an event that carries no entry.
+ */
+export function tabMenuEntryParameters(entry: unknown, tabParameters: readonly unknown[]): readonly unknown[] | null {
+    return typeof entry === "string" ? [...tabParameters, entry] : null;
+}

@@ -36,14 +36,15 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     }
 
     /// <summary>
-    /// Logs a resolution failure the caller already recovered from, swallowing a logging failure of its own.
+    /// Writes a line through the controller's logger, swallowing a failure of the logger's own; <paramref name="write"/> is static, so
+    /// a call allocates nothing.
     /// </summary>
-    private void TryLogRuntimeResolutionFailure(string kind, string operation, Exception exception)
+    private protected void TryLog<TState>(TState state, Action<ILogger, TState> write)
     {
         try
         {
             if (Controller is IUIContextController contextController)
-                Log.RuntimeResolutionFailed(contextController.Context.Logger, exception, kind, operation);
+                write(contextController.Context.Logger, state);
         }
         catch
         {

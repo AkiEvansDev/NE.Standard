@@ -984,6 +984,14 @@ export function getIdValue(value: IdValue | null | undefined): number {
     return value ?? 0;
 }
 
+/**
+ * Dynamic parameters — the keys of the rows a component stands in — as one text to key a map by. Each key as text, as the DOM holds it:
+ * a key the server sends as a number and the same key read off the DOM as digits name one row.
+ */
+export function rowKeysText(dynamicParameters: readonly unknown[]): string {
+    return JSON.stringify(dynamicParameters.map(parameter => String(parameter ?? "")));
+}
+
 /** The name behind a property key, however the server wrote it. */
 export function getPropertyKeyName(value: UIPropertyAddress["property"] | null | undefined): string {
     return typeof value === "string" ? value : "";
@@ -1038,7 +1046,6 @@ function createComponentEventKey(componentId: number, eventName: string): string
     return `${componentId}:${normalizeEventName(eventName)}`;
 }
 
-// Parameters compare as text, as dom-registry's parameterPathKey compares them; spelled here so this module stays free of DOM imports.
 function itemValuesKey(componentId: number, dynamicParameters: readonly unknown[]): string {
-    return `${componentId}:${JSON.stringify(dynamicParameters.map(parameter => String(parameter ?? "")))}`;
+    return `${componentId}:${rowKeysText(dynamicParameters)}`;
 }

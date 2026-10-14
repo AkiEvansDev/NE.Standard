@@ -7,14 +7,9 @@
 
 .ui-slider {
     // Row-level layout: the ShowValue readout is a sibling of the track inside __row, not a direct child of the root.
-    display: inline-flex;
-    flex-direction: column;
-    align-self: var(--ui-align-v, center);
-    .ui-responsive-property(height, --ui-height, fit-content);
-    gap: @ui-space-1;
+    .ui-input-root(inline-flex);
     // Never past the room it stands in, as a select's floor (ui-select.less).
     .ui-responsive-floor(min-width, --ui-min-width, ~"min(12rem, 100%)", --ui-width);
-    font: inherit;
 }
 
 .ui-slider__row {

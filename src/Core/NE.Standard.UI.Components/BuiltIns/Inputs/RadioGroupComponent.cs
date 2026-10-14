@@ -1,4 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
@@ -12,25 +11,16 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A group of radio buttons that lets the user select a single option from a list.
 /// </summary>
+/// <remarks>Unset, <c>Spacing</c> is the stylesheet's own gap for the orientation.</remarks>
 [UIComponentPropertyBlock(typeof(ISizedInputComponent))]
-public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent
+[UIComponentPropertyBlock(typeof(IOrientationComponent))]
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
+public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent, IOrientationComponent, ISpacingComponent
     where T : RadioGroupComponent<T>, IUIComponentDefinition
 {
     private readonly DefaultTextTemplate _optionTemplate = new DefaultTextTemplate(binds: true)
         .SetIconAlignment(UITextIconAlignment.Title)
         .SetBadgeAlignment(UITextBadgeAlignment.Title);
-
-    /// <summary>
-    /// Gets or sets the layout orientation of the radio buttons.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Vertical)]
-    public UIOrientation? Orientation { get; set; }
-
-    /// <summary>
-    /// Gets or sets the gap between options; unset, the stylesheet's own gap for the orientation applies.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null)]
-    public UIResponsive<double>? Spacing { get; set; }
 
     /// <summary>
     /// Initializes the input with the default item, empty and group templates.

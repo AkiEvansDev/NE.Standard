@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -20,14 +19,25 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// <c>Surface</c> names the popup's fill — the context menu, split button list, or sub-entry flyout — and a sidebar's or rail's own ground. One
 /// collection carries entries, captions, rules, checks and selects via <see cref="IMenuItemModel.Kind"/>; checks and selects
 /// write back to the bound item, so they need a bound collection, not entries set once. Folded to its icons, an entry's title is its
-/// tooltip unless the entry has a tooltip of its own, and its badge stands on the icon's corner.
+/// tooltip unless the entry has a tooltip of its own, and its badge stands on the icon's corner. Unset, <c>Spacing</c> is the
+/// stylesheet's: a list's entries stand the list gap apart, so a chosen ground and the pointer's read as two, while a bar's and a
+/// rail's stand edge to edge, their grounds square slices with no rounded hover to set apart.
 /// </remarks>
+[UIComponentPropertyBlock(typeof(IOrientationComponent))]
+[UIComponentPropertyBlock(typeof(ISpacingComponent))]
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent
+[UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
+[UIComponentPropertyDefault(nameof(ISurfaceStyleComponent.Surface), nameof(DefaultSurface))]
+public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, IOrientationComponent, ISpacingComponent, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent
     where T : MenuComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+
+    // Unset, rather than the block's Background, which would paint every menu: a sidebar menu draws no ground, while a popup menu
+    // (context menu, split-button list, flyout) wears the popup's surface colour; set, it is the sidebar's or rail's own ground too, a
+    // step apart from the page's.
+    private static UISurfaceStyle? DefaultSurface => null;
 
     /// <summary>The template variant key rendering <see cref="UIMenuItemKind.Header"/> entries.</summary>
     public const string HeaderTemplateKey = nameof(UIMenuItemKind.Header);
@@ -46,12 +56,6 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// so a sub-entry is a compiled row the runtime updates like any other.
     /// </summary>
     public const string SubmenuTemplateKey = "Submenu";
-
-    /// <summary>
-    /// Gets or sets the direction the entries run in.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Vertical)]
-    public UIOrientation? Orientation { get; set; }
 
     /// <summary>
     /// Gets or sets how the entries are laid out: rows of icon and title, or a rail of icons each over a one-line label.
@@ -92,25 +96,6 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = UIButtonSize.Medium)]
     public UIButtonSize? Size { get; set; }
-
-    /// <summary>
-    /// Gets or sets the gap between entries, optionally overridden per breakpoint.
-    /// </summary>
-    /// <remarks>
-    /// Unset, the stylesheet decides: a list's entries stand the list gap apart, so a chosen ground and the pointer's read as two, while a
-    /// bar's and a rail's stand edge to edge, their grounds square slices with no rounded hover to set apart.
-    /// </remarks>
-    [UIComponentProperty]
-    public UIResponsive<double>? Spacing { get; set; }
-
-    /// <summary>Gets or sets the ground the menu paints, unset by default.</summary>
-    /// <remarks>
-    /// Unset, a sidebar menu draws no ground, while a popup menu (context menu, split-button list, flyout) wears the popup's surface
-    /// colour; set, it is the sidebar's or rail's own ground too, a step apart from the page's. Declared here rather than through
-    /// the property block, whose default (<c>Background</c>) would paint every menu.
-    /// </remarks>
-    [UIComponentProperty(Contract = typeof(ISurfaceStyleComponent), DefaultValue = null)]
-    public UISurfaceStyle? Surface { get; set; }
 
     /// <summary>
     /// Gets whether this menu is another entry's sub-entries: it folds and flies out with that entry, and has no sub-entries of its own.

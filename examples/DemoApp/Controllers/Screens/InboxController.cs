@@ -37,7 +37,8 @@ internal sealed partial class DemoMessageItem : TextItem, IBindableGroup
 /// <summary>
 /// The messages, whole, and the one open: the list is narrowed in the browser, and a click hands the key back so the
 /// reading pane can be filled and the row marked read. The open message is in the address (<c>?message=</c>): opening one adds a
-/// history entry, so Back closes it — on a phone too — and a reload or a link opens it again.
+/// history entry, so Back closes it — on a phone, where the message stands in the list's place, too — and a reload or a link opens it
+/// again.
 /// </summary>
 internal sealed partial class InboxController : UIControllerBase
 {
@@ -45,9 +46,6 @@ internal sealed partial class InboxController : UIControllerBase
     public const string Reviews = "Reviews";
     public const string Billing = "Billing";
     public const string People = "People";
-
-    /// <summary>The reading pane, brought into view as a message opens.</summary>
-    public const string ReadingPaneId = "inbox-reading";
 
     private const string MessageParameter = "message";
 
@@ -86,11 +84,15 @@ internal sealed partial class InboxController : UIControllerBase
     [RecursiveMember]
     public partial string? SelectedKey { get; set; }
 
+    /// <summary>The list, the open message and the empty pane: beside each other on a wide screen, one at a time on a phone.</summary>
     [RecursiveMember]
-    public partial UIVisibility EmptyVisibility { get; set; } = UIVisibility.Visible;
+    public partial UIResponsive<UIVisibility> ListVisibility { get; set; } = UILayout.PanesListVisibility(false);
 
     [RecursiveMember]
-    public partial UIVisibility ReadingVisibility { get; set; } = UIVisibility.Collapsed;
+    public partial UIResponsive<UIVisibility> EmptyVisibility { get; set; } = UILayout.PanesPlaceholderVisibility(false);
+
+    [RecursiveMember]
+    public partial UIResponsive<UIVisibility> ReadingVisibility { get; set; } = UILayout.PanesDetailVisibility(false, chosen: false);
 
     [RecursiveMember]
     public partial string Subject { get; set; } = string.Empty;
@@ -155,8 +157,9 @@ internal sealed partial class InboxController : UIControllerBase
                 Attachments.Add(new TextItem { Id = attachment, Icon = DemoIcons.Outline(DemoIcons.File), Title = attachment });
 
             AttachmentsVisibility = message.Attachments.Length == 0 ? UIVisibility.Collapsed : UIVisibility.Visible;
-            EmptyVisibility = UIVisibility.Collapsed;
-            ReadingVisibility = UIVisibility.Visible;
+            ListVisibility = UILayout.PanesListVisibility(true);
+            EmptyVisibility = UILayout.PanesPlaceholderVisibility(true);
+            ReadingVisibility = UILayout.PanesDetailVisibility(true);
             return true;
         }
 
@@ -165,8 +168,7 @@ internal sealed partial class InboxController : UIControllerBase
 
     /// <summary>
     /// A row's click opens the message as a history entry; another opened over it takes that entry's place, so one Back still closes
-    /// the pane rather than walking back through every message read. On a phone the pane stands under the list, so it is brought
-    /// into view; beside the list it already is, and nothing moves.
+    /// the pane rather than walking back through every message read.
     /// </summary>
     [UICommand]
     public UICommandResult OpenMessage(string id)
@@ -178,7 +180,7 @@ internal sealed partial class InboxController : UIControllerBase
 
         Dictionary<string, object?> address = new(StringComparer.Ordinal) { [MessageParameter] = id };
 
-        return UICommandResult.Ok([replacing ? new ReplaceAddressEffect(address) : new PushAddressEffect(address), new ScrollToEffect(ReadingPaneId)]);
+        return UICommandResult.Ok([replacing ? new ReplaceAddressEffect(address) : new PushAddressEffect(address)]);
     }
 
     [UICommand]
@@ -223,8 +225,9 @@ internal sealed partial class InboxController : UIControllerBase
     {
         _open = null;
         SelectedKey = null;
-        ReadingVisibility = UIVisibility.Collapsed;
-        EmptyVisibility = UIVisibility.Visible;
+        ListVisibility = UILayout.PanesListVisibility(false);
+        ReadingVisibility = UILayout.PanesDetailVisibility(false, chosen: false);
+        EmptyVisibility = UILayout.PanesPlaceholderVisibility(false);
     }
 
     private static UICommandResult Notify(string message, UIColorStyle severity)

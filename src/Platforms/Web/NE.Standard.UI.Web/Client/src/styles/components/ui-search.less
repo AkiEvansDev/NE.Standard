@@ -17,6 +17,10 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    // Out to the popup's padding, so its thumb and its room stand where a select's own list's do.
+    margin-inline-end: -@ui-space-1;
+    padding-inline-end: max(@ui-space-1, var(--ui-scroll-room-y));
+    .ui-scroll-room-y-while-overflowing();
 }
 
 // The field's head wears its look, `SearchFieldAppearance` (Ghost unless set), as `.ui-input--<appearance>`, so ui-input.less draws

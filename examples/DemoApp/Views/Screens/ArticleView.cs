@@ -19,6 +19,11 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
     protected override string HeaderDescription => "demo.screens.article.description";
 
     protected override IVisualComponent CreateScreen()
+        => UIPage.Column(UIColumnWidth.Reading, CreateArticle())
+            .SetPadding(UIThickness.All(0, 8, 0, 24))
+            .SetPlacement(1, 1, 24, 1);
+
+    private static StackPanelComponent CreateArticle()
         => UILayout.Stack(20,
             CreateMasthead(),
             UIText.Paragraph("For years a release meant a window: a banner the day before, a quiet hour after midnight, and a room of people watching a progress bar. Release 482 went out at twenty to ten on a Thursday morning, and the only person who noticed was the one who pressed the button."),
@@ -34,10 +39,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
             CreateVote(),
             CreateSubscribe(),
             CreateNeighbours()
-        )
-        .SetMaxWidth(UILayoutLength.Absolute(720))
-        .SetPadding(UIThickness.All(0, 8, 0, 24))
-        .SetPlacement(1, 1, 24, 1);
+        );
 
     /// <summary>The label, the title, the byline: what a reader takes in before the first paragraph.</summary>
     private static StackPanelComponent CreateMasthead()
@@ -48,17 +50,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
                 .SetTitle("Rolling out a release without a maintenance window")
                 .AsDisplay()
                 .SetTitleWrap(true),
-            UILayout.Row(12,
-                new ImageComponent()
-                    .SetSource(DemoImages.Avatar)
-                    .SetAltText("Robin Hale")
-                    .SetShape(UIImageShape.Circle)
-                    .SetWidth(UILayoutLength.Absolute(36))
-                    .SetHeight(UILayoutLength.Absolute(36)),
-                UIText.Body("Robin Hale", "Admin · six minutes to read")
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                    .SetVerticalAlignment(UIAlignment.Center)
-            )
+            UIText.Person(DemoImages.Avatar, "Robin Hale", "Admin · six minutes to read")
         );
 
     /// <summary>A list that is read, not operated: one line each, a mark at the start, no selection.</summary>
@@ -92,23 +84,18 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
 
     /// <summary>The question at the foot, and the answer that replaces it.</summary>
     private static SurfaceComponent CreateVote()
-        => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Tinted)
-            .SetPadding(UIThickness.All(16, 12, 16, 12))
-            .SetContent(UILayout.Columns(16,
-                UIText.Body(string.Empty).BindTitle(nameof(ArticleController.VoteLine)).SetVerticalAlignment(UIAlignment.Center),
-                UIButtons.Toolbar(
-                    UIButtons.Secondary("Yes").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "yes")),
-                    UIButtons.Ghost("Not really").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "no"))
-                )
-                .SetHorizontalAlignment(UIAlignment.End)
-                )
-            );
+        => UIPage.Band(
+            UILayout.Ends(
+                UIText.Body(string.Empty).BindTitle(nameof(ArticleController.VoteLine)),
+                UIButtons.Outline("Yes").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "yes")),
+                UIButtons.Ghost("Not really").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "no"))
+            )
+        );
 
     /// <summary>One field and one button, with the rules a real box has: a shape checked on blur, a taken address refused.</summary>
     /// <remarks>The field is Tonal: a lone field beside its own button, in a card that already frames it.</remarks>
     private static CardComponent CreateSubscribe()
-        => UIPage.Card("Get the next one by mail", "One note a month, on what Orvane's staff learned.", UILayout.Columns(12,
+        => UICard.Create("Get the next one by mail", "One note a month, on what Orvane's staff learned.", UILayout.Columns(12,
             new TextInputComponent()
                 .SetPlaceholder("you@bramble.example")
                 .SetType(UITextInputType.Email)

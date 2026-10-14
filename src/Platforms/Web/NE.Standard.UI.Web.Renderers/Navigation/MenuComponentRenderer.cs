@@ -36,6 +36,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
 
     private static readonly WebDomOperation[] SurfaceOperations = [SurfaceStyleRenderer.SurfaceClassOperation, WebDomOperation.Custom(MenuSurfaceOperationKind)];
 
+    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
+
     public override string ComponentTypeKey => MenuComponent.ComponentTypeKey;
 
     protected override string ClassName => WebClassNames.Menu;
@@ -45,11 +47,11 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, MenuComponent.OrientationProperty, static (target, value) =>
+        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
         {
             if (value is UIOrientation orientation)
                 _ = target.Class(WebClassNames.Orientation(orientation));
-        }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
+        }, OrientationOperations);
 
         // Render-time only: a nested menu is its entry's block, folded and flown out by the group engine through the wrapper above it.
         _ = ResolveRenderValue(context, MenuComponent.NestedProperty, out bool? nested, out _);
@@ -74,7 +76,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (search == true)
             _ = root.Attribute(WebAttributes.MenuSearch);
 
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, MenuComponent.SpacingProperty, "--ui-menu-spacing");
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-menu-spacing");
 
         // A right-click menu's host already is the menu; a split button's list and a popup's submenu are one of their own.
         if (IsPopupMenu(context, context.Node) && !IsContextMenuRoot(context))

@@ -9,6 +9,7 @@ import { readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { isFocusable } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import { FieldBoxSelector } from "./own-control.ts";
 import { applyRovingTabIndex, isRovingCandidate } from "./roving-focus.ts";
 import { cellOf, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
@@ -54,6 +55,8 @@ if (typeof window !== "undefined") {
     window.addEventListener("focus", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusin", domEvent => noteFocus(domEvent.target), true);
     window.addEventListener("focusout", domEvent => noteBlur(domEvent), true);
+    // Bubbling on the window, the last any key reaches: after every engine, popup and dialog that might take Escape.
+    window.addEventListener("keydown", domEvent => noteUnclaimedEscape(domEvent));
 }
 
 /** Notes a press; one inside the focused element marks it here, since no focusin follows, or unmarks an editable entry. */
@@ -83,6 +86,21 @@ export function noteKey(domEvent: Event): void {
         markPointerFocus(element, false);
 
     markFocusWithin(document.activeElement);
+}
+
+/**
+ * Escape nothing took — no list, popup or dialog left to close — takes the keyboard's frame off the focused element as a press would,
+ * the focus staying where it is: the next key draws it again and Tab goes on from there. An editable entry keeps its edge, which says
+ * where typing goes. Rejected: the focus dropped to the page — keys no longer reached the field, and a screen reader lost its place.
+ */
+export function noteUnclaimedEscape(domEvent: Event): void {
+    if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || !isPlainKey(domEvent))
+        return;
+
+    const active = document.activeElement;
+
+    if (active instanceof Element && active !== document.body && !isEditableEntry(active))
+        markPointerFocus(active, true);
 }
 
 /** A focus arriving while the pointer was the last input is the pointer's, but for an editable text entry. */

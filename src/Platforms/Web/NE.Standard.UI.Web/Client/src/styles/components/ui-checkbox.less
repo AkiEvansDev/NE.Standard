@@ -6,6 +6,11 @@
 @import "../mixins/responsive.less";
 @import "../mixins/toggle.less";
 
+// The box's side at each size, which a note under the box is set in by as well.
+@ui-checkbox-box: 1.125rem;
+@ui-checkbox-box-small: 0.875rem;
+@ui-checkbox-box-large: 1.375rem;
+
 // The root *is* the row. A nested row would put the body too deep for the ui-text gate.
 .ui-checkbox {
     .ui-toggle-root();
@@ -21,12 +26,12 @@
 }
 
 .ui-checkbox__box {
-    .ui-toggle-box(1.125rem);
+    .ui-toggle-box(@ui-checkbox-box);
     // A centring box rather than a positioned tick: hand-measured offsets only lined up at one size and drifted at every other.
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.125rem;
+    width: @ui-checkbox-box;
     .ui-responsive-property(border-radius, --ui-border-radius, 0.25rem);
 }
 
@@ -59,8 +64,8 @@
 
 // A size steps the box with the text ui-input.less sizes: a small box for a caption line, a large one for a subtitle.
 .ui-checkbox.ui-input--small > .ui-checkbox__box {
-    width: 0.875rem;
-    height: 0.875rem;
+    width: @ui-checkbox-box-small;
+    height: @ui-checkbox-box-small;
     .ui-responsive-property(border-radius, --ui-border-radius, 0.1875rem);
 }
 
@@ -69,8 +74,8 @@
     }
 
 .ui-checkbox.ui-input--large > .ui-checkbox__box {
-    width: 1.375rem;
-    height: 1.375rem;
+    width: @ui-checkbox-box-large;
+    height: @ui-checkbox-box-large;
     .ui-responsive-property(border-radius, --ui-border-radius, 0.3125rem);
 }
 
@@ -81,6 +86,10 @@
 .ui-checkbox__required {
     .ui-required-marker();
 }
+
+.ui-toggle-note-inset(~".ui-checkbox"; @ui-checkbox-box);
+.ui-toggle-note-inset(~".ui-checkbox.ui-input--small"; @ui-checkbox-box-small);
+.ui-toggle-note-inset(~".ui-checkbox.ui-input--large"; @ui-checkbox-box-large);
 
 .ui-checkbox:is(@{ui-validation-marked}) > .ui-checkbox__box {
     border-color: var(--ui-validation-color, var(--ui-color-danger-ink));

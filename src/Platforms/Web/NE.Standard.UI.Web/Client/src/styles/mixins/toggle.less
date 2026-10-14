@@ -117,3 +117,13 @@
         .ui-keyboard-frame-outside();
     }
 }
+
+// A note under a toggle (`FieldNote`, UIForm.Field) starts with its label's words, as its message does: past the box @box wide and
+// the row's gap (.ui-toggle-row()'s). The note is the root's sibling, so its inset is set on it, as a field's is (ui-input.less).
+.ui-toggle-note-inset(@root; @box) {
+    @{root} + .ui-paragraph--field-note {
+        --ui-field-inset: calc(@box + @ui-space-2);
+        // The inset is the box and its gap, at the start only: the label runs on to the end, so the note does too.
+        --ui-field-note-end: 0px;
+    }
+}

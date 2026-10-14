@@ -1,6 +1,7 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
 import { ComponentIdAttribute, ComponentSelector, GroupHeaderAttribute, ensureElementId } from "./dom-attributes.ts";
 import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount } from "./dynamic-parameters.ts";
+import { rowKeysText } from "../metadata/metadata-index.ts";
 
 const GroupHeaderSelector = `[${GroupHeaderAttribute}]`;
 
@@ -160,7 +161,7 @@ export class DomRegistry {
             return settled !== undefined ? [settled] : [...live];
         }
 
-        const indexed = this.keyedComponents(componentId).get(parameterPathKey(dynamicParameters)) ?? [];
+        const indexed = this.keyedComponents(componentId).get(rowKeysText(dynamicParameters)) ?? [];
 
         // Checked against the page, since an engine may move a row without invalidating the index; a miss reads the instances as they stand.
         if (indexed.length > 0 && indexed.every(candidate => this.holds(candidate) && matchesDynamicParameters(candidate, dynamicParameters)))
@@ -330,7 +331,7 @@ export class DomRegistry {
             if (parameters.length !== count)
                 continue;
 
-            const key = parameterPathKey(parameters);
+            const key = rowKeysText(parameters);
             const bucket = keyed.get(key);
 
             if (bucket === undefined)
@@ -397,11 +398,6 @@ export function findOwningComponentAddress(element: Element): { readonly compone
     return owner === null || componentId <= 0
         ? null
         : { componentId, dynamicParameters: collectDynamicParameters(owner, readParameterCount(owner)) };
-}
-
-// Parameters compare as text, as `matchesDynamicParameters` compares them: a key the server sends as a number is the DOM's digits.
-function parameterPathKey(parameters: readonly unknown[]): string {
-    return JSON.stringify(parameters.map(parameter => String(parameter ?? "")));
 }
 
 function isStaticComponentElement(element: Element): boolean {

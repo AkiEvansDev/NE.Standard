@@ -144,6 +144,76 @@ public static class UIText
     }
 
     /// <summary>
+    /// A person as a list's row or a byline shows one: the round picture at <paramref name="avatar"/> (the person glyph where there is
+    /// none), and beside it on its middle the name in the body's role over a muted caption — a role, how long ago, the last words.
+    /// Both are content, a person's name and words as written; a <see cref="UIPhrase.Of"/> key still translates.
+    /// </summary>
+    public static ContainerComponent Person(string? avatar, UIPhrase name, UIPhrase? line = null, UIPersonSize size = UIPersonSize.Medium)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        TextComponent words = new TextComponent().SetTitle(name);
+        ImageComponent picture = new();
+
+        return Person(avatar is null ? picture : picture.SetSource(avatar), line is null ? words : words.SetDescription(line), size);
+    }
+
+    /// <summary>
+    /// The same bound to what the controller holds at <paramref name="avatarPath"/>, <paramref name="namePath"/> and
+    /// <paramref name="linePath"/> — a chat's row, a conversation's person.
+    /// </summary>
+    public static ContainerComponent Person(string avatarPath, string namePath, string? linePath, UIBindingScope scope, UIPersonSize size = UIPersonSize.Medium)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(avatarPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(namePath);
+
+        TextComponent words = new TextComponent().BindTitle(namePath, scope);
+
+        if (linePath is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+
+            _ = words.BindDescription(linePath, scope);
+        }
+
+        return Person(new ImageComponent().BindSource(avatarPath, scope), words, size);
+    }
+
+    /// <summary>The picture in its circle, the words 12 px after it.</summary>
+    private static ContainerComponent Person(ImageComponent picture, TextComponent words, UIPersonSize size)
+    {
+        // Two sizes, not one a page picks: a row's and a dense row's.
+        double side = size switch
+        {
+            UIPersonSize.Medium => 40,
+            UIPersonSize.Small => 32,
+            _ => throw new ArgumentOutOfRangeException(nameof(size), size, "A person is Medium or Small.")
+        };
+
+        // No words of its own for a screen reader: the name stands beside it, and read twice it would be noise.
+        _ = picture
+            .SetShape(UIImageShape.Circle)
+            .SetWidth(UILayoutLength.Absolute(side))
+            .SetHeight(UILayoutLength.Absolute(side))
+            .SetVerticalAlignment(UIAlignment.Center)
+            .SetPlacement(1, 1, 1, 1);
+
+        _ = words
+            .AsBody()
+            .SetDescriptionType(UITextAppearance.Caption)
+            .SetDescriptionColor(UIThemeColor.Muted)
+            .SetVerticalAlignment(UIAlignment.Center)
+            .SetMargin(UIThickness.All(12, 0, 0, 0))
+            .AsContent(TextComponent.TitleProperty, TextComponent.DescriptionProperty)
+            .SetPlacement(2, 1, 23, 1);
+
+        return new ContainerComponent()
+            .SetColumn(1, UIGridUnit.Auto())
+            .AddChild(picture)
+            .AddChild(words);
+    }
+
+    /// <summary>
     /// A title with a row of badges under it in place of a description — a release's environment and replicas, a contact's labels —
     /// an optional mark before both, the title in the body's role; the badges wrap onto further lines.
     /// </summary>

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatShortcut, isPlainKey, matchesShortcut, parseShortcut, shortcutKey, shortcutWords } from "../src/interactions/keyboard-shortcut.ts";
+import { ariaShortcut, formatShortcut, isPlainKey, matchesShortcut, parseShortcut, shortcutKey, shortcutWords } from "../src/interactions/keyboard-shortcut.ts";
 
 function keyEvent(code: string, modifiers: { ctrl?: boolean; shift?: boolean; alt?: boolean; meta?: boolean } = {}): KeyboardEvent {
     return {
@@ -141,3 +141,16 @@ function composing(isComposing: boolean, code: number): KeyboardEvent {
 
     return event as unknown as KeyboardEvent;
 }
+
+test("a chord as aria-keyshortcuts names it is in UI Events' words, and an authored Ctrl is ⌘'s too on macOS", () => {
+    const save = parseShortcut("Ctrl+Shift+S")!;
+
+    assert.equal(ariaShortcut(save, false), "Control+Shift+S");
+    assert.equal(ariaShortcut(save, true), "Control+Shift+S Shift+Meta+S");
+    assert.equal(ariaShortcut(parseShortcut("Ctrl+Meta+Delete")!, true), "Control+Meta+Delete");
+    assert.equal(ariaShortcut(parseShortcut("Alt+,")!, false), "Alt+,");
+    assert.equal(ariaShortcut(parseShortcut("Esc")!, false), "Escape");
+    assert.equal(ariaShortcut(parseShortcut("Ctrl+Up")!, false), "Control+ArrowUp");
+    assert.equal(ariaShortcut(parseShortcut("Shift+Space")!, false), "Shift+Space");
+    assert.equal(shortcutWords.aria("Shift"), null);
+});

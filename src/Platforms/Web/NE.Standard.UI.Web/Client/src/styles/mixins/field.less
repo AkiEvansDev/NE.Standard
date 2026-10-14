@@ -24,6 +24,22 @@
     transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
+// An input's root: its caption, its row and its message down a column, centred across a row like the rest of the family (down a
+// column the panel decides), as tall as they stand and never wider than its room. `inline-flex` where the root shrinks to its
+// field, `flex` where it takes the line; `@capped: false` where a rule of its own caps the width.
+.ui-input-root(@display: flex; @capped: true) {
+    display: @display;
+    flex-direction: column;
+    gap: @ui-space-1;
+    align-self: var(--ui-align-v, center);
+    .ui-responsive-property(height, --ui-height, fit-content);
+    font: inherit;
+
+    & when (@capped = true) {
+        .ui-responsive-property(max-width, --ui-max-width, 100%);
+    }
+}
+
 .ui-input-field() {
     position: relative;
     display: flex;

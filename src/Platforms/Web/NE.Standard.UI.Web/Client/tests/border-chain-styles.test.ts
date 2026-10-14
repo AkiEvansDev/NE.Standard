@@ -79,26 +79,99 @@ function rules(text: string): Rule[] {
     return found;
 }
 
-/** The classes of a selector's subject — its last compound, functional arguments aside — or none for a pseudo-element. */
-function subjectClasses(selector: string): string[] {
-    let flat = selector;
+/** Each of the characters in a selector, with whether it stands outside every parenthesis, bracket and quote. */
+function* topLevel(selector: string): Generator<[number, boolean]> {
+    let depth = 0;
+    let quote = "";
 
-    for (let previous = ""; previous !== flat;) {
-        previous = flat;
-        flat = flat.replace(/\([^()]*\)/g, "");
+    for (let i = 0; i < selector.length; i++) {
+        const c = selector[i];
+
+        if (quote !== "") {
+            if (c === quote)
+                quote = "";
+        }
+        else if (c === "\"" || c === "'")
+            quote = c;
+        else if (c === "(" || c === "[")
+            depth++;
+        else if (c === ")" || c === "]")
+            depth--;
+
+        yield [i, depth === 0 && quote === "" && !"()[]\"'".includes(c)];
+    }
+}
+
+/** A selector list's entries, split at its own commas, not those inside a pseudo-class or an attribute. */
+function entries(list: string): string[] {
+    const parts: string[] = [];
+    let start = 0;
+
+    for (const [i, top] of topLevel(list)) {
+        if (top && list[i] === ",") {
+            parts.push(list.slice(start, i).trim());
+            start = i + 1;
+        }
     }
 
-    const subject = flat.split(/\s+|>|\+|~/).filter(part => part.length > 0).pop() ?? "";
+    parts.push(list.slice(start).trim());
 
-    return subject.includes("::") ? [] : [...subject.matchAll(/\.([\w-]+)/g)].map(match => match[1]);
+    return parts;
+}
+
+/** A selector's subject: its last compound, after the last combinator outside any parenthesis. */
+function subject(selector: string): string {
+    let start = 0;
+
+    for (const [i, top] of topLevel(selector)) {
+        if (top && " >+~".includes(selector[i]))
+            start = i + 1;
+    }
+
+    return selector.slice(start).trim();
+}
+
+/** The arguments of each `name(…)` written on a compound itself, not nested in another. */
+function pseudoArguments(compound: string, name: string): string[][] {
+    const found: string[][] = [];
+
+    for (const [at, top] of topLevel(compound)) {
+        if (!top || !compound.startsWith(`${name}(`, at))
+            continue;
+
+        let depth = 0;
+        let end = at + name.length;
+
+        for (; end < compound.length; end++) {
+            if (compound[end] === "(")
+                depth++;
+            else if (compound[end] === ")" && --depth === 0)
+                break;
+        }
+
+        found.push(entries(compound.slice(at + name.length + 1, end)));
+    }
+
+    return found;
 }
 
 function bordered(selector: string): boolean {
-    // `:is(.ui-surface, .ui-card, .ui-expander)` names its subject inside the function: read its arguments as the subject too.
-    const own = subjectClasses(selector);
-    const listed = /^:is\(([^()]*)\)$/.exec(selector.trim())?.[1]?.split(",").flatMap(part => subjectClasses(part)) ?? [];
+    const compound = subject(selector);
 
-    return [...own, ...listed].some(name => BorderedClasses.includes(name));
+    // A subject that excludes an authored border has no tiers of the author's to swallow.
+    if (compound.includes("::") || pseudoArguments(compound, ":not").flat().some(part => part.includes("--ui-border-thickness")))
+        return false;
+
+    let own = compound;
+
+    for (let previous = ""; previous !== own;) {
+        previous = own;
+        own = own.replace(/\([^()]*\)|\[[^[\]]*\]/g, "");
+    }
+
+    // `:is(.ui-surface, .ui-card, .ui-expander)` names its subject inside the function: each argument is a subject too.
+    return [...own.matchAll(/\.([\w-]+)/g)].some(match => BorderedClasses.includes(match[1]))
+        || pseudoArguments(compound, ":is").flat().some(bordered);
 }
 
 const all = rules(css);
@@ -107,7 +180,7 @@ test("a bordered element's every width and corner comes through the border's cha
     const flat: string[] = [];
 
     for (const rule of all) {
-        for (const selector of rule.selector.split(/,(?![^(]*\))/).map(part => part.trim())) {
+        for (const selector of entries(rule.selector)) {
             if (!bordered(selector))
                 continue;
 

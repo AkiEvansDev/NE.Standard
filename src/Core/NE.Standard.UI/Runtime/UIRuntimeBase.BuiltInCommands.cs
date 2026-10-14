@@ -12,6 +12,7 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Security;
@@ -24,13 +25,26 @@ internal abstract partial class UIRuntimeBase
 {
     /// <summary>
     /// Runs a command the framework raises for itself (<see cref="UIBuiltInCommands"/>) in the place of a controller's, in the same
-    /// turn and through the same answer.
+    /// turn and through the same answer, and through the authorization and the application's command filters a controller's passes.
     /// </summary>
     /// <remarks>
-    /// Not authorized as a controller's command is: like a value written back, it writes what the page already shows. A move is gated
-    /// on the tab's <c>CanDrag</c> as any row's <c>move</c> is, before it gets here; a pin is the reader's whether or not it may be dragged.
+    /// A move is gated on the tab's <c>CanDrag</c> as any row's <c>move</c> is, before it gets here; a pin is the reader's whether or not
+    /// it may be dragged. A controller not built on <see cref="UIControllerBase"/> keeps no pipeline to run it through.
     /// </remarks>
-    private async Task<UICommandResult> RunBuiltInCommandAsync(UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, CancellationToken cancellationToken)
+    private Task<UICommandResult> RunBuiltInCommandAsync(UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, CancellationToken cancellationToken)
+    {
+        return Controller is UIControllerBase controller
+            ? controller.ExecuteBuiltInCommandAsync(new BuiltInCommandMetadata(command), arguments, Body, cancellationToken)
+            : Body(cancellationToken);
+
+        Task<UICommandResult> Body(CancellationToken token)
+        {
+            return PlaceTabAsync(request, command, arguments, token);
+        }
+    }
+
+    /// <summary>Places the tab a move or a pin names, as <see cref="PlaceTabNoLock"/> does, under the state lock.</summary>
+    private async Task<UICommandResult> PlaceTabAsync(UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, CancellationToken cancellationToken)
     {
         CompiledUIEvent compiledEvent = View.Events.GetRequired(request.EventId);
         var key = arguments.GetValueOrDefault(UIBuiltInCommands.KeyArgument) as string ?? throw new InvalidOperationException($"Command '{command}' names no tab.");

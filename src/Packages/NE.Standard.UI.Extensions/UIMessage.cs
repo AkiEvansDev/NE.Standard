@@ -165,7 +165,7 @@ public static class UIMessage
         return words;
     }
 
-    private static UIColorStyle ColorOf(UIMessageSeverity severity) => severity switch
+    internal static UIColorStyle ColorOf(UIMessageSeverity severity) => severity switch
     {
         UIMessageSeverity.Success => UIColorStyle.Success,
         UIMessageSeverity.Warning => UIColorStyle.Warning,
@@ -173,7 +173,7 @@ public static class UIMessage
         _ => UIColorStyle.Info
     };
 
-    private static string GlyphOf(UIMessageSeverity severity) => severity switch
+    internal static string GlyphOf(UIMessageSeverity severity) => severity switch
     {
         UIMessageSeverity.Success => UIGlyphs.CheckCircle,
         UIMessageSeverity.Warning => UIGlyphs.Warning,

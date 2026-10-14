@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -13,6 +14,14 @@ public sealed class SeparatorComponentRenderer : WebComponentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string LabelAttribute = "data-ui-separator-label";
 
+    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
+
+    private static readonly WebDomOperation[] LabelOperations =
+    [
+        WebDomOperation.Text(target: ".ui-separator__label"),
+        WebDomOperation.ToggleAttribute(LabelAttribute, condition: WebValueCondition.HasText)
+    ];
+
     public override string ComponentTypeKey => SeparatorComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-separator";
@@ -22,11 +31,11 @@ public sealed class SeparatorComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, SeparatorComponent.OrientationProperty, static (target, value) =>
+        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
         {
             if (value is UIOrientation orientation)
                 _ = target.Class(WebClassNames.Orientation(orientation));
-        }, [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)]);
+        }, OrientationOperations);
 
         // The rule is an inner __line, not a border on the root, so a label can interrupt it rather than float over it.
         _ = root.Element("span", line =>
@@ -53,10 +62,7 @@ public sealed class SeparatorComponentRenderer : WebComponentRendererBase
                     _ = target.Attribute(LabelAttribute);
 
                 _ = label!.Text(labelText);
-            }, [
-                WebDomOperation.Text(target: ".ui-separator__label"),
-                WebDomOperation.ToggleAttribute(LabelAttribute, condition: WebValueCondition.HasText)
-            ]);
+            }, LabelOperations);
         });
     }
 }

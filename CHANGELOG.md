@@ -5,137 +5,143 @@ holds only what is not released yet, under `## X.Y.Z`: the release workflow cuts
 (a tag with no section fails the release), and the notes of every released version live there —
 https://github.com/AkiEvansDev/NE.Standard/releases. Other slices keep their own beside their sources (`addons/<Name>/CHANGELOG.md`).
 
-## 1.8.4
+## 1.8.5
 
-- `NE.Standard.UI.Web.Abstractions.Assets` is a global using of the web packages, so a host serving its own script (`WebAssetDescriptor`,
-  `UIWebAssetKind`, `UIWebAssetSourceKind`) writes no `using` for it.
-- An application draws a framework glyph with an icon of its own pack: `services.MapUIGlyph(UIGlyphs.Copy,
-  MaterialIcons.Outlined(MaterialIcons.ContentCopy))` at startup, per glyph, wherever the glyph is an icon value — the standard
-  actions, the tab menu, a key-value row's buttons, a dialog's ×, any `SetIcon(UIGlyphs.X)` — on the first paint and every patch
-  alike (#179). The pack must be registered, the target need not be; a glyph that is not a `UIGlyphs` name, a picture or another
-  `ne-` glyph as the target, and a target no registered pack draws fail the startup. A mark the stylesheet draws itself (a select's
-  chevron) keeps the core's face. A pack answers through `IWebIconPack` (`NE.Standard.UI.Web.Abstractions.Theming`).
-- A press that begins with the pointer no longer ends in a list row's keyboard look (#181): a press on a clickable part of a row let
-  go beside it no longer flashes the row's wash as the list takes the focus back, and a context menu or any other list a long press
-  or a click opened gives the focus back as the pointer's when Escape closes it, as a dialog already did — an items view's, a table's
-  and a tree's rows alike.
-- An image input's shelf shows exactly what its bound `SelectionIds` hold (#183). After a reload, or on going back to a runtime of a
-  `route.Identity` route, it draws the files its controller still names, from what the server holds of them
-  (`GET /_ne/files/selection/{id}`, and each picture from `GET /_ne/files/upload/{fileId}`, both to the session's own uploads alone);
-  an id the server no longer holds — a restart, the retention run out — is taken off and the list written back, so `OnChange` runs
-  and Send sends no file the reader cannot see. A runtime whose list is null no longer leaves another runtime's files on the shelf.
-- Attaching a runtime — a page load, a switch to another runtime of a route — no longer holds the page for a pass over the whole page
-  per collection update (#180). The client's component index reads again only the list a change set's update changed, so a set of
-  hundreds of per-item inserts costs about one read of the page instead of one each (a synthetic page of 14 000 elements: 270 ms to
-  4 ms). `DomRegistry.invalidate(scope)` marks one changed subtree; `invalidate()` still marks the whole page. A list a controller
-  fills an `Add` at a time — between a render and its page's attach, or in one push — now leaves the server as one insert, so a
-  `Clear()` and its `Add`s reach the page as one refill that keeps the rows that stayed, rows with lists of their own included.
-- An items view tells the controller where the reader is (#182): `ItemsViewComponent.FirstVisibleKey`, bound one way from the page by
-  `BindFirstVisibleKey(path)`, is the key of the row at its top — the first row showing below the scroll's edge, past its `Padding`
-  and a group header held there. The page writes it once after the first layout and then as the reader's scroll comes to rest (150 ms,
-  at least once a second through a scroll that never pauses), never while it stands still and never where it is not bound; windowed
-  and end-anchored lists included. A controller follows it in the property's setter — a chat's pinned bar showing the latest pin at or
-  above the reader.
-- A picture shown full size over the page, drawn by the page itself (#184): `ShowImageEffect` fits it to the window over a darkened
-  backdrop, and the bands beside a picture of another shape are that backdrop, so a press there closes it, as Escape and its × do; the
-  focus is held in it and goes back where it was. A set — `new ShowImageEffect(["/a.jpg", "/b.jpg"], startIndex: 1)`, or
-  `UILightboxImage`s with the words under each — walks by the arrows at the picture's foot (shown under the pointer, always on a
-  touch screen), ← and → and a swipe, with a counter that keeps its width as it counts; the pictures slide as a strip, a finger's
-  neighbour coming in from the side it is dragged toward; a single picture shows none. It runs in an interaction with no round trip, and
-  reads its picture off the page where it is given a component: `ShowImageEffect.Of(id)`, or `AmongRows(id)` for the same component's
-  pictures in its list's other drawn rows — a chat message's photos. `SurfaceComponent.OnClickShowImage(amongRows)` makes a surface
-  round a picture pressable, by the keyboard too, and opens it. An address no picture may be fetched from is refused as the effect is
-  made; the rule is `UIUrlSafety.IsSafeImageSource` (`NE.Standard.UI.Primitives.Text`), which `WebUrlSafety` now asks. New words:
-  `ui.lightbox.label`, `.previous`, `.next`, `.counter`, in English, Russian and Chinese.
-- A press on a dialog's backdrop no longer takes the focus off the dialog before it closes, so a dialog closed that way gives the
-  focus back to what opened it, as Escape does; it went to the page's body.
-- A press on a control of a row's own — a button, a link, a clickable picture — is the control's and no longer chooses the row: a
-  tap on a photo in a chat message opens the photo without the message's action bar. A row that is one control as a whole (a tile
-  that is a button) is still chosen by its press.
-- **Breaking:** a number input with no `DisplayFormat` no longer groups its thousands (#186), so a count or a setting reads `32768` in
-  every language rather than `32,768` or `32 768`. `AllowThousandsSeparator` is unset by default, and unset the format says: `N`, `C`
-  and `P` (with or without a precision) group as the culture does, `F` and `D` do not. `true` groups whatever the format but `D` — a money
-  field with no format, or an `F2` read as `N2` — and `false` never groups, a format's own grouping included, as before. The stepper
-  stays off by default. A field told to group carries `data-ui-number-thousands` (`WebAttributes.NumberThousands`, new), one told not
-  to `data-ui-number-no-thousands` as before, and a field left to its format neither.
-- One way to build a search field (#200): `TextInputComponent.SetSearch(placeholder)` makes a text input a search box — the search
-  type, the search glyph before the text (a glyph `MapUIGlyph` can draw from the application's pack), a clear button, and the given
-  placeholder or the framework's word "Search" (`ui.search.field`). How soon it commits stays `SetDebounceMilliseconds`'. A menu's
-  `SetSearch` is that same field, Tonal and small. **Breaking:** the word `ui.menu.search` (`UIStrings.MenuSearch`) is gone — a menu's
-  search reads `ui.search.field`, as a search's list field does — so an application that translated the old key translates this one.
-- A page load holds a region out of sight while it holds a part only a package's engine draws (#190): a renderer writes
-  `WebAttributes.AwaitsDraw` (`data-ui-awaits-draw`) on such a part, the boot script marks its region as the page is parsed, and the
-  runtime lets every region show once the engines have started — at most 1.5 s, reduced motion included; with scripting off nothing
-  is held. The Markdown display uses it, so a chat feed of Markdown messages paints whole rather than as empty rows that then jump.
-- A list's rows wash rounded, as a menu's entries do (#191): an items view's stack rows and a tree's rows take the list entry's
-  corner on the pointer's wash, a press's wave, the keyboard's row and the chosen ground, so a list over a menu in one panel no longer
-  washes square beside round. A chosen row is straight on the edge its mark stands on — the leading one, or where `SelectionStyle`
-  moved it. A table's and a key-value list's rows stay square; a wrapped view's tiles keep their card's corner.
-- A pinned side reads as a panel beside the page (#187): it keeps the drawer's fill and draws a 1 px `Border` hairline on the edge
-  facing the page in place of the drawer's shadow; a side that is a column by width alone is unchanged. An application that draws its
-  own edge on the side's root there sees two lines: it drops its own where the side is a drawer or pinned (under `UISideDrawers.Always`,
-  everywhere).
-- Three more standard actions (#185, #195): **Done** (`ui.action.done`, the check) ends an edit made in place — a message's words, a
-  cell, a title — where Save keeps its disk for writing a document out; **Back** (`ui.action.back`) wears a new core glyph, an arrow
-  back (`UIGlyphs.ArrowBack`, Material's `arrow_back`); **New** (`ui.action.new`) the plus. Each is in `UIStandardAction`,
-  `UIIconButtons.Done()`/`Back()`/`New()` and `UIMenuItems.Done(id)`/`Back(id)`/`New(id)`, its word shipped in Russian and Chinese.
-- A page's header led by an action (#192): `UIPage.Header(leading, title, description, trailing…)` puts `UIIconButtons.Back()` (or
-  any component) before the title, on its row at every width, the title and the line starting after it and its glyph on the content's
-  edge; on a phone it follows the shell's drawer toggle. `UIPage.BoundHeader(leading, titlePath, descriptionPath, trailing…)` binds
-  the title and the line to the controller — a note's name and its status.
-- Back as an effect (#192): `NavigateBackEffect(fallback = "/")` is the browser's Back where a page of this site stands behind — the
-  Navigation API says so, or, without it, an entry the page wrote or a page of this site it was loaded from — so it is followed as
-  Back is: told to the controller within the runtime, a switch to another runtime of a `route.Identity` route in place, a load
-  otherwise, and the reader holding unsaved work asked first. With nothing of this site behind, it goes to `fallback` as a
-  `NavigateEffect` would. It runs in an interaction, with no round trip:
-  `UIIconButtons.Back().InteractOn(EventNames.Click, new NavigateBackEffect("/notes"))`.
-- A confirmation in one call (#198): `UIDialogs.Confirm(key, question, body, confirmWord, confirmCommand, confirmType = Danger,
-  cancelCommand, middle)` — the question (the dialog's name too), its words (a phrase, or a bound `ParagraphComponent`), Cancel in
-  the framework's word, an optional middle answer ("Don't save") and one primary or danger button, in the framework's own leave
-  dialog's measures. No header ×. Cancel and Escape close it as the viewer does and raise its `OnClose`, which runs `cancelCommand`;
-  a press on the backdrop leaves it open.
-- A fold (#197): `UIPage.Fold(title, expanded, content…)` is the quiet expander as a collapsible section — its name a caption, its
-  content a stack — returned as the `ExpanderComponent`, so `BindExpanded` and a bound name through `ConfigureDefaultHeader` work as
-  on any expander; a null title leaves the name to that binding.
-- A quote (#199): `UIText.Quote(title, line, accent, clickCommand, closeCommand)` and a bound overload `(titlePath, linePath, scope,
-  accentPath, …)` draw a reply or an edit as messengers do — a 3 px stroke at the start in the brand or the given colour, the title a
-  caption in that colour, a muted line under it, both shown as written. A click command makes the whole quote pressable (a jump);
-  a close command ends it in the standard ×.
-- One quote stroke: a paragraph's quote line (`ShowQuoteLine`) is 3 px rather than 2, as wide as a Markdown blockquote and
-  `UIText.Quote`, and its colour, unless `QuoteLineColor` names one, is the border colour a blockquote is drawn in rather than a
-  quarter of its own ink. Both are tokens a package's stylesheet reads, `@ui-quote-stroke` and `@ui-quote-ink`.
-- A rule reading another component's value — `ShownWhen`, `HiddenWhen`, `EnabledWhen`, any `Interact` from a property — now holds
-  from the first paint where its source is the view's own (set or left at its default, not bound): a note under a switch that is
-  off starts hidden, a button waiting for a ticked box starts disabled. Before, an unbound source's rule ran only at its first
-  change, so the target stood in its written state until then. A bound source's rule runs as the page takes its painted values,
-  as before. The server's refusals still read the written state.
-- A wrapping title (`SetTitleWrap(true)`) breaks only between words: "Servers" in a narrow row no longer read "Serv / ers"; a single
-  word longer than its line ends in an ellipsis. `UIPage.Header` on a phone stands buttons with words (a `ButtonComponent` with a
-  title) on a row of their own under the line, at the far edge, so the name keeps the row; icons (a switcher, a person) stay
-  beside the name as before.
-- A drawer's button stands on the page header's title line from the medium breakpoint too: 22 px down there (12 on a phone), so
-  between md and the width the sides become columns its middle meets the title's, a header's Back and its far end, where it stood
-  10 px higher; an open drawer's own switch follows it.
-- A round picture with no picture draws a glyph (#196): an `ImageComponent` with `Shape` Circle, and a picture icon with
-  `IconShape` Circle on a text, a menu entry, a table cell's text, a badge or an `IconComponent`, that has no address, is given an
-  empty one or one that fails to load shows `UIGlyphs.Person` on a neutral circle in its place, from the first paint and on every
-  patch; a good address given later brings the picture back. No visibility bindings in the controller. `IconFallback` (item models,
-  text bodies, `BadgeComponent`) and `FallbackIcon` (`ImageComponent`, `IconComponent`) name another glyph; `MapUIGlyph` redraws
-  the fallback as it does the glyph. An image tries its `FallbackSource` first. A picture that is missing or failed no longer opens
-  in the lightbox. **Breaking:** an `ImageComponent` renders as a box (`span.ui-image`, which takes the size, shape and corners)
-  round its `img.ui-image__picture`; a stylesheet or script that read `img.ui-image` reads the picture inside.
-- The theme and the language switchers as a settings form's fields (#189): `AsField()` (`ISwitcherComponent.Variant`,
-  `UISwitcherVariant.Field`) draws either as a select-shaped field — its caption (`Title`, "Theme" or "Language" unless set, decided
-  at render), a box in the form's `Appearance` (Tonal unless set) and the list — by the same renderer and engine as the button, and
-  `UIForm.Field` gives it a note as any field. The theme field offers **Light**, **Dark** and **System**, System raising
-  `SetThemeEffect(null)`: the session forgets its theme and the page follows the platform's preference again. Its current choice is
-  marked by the page from the theme the page is set to — as the body is parsed and on every switch, whoever made it — never by the
-  server, whose shell is cached outside the theme. The language field shows the languages by name and opens its list for two as for
-  more. The compact button keeps its one-press flip. New words: `ui.theme.field`, `ui.theme.light`, `ui.theme.dark`,
-  `ui.theme.system`, `ui.language.field`. A renderer drawing two shapes picks its root per render (`ResolveRoot`), and
-  `.ui-choice-entry(@chosen)` takes the state that marks the chosen entry.
-- A `UIMessage`'s mark stands on the middle of its words rather than on the first line; the × stays at the top.
-- The safe answer of the framework's own dialogs — Stay when leaving with unsaved changes, Cancel in the picture crop — is a Ghost
-  button, as `UIDialogs.Confirm`'s Cancel already was. `UIButtons.Secondary` (Outline) is for where a bare button would read as
-  words: an action on a message's colour, an alternative stretched under a stretched primary, a choice drawn as a card.
-- A toast's action stands at the toast's end under its message, flush with the × above it, rather than short of the ×'s column.
+- A select, a multi-select and a search are cleared from the keyboard: Delete on a closed field that shows its clear empties it,
+  and Backspace too where the field holds one option (a multi-select's Backspace still takes its last chip, a free-text entry's
+  keys stay its text's while it holds any). The clear itself takes no Tab, as a select's field is a button; the control says the
+  key (`aria-keyshortcuts`), kept as a bound `ShowClearButton` changes.
+- Escape nothing took — no list, popup or dialog left to close — takes the keyboard's frame off the focused control, the focus
+  staying where it is: Tab goes on from there, and the next key draws the frame again. An editable field keeps its edge.
+- A badge select (`BadgeSelectComponent`): a multi-select whose options are badges — a ticket's labels, a contact's tags — and
+  whose chips are those badges, the remove inside each. An option is an `OptionItem` with its badge set: `BadgeText` the words,
+  `BadgeStyle`, `BadgeColor`, `BadgeFill` and `BadgeIcon` the look, a `Description` under it in the list, which draws each badge at
+  the start of its row; the shape `BadgeItem` gives `UIText.WithBadges` to read. Read-only, it stays a field. A chip on the first
+  paint is drawn from the option's values (`BadgeRenderer.RenderBadge(badge, model, words, renderWords)`), and the page's from the
+  badge its option's row draws, so a bound look reaches it.
+- **Breaking** (for a package's renderer): `BadgeRenderer.IconShownAttribute` is `WebAttributes.BadgeIcon`, as the page reads it now.
+- A row's own context menu is drawn when it is wanted — opened by a press, a long press or the keyboard, pressed by an entry's
+  chord, shown as the row's action bar — rather than into every row (#202): it was two thirds of a feed's row, most of its
+  bindings, and of a switch's work. The server leaves it in an inert template and marks its owner; the page takes a row
+  template's out once and draws it from there against the row, and a row the server drew moves its own in. The menu's
+  collections addressed to a row are held meanwhile, and a patch to an entry (a pin's words) is kept for the menu drawn later;
+  its chords are named before it is drawn. In the demo's chat a row went from 132 elements to 45, and a switch to a
+  30-message conversation from a 66–81 ms task to none over 50 ms. A named menu (a strip's, a canvas's) stays as it was.
+- A pane's title row (#204): `UIPage.Header(UIHeaderSize.Pane, leading, title, description, trailing…)` and
+  `BoundHeader(UIHeaderSize.Pane, …)` — the name one line in the subtitle role, cut with its whole words as its tooltip, the
+  description a muted caption beside it, the far end on the same row at every width, no edge of its own; a leading Back, a round
+  picture or both before the name. `ShownBelow(tier)` / `ShownFrom(tier)` show any component on one side of a breakpoint.
+- A bound header's name (`UIPage.BoundHeader`) is the thing's own words, never looked up as a key that happens to match it.
+- `UIButtons.Toolbar` takes any button, a menu button (`UIIconButtons.More(items)`) among them.
+- More standard actions, as entries and icon buttons alike: **More** (`UIIconButtons.More(items)`, the vertical ⋮ as a menu
+  button with no chevron; `UIMenuItems.More(items)`, a submenu), **Refresh**, **Search**, **Filter**, **Settings**, **Share**,
+  **Download**, **Upload**, **Rename**, **Add**, **Remove**, **Send**, **Attach**, **Menu**, **Stop**, **Undo**, **Redo** and **Sign out**,
+  in the framework's words in English, Russian and Chinese (`ui.action.*`). Add puts one more in a list under the plus New wears too;
+  Remove takes one out under the minus and keeps it, where Delete destroys it. Three glyphs join `UIGlyphs`: `Share`, `Send`, `Rename`.
+- **Breaking:** the tab menu's Rename is the standard one: its words are `ui.action.rename` (the `ui.tab.rename` key and
+  `UIStrings.TabRename` are gone) and its glyph `UIGlyphs.Rename` rather than the pencil.
+- Children laid in one cell stand as their order reads, the later over the earlier (#205): a pinned bar or a composer laid after an
+  items view in its cell stands over the rows scrolling under it. A list with a loading ring (`LoadingLook = Indicator`) or a
+  button was positioned, and painted over every static sibling whatever their order; every child placed in a container, a surface
+  or a card's, an expander's or a tab's band now is, at no weight, so a component's own placement (a dialog's, a sticky
+  band) stands and nothing changes at rest.
+- **Breaking:** a box keeps the overlay bar's room itself (#206): on the side the bar stands, its edge is its `Padding` there or
+  `--ui-scrollbar-room` (12 px, a theme's stylesheet may change it), whichever is more — a list padded 12 on both sides stays even,
+  the thumb inside its padding, and one padded 4 is widened to 12. An items view, a tree, a scroll container and a text area keep it
+  whether or not they hold more than they show, so their rows never narrow as they start to scroll; the root of a region that
+  scrolls (or stands along a scrolling page's bar) keeps it, with no `Padding` too; a popup list keeps it only while it
+  overflows, so one that fits stays even. A screen where nothing hovers keeps none. No application pads for the thumb: a
+  `Padding` added only to clear the bar can be the air it wants. Every container's `Padding` is written in this one form
+  (`WebCssValues.Padding`, `ResponsiveRenderer.ApplyResponsivePadding`); `.ui-popup-scroll(@padding)` takes the popup's padding.
+- A container lends the free air after it to the scroller along its end (`ContainerComponent.ScrollbarAir`, per breakpoint): the
+  scroller keeps none of the bar's room inside and hangs it past its box, where the thumb is drawn, so a list's rows end where the
+  field over them does. It reaches the scroller through containers and stacks with no padding, border or fill of their own, and a
+  framed or filled scroller keeps its room inside. `UILayout.Panes` lends the air between its panes to the list's scroller from
+  `md`; with a splitter, the bar's room stands on either side of the track (it was 4 px). The overlay thumb is seen through a
+  clipping box's `overflow-clip-margin`.
+- The overlay bar shows while the reader scrolls — a wheel, a key, a drag of the thumb — and while the pointer nears the edge it
+  stands at, then fades; no longer all the while the pointer rests over a feed being read, nor as a script scrolls (a list held at
+  its end as a reply streams in).
+- An items view's column can be capped: `ContentMaxWidth` (responsive) centres the rows within it inside the view, so the bar
+  stands at the region's edge rather than beside the words — a conversation's or a document's column in a wide pane.
+- A quiet expander's keyboard frame (`UIExpanderVariant.Quiet`, `UIPage.Fold`) stands clear of its words (#207): its header keeps
+  air round them, 4 px above and below and 6 px at the sides, pulled back out by as much, so the words stay on the content's edge
+  and the frame, inside the air with the button's corner, no longer touches them. A clipping component leaves a frame 6 px past
+  its edge, up from 4. A quiet expander is square unless a radius is authored: the clip kept the card's curve, which cut the
+  frame's corners — on both sides of a fold no wider than its words.
+- An items view reports the row at its foot as well as at its top (#203): `LastVisibleKey` / `BindLastVisibleKey(path)` is the key
+  of the last row whose box shows above the scroll's bottom edge, past the view's bottom `Padding`, bound one way from the page and
+  written as `FirstVisibleKey` is — once the scroll settles, after the first layout, as the rows change or a filter hides some. A
+  pinned bar over a messenger's feed follows it, so a pin in the last screenful shows. A view bound at both ends measures its rows once.
+- **A file as a tile** (#201): `FileTileComponent` — the file kind's glyph (`UIFileGlyphs`, or its own `Icon`), the name on up to
+  two lines and whole as its tooltip, and the size written by the page in the reader's language — a 6rem square unless its `Width`
+  says otherwise; `Loading` turns a ring in the glyph's place, and `Clickable` / `OnClick` press it as a surface is pressed. An image
+  input's shelf draws a file that is no picture in the same tile (`ui-file-tile`), whose ring now turns in the glyph's place too
+  while it uploads, its name and size readable; the size follows a language switch.
+- A switch to another runtime of the route paints sooner (#202): a third less of the long task it raised in a conversation of NE.Home's
+  (Chromium, desktop: 139 → 92 ms and 153 → 95 ms, the median of five). An engine watching the page looks once into a host its
+  rows were put in one by one, not once a row; a windowed list writes its skeleton's row and tile sizes on its spacers rather than
+  on the host, whose every row an inherited property restyled on each layout; the content a switch turned inert takes its presses
+  back as the snapshot lands, in one restyle with it rather than a second; a pager looks over the page once for every host found.
+- A press's wave keeps moving while the page is busy (#202): a runtime's page applied after the press no longer stops it half-way.
+  The wave is an element of its own while it plays, the pressed thing's last child, and only its circle's scale and its opacity
+  animate, which the browser's compositor runs alone (Chromium, a 300 ms task: 21 frames drawn where none were). It looks as
+  before. A table's column lines end at the last cell rather than the row's last child.
+- A copy of a tab ("Duplicate tab", a window the page opens) takes a window of its own, so a `PerWindow` page no longer shares
+  the original's runtime; a copy made while the original sat in the back/forward cache reloads once under its own.
+- A pane's grip is named after the pane ("Move Chats", from its first title-sized text) and its keyboard lift is announced; every
+  keyboard move of a row, a tab or a pane says where it landed (`ui.move.done`, the `ui.pane.*` words in English, Russian and Chinese).
+- A clock column's arrows walk without choosing; Enter or Space picks the time, as the day grid's do.
+- A date-time input writes its value's offset back (a fresh value the reader's), and a `Min`/`Max` carrying an offset is compared
+  by instant on the page, as on the server.
+- A whole-number property refuses a fraction, from a number or from text, rather than rounding it.
+- A transparent `Background` writes `--ui-ground: inherit`: a chart's hollow marker or a picture's dim on it shows the ground around
+  it (`WebCssValues.ThemeGround`, `WebDomConverters.ThemeGroundCss`).
+- A region's root keeps the overlay bar's room once — never 12 past 12 over a list's or a tree's own, nor in a rail or a collapsed
+  panel, nor in a root filling a side that scrolls alone.
+- A text area in a row stands on the row's middle at its own height rather than stretching to the row's.
+- A search field's pause is committed as the reader leaves, as a debounced field's is; a composition holds both.
+- A converter or a DOM operation that throws is logged and passed over — the value written as it came, the property's other
+  operations run — and a row that fails to draw is left out rather than stopping the patch.
+- A view whose first compile failed is compiled again on the next open rather than refused until a restart.
+- `PopupPlacement` is bindable and is one property on a flyout, a select and a split button.
+- The plugin contract's `shortcuts.aria(chord)`: a chord in the UI Events words `aria-keyshortcuts` takes, `Control+B Meta+B` on macOS.
+- New presets: `UILayout.Panes` (with `PanesListVisibility`, `PanesDetailVisibility`, `PanesPlaceholderVisibility`), `UILayout.Ends`
+  and `UILayout.Board`; `UICard.Create` and `UICard.Centered`; `UIPage.Empty`, `Outcome`, `Band`, `Column` (`UIColumnWidth`),
+  `Heading` and `Section(heading, …)`; `UIDialogs.Form` and `BoundConfirm`; `UIText.Person` (`UIPersonSize`); `UIDetails.Amount` and
+  `Total`; `UIHeaderSize.Strip`; `UIPage.Labelled(…, wrap: true)`.
+- **Breaking:** `UIButtons.Secondary` is `UIButtons.Outline`; `UIButtons.Pair`'s first parameter is `safe`.
+- **Breaking:** `UIPage.Card` is `UICard.Create`; a `cref` to `UIPage.Section` names its overload.
+- **Breaking:** `FlyoutPlacement` and a split button's `MenuPlacement` are `PopupPlacement` — `SetPopupPlacement`,
+  `BindPopupPlacement`, `IPopupPlacementComponent.PopupPlacementProperty`.
+- **Breaking:** a tabs view's `OnItemRemove(command, argumentName)` and `OnItemRename(command, argumentName)` are
+  `OnItemRemoveWithItemKey` and `OnItemRenameWithItemKey`; `OnItemRemove(command)` still compiles and passes no key.
+- **Breaking:** an application's tab-menu entry is raised on the tab: `UITabMenu.Entry` is the event's value and `UITabMenu.Tab` the
+  current item's key — a reader of `ArgEventKey(…, 0)` or `(…, 1)` takes them instead; an entry on a disabled, loading or hidden tab
+  is refused at any nesting.
+- **Breaking:** a row is named by its key: a number or null where a row's key stands is refused.
+- **Breaking:** the `ui:` tab commands (a move, a pin) pass the command authorization, the application's command filters and the
+  controller's class-level filters.
+- **Breaking:** a route's identity values are escaped as `encodeURIComponent` escapes them: a runtime kept under a value holding
+  `&`, `=`, `,` or a non-ASCII character is keyed anew.
+- **Breaking:** `IUIDialogService` is no platform service — nothing registers or requires it, `Context.Dialogs` sends through the
+  runtime — and `StandardWebDialogService` is gone.
+- **Breaking:** a platform provides `IUIDownloadStager` rather than `IUIDownloadService` (`UIStartupBase` requires it; Core
+  registers `StandardDownloadStager` over the platform's `IUIDownloadAddressProvider`); `StandardDownloadService` is gone.
+- **Breaking:** `SetThemeColorsEffect.Css` and `SetLanguageEffect.Href` are gone (the Web writes its own as it sends);
+  `UIThemeColor.ToString()` writes no CSS.
+- **Breaking:** `Spacing` and `Orientation` come from the `ISpacingComponent` and `IOrientationComponent` blocks — the names kept,
+  the property keys read through the interfaces.
+- **Breaking:** `SetDragHandle` is an extension over `IDraggableRowsComponent` (`NE.Standard.UI.Authoring.Components`), whose
+  `DragHandle` and `DragHandlePlacement` are settable.
+- **Breaking:** `UITestComponent.SetValueAsync` and `SetAsync` return `Task<UITestCommandResult>`.
+- **Breaking:** the date-time input's canonical text carries the offset.
+- **Breaking:** `[UIAuthorize]` roles or permissions that name nothing (`","`, `" "`) are refused rather than read as none.
+- **Breaking:** a `DefaultValueMember` is type-checked (`NEUI004`), and a method one is called (`NEUI009` for a `void` one).
+- **Breaking:** an event argument reading a row its component does not stand in fails at compile; `UIEventIndex`'s constructor
+  takes the `UIComponentGraph`.
+- **Breaking:** a text area with `SubmitOnEnter` and an `enter` interaction is refused at compile — drop one.
+- **Breaking:** `ItemContext` reads an `IDictionary`-only item (an `ExpandoObject`) by camelCase and case-insensitive key too, never
+  an indexer as a property `Item`, and only the exact name where two properties differ in case.
+- **Breaking:** `ItemsCollectionRendererBase.ApplyHostScroll(context, host, horizontalOperations)` takes a `WebDomOperation[]`
+  starting with `HostScrollXOperation`.

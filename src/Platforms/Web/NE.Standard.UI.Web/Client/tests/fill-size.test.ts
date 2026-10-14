@@ -1,6 +1,6 @@
 // The client half of the size parity check, against the same corpus WebCssValuesFillTests reads: a component's Fill is the parent's
 // room less its own margins on that axis, pushed live as the render writes it, and a pushed margin keeps that room right by its sides
-// summed per tier.
+// summed per tier; a padding takes each side at least the overlay bar's room where its box keeps it.
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -12,12 +12,13 @@ import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
 type SizeCase = { readonly kind: string; readonly value: number; readonly axis: "horizontal" | "vertical"; readonly css: string };
 type SumCase = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number; readonly axis: "horizontal" | "vertical"; readonly css: string };
+type PaddingCase = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number; readonly css: string };
 
 const here = dirname(fileURLToPath(import.meta.url));
 const corpusPath = resolve(here, "../../../../../../eng/Tests/Shared/layout-size-corpus.json");
-const corpus = JSON.parse(readFileSync(corpusPath, "utf8")) as { readonly sizes: readonly SizeCase[]; readonly thicknessSums: readonly SumCase[] };
+const corpus = JSON.parse(readFileSync(corpusPath, "utf8")) as { readonly sizes: readonly SizeCase[]; readonly thicknessSums: readonly SumCase[]; readonly paddings: readonly PaddingCase[] };
 
-assert.ok(corpus.sizes.length > 0 && corpus.thicknessSums.length > 0, "The layout-size corpus is empty.");
+assert.ok(corpus.sizes.length > 0 && corpus.thicknessSums.length > 0 && corpus.paddings.length > 0, "The layout-size corpus is empty.");
 
 function convert(name: string, value: unknown): string {
     const converter = webDomConverters.get(name);
@@ -40,6 +41,12 @@ for (const sum of corpus.thicknessSums) {
         const name = sum.axis === "horizontal" ? "responsiveThicknessHorizontalBaseCss" : "responsiveThicknessVerticalBaseCss";
 
         assert.equal(convert(name, { left: sum.left, top: sum.top, right: sum.right, bottom: sum.bottom }), sum.css);
+    });
+}
+
+for (const padding of corpus.paddings) {
+    test(`a padding ${padding.left} ${padding.top} ${padding.right} ${padding.bottom}`, () => {
+        assert.equal(convert("responsivePaddingBaseCss", { base: { left: padding.left, top: padding.top, right: padding.right, bottom: padding.bottom } }), padding.css);
     });
 }
 

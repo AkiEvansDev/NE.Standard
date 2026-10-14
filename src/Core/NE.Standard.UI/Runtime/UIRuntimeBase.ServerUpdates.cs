@@ -94,6 +94,7 @@ internal abstract partial class UIRuntimeBase
     private void ClearPendingUpdatesNoLock()
     {
         _pendingUpdates.Clear();
+        _queuedValueAddresses.Clear();
         _pendingFullResync = false;
     }
 

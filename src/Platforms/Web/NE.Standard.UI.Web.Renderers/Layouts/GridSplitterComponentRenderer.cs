@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -13,6 +14,9 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 /// <summary>A separator the viewer drags; what it moves is the parent container's tracks, and <c>grid-splitter-engine.ts</c> does the moving.</summary>
 public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
 {
+    private static readonly WebDomOperation[] StepOperations = [WebDomOperation.Attribute(WebAttributes.SplitterStep, converter: WebDomConverters.PositiveNumber)];
+    private static readonly WebDomOperation[] PositionOperations = [WebDomOperation.Attribute(WebAttributes.SplitterPosition, converter: WebDomConverters.Share)];
+
     public override string ComponentTypeKey => GridSplitterComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-grid-splitter";
@@ -23,7 +27,7 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         // Render-time only: which axis a bar divides is how the page is laid out.
-        _ = ResolveRenderValue(context, GridSplitterComponent.OrientationProperty, out UIOrientation? orientation, out _);
+        _ = ResolveRenderValue(context, IOrientationComponent.OrientationProperty, out UIOrientation? orientation, out _);
         UIOrientation resolved = orientation ?? UIOrientation.Vertical;
 
         _ = root.Class(WebClassNames.Orientation(resolved));
@@ -36,7 +40,7 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         {
             if (value is double step && step > 0)
                 _ = target.Attribute(WebAttributes.SplitterStep, step.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SplitterStep, converter: WebDomConverters.PositiveNumber)]);
+        }, StepOperations);
 
         ThemeColorRenderer.RenderThemeColor(context, root, GridSplitterComponent.ColorProperty);
 
@@ -47,6 +51,6 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         {
             if (value is double share and >= 0 and <= 1)
                 _ = target.Attribute(WebAttributes.SplitterPosition, share.ToString(CultureInfo.InvariantCulture));
-        }, [WebDomOperation.Attribute(WebAttributes.SplitterPosition, converter: WebDomConverters.Share)]);
+        }, PositionOperations);
     }
 }

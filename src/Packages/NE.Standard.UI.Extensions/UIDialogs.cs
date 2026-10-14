@@ -14,8 +14,8 @@ namespace NE.Standard.UI.Extensions;
 
 /// <summary>
 /// A dialog headed by its mark, its title and an × that closes it: the × closes it on the page as Escape does, with nothing asked of
-/// the server but the dialog's own <c>OnClose</c>, and the title names the dialog for a screen reader. A confirmation is the other
-/// kind: a question answered by its buttons, with no header.
+/// the server but the dialog's own <c>OnClose</c>, and the title names the dialog for a screen reader. A confirmation and a form are the
+/// other kind: a question, or fields, answered by the buttons at their foot, with no ×.
 /// </summary>
 public static class UIDialogs
 {
@@ -56,6 +56,33 @@ public static class UIDialogs
             .SetColumn(24, UIGridUnit.Auto())
             .AddChild(UIText.Title(title).SetIcon(icon).SetVerticalAlignment(UIAlignment.Center).SetPlacement(1, 1, 23, 1))
             .AddChild(close);
+    }
+
+    /// <summary>
+    /// A form in a dialog — rename it, invite someone, change a password: its title in the title role and an optional muted line under
+    /// it, <paramref name="content"/>, and the pair at its foot (<see cref="UIButtons.Pair"/>), <paramref name="safe"/> first. A form's
+    /// column wide from the medium breakpoint (<see cref="UIColumnWidth.Form"/>), the dialog's whole width on a phone. No ×, since the
+    /// safe answer says it, and a press beside it loses nothing typed: the backdrop does not close it, Escape does.
+    /// </summary>
+    public static UIDialog Form(string key, string title, string? description, IVisualComponent content, ButtonComponent safe, ButtonComponent primary)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentNullException.ThrowIfNull(content);
+
+        StackPanelComponent heading = UILayout.Stack(4, UIText.Title(title).SetTitleWrap(true));
+
+        if (description is not null)
+            _ = heading.AddChild(UIText.Note(description));
+
+        return new UIDialog
+        {
+            Key = key,
+            Label = title,
+            CloseOnBackdrop = false,
+            Content = UILayout.Stack(16, heading, content, UIButtons.Pair(safe, primary))
+                .SetMinWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), md: UILayoutLength.Absolute(UIPage.Pixels(UIColumnWidth.Form))))
+        };
     }
 
     /// <summary>
@@ -110,5 +137,18 @@ public static class UIDialogs
         };
 
         return cancelCommand is null ? dialog : dialog.OnClose(cancelCommand);
+    }
+
+    /// <summary>
+    /// The question with words the controller holds at <paramref name="bodyPath"/> — "Delete «Groceries» and its 12 notes?" — kept as
+    /// written (a name in them is the thing's own, never a key that happens to match it); otherwise <see cref="Confirm(string, string, UIPhrase?, string, string, UIButtonType, string?, ButtonComponent?)"/>.
+    /// </summary>
+    public static UIDialog BoundConfirm(string key, string question, string bodyPath, string confirmWord, string confirmCommand, UIButtonType confirmType = UIButtonType.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(bodyPath);
+
+        ParagraphComponent body = new ParagraphComponent().BindDescription(bodyPath).AsContent(ParagraphComponent.DescriptionProperty);
+
+        return Confirm(key, question, body, confirmWord, confirmCommand, confirmType, cancelCommand, middle);
     }
 }

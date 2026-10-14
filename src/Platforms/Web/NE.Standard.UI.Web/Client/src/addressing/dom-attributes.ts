@@ -53,6 +53,10 @@ export const TabsRemovesAttribute = "data-ui-tabs-removes";
 export const ContextMenuAttribute = "data-ui-context-menu";
 /** On a component that owns a context menu (the renderer writes it): a long press there is the menu's. */
 export const ContextMenuOwnerAttribute = "data-ui-context-menu-owner";
+/** On a menu's owner in a row: its menu waits in a template (`row-menus.ts`), drawn into the owner when it is wanted. */
+export const ContextMenuLaterAttribute = "data-ui-context-menu-later";
+/** On the template a row's menu waits in: the owner's component id. */
+export const ContextMenuTemplateAttribute = "data-ui-context-menu-template";
 /** On a part of a context menu's owner: the name of the owner's menu a right press there opens. */
 export const ContextMenuUseAttribute = "data-ui-context-menu-use";
 /**
@@ -94,6 +98,7 @@ export const TooltipPressAttribute = "data-ui-tooltip-press";
 /** On a badge: its text shown, "compact" while it fits a circle; and its text given at all, blank included (a menu corner's dot). */
 export const BadgeTextAttribute = "data-ui-badge-text";
 export const BadgeSetAttribute = "data-ui-badge-set";
+export const BadgeIconAttribute = "data-ui-badge-icon";
 /** On an element inline markup was written into while it holds a fold, which then wraps (`InlineMarkupRenderer`'s mark too). */
 export const FoldsAttribute = "data-ui-folds";
 
@@ -140,6 +145,8 @@ export const CollectionSinkAttribute = "data-ui-collection-sink";
 export const ItemsQueryAttribute = "data-ui-items-query";
 /** On an items view's first-visible element: the key of the row at its top, as the page last wrote it back (`WebAttributes.FirstVisibleKey`). */
 export const FirstVisibleKeyAttribute = "data-ui-first-visible-key";
+/** On an items view's last-visible element: the key of the row at its foot (`WebAttributes.LastVisibleKey`). */
+export const LastVisibleKeyAttribute = "data-ui-last-visible-key";
 /** The number culture pack as JSON; an engine formats by the nearest one above the element. */
 export const NumberCultureAttribute = "data-ui-number-culture";
 /** On an element whose number and temporal packs are the page's: a language switch writes them again (`page-culture.ts`). */
@@ -165,6 +172,16 @@ export const TimestampClass = "ui-timestamp";
 export const TimestampTextClass = "ui-timestamp__text";
 /** On a timestamp's root: how it shows its instant, read once (`WebAttributes.TimestampFormat`). */
 export const TimestampFormatAttribute = "data-ui-timestamp-format";
+/** A file shown as a tile — a file tile's root, a shelf's square for a file that is no picture — and its parts (`WebClassNames.FileTile*`). */
+export const FileTileClass = "ui-file-tile";
+export const FileTileGlyphClass = "ui-file-tile__glyph";
+export const FileTileNameClass = "ui-file-tile__name";
+export const FileTileSizeClass = "ui-file-tile__size";
+/** On a file tile: its file's name, MIME type, size in bytes and its author's glyph (`WebAttributes.FileTile*`). */
+export const FileTileNameAttribute = "data-ui-file-name";
+export const FileTileTypeAttribute = "data-ui-file-type";
+export const FileTileSizeAttribute = "data-ui-file-size";
+export const FileTileIconAttribute = "data-ui-file-icon";
 export const EmptyTemplateAttribute = "data-ui-empty-template";
 export const GroupTemplateAttribute = "data-ui-group-template";
 export const EmptyPlaceholderAttribute = "data-ui-empty-placeholder";
@@ -185,6 +202,8 @@ export const ValueKindAttribute = "data-ui-value-kind";
 export const ItemsQueryValueKind = "items-query";
 /** The value kind of the element an items view's first visible key is written on (`WebValueKinds.FirstVisibleKey`). */
 export const FirstVisibleKeyValueKind = "first-visible-key";
+/** The value kind of the element an items view's last visible key is written on (`WebValueKinds.LastVisibleKey`). */
+export const LastVisibleKeyValueKind = "last-visible-key";
 
 /** How an items host holds its rows — "virtualized" or "windowed"; a plain host carries nothing. */
 export const HostModeAttribute = "data-ui-host-mode";

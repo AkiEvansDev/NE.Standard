@@ -21,6 +21,11 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
     private static readonly WebDomOperation[] RowsOperations = [WebDomOperation.Attribute("rows", converter: WebDomConverters.PositiveCount), WebDomOperation.Style(RowsVariable, converter: WebDomConverters.PositiveCount)];
     private static readonly WebDomOperation[] MaxRowsOperations = [WebDomOperation.Attribute(WebAttributes.TextAreaGrow, converter: WebDomConverters.PositiveFlagAttribute), WebDomOperation.Style(MaxRowsVariable, converter: WebDomConverters.PositiveCount)];
 
+    private static readonly WebDomOperation[] ResizeOperations = [WebDomOperation.Style("resize", converter: WebDomConverters.TextAreaResizeCss)];
+    private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
+    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)];
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
+
     public override string ComponentTypeKey => TextAreaComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-text-area";
@@ -96,20 +101,20 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
             {
                 if (value is UITextAreaResizeMode resize)
                     _ = target.Style("resize", resize.ToString().ToLowerInvariant());
-            }, [WebDomOperation.Style("resize", converter: WebDomConverters.TextAreaResizeCss)]);
+            }, ResizeOperations);
 
             _ = RenderProperty<int?>(context, textarea, TextAreaComponent.MaxLengthProperty, static (target, value) =>
             {
                 if (value is int maxLength)
                     _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
-            }, [WebDomOperation.Attribute("maxlength")]);
+            }, MaxLengthOperations);
 
             // Read by DebouncedCommitEngine on every keystroke, so a bound value is in force at once.
             _ = RenderProperty<int?>(context, textarea, TextAreaComponent.DebounceMillisecondsProperty, static (target, value) =>
             {
                 if (value is int milliseconds and >= 0)
                     _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-            }, [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)]);
+            }, DebounceOperations);
 
             // Read by `readBoundElementValue` off whichever element carries it, textarea or input alike.
             RenderFlagAttribute(context, textarea, TextAreaComponent.TrimInputProperty, WebAttributes.TrimInput);
@@ -129,7 +134,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
                 // The parser drops one line break right after <textarea>: a value that starts with one keeps it only if a second precedes it.
                 _ = target.Text(value[0] is '\n' or '\r' ? "\n" + value : value);
-            }, [WebDomOperation.Property("value")]);
+            }, ValueOperations);
         });
     }
 }

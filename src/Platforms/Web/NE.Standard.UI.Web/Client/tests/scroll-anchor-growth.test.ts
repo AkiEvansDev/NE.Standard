@@ -127,7 +127,7 @@ test("an end-anchored list keeps a step of room past its last row, where a raise
     const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
     // Unless the view has a Padding of its own, which says where its end stands.
-    assert.match(css, /\n\.ui-items-view:not\(\[style\*="--ui-items-view-padding"\]\) > \[data-ui-scroll-anchor="End"\] \{\s*padding-block-end: 0\.25rem;\s*\}/);
+    assert.match(css, /\n\.ui-items-view > \[data-ui-scroll-anchor="End"\]:not\(\[style\*="--ui-items-view-padding"\]\) \{\s*padding-block-end: 0\.25rem;\s*\}/);
 });
 
 test("a list the reader scrolled up keeps the row they read in place while a row above it grows, and one below moves nothing", () => {

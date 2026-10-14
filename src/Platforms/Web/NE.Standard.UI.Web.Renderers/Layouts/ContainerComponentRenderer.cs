@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -25,6 +27,12 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
     /// <summary>The room the columns cannot give up (absolute widths and floors), which the column gap's cap leaves out.</summary>
     public const string FixedColumnsVariable = "--ui-container-fixed-columns";
 
+    /// <summary>The free air after the container's end, which the scroller along that end takes for its overlay bar (core/scrollbar.less).</summary>
+    public const string ScrollbarAirVariable = "--ui-scrollbar-air";
+
+    // A track list's first paint and its one operation per variable, built once rather than per container (a row template's too).
+    private static readonly ConcurrentDictionary<(string Variable, string LimitsAttribute), TrackRender> TrackRenders = new();
+
     public override string ComponentTypeKey => ContainerComponent.ComponentTypeKey;
 
     protected override string ClassName => "ui-container";
@@ -40,6 +48,7 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
         RenderTracks(context, root, ContainerComponent.ColumnsProperty, ColumnsVariable, WebAttributes.ColumnLimits);
         RenderTracks(context, root, ContainerComponent.RowsProperty, RowsVariable, WebAttributes.RowLimits);
         RenderSpacing(context, root);
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ContainerComponent.ScrollbarAirProperty, ScrollbarAirVariable);
 
         RenderChildren(context, root);
     }
@@ -47,10 +56,10 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
     /// <summary>The air between the children, and the fixed room the column gap's cap has to leave out when there is any.</summary>
     internal static void RenderSpacing(WebRenderContext context, IHtmlElementBuilder root)
     {
-        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ContainerComponent.SpacingProperty, SpacingVariable);
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, SpacingVariable);
 
         // A bound spacing counts as set, since its value may arrive after the page; an unspaced container writes nothing more.
-        WebRenderValueKind kind = ResolveRenderValue(context, ContainerComponent.SpacingProperty, out UIResponsive<double>? spacing, out _);
+        WebRenderValueKind kind = ResolveRenderValue(context, ISpacingComponent.SpacingProperty, out UIResponsive<double>? spacing, out _);
 
         if (kind == WebRenderValueKind.Missing || (kind == WebRenderValueKind.Static && spacing is null))
             return;
@@ -69,18 +78,20 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
 
     internal static void RenderTracks(WebRenderContext context, IHtmlElementBuilder root, UIProperty property, string variable, string limitsAttribute)
     {
-        _ = RenderProperty<IReadOnlyList<UIGridUnit>?>(context, root, property, (target, value) =>
+        TrackRender tracks = TrackRenders.GetOrAdd((variable, limitsAttribute), static key => new TrackRender((target, value) =>
         {
             if (value is not { Count: > 0 } units)
                 return;
 
-            _ = target.Style(variable, ToCssGridTemplate(units));
+            _ = target.Style(key.Variable, ToCssGridTemplate(units));
 
             var limits = WebCssValues.GridTrackLimits(units);
 
             if (limits.Length > 0)
-                _ = target.Attribute(limitsAttribute, limits);
-        }, [WebDomOperation.Style(variable, converter: WebDomConverters.GridTemplateCss)]);
+                _ = target.Attribute(key.LimitsAttribute, limits);
+        }, [WebDomOperation.Style(key.Variable, converter: WebDomConverters.GridTemplateCss)]));
+
+        _ = RenderProperty<IReadOnlyList<UIGridUnit>?>(context, root, property, tracks.Render, tracks.Operations);
     }
 
     /// <summary>The track list as CSS, a run of equal tracks folded into <c>repeat()</c>; the table's columns, and a package's grid, take the same road.</summary>
@@ -129,4 +140,6 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
 
         return true;
     }
+
+    private sealed record TrackRender(Action<IHtmlElementBuilder, IReadOnlyList<UIGridUnit>?> Render, WebDomOperation[] Operations);
 }

@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
@@ -15,6 +16,8 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 /// </summary>
 public sealed class FlyoutComponentRenderer : WebComponentRendererBase
 {
+    private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.FlyoutPlacementClass)];
+
     public override string ComponentTypeKey => FlyoutComponent.ComponentTypeKey;
 
     protected override string ClassName => FlyoutRenderer.ClassName;
@@ -27,11 +30,11 @@ public sealed class FlyoutComponentRenderer : WebComponentRendererBase
         _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.FlyoutOpen);
         RenderFlagClass(context, root, FlyoutComponent.IsOpenProperty, "ui-flyout--open");
 
-        _ = RenderProperty<UIPopupPlacement?>(context, root, FlyoutComponent.FlyoutPlacementProperty, static (target, value) =>
+        _ = RenderProperty<UIPopupPlacement?>(context, root, IPopupPlacementComponent.PopupPlacementProperty, static (target, value) =>
         {
             if (value is UIPopupPlacement placement)
                 _ = target.Class(WebClassNames.FlyoutPlacement(placement));
-        }, [WebDomOperation.Class(converter: WebDomConverters.FlyoutPlacementClass)]);
+        }, PlacementOperations);
 
         RenderFlagAttribute(context, root, FlyoutComponent.CloseOnBackdropProperty, WebAttributes.FlyoutNoBackdropClose, WebValueCondition.IsFalse);
 

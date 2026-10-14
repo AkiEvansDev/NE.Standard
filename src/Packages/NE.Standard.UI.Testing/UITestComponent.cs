@@ -122,14 +122,14 @@ public sealed class UITestComponent
 
     /// <summary>
     /// Types <paramref name="value"/> into the input and leaves it, as a reader does: its rules, the server's answer, its change command
-    /// and their effects land on the page.
+    /// and their effects land on the page, and the result tells whether the value was refused and what its change command did.
     /// </summary>
     /// <exception cref="InvalidOperationException">The input is not shown, is disabled or read-only.</exception>
-    public Task SetValueAsync(object? value, CancellationToken cancellationToken = default)
+    public Task<UITestCommandResult> SetValueAsync(object? value, CancellationToken cancellationToken = default)
         => _page.SetValueAsync(_node.ComponentId, _rowKeys, IInputComponent.ValueProperty, value, cancellationToken);
 
     /// <summary>Writes <paramref name="value"/> to a property the reader changes, such as a list's chosen key, as <see cref="SetValueAsync"/> does.</summary>
-    public Task SetAsync(UIProperty property, object? value, CancellationToken cancellationToken = default)
+    public Task<UITestCommandResult> SetAsync(UIProperty property, object? value, CancellationToken cancellationToken = default)
         => _page.SetValueAsync(_node.ComponentId, _rowKeys, property, value, cancellationToken);
 
     /// <summary>Presses the component: its click command — refused while its form has a field in error — or the interactions it drives.</summary>

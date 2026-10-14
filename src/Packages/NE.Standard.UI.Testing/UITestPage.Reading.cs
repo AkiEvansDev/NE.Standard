@@ -10,6 +10,7 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Testing;
@@ -190,7 +191,10 @@ public sealed partial class UITestPage
             return [.. ReadRowsNoLock(new UIComponentAddress(hostId, rowKeys))];
     }
 
-    /// <summary>The root a row is drawn with, as the list renders it: the variant its item's key property names, the fallback, else the template.</summary>
+    /// <summary>
+    /// The root a row is drawn with, as the list renders it: the variant its item's key property names, the fallback, a composite's
+    /// <c>row</c>, else the template.
+    /// </summary>
     internal UIComponentId RowTemplate(UIComponentId hostId, object?[] hostKeys, object? item)
     {
         UIComponentSlot? slot = null;
@@ -205,11 +209,21 @@ public sealed partial class UITestPage
         if (slot is null && Read(hostId, hostKeys, ITemplatedComponent.FallbackTemplateKeyProperty) is string { Length: > 0 } fallback)
             _ = View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out slot, fallback);
 
+        if (slot is null)
+            _ = View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out slot, TemplateNames.Row);
+
         if (slot is null && !View.Graph.TryGetSlot(hostId, UIComponentSlotKind.Template, out slot))
             throw new InvalidOperationException($"'{View.Graph.GetRequired(hostId).AuthoringId}' draws its rows with no template of its own.");
 
         return slot.RootComponentId;
     }
+
+    /// <summary>
+    /// Where a row's components are looked for: the host for a composite, whose cells stand in templates beside its <c>row</c>, else the
+    /// root the row is drawn with.
+    /// </summary>
+    internal UIComponentId RowScope(UIComponentId hostId, object?[] hostKeys, object? item)
+        => View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, TemplateNames.Row) ? hostId : RowTemplate(hostId, hostKeys, item);
 
     /// <summary>Whether the property is bound to write back what the reader changes.</summary>
     internal bool WritesBack(UIComponentId componentId, UIProperty property)

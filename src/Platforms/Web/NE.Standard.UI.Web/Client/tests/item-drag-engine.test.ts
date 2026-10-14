@@ -361,3 +361,36 @@ test("Escape lets go of the rows taken and is spent on it; with nothing taken it
     source.root.dispatchEvent(nothing);
     assert.equal(nothing.defaultPrevented, false);
 });
+
+test("rows cut from a list the page has since redrawn away still paste by their keys, with none moved ahead, and Escape is not spent on them", () => {
+    const source = list("1", ["a", "b"], Cards);
+    const target = list("2", ["x"], Cards);
+    const { drops } = page(source.root, target.root);
+
+    source.rows[0].setAttribute("data-ui-row-focus", "");
+    chord(source.root, "KeyX");
+    source.root.remove();
+
+    chord(target.root, "KeyV");
+    assert.deepEqual(drops[0].detail.drop.keys, ["a"]);
+    assert.equal(drops[0].detail.transfer, null);
+
+    chord(target.root, "KeyC");
+
+    const copied = new FakeKeyboardEvent("Escape", target.root);
+
+    target.root.dispatchEvent(copied);
+    assert.equal(copied.defaultPrevented, true, "a copy from a list on the page is still there to let go of");
+
+    const second = list("3", ["c"], Cards);
+
+    page(second.root, target.root);
+    second.rows[0].setAttribute("data-ui-row-focus", "");
+    chord(second.root, "KeyX");
+    second.root.remove();
+
+    const gone = new FakeKeyboardEvent("Escape", target.root);
+
+    target.root.dispatchEvent(gone);
+    assert.equal(gone.defaultPrevented, false);
+});

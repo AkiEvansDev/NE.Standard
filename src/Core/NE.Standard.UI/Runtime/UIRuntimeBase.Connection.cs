@@ -109,7 +109,7 @@ internal abstract partial class UIRuntimeBase
         UpdateConnectionSnapshot(RuntimeConnection.FromClientServices(handle, clientServices));
 
         if (Controller is IUIContextController contextController)
-            contextController.Context.RefreshConnection(handle, clientServices.Dialogs, clientServices.Downloads, clientServices.Uploads);
+            contextController.Context.RefreshConnection(handle, clientServices.Downloads, clientServices.Uploads);
     }
 
     /// <summary>
