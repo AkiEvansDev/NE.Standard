@@ -14,6 +14,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 internal sealed class FieldActions
 {
+    // Whose actions a flyout's anchor is refused among.
+    private const string Host = "a field's";
+
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
     private readonly List<IButtonComponent> _leading = [];
     private readonly List<IButtonComponent> _trailing = [];
@@ -28,13 +31,13 @@ internal sealed class FieldActions
         => Add(_leading, RegionNames.LeadingAction, action, action);
 
     public void AddLeading(FlyoutComponent flyout)
-        => Add(_leading, RegionNames.LeadingAction, AnchorOf(flyout), flyout);
+        => Add(_leading, RegionNames.LeadingAction, FlyoutComponent.ButtonAnchorOf(flyout, Host), flyout);
 
     public void AddTrailing(IButtonComponent action)
         => Add(_trailing, RegionNames.TrailingAction, action, action);
 
     public void AddTrailing(FlyoutComponent flyout)
-        => Add(_trailing, RegionNames.TrailingAction, AnchorOf(flyout), flyout);
+        => Add(_trailing, RegionNames.TrailingAction, FlyoutComponent.ButtonAnchorOf(flyout, Host), flyout);
 
     /// <summary>Makes <paramref name="action"/> the field's one trailing action, in place of any added before.</summary>
     public void SetTrailing(IButtonComponent action)
@@ -48,7 +51,7 @@ internal sealed class FieldActions
     /// <summary>Makes <paramref name="flyout"/> the field's one trailing action, in place of any added before.</summary>
     public void SetTrailing(FlyoutComponent flyout)
     {
-        IButtonComponent anchor = AnchorOf(flyout);
+        IButtonComponent anchor = FlyoutComponent.ButtonAnchorOf(flyout, Host);
 
         ClearTrailing();
         Add(_trailing, RegionNames.TrailingAction, anchor, flyout);
@@ -68,14 +71,5 @@ internal sealed class FieldActions
 
         _regions[RegionNames.FieldAction(side, actions.Count)] = region;
         actions.Add(control);
-    }
-
-    /// <summary>The button a flyout opens from: a field's actions are its buttons, so a flyout among them must open from one.</summary>
-    private static IButtonComponent AnchorOf(FlyoutComponent flyout)
-    {
-        ArgumentNullException.ThrowIfNull(flyout);
-
-        return flyout.Anchor as IButtonComponent
-            ?? throw new ArgumentException("A flyout among a field's actions opens from a button: set its anchor to one before adding it.", nameof(flyout));
     }
 }

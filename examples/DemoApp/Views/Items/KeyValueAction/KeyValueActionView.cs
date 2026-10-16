@@ -254,7 +254,7 @@ internal sealed class KeyValueActionView : DemoComponentView, IUIViewDefinition
                     .AddValueInputTemplate("number", new NumberInputComponent().SetAppearance(UIInputAppearance.Ghost))
                     .AddValueInputTemplate("switch", new SwitchComponent())
                     .AddValueInputTemplate("avatar", new ImageInputComponent()
-                        .SetShape(UIImageInputShape.Avatar)
+                        .SetVariant(UIImageInputVariant.Avatar)
                         .SetMaxFileSize(DemoImages.MaxInlinePictureBytes)
                         .BindSelectionId(nameof(AvatarRowItem.SelectionId), UIBindingScope.Relative)
                     )

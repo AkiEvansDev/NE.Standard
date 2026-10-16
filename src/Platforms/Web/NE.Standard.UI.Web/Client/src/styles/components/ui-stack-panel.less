@@ -1,3 +1,4 @@
+@import "../core/tokens.less";
 @import "../mixins/responsive.less";
 @import "../mixins/surface-image.less";
 
@@ -19,6 +20,33 @@
 .ui-stack-panel > [data-ui-id] {
     flex-shrink: 0;
 }
+
+// A control with no caption over it beside captioned fields (StackPanel.AlignWithFieldBoxes, UIForm.Row) stands level with their boxes:
+// down by a caption's line and the input root's gap under it, then centred on a band as tall as their box, in the tiers written (the
+// renderer writes each tier's line, 0 or 1, and its box, one of the three below). Through the padding's and the least height's chains,
+// so an authored Padding or MinHeight wins.
+.ui-stack-panel--field-aligned[data-ui-id] {
+    .ui-responsive-reset(--ui-field-aligned);
+    .ui-responsive-reset(--ui-field-aligned-box);
+    // A field's box by its Size (ui-input.less).
+    --ui-field-box-small: @ui-control-height-sm;
+    --ui-field-box-medium: @ui-control-height;
+    --ui-field-box-large: @ui-control-height-lg;
+    @lines: .ui-responsive-chain(--ui-field-aligned; 0)[@value];
+    @box: .ui-responsive-chain(--ui-field-aligned-box; 0px)[@value];
+    @caption: ~"calc(@{lines} * (var(--ui-text-caption-line-height) + @{ui-space-1}))";
+    .ui-responsive-property(padding, --ui-padding, ~"@{caption} 0 0");
+    .ui-responsive-property(min-height, --ui-min-height, ~"calc(@{caption} + @{box})");
+}
+
+    // Centred across the band: a column along its main axis, a row's children across it, an authored VerticalAlignment still theirs.
+    .ui-stack-panel--field-aligned.ui-orientation--vertical {
+        justify-content: center;
+    }
+
+    .ui-stack-panel--field-aligned.ui-orientation--horizontal > [data-ui-id] {
+        align-self: var(--ui-align-v, center);
+    }
 
 .ui-stack-panel.ui-orientation--horizontal {
     flex-direction: row;

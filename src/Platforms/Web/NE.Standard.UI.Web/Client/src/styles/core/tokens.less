@@ -25,6 +25,8 @@
 // A field says its own size too — see UIInputSize. A small one is a line of caption text with room for a glyph, for a dense surface.
 @ui-control-height-sm: 1.5rem;
 @ui-control-height-lg: 3rem;
+// A small field's side padding, and the gap between the parts of its row: half a medium field's padding, for a caption line.
+@ui-field-padding-sm: 0.375rem;
 
 // The icon scale: every glyph's and icon's size is one of these whole pixels, in rem at the default 16 px root. At a fraction of its
 // text (1.25em of 14 px) an icon lands on half a pixel, where the icon fonts round their ascent and stand the glyph off centre.
@@ -140,6 +142,9 @@
 // neutral colour; the preset's reply or pin wears the brand or its author's colour.
 @ui-quote-stroke: 3px;
 @ui-quote-ink: var(--ui-color-border);
+
+// A message's severity, drawn as a bar down its leading edge: a toast's and a validation tooltip's, one width.
+@ui-severity-stroke: 3px;
 
 // A thing being dragged stays in its place as a ghost (a column's caption, a tab, a tree row), so the gap it will leave is what moves.
 @ui-drag-ghost-opacity: 0.45;

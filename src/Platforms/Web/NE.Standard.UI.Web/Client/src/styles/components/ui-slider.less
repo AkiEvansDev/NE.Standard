@@ -25,8 +25,9 @@
 }
 
 // The room under the caption, not the root's whole height: 100% ran the row past the root by the caption and clipped its labels.
+// Bottom to top, as the upright input runs: the minimum under the track, the maximum and the readout over it.
 .ui-slider.ui-orientation--vertical > .ui-slider__row {
-    flex-direction: column;
+    flex-direction: column-reverse;
     flex: 1 1 auto;
     min-height: 0;
 }

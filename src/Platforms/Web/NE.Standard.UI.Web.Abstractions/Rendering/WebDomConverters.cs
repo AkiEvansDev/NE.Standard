@@ -67,8 +67,8 @@ public static class WebDomConverters
     public const string LayoutLengthCss = "layoutLengthCss";
     public const string ThicknessCss = "thicknessCss";
 
-    /// <summary>A border thickness as <c>WebClassNames.BorderNone</c>: the class when every side of every tier is nothing, else none.</summary>
-    public const string BorderNoneClass = "borderNoneClass";
+    /// <summary>A border thickness as <c>WebClassNames.BorderEdge</c>: no edge, or a stroke on one side alone, at every tier it sets.</summary>
+    public const string BorderEdgeClass = "borderEdgeClass";
     public const string RadiusCss = "radiusCss";
     public const string GridUnitCss = "gridUnitCss";
     public const string PixelsCss = "pixelsCss";

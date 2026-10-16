@@ -487,8 +487,8 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Records that an instance's answer carried every update queued up to <paramref name="sequence"/>, so the flush does not
-    /// send it them again.
+    /// Records that an instance was sent every update queued up to <paramref name="sequence"/> in its answer, so no later set sends it
+    /// them again; run as that answer is sent, where it stands among the dispatcher's sends.
     /// </summary>
     private void MarkAnswered(string instanceId, long sequence)
     {

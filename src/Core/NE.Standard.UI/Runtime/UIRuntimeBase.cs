@@ -31,8 +31,8 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "The controller's exception handler failed during '{Operation}'; the operation is answered with the default error.")]
         public static partial void ExceptionHandlerFailed(ILogger logger, Exception exception, string operation);
 
-        [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "A value for '{Property}' of {TypeKey} '{ComponentId}' was refused: it, or a container around it, is hidden at every width, and a hidden component takes no value from the page.")]
-        public static partial void HiddenWriteRefused(ILogger logger, string property, string typeKey, string componentId);
+        [LoggerMessage(EventId = 4, Message = "A value for '{Property}' of {TypeKey} '{ComponentId}' was refused: it, or a container around it, is hidden at every width, and a hidden component takes no value from the page.")]
+        public static partial void HiddenWriteRefused(ILogger logger, LogLevel level, string property, string typeKey, string componentId);
     }
 
     /// <summary>
@@ -123,6 +123,7 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
         Controller = controller;
         _application = application;
         _host = host;
+        _dispatcher = host.Dispatcher;
         _commandRelease = new CommandRelease(this);
     }
 

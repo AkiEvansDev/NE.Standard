@@ -553,16 +553,21 @@ internal sealed partial class WebUIHub : Hub
     }
 
     /// <summary>
-    /// Reads the session the shell render already issued; the hub cannot write a cookie, so it only ever presents one.
+    /// Reads the session the shell render already issued — the held handle's, where this connection attached already; the hub cannot
+    /// write a cookie, so it only ever presents one.
     /// </summary>
-    /// <remarks>The connection is the one the hub's own request describes: the transport's, over the page's origin.</remarks>
+    /// <remarks>
+    /// The connection is the one the hub's own request describes: the transport's, over the page's origin. The handle's session first, as
+    /// <see cref="ReadLiveSessionIdAsync"/> reads it: a sign-in moved it to an id the cookie this connection started with does not name,
+    /// and a resync or a switch on the connection would otherwise be answered with a reload.
+    /// </remarks>
     private UserSessionInitData CreateSession(string clientWindowId, string? timeZone)
     {
         HttpContext? http = Context.GetHttpContext();
 
         return new UserSessionInitData
         {
-            SessionId = ReadSessionId(http),
+            SessionId = TryGetHandle(out UIHandle? held) ? held.Session.SessionId : ReadSessionId(http),
             ConnectionId = Context.ConnectionId,
             ClientWindowId = clientWindowId,
             Credential = Context.User?.Identity?.IsAuthenticated == true ? Context.User.Identity.Name : null,
@@ -630,12 +635,13 @@ internal sealed partial class WebUIHub : Hub
     }
 
     /// <summary>
-    /// The session the page's cookie names, where the store holds it and it has not gone idle — the reading every other one of the
-    /// session makes, so a page's own switch cannot bring back an unclaimed session past its short timeout.
+    /// The session the page's cookie names — its handle's, where it attached — where the store holds it and it has not gone idle: the
+    /// reading every other one of the session makes, so a page's own switch cannot bring back an unclaimed session past its short timeout.
     /// </summary>
+    /// <remarks>The handle's first: a sign-in moved it to an id the cookie this connection started with does not name.</remarks>
     private async ValueTask<string?> ReadLiveSessionIdAsync()
     {
-        var sessionId = ReadSessionId(Context.GetHttpContext());
+        var sessionId = TryGetHandle(out UIHandle? handle) ? handle.Session.SessionId : ReadSessionId(Context.GetHttpContext());
 
         if (string.IsNullOrWhiteSpace(sessionId))
             return null;

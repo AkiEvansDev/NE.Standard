@@ -1,27 +1,33 @@
 // The keyboard's cursor in a host with rows keeps its row through what takes the row away: a virtualized row scrolled out leaves its
 // key waiting on the root and takes the cursor back once drawn, unless the cursor moved meanwhile; a filter that hides the cursor's
-// row moves it to the nearest row still shown. Only the cursor row's controls are Tab stops, kept in step as the cursor moves; Delete
-// raises only a removal the application wired; Home and End reach a virtualized host's real ends and a windowed host's. The keyboard
-// arriving shows the cursor at once.
+// row moves it to the nearest row still shown. Only the cursor row's controls are Tab stops, kept in step as the cursor moves and read
+// again only for rows put in or taken out, never for a key the arrows chose; Delete raises only a removal the application wired, and
+// of a chosen group only for the rows shown; Home and End reach a virtualized host's real ends and a windowed host's. The keyboard
+// arriving shows the cursor at once. A removal of the cursor's row moves it to the row that followed, and scrolls there only where the
+// reader saw the row removed.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { FakeElement, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
-// The observers the engine makes, so a test can hand them the records a browser would.
-const observers: { readonly callback: (records: unknown[]) => void }[] = [];
+// The observers the engine makes, so a test can hand them the records a browser would; `notify` hands each only what it watches.
+const observers: { readonly callback: (records: unknown[]) => void; options?: MutationObserverInit }[] = [];
 
 installFakeDom({
+    // What a removal measures the cursor's row against, beside the host's own box.
+    window: { addEventListener: () => undefined, innerWidth: 1200, innerHeight: 800 },
     MutationObserver: class {
         public readonly callback: (records: unknown[]) => void;
+        public options?: MutationObserverInit;
 
         public constructor(callback: (records: unknown[]) => void) {
             this.callback = callback;
             observers.push(this);
         }
 
-        public observe(): void {
+        public observe(_target: unknown, options: MutationObserverInit): void {
+            this.options = options;
         }
 
         public disconnect(): void {
@@ -29,7 +35,7 @@ installFakeDom({
     }
 });
 
-const { enterRowCursor, giveRowCursor, keepRowCursorShown, restoreWaitingCursor, setRowFocus, takeRowCursor } = await import("../src/interactions/row-cursor.ts");
+const { enterRowCursor, giveRowCursor, keepRowCursorShown, planRowRemoval, restoreWaitingCursor, setRowFocus, takeRowCursor } = await import("../src/interactions/row-cursor.ts");
 const { ItemsSelectionEngine } = await import("../src/interactions/items-selection-engine.ts");
 
 function row(key: string, top: number, ...controls: FakeElement[]): FakeElement {
@@ -123,6 +129,89 @@ test("a filter that hides the cursor's row moves the cursor to the next row show
     assert.equal(root.hasAttribute("aria-activedescendant"), false);
 });
 
+test("a removal moves the cursor to the row that followed the one removed, though the caller drops that row from its list first", () => {
+    const rows = [row("a", 0), row("b", 40), row("c", 80), row("d", 120)];
+    const { root } = list(rows);
+
+    setRowFocus(real<HTMLElement>(root), real<HTMLElement[]>(rows), real<HTMLElement>(rows[1]));
+
+    const restore = planRowRemoval(real<HTMLElement>(root), real<HTMLElement[]>(rows), new Set([real<Element>(rows[1])]));
+
+    // As the update processor does: the row off the page and out of the list it passed, before the cursor moves.
+    rows[1].remove();
+    rows.splice(1, 1);
+    restore?.();
+
+    assert.equal(cursorKey(root), "c");
+});
+
+test("several rows removed at once move the cursor once, past all of them, else to the last row above", () => {
+    const rows = [row("a", 0), row("b", 40), row("c", 80), row("d", 120)];
+    const { root } = list(rows);
+
+    setRowFocus(real<HTMLElement>(root), real<HTMLElement[]>(rows), real<HTMLElement>(rows[1]));
+    remove(root, rows, [rows[1], rows[2]]);
+
+    assert.equal(cursorKey(root), "d");
+
+    remove(root, [rows[0], rows[3]], [rows[3]]);
+
+    assert.equal(cursorKey(root), "a");
+});
+
+test("the cursor's row removed out of sight moves the cursor without a scroll; one the reader saw brings its follower into view", () => {
+    const rows = [row("a", 0), row("b", 40), row("c", 80), row("d", 120)];
+    const { root, host } = list(rows);
+    const scrolled: string[] = [];
+
+    // The host shows the rows from 50 to 150: a is above it, as a window's start the server trims.
+    host.rect = { left: 0, top: 50, width: 200, height: 100 };
+
+    for (const target of rows)
+        target.scrollIntoView = () => scrolled.push(target.getAttribute("data-ui-key") ?? "");
+
+    setRowFocus(real<HTMLElement>(root), real<HTMLElement[]>(rows), real<HTMLElement>(rows[0]), null, false);
+    remove(root, rows, [rows[0]]);
+
+    assert.equal(cursorKey(root), "b");
+    assert.deepEqual(scrolled, []);
+
+    remove(root, rows.slice(1), [rows[1]]);
+
+    assert.equal(cursorKey(root), "c");
+    assert.deepEqual(scrolled, ["c"]);
+});
+
+/** Removes rows as a collection change does: the cursor planned over the rows as they stand, the rows taken off, then the cursor moved. */
+function remove(root: FakeElement, rows: readonly FakeElement[], removed: readonly FakeElement[]): void {
+    const restore = planRowRemoval(real<HTMLElement>(root), real<HTMLElement[]>(rows), new Set(real<Element[]>(removed)));
+
+    for (const target of removed)
+        target.remove();
+
+    restore?.();
+}
+
+test("the list names no row once the cursor's row is taken off the page with none to move to: scrolled out, or the last removed", () => {
+    const rows = [row("a", 0), row("b", 40)];
+    const { root, host } = list(rows);
+
+    setRowFocus(real<HTMLElement>(root), real<HTMLElement[]>(rows), real<HTMLElement>(rows[1]));
+
+    const held = takeRowCursor(real<Element>(rows[1]));
+
+    rows[1].remove();
+    giveRowCursor(real<Element>(host), null, held);
+
+    assert.equal(root.hasAttribute("aria-activedescendant"), false);
+
+    setRowFocus(real<HTMLElement>(root), real<HTMLElement[]>([rows[0]]), real<HTMLElement>(rows[0]));
+    remove(root, [rows[0]], [rows[0]]);
+
+    assert.equal(cursorKey(root), null);
+    assert.equal(root.hasAttribute("aria-activedescendant"), false);
+});
+
 test("only the cursor row's controls are Tab stops, and they follow the cursor", () => {
     const pair = (): FakeElement[] => [FakeElement.of("", {}, "button"), FakeElement.of("", {}, "button")];
     const rows = [row("a", 0, ...pair()), row("b", 40, ...pair())];
@@ -150,6 +239,57 @@ test("only the cursor row's controls are Tab stops, and they follow the cursor",
     assert.deepEqual(stops(rows[1]), ["0", "0"]);
     // Given back as it was: no tabindex of its own.
     assert.equal(rows[1].children[0].hasAttribute("tabindex"), false);
+});
+
+type Mutation = { readonly type: string; readonly target: FakeElement; readonly attributeName?: string };
+
+/** Hands each record only to the observers watching its kind, as the browser does: rows put in, or an attribute an observer names. */
+function notify(records: readonly Mutation[]): void {
+    for (const observer of observers) {
+        const options = observer.options;
+        const watched = records.filter(record => record.type === "childList"
+            ? options?.childList === true
+            : options?.attributes === true && (options.attributeFilter?.includes(record.attributeName ?? "") ?? true));
+
+        if (watched.length > 0)
+            observer.callback(watched.map(record => ({ addedNodes: [], removedNodes: [], ...record })));
+    }
+}
+
+test("a key the arrows chose re-marks the rows alone, reading none of their controls again; a row put in is read", () => {
+    const rows = Array.from({ length: 40 }, (_, index) => row(`r${index}`, index * 40, FakeElement.of("", {}, "button")));
+    const { root, host, page } = list(rows, { "data-ui-selection": "one", "data-ui-selected-key": "r0" });
+    const count = { queries: 0 };
+
+    observers.length = 0;
+    new ItemsSelectionEngine({ root: page });
+
+    for (const target of rows) {
+        const query = target.querySelectorAll.bind(target);
+
+        target.querySelectorAll = (selector: string): FakeElement[] => {
+            count.queries++;
+            return query(selector);
+        };
+    }
+
+    root.focus();
+    root.dispatchEvent(new FakeKeyboardEvent("ArrowDown", root));
+    count.queries = 0;
+    notify([{ type: "attributes", target: root, attributeName: "data-ui-selected-key" }]);
+
+    assert.equal(root.getAttribute("data-ui-selected-key"), "r1");
+    assert.deepEqual([rows[0], rows[1]].map(target => target.getAttribute("aria-selected")), ["false", "true"]);
+    assert.equal(count.queries, 0);
+
+    // A row the source pushed: its one control leaves the Tab order as every row's did, and it is marked as one not chosen.
+    const pushed = row("r40", 1600, FakeElement.of("", {}, "button"));
+
+    host.append(pushed);
+    notify([{ type: "childList", target: host }]);
+
+    assert.equal(pushed.children[0].tabIndex, -1);
+    assert.equal(pushed.getAttribute("aria-selected"), "false");
 });
 
 test("a control of a row taking the focus brings the cursor to its row", () => {
@@ -192,6 +332,27 @@ test("Delete raises a row's removal only where the application wired one; else t
 
     assert.equal(taken.defaultPrevented, true);
     assert.deepEqual(removed, ["a"]);
+});
+
+test("Delete on a chosen group removes the chosen rows shown, never one a filter or a fold hides, as a drag leaves it", () => {
+    const removed: string[] = [];
+    const rows = [row("a", 0), row("b", 40), row("c", 80)];
+
+    for (const target of rows)
+        target.addEventListener("remove", () => removed.push(target.getAttribute("data-ui-key") ?? ""));
+
+    // b is chosen, then filtered out: it stays chosen, out of sight.
+    rows[1].laidOut = false;
+
+    const { root, host, page } = list(rows, { "data-ui-rows-remove": "", "data-ui-selection": "many" });
+
+    host.setAttribute("data-ui-selected-keys", JSON.stringify(["a", "b", "c"]));
+    new ItemsSelectionEngine({ root: page });
+    setRowFocus(real<HTMLElement>(root), real<HTMLElement[]>(rows), real<HTMLElement>(rows[0]));
+    root.focus();
+    root.dispatchEvent(new FakeKeyboardEvent("Delete", root));
+
+    assert.deepEqual(removed, ["a", "c"]);
 });
 
 test("Home and End in a virtualized host reach its collection's ends, drawn on demand", () => {

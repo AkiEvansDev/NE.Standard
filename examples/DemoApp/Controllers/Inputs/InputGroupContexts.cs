@@ -41,7 +41,7 @@ internal abstract partial class FieldChromeGroupContext(string? placeholder) : D
     private readonly string? _placeholder = placeholder;
 
     [RecursiveMember]
-    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
+    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Tonal;
 
     [RecursiveMember]
     public partial string? Placeholder { get; set; } = placeholder;
@@ -223,18 +223,29 @@ internal sealed partial class OptionValueGroupContext : InputValueGroupContext
 /// <summary>
 /// The value a list of options holds when several can be chosen — their keys in the order chosen — and how many it takes at most.
 /// </summary>
-internal sealed partial class OptionKeysValueGroupContext : InputValueGroupContext
+internal partial class OptionKeysValueGroupContext : InputValueGroupContext
 {
-    private static readonly string[][] ValueSteps = [["eu-west", "ap-south"], ["us-east"], []];
+    private static readonly string[][] RegionSteps = [["eu-west", "ap-south"], ["us-east"], []];
+
+    private readonly string[][] _valueSteps;
 
     [RecursiveMember]
-    public partial IReadOnlyList<string>? Value { get; set; } = ValueSteps[0];
+    public partial IReadOnlyList<string>? Value { get; set; }
 
     [RecursiveMember]
     public partial int? MaxSelected { get; set; }
 
     public OptionKeysValueGroupContext()
+        : this(RegionSteps)
     {
+    }
+
+    /// <summary>A value stepping through <paramref name="valueSteps"/>, the first chosen at the start, then none.</summary>
+    protected OptionKeysValueGroupContext(string[][] valueSteps)
+    {
+        _valueSteps = valueSteps;
+        Value = valueSteps[0];
+
         AddOption(nameof(Value), CycleValue, () => Value is null ? null : string.Join(", ", Value));
         AddOption(nameof(MaxSelected), CycleMaxSelected, () => MaxSelected);
         AddSizeOption();
@@ -245,14 +256,14 @@ internal sealed partial class OptionKeysValueGroupContext : InputValueGroupConte
         => SetLastChange(nameof(Value), Value = NextValue(Value));
 
     // By what a step holds, not by reference: a list the field writes back is a new one.
-    private static string[]? NextValue(IReadOnlyList<string>? current)
+    private string[]? NextValue(IReadOnlyList<string>? current)
     {
         if (current is null)
-            return ValueSteps[0];
+            return _valueSteps[0];
 
-        var index = Array.FindIndex(ValueSteps, step => step.SequenceEqual(current));
+        var index = Array.FindIndex(_valueSteps, step => step.SequenceEqual(current));
 
-        return index < 0 ? ValueSteps[0] : index + 1 < ValueSteps.Length ? ValueSteps[index + 1] : null;
+        return index < 0 ? _valueSteps[0] : index + 1 < _valueSteps.Length ? _valueSteps[index + 1] : null;
     }
 
     public void CycleMaxSelected()

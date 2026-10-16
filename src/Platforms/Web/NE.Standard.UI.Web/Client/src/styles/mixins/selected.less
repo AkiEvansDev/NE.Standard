@@ -96,21 +96,21 @@
     }
 
     @media @{ui-can-hover} {
-        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-row-own}@{ui-button-live}:hover,
-        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-not-split-parts}@{ui-row-own}@{ui-button-live}:hover,
+        @{ui-split-parts}:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             background-color: transparent;
         }
 
-        // The parts, never a root (a split button's hovered part alone): a filter makes the root the containing block of a popup
+        // The parts, never a root (a two-part split button's hovered part alone): a filter makes the root the containing block of a popup
         // inside it, which would jump.
-        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-row-own}@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
-        .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-not-split-parts}@{ui-row-own}@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
+        @{ui-split-parts}:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             .ui-brighten-hover();
         }
     }
 
-    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link):not(.ui-split-button)@{ui-row-own}@{ui-button-live}:active,
-    .ui-split-button:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
+    :is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-not-split-parts}@{ui-row-own}@{ui-button-live}:active,
+    @{ui-split-parts}:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
         background-color: var(--ui-wash-active);
     }
 }

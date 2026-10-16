@@ -117,9 +117,26 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     /// </summary>
     /// <remarks>Named for what it shows, not what it carries — unlike <c>With</c> methods, nothing is passed here.</remarks>
     public T OnClickShowingLoading(string command)
-        => OnClick(command)
-            .InteractBeforeClick(IVisualComponent.LoadingProperty, true)
-            .InteractAfterClick(IVisualComponent.LoadingProperty, false);
+        => OnClick(command).ShowLoadingDuring(EventNames.Click);
+
+    /// <summary>
+    /// Runs the command with UI action arguments on click and shows the button loading for exactly the round trip.
+    /// </summary>
+    public T OnClickShowingLoading(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => OnClick(command, arguments).ShowLoadingDuring(EventNames.Click);
+
+    /// <summary>
+    /// Runs the command with literal argument values on click and shows the button loading for exactly the round trip.
+    /// </summary>
+    public T OnClickShowingLoadingLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnClickLiteral(command, arguments).ShowLoadingDuring(EventNames.Click);
+
+    /// <summary>
+    /// Runs the command on click with the key of the item the button is drawn for, and shows the button loading for exactly the round
+    /// trip — a row's own button.
+    /// </summary>
+    public T OnClickShowingLoadingWithItemKey(string command, string argumentName = "id")
+        => OnClickShowingLoading(command, UIAction.ArgCurrentItemKey(argumentName));
 
     IButtonComponent IButtonComponent.OnClick(string command)
         => OnClick(command);

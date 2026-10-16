@@ -1,15 +1,33 @@
 // A rule reading a field (`ShownWhen`, `HiddenWhen`, `EnabledWhen`: a property interaction) follows the reader's own edit, not only a
 // push: the server never sends a writer its own value back, so the edit has to reach the interaction engine on the page. The real
 // engines run here — the value engine sending, the patch engine recording, the interaction engine — over a stand-in server that
-// either answers nothing or refuses the value by pushing the old one back. A toggle with no binding is read by its Pressed.
+// either answers nothing or refuses the value by pushing the old one back. A toggle with no binding is read by its Pressed. A row's
+// own field edited lands in the row's item once the server's answer is applied and took it, as a push would: the list's rules read it,
+// and a virtualized host's values, which a row drawn again is drawn from, hold it; a value refused stays out. While the reader is still
+// in the row, the rules wait for them to leave it before they move it.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeInput, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
-installFakeDom();
+// The tasks the page put off, run when a test says.
+const timers: (() => void)[] = [];
+
+installFakeDom({
+    window: { addEventListener: () => undefined, setTimeout: (callback: () => void) => timers.push(callback) },
+    MutationObserver: class {
+        public observe(): void {
+        }
+    }
+});
+
+function runTimers(): void {
+    for (const callback of timers.splice(0))
+        callback();
+}
 
 const { InteractionEngine } = await import("../src/interactions/interaction-engine.ts");
+const { ItemsRuleWatcher } = await import("../src/items/items-rule-watcher.ts");
 const { InteractionEvaluator } = await import("../src/interactions/interaction-evaluator.ts");
 const { InteractionIndex } = await import("../src/interactions/interaction-index.ts");
 const { ValueReaderRegistry } = await import("../src/extensions/value-readers.ts");
@@ -440,4 +458,249 @@ test("a debounced field's pause and the browser's change on leaving, one value, 
     page.edit(page.query, "iron");
 
     assert.deepEqual(page.effects, ["query"]);
+});
+
+/** A list of rows each holding a two-way name field, sorted by the viewer by name; a virtualized host's values are held apart. */
+type RowsPage = {
+    readonly host: FakeElement;
+    /** A button beside the list, which the reader leaves a row for. */
+    readonly outside: FakeElement;
+    /** Each row's name as its item holds it: the row's own scope on a plain host, the host's held value on a virtualized one. */
+    readonly names: () => Record<string, unknown>;
+    readonly order: () => (string | null)[];
+    readonly syncs: () => number;
+    field(key: string): FakeInput;
+    edit(key: string, value: string): Promise<void>;
+};
+
+/**
+ * What the stand-in hub answers a row's value with: nothing, having taken it; a Validation refusing it, as a value its input's format
+ * cannot read or a setter refuses; the value it kept, as a closed gate does; or the value sent, sent back all the same, as one the
+ * controller holds as an object is.
+ */
+type RowAnswer = "take" | "refuse" | "restore" | "echo";
+
+function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take"): RowsPage {
+    const RowName: Reference = { componentId: 21, propertyId: "row.name" };
+    const scopes = new Map<FakeElement, { scopeComponentId: number; item: Record<string, unknown> }>();
+    const held = new Map<string, Record<string, unknown>>();
+    // The names the server holds, which a closed gate answers with.
+    const kept = new Map<string, string>([["a", "Anna"], ["b", "Boris"]]);
+    const host = FakeElement.of("ui-items-view__host", mode === "plain" ? { "data-ui-items-host": "" } : { "data-ui-items-host": "", "data-ui-host-mode": mode });
+    // The row template drawing the name field, component 21.
+    const template = Object.assign(FakeElement.of("", { "data-ui-template": "default" }, "template"), { content: { firstElementChild: FakeElement.of("", { "data-ui-id": "21" }) } });
+    const query = FakeElement.of("ui-items-query", { "data-ui-value-kind": "items-query", "data-ui-items-query": JSON.stringify({ sorts: [{ itemProperty: "Name", direction: "Ascending" }] }) });
+    const view = FakeElement.of("ui-items-view", { "data-ui-id": "20" }).append(template, query, host);
+    const outside = FakeElement.of("ui-button", {}, "button");
+    let syncs = 0;
+
+    for (const [key, name] of kept) {
+        const field = new FakeInput("text");
+
+        field.value = name;
+        field.setAttribute("data-ui-bind-value", "41");
+
+        // A second control in the row, which the reader may move to without leaving it.
+        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key }).append(FakeElement.of("", { "data-ui-id": "21", "data-ui-pc": "1" }).append(field), FakeElement.of("", {}, "button"));
+        const item = { Id: key, Name: name };
+
+        scopes.set(row, { scopeComponentId: 0, item });
+        held.set(key, { ...item });
+        host.append(row);
+    }
+
+    const root = FakeElement.of("page").append(view, outside);
+
+    fakeDocument.body.replaceChildren(root);
+
+    const binding = { ...RowName, mode: "TwoWay", itemTemplate: "Name", itemTemplateParameters: [] };
+    const metadata = {
+        metadata: { interactions: [], itemsFilterSort: [] },
+        getBindingById: (id: number) => id === 41 ? binding : undefined,
+        getBindingByComponentAndPropertyId: () => binding,
+        getPropertyDefinition: () => ({ propertyId: RowName.propertyId, propertyName: "Value" }),
+        getItemsFilterSortMetadata: () => undefined
+    };
+    const addressResolver = {
+        resolveProperties: (_reference: Reference, parameters: readonly unknown[]) => {
+            const component = host.querySelector(`[data-ui-key="${String(parameters[0])}"] [data-ui-id="21"]`);
+
+            return component === null ? [] : [{ component, propertyName: "Value", definition: { operations: [{ name: "Value" }] } }];
+        },
+        resolveOperationTargets: (resolved: { component: FakeElement }) => [resolved.component.children[0]],
+        hasRenderedComponent: () => true,
+        getPropertyName: () => "Value",
+        getBindingById: () => binding,
+        isTranslatable: () => false
+    };
+    const operations = { apply: (context: { target: FakeInput; value: unknown }) => { context.target.value = String(context.value ?? ""); } };
+    const patches = new PropertyPatchEngine(real(addressResolver), real(operations), real({ converters: { convert: (_: string, value: unknown) => value } }), new PropertyStateStore());
+    const dom = {
+        resolveNearestComponent: (start: FakeElement) => {
+            const element = start.closest("[data-ui-id]");
+
+            return element === null ? null : { element, componentId: Number(element.getAttribute("data-ui-id")), dynamicParameters: [start.closest("[data-ui-key]")?.getAttribute("data-ui-key")] };
+        }
+    };
+    const watcher = new ItemsRuleWatcher(real({
+        root,
+        metadata,
+        templates: { getGroupTemplate: () => undefined, getEmptyTemplate: () => undefined },
+        renderer: {
+            getItemScope: (element: FakeElement) => scopes.get(element),
+            getItemValue: (element: FakeElement) => scopes.get(element)?.item,
+            updateItemValue: (element: FakeElement, steps: readonly { readonly name: string }[], value: unknown) => {
+                const item = scopes.get(element)?.item;
+
+                if (item !== undefined)
+                    item[steps[0].name] = value;
+            },
+            getAncestorStack: () => []
+        },
+        state: {},
+        propertyPatchEngine: patches,
+        reactiveSources: { watch: () => undefined },
+        virtualization: {
+            hosts: () => mode === "virtualized" ? [host] : [],
+            updateValue: (_host: Element, key: string, steps: readonly { readonly name: string }[], value: unknown) => {
+                const item = held.get(key);
+
+                if (item !== undefined)
+                    item[steps[0].name] = value;
+
+                return item !== undefined;
+            },
+            drawnRowOf: (_host: Element, key: string) => host.querySelector(`[data-ui-key="${key}"]`),
+            sync: () => syncs++
+        }
+    }));
+    // The stand-in hub, applying its answer as the runtime does (`applyAnswered`): the answer's `before` records the value, its changes
+    // land — a value pushed back over the edit —, and the edits it took reach their rows' items after them.
+    const dispatcher = {
+        dispatchAsync: (update: { componentId: number; propertyName: string; dynamicParameters: readonly unknown[]; value: unknown }, before?: () => void) => {
+            const address = { component: { id: update.componentId, dynamicParameters: update.dynamicParameters }, property: update.propertyName };
+            const value = answer === "restore" ? kept.get(String(update.dynamicParameters[0])) : update.value;
+
+            before?.();
+
+            if (answer === "restore" || answer === "echo")
+                patches.applyPropertyValue(RowName, update.dynamicParameters, value, false);
+
+            watcher.followAnswered({
+                updates: answer === "refuse"
+                    ? [{ kind: "Validation", address, message: "ui.value.format" }]
+                    : answer === "take" ? [] : [{ kind: "Value", address, value }]
+            });
+
+            return Promise.resolve();
+        }
+    };
+
+    new ValueBindingEngine({
+        root: real(root),
+        metadata: real(metadata),
+        dom: real(dom),
+        dispatcher: real(dispatcher),
+        valueReaders: new ValueReaderRegistry(),
+        // As the runtime records a sent value: the change it made waits for the answer.
+        recordSent: (reference, dynamicParameters, value) => {
+            const change = patches.recordValue(reference, dynamicParameters, value);
+
+            if (change !== null)
+                watcher.awaitAnswer(change);
+        }
+    });
+
+    const field = (key: string): FakeInput => real<FakeInput>(host.querySelector(`[data-ui-key="${key}"] input`));
+
+    return {
+        host,
+        outside,
+        names: () => Object.fromEntries(mode === "plain"
+            ? [...scopes.values()].map((scope): [string, unknown] => [String(scope.item.Id), scope.item.Name])
+            : [...held].map(([key, item]): [string, unknown] => [key, item.Name])),
+        order: () => host.children.map(row => row.getAttribute("data-ui-key")),
+        syncs: () => syncs,
+        field,
+        edit: async (key, value) => {
+            field(key).value = value;
+            field(key).dispatchEvent(new FakeEvent("change"));
+            // The value engine sends on a promise: its answer lands a turn later.
+            await new Promise(resolve => setImmediate(resolve));
+        }
+    };
+}
+
+test("a row's field the reader edits lands in the row's item once the server takes it, and the list's sort moves the row", async () => {
+    const page = createRowsPage("plain");
+
+    await page.edit("a", "Zoe");
+
+    assert.deepEqual(page.names(), { a: "Zoe", b: "Boris" });
+    assert.deepEqual(page.order(), ["b", "a"]);
+});
+
+test("a virtualized row's field the reader edits lands in the value the host holds, which a row drawn again is drawn from", async () => {
+    const page = createRowsPage("virtualized");
+
+    await page.edit("b", "Ada");
+
+    assert.deepEqual(page.names(), { a: "Anna", b: "Ada" });
+    // The sort reads the name: the host is brought in step over its values.
+    assert.equal(page.syncs(), 1);
+});
+
+test("a row's value the server refuses with a Validation alone stays out of the row's item, which keeps the server's value", async () => {
+    for (const mode of ["plain", "virtualized"] as const) {
+        const page = createRowsPage(mode, "refuse");
+
+        await page.edit("a", "Zoe");
+
+        assert.deepEqual(page.names(), { a: "Anna", b: "Boris" }, mode);
+        assert.deepEqual(page.order(), ["a", "b"], mode);
+        assert.equal(page.syncs(), 0, mode);
+    }
+});
+
+test("a row's value a closed gate answers with the server's own is not written over it once that answer is applied", async () => {
+    const page = createRowsPage("plain", "restore");
+
+    await page.edit("a", "Zoe");
+
+    assert.equal(page.field("a").value, "Anna");
+    assert.deepEqual(page.names(), { a: "Anna", b: "Boris" });
+    assert.deepEqual(page.order(), ["a", "b"]);
+});
+
+test("a row's value the answer sends back unchanged, which reads as no change, still lands in the row's item", async () => {
+    const page = createRowsPage("plain", "echo");
+
+    await page.edit("a", "Zoe");
+
+    assert.deepEqual(page.names(), { a: "Zoe", b: "Boris" });
+    assert.deepEqual(page.order(), ["b", "a"]);
+});
+
+test("a row the reader is still in takes the edit at once, and the sort moving it waits until the reader leaves the row", async () => {
+    const page = createRowsPage("plain");
+
+    // A pause or Enter commits with the focus still in the field.
+    page.field("a").focus();
+    await page.edit("a", "Zoe");
+
+    assert.deepEqual(page.names(), { a: "Zoe", b: "Boris" });
+    assert.deepEqual(page.order(), ["a", "b"]);
+
+    // On to the row's other control: still in the row.
+    page.host.children[0].children[1].focus();
+    runTimers();
+
+    assert.deepEqual(page.order(), ["a", "b"]);
+
+    page.outside.focus();
+
+    // A task after the focus left, once the field's own change on leaving has gone.
+    assert.deepEqual(page.order(), ["a", "b"]);
+    runTimers();
+    assert.deepEqual(page.order(), ["b", "a"]);
 });

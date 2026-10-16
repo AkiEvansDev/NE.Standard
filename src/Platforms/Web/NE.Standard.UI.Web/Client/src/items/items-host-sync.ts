@@ -3,6 +3,7 @@ import { ComponentKeyAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClas
 import type { MetadataIndex } from "../metadata/metadata-index";
 import type { PropertyStateStore } from "../state/property-state-store";
 import { keepRowCursorShown, rowCursorRoot } from "../interactions/row-cursor.ts";
+import { logError } from "../runtime/logger.ts";
 import { ensureEmptyState, getRealItemElements } from "./items-empty-renderer.ts";
 import { applyItemFilters } from "./items-filter-sort.ts";
 import { regroupHost } from "./items-group-renderer.ts";
@@ -25,8 +26,37 @@ export type ItemsHostSyncContext = {
     readonly virtualization: ItemsVirtualizationEngine;
 };
 
-/** Brings an items host back in step after a change; the order below is load-bearing — filter, then empty state, then regroup. */
+type HeldSync = {
+    readonly componentId: number;
+    readonly context: ItemsHostSyncContext;
+};
+
+type HeldSyncs = {
+    readonly hosts: Map<Element, HeldSync>;
+    // The virtualized ones among them, which draw their rows as they come in step: few, and asked about before each update of a set.
+    readonly drawing: Set<Element>;
+};
+
+// The hosts a change set being applied asked to bring in step, in the order first asked; null outside one. A set of a hundred removes
+// on one list brings it in step once, not a hundred times.
+let held: HeldSyncs | null = null;
+
+/** Brings an items host back in step after a change; inside `holdHostSyncs`, once the hold ends. */
 export function syncItemsHost(host: Element, componentId: number, context: ItemsHostSyncContext): void {
+    if (held !== null) {
+        held.hosts.set(host, { componentId, context });
+
+        if (resolveHostMode(host) === "virtualized")
+            held.drawing.add(host);
+
+        return;
+    }
+
+    syncItemsHostNow(host, componentId, context);
+}
+
+/** The order below is load-bearing: filter, then empty state, then regroup. */
+function syncItemsHostNow(host: Element, componentId: number, context: ItemsHostSyncContext): void {
     // A tree runs its own walk (a filter keeps a match's ancestors); the plain pass would hide a folder whose child matches.
     if (host.parentElement?.classList.contains(TreeRootClass) === true) {
         host.dispatchEvent(new Event(TreeRulesEventName, { bubbles: true }));
@@ -71,4 +101,55 @@ function regroupWindowHost(host: Element, componentId: number, context: ItemsHos
     const ancestors = context.renderer.getAncestorStack(host);
 
     regroupWindow(host, row => drawGroupHeader(template, context.renderer, context.renderer.getItemValue(row), row.getAttribute(ComponentKeyAttribute), ancestors));
+}
+
+/** Runs `apply` with the host syncs it asks for held, then brings each host it held in step once, even after `apply` threw. */
+export function holdHostSyncs(apply: () => void): void {
+    if (held !== null) {
+        apply();
+        return;
+    }
+
+    const syncs: HeldSyncs = { hosts: new Map(), drawing: new Set() };
+
+    held = syncs;
+
+    try {
+        apply();
+    }
+    finally {
+        held = null;
+
+        for (const [host, sync] of syncs.hosts)
+            syncHeld(host, sync);
+    }
+}
+
+function syncHeld(host: Element, sync: HeldSync): void {
+    // One host that throws is logged and passed over, as an update is, so the rest still come in step.
+    try {
+        // A host its set took off the page (inside a removed row) has nothing to show.
+        if (host.isConnected)
+            syncItemsHostNow(host, sync.componentId, sync.context);
+    }
+    catch (error) {
+        logError("bringing an items host in step failed.", { host, error });
+    }
+}
+
+/** Brings the held virtualized hosts `due` picks in step now, ahead of the end of the hold: what they draw, a later update may address. */
+export function syncHeldVirtualizedHosts(due: (host: Element) => boolean): void {
+    if (held === null || held.drawing.size === 0)
+        return;
+
+    for (const host of held.drawing) {
+        const sync = held.hosts.get(host);
+
+        if (sync === undefined || !due(host))
+            continue;
+
+        held.drawing.delete(host);
+        held.hosts.delete(host);
+        syncHeld(host, sync);
+    }
 }

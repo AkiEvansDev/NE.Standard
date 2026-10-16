@@ -39,19 +39,19 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
             .BindSelectionStyle($"{TabsGroup}.{nameof(TabsGroupContext.SelectionStyle)}")
             .BindShowOverflow($"{TabsGroup}.{nameof(TabsGroupContext.ShowOverflow)}")
             .AddTab(TabsGroupContext.OverviewKey,
-                new TabHeaderComponent()
+                new TabCaptionComponent()
                     .SetTitle("Overview")
                     .BindIcon($"{TabsGroup}.{nameof(TabsGroupContext.OverviewIcon)}"),
                 CreateOverviewPage()
             )
             .AddTab(TabsGroupContext.ActivityKey,
-                new TabHeaderComponent()
+                new TabCaptionComponent()
                     .SetTitle("Activity")
                     .BindBadgeText($"{TabsGroup}.{nameof(TabsGroupContext.ActivityBadge)}"),
                 CreateActivityPage()
             )
             .AddTab(TabsGroupContext.SettingsKey,
-                new TabHeaderComponent()
+                new TabCaptionComponent()
                     .SetTitle("Settings")
                     .BindVisibility($"{TabsGroup}.{nameof(TabsGroupContext.SettingsVisible)}"),
                 CreateSettingsPage()
@@ -104,7 +104,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
 
     protected override IVisualComponent[] CreateExamples()
         // The comparison across the page, its two strips side by side, where at half the page it stood alone in its row.
-        => [.. DemoUI.CreateColumns([CreateSettingsGroup()], [CreateCountGroup()]), CreateAgainstViewGroup()];
+        => [.. DemoUI.CreateColumns([CreateSettingsGroup(), CreateActionsGroup()], [CreateCountGroup()]), CreateAgainstViewGroup()];
 
     /// <summary>
     /// A settings page too long for a column, cut into the three questions it asks.
@@ -140,6 +140,52 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
+    /// Actions at the strip's end: a filter over every page (<c>AddAction</c>), a panel of its own opening from its button, and a new
+    /// release that only the releases page offers (<c>AddTabAction</c>), shown with it on the page alone — sized to the captions, the
+    /// captions keeping the room they leave.
+    /// </summary>
+    private static ContainerComponent CreateActionsGroup()
+    {
+        return DemoUI.CreateExample("Actions at the strip's end",
+            new SurfaceComponent()
+                .SetWidth(UILayoutLength.Absolute(460))
+                .SetContent(new TabsComponent()
+                    .AddTab("deploys", "Deploys", UILayout.Stack(10)
+                        .AddChild(new TextComponent().SetIcon(DemoIcons.Outline(DemoIcons.Upload)).SetTitle("billing #482 to production").SetDescription("Today at 09:41 · Sam Ortega").SetDescriptionType(UITextAppearance.Caption).SetDescriptionColor(UIThemeColor.Muted))
+                        .AddChild(new TextComponent().SetIcon(DemoIcons.Outline(DemoIcons.Upload)).SetTitle("search #120 to staging").SetDescription("Yesterday at 17:05 · Priya Nair").SetDescriptionType(UITextAppearance.Caption).SetDescriptionColor(UIThemeColor.Muted))
+                    )
+                    .AddTab("releases", "Releases", UILayout.Stack(10)
+                        .AddChild(new TextComponent().SetTitle("Release 483").SetDescription("Planned for Thursday").SetDescriptionType(UITextAppearance.Caption).SetDescriptionColor(UIThemeColor.Muted))
+                    )
+                    .AddTabAction("releases", UIIconButtons.New().SetTooltip("New release"))
+                    .AddAction(new FlyoutComponent()
+                        .SetPopupPlacement(UIPopupPlacement.BottomEnd)
+                        .SetAnchor(UIIconButtons.Filter())
+                        // A width and nothing else: the panel already is a surface.
+                        .SetContent(UILayout.Stack(10)
+                            .SetWidth(UILayoutLength.Absolute(220))
+                            .AddChild(UIText.Label("Show"))
+                            .AddChild(new SwitchComponent().SetTitle("Production only").SetValue(true))
+                            .AddChild(new SwitchComponent().SetTitle("Mine only"))
+                            .AddChild(new SelectComponent()
+                                .SetTitle("Region")
+                                .SetPlaceholder("Any region")
+                                .SetShowClearButton()
+                                .SetOptions(
+                                [
+                                    new OptionItem { Id = "eu-west", Title = "Europe West" },
+                                    new OptionItem { Id = "us-east", Title = "US East" },
+                                    new OptionItem { Id = "ap-south", Title = "Asia South" }
+                                ])
+                            )
+                        )
+                    )
+                ),
+            note: "The filter is a flyout (`AddAction(FlyoutComponent)`): its panel opens from the button at the strip's end, whichever page is in front. The + is the releases page's own (`AddTabAction`), there only while that page is; a flyout may be a page's own as well."
+        );
+    }
+
+    /// <summary>
     /// A caption that carries a number, saying what is behind the page before it is opened.
     /// </summary>
     private static ContainerComponent CreateCountGroup()
@@ -149,7 +195,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
                 .SetWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsComponent()
                     .AddTab("inbox",
-                        new TabHeaderComponent().SetTitle("Inbox").SetBadgeText("3").SetBadgeStyle(UIBadgeType.Danger),
+                        new TabCaptionComponent().SetTitle("Inbox").SetBadgeText("3").SetBadgeStyle(UIBadgeType.Danger),
                         UILayout.Stack(10)
                             .AddChild(new TextComponent()
                                 .SetIcon(DemoIcons.Outline(DemoIcons.Mail))

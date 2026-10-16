@@ -47,16 +47,6 @@ internal sealed partial class DemoChatPhoto : TextItem
     public string Source { get; init; } = string.Empty;
 }
 
-/// <summary>A file a message carries, drawn as a file tile: its name is the title, its size and type the tile's.</summary>
-internal sealed partial class DemoChatFile : TextItem
-{
-    [RecursiveMember(false)]
-    public long Size { get; init; }
-
-    [RecursiveMember(false)]
-    public string ContentType { get; init; } = string.Empty;
-}
-
 /// <summary>
 /// A message: its author, words and moment, grouped by the day it was sent so a day header stands over each day's first, and drawn on
 /// the reader's side or the other's — the template variant its <see cref="Side"/> names.
@@ -107,7 +97,7 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
 
     /// <summary>The files sent with the words, each a tile; none for most messages.</summary>
     [RecursiveMember(false)]
-    public RecursiveCollection<DemoChatFile> Files { get; } = [];
+    public RecursiveCollection<FileItem> Files { get; } = [];
 
     /// <summary>The files' strip, collapsed on a message that carries none.</summary>
     [RecursiveMember(false)]
@@ -548,7 +538,7 @@ internal sealed partial class ChatController : UIControllerBase
         DemoChatMessage message = chat.History[^1];
 
         for (var i = 0; i < files.Length; i++)
-            message.Files.Add(new DemoChatFile { Id = $"{message.Id}-f{i}", Title = files[i].Name, ContentType = files[i].Type, Size = files[i].Size, IsContent = true });
+            message.Files.Add(new FileItem { Id = $"{message.Id}-f{i}", FileName = files[i].Name, ContentType = files[i].Type, FileSize = files[i].Size });
 
         return chat;
     }

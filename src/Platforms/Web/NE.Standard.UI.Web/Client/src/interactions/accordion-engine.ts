@@ -23,7 +23,7 @@ export class AccordionEngine {
 
         this.normalizeAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
-        observeComponents(this.root, `.${RootClass}`, { childList: true }, accordions => this.normalizeAll(accordions));
+        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true }, accordions => this.normalizeAll(accordions));
     }
 
     /** Leaves the first open section open and closes the rest. */

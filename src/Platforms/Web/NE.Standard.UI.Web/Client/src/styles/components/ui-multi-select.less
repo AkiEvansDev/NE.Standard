@@ -78,6 +78,12 @@
         height: 0.875rem;
     }
 
+        // Its press stays inside its chip, out to the chip's end padding and edges: a target's square reached 5 px past the cross, over
+        // the next chip's edge and the wrapped row's, the chips standing 2 px apart.
+        .ui-input--small .ui-multi-select__chip:not(.ui-badge) > .ui-multi-select__chip-remove::after {
+            inset: -0.125rem;
+        }
+
 .ui-input--large .ui-multi-select__chip:not(.ui-badge) {
     height: 1.75rem;
     font-size: var(--ui-text-body-font-size);
@@ -159,6 +165,11 @@
         width: 1.375em;
         height: 1.375em;
     }
+
+    // Round words keep a pill's start padding: the circle's none (ui-badge.less) stood "P1" against the chip's edge.
+    &[data-ui-badge-text="compact"]:not([data-ui-badge-icon], .ui-badge-style--plain) {
+        padding-inline-start: 0.5em;
+    }
 }
 
     .ui-badge-select.ui-readonly .ui-multi-select__chips > .ui-multi-select__chip.ui-badge {
@@ -172,8 +183,11 @@
     gap: @ui-space-2;
 }
 
+    // In the row's middle as a select's option (ui-select.less), unless the template says otherwise: a component root's own
+    // `align-self: normal` (runtime.less) stretched it to the row's height and left its words at the top.
     .ui-multi-select .ui-select__option > * {
         flex: 1 1 auto;
+        align-self: var(--ui-align-v, center);
         min-width: 0;
     }
 

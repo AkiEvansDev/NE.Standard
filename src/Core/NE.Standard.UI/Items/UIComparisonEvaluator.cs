@@ -24,6 +24,13 @@ public static class UIComparisonEvaluator
     /// </summary>
     public static bool Evaluate(object? left, UIComparisonOperator @operator, object? right)
     {
+        // As the page holds them: a NaN or an infinity travels as null, which Number() reads as zero and Required as nothing.
+        if (UIScriptNumber.ReadsAsNull(left))
+            left = null;
+
+        if (UIScriptNumber.ReadsAsNull(right))
+            right = null;
+
         var text = AsText(left);
 
         return @operator switch
@@ -50,7 +57,8 @@ public static class UIComparisonEvaluator
     private static string AsText(object? value)
         => value switch
         {
-            null => string.Empty,
+            // A list's NaN too, which travels as the null String([1, null]) leaves empty.
+            _ when UIScriptNumber.ReadsAsNull(value) => string.Empty,
             string text => text,
             bool flag => flag ? "true" : "false",
             // As the page holds a number, a double, and writes it: a decimal's or a long's digits past a double's read as the page's.
@@ -113,7 +121,12 @@ public static class UIComparisonEvaluator
                 return 0;
             case bool flag:
                 return flag ? 1 : 0;
-            case IConvertible convertible and not string:
+            // Convertible, but its ToDouble throws: a moment is its ISO text on the page, which Number() reads as NaN, so dates fall
+            // through to ordinal text. Answered here rather than caught, as a date filter over many rows would throw once a row.
+            case DateTime:
+                return double.NaN;
+            // A character's ToDouble throws too, and the page holds it as a one-character string: read below as its text, as Number() reads it.
+            case IConvertible convertible and not (string or char):
                 try
                 {
                     return convertible.ToDouble(CultureInfo.InvariantCulture);
@@ -136,11 +149,11 @@ public static class UIComparisonEvaluator
     }
 
     /// <summary>
-    /// Whether the value is text on the client: a string, or a moment, which travels as one.
+    /// Whether the value is text on the client: a string, or a character or a moment, which travel as one.
     /// </summary>
     // A phrase is text too: its key, or an author's text's own words — the client's `comparable`.
     private static bool IsText(object? value)
-        => value is string or DateTime or DateTimeOffset or DateOnly or TimeOnly or UIPhrase;
+        => value is string or char or DateTime or DateTimeOffset or DateOnly or TimeOnly or UIPhrase;
 
     private static bool IsIn(string text, object? right)
     {

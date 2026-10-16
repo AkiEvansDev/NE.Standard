@@ -1,4 +1,5 @@
 import { ComponentNameAttribute } from "../addressing/dom-attributes.ts";
+import type { TreeBootFold } from "../rendering/tree-boot-fold.ts";
 import { logDebug, logWarn } from "../runtime/logger.ts";
 
 const KeyPrefix = "ne.ui";
@@ -11,6 +12,8 @@ export type ClientBootPatch = {
     readonly root?: boolean;
     readonly attributes?: Readonly<Record<string, string | null>>;
     readonly styles?: Readonly<Record<string, string>>;
+    /** A tree's fold by folder, which the boot script walks the tree's rows by (`tree-boot-fold.ts`). */
+    readonly fold?: TreeBootFold;
 };
 
 // One log line per component and slot, not per read: a miss is normal for a component nobody named.

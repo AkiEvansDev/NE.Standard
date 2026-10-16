@@ -48,8 +48,14 @@ internal interface IUIRuntimeConnectionUpdater
     void UpdateClientState(UIHandle handle, UIClientState state);
 
     /// <summary>
-    /// Reads a window of items for one instance and answers it what that changed; every other attached instance gets it from the
-    /// flush.
+    /// Reads a window of items for one instance and sends it what that changed, through the dispatcher like any answer; every other
+    /// attached instance gets it from the flush.
     /// </summary>
     Task<ServerChangeSet> RequestItemWindowAsync(UIHandle requester, UIItemWindowClientRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The scheduled flush: drains what is pending and hands each set to the host's dispatcher in the hold of the state lock that
+    /// drained it, so an answer drained after it is sent after it; answers whether it handed over anything to send.
+    /// </summary>
+    Task<bool> FlushToDispatcherAsync(CancellationToken cancellationToken);
 }

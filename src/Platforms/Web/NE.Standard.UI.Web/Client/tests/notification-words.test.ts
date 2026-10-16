@@ -34,16 +34,32 @@ test("a toast's phrase is filled in the page's language and written again at a s
 });
 
 test("a toast's close is named in the page's language and named again at a switch", () => {
-    clientStrings.useTable({ language: "en", complete: true, prefixes: [], words: { "ui.notification.close": "Close" } });
+    clientStrings.useTable({ language: "en", complete: true, prefixes: [], words: { "ui.action.close": "Close" } });
 
     const toast = engine().show({ message: "Saved.", sticky: true });
     const close = real<FakeElement>(toast.querySelector(".ui-notification__close"));
 
     assert.equal(close.getAttribute("aria-label"), "Close");
 
-    clientStrings.useTable({ language: "ru", complete: true, prefixes: [], words: { "ui.notification.close": "Закрыть" } });
+    clientStrings.useTable({ language: "ru", complete: true, prefixes: [], words: { "ui.action.close": "Закрыть" } });
     clientStrings.rewriteMarks(real<ParentNode>(fakeDocument.body));
 
+    assert.equal(close.getAttribute("aria-label"), "Закрыть");
+});
+
+test("a toast's close is the dialog's ×, a small ghost button whose tooltip is its name, said again at a switch", () => {
+    clientStrings.useTable({ language: "en", complete: true, prefixes: [], words: { "ui.action.close": "Close" } });
+
+    const toast = engine().show({ message: "Saved.", sticky: true });
+    const close = real<FakeElement>(toast.querySelector(".ui-notification__close"));
+
+    assert.deepEqual(close.className.split(" "), ["ui-notification__close", "ui-button", "ui-button--ghost", "ui-button--small"]);
+    assert.equal(close.getAttribute("data-ui-tooltip"), "Close");
+
+    clientStrings.useTable({ language: "ru", complete: true, prefixes: [], words: { "ui.action.close": "Закрыть" } });
+    clientStrings.rewriteMarks(real<ParentNode>(fakeDocument.body));
+
+    assert.equal(close.getAttribute("data-ui-tooltip"), "Закрыть");
     assert.equal(close.getAttribute("aria-label"), "Закрыть");
 });
 

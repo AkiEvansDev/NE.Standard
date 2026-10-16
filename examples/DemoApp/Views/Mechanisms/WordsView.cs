@@ -39,15 +39,7 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
 
     private static ContainerComponent CreateSwitcherGroup()
         => DemoUI.CreateExample(Words + "group.switcher",
-            UILayout.Row(12)
-                .AddChild(new LanguageSwitcherComponent())
-                .AddChild(new LanguageSwitcherComponent()
-                    .SetDisplay(UILanguageDisplay.Name)
-                    .SetIcon(DemoIcons.Outline(DemoIcons.MessageSquare))
-                    .SetType(UIButtonType.Ghost)
-                    .SetLanguages(["en", "zh-Hans"])
-                )
-                .AddChild(new LanguageSwitcherComponent().SetLanguages(["en"])),
+            new LanguageSwitcherComponent(),
             note: Words + "note.switcher"
         );
 
@@ -97,17 +89,17 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "group.phrases",
             UILayout.Stack(12)
                 .AddChild(new TextComponent()
-                    .SetTitle(UIPhrase.Of("demo.inputs.select.regions.heading", ("count", 4)))
+                    .SetTitle(UIPhrase.Of("demo.choices.select.regions.heading", ("count", 4)))
                     .SetTitleType(UITextAppearance.Subtitle)
                 )
                 .AddChild(new SelectComponent()
-                    .SetTitle(UIPhrase.Of("demo.inputs.select.regions.title"))
+                    .SetTitle(UIPhrase.Of("demo.choices.select.regions.title"))
                     .SetOptions(
                     [
-                        new OptionItem { Id = "eu-west", Title = UIPhrase.Of("demo.inputs.select.regions.servers", ("region", "Amsterdam"), ("count", 1)) },
-                        new OptionItem { Id = "eu-central", Title = UIPhrase.Of("demo.inputs.select.regions.servers", ("region", "Frankfurt"), ("count", 3)) },
-                        new OptionItem { Id = "us-east", Title = UIPhrase.Of("demo.inputs.select.regions.servers", ("region", "Ashburn"), ("count", 5)) },
-                        new OptionItem { Id = "ap-south", Title = UIPhrase.Of("demo.inputs.select.regions.servers", ("region", "Singapore"), ("count", 22)) }
+                        new OptionItem { Id = "eu-west", Title = UIPhrase.Of("demo.choices.select.regions.servers", ("region", "Amsterdam"), ("count", 1)) },
+                        new OptionItem { Id = "eu-central", Title = UIPhrase.Of("demo.choices.select.regions.servers", ("region", "Frankfurt"), ("count", 3)) },
+                        new OptionItem { Id = "us-east", Title = UIPhrase.Of("demo.choices.select.regions.servers", ("region", "Ashburn"), ("count", 5)) },
+                        new OptionItem { Id = "ap-south", Title = UIPhrase.Of("demo.choices.select.regions.servers", ("region", "Singapore"), ("count", 22)) }
                     ])
                     .SetValue("eu-central")
                 ),

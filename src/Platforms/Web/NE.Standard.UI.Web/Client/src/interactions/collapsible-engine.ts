@@ -33,7 +33,7 @@ export class CollapsibleEngine {
         this.restoreEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
         // The fold a bound value pushes lands on the root alone; its switch is told here, as a press tells it.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [CollapsedAttribute] }, components => this.restoreEach(components));
+        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true, attributeFilter: [CollapsedAttribute] }, components => this.restoreEach(components));
     }
 
     private restoreEach(components: Iterable<HTMLElement>): void {

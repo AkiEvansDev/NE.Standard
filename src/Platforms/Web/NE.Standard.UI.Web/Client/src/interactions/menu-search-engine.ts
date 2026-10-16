@@ -38,7 +38,7 @@ export class MenuSearchEngine {
         root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent));
 
         // Rows the server adds or refills mid-search arrive unmarked, and a fold hides the field that says what is filtered.
-        observeComponents(root, SearchableSelector, { childList: true, characterData: true, attributeFilter: [CollapsedAttribute] }, menus => this.reconcile(menus));
+        observeComponents(root, SearchableSelector, { childList: true, addedOnly: true, characterData: true, attributeFilter: [CollapsedAttribute] }, menus => this.reconcile(menus));
     }
 
     private handle(domEvent: Event): void {

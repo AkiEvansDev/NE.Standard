@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
@@ -14,6 +15,7 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -21,6 +23,10 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
+    // The refusals logged as warnings in the current minute, and when it ends (Environment.TickCount64). Guarded by _stateLock.
+    private int _refusalWarnings;
+    private long _refusalMinuteEnd;
+
     private UIComponentGateIndex Gates => field ??= UIComponentGateIndex.For(View);
 
     /// <summary>
@@ -190,7 +196,7 @@ internal abstract partial class UIRuntimeBase
                 // Said in the log, unlike a disabled or loading one's: a page writes to a hidden field only by the author's design (a
                 // picker opened from elsewhere) or by a forged call, and the field going back to its value says nothing to either.
                 if (closing.Kind == UIComponentGateKind.Visibility && View.Graph.TryGet(componentId, out UIComponentNode? node))
-                    TryLog((property, node), static (logger, state) => Log.HiddenWriteRefused(logger, state.property.Name, state.node.TypeKey, state.node.AuthoringId));
+                    TryLog((property, node, level: RefusalLevelNoLock()), static (logger, state) => Log.HiddenWriteRefused(logger, state.level, state.property.Name, state.node.TypeKey, state.node.AuthoringId));
 
                 return true;
             }
@@ -206,6 +212,29 @@ internal abstract partial class UIRuntimeBase
             return gates.TryGetRows(componentId, out UIRowGates rows) && IsChoiceRefusedNoLock(gates, rows, update, resolution);
 
         return WriteAbility(property) is UIComponentGateKind ability && gates.TryGetRowRoot(componentId, out UIRowAbilities? row) && IsRowRefusedNoLock(row!, ability, dynamicParameters);
+    }
+
+    /// <summary>
+    /// The level a refusal the log is told of goes at: a warning while this runtime has written fewer than
+    /// <see cref="UISecurityOptions.RefusalWarningsPerMinute"/> this minute, a debug line past it — a forged page in a loop would
+    /// otherwise flood the log.
+    /// </summary>
+    private LogLevel RefusalLevelNoLock()
+    {
+        var now = Environment.TickCount64;
+
+        if (now >= _refusalMinuteEnd)
+        {
+            _refusalMinuteEnd = now + 60_000;
+            _refusalWarnings = 0;
+        }
+
+        if (_refusalWarnings >= _application.Security.RefusalWarningsPerMinute)
+            return LogLevel.Debug;
+
+        _refusalWarnings++;
+
+        return LogLevel.Warning;
     }
 
     /// <summary>
@@ -369,10 +398,16 @@ internal abstract partial class UIRuntimeBase
         // Rows wearing a template by the item's kind have no one template whose chain answers for every row.
         UIComponentGates? template = rows.TemplateRootId is UIComponentId rootId && gates.TryGet(rootId, out UIComponentGates? found) ? found : null;
         var current = resolution.Source.Kind == CompiledUIBindingSourceKind.Controller ? TryGetControllerValue(resolution.Path) : null;
+        IReadOnlyList<string> keys = ReadChosenKeys(update.Value);
 
-        foreach (var key in ReadChosenKeys(update.Value))
+        // Many keys look the choice up in a set made once, not each along a long selection; one key, the common write, needs no set.
+        HashSet<string>? chosen = keys.Count > 1 ? ToChosenSet(current) : null;
+
+        for (var i = 0; i < keys.Count; i++)
         {
-            if (IsChosen(current, key))
+            var key = keys[i];
+
+            if (chosen?.Contains(key) ?? IsChosen(current, key))
                 continue;
 
             var rowParameters = AppendDynamicParameter(update.Address.Component.DynamicParameters, key);
@@ -385,14 +420,36 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>The keys a choice names: one key, or a list of them as the wire carries it.</summary>
-    private static IEnumerable<string> ReadChosenKeys(object? value)
+    private static IReadOnlyList<string> ReadChosenKeys(object? value)
     {
         if (value is string key)
             return [key];
 
-        return RecursiveValueCoercion.TryCoerce(value, typeof(IReadOnlyList<string>), out var keys) && keys is IEnumerable<string> list ? list : [];
+        return RecursiveValueCoercion.TryCoerce(value, typeof(IReadOnlyList<string>), out var keys) && keys is IReadOnlyList<string> list ? list : [];
     }
 
+    /// <summary>The keys chosen now — one key, or a list of them — as a set; empty where nothing is chosen.</summary>
+    private static HashSet<string> ToChosenSet(object? current)
+    {
+        HashSet<string> chosen = new(StringComparer.Ordinal);
+
+        if (current is string key)
+        {
+            _ = chosen.Add(key);
+        }
+        else if (current is IEnumerable keys)
+        {
+            foreach (var chosenKey in keys)
+            {
+                if (chosenKey is string text)
+                    _ = chosen.Add(text);
+            }
+        }
+
+        return chosen;
+    }
+
+    /// <summary>Whether a key is among those chosen now: one key, or a list of them.</summary>
     private static bool IsChosen(object? current, string key)
     {
         if (current is string chosen)

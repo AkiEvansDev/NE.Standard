@@ -63,8 +63,8 @@ public sealed class RecursiveChange
     { }
 
     /// <summary>Validates a change a caller described and takes a copy of its item ids, which the caller may go on changing.</summary>
-    private RecursiveChange(RecursiveChangeKind kind, RecursivePath path, int index, int count, int oldIndex, string[] itemIds, string[] oldItemIds)
-        : this(kind, path, null, index, count, oldIndex, Copy(itemIds), Copy(oldItemIds))
+    private RecursiveChange(RecursiveChangeKind kind, RecursivePath path, int index, int count, int oldIndex, string[] itemIds, string[] oldItemIds, bool trimmed = false)
+        : this(kind, path, null, index, count, oldIndex, Copy(itemIds), Copy(oldItemIds), trimmed)
     {
         ArgumentNullException.ThrowIfNull(path);
 
@@ -72,9 +72,10 @@ public sealed class RecursiveChange
     }
 
     /// <summary>Builds a change from parts already validated and owned, as a prepend does: it re-checks and re-copies nothing per hop.</summary>
-    private RecursiveChange(RecursiveChangeKind kind, RecursivePath localPath, PrefixNode? prefix, int index, int count, int oldIndex, string[] itemIds, string[] oldItemIds)
+    private RecursiveChange(RecursiveChangeKind kind, RecursivePath localPath, PrefixNode? prefix, int index, int count, int oldIndex, string[] itemIds, string[] oldItemIds, bool trimmed)
     {
         Kind = kind;
+        Trimmed = trimmed;
 
         _localPath = localPath;
         _prefix = prefix;
@@ -184,6 +185,12 @@ public sealed class RecursiveChange
     public RecursivePath Path => field ??= MaterializePath();
 
     /// <summary>
+    /// Gets whether a remove only took the items out of what the collection holds — a window's far side trimmed — while they still
+    /// exist where it reads them from (<see cref="Trim"/>).
+    /// </summary>
+    public bool Trimmed { get; }
+
+    /// <summary>
     /// Gets the collection index affected by the change, or -1 when not applicable.
     /// </summary>
     public int Index { get; }
@@ -237,6 +244,13 @@ public sealed class RecursiveChange
         => new(RecursiveChangeKind.Remove, path, index, count, oldIndex: -1, itemIds: EmptyItemIds, oldItemIds);
 
     /// <summary>
+    /// Creates a remove that only took items out of the collection, which still exist where it reads them from: a window's far side
+    /// trimmed (<see cref="Trimmed"/>).
+    /// </summary>
+    public static RecursiveChange Trim(RecursivePath path, int index, int count, string[] oldItemIds)
+        => new(RecursiveChangeKind.Remove, path, index, count, oldIndex: -1, itemIds: EmptyItemIds, oldItemIds, trimmed: true);
+
+    /// <summary>
     /// Creates a change reporting that items were replaced in a collection at the given path.
     /// </summary>
     public static RecursiveChange Replace(RecursivePath path, int index, int count, string[] oldItemIds, string[] itemIds)
@@ -263,14 +277,14 @@ public sealed class RecursiveChange
 
         return prefix.Count == 0
             ? this
-            : new RecursiveChange(Kind, _localPath, new PrefixNode(prefix, _prefix), Index, Count, OldIndex, _itemIds, _oldItemIds);
+            : new RecursiveChange(Kind, _localPath, new PrefixNode(prefix, _prefix), Index, Count, OldIndex, _itemIds, _oldItemIds, Trimmed);
     }
 
     /// <summary>
     /// Returns a change with the specified path segment prepended.
     /// </summary>
     public RecursiveChange Prepend(PathSegment segment)
-        => new(Kind, _localPath, new PrefixNode(segment, _prefix), Index, Count, OldIndex, _itemIds, _oldItemIds);
+        => new(Kind, _localPath, new PrefixNode(segment, _prefix), Index, Count, OldIndex, _itemIds, _oldItemIds, Trimmed);
 
     private RecursivePath MaterializePath()
     {

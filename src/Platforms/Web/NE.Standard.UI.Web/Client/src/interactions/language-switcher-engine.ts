@@ -7,8 +7,9 @@ import { LanguageAttribute, LanguageSwitcherAttribute, ListTriggerClass, Tooltip
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import type { EffectRegistry } from "../effects/effect-registry.ts";
 import { ClientEffectKinds } from "../metadata/metadata-index.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
+import { clientStrings, readWords } from "../runtime/client-strings.ts";
 import type { ClientStringKey } from "../runtime/client-strings.ts";
+import { isPhrase } from "../runtime/words.ts";
 import { isInert } from "./interactive-state.ts";
 import { SwitcherList } from "./switcher-list.ts";
 
@@ -141,9 +142,9 @@ export class LanguageSwitcherEngine {
             if (this.list.isField(switcher))
                 continue;
 
-            // By its name and the code the button shows, as the renderer writes it (the label in the name); a tooltip saying the same,
-            // the renderer's where the author gave none, follows it.
-            const named = switcher.getAttribute(TooltipAttribute) === trigger.getAttribute("aria-label");
+            // By its name and the code the button shows, as the renderer writes it (the label in the name); the tooltip the renderer
+            // wrote where the author gave none follows it — known by its mark, since an author's own may well say the same words.
+            const named = isNameWords(readWords(switcher, TooltipAttribute));
             const other = choices.find(choice => choice.getAttribute(LanguageAttribute) !== language) ?? choices[0];
             const otherLanguage = other.getAttribute(LanguageAttribute) ?? "";
             const [key, args] = choices.length === 2
@@ -156,6 +157,11 @@ export class LanguageSwitcherEngine {
                 clientStrings.write(switcher, TooltipAttribute, key, args);
         }
     }
+}
+
+/** Whether words were written from the button's name: the switcher's own tooltip, never an author's. */
+function isNameWords(words: unknown): boolean {
+    return isPhrase(words) && (words.key === SwitchKey || words.key === CurrentKey);
 }
 
 /** A language named in itself: as the list names it, else — one the switcher does not offer — as the browser does, capitalised. */

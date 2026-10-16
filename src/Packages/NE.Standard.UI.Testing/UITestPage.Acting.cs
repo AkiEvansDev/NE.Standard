@@ -216,7 +216,7 @@ public sealed partial class UITestPage
 
     // As the page reads a number, a double whatever type the controller holds; null for no number, NaN or an infinity.
     private static double? AsNumber(object? value)
-        => UIScriptNumber.TryRead(value, out var number) && double.IsFinite(number) ? number : null;
+        => UIScriptNumber.TryRead(value, out var number) ? number : null;
 
     /// <summary>Raises an event as a reader's gesture does: refused on a component a reader could not reach.</summary>
     internal Task<UITestCommandResult> DispatchAsync(UIComponentId componentId, object?[] rowKeys, string eventName, object?[] eventKeys, CancellationToken cancellationToken)
@@ -354,7 +354,7 @@ public sealed partial class UITestPage
             mark = _effects.Count;
 
             if (source is UIComponentAddress before)
-                RunEventInteractionsNoLock(before, $"before-{eventName}", writes);
+                RunEventInteractionsNoLock(before, EventNames.BeforePrefix + eventName, writes);
         }
 
         await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
@@ -369,7 +369,7 @@ public sealed partial class UITestPage
             ApplyEffectsNoLock(result.Command.Effects);
 
             if (source is UIComponentAddress after)
-                RunEventInteractionsNoLock(after, $"after-{eventName}", writes);
+                RunEventInteractionsNoLock(after, EventNames.AfterPrefix + eventName, writes);
         }
 
         await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
@@ -484,12 +484,23 @@ public sealed partial class UITestPage
 
             var value = ReadNoLock(component.Id, component.DynamicParameters, rule.Target.Property);
 
-            if (UIComparisonEvaluator.Evaluate(value, rule.Operator, rule.Value))
+            if (PassesRule(value, rule))
                 _ = field.Failing.Remove(rule);
             else
                 _ = field.Failing.Add(rule);
         }
     }
+
+    /// <summary>
+    /// Whether a value passes a rule as the page's validation judges it (<c>validation-engine.ts</c>): every rule but
+    /// <see cref="UIComparisonOperator.Required"/> passes on an empty value, so an empty field says only that it is required.
+    /// </summary>
+    private static bool PassesRule(object? value, CompiledUIValidationRule rule)
+        => (rule.Operator != UIComparisonOperator.Required && IsEmptyValue(value)) || UIComparisonEvaluator.Evaluate(value, rule.Operator, rule.Value);
+
+    /// <summary>Nothing given: what <see cref="UIComparisonOperator.Required"/> refuses, but a toggle's <see langword="false"/>, which is a value.</summary>
+    private static bool IsEmptyValue(object? value)
+        => value is not false && !UIComparisonEvaluator.Evaluate(value, UIComparisonOperator.Required, null);
 
     /// <summary>
     /// The strongest message a field shows: the page's refusal of a value past its bounds, the server's refusal, the controller's bound

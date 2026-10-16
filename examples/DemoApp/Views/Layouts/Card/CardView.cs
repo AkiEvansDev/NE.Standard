@@ -337,7 +337,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     )
                     .SetWidth(UILayoutLength.Absolute(300))
                 ),
-            note: "Press the card, then the button inside it, then right-click it: a card that guards its own press must not leave its whole subtree deaf. From the keyboard, Tab stops on the card and then on the button; Enter or Space presses whichever holds the focus. The locked card is dimmed, a press does nothing and Tab passes it by; unlock it and it takes the focus and Enter or Space like any other clickable card.",
+            note: "Press the card, then the button inside it, then right-click it: a card that guards its own press must not leave its whole subtree deaf. From the keyboard, Tab stops on the card and then on the button; Enter or Space presses whichever holds the focus. The locked card is dimmed, a press does nothing and Tab passes it by; unlock it and it takes the focus and Enter or Space like any other clickable card. A clickable card the pointer only crosses on its way elsewhere — a banner over a list — takes SetQuietHover(true), as the surface page's pinned strip does: half the wash and no lift, the same press.",
             context: PressGroup,
             // Below rather than beside: at half the page a column of 220 left the card too narrow for its title.
             controlsBelow: true,

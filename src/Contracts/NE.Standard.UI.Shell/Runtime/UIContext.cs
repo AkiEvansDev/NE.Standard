@@ -21,10 +21,15 @@ public sealed class UIContext
 {
     private IUIRuntimeAccess? _runtime;
 
-    // The connection that raised the current command; differs from the attached connection only under UIRuntimeLifetime.PerClient sharing.
-    private readonly AsyncLocal<UIHandle?> _invokingHandle = new();
+    // The command running now, and the connection that raised it; differs from the attached connection only under
+    // UIRuntimeLifetime.PerClient sharing.
+    private readonly AsyncLocal<Invocation?> _invocation = new();
 
-    internal UIContext(ILogger logger, IServiceProvider services, ITranslator translator, IUIContentAddressResolver? content, UIRouteDefinition route, UIHandle handle, IUIDownloadStager downloads, IUIUploadService uploads)
+    // The host itself, never a service an application may decorate: a sign-in that missed it would fall back to a rotation at the next
+    // load, which a load of the old id could claim.
+    private readonly IUISessionSignIn _signIn;
+
+    internal UIContext(ILogger logger, IServiceProvider services, ITranslator translator, IUIContentAddressResolver? content, UIRouteDefinition route, UIHandle handle, IUIDownloadStager downloads, IUIUploadService uploads, IUISessionSignIn signIn)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(services);
@@ -34,6 +39,7 @@ public sealed class UIContext
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(downloads);
         ArgumentNullException.ThrowIfNull(uploads);
+        ArgumentNullException.ThrowIfNull(signIn);
 
         handle.Instance.Validate();
 
@@ -44,6 +50,7 @@ public sealed class UIContext
             Content = content;
 
         Route = route;
+        _signIn = signIn;
         _connection = new ConnectionState(handle, downloads, uploads);
         Dialogs = new RuntimeDialogs(this);
         Downloads = new RuntimeDownloads(this);
@@ -94,7 +101,7 @@ public sealed class UIContext
     /// Gets the UI handle a command is running for — the connection that raised it, or the connection the
     /// runtime is attached to outside a command.
     /// </summary>
-    public UIHandle Handle => _invokingHandle.Value ?? _connection.Handle;
+    public UIHandle Handle => _invocation.Value?.Handle ?? _connection.Handle;
 
     /// <summary>Marks the connection a command is running for.</summary>
     /// <remarks>
@@ -105,15 +112,31 @@ public sealed class UIContext
     {
         ArgumentNullException.ThrowIfNull(handle);
 
-        UIHandle? previous = _invokingHandle.Value;
-        _invokingHandle.Value = handle;
+        Invocation invocation = new(this, handle, _invocation.Value);
+        _invocation.Value = invocation;
 
-        return new InvocationScope(this, previous);
+        return invocation;
     }
 
-    private sealed class InvocationScope(UIContext context, UIHandle? previous) : IDisposable
+    /// <summary>One command's run for one connection; ended once it returns, though work it started still sees it.</summary>
+    /// <remarks>
+    /// Work a command starts and does not await carries the flow it began in, so it reads that command's connection after the command
+    /// is over. Posted work runs in no caller's flow: it reads the attached connection.
+    /// </remarks>
+    private sealed class Invocation(UIContext context, UIHandle handle, Invocation? previous) : IDisposable
     {
-        public void Dispose() => context._invokingHandle.Value = previous;
+        private volatile bool _ended;
+
+        public UIHandle Handle { get; } = handle;
+
+        /// <summary>Whether the command is still running, so its connection is the one asking.</summary>
+        public bool IsRunning => !_ended;
+
+        public void Dispose()
+        {
+            _ended = true;
+            context._invocation.Value = previous;
+        }
     }
 
     /// <summary>Gets what the platform knows about the connection a command is running for — <see cref="Handle"/>'s.</summary>
@@ -337,20 +360,39 @@ public sealed class UIContext
 
     /// <summary>Marks this session authenticated, giving it roles and permissions the route and command access checks read.</summary>
     /// <remarks>
-    /// Only marks the session for id rotation; the actual rotation happens on the next full page load, so sign-in must end in a navigation.
+    /// The session moves to a new id at once: the old one is gone from the store, every other page open under it ends unannounced, and a
+    /// load presenting it later is a new anonymous session. This page goes on under the new id, and its client is handed the new key — on
+    /// the web a one-time token the page trades for the cookie before it loads another page. A no-op when the session is gone.
     /// </remarks>
-    public ValueTask SignInAsync(string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null, CancellationToken cancellationToken = default)
-        => UpdateSessionAsync(
-            session => session with
+    /// <exception cref="InvalidOperationException">
+    /// Called outside a running command — posted work, a job, a call from outside — while the runtime is shared by more than one page:
+    /// which page signs in is then not known, so sign in from the page's own command.
+    /// </exception>
+    public async ValueTask SignInAsync(string? userId = null, IReadOnlySet<string>? roles = null, IReadOnlySet<string>? permissions = null, CancellationToken cancellationToken = default)
+    {
+        UserSessionState SignIn(UserSessionState session)
+        {
+            return session with
             {
                 IsAuthenticated = true,
                 UserId = userId ?? session.UserId,
                 Roles = roles ?? session.Roles,
-                Permissions = permissions ?? session.Permissions,
-                PendingIdRotation = true
-            },
-            cancellationToken
-        );
+                Permissions = permissions ?? session.Permissions
+            };
+        }
+
+        // Outside a running command the handle is a guess — the last page to attach, or the page whose work started the posted queue — and
+        // the key goes to whoever it names: the host refuses it where another page shares the runtime.
+        Invocation? invocation = _invocation.Value;
+        UIHandle handle = invocation is { IsRunning: true } ? invocation.Handle : _connection.Handle;
+        IUserSessionContext previous = handle.Session;
+
+        if (!await _signIn.SignInAsync(handle, invocation is { IsRunning: true }, SignIn, cancellationToken).ConfigureAwait(false))
+            return;
+
+        if (_runtime is IUISessionChangeListener listener)
+            await listener.SessionChangedAsync(handle, previous, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>Ends the session; this page keeps running to finish its own answer.</summary>
     /// <remarks>

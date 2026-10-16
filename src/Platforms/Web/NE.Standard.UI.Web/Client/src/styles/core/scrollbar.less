@@ -180,6 +180,9 @@ html {
             --ui-scroll-room-y: calc(var(--ui-scrollbar-room) - var(--ui-scroll-hung));
             margin-inline-end: calc(-1 * var(--ui-scroll-hung));
             border-inline-end: var(--ui-scroll-hung) solid transparent;
+            // A scroll container is a placed child itself, capped at its cell (ui-container.less) and filled to it: both widen by the
+            // hung room, or its border ate the content's 12 px and its rows ended short of the field.
+            --ui-fill-width: calc(100% - var(--ui-fill-margin-x) + var(--ui-scroll-hung));
 
             > * {
                 --ui-scroll-hang: 0px;

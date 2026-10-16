@@ -26,8 +26,10 @@ public abstract class DefaultEmptyTemplate<TTemplate> : DefaultTextTemplate<TTem
         if (binds)
             return;
 
+        // The title in the text's own ink and a description an author adds muted under it, as every row's: a muted title read weaker
+        // than the line explaining it.
         _ = SetTitle(DefaultText);
-        _ = SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted));
+        _ = SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted));
     }
 }
 

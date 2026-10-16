@@ -21,6 +21,10 @@
     initial-value: transparent;
 }
 
+// The shadow of what lies past an edge of the box: under the last pinned column once something has scrolled beneath it, and at an
+// edge the box still scrolls toward.
+@ui-table-edge-shadow: color-mix(in srgb, var(--ui-color-on-surface) 18%, transparent);
+
 // A column: a package's band above the box and its pager below stand beside the frame, not inside it.
 // The column variables the engine writes on the root inherit, so each table resets them: a nested table (a grid's detail) reads its
 // own. The root's inline values still win for its own.
@@ -104,6 +108,72 @@
         background-color: var(--ui-ground, var(--ui-color-background));
         background-image: linear-gradient(@ui-table-ground, @ui-table-ground);
     }
+
+// A box that scrolls sideways shades each edge it can still scroll toward, while it can: the overlay bar stands hidden where nothing
+// hovers (core/scrollbar.less), and on a phone nothing said the table scrolls. Two layers stuck to the box's edges over the header and
+// the rows, faded by the box's own scroll as a strip's ends are (ui-button-group.less), so a table that fits shows none and no engine
+// writes them; where scroll-driven animations are missing, none. A pinned table's start is its last pinned column's shadow (below).
+// Grid items spanning every track, not a strip's mask: a mask would fade the box's frame too, and a popup a cell opens.
+@supports (animation-timeline: scroll()) {
+    .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always) > .ui-table__scroll {
+        scroll-timeline: --ui-table-x x;
+    }
+
+    // A package's band, the header and the host's rows: three rows already there, so no track is added; a totals row under them keeps
+    // its own ground, sticking over them a step above (4, ui-data-grid.less). Not the shorthand, which would reset the timeline; `auto`
+    // duration, a scroll's length.
+    .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always):not(.ui-table--pinned) > .ui-table__scroll::before,
+    .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always) > .ui-table__scroll::after {
+        content: "";
+        position: sticky;
+        z-index: 3;
+        grid-row: 1 / span 3;
+        grid-column: 1 / -1;
+        width: @ui-space-3;
+        pointer-events: none;
+        opacity: 0;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --ui-table-x;
+    }
+
+    .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always):not(.ui-table--pinned) > .ui-table__scroll::before {
+        justify-self: start;
+        left: 0;
+        background: linear-gradient(to right, @ui-table-edge-shadow, transparent);
+        animation-name: ui-table-edge-start;
+    }
+
+    .ui-table:is(.ui-scroll-x--auto, .ui-scroll-x--always) > .ui-table__scroll::after {
+        justify-self: end;
+        right: 0;
+        background: linear-gradient(to left, @ui-table-edge-shadow, transparent);
+        animation-name: ui-table-edge-end;
+    }
+}
+
+// The start's shade comes in over the first stretch of the scroll and the end's goes over the last, as a strip's do.
+@keyframes ui-table-edge-start {
+    0% {
+        opacity: 0;
+    }
+
+    8%,
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes ui-table-edge-end {
+    0%,
+    92% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
 
 // The header is a row of the same tracks, bold on its own ground; it stays put while the host under it scrolls.
 .ui-table__header {
@@ -330,9 +400,10 @@
         --ui-row-wash: @ui-table-ground;
     }
 
-    // A sticky cell is a stacking context: focus lifts it, or a popup from a field in it paints under the cells below and the header.
+    // A sticky cell is a stacking context: focus lifts it, or a popup from a field in it paints under the cells below, the header and a
+    // package's sticky footer (4).
     .ui-table__cell--pinned:focus-within {
-        z-index: 4;
+        z-index: 5;
     }
 
     // A start grip beside a pinned first column stands on the same ground (below), so it draws the same line.
@@ -362,7 +433,7 @@
 
     .ui-table[data-ui-table-scrolled] > .ui-table__scroll > * > :is(.ui-table__cell--pinned-edge, .ui-table__header-cell--pinned-edge)::after,
     .ui-table[data-ui-table-scrolled] > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-table__cell--pinned-edge::after {
-        box-shadow: 2px 0 6px color-mix(in srgb, var(--ui-color-on-surface) 18%, transparent);
+        box-shadow: 2px 0 6px @ui-table-edge-shadow;
     }
 
 // Once per column index (up to 64): the root's per-index state (hidden, the viewer's order) reaches a cell only through its index.

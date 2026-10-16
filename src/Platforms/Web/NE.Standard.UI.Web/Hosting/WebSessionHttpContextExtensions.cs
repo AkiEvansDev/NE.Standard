@@ -13,7 +13,7 @@ namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
 /// The session an HTTP request presents, for an application's own endpoints — the same cookie and the same idle
-/// check the framework's file endpoints apply.
+/// check the framework's file endpoints apply — and its end, for a host's own sign-out.
 /// </summary>
 public static class WebSessionHttpContextExtensions
 {
@@ -60,5 +60,24 @@ public static class WebSessionHttpContextExtensions
         UIApplication application = http.RequestServices.GetRequiredService<UIApplication>();
 
         return application.Security.DefaultPolicy == UIAuthorizationDefault.Authenticated && !session.IsAuthenticated ? null : session;
+    }
+
+    /// <summary>
+    /// Ends the session behind the request's cookie as <see cref="IUISessions.EndSessionAsync"/> ends one: its record and uploads go, and
+    /// every page open under it is sent to sign in; a request presenting none ends nothing.
+    /// </summary>
+    /// <remarks>
+    /// For a host's own sign-out under <see cref="UIIdentitySource.Claims"/>: a page's connection keeps the principal it connected with
+    /// and a command is checked against the store, so without it an open page goes on acting as the user who signed out.
+    /// </remarks>
+    public static Task EndUISessionAsync(this HttpContext http, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+
+        var sessionId = WebClientRequest.ReadSessionId(http, http.RequestServices.GetRequiredService<WebSessionCookie>());
+
+        return string.IsNullOrWhiteSpace(sessionId)
+            ? Task.CompletedTask
+            : http.RequestServices.GetRequiredService<IUISessions>().EndSessionAsync(sessionId, except: null, cancellationToken);
     }
 }

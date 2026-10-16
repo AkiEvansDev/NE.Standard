@@ -103,69 +103,59 @@
             .ui-chevron-up();
         }
 
-    // One wash, not two: the hovered part reacts, not the root. Surface keeps its own: unlike the transparent variants, it has a fill.
-    .ui-split-button:is(.ui-button--ghost, .ui-button--link) {
+    // Two presses, two washes: the hovered part reacts, not the root. Surface keeps its own: unlike the transparent variants, it has
+    // a fill. A menu button is one press and answers on its root as the button it looks like (ui-button.less), its wash the whole box
+    // and not the parts inside its border — so a field's ink-only take-back and a row's quiet one reach it too.
+    @{ui-split-parts}:is(.ui-button--ghost, .ui-button--link) {
         .ui-reveal-hover-off();
     }
 
-    .ui-split-button.ui-button--outline {
+    @{ui-split-parts}.ui-button--outline {
         .ui-reveal-hover-off({ border-color: color-mix(in srgb, currentColor 48%, transparent); });
     }
 
     // A link's brighter ink on the hovered part alone, as ui-button.less brightens a link's parts rather than its root.
     @media @{ui-can-hover} {
-        .ui-split-button.ui-button--link@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        @{ui-split-parts}.ui-button--link@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             .ui-brighten-hover();
         }
     }
 
     @media @{ui-can-hover} {
-        .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:hover {
+        @{ui-split-parts}:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:hover {
             box-shadow: none;
         }
     }
 
-    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:active {
+    @{ui-split-parts}:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}:active {
         box-shadow: none;
     }
 
     @media @{ui-can-hover} {
-        .ui-split-button@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
+        @{ui-split-parts}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             background-color: var(--ui-wash-hover);
         }
     }
 
-    .ui-split-button@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
+    @{ui-split-parts}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
         background-color: var(--ui-wash-active);
     }
 
-    // A menu button is one press: no rule between the parts, and the pointer anywhere washes both.
+    // A menu button is one press: no rule between the parts.
     .ui-split-button[data-ui-split-mode="menu"] > .ui-split-button__toggle {
         border-left: 0;
         padding-left: 0;
         padding-right: @ui-space-3;
     }
 
-    @media @{ui-can-hover} {
-        .ui-split-button[data-ui-split-mode="menu"]@{ui-button-live}:hover > :is(.ui-split-button__main, .ui-split-button__toggle) {
-            background-color: var(--ui-wash-hover);
-        }
-    }
-
-    .ui-split-button[data-ui-split-mode="menu"]@{ui-button-live}:active > :is(.ui-split-button__main, .ui-split-button__toggle) {
-        background-color: var(--ui-wash-active);
-    }
-
     // A filled split button's parts darken as a filled button does, not by the wash, which lightens them on a dark palette.
     @media @{ui-can-hover} {
-        .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover,
-        .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)[data-ui-split-mode="menu"]@{ui-button-live}:hover > :is(.ui-split-button__main, .ui-split-button__toggle) {
+        @{ui-split-parts}:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             background-color: @ui-filled-hover-shade;
         }
     }
 
-    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active,
-    .ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)[data-ui-split-mode="menu"]@{ui-button-live}:active > :is(.ui-split-button__main, .ui-split-button__toggle) {
+    @{ui-split-parts}:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):active {
         background-color: @ui-filled-active-shade;
     }
 

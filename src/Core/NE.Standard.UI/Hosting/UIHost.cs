@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,7 +44,7 @@ using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Hosting;
 
-internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsyncDisposable
+internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, IDisposable, IAsyncDisposable
 {
     private const int MaxResolveViewAttempts = 4;
 
@@ -143,7 +144,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// <summary>The topics the host's runtimes take and the posts to them and to a user's pages, registered as <see cref="IUIBroadcast"/>.</summary>
     internal UIBroadcast Broadcast { get; }
 
-    private readonly UIUpdateDispatcher _dispatcher;
+    /// <summary>The queue every runtime's change sets go out through, the flush's and the answers' alike, one runtime's in order.</summary>
+    internal UIUpdateDispatcher Dispatcher { get; }
+
     private readonly ConcurrentDictionary<string, IUIViewFilter[]> _filterChains = new(StringComparer.Ordinal);
     private readonly RuntimeScheduler _scheduler;
 
@@ -158,6 +161,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
     // Set by the first refusal on MaxRuntimesTotal, cleared by the next runtime built: a burst of refusals is logged once.
     private int _runtimesFullReported;
+
+    // The key of a sign-in a page render's controller code made, until that render takes it; gone with the render's handle otherwise.
+    private readonly ConditionalWeakTable<UIHandle, UISessionSecret> _renderKeys = [];
 
     public UIHost(UIApplication application, IServiceProvider services, ILogger<UIHost> logger)
     {
@@ -177,11 +183,11 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         _scheduler = new RuntimeScheduler(logger);
 
-        _dispatcher = new UIUpdateDispatcher(() => ResolveClientServices().Updates, _logger, maxQueued: application.Persistence.MaxQueuedChangeSets);
+        Dispatcher = new UIUpdateDispatcher(() => ResolveClientServices().Updates, _logger, maxQueued: application.Persistence.MaxQueuedChangeSets);
 
-        _metrics = new UIMetrics(services.GetService<IMeterFactory>(), RuntimeStore, _dispatcher, services);
+        _metrics = new UIMetrics(services.GetService<IMeterFactory>(), RuntimeStore, Dispatcher, services);
 
-        _scheduler.Add(new UIFlushTask(RuntimeStore, _dispatcher, _logger, interval: application.Persistence.FlushSchedulerInterval, maxParallelFlushes: application.Persistence.MaxParallelFlushes, metrics: _metrics));
+        _scheduler.Add(new UIFlushTask(RuntimeStore, Dispatcher, _logger, interval: application.Persistence.FlushSchedulerInterval, maxParallelFlushes: application.Persistence.MaxParallelFlushes, metrics: _metrics));
         // As often as the unclaimed timeout at least, or a crawler's sessions would wait out the long interval anyway.
         _scheduler.Add(new UISessionCleanupTask(() => _services.GetRequiredService<IUserSessionStore>(), (sessionId, _) => EndRemovedSessionAsync(sessionId, except: null), _logger, interval: Min(application.Sessions.CleanupInterval, application.Sessions.UnclaimedIdleTimeout), application.Sessions));
         _scheduler.Add(new UIFileCleanupTask(() => _services.GetRequiredService<IUIFileStore>(), _logger, interval: application.Files.CleanupInterval, uploadRetention: application.Files.UploadRetention, downloadRetention: application.Files.DownloadRetention));
@@ -439,8 +445,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// a page render has seen, anonymous, stays unclaimed — the short timeout — until a tab attaches: persisted rather than
     /// held back, since an id the store never saw is one the attach must not accept. A write that would move nothing but the
     /// last-seen time, by less than <see cref="UISessionOptions.TouchResolution"/>, is left out. Answers the session the request
-    /// goes on with, which is a new anonymous one when the resolved session was removed while this request read it — or none where
-    /// <paramref name="presentedOnly"/>, since that new one would be issued.
+    /// goes on with, which is a new one under a new id when the resolver kept a presented id the store does not hold — anonymous where
+    /// the session was removed while this request read it — or none where <paramref name="presentedOnly"/>, since that new one would
+    /// be issued.
     /// </remarks>
     private async ValueTask<ResolvedSession?> PersistSessionAsync(ResolvedSession resolved, UserSessionInitData sessionInit, UIViewRequestPhase phase, bool presentedOnly, CancellationToken cancellationToken)
     {
@@ -466,13 +473,17 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         UISessionSecret? issued = resolved.Issued;
 
-        if (WasRemovedMeanwhile(session, sessionInit))
+        // A presented id the store does not hold is never written: one removed meanwhile would come back, and one no render issued is
+        // the client's own pick, which a resolver taking the id it is offered would otherwise plant — the fixation defence.
+        if (string.Equals(sessionInit.SessionId, session.SessionId, StringComparison.Ordinal))
         {
             if (presentedOnly)
                 return null;
 
             issued = UISessionSecret.New();
-            session = UserSessionContext.AnonymousAs(session, issued.SessionId);
+            session = WasRemovedMeanwhile(session, sessionInit)
+                ? UserSessionContext.AnonymousAs(session, issued.SessionId)
+                : UserSessionContext.WithSessionId(session, issued.SessionId);
         }
 
         session = WithTimeZone(session, reportedZone ?? session.TimeZone);
@@ -621,33 +632,61 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// <summary>Moves a claimed session to a freshly issued id, answering the session the request goes on with.</summary>
     private async ValueTask<ResolvedSession> RotateSessionIdAsync(IUserSessionContext session, UserSessionState claimed, IUserSessionStore store, CancellationToken cancellationToken)
     {
-        var oldId = claimed.SessionId;
         UISessionSecret rotated = UISessionSecret.New();
-        var rotatedId = rotated.SessionId;
 
-        await store.SaveAsync(claimed with { SessionId = rotatedId }, cancellationToken).ConfigureAwait(false);
-
-        // Read again once the new id is written: a session ended or changed under the old id meanwhile is ended or changed under
-        // the new one too, rather than brought back as it was when the rotation began.
-        UserSessionState? latest = await store.TryGetAsync(oldId, cancellationToken).ConfigureAwait(false);
-
-        if (latest is null || !await store.TryUpdateAsync(rotatedId, _ => latest with { SessionId = rotatedId }, cancellationToken).ConfigureAwait(false))
-        {
-            await store.RemoveAsync(rotatedId, cancellationToken).ConfigureAwait(false);
-            await store.RemoveAsync(oldId, cancellationToken).ConfigureAwait(false);
-            await _services.GetRequiredService<IUIFileStore>().RemoveSessionAsync(oldId, cancellationToken).ConfigureAwait(false);
-
+        if (await MoveStoredSessionAsync(store, claimed, rotated.SessionId, static stored => stored, moving: null, cancellationToken).ConfigureAwait(false) is not UserSessionState moved)
             return await RestartEndedSessionAsync(session, store, cancellationToken).ConfigureAwait(false);
+
+        Log.SessionIdRotated(_logger, new UISessionFingerprint(claimed.SessionId), new UISessionFingerprint(rotated.SessionId));
+
+        IUserSessionContext current = AsStoredNow(session, moved);
+
+        return new ResolvedSession(UserSessionContext.WithSessionId(current, rotated.SessionId), rotated);
+    }
+
+    /// <summary>
+    /// Writes a session, with <paramref name="apply"/>, under a new id and removes the old one, its files and what
+    /// <paramref name="moving"/> takes following it first; answers the session as written under the new id, or null where the old one
+    /// was ended meanwhile — then neither stays — or <paramref name="moving"/> found nothing to take, which leaves the old one as it was.
+    /// </summary>
+    /// <remarks>
+    /// The old id is read again once the new one is written: a session ended or changed under the old id meanwhile is ended or changed
+    /// under the new one too, rather than brought back as it was when the move began. Whatever follows it moves before the old id goes:
+    /// a request finding the old id gone ends everything still under it.
+    /// </remarks>
+    private async ValueTask<UserSessionState?> MoveStoredSessionAsync(IUserSessionStore store, UserSessionState session, string newId, Func<UserSessionState, UserSessionState> apply, Func<UserSessionState, bool>? moving, CancellationToken cancellationToken)
+    {
+        var oldId = session.SessionId;
+        IUIFileStore files = _services.GetRequiredService<IUIFileStore>();
+
+        await store.SaveAsync(apply(session) with { SessionId = newId }, cancellationToken).ConfigureAwait(false);
+
+        UserSessionState? latest = await store.TryGetAsync(oldId, cancellationToken).ConfigureAwait(false);
+        UserSessionState? moved = null;
+
+        if (latest is null || !await store.TryUpdateAsync(newId, _ => moved = apply(latest) with { SessionId = newId }, cancellationToken).ConfigureAwait(false) || moved is null)
+        {
+            await store.RemoveAsync(newId, cancellationToken).ConfigureAwait(false);
+            await store.RemoveAsync(oldId, cancellationToken).ConfigureAwait(false);
+            await files.RemoveSessionAsync(oldId, cancellationToken).ConfigureAwait(false);
+
+            return null;
         }
 
-        await store.RemoveAsync(oldId, cancellationToken).ConfigureAwait(false);
-        await _services.GetRequiredService<IUIFileStore>().MoveSessionAsync(oldId, rotatedId, cancellationToken).ConfigureAwait(false);
+        if (moving is not null && !moving(moved))
+        {
+            await store.RemoveAsync(newId, cancellationToken).ConfigureAwait(false);
 
-        Log.SessionIdRotated(_logger, new UISessionFingerprint(oldId), new UISessionFingerprint(rotatedId));
+            return null;
+        }
 
-        IUserSessionContext current = AsStoredNow(session, latest);
+        // Owed whole once something moved with it: no caller's token leaves the old id standing beside the new one.
+        CancellationToken owed = moving is null ? cancellationToken : CancellationToken.None;
 
-        return new ResolvedSession(UserSessionContext.WithSessionId(current, rotatedId), rotated);
+        await files.MoveSessionAsync(oldId, newId, owed).ConfigureAwait(false);
+        await store.RemoveAsync(oldId, owed).ConfigureAwait(false);
+
+        return moved;
     }
 
     /// <summary>
@@ -771,8 +810,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         await AdoptPreparedRuntimeAsync(key, handle).ConfigureAwait(false);
 
-        // A page render's own attach names its page as its window; anything else is a real tab presenting the runtime.
-        var adopted = !string.Equals(handle.Instance.WindowId, handle.Instance.PageId, StringComparison.Ordinal);
+        var adopted = !IsRendersOwn(handle.Instance);
 
         var maxTotal = _application.Persistence.MaxRuntimesTotal ?? 0;
         UIRuntimeEntry? added = RuntimeStore.GetOrAdd(key, handle.Instance.Id, () => CreateRuntime(handle, resolution.Route, resolution.View), DateTime.UtcNow, ResolveFlushOptions(resolution.Route), _application.Persistence.MaxRuntimesPerSession, _application.Persistence.MaxUnclaimedRuntimesPerSession, maxTotal, adopted, out var created, out var attached, out var activeInstances, out IUIRuntime? evicted, out IUIRuntime? unused);
@@ -865,6 +903,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         return runtimeResolution;
     }
+
+    /// <summary>Whether an instance is a page render's own, which names its page as its window; anything else is a page someone sees.</summary>
+    private static bool IsRendersOwn(UIInstance instance)
+        => string.Equals(instance.WindowId, instance.PageId, StringComparison.Ordinal);
 
     /// <summary>
     /// The refusal of a runtime the store found no room for: the process's where its limit is reached — reported once a burst — else
@@ -1064,7 +1106,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
             runtime.OwnServices(scope);
             runtime.JoinBroadcast(Broadcast);
 
-            UIContext context = new(_logger, scope.ServiceProvider, _application.Translator, _application.ContentOrNull, route, handle, clientServices.Downloads, clientServices.Uploads);
+            UIContext context = new(_logger, scope.ServiceProvider, _application.Translator, _application.ContentOrNull, route, handle, clientServices.Downloads, clientServices.Uploads, this);
 
             context.AttachRuntime(runtime);
             contextController.AttachContext(context);
@@ -1287,9 +1329,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
     private UIRuntimeEntry GetRequiredRuntimeEntry(UIHandle handle)
     {
-        UIRuntimeKey key = CreateRuntimeKey(handle);
-
-        return RuntimeStore.TryGetAttachedEntry(key, handle.Instance.Id, out UIRuntimeEntry? entry)
+        // Asked again on a miss: a sign-in moves the handle and its runtime to the new id as one step under the store's lock, so a key
+        // read just before it names nothing, and the handle read again names the runtime.
+        return RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry) || RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out entry)
             ? entry!
             : throw new InvalidOperationException($"Attached runtime for instance '{handle.Instance.Id}' was not found.");
     }
@@ -1301,10 +1343,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     /// <remarks>
     /// Otherwise a tab that only sends events, never reloading, would idle out while the connection stays alive and lose
     /// uploads to a 401. Only the time is touched, and never on a session that is gone: the handle's session is the one the tab
-    /// attached with, and saving it would bring back a session signed out since, or roles revoked since. A session the touch
-    /// finds gone — ended from another process, purged — ends here as <see cref="EndSessionAsync"/> ends one, and the call is
-    /// answered with nothing: false. Under <see cref="UISecurityOptions.RecheckRouteOnActivity"/> the same turn reads the session
-    /// as stored and ends the runtime of a page whose route it no longer passes, as a changed session's event does.
+    /// attached with, and saving it would bring back a session signed out since, or roles revoked since. A session found gone —
+    /// ended from another process, purged, or idle past its timeout and not yet purged — ends here as <see cref="EndSessionAsync"/>
+    /// ends one, and the call is answered with nothing: false. Under <see cref="UISecurityOptions.RecheckRouteOnActivity"/> the same
+    /// read ends the runtime of a page whose route the session as stored no longer passes, as a changed session's event does.
     /// </remarks>
     private async Task<bool> RefreshSessionActivityAsync(UIHandle handle, UIRuntimeEntry entry, CancellationToken cancellationToken)
     {
@@ -1316,11 +1358,16 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
         IUserSessionStore store = _services.GetRequiredService<IUserSessionStore>();
 
-        if (_application.Security.RecheckRouteOnActivity && !await StillPassesRouteAsync(handle, store, cancellationToken).ConfigureAwait(false))
-            return false;
+        // Read before the touch, as every other reader of the store reads it: a session idle past its timeout is gone, and a touch
+        // would bring it back for a tab that merely stayed attached.
+        if (await store.TryGetAsync(handle.Session.SessionId, cancellationToken).ConfigureAwait(false) is UserSessionState stored && !stored.IsIdle(_application.Sessions, DateTime.UtcNow))
+        {
+            if (_application.Security.RecheckRouteOnActivity && !await StillPassesRouteAsync(handle, stored).ConfigureAwait(false))
+                return false;
 
-        if (await store.TouchAsync(handle.Session.SessionId, DateTime.UtcNow, cancellationToken).ConfigureAwait(false))
-            return true;
+            if (await store.TouchAsync(handle.Session.SessionId, DateTime.UtcNow, cancellationToken).ConfigureAwait(false))
+                return true;
+        }
 
         await EndSessionAsync(handle.Session.SessionId, except: null, cancellationToken).ConfigureAwait(false);
 
@@ -1329,16 +1376,12 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
 
     /// <summary>
     /// Whether the session as stored still passes the page's route; where it does not, the session's runtimes it no longer passes end,
-    /// their pages sent back to their own addresses, whose loads refuse them. A session gone from the store is left to the touch.
+    /// their pages sent back to their own addresses, whose loads refuse them.
     /// </summary>
-    private async Task<bool> StillPassesRouteAsync(UIHandle handle, IUserSessionStore store, CancellationToken cancellationToken)
+    private async Task<bool> StillPassesRouteAsync(UIHandle handle, UserSessionState stored)
     {
-        if (await store.TryGetAsync(handle.Session.SessionId, cancellationToken).ConfigureAwait(false) is not UserSessionState stored
-            || !_application.Routes.TryGetEntry(handle.Instance.Navigation.Route, out UIRouteEntry? route)
-            || Passes(route.Definition, stored))
-        {
+        if (!_application.Routes.TryGetEntry(handle.Instance.Navigation.Route, out UIRouteEntry? route) || Passes(route.Definition, stored))
             return true;
-        }
 
         Log.RouteNoLongerPasses(_logger, route.Definition.Route);
 
@@ -1661,6 +1704,111 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The fixation defence, at once: whoever else holds the old id — a key a sibling subdomain planted — is never handed the new key,
+    /// which goes to this page's client alone, and a load of the old id after it is a new anonymous session.
+    /// </remarks>
+    async ValueTask<bool> IUISessionSignIn.SignInAsync(UIHandle handle, bool invoked, Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentNullException.ThrowIfNull(update);
+
+        // Outside the page's own command the handle is the last page to attach, or the one whose work started the posted queue: under
+        // PerClient perhaps another browser holding a planted key, which the key would go to.
+        if (!invoked && SharesRuntimeWithAnotherPage(handle))
+            throw new InvalidOperationException("A sign-in outside a running command cannot tell which of the pages sharing this runtime signs in; sign in from the page's own command.");
+
+        IUserSessionStore store = _services.GetRequiredService<IUserSessionStore>();
+        var oldId = handle.Session.SessionId;
+
+        if (await store.TryGetAsync(oldId, cancellationToken).ConfigureAwait(false) is not UserSessionState stored)
+            return false;
+
+        UISessionSecret key = UISessionSecret.New();
+        DateTime utcNow = DateTime.UtcNow;
+        UIRuntimeKey oldKey = CreateRuntimeKey(handle);
+        IUIRuntime[]? ended = null;
+        UserSessionState? signedIn;
+
+        try
+        {
+            // Something written into a session is a client using it: the full idle timeout. Moved here, so no load has a rotation to claim.
+            signedIn = await MoveStoredSessionAsync(store, stored, key.SessionId, session => (update(session) ?? throw new InvalidOperationException("A session update returned no session.")) with { PendingIdRotation = false, IsUnclaimed = false, LastSeenAtUtc = utcNow }, moved => (ended = MovePages(handle, oldKey, moved)) is not null, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Owed whole once taken from the store, whatever the rest of the move does: no caller's token stops them halfway.
+            foreach (IUIRuntime runtime in ended ?? [])
+                await DisposeRuntimeAsync(runtime).ConfigureAwait(false);
+        }
+
+        if (signedIn is null)
+            return false;
+
+        Log.SessionIdRotated(_logger, new UISessionFingerprint(oldId), new UISessionFingerprint(key.SessionId));
+
+        // Owed whole once the store moved: no caller's token stops the key halfway. A render running the controller's code is a response
+        // that can hand the key out itself; a page is handed it by its platform.
+        if (IsRendersOwn(handle.Instance))
+            _renderKeys.AddOrUpdate(handle, key);
+        else if (_services.GetService<IUISessionKeyHandover>() is IUISessionKeyHandover handover)
+            await handover.HandOverAsync(handle, key, oldId, CancellationToken.None).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>Whether a page other than <paramref name="handle"/>'s is attached to its runtime.</summary>
+    private bool SharesRuntimeWithAnotherPage(UIHandle handle)
+    {
+        if (!RuntimeStore.TryGet(CreateRuntimeKey(handle), out IUIRuntime? runtime) || runtime is not IUIRuntimeConnectionUpdater connections)
+            return false;
+
+        foreach (UIHandle viewer in connections.ViewerHandles)
+        {
+            if (!string.Equals(viewer.Instance.Id, handle.Instance.Id, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Takes the signing-in page and its runtime to the session's new id, and every other runtime of the old id away to end unannounced,
+    /// before the old id is gone; answers those, or null where the page's runtime is gone already — ended with the old id meanwhile, or
+    /// let go of.
+    /// </summary>
+    /// <remarks>
+    /// Before, so a request on another page of the old id that finds it gone finds no runtime of it to end — not this one, which a
+    /// stranger sharing a planted id could otherwise end mid-move, nor one whose page it would send away. Any other connection on the
+    /// page's runtime — another tab under <c>PerClient</c>, perhaps another browser holding the old key — is let go of, so nothing the
+    /// signed-in page sees is pushed to it. No page is sent away: it would load under the old key, and the session that load is issued
+    /// could reach the browser after the signed-in one and sign it out.
+    /// </remarks>
+    private IUIRuntime[]? MovePages(UIHandle handle, UIRuntimeKey oldKey, UserSessionState signedIn)
+    {
+        IUIRuntime? runtime = RuntimeStore.Move(oldKey, oldKey with { SessionId = signedIn.SessionId }, handle, signedIn, DateTime.UtcNow, out var released);
+
+        if (runtime is null)
+            return null;
+
+        if (runtime is IUIRuntimeConnectionUpdater connections)
+        {
+            for (var i = 0; i < released.Length; i++)
+                connections.DetachConnection(released[i]);
+        }
+
+        return RuntimeStore.RemoveSession(oldKey.SessionId, keep: null);
+    }
+
+    /// <summary>Takes the key a sign-in issued while a page render ran the controller's code, for that render's response to hand out.</summary>
+    internal UISessionSecret? TakeRenderKey(UIHandle handle)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+
+        return _renderKeys.TryGetValue(handle, out UISessionSecret? key) && _renderKeys.Remove(handle) ? key : null;
+    }
+
+    /// <inheritdoc />
     public async Task EndSessionAsync(string sessionId, UIHandle? except = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -1865,7 +2013,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     public async ValueTask DisposeAsync()
     {
         await _scheduler.DisposeAsync().ConfigureAwait(false);
-        _dispatcher.Dispose();
+        Dispatcher.Dispose();
 
         try
         {
@@ -1881,7 +2029,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IDisposable, IAsync
     public void Dispose()
     {
         _scheduler.Dispose();
-        _dispatcher.Dispose();
+        Dispatcher.Dispose();
 
         try
         {

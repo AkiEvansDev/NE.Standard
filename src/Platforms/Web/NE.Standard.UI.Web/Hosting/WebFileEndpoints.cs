@@ -299,7 +299,7 @@ internal static partial class WebFileEndpoints
         http.Response.Headers.CacheControl = "no-store";
 
         if (options.Value.InertContent)
-            WebInertContent.Apply(http.Response, contentType);
+            contentType = WebInertContent.Apply(http.Response, contentType);
 
         return Results.Stream(content, contentType);
     }
@@ -331,8 +331,7 @@ internal static partial class WebFileEndpoints
             FileNameStar = staged.FileName
         }.ToString();
 
-        if (options.Value.InertContent)
-            WebInertContent.Apply(http.Response, staged.ContentType);
+        var contentType = options.Value.InertContent ? WebInertContent.Apply(http.Response, staged.ContentType) : staged.ContentType;
 
         // A stream that cannot say its length is counted as nothing rather than read twice.
         var bytes = staged.Content.CanSeek ? staged.Content.Length : 0;
@@ -342,6 +341,6 @@ internal static partial class WebFileEndpoints
         metrics.FileDownloaded(bytes);
         Log.Downloading(logger, bytes);
 
-        return Results.Stream(staged.Content, staged.ContentType);
+        return Results.Stream(staged.Content, contentType);
     }
 }

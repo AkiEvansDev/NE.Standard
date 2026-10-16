@@ -9,6 +9,9 @@
     color: var(--ui-color-danger-ink);
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
+    // A message carries what it names, a file's or a link's unbroken name among them, which must not run the field wider: `anywhere`,
+    // not `break-word`, so the name's length leaves the line's min-content width too.
+    overflow-wrap: anywhere;
     // One unit with its field: the field's gap and the words, not a half-leading more.
     .ui-text-leading-trim-start();
 }

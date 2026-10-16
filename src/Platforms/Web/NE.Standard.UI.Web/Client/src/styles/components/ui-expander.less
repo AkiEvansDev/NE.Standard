@@ -9,9 +9,9 @@
     display: block;
 }
 
-// Its clip at the inside of its edge, where it cuts the header's square press: the reach a clipping component leaves a keyboard frame
-// (runtime.less) put the clip outside the border, and the wave's corner lay over the border's curve. Its content stands in its padding
-// and the header's frame inside the header, so no frame reaches the edge.
+// Its clip at the inside of its edge: the reach a clipping component leaves a keyboard frame (runtime.less) would put it outside the
+// border, where whatever the content draws at its corners lies over the border's curve. Its content stands in its padding and the
+// header's frame inside the header, so no frame needs the reach.
 .ui-expander:not(.ui-expander--quiet)[data-ui-id][style*="overflow: clip"] {
     overflow-clip-margin: 0px;
 }
@@ -54,9 +54,8 @@
     .ui-control-band();
     padding: @ui-space-3 @ui-space-4;
     list-style: none;
-    // Square: the expander clips to the inside of its edge (above), so a press's wave follows that contour, folded or open. A corner of its own
-    // was the outer edge's, a pixel too round inside the border, and rounded the wave's foot over the content; the keyboard's frame
-    // takes the card's all round (core/keyboard.less).
+    // Square: the expander clips to the inside of its edge (above). A corner of its own was the outer edge's, a pixel too round inside
+    // the border; the keyboard's frame takes the card's all round (core/keyboard.less).
     cursor: pointer;
 }
 
@@ -99,8 +98,8 @@
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
-// Hover inks the chevron alone, as a tree row's fold mark: a wash would fill the band the surface already frames. A press inks it too
-// and sends the wave across the band (core/press.less), so a finger, which never hovers, sees its press.
+// Hover inks the chevron alone, as a tree row's fold mark: a wash would fill the band the surface already frames. A press inks it too,
+// with no wave (press-ripple-engine.ts): the fold opening at once is what a finger, which never hovers, sees of its press.
 @media @{ui-can-hover} {
     :where(.ui-expander@{ui-button-live} > .ui-expander__header:hover .ui-expander__chevron) {
         color: @ui-text-ink;
@@ -116,7 +115,7 @@
 }
 
 // Quiet: a line of muted words with the chevron right after them, standing on the ground of what holds it — no edge (unless authored),
-// fill or rule, and the content flush under it. It answers in its ink alone, as a link does: no wash and no wave
+// fill or rule, and the content flush under it. It answers in its ink alone, as a link does: no wash, and no wave as no expander has
 // (press-ripple-engine.ts). Its header is padded for the keyboard's frame and pulled back out by as much, so the words stand on the
 // content's edge at rest and the frame, inside the padding as a ghost button's, clears them; a clip leaves it its reach (runtime.less),
 // square unless authored: a clip margin keeps the box's curve, which cut the frame's corners where the header stands out past it.

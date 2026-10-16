@@ -408,28 +408,81 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     }
 
     /// <summary>
+    /// Adds an interaction triggered just before the command this component runs on <paramref name="eventName"/> leaves the page.
+    /// </summary>
+    /// <remarks>The view does not compile unless the source runs a command on that event; it is not raised for one refused before it leaves (see <see cref="ShowLoadingDuring"/>).</remarks>
+    public TComponent InteractBefore(string eventName, UIProperty target, object? value)
+        => InteractBefore(Id, eventName, target, value);
+
+    /// <summary>
+    /// Adds an interaction triggered just before the command another component runs on <paramref name="eventName"/> leaves the page.
+    /// </summary>
+    public TComponent InteractBefore(string sourceComponentId, string eventName, UIProperty target, object? value)
+        => InteractOn(sourceComponentId, LifecycleEventName(EventNames.BeforePrefix, eventName), target, value);
+
+    /// <summary>The name an event's command is raised under for interactions alone, before it leaves or after its answer.</summary>
+    private static string LifecycleEventName(string prefix, string eventName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+
+        if (eventName.StartsWith(EventNames.BeforePrefix, StringComparison.Ordinal) || eventName.StartsWith(EventNames.AfterPrefix, StringComparison.Ordinal))
+            throw new ArgumentException($"'{eventName}' already names a command's before or after; name the event itself.", nameof(eventName));
+
+        return prefix + eventName;
+    }
+
+    /// <summary>
+    /// Adds an interaction triggered once the command this component runs on <paramref name="eventName"/> has been answered and the
+    /// answer applied, or the connection dropped under it.
+    /// </summary>
+    public TComponent InteractAfter(string eventName, UIProperty target, object? value)
+        => InteractAfter(Id, eventName, target, value);
+
+    /// <summary>
+    /// Adds an interaction triggered once the command another component runs on <paramref name="eventName"/> has been answered and the
+    /// answer applied, or the connection dropped under it.
+    /// </summary>
+    public TComponent InteractAfter(string sourceComponentId, string eventName, UIProperty target, object? value)
+        => InteractOn(sourceComponentId, LifecycleEventName(EventNames.AfterPrefix, eventName), target, value);
+
+    /// <summary>
     /// Adds an interaction triggered before this component's click event command.
     /// </summary>
     public TComponent InteractBeforeClick(UIProperty target, object? value)
-        => InteractOn(EventNames.BeforeClick, target, value);
+        => InteractBefore(EventNames.Click, target, value);
 
     /// <summary>
     /// Adds an interaction triggered before another component's click event command.
     /// </summary>
     public TComponent InteractBeforeClick(string sourceComponentId, UIProperty target, object? value)
-        => InteractOn(sourceComponentId, EventNames.BeforeClick, target, value);
+        => InteractBefore(sourceComponentId, EventNames.Click, target, value);
 
     /// <summary>
     /// Adds an interaction triggered after this component's click event command.
     /// </summary>
     public TComponent InteractAfterClick(UIProperty target, object? value)
-        => InteractOn(EventNames.AfterClick, target, value);
+        => InteractAfter(EventNames.Click, target, value);
 
     /// <summary>
     /// Adds an interaction triggered after another component's click event command.
     /// </summary>
     public TComponent InteractAfterClick(string sourceComponentId, UIProperty target, object? value)
-        => InteractOn(sourceComponentId, EventNames.AfterClick, target, value);
+        => InteractAfter(sourceComponentId, EventNames.Click, target, value);
+
+    /// <summary>
+    /// Shows this component loading for exactly the round trip of the command it runs on <paramref name="eventName"/>: from just
+    /// before the command leaves until its answer has been applied or the connection dropped under it, with nothing to bind or clear.
+    /// </summary>
+    /// <remarks>
+    /// Any event this component runs a command on: a click, a submit (a click whose form has passed its rules), a change once its value
+    /// has reached the server, a search, Enter or Escape in a field, an expander's or a flyout's. An item's or a row's event belongs to
+    /// the template the item is drawn from, so it is asked there and shows on that row. A view asking it for an event this component
+    /// runs no command on does not compile. Nothing shows for a command refused before it leaves: a press repeated while its command
+    /// runs, a form failing its rules, a value the controller refused.
+    /// </remarks>
+    public TComponent ShowLoadingDuring(string eventName)
+        => InteractBefore(eventName, IVisualComponent.LoadingProperty, true)
+            .InteractAfter(eventName, IVisualComponent.LoadingProperty, false);
 
     IVisualComponent IVisualComponent.On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => On(eventName, command, arguments);

@@ -1,19 +1,28 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 
 namespace NE.Standard.UI.Primitives.Text;
 
 /// <summary>
-/// A number as the page's script holds and writes it: read off the wire as a <see langword="double"/>, written as JavaScript's
-/// <c>String(number)</c> — the one port of that rule, for a server text that must read as the page's (a word's slot, a rule's
-/// comparison, a cell the client may draw again).
+/// A number as the page's script holds and writes it: read off the wire as a <see langword="double"/>, or as null where JSON has no
+/// literal for it, written as JavaScript's <c>String(number)</c> — the one port of that rule, for a server text that must read as the
+/// page's (a word's slot, a rule's comparison, a cell the client may draw again).
 /// </summary>
 public static class UIScriptNumber
 {
     /// <summary>
+    /// Whether the page holds the value as null: none, or a number JSON has no literal for (NaN, an infinity), which the wire writes as
+    /// null — a server text written from it as anything else would read otherwise than the page's.
+    /// </summary>
+    public static bool ReadsAsNull([NotNullWhen(false)] object? value)
+        => value is null or double.NaN or double.PositiveInfinity or double.NegativeInfinity or float.NaN or float.PositiveInfinity or float.NegativeInfinity;
+
+    /// <summary>
     /// A number as the page reads it off the wire: a <see langword="float"/> by its own shortest text, a <see langword="decimal"/> or an
-    /// integer as the nearest <see langword="double"/>; false for anything that is no number.
+    /// integer as the <see langword="double"/> nearest its digits; false for anything that is no number, or one the page holds as null
+    /// (<see cref="ReadsAsNull"/>).
     /// </summary>
     public static bool TryRead(object? value, out double number)
     {
@@ -21,12 +30,12 @@ public static class UIScriptNumber
         {
             case double d:
                 number = d;
-                return true;
+                return double.IsFinite(d);
             case float f:
                 number = double.Parse(f.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
-                return true;
+                return double.IsFinite(number);
             case decimal m:
-                number = (double)m;
+                number = Read(m);
                 return true;
             case int or long or short or sbyte or byte or ushort or uint or ulong:
                 number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
@@ -35,6 +44,17 @@ public static class UIScriptNumber
                 number = 0;
                 return false;
         }
+    }
+
+    /// <summary>A decimal as the page reads it: the wire writes its digits, and the page's <c>JSON.parse</c> takes the double nearest them.</summary>
+    public static double Read(decimal value)
+    {
+        // From its digits: a decimal's own conversion to a double may round twice (1522867936.0464371247640621 to …0464373, where the
+        // nearest double is …046437).
+        Span<char> digits = stackalloc char[32];
+        _ = value.TryFormat(digits, out var written, provider: CultureInfo.InvariantCulture);
+
+        return double.Parse(digits[..written], NumberStyles.Float, CultureInfo.InvariantCulture);
     }
 
     /// <summary>

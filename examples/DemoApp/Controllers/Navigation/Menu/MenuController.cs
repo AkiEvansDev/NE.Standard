@@ -168,7 +168,7 @@ internal sealed partial class SidebarGroupContext : DemoGroupContext
         MenuItem inputs = new() { Id = "inputs", Title = "Inputs", Icon = DemoIcons.Outline(DemoIcons.Sliders) };
 
         inputs.Items.Add(new MenuItem { Id = "/inputs/text-input", Title = "Text Input", Url = "/inputs/text-input" });
-        inputs.Items.Add(new MenuItem { Id = "/inputs/select", Title = "Select", Url = "/inputs/select" });
+        inputs.Items.Add(new MenuItem { Id = "/choices/select", Title = "Select", Url = "/choices/select" });
 
         return
         [

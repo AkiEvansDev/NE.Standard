@@ -6,12 +6,14 @@ namespace DemoApp.Views.Layouts.PaneContainer;
 
 /// <summary>
 /// A workspace of three panes — a chat, and a column of two tool panes beside it — whose layout and bars are bound, so what the viewer
-/// arranges is the controller's; then a board of four panes the browser keeps.
+/// arranges is the controller's; then a board of four panes the browser keeps, a wall of places of two sizes, and an overview whose
+/// order the controller keeps and puts back.
 /// </summary>
 internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string PaneGroup = nameof(PaneContainerController.PaneGroup);
+    private const string OverviewGroup = nameof(PaneContainerController.OverviewGroup);
 
     public static string ViewKey => "demo.layouts.pane-container";
 
@@ -86,8 +88,9 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(PaneGroup, "Panes", nameof(PaneContainerController.CyclePaneOption), note: "Bound both ways: move a pane or a bar in the preview and its row here changes; step a row and the preview moves.")
         );
 
+    // The board across the page; the wall beside the overview, both read at half of it.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateBoardGroup()];
+        => [CreateBoardGroup(), .. DemoUI.CreateColumns([CreateWallGroup()], [CreateOverviewGroup()])];
 
     /// <summary>
     /// Four panes in a square and no bars: a pane trades places across, down or corner to corner, and the layout is the browser's.
@@ -119,4 +122,105 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
                 .SetDescription(status)
                 .SetDescriptionType(UITextAppearance.Body)
             );
+
+    /// <summary>
+    /// Places of two sizes: a pane carried onto the large place takes its size, and the one standing there goes to the small place.
+    /// </summary>
+    private static ContainerComponent CreateWallGroup()
+    {
+        return DemoUI.CreateExample("The reading you watch, the large one",
+            new PaneContainerComponent("demo-panes-wall")
+                .SetRow(1, UIGridUnit.Star())
+                .AddRow(UIGridUnit.Star())
+                .SetSpacing(8)
+                .SetHeight(UILayoutLength.Absolute(260))
+                .AddPane("cpu", UIGridPlacement.At(1, 1, 16, 2), new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetPadding(UIThickness.All(12, 16, 12, 12))
+                    .SetContent(new TextComponent()
+                        .SetTitle("42%")
+                        .SetTitleType(UITextAppearance.Display)
+                        .SetDescription("CPU · api-eu-west-1")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddPane("memory", UIGridPlacement.At(17, 1, 8, 1), new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetPadding(UIThickness.All(12, 16, 12, 12))
+                    .SetContent(new TextComponent()
+                        .SetTitle("61%")
+                        .SetTitleType(UITextAppearance.Title)
+                        .SetDescription("Memory · db-us-east-2")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddPane("requests", UIGridPlacement.At(17, 2, 8, 1), new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetPadding(UIThickness.All(12, 16, 12, 12))
+                    .SetContent(new TextComponent()
+                        .SetTitle("18.4k")
+                        .SetTitleType(UITextAppearance.Title)
+                        .SetDescription("Requests a minute · edge-router")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                ),
+            note: "Drag a small pane by its grip onto the large one: it takes the large place's size, and the reading that stood there goes to the small place. The places keep their cells; only the panes move between them."
+        );
+    }
+
+    /// <summary>
+    /// A bound layout the viewer rearranges and the controller can put back: Restore writes the default, and the panes move to it.
+    /// </summary>
+    private static ContainerComponent CreateOverviewGroup()
+    {
+        return DemoUI.CreateExample("An order kept for the viewer",
+            UILayout.Stack(12)
+                .AddChild(UIPage.Heading("Overview", "Drag a pane by its grip to put it where you look first.", new ButtonComponent()
+                        .OnClick(nameof(PaneContainerController.RestoreOverview))
+                        .SetType(UIButtonType.Ghost)
+                        .SetSize(UIButtonSize.Small)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Undo))
+                        .SetTitle("Restore")
+                    )
+                )
+                .AddChild(new PaneContainerComponent()
+                    .SetSpacing(8)
+                    .SetHeight(UILayoutLength.Absolute(120))
+                    .AddPane("alerts", UIGridPlacement.At(1, 1, 8, 1), new SurfaceComponent()
+                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetVerticalAlignment(UIAlignment.Stretch)
+                        .SetPadding(UIThickness.All(12, 16, 12, 12))
+                        .SetContent(new ParagraphComponent().SetTitle("Alerts").SetDescription("5 open").SetDescriptionType(UITextAppearance.Body))
+                    )
+                    .AddPane("deploys", UIGridPlacement.At(9, 1, 8, 1), new SurfaceComponent()
+                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetVerticalAlignment(UIAlignment.Stretch)
+                        .SetPadding(UIThickness.All(12, 16, 12, 12))
+                        .SetContent(new ParagraphComponent().SetTitle("Deploys").SetDescription("3 running").SetDescriptionType(UITextAppearance.Body))
+                    )
+                    .AddPane("on-call", UIGridPlacement.At(17, 1, 8, 1), new SurfaceComponent()
+                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetVerticalAlignment(UIAlignment.Stretch)
+                        .SetPadding(UIThickness.All(12, 16, 12, 12))
+                        .SetContent(new ParagraphComponent().SetTitle("On call").SetDescription("Grace Kim").SetDescriptionType(UITextAppearance.Body))
+                    )
+                    .BindLayout(nameof(PaneOverviewGroupContext.Layout), UIBindingScope.Relative)
+                )
+                .AddChild(new TextComponent()
+                    .SetTitle("Kept for you")
+                    .SetTitleType(UITextAppearance.Caption)
+                    .SetTitleColor(UIThemeColor.Muted)
+                    .BindDescription(nameof(PaneOverviewGroupContext.Layout), UIBindingScope.Relative)
+                    .SetDescriptionType(UITextAppearance.Caption)
+                ),
+            note: "Layout bound two ways: each drag comes back to the controller, which would keep it with the viewer's settings, and the line under the panes reads it. Restore writes the default, and the panes move to it.",
+            context: OverviewGroup
+        );
+    }
 }

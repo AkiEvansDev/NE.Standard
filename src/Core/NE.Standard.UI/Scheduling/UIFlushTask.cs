@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Hosting;
+using NE.Standard.UI.Runtime;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -111,18 +112,8 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
     {
         try
         {
-            ServerChangeSet changes = await runtime
-                .FlushAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            // A disconnected runtime is still drained to keep its pending queue from growing, even with no one to notify.
-            if (changes.IsEmpty || runtime.AttachedInstanceIds.Count == 0)
-                return;
-
-            // Handed over, not sent here: a full transport would otherwise hold this flush until it gave up.
-            _dispatcher.Enqueue(runtime, changes);
-
-            _ = Interlocked.Increment(ref counts.Queued);
+            if (await FlushToDispatcherAsync(runtime, cancellationToken).ConfigureAwait(false))
+                _ = Interlocked.Increment(ref counts.Queued);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -140,6 +131,27 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
         {
             _ = _inFlight.TryRemove(runtime, out _);
         }
+    }
+
+    /// <summary>
+    /// Drains one runtime into the dispatcher — handed over, not sent here: a full transport would otherwise hold this flush until it
+    /// gave up — and answers whether anything went to an attached instance. A disconnected runtime is still drained, to keep its queue
+    /// from growing with no one to notify.
+    /// </summary>
+    private async Task<bool> FlushToDispatcherAsync(IUIRuntime runtime, CancellationToken cancellationToken)
+    {
+        // Inside the drain that took it, so an answer drained after it is queued behind it.
+        if (runtime is IUIRuntimeConnectionUpdater own)
+            return await own.FlushToDispatcherAsync(cancellationToken).ConfigureAwait(false);
+
+        ServerChangeSet changes = await runtime.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+        if (changes.IsEmpty || runtime.AttachedInstanceIds.Count == 0)
+            return false;
+
+        _dispatcher.Enqueue(runtime, changes);
+
+        return true;
     }
 
     /// <summary>What one pass queued and failed; a flush that outlives its pass counts into a pass already logged.</summary>

@@ -174,6 +174,25 @@
     display: inline-flex;
 }
 
+// Short of room on the title's line, the title gives way first, down to its own width or half the line, whichever is less; only then
+// do a badge's words ellipsise: the badge took all it wanted and cut a card's title to its first letters. Weights, not a floor, since
+// the root's mark is a count's too: the words take all but a sliver of the shortfall, the title the rest — all of it beside a count,
+// which keeps its round shape, as where an intrinsic size cannot be reckoned with. A floor (`flex-shrink: 0`) pushed a count out of a
+// tight box; the title's factor stays a whole one, as factors summing under one shrink by that share only.
+@ui-text-with-badge-words: ~":is([data-ui-text-badge-text] > .ui-text, [data-ui-text-badge-text] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-text].ui-text)";
+
+@supports (flex-basis: calc-size(max-content, size)) {
+    @{ui-text-with-badge-words} > .ui-text__body > .ui-text__header > .ui-text__title {
+        flex-shrink: 1;
+        flex-basis: ~"calc-size(max-content, min(size, 50%))";
+    }
+
+    @{ui-text-with-badge-words} > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-text]:not([data-ui-badge-text="compact"]) {
+        flex-shrink: 10000;
+        min-width: 0;
+    }
+}
+
 // A trailing badge reaches the far edge only in a block that fills its row; centred or end-aligned, it simply follows the title.
 .ui-text.ui-text--badge-trailing:not(.ui-text--align-center, .ui-text--align-end) > .ui-text__body > .ui-text__header > .ui-text__badge {
     margin-left: auto;

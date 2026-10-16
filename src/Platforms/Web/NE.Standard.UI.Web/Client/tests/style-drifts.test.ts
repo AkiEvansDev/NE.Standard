@@ -66,10 +66,20 @@ test("a file and a picture dragged over a field wear every drop target's edge: t
 });
 
 test("a filled split button's parts darken under the pointer as a filled button does, in either palette", () => {
-    const shade = bodiesOf(".ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger):not(.ui-disabled)");
+    const shade = bodiesOf(".ui-split-button:not([data-ui-split-mode=\"menu\"]):is(.ui-button--primary, .ui-button--accent, .ui-button--danger):not(.ui-disabled)");
 
     assert.match(shade, /background-color: color-mix\(in srgb, black 10%, transparent\);/);
     assert.match(shade, /background-color: color-mix\(in srgb, black 16%, transparent\);/);
+});
+
+test("a menu split button answers the pointer on its root, as a button does: no part of it washes on its own", () => {
+    const menu = "[data-ui-split-mode=\"menu\"]";
+    const asMenu = (selector: string): string => selector.replaceAll(`:not(.ui-split-button:not(${menu}))`, "").replaceAll(`:not(${menu})`, "");
+    const menuParts = rules.filter(rule => asMenu(rule.selector).includes(menu) && rule.selector.includes(".ui-split-button__main") && /background-color|box-shadow/.test(rule.body));
+    const takeBacks = rules.filter(rule => /^\.ui-split-button[.:]/.test(rule.selector) && !rule.selector.includes(`:not(${menu})`) && rule.body.includes("background: none"));
+
+    assert.deepEqual(menuParts.map(rule => rule.selector), []);
+    assert.deepEqual(takeBacks.map(rule => rule.selector), []);
 });
 
 test("the keyboard's frame on a table's header stop, a colour slider's and the crop zoom's handle, a colour chip and the swatch", () => {
@@ -114,4 +124,13 @@ test("every input's root is the one shell: a column centred across a row, as tal
         assert.match(shell, /height: var\(--ui-height-xxl, [^;]*var\(--ui-height, fit-content\)\)\)\)\);/, root);
         assert.match(shell, /font: inherit;/, root);
     }
+});
+
+test("an accordion shares its sections' edges and rounds its outer corners, a quiet section's none: it is a line with no edge", () => {
+    const sectionRules = rules.filter(rule => rule.selector.startsWith(".ui-accordion > .ui-expander") && /border-(width|radius)/.test(rule.body));
+
+    assert.ok(sectionRules.length >= 5);
+
+    for (const rule of sectionRules)
+        assert.match(rule.selector, /\.ui-expander:not\(\.ui-expander--quiet\)(:[a-z-]+)?$/);
 });

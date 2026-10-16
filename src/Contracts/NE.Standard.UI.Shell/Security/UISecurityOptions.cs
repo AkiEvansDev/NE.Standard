@@ -45,4 +45,11 @@ public sealed class UISecurityOptions
     /// own address, whose load refuses it.
     /// </remarks>
     public bool RecheckRouteOnActivity { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many refusals a runtime writes to the log as warnings each minute — a value written to a hidden component;
+    /// past it they are written at <c>Debug</c>, so a page sending forged calls in a loop cannot flood the log.
+    /// </summary>
+    /// <remarks>Zero or less writes every one at <c>Debug</c>.</remarks>
+    public int RefusalWarningsPerMinute { get; set; } = 10;
 }

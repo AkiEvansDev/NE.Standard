@@ -24,7 +24,7 @@ internal static class WebClientRequest
 
     /// <summary>The secret the request's cookie carries, as it is: only the edge ever holds it.</summary>
     public static string? ReadSessionSecret(HttpContext http, WebSessionCookie cookie)
-        => http.Request.Cookies.TryGetValue(cookie.Name, out var secret) && !string.IsNullOrWhiteSpace(secret)
+        => http.Request.Cookies.TryGetValue(cookie.NameOn(http.Request), out var secret) && !string.IsNullOrWhiteSpace(secret)
             ? secret
             : null;
 

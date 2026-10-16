@@ -138,15 +138,29 @@ public sealed class UICompiledBindingIndex
     /// in, of which the binding reads the outer ones it is bound under — all for its own row, fewer in the Parent scope, none in Root.
     /// </summary>
     public CompiledUIBindingResolution ResolveWrite(UIPropertyAddress address)
+        => TryResolveWrite(address, out CompiledUIBindingResolution resolution)
+            ? resolution
+            : throw new ArgumentException($"No binding takes a write at '{address}': none is bound there, or it names fewer row keys than the binding reads.", nameof(address));
+
+    /// <summary>
+    /// Resolves the property binding a component's write lands on, as <see cref="ResolveWrite"/> does; false where none does — no
+    /// binding at the address, or fewer row keys than its binding reads, which no page of this view sends.
+    /// </summary>
+    public bool TryResolveWrite(UIPropertyAddress address, out CompiledUIBindingResolution resolution)
     {
-        CompiledUIBinding binding = GetRequiredProperty(new UIPropertyAddress(address.Component.Id, address.Property));
+        resolution = default;
+
+        if (!TryGetProperty(new UIPropertyAddress(address.Component.Id, address.Property), out CompiledUIBinding? binding))
+            return false;
+
         var keys = address.Component.DynamicParameters;
         var count = CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters);
 
         if (keys.Length < count)
-            throw new ArgumentException($"Address '{address}' names {keys.Length} row keys, but its binding reads {count}.", nameof(address));
+            return false;
 
-        return Resolve(binding, keys.Length == count ? keys : keys[..count]);
+        resolution = Resolve(binding, keys.Length == count ? keys : keys[..count]);
+        return true;
     }
 
     /// <summary>

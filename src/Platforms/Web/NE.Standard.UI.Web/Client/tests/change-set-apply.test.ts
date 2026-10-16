@@ -1,0 +1,182 @@
+// A change set's row changes bring each host in step once, after the set's last change to it: a hundred removes on a list sort,
+// filter and group it once, and the component index reads it once. What a later update of the set may address is ready for it: the
+// rows an insert draws are indexed at once, and a virtualized host draws its rows before an update to another list. A window's trim
+// takes the cursor's row off the page alone: the cursor waits for it, where a delete moves it on. A window's rows sent whole are told to
+// its engine, which learns their sizes anew where it did not ask for them.
+
+import assert from "node:assert/strict";
+import test from "node:test";
+import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import type { ServerChangeSet, ServerUIUpdate } from "../src/metadata/metadata-index.ts";
+
+// What a removal measures the cursor's row against, beside the host's own box.
+installFakeDom({ window: { addEventListener: () => undefined, innerWidth: 1200, innerHeight: 800 } });
+
+const { DomRegistry } = await import("../src/addressing/dom-registry.ts");
+const { UpdateProcessor } = await import("../src/updates/update-processor.ts");
+
+type Processor = InstanceType<typeof UpdateProcessor>;
+type Registry = InstanceType<typeof DomRegistry>;
+
+/** What a scene records: the passes that brought a host in step, by component, and what else happened, in order. */
+type Scene = {
+    readonly processor: Processor;
+    readonly dom: Registry;
+    readonly log: string[];
+    readonly invalidated: Element[];
+};
+
+function row(key: string): FakeElement {
+    return FakeElement.of("ui-items-view__item", { "data-ui-key": key }).append(FakeElement.of("ui-text", { "data-ui-id": "8", "data-ui-pc": "1" }));
+}
+
+function list(componentId: number, keys: readonly string[], mode: string | null = null): FakeElement {
+    const host = FakeElement.of("ui-items-view__host", mode === null ? { "data-ui-items-host": "" } : { "data-ui-items-host": "", "data-ui-host-mode": mode });
+
+    host.append(...keys.map(row));
+
+    return FakeElement.of("ui-items-view", { "data-ui-id": String(componentId) }).append(host);
+}
+
+function scene(...lists: FakeElement[]): Scene {
+    const log: string[] = [];
+    const invalidated: Element[] = [];
+
+    fakeDocument.body.replaceChildren(FakeElement.of("page").append(...lists));
+
+    const dom = new DomRegistry(real<ParentNode>(fakeDocument.body));
+    const invalidate = dom.invalidate.bind(dom);
+    const findComponent = dom.findComponent.bind(dom);
+
+    dom.invalidate = (scope?: Element): void => {
+        if (scope !== undefined)
+            invalidated.push(scope);
+
+        invalidate(scope);
+    };
+    dom.findComponent = (componentId: number, parameters: readonly unknown[]): Element | null => {
+        log.push(`lookup ${componentId}`);
+        return findComponent(componentId, parameters);
+    };
+
+    // A plain host's pass asks for its group template once; a virtualized host's is the engine's own.
+    const templates = {
+        isTemplateComponent: () => false,
+        getEmptyTemplate: () => undefined,
+        getGroupTemplate: (componentId: number) => {
+            log.push(`sync ${componentId}`);
+            return undefined;
+        },
+        getTemplate: () => undefined
+    };
+    const virtualization = {
+        sync: (host: Element) => log.push(`sync ${host.parentElement?.getAttribute("data-ui-id")}`),
+        remove: (_host: Element, keys: readonly string[]) => log.push(`remove ${keys.join(",")}`)
+    };
+    const renderer = {
+        setRowFiller: () => undefined,
+        getAncestorStack: () => [],
+        getItemScope: () => undefined,
+        getItemValue: () => undefined,
+        // Drawn as the server would: the key on the row, the row's own text component standing in it.
+        renderItem: (_componentId: number, _item: unknown, key: string) => row(key)
+    };
+    const patches = {
+        addValueChangeHandler: () => () => undefined,
+        // The patch engine's own lookup: the components the value lands on, through the same index.
+        applyPropertyValue: (_binding: unknown, parameters: readonly unknown[]) => log.push(`patch ${dom.findAllComponents(8, parameters).length}`)
+    };
+    const metadata = {
+        metadata: { items: [] },
+        getItemValues: () => [],
+        getItemsTemplateMetadata: () => undefined,
+        getItemsFilterSortMetadata: () => undefined,
+        getBindingByComponentAndPropertyName: () => ({ componentId: 8, propertyId: "text.title" })
+    };
+    const state = { forgetRows: () => undefined, forgetHost: () => undefined };
+    const rowMenus = { holds: () => false, standsInRowsOf: () => false, heldChanged: () => undefined };
+    const processor = new UpdateProcessor(real(metadata), real(patches), real(state), real(renderer), real(templates), dom, real(virtualization), real({}), real(rowMenus));
+
+    return { processor, dom, log, invalidated };
+}
+
+function change(componentId: number, action: string, ...keys: string[]): ServerUIUpdate {
+    return real<ServerUIUpdate>({ kind: "CollectionChange", action, component: { id: componentId, dynamicParameters: [] }, items: keys.map(key => ({ key, item: { Id: key } })) });
+}
+
+function apply(target: Scene, ...updates: ServerUIUpdate[]): void {
+    target.processor.applyChangeSet(real<ServerChangeSet>({ updates }));
+}
+
+function keysOf(component: FakeElement): (string | null)[] {
+    return component.children[0].children.map(child => child.getAttribute("data-ui-key"));
+}
+
+test("several removes on one list bring it in step once, and the index reads it once, after the set's last change to it", () => {
+    const view = list(7, ["a", "b", "c", "d", "e"]);
+    const target = scene(view);
+
+    apply(target, change(7, "Remove", "a"), change(7, "Remove", "b"), change(7, "Remove", "c"));
+
+    assert.deepEqual(keysOf(view), ["d", "e"]);
+    assert.deepEqual(target.log.filter(entry => entry.startsWith("sync")), ["sync 7"]);
+    assert.deepEqual(target.invalidated, [view.children[0]]);
+});
+
+test("the rows an insert draws are indexed at once: a value the same set sends one of them lands", () => {
+    const view = list(7, ["a"]);
+    const target = scene(view);
+    const value = real<ServerUIUpdate>({ kind: "Value", address: { component: { id: 8, dynamicParameters: ["x"] }, property: "Title" }, value: "X" });
+
+    apply(target, change(7, "Insert", "x"), value);
+
+    assert.deepEqual(keysOf(view), ["a", "x"]);
+    assert.deepEqual(target.log.filter(entry => entry.startsWith("patch")), ["patch 1"]);
+});
+
+test("a virtualized host is brought in step before an update to another list, which may address the rows it draws, and once", () => {
+    const virtualized = list(7, [], "virtualized");
+    const plain = list(9, ["x", "y"]);
+    const target = scene(virtualized, plain);
+
+    apply(target, change(7, "Remove", "a"), change(7, "Remove", "b"), change(9, "Remove", "x"));
+
+    assert.deepEqual(target.log, ["lookup 7", "remove a", "lookup 7", "remove b", "sync 7", "lookup 9", "sync 9"]);
+    assert.deepEqual(keysOf(plain), ["y"]);
+});
+
+test("a window's trim leaves the cursor's key waiting for its row, drawn again with it; a delete moves the cursor to the row that followed", () => {
+    const view = list(7, ["a", "b", "c"], "windowed");
+    const target = scene(view);
+    const host = view.children[0];
+    const cursorKey = (): string | null => host.querySelector("[data-ui-row-focus]")?.getAttribute("data-ui-key") ?? null;
+
+    host.children[0].setAttribute("data-ui-row-focus", "");
+    apply(target, real<ServerUIUpdate>({ ...change(7, "Remove", "a"), trimmed: true }));
+
+    assert.deepEqual(keysOf(view), ["b", "c"]);
+    assert.equal(cursorKey(), null);
+    assert.equal(view.getAttribute("data-ui-row-cursor-waits"), "a");
+
+    apply(target, real<ServerUIUpdate>({ kind: "CollectionChange", action: "Insert", component: { id: 7, dynamicParameters: [] }, items: [{ index: 0, key: "a", item: { Id: "a" } }] }));
+
+    assert.equal(cursorKey(), "a");
+
+    apply(target, change(7, "Remove", "a"));
+
+    assert.equal(cursorKey(), "b");
+    assert.equal(view.hasAttribute("data-ui-row-cursor-waits"), false);
+});
+
+test("a windowed host's rows sent whole are told to the window engine, once per refill; a plain host's are not", () => {
+    const windowedView = list(7, ["a", "b"], "windowed");
+    const plainView = list(9, ["x"]);
+    const target = scene(windowedView, plainView);
+    const refilled: Element[] = [];
+
+    target.processor.addWindowRefillHandler(host => refilled.push(host));
+    apply(target, change(7, "Reset"), change(7, "Insert", "c", "d"), change(9, "Reset"), change(9, "Insert", "y"));
+
+    assert.deepEqual(keysOf(windowedView), ["c", "d"]);
+    assert.deepEqual(refilled, [windowedView.children[0]]);
+});

@@ -12,7 +12,7 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// <summary>A caption strip over a set of pages, both halves of each tab being real components in their own regions.</summary>
 public sealed class TabsComponentRenderer : WebComponentRendererBase
 {
-    private const string HeaderRegionPrefix = "tab-header:";
+    private const string CaptionRegionPrefix = "tab-caption:";
 
     public override string ComponentTypeKey => TabsComponent.ComponentTypeKey;
 
@@ -32,16 +32,21 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         List<string> keys = ResolveTabKeys(context);
         var selected = ResolveSelectedTab(context, keys);
 
-        _ = root.Element("div", strip =>
+        // With actions, a band holds the strip (the tablist, which takes only tabs) and the actions after it, and draws the rule;
+        // without, the strip is the band.
+        if (!HasRegion(context, TabRegionNames.Action(0)) && !keys.Exists(key => HasRegion(context, TabRegionNames.TabAction(key, 0))))
         {
-            _ = strip.Class("ui-tabs__strip");
-            _ = strip.Attribute("role", "tablist");
-
-            foreach (var key in keys)
-                RenderRegion(context, strip, TabRegionNames.Header(key));
-
-            RenderTabOverflowButton(context, strip);
-        });
+            RenderStrip(context, root, keys);
+        }
+        else
+        {
+            _ = root.Element("div", band =>
+            {
+                _ = band.Class("ui-tabs__band");
+                RenderStrip(context, band, keys);
+                _ = band.Element("div", actions => RenderActions(context, actions, keys, selected));
+            });
+        }
 
         _ = root.Element("div", pages =>
         {
@@ -72,8 +77,8 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
 
         foreach (UIComponentSlot slot in context.Node.Slots)
         {
-            if (slot.Kind == UIComponentSlotKind.Region && slot.Key is { } name && name.StartsWith(HeaderRegionPrefix, StringComparison.Ordinal))
-                keys.Add(name[HeaderRegionPrefix.Length..]);
+            if (slot.Kind == UIComponentSlotKind.Region && slot.Key is { } name && name.StartsWith(CaptionRegionPrefix, StringComparison.Ordinal))
+                keys.Add(name[CaptionRegionPrefix.Length..]);
         }
 
         return keys;
@@ -94,5 +99,44 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
             return null;
 
         return selected is not null && keys.Contains(selected) ? selected : keys[0];
+    }
+
+    private static void RenderStrip(WebRenderContext context, IHtmlElementBuilder host, List<string> keys)
+        => _ = host.Element("div", strip =>
+        {
+            _ = strip.Class("ui-tabs__strip");
+            _ = strip.Attribute("role", "tablist");
+
+            foreach (var key in keys)
+                RenderRegion(context, strip, TabRegionNames.Caption(key));
+
+            RenderTabOverflowButton(context, strip);
+        });
+
+    /// <summary>Each tab's own actions in a group of their own, hidden as its page is, in the tabs' order; then the strip's own.</summary>
+    private static void RenderActions(WebRenderContext context, IHtmlElementBuilder actions, List<string> keys, string? selected)
+    {
+        _ = actions.Class("ui-tabs__actions");
+
+        foreach (var key in keys)
+        {
+            if (!HasRegion(context, TabRegionNames.TabAction(key, 0)))
+                continue;
+
+            _ = actions.Element("div", group =>
+            {
+                _ = group.Class("ui-tabs__tab-actions");
+                _ = group.Attribute(WebAttributes.TabActions, key);
+
+                if (selected is not null && !string.Equals(key, selected, StringComparison.Ordinal))
+                    _ = group.Attribute("hidden");
+
+                for (var i = 0; HasRegion(context, TabRegionNames.TabAction(key, i)); i++)
+                    RenderRegion(context, group, TabRegionNames.TabAction(key, i));
+            });
+        }
+
+        for (var i = 0; HasRegion(context, TabRegionNames.Action(i)); i++)
+            RenderRegion(context, actions, TabRegionNames.Action(i));
     }
 }

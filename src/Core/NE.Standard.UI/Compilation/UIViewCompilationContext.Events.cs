@@ -102,8 +102,8 @@ internal sealed partial class UIViewCompilationContext
     }
 
     private static bool IsLocalLifecycleEvent(string eventName)
-        => eventName.StartsWith("before-", StringComparison.Ordinal)
-        || eventName.StartsWith("after-", StringComparison.Ordinal);
+        => eventName.StartsWith(EventNames.BeforePrefix, StringComparison.Ordinal)
+        || eventName.StartsWith(EventNames.AfterPrefix, StringComparison.Ordinal);
 
     /// <summary>
     /// Refuses an event whose command the controller does not declare — otherwise a renamed command compiles, ships, and fails only

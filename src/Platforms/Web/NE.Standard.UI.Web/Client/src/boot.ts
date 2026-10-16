@@ -1,8 +1,8 @@
-// Classic head script, built as one with what it imports: as the parser produces the body, applies the stored boot patches, writes
-// every moment the server painted in UTC — a timestamp, a moment in words — in the reader's zone, marks a theme field's current
-// choice, and holds every region with a part a package's engine draws, before the first paint.
+// Classic head script, built as one with what it imports: as the parser produces the body, applies the stored boot patches (a tree's
+// fold walked by its rows' parents), writes every moment the server painted in UTC — a timestamp, a moment in words — in the reader's
+// zone, marks a theme field's current choice, and holds every region with a part a package's engine draws, before the first paint.
 
-import { MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, WordsAttribute, WordsTextTarget } from "./addressing/dom-attributes.ts";
+import { MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget } from "./addressing/dom-attributes.ts";
 import { momentsOfMark, readMomentsAttribute, readPageTemporal, serverMomentPaint } from "./rendering/moment-first-paint.ts";
 import type { PaintedMoment } from "./rendering/moment-first-paint.ts";
 import type { TemporalLanguage } from "./rendering/temporal-format.ts";
@@ -10,6 +10,7 @@ import { AwaitsDrawSelector, holdRegionOf } from "./rendering/region-hold.ts";
 import { declaredTheme, markThemeChoice, ThemeFieldPartSelector } from "./rendering/theme-choice.ts";
 import { formatTimestamp, readInstant, readTimestampFormat, timestampText } from "./rendering/timestamp-format.ts";
 import type { TimestampWords } from "./rendering/timestamp-format.ts";
+import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tree-boot-fold.ts";
 
 (() => {
     const KeyPrefix = "ne.ui:";
@@ -21,6 +22,7 @@ import type { TimestampWords } from "./rendering/timestamp-format.ts";
         readonly root?: boolean;
         readonly attributes?: Readonly<Record<string, string | null>>;
         readonly styles?: Readonly<Record<string, string>>;
+        readonly fold?: unknown;
     };
 
     /** Work on the elements a selector names as the parser hands them over; answers whether an element is finished with. */
@@ -38,11 +40,23 @@ import type { TimestampWords } from "./rendering/timestamp-format.ts";
     const jobs: BootJob[] = [];
     // What is left to write of each element's moments, per place.
     const unwritten = new WeakMap<Element, Map<string, PaintedMoment[]>>();
+    // Each tree's fold walk, from its name's patch, which every row of it is handed to in turn.
+    const treeWalks = new WeakMap<Element, (row: Element) => boolean>();
     const patchesByName = readPatches();
     const temporal = readPageTemporal(document);
 
     if (patchesByName.size > 0)
         jobs.push(job(`[${NameAttribute}]`, element => applyPatches(element, patchesByName)));
+
+    // After the names: a tree is handed over before its rows, and its walk is found on it.
+    if ([...patchesByName.values()].some(patches => patches.some(patch => patch.fold !== undefined))) {
+        jobs.push(job(`.${TreeRowClass}`, row => {
+            const tree = row.closest(`.${TreeRootClass}`);
+            const walk = tree === null ? undefined : treeWalks.get(tree);
+
+            return walk === undefined || walk(row);
+        }));
+    }
 
     // Held before its first paint, as its region is parsed: the runtime lets it show once the engines that draw its part have started.
     jobs.push(job(AwaitsDrawSelector, element => {
@@ -90,7 +104,8 @@ import type { TimestampWords } from "./rendering/timestamp-format.ts";
                 try {
                     const stored = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, BootPatch>;
 
-                    patches.set(name, Object.values(stored));
+                    // A tree's fold kept as a selector per row, the shape before: left for the runtime to clear, never painted.
+                    patches.set(name, Object.entries(stored).filter(([slot]) => !LegacyTreeFoldSlots.includes(slot)).map(([, patch]) => patch));
                 }
                 catch {
                     // Unreadable entry; the runtime drops it on its next write.
@@ -114,8 +129,18 @@ import type { TimestampWords } from "./rendering/timestamp-format.ts";
         let complete = true;
 
         for (const patch of patches) {
-            // Every element the selector names, not the first: a tree's fold marks many rows with one patch. The root is the page's
-            // own, open around the element as the parser hands it over.
+            if (patch.fold !== undefined) {
+                const fold = readTreeFold(patch.fold);
+
+                // Of another version: ignored, the authored fold painted until the runtime walks.
+                if (fold !== null && !treeWalks.has(element))
+                    treeWalks.set(element, treeFoldWalk(fold));
+
+                continue;
+            }
+
+            // Every element the selector names, not the first: one patch may mark many parts. The root is the page's own, open around
+            // the element as the parser hands it over.
             const root = patch.root === true ? element.closest("[data-ui-root]") : null;
             const targets = patch.root === true ? (root === null ? [] : [root]) : patch.selector === undefined ? [element] : [...element.querySelectorAll(patch.selector)];
 
@@ -288,6 +313,10 @@ import type { TimestampWords } from "./rendering/timestamp-format.ts";
     }
 
     const observer = new MutationObserver(records => {
+        // The elements left waiting first: a folder's row whose node came in this batch is placed before the rows under it, which
+        // came in it too, are walked against it.
+        retryPending();
+
         for (const record of records) {
             for (const node of record.addedNodes) {
                 if (node instanceof Element)

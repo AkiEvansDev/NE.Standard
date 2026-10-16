@@ -45,7 +45,7 @@ export class TextAreaGrowEngine {
         });
 
         // An area drawn later (a row, a template's clone), or one the grow was switched on for.
-        observeComponents(this.root, FieldSelector, { childList: true, attributeFilter: [GrowAttribute] }, areas => {
+        observeComponents(this.root, FieldSelector, { childList: true, addedOnly: true, attributeFilter: [GrowAttribute] }, areas => {
             this.fitAll(componentParts(areas, FieldSelector) as HTMLTextAreaElement[]);
         });
     }

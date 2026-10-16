@@ -61,7 +61,10 @@ public sealed record UserSessionState : IUserSessionContext
     public IReadOnlySet<string> Permissions { get; init; } = FrozenSet<string>.Empty;
 
     /// <summary>Gets whether the session id must be replaced at the next shell render.</summary>
-    /// <remarks>Acted on in the <c>UIViewRequestPhase.Open</c> phase, the one request that can hand the client its id.</remarks>
+    /// <remarks>
+    /// Set where a page load brought the identity itself — a host's principal; <c>UIContext.SignInAsync</c> moves the id at once instead.
+    /// Acted on in the <c>UIViewRequestPhase.Open</c> phase, the one request that can hand the client its id.
+    /// </remarks>
     public bool PendingIdRotation { get; init; }
 
     /// <summary>

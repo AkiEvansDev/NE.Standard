@@ -18,7 +18,7 @@ public static class BorderStyleRenderer
     private static readonly WebDomOperation[] ThicknessOperations =
     [
         .. ResponsiveRenderer.TierOperations(WebResponsiveCss.BorderThicknessVariable, WebDomConverters.ResponsiveThicknessCss),
-        WebDomOperation.Class(converter: WebDomConverters.BorderNoneClass)
+        WebDomOperation.Class(converter: WebDomConverters.BorderEdgeClass)
     ];
 
     public static void RenderBorderStyle(WebRenderContext context, IHtmlElementBuilder root)
@@ -38,9 +38,10 @@ public static class BorderStyleRenderer
             {
                 WebResponsiveCss.WriteTiers(target, borderThickness, WebResponsiveCss.BorderThicknessVariable, WebCssValues.Thickness);
 
-                // A component with no edge of its own may lay out differently (a key-value list drops its rows' inset).
-                if (WebClassNames.BorderNone(borderThickness) is { Length: > 0 } none)
-                    _ = target.Class(none);
+                // A component with no edge of its own may lay out differently (a key-value list drops its rows' inset), and a surface
+                // stroked on one side alone rounds only its far corners.
+                if (WebClassNames.BorderEdge(borderThickness) is { Length: > 0 } edge)
+                    _ = target.Class(edge);
             }
         }, ThicknessOperations);
 

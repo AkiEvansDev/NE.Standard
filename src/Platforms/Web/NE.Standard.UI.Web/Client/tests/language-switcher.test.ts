@@ -52,7 +52,7 @@ function label(language: string, page = false): FakeElement {
 }
 
 // The list names each language in itself, as the renderer writes it.
-const NativeNames: Readonly<Record<string, string>> = { en: "English", "zh-Hans": "中文（简体）", ru: "Русский" };
+const NativeNames: Readonly<Record<string, string>> = { en: "English", "en-GB": "English (United Kingdom)", "zh-Hans": "中文（简体）", ru: "Русский" };
 
 function scene(offered: readonly string[] = ["en", "zh-Hans"]): Scene {
     const labels = new Map([...offered.map(language => [language, label(language)] as const), ...(offered.includes("ru") ? [] : [["ru", label("ru", true)] as const])]);
@@ -250,4 +250,38 @@ test("a switch from anywhere selects the field's option and shows its words; the
     assert.equal(at.labels.get("zh-Hans")?.classes.has("ui-language-switcher__label-text--current"), true);
     assert.equal(at.trigger.getAttribute("aria-label"), "Language");
     assert.equal(at.trigger.hasAttribute("data-ui-words"), false);
+});
+
+// Last two: the words they register stay for the page.
+test("the renderer's tooltip, its names escaped since it reads markup, follows a switch as the button's name does", () => {
+    const at = scene(["en-GB", "ru"]);
+    const switcher = fakeDocument.body.children[0];
+
+    clientStrings.register({ "ui.language.switch": "Language: {language} ({code}), switch to {other} ({otherCode})" });
+    show("en-GB");
+    // As the renderer writes it where the author gives no tooltip: the button's name, marked with its key.
+    clientStrings.write(real(switcher), "data-ui-tooltip", "ui.language.switch", { language: "English (United Kingdom)", code: "EN", other: "Русский", otherCode: "RU" });
+    assert.equal(switcher.getAttribute("data-ui-tooltip"), "Language: English \\(United Kingdom\\) (EN), switch to Русский (RU)");
+    show("ru");
+
+    assert.equal(at.trigger.getAttribute("aria-label"), "Language: Русский (RU), switch to English (United Kingdom) (EN)");
+    assert.equal(switcher.getAttribute("data-ui-tooltip"), "Language: Русский (RU), switch to English \\(United Kingdom\\) (EN)");
+});
+
+test("an author's own tooltip stays at a switch, even one whose words are the button's name", () => {
+    const at = scene(["en-GB", "ru"]);
+    const switcher = fakeDocument.body.children[0];
+    const own = "*Language: English (United Kingdom) (EN), switch to Русский (RU)*";
+
+    clientStrings.register({ "ui.language.switch": "Language: {language} ({code}), switch to {other} ({otherCode})" });
+    show("en-GB");
+    switcher.setAttribute("data-ui-tooltip", own);
+    show("en-GB");
+
+    assert.equal(at.trigger.getAttribute("aria-label"), "Language: English (United Kingdom) (EN), switch to Русский (RU)");
+    assert.equal(switcher.getAttribute("data-ui-tooltip"), own);
+
+    show("ru");
+
+    assert.equal(switcher.getAttribute("data-ui-tooltip"), own);
 });

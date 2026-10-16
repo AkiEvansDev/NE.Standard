@@ -98,7 +98,7 @@ export class ColorInputEngine {
         observeComponents(
             this.root,
             `.${RootClass}`,
-            { childList: true, attributeFilter: [FormatAttribute, VariantAttribute, NoPickerAttribute, NoPaletteAttribute] },
+            { childList: true, addedOnly: true, attributeFilter: [FormatAttribute, VariantAttribute, NoPickerAttribute, NoPaletteAttribute] },
             inputs => this.applyAll(inputs));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);

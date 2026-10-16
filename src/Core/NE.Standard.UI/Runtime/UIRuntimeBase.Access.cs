@@ -86,7 +86,16 @@ internal abstract partial class UIRuntimeBase
             _drainingPosted = true;
         }
 
-        _ = Task.Run(DrainPostedAsync);
+        // Not in the poster's flow: every work the drain runs would read the command that started it as Context.Handle, another
+        // tab's perhaps, still running. A hook posted for a page names its connection itself (PostLifecycleHook).
+        if (ExecutionContext.IsFlowSuppressed())
+        {
+            _ = Task.Run(DrainPostedAsync);
+            return;
+        }
+
+        using (ExecutionContext.SuppressFlow())
+            _ = Task.Run(DrainPostedAsync);
     }
 
     private async Task DrainPostedAsync()

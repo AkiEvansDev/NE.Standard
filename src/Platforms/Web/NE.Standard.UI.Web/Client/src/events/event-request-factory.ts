@@ -1,5 +1,7 @@
-import { EventDispatchContext, RegisteredEvent } from "./event-descriptor";
-import { UICommandRequest, getIdValue } from "../metadata/metadata-index";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import type { EventDispatchContext, RegisteredEvent } from "./event-descriptor.ts";
+import { getIdValue } from "../metadata/metadata-index.ts";
+import type { UICommandRequest } from "../metadata/metadata-index.ts";
 
 export class EventRequestFactory {
     public create(registration: RegisteredEvent, context: EventDispatchContext): UICommandRequest | null {

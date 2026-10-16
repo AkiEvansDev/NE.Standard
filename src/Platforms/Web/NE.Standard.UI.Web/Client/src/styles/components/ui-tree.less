@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
 @import "../mixins/scroll-room.less";
@@ -197,8 +198,11 @@
     min-width: 0;
 }
 
-// The chevron keeps its square on a leaf too, so titles line up within a level; it shows where the row says it can unfold.
+// The chevron keeps its square on a leaf too, so titles line up within a level; it shows where the row says it can unfold. A target's
+// press round it (its `::after`), hidden with it on a leaf.
 .ui-tree-node__toggle {
+    position: relative;
+    .ui-hit-area();
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
@@ -243,7 +247,7 @@
 
     // Waiting for children: the chevron fades until they arrive.
     .ui-tree__row[data-ui-tree-loading] .ui-tree-node__toggle::before {
-        opacity: 0.35;
+        opacity: @ui-loading-label-opacity;
     }
 
 // A file tree's dress, as an editor's explorer draws one: a node that says whether it is a folder (IsFolder) and names no icon of its own

@@ -14,7 +14,7 @@ internal sealed partial class ThemeSwitcherController() : DemoStandardController
     public partial BorderGroupContext BorderGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial ThemeFieldGroupContext FieldGroup { get; set; } = new();
+    public partial SwitcherFieldGroupContext FieldGroup { get; set; } = new();
 
     [UICommand]
     public void CycleSwitcherGroupOption(string id)

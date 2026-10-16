@@ -1,10 +1,12 @@
-import { BindingAttributePrefix, ComponentContextAttribute, ComponentIdAttribute, ComponentParameterCountAttribute } from "../addressing/dom-attributes";
-import { readComponentId } from "../addressing/dom-registry";
-import { WebRenderItemsCompositeMetadata, WebRenderItemsCompositeSlotMetadata } from "../metadata/metadata-index";
-import { logWarn } from "../runtime/logger";
-import { ItemStackEntry } from "./binding-template-evaluator";
-import { applyItemParameterAttributes, ItemsTemplateRenderer, resolveTemplateKeyValue } from "./items-template-renderer";
-import { ItemsTemplateRegistry } from "./items-template-registry";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { BindingAttributePrefix, ComponentContextAttribute, ComponentIdAttribute, ComponentParameterCountAttribute } from "../addressing/dom-attributes.ts";
+import { readComponentId } from "../addressing/dom-registry.ts";
+import type { WebRenderItemsCompositeMetadata, WebRenderItemsCompositeSlotMetadata } from "../metadata/metadata-index.ts";
+import { logWarn } from "../runtime/logger.ts";
+import type { ItemStackEntry } from "./binding-template-evaluator.ts";
+import { applyItemParameterAttributes, resolveTemplateKeyValue } from "./items-template-renderer.ts";
+import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
+import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 
 const StampedIdentityAttributes = [ComponentIdAttribute, ComponentContextAttribute, ComponentParameterCountAttribute];
 

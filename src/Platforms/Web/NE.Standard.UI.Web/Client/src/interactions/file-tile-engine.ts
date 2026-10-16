@@ -31,6 +31,7 @@ export class FileTileEngine {
         // A patched fact, and a tile that arrives in a built row; its own parts' writes are not a change to answer.
         observeComponents(this.root, FileTileSelector, {
             childList: true,
+            addedOnly: true,
             attributeFilter: [FileTileNameAttribute, FileTileTypeAttribute, FileTileSizeAttribute, FileTileIconAttribute],
             relevant: mutation => mutation.type === "attributes" || !(mutation.target instanceof Element && mutation.target.closest(FileTileSelector) !== null)
         }, apply);

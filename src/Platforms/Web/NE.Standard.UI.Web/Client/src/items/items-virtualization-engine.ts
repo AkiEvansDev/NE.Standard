@@ -1,26 +1,31 @@
 // A host that holds every item's value and keeps only the rows in view in the document: the values, not the children, are what
 // filter, sort, grouping and patches work on, and rows are drawn from them as they scroll in.
 
-import { isAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine";
-import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, setRowFocus, takeRowCursor, waitingCursorKey } from "../interactions/row-cursor";
-import { ComponentKeyAttribute, GroupHeaderAttribute, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass } from "../addressing/dom-attributes";
-import { DomRegistry, findOwningComponentAddress } from "../addressing/dom-registry";
-import { MetadataIndex } from "../metadata/metadata-index";
-import { PropertyStateStore } from "../state/property-state-store";
-import { areValuesEqual } from "../state/value-equality";
-import { ItemStackEntry, ItemValueStep, tryReadItemProperty } from "./binding-template-evaluator";
-import { placeInOrder } from "./items-dom-order";
-import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer";
-import { compareItems, getActiveSorts, itemMatchesFilters, readItemsQuery } from "./items-filter-sort";
-import { bucketByGroup, drawGroupHeader, markGroupHeader } from "./items-group-runs";
-import { DefaultItemSize, resolveHostMode } from "./items-host-mode";
-import { renderItemRow } from "./items-row-renderer";
-import { BottomSpacer, TopSpacer, ensureSpacer } from "./items-spacers";
-import { stampRowIndices } from "./table-row-indices";
-import { ItemsTemplateRegistry } from "./items-template-registry";
-import { ItemsTemplateRenderer, writeItemValuePath } from "./items-template-renderer";
-import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo } from "./items-viewport";
-import { logWarn } from "../runtime/logger";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { isAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine.ts";
+import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, setRowFocus, takeRowCursor, waitingCursorKey } from "../interactions/row-cursor.ts";
+import { ComponentKeyAttribute, GroupHeaderAttribute, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass } from "../addressing/dom-attributes.ts";
+import { findOwningComponentAddress } from "../addressing/dom-registry.ts";
+import type { DomRegistry } from "../addressing/dom-registry.ts";
+import type { MetadataIndex } from "../metadata/metadata-index.ts";
+import type { PropertyStateStore } from "../state/property-state-store.ts";
+import { areValuesEqual } from "../state/value-equality.ts";
+import { tryReadItemProperty } from "./binding-template-evaluator.ts";
+import type { ItemStackEntry, ItemValueStep } from "./binding-template-evaluator.ts";
+import { placeInOrder } from "./items-dom-order.ts";
+import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer.ts";
+import { compareItems, getActiveSorts, itemMatchesFilters, readItemsQuery } from "./items-filter-sort.ts";
+import { bucketByGroup, drawGroupHeader, markGroupHeader } from "./items-group-runs.ts";
+import { DefaultItemSize, resolveHostMode } from "./items-host-mode.ts";
+import { renderItemRow } from "./items-row-renderer.ts";
+import { BottomSpacer, TopSpacer, addMeasured, ensureSpacer, focusSpacer } from "./items-spacers.ts";
+import type { RunningMean } from "./items-spacers.ts";
+import { stampRowIndices } from "./table-row-indices.ts";
+import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
+import { writeItemValuePath } from "./items-template-renderer.ts";
+import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
+import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo } from "./items-viewport.ts";
+import { logWarn } from "../runtime/logger.ts";
 
 // How many rows beyond the visible ones are kept drawn on each side, so a short scroll has nothing to do.
 const Overscan = 6;
@@ -54,17 +59,15 @@ type ProjectedRow = {
     readonly header: boolean;
 };
 
-type RunningMean = {
-    sum: number;
-    count: number;
-};
-
 type VirtualHostState = {
     readonly componentId: number;
     entries: VirtualEntry[];
+    // The entries by key, kept with them: a patch to one item of thousands finds it without a walk.
+    byKey: Map<string, VirtualEntry>;
     projected: ProjectedRow[];
+    // Moved by every change to the items or to what the rules leave of them (`itemsVersion`): a package totalling them reads them again.
+    version: number;
     headers: Map<string, { element: Element | null; height: number | null }>;
-    groupOrder: string[];
     itemEstimate: number;
     headerEstimate: number;
     // Every height measured so far: an estimate from the rows in view alone swings, and every unmeasured row above with it.
@@ -85,6 +88,8 @@ type VirtualHostState = {
     // The first laid-out row, so a pass that changed nothing about the range can leave the document alone.
     first: number;
     last: number;
+    // The row the last pass kept drawn out of the range for the focus it holds.
+    keptOutOfRange: Element | null;
 };
 
 /** A wrapping host's rows by the lines they stand on: the row each line starts at, and the line's pitch. */
@@ -98,14 +103,21 @@ export class ItemsVirtualizationEngine {
     private readonly root: ParentNode;
     private readonly states = new WeakMap<Element, VirtualHostState>();
 
+    // The hosts held, so a patch to a row none of them draws finds its host without reading the page; one off the page is let go.
+    private readonly held = new Set<Element>();
+
     // A host that changed size without a scroll — a flyout opened over it, a window widened past another tile a line — shows other rows.
     private readonly resizes = typeof ResizeObserver === "function" ? new ResizeObserver(entries => this.handleResize(entries)) : null;
+
+    // Rows kept as drawn through a change of their item for the focus they hold, drawn anew from it once the focus has left them.
+    private readonly keptAsDrawn = new WeakSet<Element>();
 
     public constructor(options: ItemsVirtualizationEngineOptions) {
         this.options = options;
         this.root = options.root ?? document;
 
         this.root.addEventListener("scroll", domEvent => this.handleScroll(domEvent), true);
+        this.root.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent), true);
     }
 
     /** The items the host would show, top to bottom, once its rules have run — the rows themselves, not the group headers. */
@@ -123,6 +135,31 @@ export class ItemsVirtualizationEngine {
         }
 
         return items;
+    }
+
+    /** A number that moves whenever `itemsOf` may answer otherwise — not as the reader scrolls; null for a host this engine does not hold. */
+    public itemsVersion(host: Element): number | null {
+        return this.states.get(host)?.version ?? null;
+    }
+
+    /** The virtualized hosts on the page. */
+    public hosts(): Element[] {
+        this.letGoOffPage();
+
+        return [...this.held];
+    }
+
+    /** Lets go of the hosts taken off the page, which the set would otherwise keep with every row they drew. */
+    private letGoOffPage(): void {
+        for (const host of this.held) {
+            if (!host.isConnected)
+                this.held.delete(host);
+        }
+    }
+
+    /** The row drawn for the item of `key`, or null while it is not drawn. */
+    public drawnRowOf(host: Element, key: string): Element | null {
+        return this.states.get(host)?.byKey.get(key)?.element ?? null;
     }
 
     /** Every item's key in the collection's own order, drawn or not, whatever the rules show; null for a host this engine does not hold. */
@@ -233,8 +270,9 @@ export class ItemsVirtualizationEngine {
         if (state === null)
             return [];
 
-        const previous = new Map(state.entries.map(entry => [entry.key, entry]));
+        const previous = new Map(state.byKey);
         const next: VirtualEntry[] = [];
+        const byKey = new Map<string, VirtualEntry>();
         const renewed: string[] = [];
 
         for (const { key, item } of items) {
@@ -244,15 +282,17 @@ export class ItemsVirtualizationEngine {
 
             if (kept !== undefined && areValuesEqual(kept.item, item)) {
                 next.push(kept);
+                byKey.set(key, kept);
                 continue;
             }
 
-            if (kept !== undefined) {
-                this.dropRow(host, kept.element);
+            if (kept !== undefined)
                 renewed.push(key);
-            }
 
-            next.push({ key, item, element: null, height: kept?.height ?? null });
+            const entry: VirtualEntry = { key, item, element: this.renewRow(host, kept?.element ?? null), height: kept?.height ?? null };
+
+            next.push(entry);
+            byKey.set(key, entry);
         }
 
         for (const dropped of previous.values()) {
@@ -261,8 +301,28 @@ export class ItemsVirtualizationEngine {
         }
 
         state.entries = next;
+        state.byKey = byKey;
+        state.version++;
 
         return renewed;
+    }
+
+    /**
+     * Lets go of a row whose item changed, to be drawn anew from it — unless the focus is in it: then it stands as drawn until the first
+     * pass after the focus left it, or a grid's open editor and its draft would go with it. Answers the row its entry keeps.
+     */
+    private renewRow(host: Element, element: Element | null): Element | null {
+        if (element === null)
+            return null;
+
+        if (holdsFocus(element)) {
+            this.keptAsDrawn.add(element);
+            return element;
+        }
+
+        this.dropRow(host, element);
+
+        return null;
     }
 
     /**
@@ -313,10 +373,14 @@ export class ItemsVirtualizationEngine {
             return;
         }
 
-        if (target.element instanceof HTMLElement)
+        if (target.element instanceof HTMLElement) {
             setRowFocus(root, getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement), target.element, null, false);
-        else
-            root.setAttribute(RowCursorWaitsAttribute, target.key);
+            return;
+        }
+
+        // Waiting for a row not drawn, the cursor names none: the one named before is left out.
+        root.setAttribute(RowCursorWaitsAttribute, target.key);
+        root.removeAttribute("aria-activedescendant");
     }
 
     public insert(host: Element, key: string, item: unknown, index: number | null): void {
@@ -329,39 +393,69 @@ export class ItemsVirtualizationEngine {
         const at = index === null || index > state.entries.length ? state.entries.length : index;
 
         state.entries.splice(at, 0, entry);
+        state.byKey.set(key, entry);
+        state.version++;
     }
 
-    public remove(host: Element, key: string): void {
+    /** Takes the items of the keys out together: the values filtered once, and the cursor's next row decided past every row going. */
+    public remove(host: Element, keys: readonly string[]): void {
         const state = this.getState(host);
-        const index = state === null ? -1 : state.entries.findIndex(entry => entry.key === key);
 
-        if (state === null || index < 0)
+        if (state === null)
             return;
 
-        const element = state.entries[index].element;
-        const root = rowCursorRoot(host);
-        const rows = getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement);
-        const restoreCursor = root !== null && element instanceof HTMLElement ? planRowRemoval(root, rows, element) : null;
+        const gone = new Set<VirtualEntry>();
+        const rows = new Set<Element>();
 
-        element?.remove();
-        state.entries.splice(index, 1);
+        for (const key of keys) {
+            const entry = state.byKey.get(key);
+
+            if (entry === undefined)
+                continue;
+
+            state.byKey.delete(key);
+            gone.add(entry);
+
+            if (entry.element !== null)
+                rows.add(entry.element);
+        }
+
+        if (gone.size === 0)
+            return;
+
+        const root = rowCursorRoot(host);
+        const restoreCursor = root === null || rows.size === 0 ? null : planRowRemoval(root, getRealItemElements(host), rows);
+
+        for (const row of rows)
+            row.remove();
+
+        state.entries = state.entries.filter(entry => !gone.has(entry));
+        state.version++;
         restoreCursor?.();
     }
 
     public replace(host: Element, oldKey: string, key: string, item: unknown, index: number | null): void {
         const state = this.getState(host);
-        const at = state === null ? -1 : state.entries.findIndex(entry => entry.key === oldKey);
+        const old = state?.byKey.get(oldKey);
 
         if (state === null)
             return;
 
-        if (at < 0) {
+        if (old === undefined) {
             this.insert(host, key, item, index);
             return;
         }
 
-        this.dropRow(host, state.entries[at].element);
-        state.entries[at] = { key, item, element: null, height: state.entries[at].height };
+        // Under its own key it is the same row drawn anew; under another, another row.
+        const entry: VirtualEntry = { key, item, element: key === oldKey ? this.renewRow(host, old.element) : null, height: old.height };
+
+        if (key !== oldKey)
+            this.dropRow(host, old.element);
+
+        state.entries[state.entries.indexOf(old)] = entry;
+        state.byKey.delete(oldKey);
+        state.byKey.set(key, entry);
+        state.version++;
     }
 
     public move(host: Element, key: string, newIndex: number | null): void {
@@ -375,6 +469,7 @@ export class ItemsVirtualizationEngine {
         const at = newIndex === null || newIndex > state.entries.length ? state.entries.length : newIndex;
 
         state.entries.splice(at, 0, entry);
+        state.version++;
     }
 
     public reset(host: Element): void {
@@ -387,23 +482,24 @@ export class ItemsVirtualizationEngine {
             entry.element?.remove();
 
         state.entries = [];
+        state.byKey.clear();
+        state.version++;
     }
 
     /** A patch to one item's value, drawn or not; returns whether the host holds that key. */
     public updateValue(host: Element, key: string, path: readonly ItemValueStep[], value: unknown): boolean {
         const state = this.getState(host);
-        const entry = state?.entries.find(candidate => candidate.key === key);
+        const entry = state?.byKey.get(key);
 
         if (state === null || entry === undefined)
             return false;
 
         entry.item = writeItemValuePath(entry.item, path, value);
+        state.version++;
 
         // A whole new item is a new row; a property written into the old one already reached the drawn row through its own patch.
-        if (path.length === 0 && entry.element !== null) {
-            this.dropRow(host, entry.element);
-            entry.element = null;
-        }
+        if (path.length === 0)
+            entry.element = this.renewRow(host, entry.element);
 
         return true;
     }
@@ -418,6 +514,8 @@ export class ItemsVirtualizationEngine {
 
         let entries = state.entries;
 
+        state.version++;
+
         if ((config !== undefined && config.filters.length > 0) || (query?.filters ?? []).length > 0)
             entries = entries.filter(entry => itemMatchesFilters(config, entry.item, this.options.state, query));
 
@@ -431,9 +529,7 @@ export class ItemsVirtualizationEngine {
             return;
         }
 
-        const { buckets, order } = bucketByGroup(entries, groupOf, state.groupOrder);
-
-        state.groupOrder = order;
+        const { buckets, order } = bucketByGroup(entries, groupOf);
 
         const projected: ProjectedRow[] = [];
 
@@ -468,6 +564,25 @@ export class ItemsVirtualizationEngine {
 
         if (host !== null && resolveHostMode(host) === "virtualized")
             this.relayout(host);
+    }
+
+    /**
+     * A row kept for the focus it held — out of the range drawn, or as drawn before its item changed — goes at a pass a task after the
+     * focus left it: after the row's own engines heard it leave (a grid commits its editor), before a key walks the rows by their order.
+     */
+    private handleFocusOut(domEvent: Event): void {
+        for (let row = domEvent.target instanceof Element ? domEvent.target : null; row !== null; row = row.parentElement) {
+            const host = row.parentElement;
+            const state = host === null ? undefined : this.states.get(host);
+
+            if (host === null || state === undefined || (row !== state.keptOutOfRange && !this.keptAsDrawn.has(row)))
+                continue;
+
+            window.setTimeout(() => {
+                if (host.isConnected)
+                    this.layout(host, state);
+            });
+        }
     }
 
     private handleResize(entries: readonly ResizeObserverEntry[]): void {
@@ -554,6 +669,10 @@ export class ItemsVirtualizationEngine {
         const placed: (readonly [Element, number])[] = [];
         let place = -1;
         let changed = false;
+        // The row holding the focus stays drawn out of range, where it belongs between two spacers: dropped, a grid's open editor and
+        // its draft would go with it. Let go at the first pass after the focus left it.
+        const focused = document.activeElement;
+        let held: { readonly element: Element; readonly line: number } | null = null;
 
         for (let i = 0; i < total; i++) {
             const row = rows[i];
@@ -563,9 +682,25 @@ export class ItemsVirtualizationEngine {
 
             const inRange = i >= first && i < last;
             const slot = row.header ? state.headers.get(groupOf(row.entry)) ?? null : row.entry;
-            const element = slot?.element ?? null;
+            let element = slot?.element ?? null;
+            const holdsFocused = element !== null && focused !== null && element.contains(focused);
+
+            // A row kept as drawn for the focus it held, its item changed meanwhile, is drawn anew from it once the focus has left.
+            if (element !== null && !holdsFocused && this.keptAsDrawn.has(element)) {
+                this.keptAsDrawn.delete(element);
+                this.dropRow(host, element);
+                setElement(state, row, null);
+                element = null;
+                changed = true;
+            }
 
             if (!inRange) {
+                if (element !== null && !row.header && holdsFocused) {
+                    held = { element, line: lines === null ? i : lineIndexOf(lines.starts, i) };
+                    placed.push([element, place]);
+                    continue;
+                }
+
                 if (element !== null) {
                     // A row scrolled away keeps the keyboard's cursor waiting for it, as a row drawn anew does.
                     this.dropRow(host, element);
@@ -608,6 +743,9 @@ export class ItemsVirtualizationEngine {
 
         const kept = new Set(drawn);
 
+        if (held !== null)
+            kept.add(held.element);
+
         // An entry the rules left out lets its row go for good: kept, it would come back with the values it had when it left.
         for (const entry of state.entries) {
             if (entry.element !== null && !kept.has(entry.element)) {
@@ -637,11 +775,17 @@ export class ItemsVirtualizationEngine {
                 slot.element = null;
         }
 
-        const before = sum(linePitches, 0, firstLine);
-        const after = sum(linePitches, lastLine, count);
+        // The held row splits the spacer on its side in two around its own line: the rows stay where the spacers say they are.
+        const above = held !== null && held.line < firstLine ? held : null;
+        const below = held !== null && held.line >= lastLine ? held : null;
+        const before = sum(linePitches, 0, above?.line ?? firstLine);
+        const after = sum(linePitches, below === null ? lastLine : below.line + 1, count);
+        const between = held === null ? 0 : above !== null ? sum(linePitches, above.line + 1, firstLine) : sum(linePitches, lastLine, held.line);
+        const spacer = focusSpacer(host, between > 0 ? between - gap : 0);
+        const order = above !== null ? [above.element, ...toNodes(spacer), ...drawn] : below !== null ? [...drawn, ...toNodes(spacer), below.element] : drawn;
 
         // The rows first, the spacers to their ends after: each spacer puts itself back at its own end of the host.
-        placeInOrder(host, [...drawn, ...toNodes(findEmptyPlaceholder(host))]);
+        placeInOrder(host, [...order, ...toNodes(findEmptyPlaceholder(host))]);
         ensureSpacer(host, TopSpacer, before > 0 ? before - gap : 0);
         ensureSpacer(host, BottomSpacer, after > 0 ? after - gap : 0);
         ensureEmptyState(host, state.componentId, this.options.templates, this.options.renderer, total > 0);
@@ -656,6 +800,7 @@ export class ItemsVirtualizationEngine {
         state.laidOut = rows;
         state.pitches = linePitches;
         state.laidAcross = across;
+        state.keptOutOfRange = held?.element ?? null;
         state.firstLine = firstLine;
         state.lastLine = lastLine;
 
@@ -697,7 +842,7 @@ export class ItemsVirtualizationEngine {
             if (box.height <= 0)
                 continue;
 
-            addHeight(row.header ? state.headerHeights : state.itemHeights, slot.height, box.height);
+            addMeasured(row.header ? state.headerHeights : state.itemHeights, slot.height, box.height);
             slot.height = box.height;
 
             if (!row.header)
@@ -725,8 +870,11 @@ export class ItemsVirtualizationEngine {
     private getState(host: Element): VirtualHostState | null {
         const known = this.states.get(host);
 
-        if (known !== undefined)
+        if (known !== undefined) {
+            // Again on every use: a host let go while it was off the page is held again once it is back.
+            this.held.add(host);
             return known;
+        }
 
         const owner = findOwningComponentAddress(host);
 
@@ -762,9 +910,10 @@ export class ItemsVirtualizationEngine {
         const state: VirtualHostState = {
             componentId,
             entries,
+            byKey: new Map(entries.map(entry => [entry.key, entry])),
             projected: [],
+            version: 0,
             headers: new Map(),
-            groupOrder: [],
             itemEstimate: DefaultItemSize,
             headerEstimate: DefaultItemSize,
             itemHeights: { sum: 0, count: 0 },
@@ -778,25 +927,25 @@ export class ItemsVirtualizationEngine {
             tileWidth: null,
             scheduled: 0,
             first: -1,
-            last: -1
+            last: -1,
+            keptOutOfRange: null
         };
 
         this.states.set(host, state);
+        // A host drawn anew is when the ones it replaced are let go, so the set never outgrows the page's hosts by much.
+        this.letGoOffPage();
+        this.held.add(host);
         this.resizes?.observe(host);
 
         return state;
     }
 }
 
-/** Counts a row's height once, however often it is measured again: a changed height replaces its old one in the sum. */
-function addHeight(mean: RunningMean, previous: number | null, height: number): void {
-    if (previous === null) {
-        mean.sum += height;
-        mean.count++;
-    }
-    else {
-        mean.sum += height - previous;
-    }
+/** Whether the focus is in the row: on one of its controls, an editor open over it, or the row itself. */
+function holdsFocus(row: Element): boolean {
+    const focused = document.activeElement;
+
+    return focused !== null && row.contains(focused);
 }
 
 /**

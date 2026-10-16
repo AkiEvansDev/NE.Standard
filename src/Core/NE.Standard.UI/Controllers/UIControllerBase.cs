@@ -515,7 +515,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
                 {
                     Name = commandName,
                     Invoker = UICommandInvoker.Create(controllerType, method, commandName),
-                    AllowAnonymous = ResolveAllowAnonymous(method),
+                    AllowAnonymous = ResolveAllowAnonymous(method, commandName),
                     AccessRules = BuildAccessRules(method),
                     Filters = ReadCommandFilters(controllerType, method),
                     ConcurrencyMode = attribute.ConcurrencyMode,
@@ -538,13 +538,62 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// The controller's own attributes reach the command through the route, which folds them in: read here as well, they would
     /// override a route that <c>Require</c> or <c>AllowAnonymous</c> settled the other way.
     /// </remarks>
-    private static bool? ResolveAllowAnonymous(MethodInfo method)
+    private static bool? ResolveAllowAnonymous(MethodInfo method, string commandName)
     {
+        EnsureAuthorizeNotOpened(method, commandName);
+
         if (method.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true))
             return true;
 
         if (method.IsDefined(typeof(UIAuthorizeAttribute), inherit: true))
             return false;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Refuses a command whose <c>[UIAuthorize]</c> a <c>[UIAllowAnonymous]</c> of its own declaration or of one it overrides would
+    /// quietly open: the anonymous one wins, so it would run for anyone. One an override declares above a base's <c>[UIAuthorize]</c>
+    /// opens it on purpose and stands.
+    /// </summary>
+    private static void EnsureAuthorizeNotOpened(MethodInfo method, string commandName)
+    {
+        MethodInfo? authorizing = null;
+
+        for (MethodInfo? level = method; level is not null; level = OverriddenMethod(level))
+        {
+            if (authorizing is null && level.IsDefined(typeof(UIAuthorizeAttribute), inherit: false))
+                authorizing = level;
+
+            if (!level.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: false))
+                continue;
+
+            if (authorizing is null)
+                return;
+
+            var message = ReferenceEquals(authorizing, level)
+                ? $"Command '{commandName}' on '{level.DeclaringType?.FullName}' carries both [UIAuthorize] and [UIAllowAnonymous]; the anonymous one wins and it would run for anyone. Keep one."
+                : $"Command '{commandName}' carries [UIAuthorize] on '{authorizing.DeclaringType?.FullName}.{authorizing.Name}', but [UIAllowAnonymous] on the declaration it overrides, '{level.DeclaringType?.FullName}.{level.Name}', wins and it would run for anyone. Remove one, or declare [UIAllowAnonymous] on the override that means it.";
+
+            throw new InvalidOperationException(message);
+        }
+    }
+
+    /// <summary>The declaration an override overrides, the next one up its chain; null for a method that overrides nothing.</summary>
+    private static MethodInfo? OverriddenMethod(MethodInfo method)
+    {
+        // A method that starts its own slot — not virtual, or new — is its own base definition.
+        if (method.GetBaseDefinition().DeclaringType == method.DeclaringType)
+            return null;
+
+        const BindingFlags DeclaredInstance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        Type[] parameters = Array.ConvertAll(method.GetParameters(), static parameter => parameter.ParameterType);
+
+        for (Type? type = method.DeclaringType?.BaseType; type is not null; type = type.BaseType)
+        {
+            if (type.GetMethod(method.Name, DeclaredInstance, binder: null, parameters, modifiers: null) is { IsVirtual: true } overridden)
+                return overridden;
+        }
 
         return null;
     }
@@ -588,8 +637,11 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             return;
 
         IUserSessionStore store = Context.Services.GetRequiredService<IUserSessionStore>();
-        UserSessionState session = await store.TryGetAsync(Context.Handle.Session.SessionId, cancellationToken).ConfigureAwait(false)
-            ?? throw new UnauthorizedAccessException($"Command '{command.Name}' has no live session; it was signed out or has expired.");
+        UserSessionState? session = await store.TryGetAsync(Context.Handle.Session.SessionId, cancellationToken).ConfigureAwait(false);
+
+        // Idle past its timeout is gone, as every other reader of the store takes it: the sweep has only not reached it yet.
+        if (session is null || session.IsIdle(Context.Services.GetRequiredService<UIApplication>().Sessions, DateTime.UtcNow))
+            throw new UnauthorizedAccessException($"Command '{command.Name}' has no live session; it was signed out or has expired.");
 
         IUIAuthorizationService authorization = Context.Services.GetRequiredService<IUIAuthorizationService>();
         UIRouteAccessVerdict verdict = UIRouteAccess.Check(allowAnonymous: false, command is UICommandDescriptor descriptor ? descriptor.AccessRules : [.. command.AccessRules], session, authorization);

@@ -194,7 +194,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 
             // The words a reader sees, not the Markdown source; unmarked, since a switch writes it through the tooltip's own name
             // operation, which the tooltip's recorded word or binding drives.
-            _ = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _);
+            _ = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _, markup: true);
 
             if (untitled && !string.IsNullOrWhiteSpace(tooltip))
                 _ = host.Attribute("aria-label", UIInlineMarkup.ToPlainText(tooltip));

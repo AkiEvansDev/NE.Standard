@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
-const Overflowed = "ui-tab-header--overflowed";
+const Overflowed = "ui-tab-caption--overflowed";
 
 // The window's keydown listeners, which hear a key before the document does: an open list's Tab closes it there.
 const windowKeys: ((domEvent: unknown) => void)[] = [];
@@ -41,7 +41,7 @@ installFakeDom({
 const { TabsEngine } = await import("../src/interactions/tabs-engine.ts");
 
 function header(key: string, title: string): FakeElement {
-    const element = FakeElement.of("ui-tab-header", { "data-ui-tab-key": key }, "button");
+    const element = FakeElement.of("ui-tab-caption", { "data-ui-tab-key": key }, "button");
 
     element.textContent = title;
     element.rect = { left: 0, top: 0, width: 100, height: 32 };

@@ -57,17 +57,17 @@
     transition: background-color @ui-motion-fast @ui-motion-ease;
 }
 
-// The same height as .ui-tab-header; the horizontal inset is the caption's, which also holds the close control.
+// The same height as .ui-tab-caption; the horizontal inset is the caption's, which also holds the close control.
 .ui-tab-item__label {
     position: relative;
     border-radius: 0;
     .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
-    // Borders on both sides here, unlike .ui-tab-header, so the air is even: four pixels of chrome above and below.
+    // Borders on both sides here, unlike .ui-tab-caption, so the air is even: four pixels of chrome above and below.
     padding: calc(@ui-space-1 - 1px) 0;
     .ui-tab-caption-rest-ink();
 }
 
-    // Drawn on the element, not as a border, so it overlays the page's rule instead of stacking a second line, as in .ui-tab-header.
+    // Drawn on the element, not as a border, so it overlays the page's rule instead of stacking a second line, as in .ui-tab-caption.
     .ui-tab-item__caption::after {
         .ui-tab-caption-mark();
     }
@@ -103,13 +103,13 @@
 // The whole caption is the press (tabs-view-engine.ts), so it takes a fill where a Tabs caption changes only words and line (mixins/tabs.less).
 @media @{ui-can-hover} {
     .ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:hover {
-        background: var(--ui-wash-hover);
+        background-color: var(--ui-wash-hover);
     }
 }
 
 // Not under a press on its close, which tabs-view-engine.ts marks on the caption (`data-ui-inner-pointer`, as a surface's control).
 .ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption:active:not([data-ui-inner-pointer~="press"]) {
-    background: var(--ui-wash-active);
+    background-color: var(--ui-wash-active);
 }
 
     @media @{ui-can-hover} {
@@ -124,7 +124,7 @@
         }
     }
 
-// Same selected vocabulary as .ui-tab-header: no ground, surface ink, primary line unless the author overrides it.
+// Same selected vocabulary as .ui-tab-caption: no ground, surface ink, primary line unless the author overrides it.
 .ui-tab-item--selected .ui-tab-item__caption {
     .ui-selected-ground(transparent);
 }
@@ -181,9 +181,11 @@
         display: none;
     }
 
-// A field clear's cross; it keeps its space when hidden, so no caption shifts on hover and fixed tabs align.
+// A field clear's cross; it keeps its space when hidden, so no caption shifts on hover and fixed tabs align. A target's press round it,
+// reaching the caption's end and no further (its `::after`).
 .ui-tab-item__close {
     .ui-cross-glyph(@ui-glyph-sm);
+    .ui-hit-area();
     position: relative;
     display: flex;
     align-items: center;

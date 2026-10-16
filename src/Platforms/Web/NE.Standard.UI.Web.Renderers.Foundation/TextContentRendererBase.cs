@@ -274,7 +274,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             return;
 
         // The words a reader hears, not the Markdown source; a push and a language switch write them through CaptionBadgeOptions'.
-        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTooltipProperty, out string? words, out _);
+        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTooltipProperty, out string? words, out _, markup: true);
 
         _ = badge.Element("span", description =>
         {
@@ -308,7 +308,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         RenderPressBadge(badge);
 
         // The words a reader sees, not the Markdown source; a push and a language switch write them through CaptionBadgeOptions'.
-        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTooltipProperty, out string? words, out _);
+        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTooltipProperty, out string? words, out _, markup: true);
 
         if (string.IsNullOrWhiteSpace(words))
             return;
@@ -667,13 +667,24 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         ThemeColorRenderer.RenderThemeColor(context, description, ITextComponent.DescriptionColorProperty);
 
-        // Inline markup is allowed here but deliberately not in the title, which is a label rather than a sentence.
-        _ = RenderProperty<string?>(context, description, ITextComponent.DescriptionProperty, (target, value) =>
+        // Words a person typed stay as written: marked on the element, since the operation list is one per type and a patch reads the mark.
+        _ = ResolveRenderValue(context, ITextComponent.DescriptionPlainProperty, out bool? plain, out _);
+
+        if (plain == true)
+            _ = description.Attribute(WebAttributes.PlainText);
+
+        // Inline markup is allowed here but deliberately not in the title, which is a label rather than a sentence; a description
+        // written as text takes a phrase's arguments unescaped, as the patch writes it.
+        _ = RenderProperty<string?>(context, description, ITextComponent.DescriptionProperty, plain != true, (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
             {
                 _ = root.Attribute(WebAttributes.TextDescription);
-                InlineMarkupRenderer.Render(target, value);
+
+                if (plain == true)
+                    _ = target.Text(value);
+                else
+                    InlineMarkupRenderer.Render(target, value);
             }
         }, Followed(DescriptionOperations, partsShown));
     }

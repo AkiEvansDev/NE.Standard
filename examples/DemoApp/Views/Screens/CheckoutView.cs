@@ -185,8 +185,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                 UIButtons.Ghost("Back to plans"),
                 UIButtons.Primary("Subscribe")
                     .OnSubmit(FormId, nameof(CheckoutController.PlaceOrderAsync))
-                    .InteractBeforeClick(IVisualComponent.LoadingProperty, true)
-                    .InteractAfterClick(IVisualComponent.LoadingProperty, false)
+                    .ShowLoadingDuring(EventNames.Click)
             )
         );
 

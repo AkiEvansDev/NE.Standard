@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
 
 namespace NE.Standard.UI.Hosting;
 
@@ -473,6 +474,49 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
                 _instanceKeys[instanceId] = to;
 
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Moves a runtime to another key with one page, <paramref name="kept"/> moved to <paramref name="session"/> with it and every other
+    /// page it holds let go of; answers the runtime moved, none where there was none to move, and the instances let go of for the
+    /// caller to detach from the runtime too.
+    /// </summary>
+    /// <remarks>
+    /// One step under the lock, so an attach to the old key cannot slip in between the release and the move, and a lookup by the page's
+    /// handle that missed the old key finds the new one once it reads the handle again.
+    /// </remarks>
+    public IUIRuntime? Move(UIRuntimeKey from, UIRuntimeKey to, UIHandle kept, IUserSessionContext session, DateTime utcNow, out string[] released)
+    {
+        ArgumentNullException.ThrowIfNull(kept);
+        ArgumentNullException.ThrowIfNull(session);
+
+        released = [];
+
+        lock (_sync)
+        {
+            if (_entries.ContainsKey(to) || !RemoveEntryNoLock(from, out UIRuntimeEntry? entry))
+                return null;
+
+            List<string>? others = null;
+
+            foreach (var instanceId in entry.InstanceIds)
+            {
+                if (StringComparer.Ordinal.Equals(instanceId, kept.Instance.Id))
+                {
+                    _instanceKeys[instanceId] = to;
+                    continue;
+                }
+
+                _ = entry.Detach(instanceId, utcNow);
+                (others ??= []).Add(instanceId);
+            }
+
+            AddEntryNoLock(to, entry);
+            kept.MoveSession(session);
+            released = others is null ? [] : [.. others];
+
+            return entry.Runtime;
         }
     }
 

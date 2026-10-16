@@ -469,7 +469,7 @@ public sealed class UIApplicationBuilder
 
         // The pages an application gets when it registered none are ordinary views, shipped once here rather than by each platform.
         if (!HasNotFoundView)
-            _ = NotFoundView<DefaultNotFoundView>();
+            _ = NotFoundView<DefaultNotFoundView, DefaultNotFoundController>();
 
         if (!HasErrorView)
             _ = ErrorView<DefaultErrorView, DefaultErrorController>();
@@ -606,7 +606,8 @@ public sealed class UIApplicationBuilder
             ForbiddenRoute = source.ForbiddenRoute,
             IdentitySource = source.IdentitySource,
             PermissionClaimType = source.PermissionClaimType,
-            RecheckRouteOnActivity = source.RecheckRouteOnActivity
+            RecheckRouteOnActivity = source.RecheckRouteOnActivity,
+            RefusalWarningsPerMinute = source.RefusalWarningsPerMinute
         };
 
     private static UISessionOptions CloneSessionOptions(UISessionOptions source)

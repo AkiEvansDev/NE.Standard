@@ -1,14 +1,17 @@
 // The keyboard of a host with rows — which keys are its, how a wrap's arrows move, how a key chooses on a host that chooses by a
-// control of its own — and what a select-all takes, over a small stand-in for the DOM that knows classes, attributes, children
-// and laid-out boxes, which is all these read.
+// control of its own, what an arrow in a long list writes — and what a select-all takes, over a small stand-in for the DOM that
+// knows classes, attributes, children and laid-out boxes, which is all these read.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveRowTarget, rowKeyTarget } from "../src/interactions/row-cursor.ts";
-import { chooseRow, choosesOnEnter, ensureAnchor, itemSelection, keyGestureOf, setAnchor } from "../src/interactions/row-selection.ts";
+import { chooseRow, choosesOnEnter, ensureAnchor, itemSelection, keyGestureOf, markSelectedRows, PlainGesture, setAnchor } from "../src/interactions/row-selection.ts";
 
 type Box = { readonly left: number; readonly top: number; readonly width: number; readonly height: number };
+
+// Every attribute written, by the element it was written on, in order.
+const writes: { readonly element: FakeElement; readonly name: string }[] = [];
 
 class FakeElement {
     public readonly children: FakeElement[] = [];
@@ -59,6 +62,7 @@ class FakeElement {
     }
 
     public setAttribute(name: string, value: string): void {
+        writes.push({ element: this, name });
         this.attributes.set(name, value);
     }
 
@@ -306,4 +310,21 @@ test("a grid's chosen keys are its rows' host's, not the menu's in its band, whi
     itemSelection.setSelected(real(root), [real(rows[1])], true);
 
     assert.deepEqual(JSON.parse(host.getAttribute("data-ui-selected-keys") ?? "[]"), ["b"]);
+});
+
+test("an arrow in a long single-choice list writes the marks of the two rows the choice moves between, and no other row's", () => {
+    const { root, rows } = list("ui-items-view", Array.from({ length: 200 }, (_, index) => `r${index}`));
+    const keysOf = (chosen: readonly FakeElement[]): string[] => chosen.map(row => row.getAttribute("data-ui-key") ?? "");
+
+    root.with("data-ui-selection", "one").with("data-ui-selected-key", "r10");
+    // Every row announced, as the engine's first pass leaves them.
+    markSelectedRows(real(root), rows.map(real));
+    writes.length = 0;
+
+    chooseRow(real(root), rows.map(real), real(rows[11]), PlainGesture);
+
+    assert.deepEqual(keysOf(rows.filter(row => row.hasAttribute("data-ui-selected"))), ["r11"]);
+    assert.deepEqual(keysOf(rows.filter(row => row.getAttribute("aria-selected") === "true")), ["r11"]);
+    assert.equal(rows.filter(row => row.getAttribute("aria-selected") === "false").length, 199);
+    assert.deepEqual(writes.filter(write => write.element !== root).map(write => `${keysOf([write.element])[0]} ${write.name}`), ["r10 aria-selected", "r11 aria-selected"]);
 });

@@ -27,7 +27,7 @@ export class ButtonGroupEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
 
         // A pushed key and a re-rendered segment land as mutations with the same answer.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [SelectedKeyAttribute] }, roots => this.applyAll(roots));
+        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true, attributeFilter: [SelectedKeyAttribute] }, roots => this.applyAll(roots));
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {

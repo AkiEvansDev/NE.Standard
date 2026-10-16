@@ -64,7 +64,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
 
     // Paired by height: the band beside the empty state, the strip of readings beside the tiles.
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup()], [CreateEmptyStateGroup(), CreateChoiceGroup(), CreateRowsGroup()]);
+        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup(), CreatePinnedGroup()], [CreateEmptyStateGroup(), CreateChoiceGroup(), CreateRowsGroup()]);
 
     /// <summary>
     /// A band that holds controls and belongs to the page (a card would promise bands it cannot fill), inside a panel of its own.
@@ -233,6 +233,23 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionType(UITextAppearance.Caption)
                     )
             )
+        );
+    }
+
+    /// <summary>
+    /// <c>QuietHover</c> on a strip the pointer crosses on its way elsewhere — a conversation's pinned message over its rows: half the
+    /// wash and no lift, so it does not flash; the quote in it stands its stroke straight along its edge and rounds the far corners.
+    /// </summary>
+    private static ContainerComponent CreatePinnedGroup()
+    {
+        return DemoUI.CreateExample("A strip the pointer crosses",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Flat)
+                .SetClickable(true)
+                .SetQuietHover(true)
+                .SetBorderThickness(UIThickness.Uniform(0))
+                .SetPadding(UIThickness.All(12, 8, 12, 8))
+                .SetContent(UIText.Quote("Pinned message", "The release window moves to Thursday; staging freezes on Wednesday at noon."))
         );
     }
 

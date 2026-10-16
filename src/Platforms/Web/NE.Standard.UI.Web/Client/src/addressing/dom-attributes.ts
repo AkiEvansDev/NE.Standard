@@ -474,6 +474,10 @@ export const BindSelectedKeyAttribute = "data-ui-bind-selected-key";
 /** A tab strip's selected key on its root; a tab's renamed caption on its label. */
 export const TabsSelectedAttribute = "data-ui-tabs-selected";
 export const TabCaptionAttribute = "data-ui-tab-caption";
+/** A Tabs caption's key, its page's, and the tab its group of actions at the strip's end is shown for (TabsComponentRenderer). */
+export const TabKeyAttribute = "data-ui-tab-key";
+export const TabPageAttribute = "data-ui-tab-page";
+export const TabActionsAttribute = "data-ui-tab-actions";
 /** On a pinned tab's root: the strip draws its pin, hides its close and refuses to drag it. */
 export const TabPinnedAttribute = "data-ui-tab-pinned";
 
@@ -528,6 +532,8 @@ export const SelectClass = "ui-select";
 /** On a text body's component root while its title, its description, its icon, its badge's icon or its badge's text shows. */
 export const TextTitleAttribute = "data-ui-text-title";
 export const TextDescriptionAttribute = "data-ui-text-description";
+/** On an element whose words are shown as written (`DescriptionPlain`): a pushed value is written as text, never read as inline markup. */
+export const PlainTextAttribute = "data-ui-plain-text";
 export const TextIconAttribute = "data-ui-text-icon";
 export const TextBadgeIconAttribute = "data-ui-text-badge-icon";
 export const TextBadgeTextAttribute = "data-ui-text-badge-text";

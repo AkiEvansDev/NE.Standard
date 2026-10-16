@@ -176,7 +176,10 @@ public sealed partial class UITestPage
     public UITestComponent ComponentNamed(string name)
         => FindNamed(name, scope: null, rowKeys: []);
 
-    /// <summary>Gets <paramref name="value"/> as the page shows it in its language: a key or a phrase translated, a validation message's words.</summary>
+    /// <summary>
+    /// Gets <paramref name="value"/> as the page shows it in its language: a key or a phrase translated, a validation message's words;
+    /// null for none, a NaN or an infinity among them.
+    /// </summary>
     public string? Words(object? value)
     {
         var language = Language;
@@ -184,7 +187,8 @@ public sealed partial class UITestPage
 
         return value switch
         {
-            null => null,
+            // A NaN or an infinity is the null the page holds it as.
+            _ when UIScriptNumber.ReadsAsNull(value) => null,
             UIValidationMessage message => Words(message.Message),
             UIPhrase { IsText: true } text => translator.Translate(language, text.Key),
             UIPhrase phrase => translator.Translate(language, phrase.Key, phrase.Arguments),

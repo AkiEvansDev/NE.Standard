@@ -88,6 +88,11 @@ export class FakeElement {
         this.tagName = tagName;
     }
 
+    /** Its tag in lower case, as the browser names an HTML element's. */
+    public get localName(): string {
+        return this.tagName.toLowerCase();
+    }
+
     /** An element with classes and attributes, for a line per part of a test's tree. */
     public static of(classes: string, attributes: Readonly<Record<string, string>> = {}, tagName = "div"): FakeElement {
         const element = new FakeElement(tagName);
@@ -114,13 +119,24 @@ export class FakeElement {
         return copy;
     }
 
-    public append(...children: FakeElement[]): this {
-        for (const child of children) {
+    /** Puts the children last; a string as a text node, as the browser does. */
+    public append(...children: (FakeElement | string)[]): this {
+        for (const given of children) {
+            const child = typeof given === "string" ? fakeDocument.createTextNode(given) : given;
+
             child.parent = this;
             this.children.push(child);
         }
 
         return this;
+    }
+
+    /** Puts the elements right after this one, in their order. */
+    public after(...elements: FakeElement[]): void {
+        const next = this.nextElementSibling;
+
+        for (const element of elements)
+            this.parent?.insertBefore(element, next);
     }
 
     public appendChild(child: FakeElement): FakeElement {
@@ -135,6 +151,10 @@ export class FakeElement {
 
     public get firstElementChild(): FakeElement | null {
         return this.children[0] ?? null;
+    }
+
+    public get lastElementChild(): FakeElement | null {
+        return this.children[this.children.length - 1] ?? null;
     }
 
     public get previousElementSibling(): FakeElement | null {
@@ -216,8 +236,9 @@ export class FakeElement {
         return this.attributes.get(name) ?? null;
     }
 
+    /** Its attributes' names, `class` among them while it has a class, as the browser lists them. */
     public getAttributeNames(): string[] {
-        return [...this.attributes.keys()];
+        return this.classes.size === 0 ? [...this.attributes.keys()] : ["class", ...this.attributes.keys()];
     }
 
     public setAttribute(name: string, value: string): void {
@@ -225,6 +246,9 @@ export class FakeElement {
     }
 
     public removeAttribute(name: string): void {
+        if (name === "class")
+            this.classes.clear();
+
         this.attributes.delete(name);
     }
 

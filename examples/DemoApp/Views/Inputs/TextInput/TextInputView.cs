@@ -228,7 +228,8 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
 
     /// <summary>
     /// An entry field in a form: Enter adds what was typed as a label, and the caret stays for the next one; Enter in the name leaves
-    /// it and presses the form's button, as any field's Enter does.
+    /// it and presses the form's button, as any field's Enter does. A label pressed is put in the field to be renamed, and only while
+    /// it is does Escape cancel (<c>CancelOnEscape</c> bound): a new label half typed survives an Escape.
     /// </summary>
     /// <remarks>The + at the field's end runs the same command for a pointer.</remarks>
     private static ContainerComponent CreateEnterGroup()
@@ -245,6 +246,8 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetLayoutType(UIItemsLayoutType.Wrap)
                     .SetSpacing(4)
+                    .SetRowHoverable(true)
+                    .OnItemClickWithItemKey(nameof(TextInputController.RenameLabel))
                     .SetTemplate(new TextComponent().BindBadgeText(nameof(TextItem.Title), UIBindingScope.Relative))
                 )
                 .AddChild(new TextInputComponent()
@@ -253,7 +256,8 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetFormId(ReleaseFormId)
                     .BindValue(nameof(TextInputLabelsGroupContext.Draft), UIBindingScope.Relative)
                     .OnEnter(nameof(TextInputController.AddLabel))
-                    .OnEscape(nameof(TextInputController.DropLabel))
+                    .OnEscape(nameof(TextInputController.DropRename))
+                    .BindCancelOnEscape(nameof(TextInputLabelsGroupContext.Renaming), UIBindingScope.Relative)
                     .SetTrailingAction(new ButtonComponent()
                         .SetType(UIButtonType.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Add))
@@ -266,7 +270,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Save the release")
                     .OnSubmit(ReleaseFormId, nameof(TextInputController.SaveRelease))
                 ),
-            note: "`OnEnter`: Enter commits what was typed, then runs the command; the controller adds the label and empties the field, and the caret stays for the next one. It presses no form's button: Enter in Release does, Shift+Enter in Labels too. An empty field adds nothing. `OnEscape`: Escape drops what was typed, sends nothing, and runs its command.",
+            note: "`OnEnter`: Enter commits what was typed, then runs the command; the controller adds the label and empties the field, and the caret stays for the next one. It presses no form's button: Enter in Release does, Shift+Enter in Labels too. An empty field adds nothing. Press a label to rename it: the field takes its name, Enter renames it, and Escape (`OnEscape`) puts the name back, sends nothing, runs its command and gives the field back what it held. Escape is that cancel only while a rename is under way (`BindCancelOnEscape`); otherwise it leaves the field and keeps a new label half typed.",
             context: LabelsGroup
         );
     }
@@ -337,7 +341,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                         .SetPlaceholder("Search regions")
                     )
                     .AddChild(new ImageInputComponent()
-                        .SetShape(UIImageInputShape.Inline)
+                        .SetVariant(UIImageInputVariant.Inline)
                         .SetSize(UIInputSize.Small)
                         .SetTitlePlacement(UIInputTitlePlacement.Inside)
                         .SetAppearance(UIInputAppearance.Underline)

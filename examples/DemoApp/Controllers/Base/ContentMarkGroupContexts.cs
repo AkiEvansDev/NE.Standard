@@ -54,7 +54,7 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
     public partial UIImageFit? Fit { get; set; }
 
     [RecursiveMember]
-    public partial UICornerRadius? CornerRadius { get; set; }
+    public partial UICornerRadius? BorderRadius { get; set; }
 
     [RecursiveMember]
     public partial UIImageShape? Shape { get; set; }
@@ -66,7 +66,7 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
     {
         AddOption(nameof(Source), CycleSource, () => Source);
         AddOption(nameof(Fit), CycleFit, () => Fit);
-        AddOption(nameof(CornerRadius), CycleCornerRadius, () => CornerRadius);
+        AddOption(nameof(BorderRadius), CycleBorderRadius, () => BorderRadius);
         AddOption(nameof(Shape), CycleShape, () => Shape);
         AddOption(nameof(AltText), ToggleAltText, () => AltText);
         AddTooltipOptions(SampleTooltip);
@@ -79,8 +79,8 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
     public void CycleFit()
         => SetLastChange(nameof(Fit), Fit = CycleEnum(Fit));
 
-    public void CycleCornerRadius()
-        => SetLastChange(nameof(CornerRadius), CornerRadius = CycleValue(CornerRadius, UICornerRadius.Uniform(8), UICornerRadius.Top(24), UICornerRadius.Uniform(999), null));
+    public void CycleBorderRadius()
+        => SetLastChange(nameof(BorderRadius), BorderRadius = CycleValue(BorderRadius, UICornerRadius.Uniform(8), UICornerRadius.Top(24), UICornerRadius.Uniform(999), null));
 
     // A circle squares the box and crops to the middle; against a landscape source it shows what it takes.
     public void CycleShape()

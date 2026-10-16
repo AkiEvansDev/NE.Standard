@@ -14,7 +14,7 @@ const css = (await less.render(readFileSync(source, "utf8"), { filename: source 
 
 // The elements BorderStyleRenderer writes on (its callers): a component's root, or the part of it that draws the border.
 const BorderedClasses = [
-    "ui-button", "ui-action", "ui-menu-item", "ui-tab-header", "ui-breadcrumb", "ui-split-button", "ui-language-switcher", "ui-theme-switcher",
+    "ui-button", "ui-action", "ui-menu-item", "ui-tab-caption", "ui-breadcrumb", "ui-split-button", "ui-language-switcher", "ui-theme-switcher",
     "ui-button-group", "ui-container", "ui-stack-panel", "ui-wrap-panel", "ui-scroll", "ui-accordion", "ui-collapsible-panel",
     "ui-surface", "ui-card", "ui-expander", "ui-key-value-action", "ui-tree", "ui-table__scroll",
     "ui-checkbox__box", "ui-switch__box", "ui-text-input__row", "ui-number-input__row", "ui-temporal-input__row", "ui-file-input__row",
@@ -40,7 +40,8 @@ const Approved = new Map<string, string>([
     ['[data-ui-root]:is([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"]) > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-left', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
     ['[data-ui-root][data-ui-side-drawers="always"] > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-top', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
     ['[data-ui-root][data-ui-side-drawers="always"] > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-left', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
-    [".ui-color-input__swatch--button | border", "No edge at all: a pale value's boundary is an inset shadow, so an authored thickness has no style to draw with."]
+    [".ui-color-input__swatch--button | border", "No edge at all: a pale value's boundary is an inset shadow, so an authored thickness has no style to draw with."],
+    [".ui-tab-caption:focus-visible:not([data-ui-pointer-focus]) | border-bottom", "The keyboard frame's reach down onto the chosen line, its margin taking it back; a caption draws no bottom edge (one would lift its line)."]
 ]);
 
 type Rule = { selector: string; declarations: [string, string][] };
@@ -217,7 +218,7 @@ test("every approved flat declaration still exists, so the list never outlives i
 });
 
 test("an accordion's sections share the edge between them, through the chain so a section's own thickness still wins", () => {
-    const shared = all.find(rule => rule.selector === ".ui-accordion > .ui-expander + .ui-expander");
+    const shared = all.find(rule => rule.selector === ".ui-accordion > .ui-expander + .ui-expander:not(.ui-expander--quiet)");
     const width = shared?.declarations.find(([property]) => property === "border-width")?.[1] ?? "";
 
     assert.match(width, /^var\(--ui-border-thickness.*, 0 var\(--ui-border-width, 1px\) var\(--ui-border-width, 1px\)\)+$/);

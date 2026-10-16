@@ -53,7 +53,7 @@ test("a strip gone from the page is let go of and not fitted, while one still on
         rootClass: "ui-tabs",
         overflowingClass: "ui-tabs--overflowing",
         wraps: () => true,
-        hiddenClass: "ui-tab-header--overflowed",
+        hiddenClass: "ui-tab-caption--overflowed",
         refit: root => void refitted.push(real<FakeElement>(root)),
         pick: () => undefined
     });

@@ -2,13 +2,15 @@
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemsHostAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
+    DragKindAttribute, ItemsHostAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
     TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute,
     TreeDropMarkAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UnrenamableAttribute,
     UnselectableAttribute
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import type { EffectRegistry } from "../effects/effect-registry.ts";
+import type { EventRegistration } from "../events/event-descriptor.ts";
+import { NonItemAttribute } from "../items/items-empty-renderer.ts";
 import { compareItems, getActiveSorts, hasActiveFilters, itemMatchesFilters, readItemsQuery } from "../items/items-filter-sort.ts";
 import type { ActiveSort, ItemsQuery } from "../items/items-filter-sort.ts";
 import { TreeRulesEventName } from "../items/items-host-sync.ts";
@@ -16,10 +18,10 @@ import type { ItemsTemplateRenderer } from "../items/items-template-renderer.ts"
 import { getIdValue } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, RenameNodeClientEffect, WebRenderItemsFilterSortMetadata } from "../metadata/metadata-index.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
+import { LegacyTreeFoldSlots, TreeFoldSlot, TreeFoldVersion } from "../rendering/tree-boot-fold.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
-import type { ClientBootPatch } from "../state/client-store.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { clearDragMarks, giveDragPayload, leftAltogether, markDragStart } from "./drag-marks.ts";
@@ -39,8 +41,6 @@ import type { TreeKeyMove, TreeMovePlace, TreeNodePlace } from "./tree-drop.ts";
 import { folderTakesDrop, keyMovePlace, markTreeDrop, nodeOf, placeMoves, siblingAfter, takesDrop } from "./tree-drop.ts";
 
 const FoldedClass = "ui-tree__row--folded";
-const BootHiddenSlot = "fold-hidden";
-const BootShownSlot = "fold-shown";
 const DraggingClass = "ui-tree__row--dragging";
 const LoadingClass = "ui-tree__loading";
 const LoadingRingClass = "ui-tree__loading-ring";
@@ -52,6 +52,8 @@ const TitleSelector = ".ui-text__title";
 const DropAttribute = TreeDropMarkAttribute;
 const DepthVariable = "--ui-tree-depth";
 const ExpandedSlot = "expanded";
+// The folders a tree's stored fold keeps that are not on the page, at most: past it, those folded or unfolded longest ago go first.
+const AbsentFoldKeys = 200;
 // A folder a drag hovers over for this long opens, so a node can be dropped deeper without letting go.
 const SpringOpenMilliseconds = 600;
 // Where a row's height splits for a drop: on a folder the outer quarters are the lines either side of it and the middle goes into it;
@@ -61,9 +63,27 @@ const FolderEdgeShare = 0.25;
 const KeyMoves: Readonly<Record<string, TreeKeyMove>> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "out", ArrowRight: "in" };
 // The keys besides Up, Down, Home and End the tree answers; any other passes without the rows being read.
 const ActionKeys = new Set([" ", "ArrowRight", "ArrowLeft", "Enter", "F2", "Delete"]);
+// Raised on a row once the command its unfold raised has settled, whatever came of it (`TreeUnfoldEvent`).
+const UnfoldSettledEventName = "ui-tree-unfold-settled";
 
-/** The viewer's fold by node key: true unfolded, false folded; a node not in it keeps its authored start. */
-type StoredFold = Record<string, boolean>;
+/**
+ * How the pipeline reads a node's `unfold`: once its command settles — answered, failed, refused, the connection dropped — the row
+ * hears it, and its next unfold may ask again (`TreeEngine`).
+ */
+export const TreeUnfoldEvent: { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } = {
+    name: "unfold",
+    registration: {
+        completed: context => {
+            context.domEvent.target?.dispatchEvent(new Event(UnfoldSettledEventName, { bubbles: true }));
+        }
+    }
+};
+
+/**
+ * The viewer's fold by node key: true unfolded, false folded; a node not in it keeps its authored start. In the order folded or unfolded
+ * last, stored as its pairs: a record would put keys that read as numbers first.
+ */
+type StoredFold = Map<string, boolean>;
 
 type Placement = {
     readonly row: HTMLElement;
@@ -104,8 +124,11 @@ export class TreeEngine {
     // The fold per tree, read from the store once: a tree with no name to store under still folds while the page lives.
     private readonly folds = new WeakMap<Element, StoredFold>();
 
-    // A node asked for its children once per unfold; folding it again lets the next unfold ask again.
+    // A node asked for its children once per unfold; folding it again once the ask settled lets the next unfold ask again.
     private readonly requested = new WeakSet<Element>();
+
+    // The asks whose command has not settled and whose children have not come: one asked again would bring them twice.
+    private readonly inFlight = new WeakSet<Element>();
 
     // The boot patches each tree last wrote, so a walk that changed no fold writes nothing to the browser's storage.
     private readonly writtenBoot = new WeakMap<Element, string>();
@@ -132,6 +155,8 @@ export class TreeEngine {
             // A filter that left the cursor's node out moves the cursor to the nearest node it shows.
             keepRowCursorShown(tree, this.rowsOf(tree));
         }, true);
+
+        this.root.addEventListener(UnfoldSettledEventName, domEvent => this.handleUnfoldSettled(domEvent), true);
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
@@ -211,7 +236,7 @@ export class TreeEngine {
             const authoredExpanded = hasChildren && node?.hasAttribute(TreeExpandedAttribute) === true;
             const authoredShown = parent === undefined ? true : parent.authoredShown && this.authoredExpandedOf(parent);
             // A folder with a match under it stands open while the filter lasts; the viewer's fold is neither read nor written for it.
-            const expanded = hasChildren && (kept !== null ? kept.has(key) : stored[key] ?? authoredExpanded);
+            const expanded = hasChildren && (kept !== null ? kept.has(key) : stored.get(key) ?? authoredExpanded);
             const filtered = kept !== null && !kept.has(key);
 
             row.style.setProperty(DepthVariable, String(depth));
@@ -230,17 +255,22 @@ export class TreeEngine {
                 row.removeAttribute("aria-expanded");
 
             // The children arrived, or the node stopped claiming any: either way the wait is over.
-            if (children.has(key) || !declared)
+            if (children.has(key) || !declared) {
                 row.removeAttribute(TreeLoadingAttribute);
+                this.inFlight.delete(row);
+            }
 
             // Unfolded, claiming children, holding none: the controller is asked, once per unfold.
             if (expanded && shown && declared && !children.has(key) && !this.requested.has(row)) {
                 this.requested.add(row);
+                this.inFlight.add(row);
                 row.setAttribute(TreeLoadingAttribute, "");
                 row.dispatchEvent(new Event("unfold", { bubbles: true }));
             }
 
-            if (!expanded)
+            // Only a settled ask is let go of on a fold; one that settled with no children keeps its faded chevron all the same, the
+            // developer's signal, and the next unfold asks again.
+            if (!expanded && !this.inFlight.has(row))
                 this.requested.delete(row);
 
             this.placeLoadingRow(row, depth + 1, row.hasAttribute(TreeLoadingAttribute), shown && expanded && !filtered);
@@ -256,33 +286,38 @@ export class TreeEngine {
         return nodeOf(placement.row)?.hasAttribute(TreeExpandedAttribute) === true;
     }
 
-    /** Writes the boot patches that paint the viewer's fold before the runtime walks: the rows it disagrees with the authored one on. */
+    /**
+     * Writes the fold the next page paints before the runtime walks (`tree-boot-fold.ts`): the folders the viewer holds open or folded
+     * where that differs from the authored fold, and those not on the page, as the viewer left them.
+     */
     private writeBootFold(tree: HTMLElement, stored: StoredFold, placed: Map<string, Placement>): void {
-        if (Object.keys(stored).length === 0)
+        if (stored.size === 0)
             return;
 
-        const hidden: string[] = [];
-        const shown: string[] = [];
+        const open: string[] = [];
+        const closed: string[] = [];
 
-        for (const [key, placement] of placed) {
-            if (placement.shown === placement.authoredShown)
-                continue;
+        for (const [key, expanded] of stored) {
+            const placement = placed.get(key);
 
-            (placement.shown ? shown : hidden).push(`.${TreeRowClass}[${ComponentKeyAttribute}="${cssAttributeValue(key)}"]`);
+            if (placement === undefined || this.authoredExpandedOf(placement) !== expanded)
+                (expanded ? open : closed).push(key);
         }
 
-        const written = `${hidden.join(",")}|${shown.join(",")}`;
+        const written = JSON.stringify([open, closed]);
+        const previous = this.writtenBoot.get(tree);
 
-        if (this.writtenBoot.get(tree) === written)
+        if (previous === written)
             return;
 
         this.writtenBoot.set(tree, written);
-        this.store.writeBoot(tree, BootHiddenSlot, hidden.length === 0 ? null : this.bootPatch(hidden, "hidden"));
-        this.store.writeBoot(tree, BootShownSlot, shown.length === 0 ? null : this.bootPatch(shown, "shown"));
-    }
+        this.store.writeBoot(tree, TreeFoldSlot, open.length + closed.length === 0 ? null : { fold: { version: TreeFoldVersion, open, closed } });
 
-    private bootPatch(selectors: readonly string[], value: string): ClientBootPatch {
-        return { selector: selectors.join(","), attributes: { [TreeBootAttribute]: value } };
+        // The selectors per row of the shape before, once a page: the boot script no longer reads them.
+        if (previous === undefined) {
+            for (const slot of LegacyTreeFoldSlots)
+                this.store.writeBoot(tree, slot, null);
+        }
     }
 
     /** The rules on this tree, or null when none is in force — the common case, which costs one lookup. */
@@ -410,6 +445,12 @@ export class TreeEngine {
 
         if (existing === null)
             row.after(placeholder);
+    }
+
+    /** An unfold whose command settled, whatever came of it: folding the node lets the next unfold ask again. */
+    private handleUnfoldSettled(domEvent: Event): void {
+        if (domEvent.target instanceof Element)
+            this.inFlight.delete(domEvent.target);
     }
 
     /** The chevron folds; so does the whole row of an unselectable node, whose click chooses nothing. Choosing is the selection engine's. */
@@ -822,12 +863,16 @@ export class TreeEngine {
             return;
 
         const stored = this.foldOf(tree);
+        const rows = this.rowsOf(tree);
 
-        stored[key] = expanded;
+        // Taken out first, so it stands last: the latest a bound on the fold would let go of.
+        stored.delete(key);
+        stored.set(key, expanded);
+        pruneFold(stored, rows);
 
-        const folded = expanded ? this.rowsOf(tree).filter(candidate => candidate.classList.contains(FoldedClass)) : [];
+        const folded = expanded ? rows.filter(candidate => candidate.classList.contains(FoldedClass)) : [];
 
-        this.store.writeJson(tree, ExpandedSlot, stored);
+        this.store.writeJson(tree, ExpandedSlot, [...stored]);
         this.layout(tree);
         revealRows(folded.filter(candidate => !candidate.classList.contains(FoldedClass)));
     }
@@ -836,7 +881,7 @@ export class TreeEngine {
         let fold = this.folds.get(tree);
 
         if (fold === undefined) {
-            fold = this.store.readJson<StoredFold>(tree, ExpandedSlot) ?? {};
+            fold = readStoredFold(this.store.readJson<unknown>(tree, ExpandedSlot));
             this.folds.set(tree, fold);
         }
 
@@ -911,6 +956,47 @@ export class TreeEngine {
     }
 }
 
+/**
+ * Lets go of the folders folded or unfolded longest ago once more than `AbsentFoldKeys` of those kept are not on the page; one on the
+ * page is always kept. A folder not on the page may stand under one not loaded yet, or be gone for good, and the page cannot tell
+ * which: a count bounds what the boot script reads before the first paint without guessing.
+ */
+function pruneFold(stored: StoredFold, rows: readonly HTMLElement[]): void {
+    if (stored.size <= AbsentFoldKeys)
+        return;
+
+    const onPage = new Set(rows.map(rowKey));
+    let absent = 0;
+
+    for (const key of stored.keys()) {
+        if (!onPage.has(key))
+            absent++;
+    }
+
+    for (const key of [...stored.keys()]) {
+        if (absent <= AbsentFoldKeys)
+            return;
+
+        if (!onPage.has(key)) {
+            stored.delete(key);
+            absent--;
+        }
+    }
+}
+
+/** The stored fold: its pairs in the order kept, or a record of the shape before, read in the order it gives. */
+function readStoredFold(value: unknown): StoredFold {
+    const entries: unknown[] = Array.isArray(value) ? value : value !== null && typeof value === "object" ? Object.entries(value) : [];
+    const fold: StoredFold = new Map();
+
+    for (const entry of entries) {
+        if (Array.isArray(entry) && typeof entry[0] === "string" && typeof entry[1] === "boolean")
+            fold.set(entry[0], entry[1]);
+    }
+
+    return fold;
+}
+
 /** Fades in the rows an unfold brought back, to each row's own opacity, as a menu section's content does. */
 function revealRows(rows: readonly HTMLElement[]): void {
     if (rows.length === 0 || prefersReducedMotion())
@@ -950,6 +1036,8 @@ function createLoadingRow(): HTMLElement {
     const ring = document.createElement("span");
 
     placeholder.className = LoadingClass;
+    // No node: a collection index past it (an insert, a move) must not count it.
+    placeholder.setAttribute(NonItemAttribute, "");
     placeholder.setAttribute("aria-hidden", "true");
     ring.className = LoadingRingClass;
     placeholder.append(ring, clientStrings.text("ui.tree.loading"));

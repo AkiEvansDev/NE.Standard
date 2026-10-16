@@ -20,9 +20,7 @@ internal sealed class AdminView : DemoScreenView, IUIViewDefinition
             UIText.Note(string.Empty).BindDescription(nameof(AdminController.KeyLine)),
             UILayout.Row(8,
                 UIButtons.Primary("Rotate the key", DemoIcons.Outline(DemoIcons.Refresh))
-                    .OnClick(nameof(AdminController.RotateKeyAsync))
-                    .InteractBeforeClick(IVisualComponent.LoadingProperty, true)
-                    .InteractAfterClick(IVisualComponent.LoadingProperty, false),
+                    .OnClickShowingLoading(nameof(AdminController.RotateKeyAsync)),
                 UIButtons.Danger("Purge the audit trail").OnClick(nameof(AdminController.PurgeAudit)),
                 UIButtons.Ghost("Back to the account").OnClick(nameof(AdminController.BackToAccount))
             )

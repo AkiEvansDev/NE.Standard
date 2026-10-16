@@ -207,7 +207,7 @@
     // With no picture the row reads its placeholder, which the renderer put on the text as an attribute.
     .ui-image-input--inline:not(@{ui-image-shown}) > .ui-image-input__surface > .ui-image-input__text:empty::before {
         content: attr(data-ui-image-placeholder);
-        color: var(--ui-text-muted);
+        color: var(--ui-text-placeholder);
     }
 
     .ui-image-input--inline .ui-image-input__edit {
@@ -320,12 +320,12 @@
     // An inline row takes a field's size as a field's row does (ui-input.less), its thumbnail and mark stepping with it.
     .ui-image-input--inline.ui-input--small > .ui-image-input__surface {
         min-height: @ui-control-height-sm;
-        gap: 0.375rem;
+        gap: @ui-field-padding-sm;
     }
 
         // Not under Underline, whose text starts at the rule's start at every size, as its neighbours' does.
         .ui-image-input--inline.ui-input--small:not(.ui-input--underline) > .ui-image-input__surface {
-            padding-left: 0.375rem;
+            padding-left: @ui-field-padding-sm;
         }
 
         .ui-image-input--inline.ui-input--small .ui-image-input__picture {

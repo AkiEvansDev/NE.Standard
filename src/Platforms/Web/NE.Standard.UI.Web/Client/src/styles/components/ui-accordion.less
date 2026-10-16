@@ -22,23 +22,24 @@
 }
 
 // One block, not a stack of cards: sections share the edge between them, only the outermost corners are rounded. Whole shorthands,
-// each through the chain, so a section's authored BorderThickness or BorderRadius still wins.
-.ui-accordion > .ui-expander {
+// each through the chain, so a section's authored BorderThickness or BorderRadius still wins. A quiet section is a line with no edge
+// of its own (ui-expander.less), and stays one.
+.ui-accordion > .ui-expander:not(.ui-expander--quiet) {
     .ui-responsive-property(border-radius, --ui-border-radius, 0);
 }
 
-.ui-accordion > .ui-expander + .ui-expander {
+.ui-accordion > .ui-expander + .ui-expander:not(.ui-expander--quiet) {
     .ui-responsive-property(border-width, --ui-border-thickness, ~"0 var(--ui-border-width, 1px) var(--ui-border-width, 1px)");
 }
 
-.ui-accordion > .ui-expander:first-child {
+.ui-accordion > .ui-expander:not(.ui-expander--quiet):first-child {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-card) var(--ui-radius-card) 0 0");
 }
 
-.ui-accordion > .ui-expander:last-child {
+.ui-accordion > .ui-expander:not(.ui-expander--quiet):last-child {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"0 0 var(--ui-radius-card) var(--ui-radius-card)");
 }
 
-.ui-accordion > .ui-expander:only-child {
+.ui-accordion > .ui-expander:not(.ui-expander--quiet):only-child {
     .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
 }

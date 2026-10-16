@@ -1,9 +1,10 @@
-import { MetadataIndex, WebRenderItemsTemplateMetadata } from "../metadata/metadata-index";
-import { markRowIdle } from "../updates/row-idle";
-import { ItemStackEntry } from "./binding-template-evaluator";
-import { renderCompositeItem } from "./items-composite-renderer";
-import { ItemsTemplateRegistry } from "./items-template-registry";
-import { ItemsTemplateRenderer } from "./items-template-renderer";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import type { MetadataIndex, WebRenderItemsTemplateMetadata } from "../metadata/metadata-index.ts";
+import { markRowIdle } from "../updates/row-idle.ts";
+import type { ItemStackEntry } from "./binding-template-evaluator.ts";
+import { renderCompositeItem } from "./items-composite-renderer.ts";
+import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
+import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
 
 export type ItemRowRenderers = {
     readonly metadata: MetadataIndex;

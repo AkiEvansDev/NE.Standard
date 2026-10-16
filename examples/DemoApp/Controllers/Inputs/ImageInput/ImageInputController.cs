@@ -54,7 +54,7 @@ internal sealed partial class ImagePictureGroupContext : DemoGroupContext
     public partial UIImageFit? Fit { get; set; }
 
     [RecursiveMember]
-    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
+    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Tonal;
 
     public ImagePictureGroupContext()
     {

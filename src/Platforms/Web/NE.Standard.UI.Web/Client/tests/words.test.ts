@@ -10,11 +10,12 @@ import test from "node:test";
 import { formatWords, isAuthorText, isPhrase, resolveText, translateKey } from "../src/runtime/words.ts";
 import type { WordLookup } from "../src/runtime/words.ts";
 
-type FormatCase = { readonly name: string; readonly template: string; readonly args: Record<string, unknown>; readonly expected: string };
+type FormatCase = { readonly name: string; readonly template: string; readonly markup?: boolean; readonly args: Record<string, unknown>; readonly expected: string };
 type ResolveCase = {
     readonly language: string;
     readonly key: string;
     readonly prefixes?: readonly string[];
+    readonly markup?: boolean;
     readonly args: Record<string, unknown>;
     readonly expected: string;
 };
@@ -41,17 +42,18 @@ assert.ok(corpus.resolve.cases.length > 0, "The words-format corpus has no resol
 for (const testCase of corpus.cases) {
     test(`format: ${testCase.name}`, () => {
         const words = table("en", corpus.words);
+        const markup = testCase.markup === true;
 
-        assert.equal(formatWords(testCase.template, testCase.args, nested => isAuthorText(nested) ? resolveText(nested, true, words) as string : translateKey(words, nested.key, nested.args)), testCase.expected);
+        assert.equal(formatWords(testCase.template, testCase.args, nested => isAuthorText(nested) ? resolveText(nested, true, words) as string : translateKey(words, nested.key, nested.args, markup), undefined, markup), testCase.expected);
     });
 }
 
 for (const testCase of corpus.resolve.cases) {
-    test(`resolve: ${testCase.language} ${testCase.key} ${JSON.stringify(testCase.args)}`, () => {
+    test(`resolve: ${testCase.language} ${testCase.key}${testCase.markup === true ? " as markup" : ""} ${JSON.stringify(testCase.args)}`, () => {
         // The page's table for a language is the default language's words overlaid by its own, as the server lists it.
         const merged = { ...corpus.resolve.tables[corpus.resolve.defaultLanguage], ...corpus.resolve.tables[testCase.language] };
 
-        assert.equal(translateKey(table(testCase.language, merged, testCase.prefixes), testCase.key, testCase.args), testCase.expected);
+        assert.equal(translateKey(table(testCase.language, merged, testCase.prefixes), testCase.key, testCase.args, testCase.markup === true), testCase.expected);
     });
 }
 

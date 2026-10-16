@@ -49,7 +49,7 @@ function header(key: string, title: string, left: number, width: number): FakeEl
 
     words.textContent = title;
 
-    const element = FakeElement.of("ui-tab-header", { "data-ui-tab-key": key }, "button").append(FakeElement.of("ui-button__content ui-text").append(words));
+    const element = FakeElement.of("ui-tab-caption", { "data-ui-tab-key": key }, "button").append(FakeElement.of("ui-button__content ui-text").append(words));
 
     element.rect = { left, top: 0, width, height: 28 };
 
@@ -97,7 +97,7 @@ test("under reduced motion the line moves at once", () => {
     reducedMotion = true;
     headers[2].dispatchEvent(new FakeEvent("click"));
 
-    assert.equal(headers[2].classes.has("ui-tab-header--selected"), true);
+    assert.equal(headers[2].classes.has("ui-tab-caption--selected"), true);
     assert.equal(real<HTMLElement>(pages[2]).hidden, false);
     assert.equal(slides.length, 0);
 });
@@ -106,7 +106,7 @@ test("the reserve is the title's words set bold and unseen beneath it, taking no
     const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
     const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
-    for (const selector of [".ui-tab-header .ui-text__title[data-ui-caption-text]::after {", ".ui-tab-item__label .ui-text__title[data-ui-caption-text]::after {"]) {
+    for (const selector of [".ui-tab-caption .ui-text__title[data-ui-caption-text]::after {", ".ui-tab-item__label .ui-text__title[data-ui-caption-text]::after {"]) {
         const at = css.indexOf(selector);
 
         assert.ok(at >= 0, `no reserve for ${selector}`);
@@ -119,7 +119,7 @@ test("the reserve is the title's words set bold and unseen beneath it, taking no
         assert.match(body, /font-weight: var\(--ui-selected-font-weight, 600\);/);
     }
 
-    const mark = css.slice(css.indexOf(".ui-tab-header::after {"), css.indexOf("}", css.indexOf(".ui-tab-header::after {")));
+    const mark = css.slice(css.indexOf(".ui-tab-caption::after {"), css.indexOf("}", css.indexOf(".ui-tab-caption::after {")));
 
     assert.match(mark, /transform-origin: left;/);
 });

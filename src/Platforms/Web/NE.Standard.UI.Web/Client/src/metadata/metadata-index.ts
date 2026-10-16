@@ -345,6 +345,8 @@ export type ServerCollectionChangeUIUpdate = {
     readonly component: UIComponentAddress;
     readonly items?: readonly ServerCollectionItemChange[];
     readonly moves?: readonly ServerCollectionMoveChange[];
+    /** A remove that is a window's trim: the rows leave the page, not the source. */
+    readonly trimmed?: boolean;
 };
 
 type ServerFullResyncUIUpdate = {

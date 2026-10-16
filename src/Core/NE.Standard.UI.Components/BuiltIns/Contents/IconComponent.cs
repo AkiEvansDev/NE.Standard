@@ -35,8 +35,8 @@ public abstract partial class IconComponent<T> : VisualComponentBase<T>, IToolti
     public UIIconSize? Size { get; set; }
 
     /// <summary>
-    /// Gets or sets the shape an icon that is a picture is drawn in — <see cref="UIIconShape.Circle"/> for a person's avatar; a
-    /// glyph keeps its own.
+    /// Gets or sets the shape an icon is drawn in — <see cref="UIIconShape.Circle"/> cuts a picture round, for a person's avatar, and
+    /// stands a glyph on a faint disc of its colour twice its size, for a status's mark.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIIconShape? Shape { get; set; }

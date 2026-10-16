@@ -101,7 +101,7 @@ export class MenuGroupEngine {
         for (const group of this.root.querySelectorAll<HTMLElement>(`[${GroupAttribute}]`))
             describeGroup(group);
 
-        observeComponents(this.root, `[${GroupAttribute}]`, { childList: true, attributeFilter: [OpenAttribute] }, groups => {
+        observeComponents(this.root, `[${GroupAttribute}]`, { childList: true, addedOnly: true, attributeFilter: [OpenAttribute] }, groups => {
             for (const group of groups)
                 describeGroup(group);
         });

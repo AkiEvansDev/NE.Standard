@@ -93,10 +93,10 @@ test("a blurred button group that scrolls keeps its layer over what is in view: 
     assert.equal(rules.some(rule => rule.selector.startsWith(".ui-button-group[data-ui-surface-image]") && rule.selector.endsWith("::after")), false);
 });
 
-test("less motion spares only the strip's fade: no scroller keeps its room by a timeline, and a popup's is one value end to end", () => {
+test("less motion spares only the strip's fade and a table's edge shades: no scroller keeps its room by a timeline, and a popup's is one value end to end", () => {
     const exempt = rules.filter(rule => rule.body.includes("animation-duration: auto !important;")).map(rule => rule.selector);
 
-    assert.deepEqual(exempt, [".ui-button-group"]);
+    assert.deepEqual(exempt, [".ui-button-group,\n  .ui-table > .ui-table__scroll::before,\n  .ui-table > .ui-table__scroll::after"]);
 
     const room = /@keyframes ui-scroll-room-overflowing\s*\{([^}]*)\}/.exec(css);
 
@@ -116,6 +116,8 @@ test("a container's free air after it (ScrollbarAir) is lent, up to the room, to
     assert.match(scroller.body, /--ui-scroll-room-y: calc\(var\(--ui-scrollbar-room\) - var\(--ui-scroll-hung\)\);/);
     assert.match(scroller.body, /margin-inline-end: calc\(-1 \* var\(--ui-scroll-hung\)\);/);
     assert.match(scroller.body, /border-inline-end: var\(--ui-scroll-hung\) solid transparent;/);
+    // A scroll container, a placed child capped at its cell, widens its fill and its cap by what it hangs.
+    assert.match(scroller.body, /--ui-fill-width: calc\(100% - var\(--ui-fill-margin-x\) \+ var\(--ui-scroll-hung\)\);/);
     assert.ok(!scroller.selector.includes("ui-text-area"), "a text area's field keeps its room inside its frame");
 
     // A padded, framed or filled box between stops it: only plain grids and stacks lead down to the scroller.

@@ -10,8 +10,9 @@ import type { ItemAnchorName, WebUIItemWindowRequest } from "../metadata/metadat
 import { isEndAnchored } from "../interactions/scroll-anchor-engine.ts";
 import { keepHeldRow } from "./item-reveal.ts";
 import { logWarn } from "../runtime/logger.ts";
-import { BottomSpacer, PendingSpacer, TopSpacer, ensureSpacer } from "./items-spacers.ts";
-import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo } from "./items-viewport.ts";
+import { BottomSpacer, PendingSpacer, TopSpacer, addMeasured, ensureSpacer } from "./items-spacers.ts";
+import type { RunningMean } from "./items-spacers.ts";
+import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo, viewportOf } from "./items-viewport.ts";
 import { stampRowIndices } from "./table-row-indices.ts";
 
 const DefaultWindowSize = 50;
@@ -42,9 +43,19 @@ export type ItemsWindowEngineOptions = {
 
 type WindowState = {
     pending: boolean;
+    // A read of the rows before the window in flight, till the layout after it: the row it pushes down is kept even at the source's top.
+    readingBefore: boolean;
     // A scroll that arrived while a read was in flight; dropping it lets a fast drag outrun the window.
     restless: boolean;
+    // The mean of every row measured so far, each counted once (`shares` holds what each row last added): one measured again from
+    // the window alone moves at every read, and every unread row a spacer stands for with it. Measured at `measuredWidth`: rows
+    // rewrap at another, and the sizes are learnt again.
     itemSize: number;
+    shares: WeakMap<Element, number>;
+    sizes: RunningMean;
+    measuredWidth: number;
+    // The first row the reader sees, taken right before whatever moves rows (a change set, a layout): what the layout keeps in place.
+    shown: ShownRow | null;
     // Per host, not per engine: one timer for the page drops a scroll in a second list while the first is pending.
     scheduled: number;
     // The skeleton's row and tile, as last measured: 0 and null until a row was.
@@ -66,6 +77,8 @@ export class ItemsWindowEngine {
     private started = false;
     // Hosts whose next start snaps to the server's window as a first one does: their rows are another runtime's now.
     private readonly forgotten = new WeakSet<Element>();
+    // The hosts laid out, so every change set takes their shown rows without reading the page; one off the page is let go.
+    private readonly held = new Set<Element>();
 
     public constructor(options: ItemsWindowEngineOptions) {
         this.options = options;
@@ -83,6 +96,7 @@ export class ItemsWindowEngine {
         for (const host of this.hosts()) {
             const fresh = this.forgotten.delete(host) || firstStart;
 
+            this.noteShownRow(host);
             this.layout(host);
 
             if (countItems(host) === 0) {
@@ -119,30 +133,41 @@ export class ItemsWindowEngine {
                 window.clearTimeout(state.scheduled);
 
             this.states.delete(host);
+            this.held.delete(host);
             this.forgotten.add(host);
         }
     }
 
     /** Puts the viewport where the realized window is, since a window read on the server can start anywhere. */
     private revealWindow(host: Element): void {
+        const top = this.windowTop(host);
+
+        if (top === null)
+            return;
+
+        scrollHostTo(host, top);
+        // The engine's own scroll raises no scroll event in a background tab, so the row it brought into view is taken here.
+        this.noteShownRow(host);
+    }
+
+    /** Where the viewport's top goes to show the realized window; null where it shows it already. */
+    private windowTop(host: Element): number | null {
         // A page stands on its own, with no spacer for the rows before it: it shows from its first row, wherever it starts.
         if (host.hasAttribute(WindowPagedAttribute))
-            return;
+            return null;
 
         const offset = readWindowNumber(host, WindowOffsetAttribute);
 
         // An end-anchored feed opened on an older window puts that window's last row at the bottom edge, as the newest one would be.
-        if (offset !== null && isEndAnchored(host) && readWindowFlag(host, WindowMoreAfterAttribute)) {
-            scrollHostTo(host, Math.max(0, this.windowBottom(host, offset) - readHostScroll(host).height));
-            return;
-        }
+        if (offset !== null && isEndAnchored(host) && readWindowFlag(host, WindowMoreAfterAttribute))
+            return Math.max(0, this.windowBottom(host, offset) - readHostScroll(host).height);
 
         // Already in view at the source's start; scrolling to its first row would hide what stands above it (a wide table's header).
         if (offset === null || offset === 0)
-            return;
+            return null;
 
         // At the end of the source there is nothing below to scroll into, so the last row goes to the bottom edge.
-        scrollHostTo(host, readWindowFlag(host, WindowMoreAfterAttribute) ? offset * this.getState(host).itemSize : host.scrollHeight);
+        return readWindowFlag(host, WindowMoreAfterAttribute) ? offset * this.getState(host).itemSize : host.scrollHeight;
     }
 
     /** Where the window's last row ends, in the host's coordinates: the spacer standing for the rows before it, then the rows. */
@@ -152,6 +177,24 @@ export class ItemsWindowEngine {
         const measured = items.length === 0 ? 0 : itemBox(items[items.length - 1]).bottom - itemBox(items[0]).top;
 
         return offset * itemSize + (measured > 0 ? measured : items.length * itemSize);
+    }
+
+    /** Takes the first row the reader sees, which the next layout keeps where it stands. */
+    private noteShownRow(host: Element): void {
+        this.getState(host).shown = shownRow(host, itemElements(host));
+    }
+
+    /**
+     * Takes the row each host shows, right before a change set: the layout after it keeps the row against what the set moved, and not
+     * against a shift since the last look that no scroll event has told of yet (a picture above loaded, and a scroll anchor followed it).
+     */
+    public noteShownRows(): void {
+        for (const host of this.held) {
+            if (!host.isConnected)
+                this.held.delete(host);
+            else if (!host.hasAttribute(WindowPagedAttribute))
+                this.noteShownRow(host);
+        }
     }
 
     /**
@@ -194,10 +237,23 @@ export class ItemsWindowEngine {
         this.revealWindow(host);
     }
 
+    /**
+     * A window the server sent whole without this engine asking — read again from its start, a rule having changed: its rows are
+     * another query's, and the sizes measured are learnt anew, as at the engine's own Start read. A read the engine asked for keeps them.
+     */
+    public refilled(host: Element): void {
+        const state = this.states.get(host);
+
+        if (state !== undefined && !state.pending)
+            forgetSizes(state);
+    }
+
     /** Decides again for every host, after something other than the viewer moved a viewport with no scroll event to hear. */
     public reconsider(): void {
-        for (const host of this.hosts())
+        for (const host of this.hosts()) {
+            this.noteShownRow(host);
             this.considerRequest(host);
+        }
     }
 
     /** Reads the window that starts at `offset` into the host, replacing the one it holds: what a pager asks for. */
@@ -327,6 +383,12 @@ export class ItemsWindowEngine {
         const state = this.getState(host);
 
         state.pending = true;
+        state.readingBefore = anchor === "Before";
+
+        // Read from the start, the window holds other rows than the ones measured (a host emptied, rules changed).
+        if (anchor === "Start")
+            forgetSizes(state);
+
         // Which edge the rows come in at, where an indicator stands; busy, as a loading component says it is. On the component's root
         // too, which draws the indicator: the stylesheet reads no child's mark.
         const owner = host.closest(ComponentSelector);
@@ -342,10 +404,8 @@ export class ItemsWindowEngine {
         }
 
         // A host with no offset reads by its edges alone: after a read that brought rows it decides again, since a reader still at the
-        // edge, with a wheel that raises no scroll there, would otherwise ask for nothing more. Rows read in above keep the first one
-        // where the reader saw it: the host takes no anchoring of the browser's (`overflow-anchor: none`, its engines size its spacers).
+        // edge, with a wheel that raises no scroll there, would otherwise ask for nothing more.
         const cursor = readWindowNumber(host, WindowOffsetAttribute) === null;
-        const kept = cursor && anchor === "Before" ? keptPlace(host) : null;
 
         try {
             await this.options.requestWindow({
@@ -367,10 +427,10 @@ export class ItemsWindowEngine {
             owner?.removeAttribute(WindowPendingAttribute);
             host.removeAttribute("aria-busy");
             ensureSpacer(host, PendingSpacer, 0);
+            // The rows read came in a change set, whose own layout kept the row: this one keeps it against its own moves alone.
+            this.noteShownRow(host);
             this.layout(host);
-
-            if (kept !== null)
-                keepPlace(host, kept);
+            state.readingBefore = false;
 
             // The viewer kept scrolling during the read, so decide again from where they are now.
             if (state.restless || (cursor && edgeMoved(host, anchor, key))) {
@@ -399,17 +459,22 @@ export class ItemsWindowEngine {
             return;
         }
 
-        // The window's whole span over its items, so gaps are in the average; a zero reading from an unlaid-out host is ignored.
+        // A zero reading from an unlaid-out host is ignored.
         if (items.length > 0) {
             const measured = itemBox(items[items.length - 1]).bottom - itemBox(items[0]).top;
 
             if (measured > 0) {
-                // Counted by rows: a wrapping host's row height averaged over every tile would read each item as a fraction of its
-                // size. Rounded up: a wrapping window's last row is usually a partial one, and it is still a whole row tall.
+                // Rounded up: a wrapping window's last row is usually a partial one, and it is still a whole row tall.
                 const across = perRow(items);
                 const rows = Math.ceil(items.length / across);
 
-                state.itemSize = Math.max(1, Math.round(measured / (rows * across)));
+                // Every row measured at another width wrapped otherwise, the ones no longer drawn too.
+                if (host.clientWidth !== state.measuredWidth) {
+                    forgetSizes(state);
+                    state.measuredWidth = host.clientWidth;
+                }
+
+                measureShares(state, items, across);
 
                 // A skeleton row's step is from one row's top to the next, the gap between them in it.
                 const step = rows > 1 ? (itemBox(items[items.length - 1]).top - itemBox(items[0]).top) / (rows - 1) : measured;
@@ -425,6 +490,10 @@ export class ItemsWindowEngine {
         ensureSpacer(host, TopSpacer, before);
         ensureSpacer(host, BottomSpacer, after);
         writeSkeletonSizes(host, state);
+
+        // At the source's top a row put in above is the newest, and stays in view as it lands; one a read upwards brought is not.
+        if (state.readingBefore || !atSourceTop(host))
+            keepShownRow(host, items, state.shown);
 
         // The spacers stand for rows at an estimated height, so a row a jump brought into view is put back where it was shown.
         keepHeldRow(host);
@@ -447,8 +516,21 @@ export class ItemsWindowEngine {
         let state = this.states.get(host);
 
         if (state === undefined) {
-            state = { pending: false, restless: false, itemSize: DefaultItemSize, scheduled: 0, skeletonRow: 0, skeletonTile: null };
+            state = {
+                pending: false,
+                readingBefore: false,
+                restless: false,
+                itemSize: DefaultItemSize,
+                shares: new WeakMap(),
+                sizes: { sum: 0, count: 0 },
+                measuredWidth: 0,
+                shown: null,
+                scheduled: 0,
+                skeletonRow: 0,
+                skeletonTile: null
+            };
             this.states.set(host, state);
+            this.held.add(host);
         }
 
         return state;
@@ -464,6 +546,35 @@ function perRow(items: Element[]): number {
         across++;
 
     return across;
+}
+
+/**
+ * Adds each row's share of the host's height to the mean: the step from its line's top to the next line's, the gap and any header
+ * between them in it, over the tiles a line holds, since a wrapping host's line stands for that many items. The last line has no line
+ * to step to until one is read in below it, unless it is the window's only one.
+ */
+function measureShares(state: WindowState, items: readonly Element[], across: number): void {
+    for (let i = 0; i < items.length; i++) {
+        const below = items[i + across];
+        const step = below !== undefined ? itemBox(below).top - itemBox(items[i]).top : items.length <= across ? itemBox(items[i]).height : 0;
+
+        if (step <= 0)
+            continue;
+
+        const share = step / across;
+
+        addMeasured(state.sizes, state.shares.get(items[i]) ?? null, share);
+        state.shares.set(items[i], share);
+    }
+
+    if (state.sizes.count > 0)
+        state.itemSize = Math.max(1, state.sizes.sum / state.sizes.count);
+}
+
+/** Lets go of every size measured: the next layout learns them again from the rows it holds, the estimate standing till then. */
+function forgetSizes(state: WindowState): void {
+    state.shares = new WeakMap();
+    state.sizes = { sum: 0, count: 0 };
 }
 
 /** Whether the stylesheet draws this host's unfetched rows as a skeleton — an items view's, by default. */
@@ -509,31 +620,78 @@ function edgeMoved(host: Element, anchor: ItemAnchorName, key: string | null): b
     return edge !== undefined && keyOf(edge) !== key;
 }
 
-/** The first row, and where it stands in what the host holds: its place on the screen with the host's scroll taken back off. */
-type KeptPlace = { readonly row: Element; readonly at: number };
+/**
+ * A row by its key, which a row redrawn in its place keeps, and where it stands in what the host holds: its place in the viewport with
+ * the host's scroll taken back off, which the reader's scroll leaves as it is.
+ */
+type ShownRow = { readonly key: string; readonly at: number };
 
-function keptPlace(host: Element): KeptPlace | null {
-    const row = itemElements(host)[0];
+/** Whether the reader stands at the very top of the source: scrolled to the host's top, with no rows before the window to read. */
+function atSourceTop(host: Element): boolean {
+    const offset = readWindowNumber(host, WindowOffsetAttribute);
 
-    return row === undefined ? null : { row, at: placeInHost(host, row) };
-}
-
-function placeInHost(host: Element, row: Element): number {
-    return itemBox(row).top + readHostScroll(host).top;
+    return readHostScroll(host).top <= 0 && (offset === null ? !readWindowFlag(host, WindowMoreBeforeAttribute) : offset === 0);
 }
 
 /**
- * Scrolls by as far as the rows read in moved the kept row within the host, so it stands where it stood. Not by how far it moved on
- * the screen: a reader who scrolled while the rows were read moved it too, and would be put back where the read began.
+ * Scrolls by as far as a layout moved the row the reader saw within the host, so it stands where it stood: the spacers stand for rows
+ * at an estimated height, and the host takes no anchoring of the browser's (`overflow-anchor: none`, its engines size its spacers), so
+ * a mean that moved, or rows read in or trimmed off above, would carry it away. Not by how far it moved on the screen: a reader who
+ * scrolled since it was taken moved it too, and would be put back where they were.
  */
-function keepPlace(host: Element, kept: KeptPlace): void {
-    if (!kept.row.isConnected)
+function keepShownRow(host: Element, items: readonly Element[], shown: ShownRow | null): void {
+    const row = shown === null ? undefined : items.find(item => keyOf(item) === shown.key);
+
+    if (shown === null || row === undefined)
         return;
 
-    const moved = placeInHost(host, kept.row) - kept.at;
+    const box = itemBox(row);
 
-    if (moved !== 0)
-        scrollHostTo(host, readHostScroll(host).top + moved);
+    // Not laid out, it stands nowhere.
+    if (box.height <= 0)
+        return;
+
+    const scrollTop = readHostScroll(host).top;
+    const moved = box.top - viewportEdge(host) + scrollTop - shown.at;
+
+    // Under half a pixel is a sub-pixel height read again, not a move.
+    if (Math.abs(moved) >= 0.5)
+        scrollHostTo(host, scrollTop + moved);
+}
+
+/** The first row the viewport shows, searched by halves since the rows stand in order down the host; null while it shows none. */
+function shownRow(host: Element, items: readonly Element[]): ShownRow | null {
+    const edge = viewportEdge(host);
+    let low = 0;
+    let high = items.length;
+
+    while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+
+        if (itemBox(items[middle]).bottom > edge)
+            high = middle;
+        else
+            low = middle + 1;
+    }
+
+    const row = items.at(low);
+    const key = row === undefined ? null : keyOf(row);
+
+    if (row === undefined || key === null)
+        return null;
+
+    const box = itemBox(row);
+    const scroll = readHostScroll(host);
+
+    // Not laid out, or below the viewport: nothing the reader sees.
+    return box.height <= 0 || box.top >= edge + scroll.height ? null : { key, at: box.top - edge + scroll.top };
+}
+
+/** The viewport's top edge on the screen, inside its border: where a row at the host's scroll stands. */
+function viewportEdge(host: Element): number {
+    const viewport = viewportOf(host);
+
+    return viewport.getBoundingClientRect().top + viewport.clientTop;
 }
 
 function itemElements(host: Element): Element[] {

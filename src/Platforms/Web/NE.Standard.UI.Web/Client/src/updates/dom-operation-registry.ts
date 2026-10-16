@@ -1,5 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import type { ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
+import { PlainTextAttribute } from "../addressing/dom-attributes.ts";
 import { isNullishValue, toDomString } from "../extensions/value-readers.ts";
 import { getDomOperationKind, getValueCondition } from "../metadata/metadata-index.ts";
 import type { WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index.ts";
@@ -75,16 +76,15 @@ export class DomOperationRegistry {
     private registerDefaults(): void {
         // Every write is guarded by what the element holds, since an attach replays the whole change set; a text or an attribute a
         // property writes is the property's from then on, so a word the chrome marked there is forgotten.
-        this.register("Text", context => {
-            const text = toDomString(context.convertedValue);
+        this.register("Text", context => writeText(context));
 
-            if (context.target.textContent !== text)
-                context.target.textContent = text;
-
-            forgetWords(context.target, null);
-        });
-
+        // An element the render marked as written takes its words as text: the operation is one per type, the mark is the instance's.
         this.register("Markup", context => {
+            if (context.target.hasAttribute(PlainTextAttribute)) {
+                writeText(context);
+                return;
+            }
+
             applyInlineMarkup(context.target, isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue));
             forgetWords(context.target, null);
         });
@@ -196,6 +196,16 @@ export class DomOperationRegistry {
                 target[name] = value;
         });
     }
+}
+
+/** Writes the value as the element's text, guarded by what it holds; a word the chrome marked there is the property's from then on. */
+function writeText(context: DomOperationContext): void {
+    const text = toDomString(context.convertedValue);
+
+    if (context.target.textContent !== text)
+        context.target.textContent = text;
+
+    forgetWords(context.target, null);
 }
 
 function evaluateCondition(value: unknown, condition: WebValueCondition): boolean {

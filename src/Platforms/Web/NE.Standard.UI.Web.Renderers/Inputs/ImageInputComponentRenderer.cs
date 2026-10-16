@@ -15,7 +15,7 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>A picture over a hidden native picker; under <c>Multiple</c>, or in the <c>Shelf</c> shape, the surface is a shelf of pictures instead.</summary>
+/// <summary>A picture over a hidden native picker; under <c>Multiple</c>, or as the <c>Shelf</c> variant, the surface is a shelf of pictures instead.</summary>
 /// <remarks><c>Value</c> paints the picture and the upload rides back on its own hidden input, as <c>SelectionId</c> or, under <c>Multiple</c>, <c>SelectionIds</c> as a JSON list.</remarks>
 public sealed class ImageInputComponentRenderer : TextContentRendererBase
 {
@@ -24,7 +24,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string PlaceholderAttribute = "data-ui-image-placeholder";
 
-    // The pick stays focusable while read-only, as a read-only field does, but says it does nothing; every shape's pick is the one
+    // The pick stays focusable while read-only, as a read-only field does, but says it does nothing; every variant's pick is the one
     // [data-ui-file-pick], and the thumbnails-only shelf has none.
     private static readonly WebDomOperation[] ReadOnlyOperations =
     [
@@ -66,33 +66,33 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
         RenderTooltip(context, root);
 
-        // Render-time only: the shape, and whether it is a shelf, are how the control is built.
-        _ = ResolveRenderValue(context, ImageInputComponent.ShapeProperty, out UIImageInputShape? shape, out _);
+        // Render-time only: the variant, and whether it is a shelf, are how the control is built.
+        _ = ResolveRenderValue(context, ImageInputComponent.VariantProperty, out UIImageInputVariant? variant, out _);
         _ = ResolveRenderValue(context, ImageInputComponent.MultipleProperty, out bool? multiple, out _);
-        _ = root.Class(WebClassNames.ImageInputShape(shape ?? UIImageInputShape.Picture));
+        _ = root.Class(WebClassNames.ImageInputVariant(variant ?? UIImageInputVariant.Picture));
 
         RenderInputAppearance(context, root);
 
         // Only the inline row is a single-line field; Picture and Avatar keep the caption on top since it would crowd a drop
         // area or circle with no room for it.
-        RenderInputHeader(context, root, titleCanGoInside: shape == UIImageInputShape.Inline);
+        RenderInputHeader(context, root, titleCanGoInside: variant == UIImageInputVariant.Inline);
 
         NativeInputRendererBase.RenderMaxFileSize(context, root, ImageInputComponent.MaxFileSizeProperty);
         NativeInputRendererBase.RenderDropTargetId(context, root, ImageInputComponent.DropTargetIdProperty);
 
-        RenderCrop(context, root, shelf: multiple == true || shape == UIImageInputShape.Shelf);
+        RenderCrop(context, root, shelf: multiple == true || variant == UIImageInputVariant.Shelf);
 
         // The thumbnails-only shelf is a shelf whatever Multiple says: a row of one picture is not what it is for.
-        if (multiple == true || shape == UIImageInputShape.Shelf)
+        if (multiple == true || variant == UIImageInputVariant.Shelf)
         {
             _ = root.Class(MultipleClassName);
-            IHtmlElementBuilder? add = RenderShelf(context, root, withPick: shape != UIImageInputShape.Shelf);
+            IHtmlElementBuilder? add = RenderShelf(context, root, withPick: variant != UIImageInputVariant.Shelf);
             RenderNative(context, root, add, multiple: true);
             RenderSelections(context, root);
         }
         else
         {
-            (IHtmlElementBuilder surface, IHtmlElementBuilder picture) = RenderSurface(context, root, shape ?? UIImageInputShape.Picture);
+            (IHtmlElementBuilder surface, IHtmlElementBuilder picture) = RenderSurface(context, root, variant ?? UIImageInputVariant.Picture);
             RenderNative(context, root, surface, multiple: false);
             RenderValues(context, root, picture);
         }
@@ -129,7 +129,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     }
 
     /// <summary>The button the viewer presses or drops on: the picture, the glyph shown without one, the text of the inline row, the pencil.</summary>
-    private (IHtmlElementBuilder Surface, IHtmlElementBuilder Picture) RenderSurface(WebRenderContext context, IHtmlElementBuilder root, UIImageInputShape shape)
+    private (IHtmlElementBuilder Surface, IHtmlElementBuilder Picture) RenderSurface(WebRenderContext context, IHtmlElementBuilder root, UIImageInputVariant variant)
     {
         IHtmlElementBuilder? surfaceElement = null;
         IHtmlElementBuilder? pictureElement = null;
@@ -145,7 +145,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
             // The row's own caption, as FileInput's row carries its; Picture and Avatar never reach here since RenderInputHeader
             // above kept their caption on the root.
-            if (shape == UIImageInputShape.Inline)
+            if (variant == UIImageInputVariant.Inline)
                 RenderInputHeaderInside(context, root, surface);
 
             _ = ResolveRenderValue(context, IInputComponent.ValueProperty, out string? value, out _);
@@ -224,7 +224,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         return addElement;
     }
 
-    /// <summary>The stand-in glyph: the shape's own drawn one until an icon is named; the attribute on the root is what the stylesheet reads.</summary>
+    /// <summary>The stand-in glyph: the variant's own drawn one until an icon is named; the attribute on the root is what the stylesheet reads.</summary>
     private void RenderPlaceholderGlyph(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent)
     {
         _ = parent.Element("span", placeholder =>

@@ -1,5 +1,5 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
-import { WordsAttribute, WordsTextTarget } from "../addressing/dom-attributes.ts";
+import { TooltipAttribute, WordsAttribute, WordsTextTarget } from "../addressing/dom-attributes.ts";
 import { logDebug, logWarn } from "./logger.ts";
 import { hasKeyPrefix, holdsMoment, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
 import type { WordLookup } from "./words.ts";
@@ -30,7 +30,6 @@ export type ClientStringKey =
     | "ui.picker.letter.hour"
     | "ui.picker.letter.minute"
     | "ui.picker.letter.second"
-    | "ui.notification.close"
     | "ui.notification.open"
     | "ui.file.uploading"
     | "ui.file.count"
@@ -351,18 +350,24 @@ export class ClientWords implements WordLookup {
         return key;
     }
 
-    /** The word with each `{name}` slot filled by the argument of that name; a numeric `count` picks its plural form. */
-    public format(key: ClientStringKey | (string & {}), values: Readonly<Record<string, unknown>>): string {
+    /**
+     * The word with each `{name}` slot filled by the argument of that name; a numeric `count` picks its plural form. With `markup`, for
+     * words read as inline markup, its string arguments are escaped (`translate`).
+     */
+    public format(key: ClientStringKey | (string & {}), values: Readonly<Record<string, unknown>>, markup = false): string {
         // Through `text` where the table lacks the key, so that is said once, as for a word written without arguments.
         if (this.lookup(key) === undefined)
             this.text(key);
 
-        return translateKey(this, key, values);
+        return translateKey(this, key, values, markup);
     }
 
-    /** A key's words filled from its arguments, as a phrase is: always looked up, plural by `count`, nested phrases first. */
-    public translate(key: string, args?: Readonly<Record<string, unknown>> | null): string {
-        return translateKey(this, key, args);
+    /**
+     * A key's words filled from its arguments, as a phrase is: always looked up, plural by `count`, nested phrases first; with `markup`,
+     * its string arguments escaped for words read as inline markup.
+     */
+    public translate(key: string, args?: Readonly<Record<string, unknown>> | null, markup = false): string {
+        return translateKey(this, key, args, markup);
     }
 
     /**
@@ -403,9 +408,9 @@ export class ClientWords implements WordLookup {
         return resolveText(text, true, this) as string;
     }
 
-    /** Writes a word on an attribute or the text, marked with its key so a language switch rewrites it. */
+    /** Writes a word on an attribute or the text, marked with its key so a language switch rewrites it; `WebWords.Write`'s twin. */
     public write(element: Element, attribute: string | null, key: string, args?: Readonly<Record<string, unknown>> | null): void {
-        writeWords(element, attribute, this.translate(key, args));
+        writeWords(element, attribute, this.translate(key, args, readsMarkup(attribute)));
         this.mark(element, attribute, args === null || args === undefined || Object.keys(args).length === 0 ? [key] : [key, args]);
     }
 
@@ -448,17 +453,18 @@ export class ClientWords implements WordLookup {
                     if (momentsOnly && !holdsMoment(mark))
                         continue;
 
-                    const words = this.wordsOfMark(mark);
+                    const attribute = target === WordsTextTarget ? null : target;
+                    const words = this.wordsOfMark(mark, readsMarkup(attribute));
 
                     if (words !== null)
-                        writeWords(element, target === WordsTextTarget ? null : target, words);
+                        writeWords(element, attribute, words);
                 }
             }
         });
     }
 
     /** A mark's words: `[key]` or `[key, arguments]` a key's, a bare string an author's text looked up as a plain value is. */
-    private wordsOfMark(mark: unknown): string | null {
+    private wordsOfMark(mark: unknown, markup: boolean): string | null {
         if (typeof mark === "string")
             return resolveText(mark, true, this) as string;
 
@@ -470,7 +476,7 @@ export class ClientWords implements WordLookup {
         if (typeof key !== "string")
             return null;
 
-        return this.translate(key, args !== null && typeof args === "object" ? args as Record<string, unknown> : null);
+        return this.translate(key, args !== null && typeof args === "object" ? args as Record<string, unknown> : null, markup);
     }
 
     /** Queues a missing key for the server once per language, where the table may lack it or a prefixed key's absence is reported. */
@@ -591,7 +597,12 @@ function markWords(element: Element, attribute: string | null, mark: unknown): v
 
 /** The words an element's text was written in, as a value writes them again: a key's as a phrase, an author's text as itself; else null. */
 export function readTextWords(element: Element): unknown {
-    const mark = readMarks(element)[WordsTextTarget];
+    return readWords(element, null);
+}
+
+/** The words an attribute — the text where `attribute` is null — was written in, as `readTextWords` reads the text's. */
+export function readWords(element: Element, attribute: string | null): unknown {
+    const mark = readMarks(element)[attribute ?? WordsTextTarget];
 
     if (typeof mark === "string")
         return mark;
@@ -621,6 +632,11 @@ function readMarks(element: Element): Record<string, unknown> {
     }
 }
 
+/** Whether words written on `attribute` are read as inline markup: the tooltip's are, any other place's are text. */
+function readsMarkup(attribute: string | null): boolean {
+    return attribute === TooltipAttribute;
+}
+
 /** Writes words where they go, only where they differ: a write of the same words is still a mutation to every observer. */
 function writeWords(element: Element, attribute: string | null, words: string): void {
     if (attribute === null) {
@@ -646,7 +662,8 @@ export const clientStrings = new ClientWords();
 
 /**
  * A property's value in words: a phrase always, a plain string only where the property is translatable (an item marked content says
- * it is not) — and an author's text standing as the whole value is that plain string (`UIPhrase.AsValue`), content or not alike.
+ * it is not) — and an author's text standing as the whole value is that plain string (`UIPhrase.AsValue`), content or not alike. The
+ * words as text: where they are read as inline markup, a phrase's differ (`markupWords`).
  */
 export function shownValue(value: unknown, isTranslatable: () => boolean): unknown {
     const plain = isAuthorText(value) ? value.text : value;

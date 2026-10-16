@@ -134,9 +134,14 @@
         .ui-filled-ground(var(--ui-color-primary); var(--ui-color-on-primary));
     }
 
-:where(.ui-temporal-input__segment--empty),
 :where(.ui-temporal-input__segment-literal) {
     color: var(--ui-text-muted);
+}
+
+// An empty part, and the mark after it, read as a text field's placeholder: "--:--" is what an empty time holds.
+:where(.ui-temporal-input__segment--empty),
+:where(.ui-temporal-input__segment--empty + .ui-temporal-input__segment-literal) {
+    color: var(--ui-text-placeholder);
 }
 
 // The same stepper the number input wears, from the field mixins.

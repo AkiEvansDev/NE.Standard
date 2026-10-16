@@ -1,49 +1,73 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Recursive;
+using NE.Standard.UI.Scheduling;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
+    // The host's queue that the scheduled flush and every answer hand this runtime's change sets to, in the hold that drained them.
+    private readonly UIUpdateDispatcher _dispatcher;
+
     /// <summary>
     /// Takes the queued updates a drain's change set carries. A runtime that sends as it drains takes the whole queue every turn;
-    /// one that batches leaves it to its flush, takes it whole for the flush, and gives an answer its caller's copy.
+    /// one that batches leaves it to its flush, takes it whole for the flush, and queues an answer its caller's copy.
     /// </summary>
     private ServerChangeSet TakePendingUpdatesNoLock(DrainTarget target)
     {
         if (SendsWhatItDrains || target.Whole)
-            return DrainPendingUpdatesNoLock();
+        {
+            ServerChangeSet drained = DrainPendingUpdatesNoLock();
 
-        return target.AnswerFor is { } instanceId
-            ? AnswerPendingUpdatesNoLock(instanceId)
+            // In the hold that drained it: an answer drained after it is queued behind it.
+            if (!SendsWhatItDrains && target.Dispatch && !drained.IsEmpty)
+                _dispatcher.Enqueue(this, drained);
+
+            return drained;
+        }
+
+        return target.AnswerFor is { } instanceId && target.Sends is { } sends
+            ? AnswerPendingUpdatesNoLock(instanceId, sends)
             : ServerChangeSet.Empty;
     }
 
     /// <summary>
-    /// One caller's copy of the queue, without what it already holds. The queue keeps the updates for the flush to send every
-    /// other attached instance, and the caller's mark moves past them so the flush does not send it them again.
+    /// Queues one caller's copy of the queue in the dispatcher for that caller alone — behind every set drained before it, ahead of
+    /// every set drained after — and notes in <paramref name="sends"/> the send its answer waits for; answers the copy itself only
+    /// where the dispatcher took none: the caller not attached, the runtime stopping, nothing to send and nothing to wait for.
     /// </summary>
-    private ServerChangeSet AnswerPendingUpdatesNoLock(string instanceId)
+    /// <remarks>
+    /// The queue keeps the updates for the flush to send every other attached instance, and the caller's watermark moves past them
+    /// as its copy is sent, so the flush does not send it them again: moved at once, it would cut from a set drained before the copy,
+    /// still to be sent, updates the copy never carried.
+    /// </remarks>
+    private ServerChangeSet AnswerPendingUpdatesNoLock(string instanceId, AnswerSends sends)
     {
         // Nobody else to send them to: taken whole, and the flush has nothing left to do.
-        if (!HasOtherAttachedInstance(instanceId))
-            return ChangesFor(instanceId, DrainPendingUpdatesNoLock());
+        var whole = !HasOtherAttachedInstance(instanceId);
+        ServerChangeSet copy = whole ? DrainPendingUpdatesNoLock() : CopyPendingUpdatesNoLock();
+        var through = _updateSequence;
+        Action? mark = whole || copy.IsEmpty ? null : () => MarkAnswered(instanceId, through);
 
-        if (_pendingUpdates.Count == 0)
+        if (IsAttached(instanceId) && _dispatcher.EnqueueAnswer(this, instanceId, copy, mark) is { } sent)
+        {
+            sends.Sent = sent;
             return ServerChangeSet.Empty;
+        }
 
-        ServerChangeSet answer = ChangesFor(instanceId, CopyPendingUpdatesNoLock());
-
-        MarkAnswered(instanceId, _updateSequence);
-
-        return answer;
+        return ChangesFor(instanceId, copy);
     }
+
+    /// <summary>Whether an instance is attached: one the dispatcher sends to.</summary>
+    private bool IsAttached(string instanceId)
+        => Array.IndexOf(_attachedInstanceIdsSnapshot, instanceId) >= 0;
 
     private ServerChangeSet DrainPendingUpdatesNoLock()
     {
@@ -79,16 +103,28 @@ internal abstract partial class UIRuntimeBase
     private readonly record struct PendingUpdate(ServerUIUpdate Update, long Sequence);
 
     /// <summary>Who a drain's change set goes to, which decides what it takes from the queue.</summary>
-    private readonly record struct DrainTarget(bool Whole, string? AnswerFor)
+    private readonly record struct DrainTarget(bool Whole, bool Dispatch, string? AnswerFor, AnswerSends? Sends)
     {
         /// <summary>Nobody in particular: a batching runtime leaves its queue to the flush.</summary>
         public static DrainTarget Leave => default;
 
         /// <summary>Every attached instance: the flush takes the whole queue.</summary>
-        public static DrainTarget Flush => new(Whole: true, AnswerFor: null);
+        public static DrainTarget Flush => new(Whole: true, Dispatch: false, AnswerFor: null, Sends: null);
 
-        /// <summary>One caller, whose answer carries its own copy of the queue.</summary>
-        public static DrainTarget Answer(string instanceId) => new(Whole: false, instanceId);
+        /// <summary>Every attached instance, through the dispatcher, handed each set in the hold that drained it.</summary>
+        public static DrainTarget Dispatched => new(Whole: true, Dispatch: true, AnswerFor: null, Sends: null);
+
+        /// <summary>One caller, whose copy of the queue the dispatcher sends it, and whose answer learns which send to wait for.</summary>
+        public static DrainTarget Answer(string instanceId, AnswerSends sends) => new(Whole: false, Dispatch: false, instanceId, sends);
+    }
+
+    /// <summary>
+    /// What an answer waits for before it goes: the send of its copy, queued behind every set drained before it; filled in the drain,
+    /// under the state lock, and read once the drain is over.
+    /// </summary>
+    private sealed class AnswerSends
+    {
+        public Task? Sent { get; set; }
     }
 
     private void ClearPendingUpdatesNoLock()

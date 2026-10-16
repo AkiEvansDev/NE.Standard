@@ -1,18 +1,35 @@
 @import "./tokens.less";
 @import "../mixins/focus.less";
 
-// Where the keyboard stands on a plain pressable — a button, an action, a link, an expander's header, a clickable surface, the page
-// switchers — the one keyboard frame a list's entry wears, only for a focus a key gave (`@ui-keyboard-focus`), in the one shape
-// (`.ui-keyboard-frame()`). A pressable with a mark of its own is not listed: a menu's entry and a select's option (their list's frame),
-// a tab's caption (the chosen line follows the arrows), a field's parts (the field's edge), a toggle (its row's frame, in its own file).
+// Where the keyboard stands on a plain pressable — a button (a toast's cross among them), an action, a link, an expander's header, a
+// clickable surface, the page switchers — the one keyboard frame a list's entry wears, only for a focus a key gave (`@ui-keyboard-focus`),
+// in the one shape (`.ui-keyboard-frame()`). A pressable with a mark of its own is not listed: a menu's entry and a select's option (their
+// list's frame), a tab's caption (inset, below), a field's parts (the field's edge), a toggle (its row's frame, in its own file).
 // After every component, so a component's own `outline: none` does not win the tie.
 
 // A split button frames the part the keyboard is on, never its pill; a menu split button's pill is its one press. Weightless, so the
 // rules below say their own. A button's corner is the frame's own (the theme's button radius), and stays its own.
-@ui-keyboard-pressables: ~".ui-button:not(.ui-tab-header, .ui-tab-item__label, .ui-menu-item, .ui-split-button), .ui-action, .ui-language-switcher__trigger, .ui-collapsible__toggle, .ui-collapsible__pin, .ui-breadcrumb";
+@ui-keyboard-pressables: ~".ui-button:not(.ui-tab-caption, .ui-tab-item__label, .ui-menu-item, .ui-split-button), .ui-action, .ui-language-switcher__trigger, .ui-collapsible__toggle, .ui-collapsible__pin, .ui-breadcrumb";
 
 :where(@{ui-keyboard-pressables})@{ui-keyboard-focus} {
     .ui-keyboard-frame(@takes: false);
+}
+
+// A tab's caption, on every strip, frames itself inside its box, the frame's foot on the chosen line's place, so the two read as one
+// line: a Tab into the strip lands on the chosen caption, whose line alone would show no change. A TabsView's frame is its whole
+// caption's, the close inside it, read off the keyboard's mark on it (the label has no air of its own round its words).
+.ui-tab-caption@{ui-keyboard-focus} {
+    .ui-keyboard-frame-inset(@takes: chain);
+}
+
+.ui-color-input__tab@{ui-keyboard-focus},
+.ui-tab-item__caption@{ui-keyboard-within} {
+    .ui-keyboard-frame-inset();
+}
+
+// A TabsView caption fills under the pointer: its ground stays in its own box, not in the room the frame reaches down over.
+.ui-tab-item__caption@{ui-keyboard-within} {
+    background-clip: padding-box;
 }
 
 // A split button's part is square where it meets the other: framed, it takes the frame's corner all round, its ground being the pill's.
@@ -34,6 +51,11 @@
 .ui-surface--clickable@{ui-keyboard-focus} {
     .ui-keyboard-frame-inside(var(--ui-radius-card));
 }
+
+    // One stroked on one side alone has a list entry's corner (ui-surface.less), and the frame stands in from that.
+    .ui-surface--clickable:is(.ui-border--left, .ui-border--top, .ui-border--right, .ui-border--bottom)@{ui-keyboard-focus} {
+        .ui-keyboard-frame-inside(@ui-list-entry-radius);
+    }
 
 .ui-expander:not(.ui-expander--quiet) > .ui-expander__header@{ui-keyboard-focus} {
     .ui-keyboard-frame(@host: var(--ui-radius-card); @offset: ~"calc(@{ui-keyboard-frame-radius} - var(--ui-radius-card) - 2px)");

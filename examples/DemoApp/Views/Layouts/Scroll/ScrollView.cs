@@ -7,7 +7,7 @@ namespace DemoApp.Views.Layouts.Scroll;
 
 /// <summary>
 /// One viewport and every property that can be bound to it; then things actually bigger than the box holding them, and where a
-/// viewport is looking after its content has grown.
+/// viewport is looking after its content has grown, and where a scroll comes to rest.
 /// </summary>
 /// <remarks>
 /// The preview holds a grid bigger than its box, since a viewport is only one once its content overflows. <c>Disabled</c> cuts
@@ -75,7 +75,7 @@ internal sealed class ScrollView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => [CreateDirectionGroup(), CreateAnchorGroup()];
+        => [CreateDirectionGroup(), CreateAnchorGroup(), CreateSnapGroup()];
 
     /// <summary>
     /// Three things bigger than their box, each scrolled only the way its content needs.
@@ -294,4 +294,33 @@ internal sealed class ScrollView : DemoComponentView, IUIViewDefinition
     private static SurfaceComponent CreateReply(string author, string text, string flag)
         => CreateMessage(author, text, author == "You")
             .BindVisibility(flag, UIBindingScope.Relative);
+
+    /// <summary>
+    /// <c>ScrollSnap</c> on a list whose rows are the viewport's own children: a scroll comes to rest with a whole row at the top.
+    /// </summary>
+    /// <remarks>The rows are not wrapped in a stack: a scroll rests on the viewport's children, and a wrapper would be one stop.</remarks>
+    private static ContainerComponent CreateSnapGroup()
+    {
+        return DemoUI.CreateExample("Comes to rest on a whole row",
+            new ScrollContainerComponent()
+                .VerticalScrollOnly()
+                .SetScrollSnap(UIScrollSnapMode.Mandatory)
+                .SetWidth(UILayoutLength.Absolute(420))
+                .SetMaxWidth(UILayoutLength.Fill())
+                .SetHeight(UILayoutLength.Absolute(236))
+                .SetPadding(UIThickness.All(8, 0, 8, 0))
+                .SetBorderThickness(UIThickness.Uniform(1))
+                .SetBorderColor(UIThemeColor.Border)
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger)).SetTitle("INC-2207 · web-eu-west-1 down").SetDescription("Resolved in 14 minutes · Robin Hale").SetShowChevron(false))
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("INC-2206 · slow API in Europe West").SetDescription("Resolved in 52 minutes · Grace Kim").SetShowChevron(false))
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("INC-2205 · db-us-east-2 disk full").SetDescription("Resolved in 3 hours · Alex Warren").SetShowChevron(false))
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("INC-2204 · mail-relay queue backed up").SetDescription("Resolved in 25 minutes · Ada Lin").SetShowChevron(false))
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger)).SetTitle("INC-2203 · edge-router dropped us-east").SetDescription("Resolved in 9 minutes · Sam Ortega").SetShowChevron(false))
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("INC-2202 · billing-worker retries").SetDescription("Resolved in 1 hour · Priya Nair").SetShowChevron(false))
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("INC-2201 · certificate renewal failed").SetDescription("Resolved in 40 minutes · Robin Hale").SetShowChevron(false))
+                .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("INC-2200 · scheduler missed a backup").SetDescription("Resolved in 2 hours · Grace Kim").SetShowChevron(false)),
+            columns: 24,
+            note: "Mandatory snap with each incident a child of the viewport itself: however far a wheel or a finger throws it, the list stops with a whole row at its top, never half a title. On a long list that is read rather than skimmed, Proximity stops only when the scroll ends near a row."
+        );
+    }
 }

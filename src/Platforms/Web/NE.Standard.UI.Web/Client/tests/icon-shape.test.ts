@@ -1,5 +1,5 @@
 // A picture drawn round (`IconShape`, an image's `Shape`): the converters agree with the server's classes, a live change takes the
-// circle off as well as putting it on, and the stylesheet clips only a picture — a glyph keeps its shape.
+// circle off as well as putting it on, and the stylesheet clips only a picture — a glyph stands on a faint disc of its colour instead.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -85,10 +85,19 @@ test("a live change after the attach's write takes the circle off, and puts it b
     }
 });
 
-test("only a picture is cut round, filling the circle; a glyph's rule is untouched", () => {
+test("only a picture is cut round, filling the circle; a glyph's own drawing is untouched", () => {
     assert.match(declarations(".ui-icon--image.ui-icon--circle::before") ?? "", /border-radius: 50%;[\s\S]*background-size: cover;/);
     assert.equal(declarations(".ui-icon--circle::before"), null, "a glyph keeps its shape");
     assert.match(declarations(".ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]).ui-icon--circle") ?? "", /border-radius: 50%;/, "the tile is round too");
+});
+
+test("a round glyph stands on a disc of its colour twice its size, the padding the author's to change", () => {
+    const rule = declarations(".ui-icon.ui-icon--circle:not(.ui-icon--image)[data-ui-icon]") ?? "";
+
+    assert.match(rule, /box-sizing: content-box;/, "the size stays the glyph's");
+    assert.match(rule, /padding: var\(--ui-padding-xxl,[^;]*0\.5em\)+;/);
+    assert.match(rule, /border-radius: 50%;/);
+    assert.match(rule, /background-color: color-mix\(in srgb, currentColor 16%, transparent\);/);
 });
 
 test("a round image is a square box, filled unless its fit says otherwise, whatever its corner radius", () => {

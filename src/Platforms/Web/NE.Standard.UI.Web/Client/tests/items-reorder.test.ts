@@ -1,13 +1,22 @@
 // A row of an items view or a table put in another place by the reader: the index it takes, what a drop between two rows and
 // Alt with an arrow raises, the offset a windowed host adds, and the refusals — a row that may not move, a host whose rows do not, a
-// sort that would put the row back, a place in another group — and the row standing in its new place until the command's answer.
+// sort that would put the row back, a place in another group — and the row standing in its new place until the command's answer. A
+// drag over a long list reads its rows once, and again only after they change or scroll, or a spacer standing for undrawn rows resizes.
 
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 class FakeDragEvent extends FakeEvent {
-    public readonly dataTransfer = { effectAllowed: "", dropEffect: "", setData: (): void => undefined };
+    public readonly dataTransfer = {
+        effectAllowed: "",
+        dropEffect: "",
+        image: null as { readonly element: unknown; readonly x: number; readonly y: number } | null,
+        setData: (): void => undefined,
+        setDragImage(element: unknown, x: number, y: number): void {
+            this.image = { element, x, y };
+        }
+    };
     public relatedTarget: FakeElement | null = null;
     public clientX = 0;
     public clientY = 0;
@@ -30,7 +39,47 @@ class FakeCustomEvent extends FakeEvent {
 // A spoken line is taken away on the test's clock, which never runs: nothing waits on it.
 mock.timers.enable({ apis: ["setTimeout"] });
 
-installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent, getComputedStyle: () => ({ direction: "ltr" }) });
+/** A change the browser reports: rows put in or taken out, or an attribute of the element written. */
+type FakeRecord = { readonly type: "childList" | "attributes"; readonly target: FakeElement; readonly attributeName?: string };
+
+// The observers the engine makes, so a test can tell them of a change the browser would report.
+const observers: FakeMutationObserver[] = [];
+
+class FakeMutationObserver {
+    private readonly callback: (records: readonly FakeRecord[]) => void;
+    private observed: { readonly target: FakeElement; readonly attributeFilter: readonly string[] } | null = null;
+
+    public constructor(callback: (records: readonly FakeRecord[]) => void) {
+        this.callback = callback;
+        observers.push(this);
+    }
+
+    public observe(target: FakeElement, options: { readonly attributeFilter?: readonly string[] }): void {
+        this.observed = { target, attributeFilter: options.attributeFilter ?? [] };
+    }
+
+    public disconnect(): void {
+        this.observed = null;
+    }
+
+    /** Hears the change as the browser would: in what it observes, an attribute only where its filter names it. */
+    public report(record: FakeRecord): void {
+        if (this.observed === null || !this.observed.target.contains(record.target))
+            return;
+
+        if (record.type === "attributes" && !this.observed.attributeFilter.includes(record.attributeName ?? ""))
+            return;
+
+        this.callback([record]);
+    }
+}
+
+function report(record: FakeRecord): void {
+    for (const observer of observers)
+        observer.report(record);
+}
+
+installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent, MutationObserver: FakeMutationObserver, getComputedStyle: () => ({ direction: "ltr" }) });
 
 const { ItemsReorderEngine, itemMoveEvent, movedIndex } = await import("../src/interactions/items-reorder-engine.ts");
 const { PendingMoves } = await import("../src/items/pending-moves.ts");
@@ -224,6 +273,23 @@ test("a row dropped on the lower half of another lands after it, marked there wh
     assert.equal(real<{ draggable: boolean }>(first).draggable, false);
 });
 
+test("a dragged row's picture is held where the press took it, measured from the row's own box", () => {
+    const view = list();
+
+    new ItemsReorderEngine({ root: real(view.root) });
+
+    const [first] = view.rows;
+
+    first.rect = { left: 20, top: 100, width: 500, height: 28 };
+    first.dispatchEvent(new FakePointerEvent("pointerdown"));
+
+    const start = Object.assign(new FakeDragEvent("dragstart"), { clientX: 50, clientY: 110 });
+
+    first.dispatchEvent(start);
+
+    assert.deepEqual(start.dataTransfer.image, { element: first, x: 30, y: 10 });
+});
+
 test("a press that lifts a row takes away a selection the reader left across rows, which the browser would drag instead", () => {
     const view = list();
 
@@ -363,6 +429,111 @@ test("an ungrouped view's row goes anywhere in the list, by the keys and by a dr
     drag("drop", view.rows[2], 27);
 
     assert.deepEqual(view.moves, [2, 2]);
+});
+
+test("a drag over a long list reads its rows once, and again only after they change or scroll", () => {
+    const view = list();
+    const row = (index: number): FakeElement => Object.assign(FakeElement.of("ui-items-view__item", { "data-ui-key": `k${index}` }), { rect: { left: 0, top: index * 10, width: 100, height: 10 } });
+    const rows = Array.from({ length: 200 }, (_, index) => row(index));
+    const count = { reads: 0, searches: 0 };
+
+    view.host.replaceChildren(...rows);
+
+    // Every box read of a row, and every search of the root for the drop's mark.
+    for (const target of rows) {
+        const box = target.getBoundingClientRect.bind(target);
+        const boxes = target.getClientRects.bind(target);
+
+        target.getBoundingClientRect = (): DOMRect => {
+            count.reads++;
+            return box();
+        };
+        target.getClientRects = (): unknown[] => {
+            count.reads++;
+            return boxes();
+        };
+    }
+
+    const search = view.root.querySelectorAll.bind(view.root);
+
+    view.root.querySelectorAll = (selector: string): FakeElement[] => {
+        count.searches += selector.includes("data-ui-row-drop") ? 1 : 0;
+        return search(selector);
+    };
+
+    new ItemsReorderEngine({ root: real(view.root) });
+    rows[0].dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", rows[0]);
+    drag("dragover", rows[50], 507);
+    count.reads = 0;
+    count.searches = 0;
+
+    // The same place again, then another: the rows the pointer is over and beside alone are read, the root searched once, for the move.
+    drag("dragover", rows[50], 508);
+    drag("dragover", rows[80], 807);
+
+    assert.ok(count.reads <= 20, `${count.reads} boxes read`);
+    assert.equal(count.searches, 1);
+    assert.equal(rows[80].getAttribute("data-ui-row-drop"), "after");
+
+    // A row put in past the last: heard, the room under the list is its place.
+    const added = row(200);
+
+    view.host.append(added);
+    report({ type: "childList", target: view.host });
+    drag("dragover", view.host, 2015);
+
+    assert.equal(added.getAttribute("data-ui-row-drop"), "after");
+
+    // A scroll moves every box: they are read again.
+    count.reads = 0;
+    view.host.dispatchEvent(new FakeEvent("scroll"));
+    drag("dragover", rows[10], 107);
+
+    assert.ok(count.reads >= rows.length, `${count.reads} boxes read`);
+});
+
+test("a spacer resized for rows a host holds undrawn moves the rows a drag read; the drop's own mark on a row does not", () => {
+    const view = list();
+    const spacer = FakeElement.of("", { "data-ui-window-spacer": "top" });
+    const rows = Array.from({ length: 20 }, (_, index) => Object.assign(FakeElement.of("ui-items-view__item", { "data-ui-key": `k${index}` }), { rect: { left: 0, top: index * 10, width: 100, height: 10 } }));
+    const count = { reads: 0 };
+
+    view.host.replaceChildren(spacer, ...rows);
+
+    for (const target of rows) {
+        const box = target.getBoundingClientRect.bind(target);
+
+        target.getBoundingClientRect = (): DOMRect => {
+            count.reads++;
+            return box();
+        };
+    }
+
+    new ItemsReorderEngine({ root: real(view.root) });
+    rows[0].dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", rows[0]);
+    drag("dragover", view.host, 57);
+
+    assert.equal(rows[5].getAttribute("data-ui-row-drop"), "after");
+
+    // The mark is a style written on the row: no change in the rows, so they are not read again.
+    count.reads = 0;
+    report({ type: "attributes", target: rows[5], attributeName: "style" });
+    drag("dragover", view.host, 57);
+
+    assert.ok(count.reads < rows.length, `${count.reads} boxes read`);
+
+    // Rows put in above the view and left undrawn: the top spacer alone grows, and every row stands lower by as much.
+    spacer.style.height = "30px";
+
+    for (const [index, row] of rows.entries())
+        row.rect = { ...row.rect, top: 30 + index * 10 };
+
+    report({ type: "attributes", target: spacer, attributeName: "style" });
+    drag("dragover", view.host, 57);
+
+    assert.equal(rows[2].getAttribute("data-ui-row-drop"), "after");
 });
 
 /** The list's rows each given the grip the renderer draws at a row's end, the host dragged by grips. */

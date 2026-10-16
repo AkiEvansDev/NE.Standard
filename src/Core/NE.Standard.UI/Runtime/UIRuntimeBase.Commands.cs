@@ -117,7 +117,10 @@ internal abstract partial class UIRuntimeBase
         {
             if (request.Action is null)
             {
-                compiledEvent = View.Events.GetRequired(request.EventId);
+                // An id this page's compile never gave out is a forged call, refused as one rather than failed with a stack.
+                compiledEvent = View.Events.TryGet(request.EventId, out CompiledUIEvent? found)
+                    ? found
+                    : throw new UnauthorizedAccessException($"Event '{request.EventId}' is not on this page.");
                 metadata = UIBuiltInCommands.IsBuiltIn(compiledEvent.Command) ? new BuiltInCommandMetadata(compiledEvent.Command) : Controller.GetCommandMetadata(compiledEvent.Command);
             }
             else
@@ -325,9 +328,57 @@ internal abstract partial class UIRuntimeBase
     {
         RecursivePath path = resolution.Path ?? throw new InvalidOperationException($"Argument '{argument.Name}' was not resolved.");
 
+        EnsureRowNamedByKey(argument, path);
+
         return resolution.Source is { Kind: CompiledUIBindingSourceKind.ComponentItems } source
             ? ReadComponentItemsValue(argument, source, path)
             : Controller.GetRecursiveValue(path);
+    }
+
+    /// <summary>
+    /// Refuses an argument whose row comes named by anything but its key: an index reaches a row by its place, past every gate read
+    /// by key, and a key looked for under it would be an outer row's.
+    /// </summary>
+    private static void EnsureRowNamedByKey(CompiledUIActionArgument argument, RecursivePath path)
+    {
+        var row = FindRowSegment(argument, path);
+
+        if (row >= 0 && path[row].Kind == PathSegmentKind.Index)
+            throw new UnauthorizedAccessException($"Argument '{argument.Name}' names its row by something other than its key.");
+    }
+
+    /// <summary>
+    /// The place in the path of the segment the argument's innermost row key fills; -1 where it reads no row key. Every bracket of a
+    /// template is a slot, filled in the parameters' order, a Scope parameter filling none.
+    /// </summary>
+    private static int FindRowSegment(CompiledUIActionArgument argument, RecursivePath path)
+    {
+        var rowSlot = -1;
+        var slots = 0;
+
+        foreach (CompiledUIBindingParameter parameter in argument.Parameters)
+        {
+            if (parameter.Kind == CompiledUIBindingParameterKind.Scope)
+                continue;
+
+            if (parameter.Kind == CompiledUIBindingParameterKind.Dynamic)
+                rowSlot = slots;
+
+            slots++;
+        }
+
+        var slot = 0;
+
+        for (var i = 0; i < path.Count && rowSlot >= 0; i++)
+        {
+            if (path[i].Kind == PathSegmentKind.Property)
+                continue;
+
+            if (slot++ == rowSlot)
+                return i;
+        }
+
+        return -1;
     }
 
     /// <summary>The row of a static items view the path's key names, then the rest of the path on it; the rows live on the component, not the controller.</summary>
@@ -377,9 +428,14 @@ internal abstract partial class UIRuntimeBase
         return path[keyIndex].Key;
     }
 
-    /// <summary>The place of the item's key in the argument's path: its innermost keyed segment.</summary>
+    /// <summary>
+    /// The place of the item's key in the argument's path: its innermost keyed segment. The row the click stands in must be named by
+    /// its key (<see cref="EnsureRowNamedByKey"/>).
+    /// </summary>
     private static int FindItemKeyIndex(CompiledUIActionArgument argument, RecursivePath path)
     {
+        EnsureRowNamedByKey(argument, path);
+
         var keyIndex = path.Count - 1;
 
         while (keyIndex >= 0 && path[keyIndex].Kind != PathSegmentKind.Key)

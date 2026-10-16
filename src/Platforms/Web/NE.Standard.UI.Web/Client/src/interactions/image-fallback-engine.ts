@@ -42,7 +42,7 @@ export class ImageFallbackEngine {
 
         // A source bound later is an attribute change, a shape a class on the box, a row stamped later brings added nodes: the observer
         // catches all three. A round icon's own changes come with its operations; here only those that arrive in a row.
-        observeComponents(this.root, `${BoxSelector}, ${RoundIconSelector}`, { childList: true, attributeFilter: ["src", "class"], relevant: isRelevant }, components => {
+        observeComponents(this.root, `${BoxSelector}, ${RoundIconSelector}`, { childList: true, addedOnly: true, attributeFilter: ["src", "class"], relevant: isRelevant }, components => {
             for (const component of components) {
                 if (component.classList.contains(ImageClass))
                     reviewBox(component);

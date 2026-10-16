@@ -50,7 +50,7 @@ import { CommandBarEngine } from "../interactions/command-bar-engine";
 import { BreadcrumbsEngine } from "../interactions/breadcrumbs-engine";
 import { ColorInputEngine } from "../interactions/color-input-engine";
 import { TableColumns, TableColumnsEngine } from "../interactions/table-columns-engine";
-import { TreeEngine } from "../interactions/tree-engine";
+import { TreeEngine, TreeUnfoldEvent } from "../interactions/tree-engine";
 import { browserNotifications, followClick } from "../interactions/system-notifications";
 import { TabMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions/tabs-view-engine";
 import { TextFoldEngine } from "../interactions/text-fold-engine";
@@ -100,6 +100,7 @@ import { ClientStateReporter } from "./client-state";
 import { startServiceWorker } from "./service-worker";
 import type { NotificationClick } from "./worker-messages";
 import { decideReload, forgetReload, sessionMemory } from "./reload-guard";
+import { pageSessionKey, SessionKeyKind, startSessionKeys } from "./session-key";
 import { getOrCreateWindowId } from "./window-id";
 import { ConnectionWatch } from "./connection-watch";
 import { CommandDispatcher } from "../transport/command-dispatcher";
@@ -293,6 +294,7 @@ export class WebUIRuntime {
     private readonly transport: SignalRTransport;
     private readonly dispatcher: CommandDispatcher;
     private readonly updateProcessor: UpdateProcessor;
+    private readonly ruleWatcher: ItemsRuleWatcher;
     // The rows' menus waiting to be drawn, whose chords the page's registry names before they are.
     private readonly rowMenus: RowMenus;
     private readonly eventPipeline: EventPipeline;
@@ -306,6 +308,8 @@ export class WebUIRuntime {
     private readonly notifications: NotificationEngine;
     private readonly effects: EffectRegistry;
     private readonly leaveGuard: LeaveGuard;
+    // A sign-in's one-time token on its way to the new key's cookie: every page load the page starts waits for it.
+    private readonly sessionKey = pageSessionKey;
     private readonly address: AddressHistory;
     private readonly clientState: ClientStateReporter;
 
@@ -387,7 +391,7 @@ export class WebUIRuntime {
             window,
             revisit: parameters => void this.navigateInPlaceAsync(parameters),
             switchRuntime: (search, previous) => this.revisitRuntime(search, previous),
-            load: () => window.location.reload()
+            load: () => this.reload()
         });
         // The event pipeline is built further down: a toast's action is pressed long after the constructor ends.
         const runAction = (id: string): Promise<boolean> => this.eventPipeline.dispatchCommandAsync({ eventId: 0, action: id, dynamicParameters: [] })
@@ -475,7 +479,7 @@ export class WebUIRuntime {
         clientStrings.onMomentTick(this.rewriteMoments);
 
         // Everything that can put a host out of step with its own rules goes through this one watcher.
-        new ItemsRuleWatcher({
+        this.ruleWatcher = new ItemsRuleWatcher({
             root: this.root,
             metadata: this.metadata,
             templates: itemsTemplates,
@@ -538,7 +542,13 @@ export class WebUIRuntime {
             dom: this.dom,
             dispatcher: valueChangeDispatcher,
             valueReaders: this.extensions.valueReaders,
-            recordSent: (reference, dynamicParameters, value) => propertyPatchEngine.recordValue(reference, dynamicParameters, value),
+            recordSent: (reference, dynamicParameters, value) => {
+                const change = propertyPatchEngine.recordValue(reference, dynamicParameters, value);
+
+                // A row's field: its item takes the edit, which no push brings back, once the answer is applied (`applyAnswered`).
+                if (change !== null)
+                    this.ruleWatcher.awaitAnswer(change);
+            },
             // Built below; asked only on a change, which comes after both are.
             refuses: element => validationEngine.refusesBounds(element)
         });
@@ -562,9 +572,19 @@ export class WebUIRuntime {
             validationEngine.discardForm(formId);
         });
 
-        // Asked behind every value given before the leave, so the controller answers on what the reader typed last.
+        // Asked behind every value given before the leave, so the controller answers on what the reader typed last. A leave loads the
+        // next page once a sign-in's key is traded.
         this.leaveGuard = new LeaveGuard({
-            window,
+            window: {
+                location: {
+                    get href(): string {
+                        return window.location.href;
+                    },
+                    assign: url => this.sessionKey.load(() => window.location.assign(url))
+                },
+                addEventListener: (type, listener) => window.addEventListener(type, listener),
+                removeEventListener: (type, listener) => window.removeEventListener(type, listener)
+            },
             ask: async target => {
                 await valueBinding?.whenSent();
 
@@ -581,6 +601,8 @@ export class WebUIRuntime {
             follow: target => this.followInPlace(target)
         });
         this.updateProcessor.addPageHandler(update => this.leaveGuard.set(update.holdsUnsavedWork === true));
+        // Started as its push arrives already (onCommandResult); here for one reaching the page another way.
+        this.effects.register(SessionKeyKind, context => this.sessionKey.start(context.effect["token"]));
         this.effects.register(ClientEffectKinds.ConfirmLeave, context => {
             const target = (context.effect as ConfirmLeaveClientEffect).target;
 
@@ -657,6 +679,8 @@ export class WebUIRuntime {
         this.eventPipeline.addEvent(itemMove.name, itemMove.registration);
         const tabPin = tabPinEvent(resort);
         this.eventPipeline.addEvent(tabPin.name, tabPin.registration);
+        // A lazy folder's unfold settled, whatever came of it: a fold and an unfold ask again.
+        this.eventPipeline.addEvent(TreeUnfoldEvent.name, TreeUnfoldEvent.registration);
         // Items of a kind dropped or pasted on a component taking it carry the drop after its keys; rows moved ahead wait for the answer.
         const itemDrop = itemDropEvent(this.updateProcessor.transfers);
 
@@ -693,6 +717,7 @@ export class WebUIRuntime {
             root: this.root,
             requestWindow: request => this.transport.requestItemWindowAsync(request)
         });
+        this.updateProcessor.addWindowRefillHandler(host => this.windows.refilled(host));
 
         // After the window engine, which it asks for a page; its Page keys are heard on the window, ahead of the row cursor's.
         startEngine("pager", ({ root, dom }) => new PagerEngine({ root, dom, windows: this.windows }), this.engineContext);
@@ -761,6 +786,9 @@ export class WebUIRuntime {
 
         // An invoke's returned copy carries no effects, so nothing applies twice; a background command's pushed result settles its dispatch.
         this.transport.onCommandResult((result, runtime) => {
+            // A sign-in's token is traded as it arrives, before anything the push or the answer behind it runs can start a page load.
+            startSessionKeys(this.sessionKey, result.command?.effects);
+
             // Applied here in arrival order: through the dispatch they would land behind a later push. The dispatch settles without them.
             const { changes, ...rest } = result;
 
@@ -1069,7 +1097,7 @@ export class WebUIRuntime {
                 label: clientStrings.text("ui.connection.reload"),
                 run: () => {
                     this.leaveGuard.release();
-                    window.location.reload();
+                    this.reload();
                 }
             }
         });
@@ -1096,7 +1124,7 @@ export class WebUIRuntime {
 
         logWarn("the server asked for a reload (another compile of the view, or a session it no longer holds); reloading.", { view });
         this.leaveGuard.release();
-        window.location.reload();
+        this.reload();
     }
 
     /**
@@ -1108,7 +1136,7 @@ export class WebUIRuntime {
     private reloadAsOwnTab(id: string): void {
         logWarn("another live tab holds this tab's id; reloading under one of its own.", { id });
         this.leaveGuard.release();
-        window.location.reload();
+        this.reload();
     }
 
     /**
@@ -1123,7 +1151,12 @@ export class WebUIRuntime {
 
         logWarn("the page's runtime is gone and the server built a new one; reloading.", { view });
         this.leaveGuard.release();
-        window.location.reload();
+        this.reload();
+    }
+
+    /** Reloads the page once a sign-in's key is traded: a load ahead of the trade carries the old key, which names nothing now. */
+    private reload(): void {
+        this.sessionKey.load(() => window.location.reload());
     }
 
     public get instanceId(): string | null {
@@ -1261,9 +1294,7 @@ export class WebUIRuntime {
     private applyChanges(changes: ServerChangeSet | undefined, before?: () => void, from?: string | null): void | Promise<void> {
         if (this.inbound === null && !hasStagedValues(changes)) {
             before?.();
-
-            if (this.holdsRuntime(from))
-                this.applyNow(changes);
+            this.applyAnswered(this.holdsRuntime(from) ? changes : null);
 
             return;
         }
@@ -1275,10 +1306,11 @@ export class WebUIRuntime {
                 before?.();
 
                 // Not fetched either: a value the left runtime staged is not this page's.
-                if (this.holdsRuntime(from))
-                    this.applyNow(await fetchStagedValuesAsync(changes, instanceId));
+                this.applyAnswered(this.holdsRuntime(from) ? await fetchStagedValuesAsync(changes, instanceId) : null);
             })
             .catch(error => {
+                // The reader's edits it answered go with it: the attach brings what the rows hold.
+                this.ruleWatcher.followAnswered(null);
                 // A value that could not be fetched leaves the page behind the server: it attaches again, as after a dropped connection.
                 logError("a staged value could not be fetched; the page attaches again.", error);
                 void this.attachAsync().catch(attachError => logError("re-attaching after a lost staged value failed.", attachError));
@@ -1293,13 +1325,33 @@ export class WebUIRuntime {
         return applied;
     }
 
+    /**
+     * Applies a set, null for one of a runtime the page has left, then lets the rows' items take the reader's edits its answer took
+     * (`before` recorded them): after the set, so an edit it refused stays out of the item.
+     */
+    private applyAnswered(changes: ServerChangeSet | undefined | null): void {
+        let applied: ServerChangeSet | undefined | null = null;
+
+        // Whatever happens: an edit left waiting would be read against the next set's answer.
+        try {
+            if (changes !== null) {
+                this.applyNow(changes);
+                applied = changes;
+            }
+        }
+        finally {
+            this.ruleWatcher.followAnswered(applied);
+        }
+    }
+
     /** Whether `from`, the runtime a change set or a result names as its sender, is the one the page holds; one naming none is. */
     private holdsRuntime(from: string | null | undefined): boolean {
         return from === undefined || from === null || this.heldRuntime === null || from === this.heldRuntime;
     }
 
-    // A window that moved leaves its spacers standing for the wrong count.
+    // A window that moved leaves its spacers standing for the wrong count; the rows its viewer sees are taken first, for it to keep.
     private applyNow(changes: ServerChangeSet | undefined): void {
+        this.windows.noteShownRows();
         this.windows.sync(this.updateProcessor.applyChangeSet(changes));
     }
 

@@ -132,7 +132,7 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                     .BindAltText(nameof(DemoOfferItem.Title), UIBindingScope.Relative)
                     .SetFit(UIImageFit.Cover)
                     .SetHeight(UILayoutLength.Absolute(132))
-                    .SetCornerRadius(UICornerRadius.Top(8)),
+                    .SetBorderRadius(UICornerRadius.Top(8)),
                 UILayout.Stack(10,
                     new TextComponent()
                         .BindTitle(nameof(DemoOfferItem.Title), UIBindingScope.Relative)

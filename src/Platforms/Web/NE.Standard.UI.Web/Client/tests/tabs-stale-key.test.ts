@@ -35,7 +35,7 @@ const { TabsEngine } = await import("../src/interactions/tabs-engine.ts");
 const { resolveShownKey } = await import("../src/interactions/selected-key.ts");
 
 function header(key: string): FakeElement {
-    const element = FakeElement.of("ui-tab-header", { "data-ui-tab-key": key }, "button");
+    const element = FakeElement.of("ui-tab-caption", { "data-ui-tab-key": key }, "button");
 
     element.rect = { left: 0, top: 0, width: 80, height: 32 };
 

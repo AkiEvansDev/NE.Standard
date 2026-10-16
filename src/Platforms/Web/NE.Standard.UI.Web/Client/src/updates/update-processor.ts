@@ -1,28 +1,35 @@
-import { CollectionSinkAttribute, ComponentKeyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes";
-import { DomRegistry, findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry";
-import { ItemStackEntry, onNotCarried, readItemValuePath } from "../items/binding-template-evaluator";
-import { findSlotRoots } from "../items/composite-slots";
-import { HeldCollections } from "../items/held-collections";
-import type { HeldRow } from "../items/held-collections";
-import { ItemProjections, readItemProjections } from "../items/item-projections";
-import { itemsHostOf } from "../items/item-reveal";
-import { getRealItemElements } from "../items/items-empty-renderer";
-import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, replaceSourceItem, resetSourceOrder, setSourceOrder } from "../items/items-source-order";
-import { focusedElement, handFocusOnIfHidden } from "../interactions/focus-handoff";
-import { unmarkDraggedRow } from "../interactions/items-reorder-engine";
-import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, takeRowCursor } from "../interactions/row-cursor";
-import type { HeldRowCursor } from "../interactions/row-cursor";
-import { resolveHostMode, windowOffset } from "../items/items-host-mode";
-import { syncItemsHost } from "../items/items-host-sync";
-import { renderItemRow } from "../items/items-row-renderer";
-import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
-import { ItemsTemplateRenderer, writeItemValuePath } from "../items/items-template-renderer";
-import { ItemsTemplateRegistry } from "../items/items-template-registry";
-import { PendingMoves } from "../items/pending-moves";
-import type { RowMenus } from "../items/row-menus";
-import type { TakenRow } from "../items/pending-transfers";
-import { PendingTransfers } from "../items/pending-transfers";
-import {
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { CollectionSinkAttribute, ComponentKeyAttribute, ComponentSelector, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
+import { findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
+import type { DomRegistry } from "../addressing/dom-registry.ts";
+import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
+import { onNotCarried, readItemValuePath } from "../items/binding-template-evaluator.ts";
+import type { ItemStackEntry } from "../items/binding-template-evaluator.ts";
+import { findSlotRoots } from "../items/composite-slots.ts";
+import { HeldCollections } from "../items/held-collections.ts";
+import type { HeldRow } from "../items/held-collections.ts";
+import { readItemProjections } from "../items/item-projections.ts";
+import type { ItemProjections } from "../items/item-projections.ts";
+import { itemsHostOf } from "../items/item-reveal.ts";
+import { getRealItemElements } from "../items/items-empty-renderer.ts";
+import { getSourceOrder, insertSourceItem, moveSourceItem, removeSourceItem, removeSourceItems, replaceSourceItem, resetSourceOrder, setSourceOrder } from "../items/items-source-order.ts";
+import { focusedElement, handFocusOnIfHidden } from "../interactions/focus-handoff.ts";
+import { unmarkDraggedRow } from "../interactions/items-reorder-engine.ts";
+import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, takeRowCursor } from "../interactions/row-cursor.ts";
+import type { HeldRowCursor } from "../interactions/row-cursor.ts";
+import { resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
+import { holdHostSyncs, syncHeldVirtualizedHosts, syncItemsHost } from "../items/items-host-sync.ts";
+import { renderItemRow } from "../items/items-row-renderer.ts";
+import type { ItemsVirtualizationEngine } from "../items/items-virtualization-engine.ts";
+import { writeItemValuePath } from "../items/items-template-renderer.ts";
+import type { ItemsTemplateRenderer } from "../items/items-template-renderer.ts";
+import type { ItemsTemplateRegistry } from "../items/items-template-registry.ts";
+import { PendingMoves } from "../items/pending-moves.ts";
+import type { RowMenus } from "../items/row-menus.ts";
+import type { TakenRow } from "../items/pending-transfers.ts";
+import { PendingTransfers } from "../items/pending-transfers.ts";
+import { getCollectionUpdateAction, getPropertyKeyName, getIdValue, getUpdateKind } from "../metadata/metadata-index.ts";
+import type {
     MetadataIndex,
     ServerChangeSet,
     ServerCollectionChangeUIUpdate,
@@ -31,20 +38,16 @@ import {
     ServerPageUIUpdate,
     ServerUIUpdate,
     ServerValidationUIUpdate,
-    ServerValueUIUpdate,
-    getCollectionUpdateAction,
-    getPropertyKeyName,
-    getIdValue,
-    getUpdateKind
-} from "../metadata/metadata-index";
-import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
-import { PropertyStateStore } from "../state/property-state-store";
-import { areValuesEqual } from "../state/value-equality";
-import { readCollectionRefill } from "./collection-refill";
-import type { CollectionRefill } from "./collection-refill";
-import { CollectionSinkRegistry, toCollectionChange } from "./collection-sinks";
-import { PropertyPatchEngine } from "./property-patch-engine";
-import type { PropertyValueChange } from "./property-patch-engine";
+    ServerValueUIUpdate
+} from "../metadata/metadata-index.ts";
+import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger.ts";
+import type { PropertyStateStore } from "../state/property-state-store.ts";
+import { areValuesEqual } from "../state/value-equality.ts";
+import { readCollectionRefill } from "./collection-refill.ts";
+import type { CollectionRefill } from "./collection-refill.ts";
+import { toCollectionChange } from "./collection-sinks.ts";
+import type { CollectionSinkRegistry } from "./collection-sinks.ts";
+import type { PropertyPatchEngine, PropertyValueChange } from "./property-patch-engine.ts";
 
 /** What a change that moves no row confirms of the rows moved ahead: nothing. */
 const NoKeys: readonly string[] = [];
@@ -52,11 +55,24 @@ const NoKeys: readonly string[] = [];
 export type ServerValidationHandler = (update: ServerValidationUIUpdate) => void;
 export type ServerFullResyncHandler = () => void;
 export type ServerPageHandler = (update: ServerPageUIUpdate) => void;
+export type WindowRefillHandler = (host: Element) => void;
 
 export class UpdateProcessor {
+    // Fields rather than parameter properties, which a type-stripping loader cannot run.
+    private readonly metadata: MetadataIndex;
+    private readonly propertyPatchEngine: PropertyPatchEngine;
+    private readonly state: PropertyStateStore;
+    private readonly itemsRenderer: ItemsTemplateRenderer;
+    private readonly itemsTemplates: ItemsTemplateRegistry;
+    private readonly dom: DomRegistry;
+    private readonly virtualization: ItemsVirtualizationEngine;
+    private readonly sinks: CollectionSinkRegistry;
+    private readonly rowMenus: RowMenus;
+
     private readonly validationHandlers: ServerValidationHandler[] = [];
     private readonly fullResyncHandlers: ServerFullResyncHandler[] = [];
     private readonly pageHandlers: ServerPageHandler[] = [];
+    private readonly windowRefillHandlers: WindowRefillHandler[] = [];
 
     // The collections of hosts declared inside an item template, for the rows built after they arrived.
     private readonly held = new HeldCollections();
@@ -67,6 +83,9 @@ export class UpdateProcessor {
     // What the change set being applied changed — hosts whose rows changed, components a value landed on — for the windows over them
     // to be laid out again; null between sets.
     private touched: Set<Element> | null = null;
+
+    // The hosts whose rows the set being applied changed, read again by the registry once the set is in; null between sets.
+    private changedHosts: Set<Element> | null = null;
 
     /** The rows the reader moved ahead of their commands, put where the server says once the answers are in. */
     public readonly moves = new PendingMoves({
@@ -84,17 +103,17 @@ export class UpdateProcessor {
         itemOf: element => this.readItemValue(element)
     });
 
-    public constructor(
-        private readonly metadata: MetadataIndex,
-        private readonly propertyPatchEngine: PropertyPatchEngine,
-        private readonly state: PropertyStateStore,
-        private readonly itemsRenderer: ItemsTemplateRenderer,
-        private readonly itemsTemplates: ItemsTemplateRegistry,
-        private readonly dom: DomRegistry,
-        private readonly virtualization: ItemsVirtualizationEngine,
-        private readonly sinks: CollectionSinkRegistry,
-        private readonly rowMenus: RowMenus
-    ) {
+    public constructor(metadata: MetadataIndex, propertyPatchEngine: PropertyPatchEngine, state: PropertyStateStore, itemsRenderer: ItemsTemplateRenderer, itemsTemplates: ItemsTemplateRegistry, dom: DomRegistry, virtualization: ItemsVirtualizationEngine, sinks: CollectionSinkRegistry, rowMenus: RowMenus) {
+        this.metadata = metadata;
+        this.propertyPatchEngine = propertyPatchEngine;
+        this.state = state;
+        this.itemsRenderer = itemsRenderer;
+        this.itemsTemplates = itemsTemplates;
+        this.dom = dom;
+        this.virtualization = virtualization;
+        this.sinks = sinks;
+        this.rowMenus = rowMenus;
+
         itemsRenderer.setRowFiller(row => this.fillHeldCollections(row));
         propertyPatchEngine.addValueChangeHandler(change => this.writeHeldItemValue(change));
         propertyPatchEngine.addValueChangeHandler(change => this.touch(change.components));
@@ -356,15 +375,23 @@ export class UpdateProcessor {
         // A set hiding what holds the focus (a pushed Visibility) hands it on, as an interaction's write does; asked once, after the whole set.
         const focused = focusedElement();
         const touched = new Set<Element>();
+        const changedHosts = new Set<Element>();
 
         this.touched = touched;
+        this.changedHosts = changedHosts;
 
         try {
-            this.applyUpdates(updates);
+            // Each host's rules, empty state and groups once, after the set's last change to it rather than after each.
+            holdHostSyncs(() => this.applyUpdates(updates));
         }
         finally {
             this.touched = null;
+            this.changedHosts = null;
         }
+
+        // After the held syncs, which may have drawn an empty state of components.
+        for (const host of changedHosts)
+            this.dom.invalidate(host);
 
         if (focused !== null)
             handFocusOnIfHidden(focused);
@@ -381,6 +408,12 @@ export class UpdateProcessor {
 
             // One update that throws is logged and passed over, so the rest of the set still reaches the page.
             try {
+                // A virtualized host draws its rows as it comes in step, and an update after a change to it may address them (the
+                // lists inside a merged insert's rows): drawn first, unless it is a value, which lands in the host's values, or another
+                // change to the same list.
+                if (getUpdateKind(update) !== "Value")
+                    syncHeldVirtualizedHosts(host => !changesListOf(update, host));
+
                 const refill = readCollectionRefill(updates, index);
 
                 // A component that takes its collection through a sink has no rows to reconcile: the reset and the inserts go to the sink.
@@ -440,20 +473,28 @@ export class UpdateProcessor {
     }
 
     private refillHostRows(host: Element, refill: CollectionRefill): void {
+        // A virtualized host takes the values and draws what is in view itself, as it comes in step.
+        const virtualized = resolveHostMode(host) === "virtualized";
+
         try {
-            // A virtualized host takes the values and draws what is in view itself.
-            if (resolveHostMode(host) === "virtualized") {
+            if (virtualized) {
                 const redrawn = this.virtualization.refill(host, refill.items.filter(change => change.key !== null && change.key !== undefined).map(change => ({ key: change.key!, item: change.item })));
 
                 this.state.forgetRows(refill.componentId, refill.dynamicParameters, redrawn);
             }
             else {
                 this.reconcileRows(host, refill);
+
+                // A window sent whole: its engine decides whether the row sizes it measured still hold.
+                if (resolveHostMode(host) === "windowed") {
+                    for (const handler of this.windowRefillHandlers)
+                        handler(host);
+                }
             }
         }
         finally {
             // Even when the refill threw part way: a host left half-changed still shows its rules, its empty state and its groups.
-            this.afterRowsChanged(host, refill.componentId);
+            this.afterRowsChanged(host, refill.componentId, !virtualized);
         }
     }
 
@@ -542,6 +583,11 @@ export class UpdateProcessor {
     /** What the page as a whole holds belongs to no component: its update goes to whoever keeps that state. */
     public addPageHandler(handler: ServerPageHandler): void {
         this.pageHandlers.push(handler);
+    }
+
+    /** A windowed host's rows sent whole (a refill) are told to the window engine, which decides what it learnt of them still holds. */
+    public addWindowRefillHandler(handler: WindowRefillHandler): void {
+        this.windowRefillHandlers.push(handler);
     }
 
     public applyUpdate(update: ServerUIUpdate): void {
@@ -677,15 +723,18 @@ export class UpdateProcessor {
     }
 
     private applyCollectionChangeToHost(host: Element, componentId: number, update: ServerCollectionChangeUIUpdate): void {
+        const virtualized = resolveHostMode(host) === "virtualized";
+        const action = getCollectionUpdateAction(update.action);
+
         try {
-            if (resolveHostMode(host) === "virtualized")
+            if (virtualized)
                 this.applyVirtualizedCollectionChange(host, update);
             else
                 this.applyRowsChange(host, componentId, update);
         }
         finally {
             // Even when the change threw part way: a host left half-changed still shows its rules, its empty state and its groups.
-            this.afterRowsChanged(host, componentId);
+            this.afterRowsChanged(host, componentId, !virtualized && (action === "Insert" || action === "Replace"));
         }
     }
 
@@ -695,7 +744,7 @@ export class UpdateProcessor {
                 this.applyCollectionInsert(host, componentId, update.items ?? []);
                 break;
             case "Remove":
-                applyCollectionRemove(host, update.items ?? []);
+                applyCollectionRemove(host, update.items ?? [], update.trimmed === true);
                 break;
             case "Replace":
                 this.applyCollectionReplace(host, componentId, update.items ?? []);
@@ -713,15 +762,22 @@ export class UpdateProcessor {
         }
     }
 
-    /** A host's rows changed: its empty state, groups and rules again, and the registry told. */
-    private afterRowsChanged(host: Element, componentId: number | null = findOwningComponentId(host)): void {
+    /**
+     * A host's rows changed: its empty state, groups and rules again, and the registry told — in a change set, once it is in, but rows
+     * `drawn` here at once, since a later update of the set may address them (a merged insert's rows' own lists). Rows only taken away
+     * or moved can wait: a lookup passes over what left the page, and finds a moved row by its keys wherever it stands.
+     */
+    private afterRowsChanged(host: Element, componentId: number | null, drawn: boolean): void {
         this.touched?.add(host);
 
         if (componentId !== null)
             this.syncItemsHost(host, componentId);
 
+        this.changedHosts?.add(host);
+
         // Only the host's subtree, read on the registry's next lookup: a change set of many updates reads the page once, not once each.
-        this.dom.invalidate(host);
+        if (drawn || this.changedHosts === null)
+            this.dom.invalidate(host);
     }
 
     /** A row's index in its host's whole collection: a virtualized host's values, a windowed one's rows past its offset. */
@@ -748,7 +804,7 @@ export class UpdateProcessor {
         else
             applyCollectionMove(host, [{ key, newIndex }]);
 
-        this.afterRowsChanged(host, componentId);
+        this.afterRowsChanged(host, componentId, false);
     }
 
     /** A row taken out of a host holding its rows whole, on the page alone: where it stood among the host's items, to be put back there. */
@@ -764,7 +820,7 @@ export class UpdateProcessor {
 
         removeSourceItem(order, element);
         element.remove();
-        this.afterRowsChanged(host);
+        this.afterRowsChanged(host, findOwningComponentId(host), false);
 
         return { element, index };
     }
@@ -775,7 +831,7 @@ export class UpdateProcessor {
         // Never back faded: a row taken off the page mid-drag keeps the mark its dragend could not reach to take off.
         unmarkDraggedRow(row.element);
         host.insertBefore(row.element, insertSourceItem(order, row.element, row.index));
-        this.afterRowsChanged(host);
+        this.afterRowsChanged(host, findOwningComponentId(host), true);
     }
 
     /** An item drawn as a row of a host holding its rows whole, at its index there, on the page alone. */
@@ -787,7 +843,7 @@ export class UpdateProcessor {
             return null;
 
         host.insertBefore(element, insertSourceItem(getSourceOrder(host, getRealItemElements(host)), element, index));
-        this.afterRowsChanged(host);
+        this.afterRowsChanged(host, componentId, true);
 
         return element;
     }
@@ -795,7 +851,7 @@ export class UpdateProcessor {
     private removeRow(host: Element, element: Element): void {
         removeSourceItem(getSourceOrder(host, getRealItemElements(host)), element);
         element.remove();
-        this.afterRowsChanged(host);
+        this.afterRowsChanged(host, findOwningComponentId(host), false);
     }
 
     /** The rows a change takes away take their recorded values with them; a replaced row is drawn afresh and starts afresh too. */
@@ -828,10 +884,7 @@ export class UpdateProcessor {
                 }
                 break;
             case "Remove":
-                for (const change of update.items ?? []) {
-                    if (change.key !== null && change.key !== undefined)
-                        this.virtualization.remove(host, change.key);
-                }
+                this.virtualization.remove(host, (update.items ?? []).map(change => change.key).filter((key): key is string => typeof key === "string"));
                 break;
             case "Replace":
                 for (const change of update.items ?? []) {
@@ -946,13 +999,23 @@ export class UpdateProcessor {
     }
 }
 
-function applyCollectionRemove(host: Element, items: readonly ServerCollectionItemChange[]): void {
-    const present = getRealItemElements(host);
-    const order = getSourceOrder(host, present);
-    const byKey = indexItemElements(host, present);
+/** Whether an update is a change to the list a host draws: to the host's own component, at its own row keys. */
+function changesListOf(update: ServerUIUpdate, host: Element): boolean {
+    if (getUpdateKind(update) !== "CollectionChange")
+        return false;
 
-    const root = rowCursorRoot(host);
-    const rows = root === null ? [] : present.filter((row): row is HTMLElement => row instanceof HTMLElement);
+    const component = (update as ServerCollectionChangeUIUpdate).component;
+    const owner = host.closest(ComponentSelector);
+
+    return owner !== null && readComponentId(owner) === getIdValue(component?.id) && matchesDynamicParameters(owner, component?.dynamicParameters ?? []);
+}
+
+// The rows gathered first and taken out together: a list read once, the order filtered once, and the cursor's next row decided past
+// every row the change takes away, rather than a splice and a cursor move per row.
+function applyCollectionRemove(host: Element, items: readonly ServerCollectionItemChange[], trimmed: boolean): void {
+    const present = getRealItemElements(host);
+    const byKey = indexItemElements(host, present);
+    const removed = new Set<Element>();
 
     for (const change of items) {
         const key = change.key ?? null;
@@ -963,20 +1026,43 @@ function applyCollectionRemove(host: Element, items: readonly ServerCollectionIt
             continue;
         }
 
-        const restoreCursor = root !== null && element instanceof HTMLElement ? planRowRemoval(root, rows, element) : null;
-
         byKey.delete(key);
-        removeSourceItem(order, element);
+        removed.add(element);
+    }
+
+    if (removed.size === 0)
+        return;
+
+    const root = rowCursorRoot(host);
+    // A window's trim takes rows off the page, not out of the source: the cursor waits for its row, where a delete moves it on.
+    const restoreCursor = root === null ? null : trimmed ? planRowTrim(host, removed) : planRowRemoval(root, present, removed);
+
+    removeSourceItems(getSourceOrder(host, present), removed);
+
+    for (const element of removed)
         element.remove();
 
-        // Spliced in place, not filtered into a new list: a remove of many rows stays linear in the rows it removes.
-        const at = rows.indexOf(element as HTMLElement);
+    restoreCursor?.();
+}
 
-        if (at >= 0)
-            rows.splice(at, 1);
+/**
+ * Before rows a window's trim takes off the page: a callback that leaves the cursor's key waiting on the root once they are gone, as a
+ * refill's leftover does, for the window that draws its row again; null if they held nothing of the keyboard.
+ */
+function planRowTrim(host: Element, removed: ReadonlySet<Element>): (() => void) | null {
+    const held: HeldRowCursor[] = [];
 
-        restoreCursor?.();
+    for (const element of removed) {
+        const taken = takeRowCursor(element);
+
+        if (taken !== null)
+            held.push(taken);
     }
+
+    return held.length === 0 ? null : () => {
+        for (const taken of held)
+            giveRowCursor(host, null, taken);
+    };
 }
 
 /** The keys a Move moves. */
@@ -1042,12 +1128,12 @@ function resolveScopeComponentId(element: Element): number {
     return child === null ? 0 : readComponentId(child);
 }
 
-/** The host's rows by key, read once: a lookup per key by selector walks the host's subtree, which is quadratic over a list. */
 /** The row of the key among a host's rows, or null. */
 function findItemElement(present: readonly Element[], key: string): Element | null {
     return present.find(row => row.getAttribute(ComponentKeyAttribute) === key) ?? null;
 }
 
+/** The host's rows by key, read once: a lookup per key by selector walks the host's subtree, which is quadratic over a list. */
 function indexItemElements(host: Element, present: readonly Element[] = getRealItemElements(host)): Map<string, Element> {
     const rows = new Map<string, Element>();
 

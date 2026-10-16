@@ -7,6 +7,7 @@ import { acceptsFile } from "./file-drop.ts";
 import { formatFileSize } from "../rendering/file-tile.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { logElapsed, logWarn } from "../runtime/logger.ts";
+import { pageSessionKey } from "../runtime/session-key.ts";
 import type { FieldValidation } from "./validation-engine.ts";
 
 const UploadPath = "/_ne/files/upload";
@@ -98,8 +99,21 @@ export type UploadedSelection = {
     readonly selectionId: string;
 };
 
+/**
+ * Uploads the files once a sign-in's key is traded: an upload is kept under the session its cookie names, and the page's commands read
+ * it under the session the server holds — once a sign-in moved it, the new id.
+ */
+export async function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: number) => void): Promise<UploadedSelection> {
+    // Taken now: a caller may empty what it passed — an input's own list — as soon as the call returns.
+    const taken = [...files];
+
+    await pageSessionKey.settled();
+
+    return await sendFilesAsync(taken, onProgress);
+}
+
 // XMLHttpRequest rather than fetch: only it reports upload progress.
-export function uploadFilesAsync(files: Iterable<File>, onProgress: (percent: number) => void): Promise<UploadedSelection> {
+function sendFilesAsync(files: readonly File[], onProgress: (percent: number) => void): Promise<UploadedSelection> {
     return new Promise<UploadedSelection>((resolve, reject) => {
         const body = new FormData();
         const started = performance.now();
@@ -161,6 +175,9 @@ export type StoredFile = {
  * out), and a failure of any other kind throws.
  */
 export async function readSelectionAsync(selectionId: string): Promise<StoredFile[] | null> {
+    // A selection of the session the server holds: once a sign-in moved it, the new id, which only the traded cookie names.
+    await pageSessionKey.settled();
+
     const response = await fetch(`${SelectionPath}${encodeURIComponent(selectionId)}`, { credentials: "same-origin", cache: "no-store" });
 
     if (!response.ok)

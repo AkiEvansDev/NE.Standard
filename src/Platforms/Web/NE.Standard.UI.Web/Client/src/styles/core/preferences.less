@@ -8,7 +8,7 @@
 // win ties.
 
 // Every loading ring on the page, by its wearer: the one thing both answers below keep.
-@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
+@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, .ui-progress--circular:not([aria-valuenow]) .ui-progress__ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
 
 // The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
 @ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar], .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-bar], .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-bar]";
@@ -39,9 +39,12 @@
         animation-iteration-count: infinite !important;
     }
 
-    // A strip's end fade follows the scroll's own timeline, no movement of its own; a zero duration would pin it at its end state. A
-    // popup's room for the overlay bar needs no exception: one value from end to end (mixins/scroll-room.less).
-    .ui-button-group {
+    // A strip's end fade and a table's edge shades follow the scroll's own timeline, no movement of their own; a zero duration would
+    // pin them at their end state. A popup's room for the overlay bar needs no exception: one value from end to end
+    // (mixins/scroll-room.less).
+    .ui-button-group,
+    .ui-table > .ui-table__scroll::before,
+    .ui-table > .ui-table__scroll::after {
         animation-duration: auto !important;
     }
 }
@@ -82,7 +85,8 @@
     .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-selected],
     .ui-select__option[aria-selected="true"],
     .ui-menu-item--selected,
-    .ui-language-switcher__choice[aria-checked="true"],
+    .ui-language-switcher__choice:is([aria-checked="true"], [aria-selected="true"]),
+    .ui-theme-switcher__choice[aria-selected="true"],
     .ui-pager__size-choice[aria-checked="true"],
     .ui-pager__button[aria-current="page"],
     .ui-button-group__item[data-ui-selected] > .ui-button,
@@ -130,7 +134,8 @@
     // The keyboard's entry in a list (.ui-entry-keyboard()), a wash the mode drops: a dashed mark instead; a chosen entry keeps its own.
     .ui-menu-item@{ui-button-live}@{ui-keyboard-focus}:not(.ui-menu-item--selected),
     .ui-tab-overflow__entry@{ui-button-live}@{ui-keyboard-focus},
-    .ui-language-switcher__choice@{ui-keyboard-focus}:not([aria-checked='true']),
+    .ui-language-switcher__choice@{ui-keyboard-focus}:not([aria-checked='true'], [aria-selected='true']),
+    .ui-theme-switcher__choice@{ui-keyboard-focus}:not([aria-selected='true']),
     .ui-pager__size-choice@{ui-keyboard-focus}:not([aria-checked='true']),
     .ui-temporal-input__day@{ui-keyboard-focus}:not(.ui-temporal-input__day--selected),
     .ui-temporal-input__month@{ui-keyboard-focus}:not(.ui-temporal-input__month--selected),
@@ -192,7 +197,7 @@
         }
 
     // The current tab's line is a pseudo-element's ground, the colour popup's chosen pane's too.
-    .ui-tab-header--selected::after,
+    .ui-tab-caption--selected::after,
     .ui-tab-item--selected .ui-tab-item__caption::after,
     .ui-color-input__tab[data-ui-color-tab-selected]::after {
         forced-color-adjust: none;

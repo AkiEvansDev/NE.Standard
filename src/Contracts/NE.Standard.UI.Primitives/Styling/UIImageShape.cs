@@ -6,7 +6,7 @@ namespace NE.Standard.UI.Primitives.Styling;
 public enum UIImageShape
 {
     /// <summary>
-    /// The box the layout gives it, its corners as <c>CornerRadius</c> says.
+    /// The box the layout gives it, its corners as <c>BorderRadius</c> says.
     /// </summary>
     Default = 0,
 

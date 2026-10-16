@@ -43,7 +43,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
             .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
             .BindSource($"{ImageGroup}.{nameof(ImageGroupContext.Source)}")
             .BindFit($"{ImageGroup}.{nameof(ImageGroupContext.Fit)}")
-            .BindCornerRadius($"{ImageGroup}.{nameof(ImageGroupContext.CornerRadius)}")
+            .BindBorderRadius($"{ImageGroup}.{nameof(ImageGroupContext.BorderRadius)}")
             .BindShape($"{ImageGroup}.{nameof(ImageGroupContext.Shape)}")
             .BindAltText($"{ImageGroup}.{nameof(ImageGroupContext.AltText)}")
             .BindTooltip($"{ImageGroup}.{nameof(ImageGroupContext.Tooltip)}")
@@ -63,8 +63,9 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        // The banner beside the two short groups stacked, as tall together: paired, the faces stood alone in a row of their own.
-        => [CreateBannerGroup(), DemoUI.CreateHalf(CreateGridGroup(), CreateAvatarGroup())];
+        // The banner beside the two short groups stacked, as tall together: paired, the faces stood alone in a row of their own. The
+        // lightbox is a band under them: its two ways side by side.
+        => [CreateBannerGroup(), DemoUI.CreateHalf(CreateGridGroup(), CreateAvatarGroup()), CreateLightboxGroup()];
 
     /// <summary>
     /// A banner: a box the layout decided, filled by a picture that was never that shape, so <c>Cover</c>.
@@ -82,7 +83,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                         .SetSource(DemoImages.SunsetRuins)
                         .SetAltText("Europe North's banner")
                         // The card's own radius, on the two corners the picture actually touches.
-                        .SetCornerRadius(UICornerRadius.Top(8))
+                        .SetBorderRadius(UICornerRadius.Top(8))
                         .SetFit(UIImageFit.Cover)
                         .SetHeight(UILayoutLength.Absolute(140))
                         .SetHorizontalAlignment(UIAlignment.Stretch)
@@ -100,8 +101,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// Four pictures of four shapes in four identical boxes, where only <c>Cover</c> keeps the grid a grid; a press on one shows the
-    /// four full size, from the one pressed, on the page alone.
+    /// Four pictures of four shapes in four identical boxes, where only <c>Cover</c> keeps the grid a grid.
     /// </summary>
     private static ContainerComponent CreateGridGroup()
     {
@@ -116,27 +116,18 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                 .AddChild(CreateTile(1))
                 .AddChild(CreateTile(2))
                 .AddChild(CreateTile(3)),
-            note: "A press on a tile shows the four full size with no round trip (`ShowImageEffect` with the set and the tile's index): the arrows at the picture's foot, shown under the pointer, ← and → or a swipe walk them; a press beside the picture or Escape closes it."
+            note: "Two landscapes and two portraits in the same square: Cover fills each box and crops what is left over, where Contain would leave every tile bands of its own."
         );
     }
 
-    /// <summary>
-    /// A tile: a pressable surface round the picture — a Tab stop Enter and Space press — so the keyboard opens it as the pointer does.
-    /// </summary>
-    private static SurfaceComponent CreateTile(int index)
-        => new SurfaceComponent()
-            .SetClickable(true)
-            .SetPadding(UIThickness.Uniform(0))
+    private static ImageComponent CreateTile(int index)
+        => new ImageComponent()
+            .SetSource(Gallery[index].Source)
+            .SetAltText(Gallery[index].Caption)
+            .SetFit(UIImageFit.Cover)
             .SetBorderRadius(UICornerRadius.Uniform(6))
-            .SetContent(new ImageComponent()
-                .SetSource(Gallery[index].Source)
-                .SetAltText(Gallery[index].Caption)
-                .SetFit(UIImageFit.Cover)
-                .SetCornerRadius(UICornerRadius.Uniform(6))
-                .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-                .SetHeight(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
-            )
-            .InteractOn(EventNames.Click, new ShowImageEffect(Gallery, index));
+            .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
+            .SetHeight(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)));
 
     /// <summary>
     /// A face in a row: small and round, its shape a circle — the box squared and the picture cropped to its middle, not fitted.
@@ -205,4 +196,60 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                 .SetDescriptionColor(UIThemeColor.Muted)
                 .SetVerticalAlignment(UIAlignment.Center)
             );
+
+    /// <summary>
+    /// A picture full size over the page at a press, drawn by the page with no round trip: one picture read off the surface that holds
+    /// it, or a set walked from the one pressed.
+    /// </summary>
+    private static ContainerComponent CreateLightboxGroup()
+    {
+        return DemoUI.CreateExample("Full size at a press",
+            UILayout.Row(24)
+                .SetWrap(true)
+                .AddChild(DemoUI.CreateLabelled("One picture: the surface's own", new SurfaceComponent()
+                    .SetPadding(UIThickness.Uniform(0))
+                    .SetBorderRadius(UICornerRadius.Uniform(8))
+                    .SetContent(new ImageComponent()
+                        .SetSource(DemoImages.SunsetRuins)
+                        .SetAltText("Europe North's banner")
+                        .SetFit(UIImageFit.Cover)
+                        .SetBorderRadius(UICornerRadius.Uniform(8))
+                        .SetWidth(UILayoutLength.Absolute(260))
+                        .SetHeight(UILayoutLength.Absolute(146))
+                    )
+                    .OnClickShowImage()
+                    )
+                )
+                .AddChild(DemoUI.CreateLabelled("A set, from the one pressed", new StackPanelComponent()
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetWrap(true)
+                    .SetSpacing(8)
+                    .AddChild(CreateThumbnail(0))
+                    .AddChild(CreateThumbnail(1))
+                    .AddChild(CreateThumbnail(2))
+                    .AddChild(CreateThumbnail(3))
+                    )
+                ),
+            columns: 24,
+            note: "OnClickShowImage() makes a surface pressable and shows the picture it holds; ShowImageEffect with a set and an index shows the set from that one, walked by the arrows at the picture's foot, ← and → or a swipe. A press beside the picture or Escape closes it. In a list, OnClickShowImage(amongRows: true) walks the pictures of the rows drawn — the Chat screen's photos."
+        );
+    }
+
+    /// <summary>
+    /// A thumbnail: a pressable surface round the picture — a Tab stop Enter and Space press — so the keyboard opens it as the pointer does.
+    /// </summary>
+    private static SurfaceComponent CreateThumbnail(int index)
+        => new SurfaceComponent()
+            .SetClickable(true)
+            .SetPadding(UIThickness.Uniform(0))
+            .SetBorderRadius(UICornerRadius.Uniform(6))
+            .SetContent(new ImageComponent()
+                .SetSource(Gallery[index].Source)
+                .SetAltText(Gallery[index].Caption)
+                .SetFit(UIImageFit.Cover)
+                .SetBorderRadius(UICornerRadius.Uniform(6))
+                .SetWidth(UILayoutLength.Absolute(68))
+                .SetHeight(UILayoutLength.Absolute(68))
+            )
+            .InteractOn(EventNames.Click, new ShowImageEffect(Gallery, index));
 }

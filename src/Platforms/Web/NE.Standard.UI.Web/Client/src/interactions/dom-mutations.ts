@@ -7,6 +7,11 @@ export type SubtreeObserverInit = {
     readonly attributeFilter?: readonly string[];
     /** Which records the engine answers at all; the rest are skipped before their components are looked for. Default: every one. */
     readonly relevant?: (mutation: MutationRecord) => boolean;
+    /**
+     * Whether nodes put in name only the component they landed in, else the components they are or hold — never the rest of the
+     * host they joined: for an engine reading a component's own subtree alone, not its siblings or its host. Default: false.
+     */
+    readonly addedOnly?: boolean;
 };
 
 /** Past this many components in one batch, finding them costs more than sweeping the root for them. */
@@ -19,7 +24,7 @@ export function observeComponents(root: ParentNode, selector: string, init: Subt
     const observer = new MutationObserver(mutations => {
         // A press's wave put in or taken out changes nothing a component is read for.
         const records = mutations.filter(mutation => !isPressWaveRecord(mutation) && (init.relevant?.(mutation) ?? true));
-        const components = collectComponents(root, records, selector);
+        const components = collectComponents(root, records, selector, init.addedOnly ?? false);
 
         if (components !== null)
             handler(components);
@@ -36,7 +41,7 @@ export function observeComponents(root: ParentNode, selector: string, init: Subt
     return observer;
 }
 
-export function collectComponents(root: ParentNode, mutations: readonly MutationRecord[], selector: string): Set<HTMLElement> | null {
+export function collectComponents(root: ParentNode, mutations: readonly MutationRecord[], selector: string, addedOnly = false): Set<HTMLElement> | null {
     const components = new Set<HTMLElement>();
     // A list's rows put in one by one are a record each on the same host: it is looked into once, not once a row.
     const searched = new Set<Element>();
@@ -45,7 +50,16 @@ export function collectComponents(root: ParentNode, mutations: readonly Mutation
         // A characterData record names the text node itself, which has no `closest` of its own.
         const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
 
-        if (target === null || searched.has(target))
+        if (target === null)
+            continue;
+
+        // A row put into a long list is that row's alone: every stamp of the list read again per row is the cost this spares.
+        if (addedOnly && mutation.type === "childList" && target.closest(selector) === null) {
+            collectAdded(mutation.addedNodes, selector, components);
+            continue;
+        }
+
+        if (searched.has(target))
             continue;
 
         searched.add(target);
@@ -66,6 +80,20 @@ export function collectComponents(root: ParentNode, mutations: readonly Mutation
     }
 
     return components.size === 0 ? null : components;
+}
+
+/** The components among nodes put in, and under them; a node gone again before the batch is read (drawn and dropped) is passed over. */
+function collectAdded(nodes: NodeList, selector: string, components: Set<HTMLElement>): void {
+    for (const node of nodes) {
+        if (!(node instanceof Element) || !node.isConnected)
+            continue;
+
+        if (node instanceof HTMLElement && node.matches(selector))
+            components.add(node);
+
+        for (const component of node.querySelectorAll<HTMLElement>(selector))
+            components.add(component);
+    }
 }
 
 /** Whether a record happened inside a part (a tab's page) rather than elsewhere in its component, judged by the nearer of the two. */

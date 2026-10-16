@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/field.less";
 @import "../mixins/interactive.less";
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
@@ -18,6 +19,42 @@
     .ui-tab-strip();
     flex: 0 0 auto;
 }
+
+// With actions at its end (AddAction, AddTabAction) a band holds the strip and the actions and carries the rule: the captions keep
+// the room the actions leave, their "…" at the strip's own end, clear of them.
+.ui-tabs__band {
+    .ui-tab-strip();
+    flex: 0 0 auto;
+}
+
+    .ui-tabs__band > .ui-tabs__strip {
+        flex: 1 1 auto;
+        min-width: 0;
+        border-bottom: 0;
+    }
+
+// Sized to the captions and on their line, in a field's actions' look (mixins/field.less); a tab's own group lays its buttons out
+// as the bar's own (display: contents) and is hidden with its page.
+.ui-tabs__actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: @ui-space-1;
+    margin-inline-start: @ui-space-2;
+}
+
+    .ui-tabs__tab-actions {
+        display: contents;
+    }
+
+    .ui-tabs__tab-actions[hidden] {
+        display: none;
+    }
+
+    .ui-tabs__actions,
+    .ui-tabs__actions > .ui-tabs__tab-actions {
+        .ui-field-action-buttons();
+    }
 
 .ui-tabs__pages {
     display: flex;
@@ -41,22 +78,27 @@
     }
 
 // A caption keeps its width rather than squeezing to an ellipsis: one past the strip's room is hidden, and the "…" control lists it.
-.ui-tabs__strip > .ui-tab-header {
+.ui-tabs__strip > .ui-tab-caption {
     flex-shrink: 0;
 }
 
-// Without the "…" list the captions wrap onto the next line instead.
-.ui-tabs--no-overflow > .ui-tabs__strip {
+// Without the "…" list the captions wrap onto the next line instead, the actions on the first.
+.ui-tabs--no-overflow > .ui-tabs__strip,
+.ui-tabs--no-overflow > .ui-tabs__band > .ui-tabs__strip {
     flex-wrap: wrap;
 }
 
-.ui-tabs__strip > .ui-tab-header--overflowed {
+.ui-tabs--no-overflow > .ui-tabs__band > .ui-tabs__actions {
+    align-self: flex-start;
+}
+
+.ui-tabs__strip > .ui-tab-caption--overflowed {
     display: none;
 }
 
 // A caption is a label with an underline, not a filled control: it wears .ui-button for hover/disabled/focus and takes the fill back off.
-.ui-tab-header {
-    .ui-tab-caption();
+.ui-tab-caption {
+    .ui-tab-caption-box();
     // overflow: visible, since the underline is drawn outside the caption's box; the renderer writes no inline Overflow for a caption.
     overflow: visible;
     // No bottom border: the mark is placed from the padding edge, and a border would lift it a pixel above the strip's rule.
@@ -67,30 +109,30 @@
 }
 
 // Not :where(): needs to outrank .ui-button's one-class on-surface color, which a zero-specificity rule can't.
-.ui-tab-header:not(.ui-tab-header--selected) {
+.ui-tab-caption:not(.ui-tab-caption--selected) {
     .ui-tab-caption-rest-ink();
 }
 
-    .ui-tab-header::after {
+    .ui-tab-caption::after {
         .ui-tab-caption-mark();
     }
 
 // A caption reacts by changing text and line, never by filling: reveal-hover would put a block behind it.
-.ui-tab-header {
+.ui-tab-caption {
     .ui-reveal-hover-off({
         .ui-tab-caption-hover-ink();
     });
 }
 
-    // Excluded rather than out-ranked, which would beat the selected rule below; the button family's guard quiets a loading header.
+    // Excluded rather than out-ranked, which would beat the selected rule below; the button family's guard quiets a loading caption.
     @media @{ui-can-hover} {
-        .ui-tab-header@{ui-button-live}:not(.ui-tab-header--selected):hover::after {
+        .ui-tab-caption@{ui-button-live}:not(.ui-tab-caption--selected):hover::after {
             .ui-tab-caption-hover-mark();
         }
     }
 
 // Restated inside reveal-hover-off at the ghost button's hover specificity, or a set ground vanished on hover.
-.ui-tab-header--selected {
+.ui-tab-caption--selected {
     .ui-selected-ground(transparent);
     .ui-tab-caption-selected-ink();
 
@@ -100,16 +142,16 @@
     });
 }
 
-    // The caption's text body wears TitleType and re-declares the weight over the header's; it is said again where the words are.
-    .ui-tab-header--selected .ui-text {
+    // The caption's text body wears TitleType and re-declares the weight over the caption's; it is said again where the words are.
+    .ui-tab-caption--selected .ui-text {
         font-weight: var(--ui-selected-font-weight, 600);
     }
 
-    .ui-tab-header .ui-text__title[data-ui-caption-text]::after {
+    .ui-tab-caption .ui-text__title[data-ui-caption-text]::after {
         .ui-tab-caption-reserve();
     }
 
-    // Keeps its own line under the pointer, since the hover rule above excludes selected headers outright.
-    .ui-tab-header--selected::after {
+    // Keeps its own line under the pointer, since the hover rule above excludes selected captions outright.
+    .ui-tab-caption--selected::after {
         .ui-tab-caption-selected-mark();
     }

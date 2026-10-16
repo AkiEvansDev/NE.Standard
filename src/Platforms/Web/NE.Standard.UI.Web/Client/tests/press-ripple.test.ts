@@ -357,6 +357,24 @@ test("a row answers a press where it does something: chooses itself, folds a tre
     }
 });
 
+test("an expander's header, card or quiet, raises no wave, and takes the press from a row around it", () => {
+    const card = placed(FakeElement.of("ui-expander__header"), 0, 0, 300, 40);
+    const quiet = placed(FakeElement.of("ui-expander__header"), 0, 0, 300, 24);
+    const row = placed(FakeElement.of("ui-items-view__item"), 0, 0, 300, 120);
+
+    page(
+        FakeElement.of("ui-expander").append(card),
+        FakeElement.of("ui-items-view", { "data-ui-selection": "one" }).append(row.append(FakeElement.of("ui-expander ui-expander--quiet").append(quiet)))
+    );
+
+    for (const header of [card, quiet]) {
+        down(header);
+        assert.equal(rippling(header), false);
+        assert.equal(rippling(row), false);
+        up(header);
+    }
+});
+
 test("a row's click raised by its template's component counts; a row chosen by a control of the host's own does not", () => {
     const face = FakeElement.of("ui-text", { "data-ui-id": "40" });
     const row = placed(FakeElement.of("ui-items-view__item"), 0, 0, 300, 40).append(face);
@@ -441,7 +459,7 @@ test("the wave is a layer of the element's own frame and corners, cutting the ci
     assert.doesNotMatch(css, /--ui-ripple-radius|clip-path: circle\(var/);
     assert.match(rule(".ui-loading > .ui-press-wave {"), /display: none;/);
     assert.match(rule(".ui-table__row > .ui-press-wave {"), /z-index: 2;/);
-    assert.match(rule(".ui-tab-header > .ui-press-wave {"), /border-radius: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
+    assert.match(rule(".ui-tab-caption > .ui-press-wave {"), /border-radius: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
 });
 
 test("a table's column lines stop at the last cell, not the row's last child, so a wave standing after the cells adds none", () => {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -124,4 +125,13 @@ public sealed class FlyoutComponent(string? id = null) : FlyoutComponent<FlyoutC
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.flyout";
+
+    /// <summary>The button a flyout among <paramref name="host"/> actions opens from: they are buttons, so one on anything else is refused.</summary>
+    internal static IButtonComponent ButtonAnchorOf(FlyoutComponent flyout, string host)
+    {
+        ArgumentNullException.ThrowIfNull(flyout);
+
+        return flyout.Anchor as IButtonComponent
+            ?? throw new ArgumentException($"A flyout among {host} actions opens from a button: set its anchor to one before adding it.", nameof(flyout));
+    }
 }

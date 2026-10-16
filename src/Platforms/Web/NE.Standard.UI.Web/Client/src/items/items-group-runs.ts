@@ -58,10 +58,10 @@ function drawHeader(host: Element, row: Element, group: string, draw: (row: Elem
 }
 
 /**
- * Buckets items by group, the groups in the order they last stood and a new one after them in the order it first comes — one rule for
- * a plain host's rows and a virtualized host's values.
+ * Buckets items by group, the groups in the order they first come, as the server's `RenderItemList` does; one rule for a plain host's
+ * rows and a virtualized host's values.
  */
-export function bucketByGroup<T>(items: readonly T[], groupOf: (item: T) => string, previousOrder: readonly string[]): { readonly buckets: Map<string, T[]>; readonly order: string[] } {
+export function bucketByGroup<T>(items: readonly T[], groupOf: (item: T) => string): { readonly buckets: Map<string, T[]>; readonly order: string[] } {
     const buckets = new Map<string, T[]>();
 
     for (const item of items) {
@@ -74,15 +74,7 @@ export function bucketByGroup<T>(items: readonly T[], groupOf: (item: T) => stri
             bucket.push(item);
     }
 
-    const order = previousOrder.filter(group => buckets.has(group));
-    const placed = new Set(order);
-
-    for (const group of buckets.keys()) {
-        if (!placed.has(group))
-            order.push(group);
-    }
-
-    return { buckets, order };
+    return { buckets, order: [...buckets.keys()] };
 }
 
 /** The row a bucket's header is drawn from: its first shown one, so a command in the header never names a row the reader cannot see. */

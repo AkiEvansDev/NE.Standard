@@ -67,4 +67,12 @@ public sealed class UIHandle
 
         _session = session;
     }
+
+    /// <summary>Moves this connection to the new id its sign-in gave its session.</summary>
+    internal void MoveSession(IUserSessionContext session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        _session = session;
+    }
 }

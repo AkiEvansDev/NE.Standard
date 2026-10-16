@@ -6,7 +6,7 @@ import {
     CellFocusAttribute, CellKeyEventName, ComponentIdAttribute, ComponentKeyAttribute, OwnsKeysAttribute, RowCursorWaitsAttribute, RowFocusAttribute, SelectedAttribute, TableColumnAttribute,
     TableScrollClass, ensureElementId
 } from "../addressing/dom-attributes.ts";
-import { readHostScroll } from "../items/items-viewport.ts";
+import { readHostScroll, viewportOf } from "../items/items-viewport.ts";
 import { isFieldKey } from "./caret-fields.ts";
 import { isItemDisabled } from "./interactive-state.ts";
 import { ownControlOf } from "./own-control.ts";
@@ -70,7 +70,11 @@ export function unclaimedRowKeyTarget(target: Element): RowKeyTarget | null {
 
 /** The rows a key can land on: drawn and not disabled. */
 function rowCandidates(rows: readonly HTMLElement[]): HTMLElement[] {
-    return rows.filter(row => rowBox(row) !== null && !isItemDisabled(row));
+    return rows.filter(isRowCandidate);
+}
+
+function isRowCandidate(row: HTMLElement): boolean {
+    return rowBox(row) !== null && !isItemDisabled(row);
 }
 
 /** The row the keyboard is on: the one marked, else the chosen one, else the first it could land on. */
@@ -498,42 +502,88 @@ export function dispatchRowEvent(row: HTMLElement, name: string, detail?: unknow
     target.dispatchEvent(detail === undefined ? new Event(name, { bubbles: true }) : new CustomEvent(name, { bubbles: true, detail }));
 }
 
-/** Before a row is removed: a callback that moves the cursor and the focus off it once it is gone, or null if it held neither. */
-export function planRowRemoval(root: HTMLElement, rows: readonly HTMLElement[], removed: HTMLElement): (() => void) | null {
-    const hadCursor = removed.hasAttribute(RowFocusAttribute);
-    const hadFocus = removed.contains(document.activeElement);
+/**
+ * Before rows are removed: a callback that moves the cursor and the focus off them once they are gone, or null if they held neither.
+ * The rows left are read here, so the caller may change its list meanwhile; the next row is scrolled to only where the cursor's row
+ * showed, since a row trimmed out of sight (a window's start) would pull the view back to it.
+ */
+export function planRowRemoval(root: HTMLElement, rows: readonly Element[], removed: ReadonlySet<Element>): (() => void) | null {
+    let cursor: HTMLElement | null = null;
+    let hadFocus = false;
 
-    if (!hadCursor && !hadFocus)
+    for (const row of removed) {
+        if (row instanceof HTMLElement && row.hasAttribute(RowFocusAttribute))
+            cursor = row;
+
+        hadFocus ||= row.contains(document.activeElement);
+    }
+
+    if (cursor === null && !hadFocus)
         return null;
 
-    const index = rows.indexOf(removed);
-    const remaining = rows.filter(row => row !== removed);
+    // Paid only for a cursor row: the rows left, where among them the cursor's row stood, and whether the reader saw it.
+    const remaining: HTMLElement[] = [];
+    let from = -1;
+
+    if (cursor !== null) {
+        for (const row of rows) {
+            if (row === cursor)
+                from = remaining.length;
+
+            if (row instanceof HTMLElement && !removed.has(row))
+                remaining.push(row);
+        }
+    }
+
+    const reveal = cursor !== null && showsInView(cursor);
 
     return () => {
         if (hadFocus)
             root.focus({ preventScroll: true });
 
-        if (!hadCursor)
-            return;
-
-        const next = nearestCandidate(rows, remaining, index);
+        const next = nearestCandidate(remaining, from);
 
         if (next !== null)
-            setRowFocus(root, remaining, next);
+            setRowFocus(root, remaining, next, null, reveal);
+        else if (cursor !== null)
+            root.removeAttribute("aria-activedescendant");
     };
 }
 
-/**
- * The row the cursor goes to from the row at `index` of `rows` once that one is gone or hidden: the next candidate of `remaining` below
- * it, else the last above; a folded subtree's rows are in the list but not candidates.
- */
-function nearestCandidate(rows: readonly HTMLElement[], remaining: readonly HTMLElement[], index: number): HTMLElement | null {
-    const candidates = rowCandidates(remaining);
+/** Whether any of a row's box shows in its host's viewport and in the window. */
+function showsInView(row: HTMLElement): boolean {
+    const box = rowBox(row);
+    const host = row.parentElement;
 
-    if (index < 0 || candidates.length === 0)
+    if (box === null || host === null)
+        return false;
+
+    const rect = box.getBoundingClientRect();
+    const view = viewportOf(host).getBoundingClientRect();
+
+    return rect.bottom > Math.max(view.top, 0) && rect.top < Math.min(view.bottom, window.innerHeight)
+        && rect.right > Math.max(view.left, 0) && rect.left < Math.min(view.right, window.innerWidth);
+}
+
+/**
+ * The row the cursor goes to once the row it stood on is gone or hidden: the first candidate of `rows` from `from` on, else the last
+ * before it; a folded subtree's rows are in the list but not candidates.
+ */
+function nearestCandidate(rows: readonly HTMLElement[], from: number): HTMLElement | null {
+    if (from < 0)
         return null;
 
-    return candidates.find(candidate => rows.indexOf(candidate) > index) ?? candidates[candidates.length - 1];
+    for (let i = from; i < rows.length; i++) {
+        if (isRowCandidate(rows[i]))
+            return rows[i];
+    }
+
+    for (let i = Math.min(from, rows.length) - 1; i >= 0; i--) {
+        if (isRowCandidate(rows[i]))
+            return rows[i];
+    }
+
+    return null;
 }
 
 /**
@@ -546,7 +596,7 @@ export function keepRowCursorShown(root: HTMLElement, rows: readonly HTMLElement
     if (marked === undefined || rowBox(marked) !== null)
         return;
 
-    const next = nearestCandidate(rows, rows, rows.indexOf(marked));
+    const next = nearestCandidate(rows, rows.indexOf(marked));
 
     if (next !== null) {
         setRowFocus(root, rows, next, null, false);
@@ -602,6 +652,8 @@ export function giveRowCursor(host: Element, row: Element | null, held: HeldRowC
         if (typeof held.key === "string")
             root.setAttribute(RowCursorWaitsAttribute, held.key);
 
+        // The row it named is off the page; drawn again, it is named anew (`restoreWaitingCursor`).
+        root.removeAttribute("aria-activedescendant");
         return;
     }
 

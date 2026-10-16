@@ -16,7 +16,7 @@ import { isInert } from "./interactive-state.ts";
 import type { ItemDrag, ItemDropEffect } from "./item-drags.ts";
 import { carriedRows, currentItemDrag, endItemDrag, isLiftable, offeredItems } from "./item-drags.ts";
 import type { Place } from "./items-reorder-engine.ts";
-import { flowOf, insertIndex, lineOffset, markRowDrop, placeAmong, rowOrder, shownRows } from "./items-reorder-engine.ts";
+import { insertIndex, lineOffset, markRowDrop, placeAmong, RowsViewCache, shownRows } from "./items-reorder-engine.ts";
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
 import { isComposing, isMacPlatform, matchesShortcut } from "./keyboard-shortcut.ts";
 import { focusedRow, litRow, rowKeyTarget } from "./row-cursor.ts";
@@ -119,10 +119,13 @@ export class ItemDragEngine {
     // The target a drag stands over now, marked; the one to unmark when it moves on.
     private marked: HTMLElement | null = null;
     private clipboard: Clipboard | null = null;
+    // The rows of the list a drag stands over, read once while it stands still.
+    private readonly views: RowsViewCache;
 
     public constructor(options: ItemDragEngineOptions) {
         this.root = options.root ?? document;
         this.options = options;
+        this.views = new RowsViewCache(this.root, options.keysOf);
 
         this.root.addEventListener("dragover", domEvent => this.handleDragOver(domEvent), true);
         this.root.addEventListener("dragleave", domEvent => this.handleDragLeave(domEvent), true);
@@ -190,17 +193,15 @@ export class ItemDragEngine {
         const host = target.matches(KeyboardRowsRootSelector) ? hostOf(target) : null;
 
         if (host !== null) {
-            const rows = shownRows(host);
-            const flow = flowOf(target, host);
-            const order = rowOrder(host, this.options.keysOf);
-            const place = over !== null && point !== null ? placeAmong(host, over, point, flow, rows) : afterCursor(rows);
-            const at = place === null ? null : insertIndex(order, rowKey(place.anchor), place.side);
+            const view = this.views.read(target, host);
+            const place = over !== null && point !== null ? placeAmong(host, over, point, view.flow, view.rows, view.boxes) : afterCursor(view.rows);
+            const at = place === null ? null : insertIndex(view.order, rowKey(place.anchor), place.side);
 
             return {
-                index: (at ?? order.length) + windowOffset(host),
+                index: (at ?? view.order.length) + windowOffset(host),
                 folder: null,
                 list: host,
-                mark: () => place === null ? target.setAttribute(ItemDropOverAttribute, "") : markRowDrop(target, place, lineOffset(rows, place, flow))
+                mark: () => place === null ? target.setAttribute(ItemDropOverAttribute, "") : markRowDrop(target, place, lineOffset(view.rows, place, view.flow))
             };
         }
 
@@ -249,6 +250,9 @@ export class ItemDragEngine {
     }
 
     private handleDrop(domEvent: Event): void {
+        // The list as it stands, not as a dragover read it: the drop raises the index it takes.
+        this.views.drop();
+
         const drop = domEvent instanceof DragEvent ? this.dropOf(domEvent) : null;
 
         if (drop === null)
@@ -277,6 +281,7 @@ export class ItemDragEngine {
 
     private endDrag(): void {
         this.unmark();
+        this.views.drop();
         endItemDrag();
     }
 
@@ -322,6 +327,10 @@ export class ItemDragEngine {
         const clipboard = this.clipboard;
         const target = clipboard === null ? null : this.targetOf(clipboard.items, element);
         const effect = clipboard === null || target === null ? null : effectOf(clipboard.items, target, !clipboard.cut);
+
+        // The list as it stands, as a drop reads it.
+        this.views.drop();
+
         const landing = target === null || effect === null ? null : this.landingOf(target, null, null);
 
         if (clipboard === null || target === null || effect === null || landing === null)

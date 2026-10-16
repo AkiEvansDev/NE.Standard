@@ -14,6 +14,8 @@ export type ItemRows = {
     itemOf(row: Element): unknown;
     /** The items a virtualized host holds whole, as its rules left them; null for any other host. */
     itemsOf(host: Element): readonly unknown[] | null;
+    /** A number that moves whenever `itemsOf` may answer otherwise, never for a scroll; null for any other host. */
+    itemsVersion(host: Element): number | null;
     /** The value at an item's dotted property path, matched in any case: null for a property left out, undefined where a step cannot be taken. */
     readPath(item: unknown, path: string): unknown;
     renderVariant(row: Element, componentId: number, variantKey: string): Element | null;
@@ -32,6 +34,7 @@ export function createItemRows(templates: ItemsTemplateRegistry, renderer: Items
     return {
         itemOf: row => renderer.getItemValue(row),
         itemsOf: host => virtualization.itemsOf(host),
+        itemsVersion: host => virtualization.itemsVersion(host),
         readPath: readItemPropertyPath,
         renderVariant: (row, componentId, variantKey) => {
             const template = templates.getVariantTemplate(componentId, variantKey);

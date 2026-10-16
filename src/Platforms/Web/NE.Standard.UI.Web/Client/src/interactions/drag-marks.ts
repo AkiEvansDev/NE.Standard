@@ -3,6 +3,7 @@
 
 // `.ts` on the value imports: file-drop.ts, which `node --test` loads as it is, reads this module.
 import { DropBoxedAttribute } from "../addressing/dom-attributes.ts";
+import { giveDragPicture } from "./drag-picture.ts";
 import { FieldBoxSelector } from "./own-control.ts";
 
 // A field's box as `@ui-input-field-state` lists it (styles/mixins/field.less): the image input's surface is one too.
@@ -12,12 +13,12 @@ const DropBoxSelector = `:scope > :is(${FieldBoxSelector}, .ui-image-input__surf
 export function markDragStart(domEvent: Event, scope: Element, element: HTMLElement, draggingClass: string, key: string, companions: Iterable<HTMLElement> = [], allowed: DataTransfer["effectAllowed"] = "move"): void {
     // A drag another listener cancelled ends without dragend, so a stale mark is cleared before the new one is made.
     clearDragMarks(scope, draggingClass);
+    // Before the mark: the picture is drawn from the element as it stood, not faded where it stays.
+    giveDragPayload(domEvent, key, allowed);
     element.classList.add(draggingClass);
 
     for (const companion of companions)
         companion.classList.add(draggingClass);
-
-    giveDragPayload(domEvent, key, allowed);
 }
 
 /** Takes the mark off every element in the scope that wears it. */
@@ -26,7 +27,7 @@ export function clearDragMarks(scope: Element, draggingClass: string): void {
         stale.classList.remove(draggingClass);
 }
 
-/** Gives a starting drag its payload and what a drop may do with it, which the browser's cursor shows: the one writer of either. */
+/** Gives a starting drag its payload, what a drop may do with it, which the browser's cursor shows, and its picture: the one writer of each. */
 export function giveDragPayload(domEvent: Event, key: string, allowed: DataTransfer["effectAllowed"]): void {
     if (!(domEvent instanceof DragEvent) || domEvent.dataTransfer === null)
         return;
@@ -34,6 +35,9 @@ export function giveDragPayload(domEvent: Event, key: string, allowed: DataTrans
     domEvent.dataTransfer.effectAllowed = allowed;
     // Firefox starts no drag at all without payload, and the key is what the drop already knows.
     domEvent.dataTransfer.setData("text/plain", key);
+
+    if (domEvent.target instanceof HTMLElement)
+        giveDragPicture(domEvent, domEvent.dataTransfer, domEvent.target);
 }
 
 /** Whether a `dragleave` left the element altogether, rather than moved between its own parts; a dragover follows such a move. */

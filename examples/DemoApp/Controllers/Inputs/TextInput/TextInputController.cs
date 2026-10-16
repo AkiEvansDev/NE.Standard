@@ -46,17 +46,26 @@ internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupCont
 }
 
 /// <summary>
-/// A release's name and its labels: Enter in the labels field adds one and empties the field, Save takes the form.
+/// A release's name and its labels: Enter in the labels field adds one and empties the field, Save takes the form. A press on a label
+/// puts it in the field to be renamed: Enter renames it, and Escape drops the rename — the only time Escape is the field's cancel, so
+/// a new label half typed survives an Escape.
 /// </summary>
 internal sealed partial class TextInputLabelsGroupContext : DemoGroupContext
 {
     private int _added;
+    // The label being renamed, and what the field held before the rename, which the rename's end gives back.
+    private string? _renaming;
+    private string? _draftBefore;
 
     [RecursiveMember]
     public partial string? Name { get; set; } = "Release 2.4";
 
     [RecursiveMember]
     public partial string? Draft { get; set; }
+
+    /// <summary>Whether a rename is under way; the field's <c>CancelOnEscape</c> is bound to it.</summary>
+    [RecursiveMember]
+    public partial bool Renaming { get; set; }
 
     [RecursiveMember(false)]
     public RecursiveCollection<TextItem> Labels { get; } =
@@ -73,15 +82,60 @@ internal sealed partial class TextInputLabelsGroupContext : DemoGroupContext
         if (string.IsNullOrEmpty(label))
             return;
 
+        if (_renaming is not null && Find(_renaming) is TextItem renamed)
+        {
+            renamed.Title = label;
+            LogEvent($"label renamed to \"{label}\"");
+            EndRename();
+            return;
+        }
+
         _added++;
         Labels.Add(new TextItem { Id = string.Create(CultureInfo.InvariantCulture, $"label-added-{_added}"), Title = label, IsContent = true });
         Draft = null;
         LogEvent($"label \"{label}\" added");
     }
 
-    // Escape has already put the field back and sent nothing: the draft is still what it was.
-    public void DropLabel()
-        => LogEvent("the label typed was dropped");
+    private TextItem? Find(string id)
+    {
+        foreach (TextItem label in Labels)
+        {
+            if (label.Id == id)
+                return label;
+        }
+
+        return null;
+    }
+
+    private void EndRename()
+    {
+        Draft = _draftBefore;
+        _draftBefore = null;
+        _renaming = null;
+        Renaming = false;
+    }
+
+    /// <summary>Puts the label keyed <paramref name="id"/> in the field to be renamed, keeping what the field held for the rename's end.</summary>
+    public void RenameLabel(string id)
+    {
+        if (Find(id) is not TextItem label)
+            return;
+
+        if (_renaming is null)
+            _draftBefore = Draft;
+
+        _renaming = id;
+        Draft = label.Title?.Key;
+        Renaming = true;
+        LogEvent($"renaming \"{Draft}\"");
+    }
+
+    // Escape has already put the label's name back in the field and sent nothing: the rename ends, and the draft before it returns.
+    public void DropRename()
+    {
+        LogEvent("the rename was dropped");
+        EndRename();
+    }
 
     public void Save()
         => LogEvent($"saved \"{Name}\" with {Labels.Count} labels");
@@ -135,8 +189,12 @@ internal sealed partial class TextInputController() : DemoStandardController
         => LabelsGroup.AddLabel();
 
     [UICommand]
-    public void DropLabel()
-        => LabelsGroup.DropLabel();
+    public void RenameLabel(string id)
+        => LabelsGroup.RenameLabel(id);
+
+    [UICommand]
+    public void DropRename()
+        => LabelsGroup.DropRename();
 
     [UICommand]
     public void SaveRelease()

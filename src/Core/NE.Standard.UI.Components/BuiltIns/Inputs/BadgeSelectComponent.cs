@@ -11,6 +11,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// An option is its badge: its <c>BadgeText</c> the words, its style, colour, fill and icon the look, a <c>Description</c> under it what
 /// it means — the shape <see cref="Models.BadgeItem"/> gives a row of badges to read. The list draws each badge at the start of its row,
 /// and the field each chosen one with its remove inside it; in the field, an option with no badge words stands as a badge of its title.
+/// Leave <c>Title</c> unset where the badge is the option's name: a title stands before the badge on its row, so the same words would
+/// read twice. It is for an option whose badge is not its name — a priority's <c>P1</c> badge before "Critical".
 /// </remarks>
 public sealed class BadgeSelectComponent : MultiSelectComponent<BadgeSelectComponent>, IUIComponentDefinition
 {

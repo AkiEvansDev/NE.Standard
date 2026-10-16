@@ -377,6 +377,14 @@ internal abstract partial class UIRuntimeBase
             try
             {
                 source = ResolveItemSourceNoLock(componentId, []);
+
+                // Read on this very flow (the author's read wrote a rule source), it would wait for itself: left for the next drain.
+                if (source.IsReadOnThisFlow)
+                {
+                    _ = (_dirtyItemWindows ??= []).Add(componentId);
+                    continue;
+                }
+
                 query = BuildItemsQueryNoLock(componentId);
                 // The size the page last asked for — a page size the viewer chose — else the host's own.
                 count = source.ReplacingCount ?? ReadWindowSizeNoLock(componentId);

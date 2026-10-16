@@ -7,8 +7,9 @@ import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-regi
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { resolveValueHolder } from "../extensions/value-readers.ts";
-import { getIdValue, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
+import { getIdValue, getInteractionOperator, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata, WebValidationSeverityName } from "../metadata/metadata-index.ts";
+import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { prefersReducedMotion } from "../rendering/motion.ts";
 import { clientStrings, forgetWords, readTextWords } from "../runtime/client-strings.ts";
 import type { AuthorText, Phrase } from "../runtime/words.ts";
@@ -159,8 +160,9 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         }, true);
 
         // A message that came rendered has never been through applyPresentation, so nothing has asked the stylesheet whether it is a mark.
+        // A field reads its own message alone: a row put into a list is that row's fields, not every field the list already showed.
         this.applyRenderedMessages(this.root.querySelectorAll<HTMLElement>(RenderedSelector));
-        observeComponents(this.root, RenderedSelector, { childList: true }, components => this.applyRenderedMessages(components));
+        observeComponents(this.root, RenderedSelector, { childList: true, addedOnly: true }, components => this.applyRenderedMessages(components));
 
         // The lines were written again by their marks; a mark's tooltip and the lines another property holds are this engine's.
         clientStrings.onChange(() => {
@@ -440,7 +442,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
      */
     public entryRefusal(field: Element, current: unknown, next: unknown): FieldMarkWords | null {
         for (const rule of this.options.metadata.getValidationsForComponent(readComponentId(field))) {
-            if (toSeverityName(rule.severity) === "Error" && evaluateOperator(current, rule.operator, rule.value) && !evaluateOperator(next, rule.operator, rule.value))
+            if (toSeverityName(rule.severity) === "Error" && passesRule(current, rule) && !passesRule(next, rule))
                 return rule.message;
         }
 
@@ -452,7 +454,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         let strongest: WebRenderValidationMetadata | null = null;
 
         for (const rule of this.options.metadata.getValidationsForComponent(componentId)) {
-            if (!evaluateOperator(value, rule.operator, rule.value) && (strongest === null || SeverityRank[toSeverityName(rule.severity)] < SeverityRank[toSeverityName(strongest.severity)]))
+            if (!passesRule(value, rule) && (strongest === null || SeverityRank[toSeverityName(rule.severity)] < SeverityRank[toSeverityName(strongest.severity)]))
                 strongest = rule;
         }
 
@@ -707,7 +709,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         }
 
         for (const rule of rules) {
-            if (evaluateOperator(value, rule.operator, rule.value))
+            if (passesRule(value, rule))
                 failing.delete(rule);
             else
                 failing.add(rule);
@@ -718,6 +720,22 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
         this.applyCurrentState(componentId, element);
     }
+}
+
+/**
+ * Whether a value passes a rule as validation judges it: every rule but `Required` passes on an empty value, so a field left empty —
+ * tabbed through, never typed in — says only that it is required. An interaction's rules read the shared evaluator as it is.
+ */
+function passesRule(value: unknown, rule: Pick<WebRenderValidationMetadata, "operator" | "value">): boolean {
+    if (getInteractionOperator(rule.operator) !== "Required" && isEmptyValue(value))
+        return true;
+
+    return evaluateOperator(value, rule.operator, rule.value);
+}
+
+/** Nothing given: what `Required` refuses, but a toggle's `false`, which is a value a rule may judge. */
+function isEmptyValue(value: unknown): boolean {
+    return value !== false && !evaluateOperator(value, "Required", null);
 }
 
 /** The words a field's value past its bounds is refused in: a number field's, a temporal control's or a calendar's; null for any other. */
@@ -797,8 +815,9 @@ function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
     applyMarkerMirror(mirrors, root, presentation === "elsewhere" ? undefined : display, message.textContent ?? "", style.getPropertyValue(MarkerHostProperty).trim());
 
     if (display !== undefined && marker) {
-        // The line's own words, which the page wrote in its language.
-        message.setAttribute(TooltipAttribute, message.textContent ?? "");
+        // The line's own words, which the page wrote in its language — as text: the tooltip reads markup, and a message may quote
+        // the reader's value or a pattern.
+        message.setAttribute(TooltipAttribute, escapeInlineMarkup(message.textContent ?? ""));
         message.setAttribute(PlacementAttribute, MarkerPlacement);
         message.setAttribute(TooltipSeverityAttribute, TooltipSeverity[display.severity]);
         root.setAttribute(TooltipMarkAttribute, "");
@@ -839,7 +858,7 @@ function applyMarkerMirror(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTM
     // The mark's own text, hidden as the field's is: a reader on the value's line hears it there, not from a hidden field.
     mirror.className = `${MirrorClass} ${MirrorSeverityClass[display.severity]}`;
     mirror.textContent = words;
-    mirror.setAttribute(TooltipAttribute, words);
+    mirror.setAttribute(TooltipAttribute, escapeInlineMarkup(words));
     mirror.setAttribute(PlacementAttribute, MirrorPlacement);
     mirror.setAttribute(TooltipSeverityAttribute, TooltipSeverity[display.severity]);
     mirror.setAttribute(TooltipPressAttribute, "");

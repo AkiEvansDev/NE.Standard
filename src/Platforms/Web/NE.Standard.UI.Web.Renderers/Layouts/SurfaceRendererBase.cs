@@ -28,6 +28,7 @@ public abstract class SurfaceRendererBase : WebComponentRendererBase
 
         SurfaceChromeRenderer.RenderChrome(context, root);
         RenderClickable(context, root);
+        RenderFlagClass(context, root, SurfaceComponent.QuietHoverProperty, "ui-surface--quiet-hover");
         RenderLiveRegion(context, root);
     }
 

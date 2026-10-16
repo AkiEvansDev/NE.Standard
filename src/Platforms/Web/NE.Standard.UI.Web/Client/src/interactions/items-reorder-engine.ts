@@ -10,7 +10,7 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
     ComponentIdAttribute, DragKindAttribute, GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass,
-    RowsDraggableAttribute, RowsDragHandleAttribute, WindowTotalAttribute
+    RowsDraggableAttribute, RowsDragHandleAttribute, WindowSpacerAttribute, WindowTotalAttribute
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
@@ -156,6 +156,11 @@ export class ItemsReorderEngine {
     private readonly root: ParentNode;
     private readonly services: ItemsReorderServices | undefined;
     private drag: Drag | null = null;
+    private readonly views: RowsViewCache;
+
+    // The place the last dragover marked on the host as read: none until a reading's first dragover, which writes whatever it finds,
+    // since the root may wear a stale mark till then.
+    private marked: { readonly view: RowsView; readonly place: Place | null; readonly offset: number } | null = null;
 
     // The box a press made draggable, given back its own state once the gesture is over.
     private lifted: HTMLElement | null = null;
@@ -163,6 +168,7 @@ export class ItemsReorderEngine {
     public constructor(options: ItemsReorderEngineOptions = {}) {
         this.root = options.root ?? document;
         this.services = options.services;
+        this.views = new RowsViewCache(this.root, options.services?.keysOf);
 
         // Draggable only under a press: a row that is always draggable takes the text selection from every cell in it.
         this.root.addEventListener("pointerdown", domEvent => this.handlePointerDown(domEvent), true);
@@ -274,6 +280,7 @@ export class ItemsReorderEngine {
         // On the box: a wrap's row has none of its own for the ghost's fade to show on.
         markDragStart(domEvent, found.root, box, DraggingClass, rowKey(found.row), companions, allowedEffect(items, found.moves));
         beginItemsDrag(domEvent, items, () => this.endDrag());
+        this.dropView();
     }
 
     /** Over a row of the dragged row's host, or its empty room past the last: the drop is taken and the side it lands on marked. */
@@ -283,19 +290,28 @@ export class ItemsReorderEngine {
         if (drag === null || !(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
             return;
 
-        const flow = flowOf(drag.root, drag.host);
-        const rows = shownRows(drag.host);
-        const place = placeAmong(drag.host, domEvent.target, domEvent, flow, rows);
+        const view = this.views.read(drag.root, drag.host);
+        const found = placeAmong(drag.host, domEvent.target, domEvent, view.flow, view.rows, view.boxes);
+        const place = found === null || this.indexOf(drag, found.anchor, found.side, view.order) === null ? null : found;
+        const offset = place === null ? 0 : lineOffset(view.rows, place, view.flow);
 
         domEvent.preventDefault();
 
         if (domEvent.dataTransfer !== null)
             domEvent.dataTransfer.dropEffect = "move";
 
-        if (place === null || this.indexOf(drag, place.anchor, place.side) === null)
-            markRowDrop(drag.root, null);
-        else
-            markRowDrop(drag.root, place, lineOffset(rows, place, flow));
+        // The place the last dragover marked: the mark stands, and the root is not searched for marks to take off.
+        if (this.marked !== null && this.marked.view === view && samePlace(this.marked.place, place) && this.marked.offset === offset)
+            return;
+
+        markRowDrop(drag.root, place, offset);
+        this.marked = { view, place, offset };
+    }
+
+    /** Lets go of the host as read and of the mark made on it: the next dragover reads and marks afresh. */
+    private dropView(): void {
+        this.views.drop();
+        this.marked = null;
     }
 
     /** The drag in the air where it moves among its own host's rows and the event stands over them; null otherwise. */
@@ -305,12 +321,15 @@ export class ItemsReorderEngine {
         return drag !== null && drag.moves && domEvent.target instanceof Element && drag.host.contains(domEvent.target) ? drag : null;
     }
 
-    /** The index the dragged row takes beside the anchor, or null where it would not move or the anchor is another group's. */
-    private indexOf(drag: Pick<Drag, "host" | "row">, anchor: HTMLElement, side: DropSide): number | null {
+    /**
+     * The index the dragged row takes beside the anchor, or null where it would not move or the anchor is another group's; in `order`
+     * where the caller read it already.
+     */
+    private indexOf(drag: Pick<Drag, "host" | "row">, anchor: HTMLElement, side: DropSide, order?: readonly string[]): number | null {
         if (groupOf(anchor) !== groupOf(drag.row))
             return null;
 
-        const index = movedIndex(rowOrder(drag.host, this.services?.keysOf), rowKey(drag.row), rowKey(anchor), side);
+        const index = movedIndex(order ?? rowOrder(drag.host, this.services?.keysOf), rowKey(drag.row), rowKey(anchor), side);
 
         return index === null ? null : index + windowOffset(drag.host);
     }
@@ -319,8 +338,11 @@ export class ItemsReorderEngine {
     private handleDragLeave(domEvent: Event): void {
         const drag = this.drag;
 
-        if (drag !== null && domEvent instanceof DragEvent && leftAltogether(domEvent, drag.host))
+        if (drag !== null && domEvent instanceof DragEvent && leftAltogether(domEvent, drag.host)) {
+            // Taken off: a dragover back in reads the host and marks afresh.
             markRowDrop(drag.root, null);
+            this.dropView();
+        }
     }
 
     private handleDrop(domEvent: Event): void {
@@ -344,6 +366,7 @@ export class ItemsReorderEngine {
         const drag = this.drag;
 
         this.drag = null;
+        this.dropView();
         this.release();
 
         if (drag === null)
@@ -400,6 +423,67 @@ export class ItemsReorderEngine {
     }
 }
 
+/** A host's rows as a dragover reads them: how they run, the rows drawn with their boxes, and every key in the collection's order. */
+type RowsView = {
+    readonly host: Element;
+    readonly flow: Flow;
+    readonly rows: readonly HTMLElement[];
+    readonly boxes: readonly DOMRect[];
+    readonly order: readonly string[];
+};
+
+/**
+ * The host a drag stands over, read once while it stands still: dragover comes some twenty times a second, and over a long list each
+ * reading is a pass over every row. Read again for another host, or once a change in it or a scroll moved what was read; a drop reads
+ * it afresh, since what it raises moves a row.
+ */
+export class RowsViewCache {
+    private readonly keysOf: ((host: Element) => readonly string[] | null) | undefined;
+    private view: RowsView | null = null;
+
+    // Rows put in or taken out, a filter or a regroup, a spacer resized for rows a virtualized host holds undrawn (an insert above the
+    // view moves every row and changes no row); never the drop's own mark, an attribute and a style on a row.
+    private readonly changes = typeof MutationObserver === "function" ? new MutationObserver(records => this.hear(records)) : null;
+
+    public constructor(root: ParentNode, keysOf?: (host: Element) => readonly string[] | null) {
+        this.keysOf = keysOf;
+
+        // A scroll moves every box read.
+        root.addEventListener("scroll", () => this.drop(), true);
+    }
+
+    /** The host's rows as last read, or as they stand where the host is another or something moved them since. */
+    public read(root: Element, host: Element): RowsView {
+        if (this.view !== null && this.view.host === host)
+            return this.view;
+
+        this.drop();
+
+        const rows = shownRows(host);
+
+        this.view = { host, flow: flowOf(root, host), rows, boxes: rows.map(row => (rowBox(row) ?? row).getBoundingClientRect()), order: rowOrder(host, this.keysOf) };
+        this.changes?.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", GroupAttribute, "style"] });
+
+        return this.view;
+    }
+
+    /** Lets go of what was read: the next reading reads the host as it stands. */
+    public drop(): void {
+        this.view = null;
+        this.changes?.disconnect();
+    }
+
+    private hear(records: readonly MutationRecord[]): void {
+        if (records.some(movesRows))
+            this.drop();
+    }
+}
+
+/** Whether a change moves the rows a reading holds: any but a style written on something other than a spacer, as the drop's mark is. */
+function movesRows(record: MutationRecord): boolean {
+    return record.attributeName !== "style" || (record.target instanceof Element && record.target.hasAttribute(WindowSpacerAttribute));
+}
+
 /**
  * The index the row keyed `key` takes in `order` — every key, in the collection's order — once it is put on `side` of the row keyed
  * `anchor`; null where it stays where it is or either key is not there.
@@ -424,9 +508,9 @@ export function insertIndex(order: readonly string[], anchor: string, side: Drop
 
 /**
  * The row a pointer is over among a host's rows, or the nearest one off them, and the side of it a dragged row lands on — one place
- * between two rows of a line, whichever of them the pointer is over or the gap between them.
+ * between two rows of a line, whichever of them the pointer is over or the gap between them. `boxes`, where given, are the rows' as read.
  */
-export function placeAmong(host: Element, target: Element, point: { readonly clientX: number; readonly clientY: number }, flow: Flow, rows: readonly HTMLElement[]): Place | null {
+export function placeAmong(host: Element, target: Element, point: { readonly clientX: number; readonly clientY: number }, flow: Flow, rows: readonly HTMLElement[], boxes?: readonly DOMRect[]): Place | null {
     // The host's own group header is no row to land beside, nor the room past the last.
     if (target.closest(`[${GroupHeaderAttribute}]`)?.parentElement === host)
         return null;
@@ -439,7 +523,7 @@ export function placeAmong(host: Element, target: Element, point: { readonly cli
 
     // Off the rows — in the gap a spacing leaves between two as much as in the room past the last — the nearest row: read as past
     // the last row, the gap beside the dragged row flashed the line at the list's end.
-    over ??= nearestRow(rows, point);
+    over ??= nearestRow(rows, point, boxes);
 
     if (over === null)
         return null;
@@ -458,7 +542,7 @@ export function placeAmong(host: Element, target: Element, point: { readonly cli
 }
 
 /** Every item's key in the collection's order: the values a virtualized host holds, the source order of a host holding its rows. */
-export function rowOrder(host: Element, keysOf?: (host: Element) => readonly string[] | null): string[] {
+function rowOrder(host: Element, keysOf?: (host: Element) => readonly string[] | null): string[] {
     switch (resolveHostMode(host)) {
         case "virtualized":
             return [...(keysOf?.(host) ?? getRealItemElements(host).map(rowKey))];
@@ -488,10 +572,15 @@ function groupOf(row: Element): string {
 }
 
 /** How the host's rows run, read off its root and its direction. */
-export function flowOf(root: Element, host: Element): Flow {
+function flowOf(root: Element, host: Element): Flow {
     const across = root.matches(".ui-orientation--horizontal, .ui-items-view--wrap");
 
     return { across, rightToLeft: across && getComputedStyle(host).direction === "rtl" };
+}
+
+/** Whether two places are the same, or both none. */
+function samePlace(first: Place | null, second: Place | null): boolean {
+    return first === second || (first !== null && second !== null && first.anchor === second.anchor && first.side === second.side);
 }
 
 /** Whether two rows drawn one after the other share a place between them: in one group and, across, on one line. */
@@ -525,13 +614,14 @@ export function lineOffset(rows: readonly HTMLElement[], place: Place, flow: Flo
     return Math.max(gap, 0) / 2;
 }
 
-/** The row whose box stands nearest the point, the first of two as near; null with none. */
-function nearestRow(rows: readonly HTMLElement[], point: { readonly clientX: number; readonly clientY: number }): HTMLElement | null {
+/** The row whose box stands nearest the point, the first of two as near; null with none. `boxes`, where given, are the rows' as read. */
+function nearestRow(rows: readonly HTMLElement[], point: { readonly clientX: number; readonly clientY: number }, boxes?: readonly DOMRect[]): HTMLElement | null {
     let nearest: HTMLElement | null = null;
     let nearestDistance = Number.POSITIVE_INFINITY;
 
-    for (const row of rows) {
-        const rect = (rowBox(row) ?? row).getBoundingClientRect();
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rect = boxes?.[i] ?? (rowBox(row) ?? row).getBoundingClientRect();
         const dx = Math.max(rect.left - point.clientX, 0, point.clientX - rect.right);
         const dy = Math.max(rect.top - point.clientY, 0, point.clientY - rect.bottom);
         const distance = dx * dx + dy * dy;

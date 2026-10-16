@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Contents.Text;
 using DemoApp.Views.Base;
@@ -16,7 +15,6 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     private const string ContentGroup = nameof(TextController.ContentGroup);
     private const string LayoutGroup = nameof(TextController.LayoutGroup);
     private const string BadgeGroup = nameof(TextController.BadgeGroup);
-    private const string QuoteGroup = nameof(TextController.QuoteGroup);
 
     // Short enough that a host at half the page (a row, with its badge and chevron) shows it whole.
     private const string Description = "Asked on a new device.";
@@ -93,9 +91,9 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
         );
 
     // Every group across the page, its samples side by side inside it: no half-page column stands beside a taller one. A picture as the
-    // icon is the Icon page's, which shows it on a text body too.
+    // icon is the Icon page's, which shows it on a text body too; a title over its badges is the Badge page's, a quote a preset's.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateHostsGroup(), CreatePartsGroup(), CreateLongTextGroup(), CreateFoldGroup(), CreateBadgesGroup(), CreateQuoteGroup()];
+        => [CreateHostsGroup(), CreatePartsGroup(), CreateLongTextGroup(), CreateFoldGroup()];
 
     /// <summary>
     /// The same four properties set six times: on the text alone, and on five components that each own a text body inside.
@@ -314,63 +312,6 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                 .SetDescription("Adds a second step when signing in from a new device. [Which devices count?]{A browser that has not signed in "
                     + "for **thirty days**, or any device after the password changes.}"),
             columns: 24
-        );
-    }
-
-    /// <summary>
-    /// A title with its badges under it in place of a description (`UIText.WithBadges`), and the standard actions beside it as icon
-    /// buttons (`UIIconButtons`), Delete in the danger colour.
-    /// </summary>
-    private static ContainerComponent CreateBadgesGroup()
-    {
-        BadgeItem[] badges =
-        [
-            new BadgeItem { BadgeText = "production", BadgeStyle = UIBadgeType.Success },
-            new BadgeItem { BadgeText = "8 of 8", BadgeIcon = DemoIcons.Outline(DemoIcons.Check) },
-            new BadgeItem { BadgeText = "eu-west-1", BadgeStyle = UIBadgeType.Surface }
-        ];
-
-        return DemoUI.CreateExample("A title over its badges",
-            new ContainerComponent()
-                .SetMaxWidth(UILayoutLength.Absolute(470))
-                .SetColumn(24, UIGridUnit.Auto())
-                .AddChild(UIText.WithBadges("billing · #481", badges, DemoIcons.Outline(DemoIcons.Server)).SetPlacement(1, 1, 23, 1))
-                .AddChild(UILayout.Row(4, UIIconButtons.Pin(), UIIconButtons.Edit(), UIIconButtons.Copy(), UIIconButtons.Delete())
-                    .SetVerticalAlignment(UIAlignment.Center)
-                    .SetPlacement(24, 1, 1, 1)
-                ),
-            columns: 24
-        );
-    }
-
-    /// <summary>
-    /// A quote as a messenger draws one (`UIText.Quote`): the reply over a composer, bound, with an × that drops it; the edit's line;
-    /// and the reply inside a message, in its author's colour, pressed to go to the message it quotes.
-    /// </summary>
-    private static ContainerComponent CreateQuoteGroup()
-    {
-        return DemoUI.CreateExample("A quote",
-            UILayout.Stack(16,
-                UIText.Quote(nameof(QuoteGroupContext.ReplyTitle), nameof(QuoteGroupContext.ReplyLine), UIBindingScope.Relative, closeCommand: nameof(TextController.CancelReply))
-                    .BindVisibility(nameof(QuoteGroupContext.ReplyVisibility), UIBindingScope.Relative),
-                UIText.Quote("Editing", "The build is green again; merging the payments branch at noon."),
-                new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Tinted)
-                    .SetPadding(UIThickness.Uniform(8))
-                    .SetHorizontalAlignment(UIAlignment.Start)
-                    .SetContent(UILayout.Stack(6)
-                        .AddChild(UIText.Quote("Mira Okafor", "Can we move the review to Thursday?", UIThemeColor.Accent, clickCommand: nameof(TextController.JumpToQuote)))
-                        .AddChild(UIText.Paragraph("Thursday works — I'll move it to 10:00 and ask Tomás to join."))
-                    )
-            )
-            .SetMaxWidth(UILayoutLength.Absolute(470)),
-            note: "The reply's words are the controller's, shown as written, and its × runs a command that hides it. In a message the quote wears its author's colour and the whole of it is pressable.",
-            columns: 24,
-            context: QuoteGroup,
-            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
-            {
-                ["Reply again"] = nameof(TextController.ReplyAgain)
-            })
         );
     }
 }

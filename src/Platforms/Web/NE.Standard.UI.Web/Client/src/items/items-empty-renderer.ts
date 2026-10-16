@@ -3,13 +3,25 @@ import { EmptyPlaceholderAttribute, GroupHeaderAttribute, HiddenClass, WindowSpa
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import type { ItemsTemplateRegistry } from "./items-template-registry";
 
-// Children of a host that are not items, which a collection index does not count.
-const NonItemSelector = `:scope > [${EmptyPlaceholderAttribute}], :scope > [${GroupHeaderAttribute}], :scope > [${WindowSpacerAttribute}]`;
+/** On a child an engine puts into a host that stands for no item (a tree's row of waiting): a collection index does not count it. */
+export const NonItemAttribute = "data-ui-non-item";
 
+/** A host's items, in the order they stand: its children less the ones standing for no item. */
 export function getRealItemElements(host: Element): Element[] {
-    const excluded = new Set(host.querySelectorAll(NonItemSelector));
+    const items: Element[] = [];
 
-    return [...host.children].filter(child => !excluded.has(child));
+    // Each child asked for its marks rather than a `:scope >` selector, which walks every row's subtree.
+    for (const child of host.children) {
+        if (!isNonItem(child))
+            items.push(child);
+    }
+
+    return items;
+}
+
+/** An engine's own child, the empty state, a group header or a window's spacer. */
+function isNonItem(child: Element): boolean {
+    return child.hasAttribute(NonItemAttribute) || child.hasAttribute(EmptyPlaceholderAttribute) || child.hasAttribute(GroupHeaderAttribute) || child.hasAttribute(WindowSpacerAttribute);
 }
 
 export function toNodes(element: Element | null): Element[] {

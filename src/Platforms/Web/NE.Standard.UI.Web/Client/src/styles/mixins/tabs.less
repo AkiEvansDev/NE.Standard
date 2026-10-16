@@ -12,7 +12,8 @@
 }
 
 // Captions are spaced by their own padding rather than a strip gap, so the mark and the rule stay visually attached to the caption.
-.ui-tab-caption() {
+// Not `.ui-tab-caption()`: Less calls every `.ui-tab-caption` ruleset (the Tabs caption's class) along with a mixin of that name.
+.ui-tab-caption-box() {
     position: relative;
     // A pixel short on top, given back by the top border, so the line fills the box exactly at the small control height.
     padding: calc(@ui-space-1 - 1px) @ui-space-3 @ui-space-1;

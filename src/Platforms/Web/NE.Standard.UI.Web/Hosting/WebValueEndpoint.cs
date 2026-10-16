@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Net.Http.Headers;
 using NE.Standard.UI.Files;
 using NE.Standard.UI.Shell.Sessions;
 
@@ -56,7 +55,7 @@ internal static partial class WebValueEndpoint
             return Results.StatusCode(StatusCodes.Status403Forbidden);
 
         // JSON only: a text/plain body is a request any page may send without asking, and this one carries the session's cookie.
-        if (!IsJsonContentType(http.Request.ContentType))
+        if (!WebRequestGuards.IsJson(http.Request.ContentType))
             return Results.StatusCode(StatusCodes.Status415UnsupportedMediaType);
 
         // The same session and policy a file upload needs: a staged value is only ever redeemed by that session's own hub.
@@ -98,10 +97,6 @@ internal static partial class WebValueEndpoint
 
         return Results.Ok(new { token = store.Stage(claim, json) });
     }
-
-    private static bool IsJsonContentType(string? contentType)
-        => MediaTypeHeaderValue.TryParse(contentType, out MediaTypeHeaderValue? parsed)
-            && parsed.MediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase);
 
     private static IResult TooLarge(long limit)
         => WebRequestGuards.TooLarge($"A value may be at most {limit} bytes.");

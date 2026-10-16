@@ -94,8 +94,8 @@ internal sealed partial class PagerGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// The fleet a page at a time, four ways: the preview's list, a page of cards, a table and a narrow list with the compact pager; one
-/// source each, since a source feeds the one host whose window it holds.
+/// The fleet a page at a time, three ways: the preview's list, a page of cards and a narrow list with the compact pager; one source
+/// each, since a source feeds the one host whose window it holds.
 /// </summary>
 internal sealed partial class PagerController() : DemoStandardController
 {
@@ -109,9 +109,6 @@ internal sealed partial class PagerController() : DemoStandardController
     public DemoFleetSource Cards { get; } = new(240);
 
     [RecursiveMember(false)]
-    public DemoFleetSource Table { get; } = new(812);
-
-    [RecursiveMember(false)]
     public DemoFleetSource Narrow { get; } = new(812);
 
     /// <summary>Reads each first page here rather than leaving it to the client, so the page paints with its rows.</summary>
@@ -119,7 +116,6 @@ internal sealed partial class PagerController() : DemoStandardController
     {
         await Preview.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 5), cancellationToken).ConfigureAwait(false);
         await Cards.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 8), cancellationToken).ConfigureAwait(false);
-        await Table.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 8), cancellationToken).ConfigureAwait(false);
         await Narrow.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 20), cancellationToken).ConfigureAwait(false);
     }
 

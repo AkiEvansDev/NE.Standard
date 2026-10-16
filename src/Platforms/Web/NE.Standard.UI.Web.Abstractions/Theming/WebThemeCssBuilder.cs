@@ -277,6 +277,8 @@ public static class WebThemeCssBuilder
         Append(builder, "mark-hover", "color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent)");
         Append(builder, "border-subtle", "color-mix(in srgb, var(--ui-color-border) 75%, transparent)");
         Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 75%, transparent)");
+        // An empty field's placeholder, a step under the muted ink so it is not read as a value: 5.6:1 on the dark theme's field.
+        Append(builder, "text-placeholder", "color-mix(in srgb, var(--ui-color-on-surface) 60%, transparent)");
         // An ink on a ground tinted with its own colour (a tinted badge), pulled toward the text colour until it reads 4.5:1 there
         // over the page, a card and a raised card; the page's inks themselves are left as they are. Resolved here, so a badge may
         // put it in the ink's place. A brand ink is its raw fill, lighter in the dark theme, so it moves further than a status ink,

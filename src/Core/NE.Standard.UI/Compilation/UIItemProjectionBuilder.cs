@@ -10,12 +10,14 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Items;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Primitives.Items;
 
 namespace NE.Standard.UI.Compilation;
 
 /// <summary>
 /// Works out, once per compiled view, what the page reads off each items host's rows: the paths its templates' bindings read off the
-/// row's item, its rules, its keys and variants, the abilities and marks every row is read for, and what the host declares it reads.
+/// row's item, its rules, its keys and variants, the abilities and marks every row is read for, and what the host declares it reads;
+/// and apart, what each host's own rules read, which the runtime sends a row again for.
 /// </summary>
 /// <remarks>
 /// The client's readers are the reference — <c>tryResolveItemTemplateValue</c> for a binding, <c>applyItemParameterAttributes</c>
@@ -66,7 +68,14 @@ internal static class UIItemProjectionBuilder
         foreach ((UIComponentId host, Reads hostReads) in reads)
             projections[host] = hostReads.Whole ? UIItemProjection.Whole : hostReads.Root.ToProjection();
 
-        return new UIItemProjectionIndex(projections);
+        Dictionary<UIComponentId, string[]> ruleReads = [];
+        HashSet<UIComponentId> boundRules = [];
+
+        // Every host, not only those with a row template: a package's host takes the rules too.
+        foreach (UIComponentNode node in graph.All)
+            AddRuleReads(state, node.ComponentId, ruleReads, boundRules);
+
+        return new UIItemProjectionIndex(projections, ruleReads, boundRules);
     }
 
     /// <summary>What the page reads off every row of a host whatever its templates bind.</summary>
@@ -119,23 +128,12 @@ internal static class UIItemProjectionBuilder
                 reads.Root.Add(slotKey.Split('.'), Fallback.Raw);
         }
 
-        if (state.TryGetValue(host, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? itemsView) && itemsView.Value is CompiledUIItemsView rules)
-        {
-            foreach (CompiledUIItemsFilter filter in rules.Filters)
-                reads.Root.Add(filter.ItemProperty.Split('.'), Fallback.Raw);
+        List<string> rules = [];
 
-            foreach (CompiledUIItemsSort sort in rules.Sorts)
-                reads.Root.Add(sort.ItemProperty.Split('.'), Fallback.Raw);
-        }
+        AppendStaticRuleReads(state, host, rules);
 
-        if (state.TryGetValue(host, IItemsComponent.QueryProperty, out CompiledUIPropertyValue? query) && query.Value is UIItemsQuery terms)
-        {
-            foreach (UIItemFilterTerm filter in terms.Filters)
-                reads.Root.Add(filter.ItemProperty.Split('.'), Fallback.Raw);
-
-            foreach (UIItemSortTerm sort in terms.Sorts)
-                reads.Root.Add(sort.ItemProperty.Split('.'), Fallback.Raw);
-        }
+        foreach (var rule in rules)
+            reads.Root.Add(rule.Split('.'), Fallback.Raw);
 
         return reads;
     }
@@ -145,6 +143,28 @@ internal static class UIItemProjectionBuilder
 
     private static bool IsBound(UIComponentStateIndex state, UIComponentId componentId, UIProperty property)
         => state.TryGetValue(componentId, property, out CompiledUIPropertyValue? value) && value.IsBind;
+
+    /// <summary>The item properties, dotted, a host's static rules read: its items view's filters and sorts, a static query's terms.</summary>
+    private static void AppendStaticRuleReads(UIComponentStateIndex state, UIComponentId host, List<string> paths)
+    {
+        if (state.TryGetValue(host, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? itemsView) && !itemsView.IsBind && itemsView.Value is CompiledUIItemsView rules)
+        {
+            foreach (CompiledUIItemsFilter filter in rules.Filters)
+                paths.Add(filter.ItemProperty);
+
+            foreach (CompiledUIItemsSort sort in rules.Sorts)
+                paths.Add(sort.ItemProperty);
+        }
+
+        if (state.TryGetValue(host, IItemsComponent.QueryProperty, out CompiledUIPropertyValue? query) && !query.IsBind && query.Value is UIItemsQuery terms)
+        {
+            foreach (UIItemFilterTerm filter in terms.Filters)
+                paths.Add(filter.ItemProperty);
+
+            foreach (UIItemSortTerm sort in terms.Sorts)
+                paths.Add(sort.ItemProperty);
+        }
+    }
 
     /// <summary>
     /// The path a binding reads off an item, as the page walks it: what follows the last row key it names, off the item of the row
@@ -247,6 +267,26 @@ internal static class UIItemProjectionBuilder
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Notes what a host's own rules read off its rows: the dotted paths its static rules read, and whether its items view or query is
+    /// bound, read then as it stands. A windowed host is left out: its rules are its source's to answer.
+    /// </summary>
+    private static void AddRuleReads(UIComponentStateIndex state, UIComponentId host, Dictionary<UIComponentId, string[]> ruleReads, HashSet<UIComponentId> boundRules)
+    {
+        if (state.TryGetValue(host, IItemsHostComponent.HostModeProperty, out CompiledUIPropertyValue? mode) && mode.Value is UIItemsHostMode.Windowed)
+            return;
+
+        if (IsBound(state, host, IItemsComponent.ItemsViewProperty) || IsBound(state, host, IItemsComponent.QueryProperty))
+            _ = boundRules.Add(host);
+
+        List<string> paths = [];
+
+        AppendStaticRuleReads(state, host, paths);
+
+        if (paths.Count > 0)
+            ruleReads.Add(host, [.. paths]);
     }
 
     /// <summary>What a reader reads an absent property as: a value, or nothing it can be told apart from a value by.</summary>

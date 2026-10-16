@@ -13,9 +13,10 @@ namespace NE.Standard.UI.Shell.Localization;
 /// <remarks>
 /// A slot name is <c>[A-Za-z0-9_]+</c>, so <c>{0}</c> is a positional one; a slot with no argument stays as written, and there is
 /// no escape. A number is written as its shortest invariant text (a culture's digits are the caller's: pass a string), a
-/// <see langword="bool"/> as <c>true</c>/<c>false</c>, <see langword="null"/> as nothing, a nested <see cref="UIPhrase"/> translated
-/// first, a moment (<see cref="UIMoment.TryRead"/>) as <see cref="UIMoment.ToString"/> — the page writes it in the reader's zone, the
-/// web render's first paint in the application's patterns. Twin of the client's <c>format</c>, both pinned by
+/// <see langword="bool"/> as <c>true</c>/<c>false</c>, <see langword="null"/> as nothing (a NaN or an infinity too, which the page reads
+/// as null), a nested <see cref="UIPhrase"/> translated first, a moment (<see cref="UIMoment.TryRead"/>) as <see cref="UIMoment.ToString"/>
+/// — the page writes it in the reader's zone, the web render's first paint in the application's patterns. Where the words are read as
+/// inline markup, an argument written as text is data (<see cref="EscapeMarkup"/>). Twin of the client's <c>format</c>, both pinned by
 /// <c>eng/Tests/Shared/words-format-corpus.json</c>.
 /// </remarks>
 public static class UIWords
@@ -88,7 +89,8 @@ public static class UIWords
     private static string FormatArgument(object? value, Func<UIPhrase, string>? translateNested)
         => value switch
         {
-            null => string.Empty,
+            // A NaN or an infinity as the null the page holds it as.
+            _ when UIScriptNumber.ReadsAsNull(value) => string.Empty,
             string text => text,
             bool flag => flag ? "true" : "false",
             UIPhrase nested => translateNested is null ? Format(nested.Key, nested.Arguments) : translateNested(nested),
@@ -96,6 +98,58 @@ public static class UIWords
             _ when UIScriptNumber.TryRead(value, out var number) => UIScriptNumber.Format(number),
             _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
         };
+
+    /// <summary>
+    /// <paramref name="arguments"/> for words read as inline markup (a description, a tooltip): an argument written as text — a string,
+    /// an author's text as the words <paramref name="translateText"/> gives it, any other value as its invariant text (a character, an
+    /// enum, a URI) — with its markup escaped, a nested phrase's arguments the same way, so a name typed as <c>[a](b)</c> shows as typed;
+    /// the template's own text, numbers, flags and moments stay. The arguments themselves where none is text.
+    /// </summary>
+    /// <remarks>
+    /// Escaped before a translator fills the template, so no <see cref="ITranslator"/> needs to know where its words land; the client's
+    /// <c>formatWords</c> escapes the same under its <c>markup</c> flag, both pinned by <c>eng/Tests/Shared/words-format-corpus.json</c>.
+    /// </remarks>
+    public static IReadOnlyDictionary<string, object?>? EscapeMarkup(IReadOnlyDictionary<string, object?>? arguments, Func<string, string> translateText)
+    {
+        ArgumentNullException.ThrowIfNull(translateText);
+
+        if (arguments is null || !HoldsText(arguments))
+            return arguments;
+
+        Dictionary<string, object?> escaped = new(arguments.Count, StringComparer.Ordinal);
+
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            escaped[argument.Key] = argument.Value switch
+            {
+                // Looked up first: the author's text may be a key, and its words are what the template shows.
+                UIPhrase { IsText: true } text => UIInlineMarkup.Escape(translateText(text.Key)),
+                UIPhrase { Arguments: { } nested } phrase when HoldsText(nested) => new UIPhrase(phrase.Key, EscapeMarkup(nested, translateText)),
+                var value when IsText(value) => UIInlineMarkup.Escape(Convert.ToString(value, CultureInfo.InvariantCulture)),
+                _ => argument.Value
+            };
+        }
+
+        return escaped;
+    }
+
+    private static bool HoldsText(IReadOnlyDictionary<string, object?> arguments)
+    {
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            if (IsText(argument.Value) || argument.Value is UIPhrase { IsText: true } || (argument.Value is UIPhrase { Arguments: { } nested } && HoldsText(nested)))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether an argument reaches the page as text: anything but nothing, a flag, a phrase, a number or a moment — what
+    /// <see cref="UIPhraseJsonConverter"/> writes as a string, which the client escapes under markup.
+    /// </summary>
+    private static bool IsText(object? value)
+        => value is not (null or bool or UIPhrase) && !UIScriptNumber.TryRead(value, out _) && !UIMoment.TryRead(value, out _);
 
     /// <summary>
     /// Arguments named by position — <c>{0}</c>, <c>{1}</c>, … — for a template written with numbered slots.

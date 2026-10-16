@@ -6,9 +6,21 @@ namespace NE.Standard.UI.Primitives.Constants;
 public static class EventNames
 {
     /// <summary>
-    /// Fires before a click is dispatched, and can block it.
+    /// What an event is raised as for interactions alone just before its command leaves the page, the event after it:
+    /// <c>before-change</c>.
     /// </summary>
-    public const string BeforeClick = "before-click";
+    public const string BeforePrefix = "before-";
+
+    /// <summary>
+    /// What an event is raised as for interactions alone once its command's answer has been applied, or the connection dropped
+    /// under it, the event after it: <c>after-change</c>.
+    /// </summary>
+    public const string AfterPrefix = "after-";
+
+    /// <summary>
+    /// Fires just before a click's command is dispatched, once the form it submits has passed its rules.
+    /// </summary>
+    public const string BeforeClick = BeforePrefix + Click;
 
     /// <summary>
     /// Fires when a component is clicked.
@@ -16,9 +28,9 @@ public static class EventNames
     public const string Click = "click";
 
     /// <summary>
-    /// Fires after a click has been dispatched.
+    /// Fires once a click's command has been answered and its answer applied.
     /// </summary>
-    public const string AfterClick = "after-click";
+    public const string AfterClick = AfterPrefix + Click;
 
     /// <summary>
     /// Fires when a component's value changes.

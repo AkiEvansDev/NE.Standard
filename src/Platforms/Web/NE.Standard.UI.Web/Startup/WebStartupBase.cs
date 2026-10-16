@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Startup;
@@ -77,6 +78,9 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton<WebHubCallLimiter>();
         services.TryAddSingleton<WebUIMetrics>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
+        // A sign-in's new key reaches its page as a one-time token the page trades for the cookie.
+        services.TryAddSingleton<WebSessionKeys>();
+        services.TryAddSingleton<IUISessionKeyHandover>(static provider => provider.GetRequiredService<WebSessionKeys>());
         services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();
         services.TryAddSingleton<IUIContentAddressResolver>(new UIContentAddress(WebContentEndpoint.Prefix));
 

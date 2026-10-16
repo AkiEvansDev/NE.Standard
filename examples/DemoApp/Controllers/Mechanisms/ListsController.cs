@@ -43,7 +43,7 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
     /// <summary>The last query's matches: a scroll through a filtered list asks for window after window of the same query.</summary>
     private MatchedRows? _matched;
 
-    /// <summary>Told where each window read starts: the paged list writes its page into the address from it.</summary>
+    /// <summary>Told where each window read starts: the paged table writes its page into the address from it.</summary>
     public Func<int, Task>? WindowRead { get; set; }
 
     /// <summary>How late a read past the first window answers, as a database would: what the list's skeleton rows stand in for.</summary>
@@ -261,11 +261,11 @@ internal sealed class DemoChecklistSource : UIItemSourceBase<DemoChecklist>
 
 /// <summary>
 /// Sources too large to send whole, read a window at a time — a list's and a table's —, a collection held whole and drawn in part,
-/// a list that pages, its page in the address, and a window of checklists whose rows write their drafts back through the source.
+/// a table that pages, its page in the address, and a window of checklists whose rows write their drafts back through the source.
 /// </summary>
 internal sealed partial class ListsController() : DemoController
 {
-    /// <summary>The paged list's page size, which the address counts its pages in.</summary>
+    /// <summary>The paged table's page size, which the address counts its pages in.</summary>
     public const int PageSize = 20;
 
     [RecursiveMember]
@@ -306,7 +306,7 @@ internal sealed partial class ListsController() : DemoController
     [RecursiveMember(false)]
     public DemoChecklistSource Checklists { get; } = new();
 
-    /// <summary>The paged list's own hundred thousand.</summary>
+    /// <summary>The paged table's own hundred thousand.</summary>
     [RecursiveMember(false)]
     public DemoRowsSource PagedRows { get; } = new();
 

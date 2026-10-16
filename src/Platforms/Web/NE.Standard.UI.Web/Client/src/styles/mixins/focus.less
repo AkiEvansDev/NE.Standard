@@ -67,6 +67,19 @@
     .ui-keyboard-frame(@host: ~"calc(@{ui-keyboard-frame-radius} - 2px - @{gap})"; @offset: @gap);
 }
 
+// Inside a host that draws a 2 px mark under its edge (a tab's caption over its chosen line): `@gap` in from it on three sides, the fourth
+// on the mark, so frame and line read as one. The host reaches down over the mark while framed, a transparent border its margin takes
+// back, so nothing moves and the mark, placed from the padding box, stays; it takes the corner that keeps the frame's one radius (`@takes:
+// chain` on a root an author's corners are written on). Not a pseudo-element: a caption's are its line, its loading ring, its picture's blur.
+.ui-keyboard-frame-inset(@gap: 2px; @takes: true) {
+    .ui-keyboard-frame(@host: ~"calc(@{ui-keyboard-frame-radius} + @{gap})"; @takes: @takes; @offset: ~"calc(-2px - @{gap})");
+
+    @media (forced-colors: none) {
+        margin-bottom: ~"calc(-2px - @{gap})";
+        border-bottom: ~"calc(2px + @{gap})" solid transparent;
+    }
+}
+
 // What a drop target wears while something it takes is over it (runtime.less, a field's box in ui-input.less): a dashed edge inside
 // it, in an ink, not a fill, so it reads 3:1 on the ground it stands on, a field's fill included; `@ink` the refusal's for a refused one.
 .ui-drop-edge(@ink: var(--ui-color-primary-ink)) {

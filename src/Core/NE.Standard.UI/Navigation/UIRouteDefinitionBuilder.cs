@@ -269,6 +269,15 @@ public sealed class UIRouteDefinitionBuilder
     /// </summary>
     private static bool ResolveAllowAnonymous(Type viewType, Type? controllerType, UISecurityOptions security)
     {
+        EnsureAuthorizeNotOpened(viewType);
+
+        if (controllerType is not null)
+        {
+            EnsureAuthorizeNotOpened(controllerType);
+            EnsurePairNotOpened(viewType, controllerType);
+            EnsurePairNotOpened(controllerType, viewType);
+        }
+
         if (viewType.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true) || controllerType?.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true) == true)
             return true;
 
@@ -276,6 +285,50 @@ public sealed class UIRouteDefinitionBuilder
             return false;
 
         return security.DefaultPolicy == UIAuthorizationDefault.Anonymous;
+    }
+
+    /// <summary>
+    /// Refuses a type whose <c>[UIAuthorize]</c> a <c>[UIAllowAnonymous]</c> of its own or of a base type would quietly open: the
+    /// anonymous one wins, so the route would take anyone. One a derived type declares above a base's <c>[UIAuthorize]</c> opens
+    /// it on purpose and stands.
+    /// </summary>
+    private static void EnsureAuthorizeNotOpened(Type type)
+    {
+        Type? authorizing = null;
+
+        for (Type? level = type; level is not null; level = level.BaseType)
+        {
+            if (authorizing is null && level.IsDefined(typeof(UIAuthorizeAttribute), inherit: false))
+                authorizing = level;
+
+            if (!level.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: false))
+                continue;
+
+            if (authorizing is null)
+                return;
+
+            var message = ReferenceEquals(authorizing, level)
+                ? $"'{level.FullName}' carries both [UIAuthorize] and [UIAllowAnonymous]; the anonymous one wins and its route would take anyone. Keep one."
+                : $"'{authorizing.FullName}' carries [UIAuthorize], but [UIAllowAnonymous] on its base '{level.FullName}' wins and its route would take anyone. Remove one, or declare [UIAllowAnonymous] on the type that means it.";
+
+            throw new InvalidOperationException(message);
+        }
+    }
+
+    /// <summary>
+    /// Refuses a route whose one type opens it while the other asks for an identity: the anonymous one wins, so every command
+    /// without an attribute of its own would run for anyone.
+    /// </summary>
+    private static void EnsurePairNotOpened(Type opening, Type authorizing)
+    {
+        if (!opening.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true))
+            return;
+
+        // A type opening itself over its base's [UIAuthorize] is open, not asking.
+        if (!authorizing.IsDefined(typeof(UIAuthorizeAttribute), inherit: true) || authorizing.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: true))
+            return;
+
+        throw new InvalidOperationException($"'{opening.FullName}' carries [UIAllowAnonymous] and '{authorizing.FullName}' carries [UIAuthorize]; the anonymous one wins and the route would take anyone, its commands included. If the page is meant to be public, put [UIAllowAnonymous] on '{authorizing.Name}' too; otherwise take it off '{opening.Name}'.");
     }
 
     /// <summary>

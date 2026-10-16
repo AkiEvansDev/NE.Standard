@@ -12,6 +12,8 @@ import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { logDebug, logError, logWarn } from "../runtime/logger.ts";
 import type { PropertyStateRow, PropertyStateStore } from "../state/property-state-store.ts";
 import type { DomOperationRegistry } from "./dom-operation-registry.ts";
+import { markupWords, readsMarkup } from "./shown-words.ts";
+import type { MarkupWords } from "./shown-words.ts";
 
 export type PropertyValueChange = {
     readonly reference: WebRenderPropertyReferenceMetadata;
@@ -60,6 +62,8 @@ export class PropertyPatchEngine {
         const resolvedAddresses = this.addressResolver.resolveProperties(reference, dynamicParameters);
         // The words the value shows, looked up once, here; the state below keeps the value itself, so a switch can look it up again.
         const shown = this.shownValue(reference, value);
+        // Only a phrase reads otherwise where its words are markup, its arguments escaped; every other value is one value everywhere.
+        const markup = markupWords(value, this.extensions.converters);
         let held = false;
 
         if (resolvedAddresses.length === 0) {
@@ -100,14 +104,7 @@ export class PropertyPatchEngine {
                             continue;
                         }
 
-                        this.operations.apply({
-                            resolved,
-                            operation,
-                            target,
-                            value: shown,
-                            convertedValue,
-                            local
-                        });
+                        this.applyOperation(resolved, operation, target, shown, convertedValue, markup, local);
                     }
                 }
             }
@@ -141,6 +138,17 @@ export class PropertyPatchEngine {
 
         // A read-only pushed mid-edit must still land.
         return binding === undefined || binding.propertyId === propertyId;
+    }
+
+    /**
+     * Writes the shown value through one operation onto `target` — a phrase's words as inline markup reads them where the target reads
+     * markup (`markup`, null for any other value).
+     */
+    private applyOperation(resolved: ResolvedPropertyAddress, operation: WebDomOperation, target: Element, shown: unknown, convertedValue: unknown, markup: MarkupWords | null, local: boolean): void {
+        if (markup !== null && readsMarkup(operation, target))
+            this.operations.apply({ resolved, operation, target, value: markup.value, convertedValue: markup.convertedFor(operation), local });
+        else
+            this.operations.apply({ resolved, operation, target, value: shown, convertedValue, local });
     }
 
     /**
@@ -190,16 +198,18 @@ export class PropertyPatchEngine {
         // The element the render marked for the value: the component's own, never a component's inside it of the same property.
         const marked = `[${IntoAttributePrefix}${toKebabCase(resolved.propertyName)}]`;
 
-        this.applyOperations(resolved, this.shownValue(reference, value), operation => resolveOperationElements(component, operation, () => ownMarkedElements(component, marked)));
+        this.applyOperations(resolved, value, this.shownValue(reference, value), operation => resolveOperationElements(component, operation, () => ownMarkedElements(component, marked)));
     }
 
-    /** Writes a shown value on one component, every operation converted once, onto the targets `targetsOf` names for it. */
-    private applyOperations(resolved: ResolvedPropertyAddress, shown: unknown, targetsOf: (operation: WebDomOperation) => Iterable<Element>): void {
+    /** Writes a value's shown words on one component, every operation converted once, onto the targets `targetsOf` names for it. */
+    private applyOperations(resolved: ResolvedPropertyAddress, value: unknown, shown: unknown, targetsOf: (operation: WebDomOperation) => Iterable<Element>): void {
+        const markup = markupWords(value, this.extensions.converters);
+
         for (const operation of resolved.definition.operations) {
             const convertedValue = this.extensions.converters.convert(operation.converter, shown);
 
             for (const target of targetsOf(operation))
-                this.operations.apply({ resolved, operation, target, value: shown, convertedValue, local: true });
+                this.applyOperation(resolved, operation, target, shown, convertedValue, markup, true);
         }
     }
 
@@ -213,7 +223,7 @@ export class PropertyPatchEngine {
         // Local, and not recorded: the state a push restores from is the id's, not the element's.
         const shown = this.shownValue(reference, value);
 
-        this.applyOperations(resolved, shown, operation => this.addressResolver.resolveOperationTargets(resolved, operation));
+        this.applyOperations(resolved, value, shown, operation => this.addressResolver.resolveOperationTargets(resolved, operation));
 
         this.notifyValueChanged({ reference, propertyName: resolved.propertyName, dynamicParameters: [], value: shown, local: true, components: [component] });
         return true;

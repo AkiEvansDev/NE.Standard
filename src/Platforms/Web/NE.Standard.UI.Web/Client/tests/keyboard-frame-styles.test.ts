@@ -70,8 +70,40 @@ test("no keyboard frame is drawn in another shape: every brand-ink or words-ink 
     for (const match of css.matchAll(/([^{}]+)\{([^{}]*outline: 2px solid (?:var(--ui-color-primary-ink)|currentColor)[^{}]*)\}/g)) {
         const body = match[2];
 
-        assert.match(body, /outline-offset: (-2px|0px|2px|calc\(var\(--ui-radius-button\) - [^;]+\));/, `${match[1].trim().slice(0, 120)} draws a frame of another shape`);
+        assert.match(body, /outline-offset: (-2px|0px|2px|calc\(var\(--ui-radius-button\) - [^;]+\)|calc\(-2px - 2px\));/, `${match[1].trim().slice(0, 120)} draws a frame of another shape`);
     }
+});
+
+test("a tab's caption on every strip frames itself inside, its foot on the chosen line, taking the corner that keeps the frame's own", () => {
+    const tabs = ".ui-tab-caption:focus-visible:not([data-ui-pointer-focus])";
+    const others = [".ui-color-input__tab:focus-visible:not([data-ui-pointer-focus])", ".ui-tab-item__caption[data-ui-focus-within='keyboard']"];
+
+    assert.match(rules(tabs), /outline: 2px solid var\(--ui-color-primary-ink\);/);
+    assert.match(rules(tabs), /outline-offset: calc\(-2px - 2px\);/);
+    // A Tabs caption is a root an author's corners are written on: its corner goes through their chain.
+    assert.match(rules(tabs), /border-radius: var\(--ui-border-radius-xxl, .*calc\(var\(--ui-radius-button\) \+ 2px\)\)+;/);
+
+    for (const caption of [tabs, ...others]) {
+        assert.match(rules(caption), /outline-offset: calc\(-2px - 2px\);/, caption);
+        // The box reaches the frame's line plus its gap down, over the 2 px line, and its margin takes that back: nothing moves, and
+        // the frame's foot, 4 px in from the reached edge, lies on the line — where the mark, placed from the padding box, still is.
+        assert.match(rules(caption), /margin-bottom: calc\(-2px - 2px\);/, caption);
+        assert.match(rules(caption), /border-bottom: calc\(2px \+ 2px\) solid transparent;/, caption);
+    }
+
+    for (const caption of others)
+        assert.match(rules(caption), /border-radius: calc\(var\(--ui-radius-button\) \+ 2px\);/, caption);
+
+    // The mark is the line the foot lies on: 2 px under the padding box, as wide as the frame's line.
+    assert.match(rules(".ui-tab-caption::after"), /bottom: -2px;\s*left: 0;\s*height: 2px;/);
+    // A TabsView caption's wash stays in its own box, under the pointer too.
+    assert.match(rules(".ui-tab-item__caption[data-ui-focus-within='keyboard']"), /background-clip: padding-box;/);
+    assert.doesNotMatch(css, /\.ui-tab-item__caption:(?:hover|active)(?::not\([^)]*\))? \{\s*background:/);
+
+    // Still no pressable's plain frame: a frame on the caption's edge would lie on its chosen line.
+    const pressables = [...css.matchAll(/:where\(([^{}]*)\):focus-visible:not\(\[data-ui-pointer-focus\]\)\s*\{/g)].find(match => match[1].includes(".ui-collapsible__toggle"));
+
+    assert.ok(pressables?.[1].includes(".ui-button:not(.ui-tab-caption, .ui-tab-item__label,"));
 });
 
 test("a panel's pin takes the keyboard's frame and the ink under the pointer, as its switch does", () => {
@@ -82,4 +114,13 @@ test("a panel's pin takes the keyboard's frame and the ink under the pointer, as
     assert.match(pressables[2], /outline: 2px solid var\(--ui-color-primary-ink\);/);
 
     assert.match(css, /:is\(\.ui-collapsible__toggle, \.ui-collapsible__pin\):hover \{\s*color: var\(--ui-faint-base, var\(--ui-color-on-surface\)\);/);
+});
+
+test("a toast's cross is a button and takes a button's keyboard frame, with no resting fade to lift", () => {
+    const pressables = [...css.matchAll(/:where\(([^{}]*)\):focus-visible:not\(\[data-ui-pointer-focus\]\)\s*\{([^{}]*)\}/g)].find(match => match[1].includes(".ui-collapsible__toggle"));
+
+    assert.ok(pressables !== undefined);
+    assert.ok(pressables[1].startsWith(".ui-button:not("));
+    assert.ok(!pressables[1].includes(".ui-notification__close"), "listed on its own beside the buttons it now is");
+    assert.doesNotMatch(css, /\.ui-notification__close[^{}]*\{[^{}]*opacity/);
 });

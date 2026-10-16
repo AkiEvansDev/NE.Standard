@@ -50,9 +50,10 @@ internal static class WebContentEndpoint
         // Private: the answer depended on who asked, so no shared cache may hand it to the next person.
         http.Response.Headers.CacheControl = content.Immutable ? "private, max-age=31536000, immutable" : "private, no-cache";
 
-        if (http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value.InertContent)
-            WebInertContent.Apply(http.Response, content.ContentType);
+        var contentType = http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value.InertContent
+            ? WebInertContent.Apply(http.Response, content.ContentType)
+            : content.ContentType;
 
-        return Results.Stream(content.Content, content.ContentType, content.FileName, enableRangeProcessing: true);
+        return Results.Stream(content.Content, contentType, content.FileName, enableRangeProcessing: true);
     }
 }

@@ -126,3 +126,15 @@ test("a ghost, outline, link or surface button keeps the button's transition lis
 
     assert.deepEqual(replacing.flatMap(rule => rule.selectors), []);
 });
+
+test("a switcher field's chosen language and theme are outlined in forced colours, as a menu's checked language is", () => {
+    const forcedRules = forcedColors.flatMap(rulesOf);
+    const listed = (marker: string, body: string): string => forcedRules.find(rule => rule.selectors.join(", ").includes(marker) && rule.body.includes(body))?.selectors.join(", ") ?? "";
+    const chosen = listed(".ui-select__option[aria-selected=\"true\"]", "outline: 2px solid Highlight");
+    const keyboard = listed(".ui-tab-overflow__entry", "outline: 2px dashed Highlight");
+
+    assert.ok(chosen.includes(".ui-language-switcher__choice:is([aria-checked=\"true\"], [aria-selected=\"true\"])"), "a field's chosen language loses its mark");
+    assert.ok(chosen.includes(".ui-theme-switcher__choice[aria-selected=\"true\"]"), "a field's chosen theme loses its mark");
+    assert.ok(keyboard.includes(".ui-language-switcher__choice:focus-visible:not([data-ui-pointer-focus]):not([aria-checked='true'], [aria-selected='true'])"), "a chosen language under the keyboard loses its own mark");
+    assert.ok(keyboard.includes(".ui-theme-switcher__choice:focus-visible:not([data-ui-pointer-focus]):not([aria-selected='true'])"), "a theme under the keyboard has no mark");
+});

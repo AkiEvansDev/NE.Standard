@@ -50,6 +50,13 @@ public static class UILayout
     /// fields by the top, as <see cref="UIForm.Row(double, IVisualComponent[])"/> does; null lets each cell take its child's own.
     /// </summary>
     public static ContainerComponent Columns(double spacing, UIAlignment? cellAlignment, params IVisualComponent[] children)
+        => Columns(spacing, cellAlignment, children, fieldBoxes: null);
+
+    /// <summary>
+    /// As the public overload, each cell standing its child level with the field boxes <paramref name="fieldBoxes"/> names for it while
+    /// the columns stand side by side (<see cref="UIForm.Row(double, IVisualComponent[])"/>).
+    /// </summary>
+    internal static ContainerComponent Columns(double spacing, UIAlignment? cellAlignment, IVisualComponent[] children, Func<IVisualComponent, UIFieldBoxAlignment>? fieldBoxes)
     {
         ArgumentNullException.ThrowIfNull(children);
 
@@ -62,7 +69,15 @@ public static class UILayout
         var wide = children.Length > 3;
 
         for (var i = 0; i < children.Length; i++)
-            _ = columns.AddChild(Cell(children[i], i, children.Length, (i * span) + 1, span, spacing, wide, cellAlignment));
+        {
+            StackPanelComponent cell = Cell(children[i], i, children.Length, (i * span) + 1, span, spacing, wide, cellAlignment);
+
+            // Only from the breakpoint the cells stand side by side at: stacked, the line would stand the control off the field above.
+            if (fieldBoxes?.Invoke(children[i]) is UIFieldBoxAlignment boxes and not UIFieldBoxAlignment.None)
+                _ = cell.SetAlignWithFieldBoxes(wide ? UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, xl: boxes) : UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, md: boxes));
+
+            _ = columns.AddChild(cell);
+        }
 
         return columns;
     }
@@ -142,6 +157,7 @@ public static class UILayout
 
         StackPanelComponent far = new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
+            .SetGlyphEdge(UIAlignment.End)
             .SetSpacing(8)
             .SetWrap(under)
             .SetHorizontalAlignment(UIAlignment.End)

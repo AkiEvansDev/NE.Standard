@@ -33,6 +33,15 @@ internal sealed partial class CollapsiblePanelGroupContext : DemoGroupContext
         => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 }
 
+/// <summary>
+/// A panel with no switch of its own: whether it is open is the controller's alone, written by the page's own button.
+/// </summary>
+internal sealed partial class PanelDetailsGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial bool Expanded { get; set; }
+}
+
 internal sealed partial class CollapsiblePanelController() : DemoStandardController
 {
     [RecursiveMember]
@@ -41,6 +50,9 @@ internal sealed partial class CollapsiblePanelController() : DemoStandardControl
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial PanelDetailsGroupContext DetailsGroup { get; set; } = new();
+
     [UICommand]
     public void CyclePanelOption(string id)
         => PanelGroup.CycleOption(id);
@@ -48,4 +60,11 @@ internal sealed partial class CollapsiblePanelController() : DemoStandardControl
     [UICommand]
     public void CycleBorderOption(string id)
         => BorderGroup.CycleOption(id);
+
+    [UICommand]
+    public void ToggleDetails()
+    {
+        DetailsGroup.Expanded = !DetailsGroup.Expanded;
+        DetailsGroup.LogEvent(DetailsGroup.Expanded ? "details shown" : "details folded away");
+    }
 }

@@ -49,7 +49,7 @@ export class KeyValueActionEngine {
         // A row may be rendered already editing — one the server added open — so rows are read as they arrive, and once at the start;
         // a page that loads with rows open takes no focus for them, or the last one would pull the focus and the view down to itself.
         this.handleRows(this.root.querySelectorAll<HTMLElement>(`.${KeyValueRowClass}`), false);
-        observeComponents(this.root, `.${KeyValueRowClass}`, { childList: true, attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows, true));
+        observeComponents(this.root, `.${KeyValueRowClass}`, { childList: true, addedOnly: true, attributeFilter: [RowEditingAttribute] }, rows => this.handleRows(rows, true));
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent), true);
 
         // Cancel takes no focus on its press: the field keeps it, so no leave commits the draft the press is letting go of.

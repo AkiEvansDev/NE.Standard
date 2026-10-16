@@ -1,8 +1,8 @@
 namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
-/// Configures the framework's own endpoints: the ASP.NET authorization on the SignalR hub and the catch-all shell route, and
-/// how the files it serves answer a browser that opens them directly.
+/// Configures the framework's own endpoints: the ASP.NET authorization on the SignalR hub and the catch-all shell route, who may frame
+/// a page, and how the files it serves answer a browser that opens them directly.
 /// </summary>
 public sealed class WebEndpointOptions
 {
@@ -22,6 +22,20 @@ public sealed class WebEndpointOptions
     /// deliberately serves active content turns it off.
     /// </summary>
     public bool InertContent { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether a page may be framed only by the sources <see cref="FrameAncestors"/> names. On by default, so a sibling
+    /// site cannot frame a signed-in page and steer the reader's presses; off sends nothing, leaving framing to the host's own headers.
+    /// </summary>
+    /// <remarks>A request for a page as a frame its rule refuses is answered <c>404</c>, its controller never asked.</remarks>
+    public bool RestrictFraming { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets who may frame a page, as a <c>Content-Security-Policy</c> <c>frame-ancestors</c> list — <c>'self'
+    /// https://partner.example</c>; unset, the page's own origin, sent as <c>X-Frame-Options: SAMEORIGIN</c> too for a browser that
+    /// predates the directive.
+    /// </summary>
+    public string? FrameAncestors { get; set; }
 
     /// <summary>
     /// Gets or sets the page's icon: the <c>href</c> of the shell's <c>link rel="icon"</c> — an absolute path under the application's

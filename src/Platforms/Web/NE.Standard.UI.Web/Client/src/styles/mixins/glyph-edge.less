@@ -1,0 +1,16 @@
+@import "./responsive.less";
+
+// An icon-only quiet button: a ghost or a link shows only its glyph at rest, which a glyph edge (StackPanel.GlyphEdge) stands on
+// the content's edge (ui-button.less).
+@ui-glyph-hung: ~".ui-button:is(.ui-button--ghost, .ui-button--link)[data-ui-text-icon]:not([data-ui-text-title])";
+
+// The first and the last child a glyph edge shows, at each width by that width's own Visibility (runtime.less bands it so): one
+// collapsed at a width leaves the next on the edge there alone. @rules reads them as @ui-glyph-start and @ui-glyph-end.
+.ui-glyph-ends(@rules) {
+    .ui-responsive-bands(data-ui-visibility data-ui-visibility-sm data-ui-visibility-md data-ui-visibility-xl data-ui-visibility-xxl; {
+        @ui-glyph-shown: ~":not(.ui-hidden, [@{name}='collapsed'])";
+        @ui-glyph-start: ~".ui-stack-panel--glyph-start > :nth-child(1 of @{ui-glyph-shown})";
+        @ui-glyph-end: ~".ui-stack-panel--glyph-end > :nth-last-child(1 of @{ui-glyph-shown})";
+        @rules();
+    });
+}

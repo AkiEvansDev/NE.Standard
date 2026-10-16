@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/responsive.less";
 @import "../mixins/arc.less";
+@import "../mixins/loading-ring.less";
 
 // The ring's share of its turn, registered so a transition runs through the number rather than through the shape it cuts.
 @property --ui-progress-share {
@@ -139,4 +140,45 @@
 
 .ui-progress--circular[data-ui-progress-value] .ui-progress__value {
     display: flex;
+}
+
+// No reading (no `aria-valuenow`, ProgressComponentRenderer): under way by an amount nobody knows, a segment sweeping the bar and a
+// quarter turning round the ring as the spinner turns. Reduced motion stops the bar at its still look, its middle, which no reading
+// stands at; the ring is a loading ring and keeps turning (preferences.less).
+.ui-progress--linear:not([aria-valuenow]) > .ui-progress__track > .ui-progress__fill {
+    width: 40%;
+    margin-inline: auto;
+    animation: ui-progress-sweep (@ui-loading-ring-turn * 2) @ui-motion-ease infinite;
+}
+
+@keyframes ui-progress-sweep {
+    from {
+        transform: translateX(-175%);
+    }
+
+    to {
+        transform: translateX(175%);
+    }
+}
+
+// Its own turn rather than `ui-spin`: the quarter starts off the top, where a share done would not stand.
+.ui-progress--circular:not([aria-valuenow]) .ui-progress__ring {
+    --ui-progress-share: 0.25;
+    transform: rotate(45deg);
+    animation: ui-progress-turn @ui-loading-ring-turn linear infinite;
+}
+
+@keyframes ui-progress-turn {
+    from {
+        transform: rotate(45deg);
+    }
+
+    to {
+        transform: rotate(405deg);
+    }
+}
+
+// Nothing to read: the unit alone would stand where the number does.
+.ui-progress:not([aria-valuenow]) .ui-progress__value {
+    display: none;
 }

@@ -97,12 +97,14 @@ test("without a stand-in text, the field's own value is judged", () => {
     assert.equal(field.classList.contains("ui-invalid"), true);
 });
 
-test("an empty shown value is judged as any other", () => {
+test("an empty shown value is judged as any other: only Required refuses nothing", () => {
     const { field, input } = createRow();
 
-    engine.judgeShown(real(input), "");
+    engine.judgeShown(real(input), "0");
+    assert.equal(field.classList.contains("ui-invalid"), true);
 
-    assert.equal(field.classList.contains("ui-invalid"), true, "nothing is not above zero");
+    engine.judgeShown(real(input), "");
+    assert.equal(field.classList.contains("ui-invalid"), false, "a range has nothing to judge in an empty value");
 });
 
 test("a message judged before the page took its table is written again in its words", () => {

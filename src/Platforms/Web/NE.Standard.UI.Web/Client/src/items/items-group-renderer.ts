@@ -10,8 +10,6 @@ import type { ItemsTemplateRegistry } from "./items-template-registry";
 import type { MetadataIndex } from "../metadata/metadata-index";
 import type { PropertyStateStore } from "../state/property-state-store";
 
-const bucketOrderByHost = new WeakMap<Element, string[]>();
-
 // Each group's header as the last pass drew it: kept while its group stands, so a sync redraws only the header of a group new to the host.
 const headersByHost = new WeakMap<Element, Map<string, Element>>();
 
@@ -37,10 +35,8 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         headersByHost.delete(host);
     }
 
-    if (items.length === 0) {
-        bucketOrderByHost.set(host, []);
+    if (items.length === 0)
         return;
-    }
 
     // replaceChildren rewrites the host wholesale, so the empty-state placeholder has to be carried across.
     const placeholder = findEmptyPlaceholder(host);
@@ -50,12 +46,10 @@ export function regroupHost(host: Element, componentId: number, templates: Items
         return;
     }
 
-    const { buckets, order } = bucketByGroup(items, item => item.getAttribute(GroupAttribute) ?? "", bucketOrderByHost.get(host) ?? []);
+    const { buckets, order } = bucketByGroup(items, item => item.getAttribute(GroupAttribute) ?? "");
     const ancestors = renderer.getAncestorStack(host);
     const drawn = headersByHost.get(host);
     const headers = new Map<string, Element>();
-
-    bucketOrderByHost.set(host, order);
 
     const orderedNodes: Element[] = [];
 

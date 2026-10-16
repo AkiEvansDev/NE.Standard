@@ -281,32 +281,45 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    private const string BorderNoneClass = "ui-border--none";
+    private const string BorderEdgePrefix = "ui-border--";
 
     /// <summary>
-    /// <c>ui-border--none</c> for a thickness of nothing on every side — a component that draws no edge of its own, which the
-    /// stylesheet cannot read off its border's tiers; empty otherwise.
+    /// The edge a thickness draws, which the stylesheet cannot read off its border's tiers: <c>ui-border--none</c> for nothing on every
+    /// side (a component that draws no edge of its own), <c>ui-border--left</c>, <c>--top</c>, <c>--right</c> or <c>--bottom</c> for a
+    /// stroke on that side alone; empty for any other edge.
     /// </summary>
-    public static string BorderNone(UIThickness value)
-        => IsNone(value) ? BorderNoneClass : string.Empty;
+    public static string BorderEdge(UIThickness value)
+        => EdgeOf(value) is { } edge ? BorderEdgePrefix + edge : string.Empty;
 
-    /// <summary>
-    /// <c>ui-border--none</c> for a responsive thickness that is nothing on every side at every breakpoint it sets: an edge at any
-    /// width is an edge the component lays out for.
-    /// </summary>
-    public static string BorderNone(UIResponsive<UIThickness> value)
+    /// <summary>The edge a responsive thickness draws at every breakpoint it sets; empty where two tiers differ.</summary>
+    public static string BorderEdge(UIResponsive<UIThickness> value)
     {
+        string? edge = null;
+
         for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
         {
-            if (value.Get(tier) is UIThickness thickness && !IsNone(thickness))
+            if (value.Get(tier) is not UIThickness thickness)
+                continue;
+
+            if (EdgeOf(thickness) is not { } tierEdge || (edge is not null && edge != tierEdge))
                 return string.Empty;
+
+            edge = tierEdge;
         }
 
-        return BorderNoneClass;
+        return BorderEdgePrefix + (edge ?? "none");
     }
 
-    private static bool IsNone(UIThickness value)
-        => value is { Left: 0, Top: 0, Right: 0, Bottom: 0 };
+    private static string? EdgeOf(UIThickness value)
+        => value switch
+        {
+            { Left: 0, Top: 0, Right: 0, Bottom: 0 } => "none",
+            { Top: 0, Right: 0, Bottom: 0 } => "left",
+            { Left: 0, Right: 0, Bottom: 0 } => "top",
+            { Left: 0, Top: 0, Bottom: 0 } => "right",
+            { Left: 0, Top: 0, Right: 0 } => "bottom",
+            _ => null
+        };
 
     private const string SurfaceStylePrefix = "ui-surface--";
 
@@ -463,14 +476,14 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    /// <summary>The four shapes an image input takes, on its root.</summary>
-    public static string ImageInputShape(UIImageInputShape value)
+    /// <summary>The four looks an image input is drawn as, on its root.</summary>
+    public static string ImageInputVariant(UIImageInputVariant value)
         => value switch
         {
-            UIImageInputShape.Picture => "ui-image-input--picture",
-            UIImageInputShape.Avatar => "ui-image-input--avatar",
-            UIImageInputShape.Inline => "ui-image-input--inline",
-            UIImageInputShape.Shelf => "ui-image-input--shelf",
+            UIImageInputVariant.Picture => "ui-image-input--picture",
+            UIImageInputVariant.Avatar => "ui-image-input--avatar",
+            UIImageInputVariant.Inline => "ui-image-input--inline",
+            UIImageInputVariant.Shelf => "ui-image-input--shelf",
             _ => string.Empty
         };
 

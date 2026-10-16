@@ -9,6 +9,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Items;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 
@@ -129,7 +130,7 @@ internal sealed partial class UIViewCompilationContext
         return interaction.SourceKind switch
         {
             UIInteractionSourceKind.Property => BuildPropertyInteraction(interaction, target, falseValue),
-            UIInteractionSourceKind.Event => BuildEventInteraction(interaction, target),
+            UIInteractionSourceKind.Event => BuildEventInteraction(targetComponent, interaction, target),
             _ => throw new InvalidOperationException($"Unsupported interaction source kind '{interaction.SourceKind}'.")
         };
     }
@@ -201,10 +202,12 @@ internal sealed partial class UIViewCompilationContext
         };
     }
 
-    private CompiledUIInteraction BuildEventInteraction(UIInteraction interaction, UIPropertyAddress? target)
+    private CompiledUIInteraction BuildEventInteraction(IVisualComponent targetComponent, UIInteraction interaction, UIPropertyAddress? target)
     {
         if (interaction.SourceEvent is null)
             throw new InvalidOperationException("Event interaction source event is required.");
+
+        EnsureLifecycleSourceRunsCommand(targetComponent, interaction.ComponentId, interaction.SourceEvent);
 
         return new CompiledUIInteraction
         {
@@ -221,6 +224,61 @@ internal sealed partial class UIViewCompilationContext
             TrueValue = interaction.TrueValue,
             FalseValue = interaction.FalseValue
         };
+    }
+
+    /// <summary>
+    /// Refuses a before- or after- interaction whose source runs no command on that event, as an undeclared command is refused: the
+    /// page raises the pair only around a command its source sends, so one asked of an event with none — a host asked for its
+    /// template's item event among them — compiles, renders and never fires.
+    /// </summary>
+    private void EnsureLifecycleSourceRunsCommand(IVisualComponent targetComponent, string sourceComponentId, string sourceEvent)
+    {
+        if (!IsLocalLifecycleEvent(sourceEvent))
+            return;
+
+        var eventName = sourceEvent.StartsWith(EventNames.BeforePrefix, StringComparison.Ordinal) ? sourceEvent[EventNames.BeforePrefix.Length..] : sourceEvent[EventNames.AfterPrefix.Length..];
+        IVisualComponent source = GetComponent(sourceComponentId);
+
+        if (FindEventName(source, eventName, StringComparison.Ordinal) is not null)
+            return;
+
+        var hint = FindEventName(source, eventName, StringComparison.OrdinalIgnoreCase) is string registered
+            ? $"; an event is named exactly as registered, '{registered}'"
+            : TemplateRunsCommandOn(source, eventName)
+                ? "; an item's event belongs to the template it is drawn from, so ask it there"
+                : "; give it a command on that event, or name the component that runs one";
+
+        throw new InvalidOperationException($"Component '{targetComponent.Id}' reacts to '{sourceEvent}' of '{source.Id}', but '{source.Id}' runs no command on '{eventName}'{hint}. A before- or after- interaction fires only around a command its source runs.");
+    }
+
+    /// <summary>The name of the component's own event that <paramref name="eventName"/> names, or null.</summary>
+    private static string? FindEventName(IVisualComponent component, string eventName, StringComparison comparison)
+    {
+        for (var i = 0; i < component.Events.Count; i++)
+        {
+            if (string.Equals(component.Events[i].Name, eventName, comparison))
+                return component.Events[i].Name;
+        }
+
+        return null;
+    }
+
+    /// <summary>Whether a templated host's default template or a variant runs a command on the event: an item's, written on its template.</summary>
+    private static bool TemplateRunsCommandOn(IVisualComponent host, string eventName)
+    {
+        if (host is not ITemplatedComponent templated)
+            return false;
+
+        if (templated.Template is IVisualComponent template && FindEventName(template, eventName, StringComparison.Ordinal) is not null)
+            return true;
+
+        foreach (IVisualComponent variant in templated.Templates.Values)
+        {
+            if (FindEventName(variant, eventName, StringComparison.Ordinal) is not null)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>

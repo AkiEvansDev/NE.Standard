@@ -21,7 +21,6 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     private const string ContentGroup = nameof(DateInputController.ContentGroup);
     private const string BadgeGroup = nameof(DateInputController.BadgeGroup);
     private const string BorderGroup = nameof(DateInputController.BorderGroup);
-    private const string MarkedGroup = nameof(DateInputController.MarkedGroup);
     private static readonly DateOnly Release = new(2026, 8, 12);
     private static readonly DateOnly QuarterStart = new(2026, 7, 1);
     private static readonly DateOnly QuarterEnd = new(2026, 9, 30);
@@ -96,7 +95,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => [.. DemoUI.CreateColumns([CreateUsesGroup(), CreateCalendarGroup()], [CreateFormatGroup(), CreateMarkedGroup()]), CreateLanguageGroup()];
+        => [.. DemoUI.CreateColumns([CreateUsesGroup()], [CreateFormatGroup()]), CreateCalendarGroup(), CreateLanguageGroup()];
 
     /// <summary>
     /// A period is one field with two ends, chosen on one calendar, rather than two fields kept in step by hand.
@@ -160,25 +159,30 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     private static ContainerComponent CreateCalendarGroup()
     {
         return DemoUI.CreateExample("The calendar it opens",
-            UILayout.Stack(16)
+            // Three to a row at the page's width, as the language group's columns are.
+            UILayout.Row(24)
                 .AddChild(new DateInputComponent()
                     .SetTitle("Inside one quarter, weeks from Monday")
                     .SetFirstDayOfWeek(UIDayOfWeek.Monday)
                     .SetRange(QuarterStart, QuarterEnd)
                     .SetValue(Release)
+                    .SetWidth(UILayoutLength.Absolute(300))
                 )
                 .AddChild(new DateInputComponent()
                     .SetTitle("Not before the release, weeks from Sunday")
                     .SetFirstDayOfWeek(UIDayOfWeek.Sunday)
                     .SetMin(Release)
                     .SetValue(Release)
+                    .SetWidth(UILayoutLength.Absolute(300))
                 )
                 .AddChild(new DateInputComponent()
                     .SetTitle("Not after it, the arrows a week at a time")
                     .SetMax(Release)
                     .SetStepDays(7)
                     .SetValue(Release)
+                    .SetWidth(UILayoutLength.Absolute(300))
                 ),
+            columns: 24,
             note: "The picker opens aligned to **the toggle button** rather than to the left edge of the field: one anchor cannot both clear the row vertically *and* line up with a button centred inside it."
         );
     }
@@ -231,35 +235,6 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
                 ),
             columns: 24,
             note: "Switch the language in the header: the unset fields keep the framework's `yyyy-MM-dd`, `HH:mm` and `yyyy-MM-dd HH:mm` on a 24-hour clock and are drawn again with their placeholders in the new language's letters (`дд.ММ.гггг` in Russian) and their pickers' names in its words; the fields that name `en-US` show that culture's `M/d/yyyy`, `h:mm tt` and `M/d/yyyy h:mm tt` and its English names whatever the page speaks. `ConfigureTemporal(o => o.FollowCulture = true)` would give every field its language's own pattern, and `HourCycle` one clock for all; this demo leaves both unset."
-        );
-    }
-
-    /// <summary>
-    /// Days the calendar marks, bound: a switch makes them the only ones on offer, a button assigns the next month's set.
-    /// </summary>
-    private static ContainerComponent CreateMarkedGroup()
-    {
-        return DemoUI.CreateExample("Marked days, the controller's",
-            UILayout.Stack(16)
-                .AddChild(new DateInputComponent()
-                    .SetTitle("Ship with the release train")
-                    .BindValue(nameof(DateMarkedGroupContext.Value), UIBindingScope.Relative)
-                    .BindMarkedDays(nameof(DateMarkedGroupContext.MarkedDays), UIBindingScope.Relative)
-                    .BindMarkedDaysOnly(nameof(DateMarkedGroupContext.MarkedDaysOnly), UIBindingScope.Relative)
-                )
-                .AddChild(new SwitchComponent()
-                    .SetTitle("Only the trains")
-                    .BindValue(nameof(DateMarkedGroupContext.MarkedDaysOnly), UIBindingScope.Relative)
-                    .OnChange(nameof(DateInputController.MarkedDaysOnlyChanged))
-                )
-                .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
-                    .SetHorizontalAlignment(UIAlignment.Start)
-                    .SetTitle("The next month's trains")
-                    .OnClick(nameof(DateInputController.NextMonth))
-                ),
-            note: "Open the picker: Tuesdays and Thursdays carry a dot. With the switch on the other days are disabled, the arrows skip them, a typed one is refused, and so is one sent to the server anyway. The button assigns a new set, sent whole.",
-            context: MarkedGroup
         );
     }
 }

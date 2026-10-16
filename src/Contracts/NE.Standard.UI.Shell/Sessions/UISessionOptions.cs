@@ -42,7 +42,8 @@ public sealed class UISessionOptions
     /// <remarks>
     /// <see langword="null"/> leaves it to the platform's own name for this application. A browser keeps one set of cookies per host
     /// whatever the port, so two applications under one name sign each other out; the web's default is <c>ne.ui.session.</c>
-    /// followed by the application's name. Name it where that name may change, since a new one signs everyone out.
+    /// followed by the application's name. Name it where that name may change, since a new one signs everyone out. Over HTTPS the web
+    /// carries it under the <c>__Host-</c> prefix, which a sibling subdomain can neither set nor shadow.
     /// </remarks>
     public string? ClientKey { get; set; }
 

@@ -23,6 +23,12 @@ public static class WebAttributes
 
     public const string TextDescription = "data-ui-text-description";
 
+    /// <summary>
+    /// On an element whose words are shown as written (<c>ITextComponent.DescriptionPlain</c>): a value pushed into it is written as
+    /// text, never read as inline markup.
+    /// </summary>
+    public const string PlainText = "data-ui-plain-text";
+
     public const string TextIcon = "data-ui-text-icon";
 
     // Two marks, not one both badge properties assert: the client's tally of one mark knows nothing of the first paint, so clearing
@@ -621,6 +627,9 @@ public static class WebAttributes
     public const string TabPinned = "data-ui-tab-pinned";
 
     public const string TabPage = "data-ui-tab-page";
+
+    /// <summary>On a group of actions at a tabs strip's end: the tab they are shown for, while it is in front.</summary>
+    public const string TabActions = "data-ui-tab-actions";
 
     public const string TabsRenamable = "data-ui-tabs-renamable";
 

@@ -5,8 +5,8 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Items.Table;
 
 /// <summary>
-/// One table over a bound collection and every property that can be bound to it; then what a table is used for: a column per kind
-/// of cell, chosen rows that open, rows put in order by a grip, and a list in a cell.
+/// One table over a bound collection and every property that can be bound to it; then what a table is used for: columns of every
+/// kind that the viewer arranges and the screen's width thins, chosen rows that open, rows put in order by a grip, and a list in a cell.
 /// </summary>
 /// <remarks>
 /// The table is capped at a height it does not fill, so <c>VerticalScroll</c> has something to do. Most examples share one column set
@@ -87,12 +87,13 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
 
     /// <summary>
     /// A column is any template bound to the row: a glyph, words, a number against the right edge, a badge, a button; a caption may wear
-    /// an icon of its own.
+    /// an icon of its own. The viewer puts the columns in the order they read best, and a narrower screen drops the ones it can spare.
     /// </summary>
+    /// <remarks>Named, so the order a viewer drags is kept in the browser between visits, as the widths are.</remarks>
     private static ContainerComponent CreateColumnKindsGroup()
     {
         return DemoUI.CreateExample("A column per kind of cell",
-            new TableComponent()
+            new TableComponent("fleet-columns")
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .SetItems(DemoDeploymentRow.CreateDeployments())
                 .AddColumn("", new TextComponent()
@@ -101,11 +102,12 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                     UIGridUnit.Absolute(48), UITextAlignment.Center
                 )
                 .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), icon: DemoIcons.Outline(DemoIcons.Server))
-                .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(120), UITextAlignment.End, icon: DemoIcons.Outline(DemoIcons.Replicas))
+                .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Auto(min: 96), key: "region", icon: DemoIcons.Outline(DemoIcons.Region))
+                .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(120), UITextAlignment.End, key: "replicas", icon: DemoIcons.Outline(DemoIcons.Replicas))
                 .AddColumn("Status", new TextComponent()
                     .BindBadgeText(nameof(DemoDeploymentRow.Status), UIBindingScope.Relative)
                     .BindBadgeStyle(nameof(DemoDeploymentRow.StatusStyle), UIBindingScope.Relative),
-                    UIGridUnit.Absolute(120)
+                    UIGridUnit.Absolute(120), key: "status"
                 )
                 // The button's click is its own, never the row's: a control inside a row keeps its press.
                 .AddColumn("", new ButtonComponent()
@@ -116,8 +118,13 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                     .OnClick(nameof(TableController.RestartRow), UIAction.ArgCurrentItemKey("id")),
                     UIGridUnit.Absolute(56), UITextAlignment.End
                 )
+                // The column a reader watches, its icon in the warning colour.
+                .SetColumnIcon("status", DemoIcons.Outline(DemoIcons.Alert), UIThemeColor.Warning)
+                .HideColumnBelow("region", UIResponsiveTier.Xxl)
+                .HideColumnBelow("replicas", UIResponsiveTier.Md)
+                .SetReorderableColumns(true)
                 .SetShowColumnSeparators(true),
-            note: "The icons are the columns' own (`icon:`), drawn before the caption.",
+            note: "The icons are the columns' own (`icon:`), drawn before the caption; Status's is set after the column, in a colour of its own (`SetColumnIcon`). Drag a caption to put its column elsewhere (`SetReorderableColumns(true)`): the order is kept in the browser under the table's name. Region gives way below the widest screens and Replicas on a phone (`HideColumnBelow`): narrow the window and they go.",
             context: ActionGroup
         );
     }

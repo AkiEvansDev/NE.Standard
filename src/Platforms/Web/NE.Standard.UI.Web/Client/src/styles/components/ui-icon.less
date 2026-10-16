@@ -72,11 +72,19 @@
     border-radius: 0.1875em;
 }
 
-// IconShape Circle: a picture cut round — a person — and `cover`, so one of any proportion fills the circle; a glyph has no
-// `--image` and keeps its own shape.
+// IconShape Circle: a picture cut round — a person — and `cover`, so one of any proportion fills the circle.
 .ui-icon--image.ui-icon--circle::before {
     border-radius: 50%;
     background-size: cover;
+}
+
+// A glyph's Circle is a faint disc of its own colour round it, half the glyph wide on each side: the mark a status page stands on.
+// The size (and an authored width) stays the glyph's, so the disc is twice the size it names.
+.ui-icon.ui-icon--circle:not(.ui-icon--image)[data-ui-icon] {
+    box-sizing: content-box;
+    .ui-responsive-property(padding, --ui-padding, 0.5em);
+    border-radius: 50%;
+    background-color: color-mix(in srgb, currentColor 16%, transparent);
 }
 
 // A round picture icon with no picture (icon-stand-in.ts): the neutral circle where the picture would stand, its fallback glyph laid

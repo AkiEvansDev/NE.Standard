@@ -1,6 +1,6 @@
 // A package's own field marked through the validation engine (`validation.mark` on the plugin surface): the severity's class and
 // colour on the field's root, `aria-invalid` on its controls for an error only, the words on its message line or its mark's
-// tooltip, all taken off by null, and weighed with the field's other messages.
+// tooltip — as text, never read as markup — all taken off by null, and weighed with the field's other messages.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -23,6 +23,7 @@ installFakeDom({
 
 const { clientStrings } = await import("../src/runtime/client-strings.ts");
 const { ValidationEngine } = await import("../src/interactions/validation-engine.ts");
+const { applyInlineMarkup, inlineMarkupToPlainText } = await import("../src/rendering/inline-markup.ts");
 
 const ComponentId = 7;
 const valueChangeHandlers: ((change: PropertyValueChange) => void)[] = [];
@@ -204,5 +205,37 @@ test("the controller's error outranks a package's warning, which shows again onc
     assert.ok(root.classes.has("ui-validation--warning"));
     assert.ok(!root.classes.has("ui-invalid"));
     assert.equal(line.textContent, "Slow pattern");
+    engine.mark(real(root), null);
+});
+
+test("a mark's words reach its tooltips as written: a pattern or a link in a message is text there, never markup", () => {
+    const input = new FakeInput();
+    const line = FakeElement.of("ui-validation-message", { "data-ui-validation-message": "" }, "span");
+    const root = FakeElement.of("ui-text-input", { "data-ui-id": String(ComponentId) }).append(input, line);
+    const value = FakeElement.of("ui-key-value-action__value");
+    const row = FakeElement.of("ui-key-value-action__row").append(value, FakeElement.of("ui-key-value-action__value-input").append(root));
+    const words = "Letters only: [a-z]. See [the rules](https://example.com/rules)";
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(row);
+
+    presentation = "marker";
+    markerHost = "ui-key-value-action__value";
+    engine.mark(real(root), "error", { text: words });
+    presentation = "";
+    markerHost = "";
+
+    // The field's mark and its copy in the value's cell, drawn as the tooltip draws its words, and its plain copy for a screen reader.
+    for (const spoken of [line, value.querySelector(".ui-validation-mark")]) {
+        const tooltip = spoken?.getAttribute("data-ui-tooltip") ?? "";
+        const shown = FakeElement.of("ui-tooltip");
+
+        applyInlineMarkup(real(shown), tooltip, { staticFolds: true });
+
+        assert.equal(shown.textContent, words);
+        assert.equal(shown.querySelector("a"), null);
+        assert.equal(inlineMarkupToPlainText(tooltip), words);
+    }
+
     engine.mark(real(root), null);
 });

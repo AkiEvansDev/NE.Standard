@@ -34,12 +34,34 @@ internal sealed partial class PaneContainerGroupContext : DemoGroupContext
         => SetLastChange(nameof(ToolsPosition), ToolsPosition = CycleValue(ToolsPosition, 0.25, 0.75, null));
 }
 
+/// <summary>
+/// An overview's order as the viewer left it, which comes back as they drag, and the order a Restore puts back.
+/// </summary>
+internal sealed partial class PaneOverviewGroupContext : DemoGroupContext
+{
+    public const string DefaultLayout = "alerts,deploys,on-call";
+
+    [RecursiveMember]
+    public partial string? Layout { get; set; } = DefaultLayout;
+}
+
 internal sealed partial class PaneContainerController() : DemoStandardController
 {
     [RecursiveMember]
     public partial PaneContainerGroupContext PaneGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial PaneOverviewGroupContext OverviewGroup { get; set; } = new();
+
     [UICommand]
     public void CyclePaneOption(string id)
         => PaneGroup.CycleOption(id);
+
+    /// <summary>A value the controller writes moves the panes, so putting the default back is one assignment.</summary>
+    [UICommand]
+    public void RestoreOverview()
+    {
+        OverviewGroup.Layout = PaneOverviewGroupContext.DefaultLayout;
+        OverviewGroup.LogEvent($"restored to {PaneOverviewGroupContext.DefaultLayout}");
+    }
 }

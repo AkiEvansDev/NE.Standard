@@ -22,7 +22,7 @@ import {
 } from "./row-cursor.ts";
 import {
     chooseRow, choosesOnEnter, ensureAnchor, gestureOf, hostOf, KeyboardRowsRootSelector as KeyboardRootSelector, keyGestureOf, markSelectedRows, PlainGesture,
-    ownRows, rowKey, selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector, setAnchor
+    ownRows, rowBox, rowKey, selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector, setAnchor
 } from "./row-selection.ts";
 import type { HeldRange, SelectionGesture } from "./row-selection.ts";
 import { applyHeaderStops, enterHeader, handleHeaderKey, headerTableOf } from "./table-header-group.ts";
@@ -82,12 +82,19 @@ export class ItemsSelectionEngine {
         this.root.addEventListener("pointercancel", () => this.restoreBoxes(), true);
         this.root.addEventListener("contextmenu", () => this.restoreBoxes(), true);
 
-        // A pushed key, a re-rendered row and a switched mode all land as mutations with the same answer; a window read ending, too.
+        // Rows put in, taken out or re-rendered: the whole pass, the Tab order's with it.
+        observeComponents(this.root, RootSelector, { childList: true }, roots => this.applyAll(roots));
+
+        // A pushed or chosen key and a switched mode change which rows are marked, never a Tab stop: an arrow in a long list re-marks its
+        // rows alone, and asks nothing of their controls. A window read ending, for the end Home or End waits for.
         observeComponents(
             this.root,
             RootSelector,
-            { childList: true, attributeFilter: [SelectionAttribute, SelectedKeyAttribute, SelectedKeysAttribute, WindowPendingAttribute] },
-            roots => this.applyAll(roots)
+            { attributeFilter: [SelectionAttribute, SelectedKeyAttribute, SelectedKeysAttribute, WindowPendingAttribute] },
+            roots => {
+                for (const root of roots)
+                    this.remark(root);
+            }
         );
 
         // The cursor moved by any engine, a removal or a redraw: the controls of the row it left leave the Tab order, the new row's join it.
@@ -134,20 +141,18 @@ export class ItemsSelectionEngine {
             stepRowControls(root, row, row.hasAttribute(RowFocusAttribute));
         }
 
-        const end = this.windowEnds.get(root);
-
-        if (end !== undefined)
-            this.settleWindowEnd(root, rows, end);
+        this.settleWindowEnd(root, rows);
     }
 
     /**
      * Lands the cursor on the end Home or End asked a windowed host for, once a window holding it is drawn and no read is under way;
      * a source that cannot count has no end to wait for, so the first window read after the scroll is the end there is.
      */
-    private settleWindowEnd(root: HTMLElement, rows: readonly HTMLElement[], end: WindowEnd): void {
-        const host = hostOf(root);
+    private settleWindowEnd(root: HTMLElement, rows: readonly HTMLElement[]): void {
+        const end = this.windowEnds.get(root);
+        const host = end === undefined ? null : hostOf(root);
 
-        if (host === null || host.hasAttribute(WindowPendingAttribute))
+        if (end === undefined || host === null || host.hasAttribute(WindowPendingAttribute))
             return;
 
         const counts = readWindowNumber(host, WindowTotalAttribute) !== null;
@@ -169,6 +174,14 @@ export class ItemsSelectionEngine {
 
         if (root.getAttribute(SelectionAttribute) === "one")
             chooseRow(root, rows, target, PlainGesture);
+    }
+
+    /** Marks the chosen rows again and lands an end the keyboard waits for: `apply` less the Tab order, which no key or mode moves. */
+    private remark(root: HTMLElement): void {
+        const rows = ownRows(root);
+
+        markSelectedRows(root, rows);
+        this.settleWindowEnd(root, rows);
     }
 
     private handleClick(domEvent: Event): void {
@@ -685,10 +698,13 @@ function axisOf(root: HTMLElement): RowAxis {
     return root.matches(".ui-orientation--horizontal") ? "both" : "vertical";
 }
 
-/** The rows a Delete on `current` removes: every chosen row that allows it when `current` is among them, else `current` alone. */
+/**
+ * The rows a Delete on `current` removes: every chosen row that allows it and is shown when `current` is among them, else `current`
+ * alone. A chosen row folded away or filtered out stays, as a drag leaves it (`carriedRows`): it would go unseen.
+ */
 export function removableRows(rows: readonly HTMLElement[], current: HTMLElement): HTMLElement[] {
     const chosen = selectedRows(rows);
-    const group = chosen.includes(current) ? chosen : [current];
+    const group = chosen.includes(current) ? chosen.filter(row => row === current || rowBox(row) !== null) : [current];
 
     // A row chosen before it was disabled stays chosen, but a disabled row is never acted on.
     return group.filter(row => !isItemRefused(row, UnremovableAttribute) && !isItemDisabled(row));

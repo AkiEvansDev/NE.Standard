@@ -171,7 +171,7 @@ test("a field drawn after the page loaded, a list's row, shows the theme the roo
 
     assert.deepEqual(current(at), { shown: [], selected: [] });
 
-    pageObservers.forEach(observer => observer([{ type: "childList", target: real(fakeDocument.body), addedNodes: [], removedNodes: [] }]));
+    pageObservers.forEach(observer => observer([{ type: "childList", target: real(fakeDocument.body), addedNodes: [at.field], removedNodes: [] }]));
 
     assert.deepEqual(current(at), { shown: ["dark"], selected: ["dark"] });
 });

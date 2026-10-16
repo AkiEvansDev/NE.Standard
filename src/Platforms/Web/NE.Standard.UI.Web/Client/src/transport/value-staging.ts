@@ -2,6 +2,7 @@
 // arriving as a token and fetched before it is applied.
 
 import type { ServerChangeSet, ServerValueUIUpdate } from "../metadata/metadata-index";
+import { pageSessionKey } from "../runtime/session-key.ts";
 
 const StagePath = "/_ne/values";
 
@@ -41,6 +42,9 @@ export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefine
     if (changes === undefined || !hasStagedValues(changes))
         return changes;
 
+    // Staged under the session as the server holds it: once a sign-in moved it, the new id, which only the traded cookie names.
+    await pageSessionKey.settled();
+
     // Only a value update carries a token, so the token alone says which updates to fetch.
     const updates = await Promise.all((changes.updates ?? []).map(async update => {
         const token = (update as ServerValueUIUpdate).valueToken;
@@ -64,6 +68,9 @@ export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefine
 
 /** Stages the JSON and answers the token a hub update carries in place of the value. */
 export async function stageValueAsync(body: Uint8Array): Promise<string> {
+    // Taken by the hub under the session its page holds: once a sign-in moved it, the new id, which only the traded cookie names.
+    await pageSessionKey.settled();
+
     const response = await fetch(StagePath, {
         method: "POST",
         body: body as BufferSource,

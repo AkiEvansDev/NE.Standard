@@ -35,7 +35,7 @@ internal sealed partial class ColorValueGroupContext : InputValueGroupContext
 internal sealed partial class ColorFieldGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
+    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Tonal;
 
     [RecursiveMember]
     public partial UIColorInputVariant? Variant { get; set; } = UIColorInputVariant.Field;

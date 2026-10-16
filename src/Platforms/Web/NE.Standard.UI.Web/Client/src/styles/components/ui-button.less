@@ -1,4 +1,5 @@
 ﻿@import "../mixins/color.less";
+@import "../mixins/glyph-edge.less";
 @import "../mixins/interactive.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
@@ -87,6 +88,38 @@
         :where(.ui-button--large[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
             font-size: @ui-glyph-xl;
         }
+
+    // An icon-only quiet button first or last on a panel's glyph edge hangs its box past the edge by its glyph's inset, so its glyph
+    // stands on the content's edge at any size, the wash running into the padding; a flyout's anchor hangs past its flyout (no :has).
+    // Neither shrunk nor capped at its cell, so an auto column does not take the hang out of the button's own width. A band whose
+    // edge is not the content's puts it off by `--ui-glyph-hang-start` or `-end` at 0 (core/side-drawers.less).
+    .ui-glyph-hang(@start; @end; @size; @inset) {
+        @{start}:is(@{ui-glyph-hung}@{size}),
+        @{start}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung}@{size} {
+            margin-inline-start: calc(-@inset * var(--ui-glyph-hang-start, 1));
+            flex-shrink: 0;
+            .ui-responsive-property(max-width, --ui-max-width, calc(100% + @inset));
+        }
+
+        @{end}:is(@{ui-glyph-hung}@{size}),
+        @{end}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung}@{size} {
+            margin-inline-end: calc(-@inset * var(--ui-glyph-hang-end, 1));
+            flex-shrink: 0;
+            .ui-responsive-property(max-width, --ui-max-width, calc(100% + @inset));
+        }
+    }
+
+    .ui-glyph-ends({
+        .ui-glyph-hang(@ui-glyph-start; @ui-glyph-end; ~""; ((@ui-control-height - @ui-glyph-md-lg) / 2));
+        .ui-glyph-hang(@ui-glyph-start; @ui-glyph-end; ~".ui-button--small"; ((@ui-button-height-sm - @ui-glyph-md) / 2));
+        .ui-glyph-hang(@ui-glyph-start; @ui-glyph-end; ~".ui-button--large"; ((@ui-button-height-lg - @ui-glyph-xl) / 2));
+    });
+
+    // A panel clipping what it holds (Overflow Hidden) lets the hung box and its keyboard frame out: a large button's 12 px and the
+    // frame's reach past it.
+    .ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end)[data-ui-id] {
+        overflow-clip-margin: (12px + @ui-keyboard-frame-reach);
+    }
 
     // Alignment lives on the button, not only its content: .ui-button's own text-align: center otherwise makes Justify look centred.
     // The root wears its label's alignment (ui-button--align-*, ButtonRendererBase), so nothing here reads below it.
@@ -237,7 +270,7 @@
     // Link is the one variant whose label is the brand colour, so hover brightens the text too, via the Link component's mixin. On
     // the parts, never the root: a filter makes the root the containing block of a popup inside it (a language list), which would jump.
     @media @{ui-can-hover} {
-        .ui-button--link:not(.ui-split-button)@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]) {
+        .ui-button--link@{ui-not-split-parts}@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]) {
             .ui-brighten-hover();
         }
     }

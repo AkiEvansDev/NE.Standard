@@ -3,6 +3,7 @@
 // client's half of the server's UIWords and ITranslator.Translate, both pinned by eng/Tests/Shared/words-format-corpus.json.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
+import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { selectPlural } from "./plural-rules.ts";
 import { readInstant } from "../rendering/timestamp-format.ts";
 import type { TimestampFormat } from "../rendering/timestamp-format.ts";
@@ -150,21 +151,26 @@ export function hasKeyPrefix(prefixes: readonly string[], value: string): boolea
     return false;
 }
 
-/** A key looked up whatever the prefixes and filled; a numeric `count` tries `key.{category}`, `key.other`, then the key itself. */
-export function translateKey(table: WordLookup, key: string, args?: Readonly<Record<string, unknown>> | null): string {
+/**
+ * A key looked up whatever the prefixes and filled; a numeric `count` tries `key.{category}`, `key.other`, then the key itself. With
+ * `markup`, for words read as inline markup, string arguments are escaped, a nested phrase's too (`formatWords`).
+ */
+export function translateKey(table: WordLookup, key: string, args?: Readonly<Record<string, unknown>> | null, markup = false): string {
     const count = args?.[CountArgument];
     const template = typeof count === "number"
         ? table.lookup(`${key}.${selectPlural(table.language, count)}`) ?? table.lookup(`${key}.other`) ?? table.lookup(key) ?? key
         : table.lookup(key) ?? key;
 
-    return formatWords(template, args, nested => isAuthorText(nested) ? translatePlain(table, nested.text) : translateKey(table, nested.key, nested.args), table.writeMoment);
+    return formatWords(template, args, nested => isAuthorText(nested) ? translatePlain(table, nested.text) : translateKey(table, nested.key, nested.args, markup), table.writeMoment, markup);
 }
 
 /**
  * Fills a template's `{name}` slots, a nested phrase or author's text through `translateNested`, a moment through `writeMoment` (else as
- * no page wrote it); an unknown slot stays, and there is no escape.
+ * no page wrote it); an unknown slot stays, and there is no escape. With `markup`, for words read as inline markup, a string argument —
+ * an author's text as its words — is data, its markup escaped so a name typed as `[a](b)` shows as typed; the template's own text,
+ * numbers and moments stay. `UIWords.EscapeMarkup`'s twin.
  */
-export function formatWords(template: string, args: Readonly<Record<string, unknown>> | null | undefined, translateNested?: (nested: Phrase | AuthorText) => string, writeMoment: MomentWriter = writeCanonicalMoment): string {
+export function formatWords(template: string, args: Readonly<Record<string, unknown>> | null | undefined, translateNested?: (nested: Phrase | AuthorText) => string, writeMoment: MomentWriter = writeCanonicalMoment, markup = false): string {
     if (args === null || args === undefined || !template.includes("{"))
         return template;
 
@@ -179,7 +185,7 @@ export function formatWords(template: string, args: Readonly<Record<string, unkn
                 const name = template.slice(at + 1, close);
 
                 if (Object.hasOwn(args, name)) {
-                    result += formatArgument(args[name], translateNested, writeMoment);
+                    result += formatArgument(args[name], translateNested, writeMoment, markup);
                     at = close + 1;
                     continue;
                 }
@@ -207,21 +213,24 @@ function isNameCharacter(code: number): boolean {
     return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;
 }
 
-function formatArgument(value: unknown, translateNested: ((nested: Phrase | AuthorText) => string) | undefined, writeMoment: MomentWriter): string {
+function formatArgument(value: unknown, translateNested: ((nested: Phrase | AuthorText) => string) | undefined, writeMoment: MomentWriter, markup: boolean): string {
     if (value === null || value === undefined)
         return "";
 
     if (typeof value === "string")
-        return value;
+        return markup ? escapeInlineMarkup(value) : value;
 
     if (typeof value === "boolean")
         return value ? "true" : "false";
 
     if (isPhrase(value))
-        return translateNested === undefined ? formatWords(value.key, value.args, undefined, writeMoment) : translateNested(value);
+        return translateNested === undefined ? formatWords(value.key, value.args, undefined, writeMoment, markup) : translateNested(value);
 
-    if (isAuthorText(value))
-        return translateNested === undefined ? value.text : translateNested(value);
+    if (isAuthorText(value)) {
+        const words = translateNested === undefined ? value.text : translateNested(value);
+
+        return markup ? escapeInlineMarkup(words) : words;
+    }
 
     if (isMoment(value))
         return writeMoment(readInstant(value.moment) ?? 0, value.format ?? "date-time");

@@ -26,7 +26,7 @@ export class BreadcrumbsEngine {
         this.applyAll();
 
         // A new child, a changed class and a step's Visibility can each move which step is last or which one shows a mark.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: ["class", ...VisibilityTierAttributes] }, trails => {
+        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true, attributeFilter: ["class", ...VisibilityTierAttributes] }, trails => {
             for (const trail of trails)
                 this.apply(trail);
         });

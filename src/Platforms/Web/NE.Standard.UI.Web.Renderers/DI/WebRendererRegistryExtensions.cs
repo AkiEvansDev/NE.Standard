@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Actions;
@@ -26,6 +27,8 @@ public static class WebRendererRegistryExtensions
 
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ContainerComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, StackPanelComponentRenderer>());
+        // A status is a stack of built-ins it composes itself, drawn as any stack.
+        _ = services.AddSingleton<IWebComponentRenderer>(_ => new WebComponentRendererAlias(StatusComponent.ComponentTypeKey, new StackPanelComponentRenderer()));
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, WrapPanelComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, ScrollContainerComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, SurfaceComponentRenderer>());
@@ -60,7 +63,7 @@ public static class WebRendererRegistryExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, MenuComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, MenuItemComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabsComponentRenderer>());
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabHeaderComponentRenderer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabCaptionComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabsViewComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabItemComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, TabCaptionRegionRenderer>());
@@ -143,6 +146,9 @@ public static class WebRendererRegistryExtensions
 
         _ = services.AddSingleton<IWebComponentRenderer>(
             _ => new WebComponentRendererAlias(DefaultBreadcrumbItemTemplate.ComponentTypeKey, new BreadcrumbItemComponentRenderer()));
+
+        _ = services.AddSingleton<IWebComponentRenderer>(
+            _ => new WebComponentRendererAlias(DefaultFileTemplate.ComponentTypeKey, new FileTileComponentRenderer()));
 
         // The row template is stamped onto each row rather than rendered there; its renderer runs inside the list's <template>,
         // where the editing flag must stay bound for rows to copy.

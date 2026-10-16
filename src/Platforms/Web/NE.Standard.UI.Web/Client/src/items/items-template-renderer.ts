@@ -1,23 +1,33 @@
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
     BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, GroupAttribute, ItemsHostAttribute, NoContextMenuAttribute, UndraggableAttribute, UnremovableAttribute,
     UnrenamableAttribute, UnselectableAttribute, cssAttributeValue, toKebabCase
-} from "../addressing/dom-attributes";
-import type { ResolvedPropertyAddress } from "../addressing/address-resolver";
-import { resolveOperationElements } from "../addressing/operation-targets";
-import { readComponentId } from "../addressing/dom-registry";
-import { ExtensionRegistry } from "../extensions/extension-registry";
-import { MetadataIndex, WebRenderBindingMetadata, getIdValue } from "../metadata/metadata-index";
-import { shownValue } from "../runtime/client-strings";
-import { logWarn } from "../runtime/logger";
-import { PropertyStateStore } from "../state/property-state-store";
-import { DomOperationRegistry } from "../updates/dom-operation-registry";
+} from "../addressing/dom-attributes.ts";
+import type { ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
+import { resolveOperationElements } from "../addressing/operation-targets.ts";
+import { readComponentId } from "../addressing/dom-registry.ts";
+import type { ExtensionRegistry } from "../extensions/extension-registry.ts";
+import { getIdValue } from "../metadata/metadata-index.ts";
+import type { MetadataIndex, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
+import { shownValue } from "../runtime/client-strings.ts";
+import { logWarn } from "../runtime/logger.ts";
+import type { PropertyStateStore } from "../state/property-state-store.ts";
+import type { DomOperationRegistry } from "../updates/dom-operation-registry.ts";
+import { markupWords, readsMarkup } from "../updates/shown-words.ts";
 import {
-    isContentItem, ItemStackEntry, ItemValueStep, readsDrawnRow, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty,
-    tryResolveItemTemplateValue, tryWriteCollectionItem
-} from "./binding-template-evaluator";
-import { ItemsTemplateRegistry } from "./items-template-registry";
+    isContentItem, readsDrawnRow, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty, tryResolveItemTemplateValue, tryWriteCollectionItem
+} from "./binding-template-evaluator.ts";
+import type { ItemStackEntry, ItemValueStep } from "./binding-template-evaluator.ts";
+import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 
 export class ItemsTemplateRenderer {
+    // Fields rather than parameter properties, which a type-stripping loader cannot run.
+    private readonly metadata: MetadataIndex;
+    private readonly templates: ItemsTemplateRegistry;
+    private readonly extensions: ExtensionRegistry;
+    private readonly operations: DomOperationRegistry;
+    private readonly state: PropertyStateStore;
+
     // Keyed by each rendered item's own root element, so a scope is found by walking the DOM upwards.
     private readonly itemStackByRoot = new WeakMap<Element, ItemStackEntry>();
 
@@ -33,13 +43,12 @@ export class ItemsTemplateRenderer {
     // A component root's selector by its id, built once rather than for every bound element of every row.
     private readonly componentSelectors = new Map<number, string>();
 
-    public constructor(
-        private readonly metadata: MetadataIndex,
-        private readonly templates: ItemsTemplateRegistry,
-        private readonly extensions: ExtensionRegistry,
-        private readonly operations: DomOperationRegistry,
-        private readonly state: PropertyStateStore
-    ) {
+    public constructor(metadata: MetadataIndex, templates: ItemsTemplateRegistry, extensions: ExtensionRegistry, operations: DomOperationRegistry, state: PropertyStateStore) {
+        this.metadata = metadata;
+        this.templates = templates;
+        this.extensions = extensions;
+        this.operations = operations;
+        this.state = state;
     }
 
     public renderItem(itemsViewComponentId: number, item: unknown, key: string, ancestors: readonly ItemStackEntry[] = []): Element | null {
@@ -306,6 +315,8 @@ export class ItemsTemplateRenderer {
             return;
 
         const value = shownValue(held, () => this.metadata.isTranslatable(binding) && !isContentItem(scope));
+        // Only a phrase reads otherwise where its words are markup (`markupWords`): this runs for each bound element of each row drawn.
+        const markup = markupWords(held, this.extensions.converters);
 
         const componentId = getIdValue(binding.componentId);
         const componentRoot = element.closest<Element>(this.componentSelector(componentId));
@@ -337,9 +348,10 @@ export class ItemsTemplateRenderer {
             if (target === null)
                 continue;
 
-            const convertedValue = this.extensions.converters.convert(operation.converter, value);
-
-            this.operations.apply({ resolved, operation, target, value, convertedValue, local: false });
+            if (markup !== null && readsMarkup(operation, target))
+                this.operations.apply({ resolved, operation, target, value: markup.value, convertedValue: markup.convertedFor(operation), local: false });
+            else
+                this.operations.apply({ resolved, operation, target, value, convertedValue: this.extensions.converters.convert(operation.converter, value), local: false });
         }
     }
 

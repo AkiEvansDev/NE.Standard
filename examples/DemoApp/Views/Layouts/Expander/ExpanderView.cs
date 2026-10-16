@@ -10,8 +10,8 @@ namespace DemoApp.Views.Layouts.Expander;
 /// yet, the settings most people leave alone, and contents that cost something to read.
 /// </summary>
 /// <remarks>
-/// <c>Expanded</c> is two-way, so clicking the header moves the row as well as the other way round.
-/// <see cref="AccordionComponent"/> lives here rather than on a page of its own, having no properties to list.
+/// <c>Expanded</c> is two-way, so clicking the header moves the row as well as the other way round. Sections of which one is open at a
+/// time are the accordion's page.
 /// </remarks>
 internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
 {
@@ -98,8 +98,9 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ExpanderController.CycleBorderOption))
         );
 
+    // The questions over the quiet fold, as tall together as the section read on its first open beside them.
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateFaqGroup(), CreateAdvancedGroup()], [CreateAccordionGroup(), CreateLoadGroup()]);
+        => [DemoUI.CreateHalf(CreateFaqGroup(), CreateAdvancedGroup()), CreateLoadGroup()];
 
     /// <summary>
     /// The plain case: the header is a native summary, so it opens and closes with the connection down.
@@ -167,44 +168,6 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
                     .SetType(UIButtonType.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("Save")
-                )
-        );
-    }
-
-    /// <summary>
-    /// One rule on top of the same sections: opening one closes whichever sibling was open.
-    /// </summary>
-    private static ContainerComponent CreateAccordionGroup()
-    {
-        return DemoUI.CreateExample("One open at a time",
-            new AccordionComponent()
-                .SetWidth(UILayoutLength.Absolute(380))
-                .AddChild(new ExpanderComponent()
-                    .SetExpanded(true)
-                    .ConfigureDefaultHeader(header => header.SetTitle("Disk"))
-                    .SetContent(new ParagraphComponent()
-                        .SetDescription("80 GB on the Standard plan, replicated once within the region.")
-                        .SetDescriptionType(UITextAppearance.Body)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
-                )
-                .AddChild(new ExpanderComponent()
-                    .SetExpanded(false)
-                    .ConfigureDefaultHeader(header => header.SetTitle("Plan"))
-                    .SetContent(new ParagraphComponent()
-                        .SetDescription("Standard: 2 vCPU and 4 GB of memory, €18 a month for each seat.")
-                        .SetDescriptionType(UITextAppearance.Body)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
-                )
-                .AddChild(new ExpanderComponent()
-                    .SetExpanded(false)
-                    .ConfigureDefaultHeader(header => header.SetTitle("Snapshots"))
-                    .SetContent(new ParagraphComponent()
-                        .SetDescription("Kept for 30 days; restoring one over a running server needs an admin.")
-                        .SetDescriptionType(UITextAppearance.Body)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
                 )
         );
     }

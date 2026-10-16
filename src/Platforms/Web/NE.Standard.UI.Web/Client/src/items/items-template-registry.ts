@@ -1,6 +1,8 @@
-import { ComponentSelector, EmptyTemplateAttribute, GroupTemplateAttribute } from "../addressing/dom-attributes";
-import { DomRegistry, readComponentId } from "../addressing/dom-registry";
-import { forEachSubtree } from "../runtime/client-strings";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { ComponentSelector, EmptyTemplateAttribute, GroupTemplateAttribute } from "../addressing/dom-attributes.ts";
+import { readComponentId } from "../addressing/dom-registry.ts";
+import type { DomRegistry } from "../addressing/dom-registry.ts";
+import { forEachSubtree } from "../runtime/client-strings.ts";
 
 const TemplateAttribute = "data-ui-template";
 const DefaultTemplateKey = "default";
@@ -33,17 +35,7 @@ export class ItemsTemplateRegistry {
     private findTemplate(itemsViewComponentId: number, key: string): HTMLTemplateElement | undefined {
         const root = this.dom.findComponent(itemsViewComponentId, []);
 
-        if (root === null)
-            return undefined;
-
-        const templates = root.querySelectorAll<HTMLTemplateElement>(`:scope > template[${TemplateAttribute}]`);
-
-        for (const template of templates) {
-            if (template.getAttribute(TemplateAttribute) === key)
-                return template;
-        }
-
-        return undefined;
+        return root === null ? undefined : ownTemplate(root, TemplateAttribute, key);
     }
 
     /** Whether a component is declared inside an item template — nested templates included — and so lives in rows. */
@@ -64,8 +56,21 @@ export class ItemsTemplateRegistry {
     private getMarkedTemplate(itemsViewComponentId: number, attribute: string): HTMLTemplateElement | undefined {
         const root = this.dom.findComponent(itemsViewComponentId, []);
 
-        return root?.querySelector<HTMLTemplateElement>(`:scope > template[${attribute}]`) ?? undefined;
+        return root === null ? undefined : ownTemplate(root, attribute, null);
     }
+}
+
+/**
+ * The root's own template carrying `attribute` (with `value`, where given). Its children are read rather than a `:scope >` selector,
+ * which walks every row drawn under the root — once or more per row drawn, quadratic over a list's inserts.
+ */
+function ownTemplate(root: Element, attribute: string, value: string | null): HTMLTemplateElement | undefined {
+    for (const child of root.children) {
+        if (child.localName === "template" && (value === null ? child.hasAttribute(attribute) : child.getAttribute(attribute) === value))
+            return child as HTMLTemplateElement;
+    }
+
+    return undefined;
 }
 
 function collectTemplateComponentIds(root: ParentNode): Set<number> {

@@ -23,13 +23,14 @@ public abstract partial class CheckboxComponent<T> : TextInputComponentBase<T, b
     where T : CheckboxComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Initializes the checkbox with its label in the body role, as a radio option's: a field's caption would make it smaller than
-    /// its own description (the Small size steps it back down to a caption in the stylesheet). Its icon and badge stand on the
-    /// title's line, as a radio option's do, beside the box that also stands there.
+    /// Initializes the checkbox with its label in the body role and its description a caption, as a radio option's: a field's caption
+    /// would make the label smaller than its own description (the Small size steps it back down to a caption in the stylesheet). Its
+    /// icon and badge stand on the title's line, as a radio option's do, beside the box that also stands there.
     /// </summary>
     protected CheckboxComponent(string? id = null) : base(id)
     {
         TitleType = UITextAppearance.Body;
+        DescriptionType = UITextAppearance.Caption;
         IconAlignment = UITextIconAlignment.Title;
         BadgeAlignment = UITextBadgeAlignment.Title;
     }

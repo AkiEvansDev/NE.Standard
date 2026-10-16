@@ -87,8 +87,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                     UIButtons.Link("I already have an account"),
                     UIButtons.Primary("Create account")
                         .OnSubmit(FormId, nameof(SignUpController.CreateAccountAsync))
-                        .InteractBeforeClick(IVisualComponent.LoadingProperty, true)
-                        .InteractAfterClick(IVisualComponent.LoadingProperty, false)
+                        .ShowLoadingDuring(EventNames.Click)
                 )
             ), DemoIcons.Outline(DemoIcons.Shield))
             .BindVisibility(nameof(SignUpController.FormVisibility));

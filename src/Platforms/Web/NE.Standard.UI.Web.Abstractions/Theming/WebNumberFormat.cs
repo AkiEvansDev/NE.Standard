@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
@@ -78,12 +79,15 @@ public static class WebNumberFormat
     /// <summary>The format letters the client renders; anything else is refused on both sides.</summary>
     public const string Kinds = "NFCPD";
 
+    // Keyed by the pack itself, not a field on it: a `with` copy (a money column's symbol) would carry its original's info along.
+    private static readonly ConditionalWeakTable<WebNumberCulturePack, NumberFormatInfo> Infos = [];
+
     /// <summary>Formats <paramref name="value"/>; a null or empty format is the value as it is, with the culture's separator and sign.</summary>
     public static string Format(decimal value, string? format, WebNumberCulturePack culture)
     {
         ArgumentNullException.ThrowIfNull(culture);
 
-        NumberFormatInfo info = culture.ToNumberFormatInfo();
+        NumberFormatInfo info = InfoOf(culture);
 
         if (string.IsNullOrWhiteSpace(format))
             return value.ToString(info);
@@ -96,14 +100,15 @@ public static class WebNumberFormat
 
     /// <summary>
     /// Formats <paramref name="value"/> as the client formats a number: by the shortest digits that read back as it (0.285, not
-    /// its binary 0.28499…), so a value past a decimal's range, a logarithmic axis's, writes as the page writes it.
+    /// its binary 0.28499…), so a value past a decimal's range, a logarithmic axis's, writes as the page writes it. A NaN or an
+    /// infinity is nothing, as the page shows the null the wire carries it as.
     /// </summary>
     public static string Format(double value, string? format, WebNumberCulturePack culture)
     {
         ArgumentNullException.ThrowIfNull(culture);
 
         if (!double.IsFinite(value))
-            return double.IsNaN(value) ? "NaN" : value > 0 ? "Infinity" : "-Infinity";
+            return string.Empty;
 
         // No negative zero: the client writes -0 as 0.
         var digits = (value == 0 ? 0d : value).ToString("R", CultureInfo.InvariantCulture);
@@ -118,7 +123,7 @@ public static class WebNumberFormat
             throw new ArgumentException($"Number format '{format}' is outside the shared subset ({Kinds}, with an optional precision).", nameof(format));
 
         // Past a decimal's range a double is a whole number, so its digits are exact as an integer.
-        NumberFormatInfo info = culture.ToNumberFormatInfo();
+        NumberFormatInfo info = InfoOf(culture);
         BigInteger whole = BigInteger.Parse(digits, NumberStyles.Float, CultureInfo.InvariantCulture);
         var kind = char.ToUpperInvariant(format[0]);
 
@@ -133,6 +138,10 @@ public static class WebNumberFormat
 
         return whole.ToString(kind + precision, info);
     }
+
+    /// <summary>The pack's <see cref="NumberFormatInfo"/>, built once per pack rather than once per value: a grid formats one per cell.</summary>
+    private static NumberFormatInfo InfoOf(WebNumberCulturePack culture)
+        => Infos.GetValue(culture, static pack => pack.ToNumberFormatInfo());
 
     /// <summary>
     /// <c>D</c>, which a decimal refuses: the integer's digits, rounded half away from zero as the client rounds, padded with zeros

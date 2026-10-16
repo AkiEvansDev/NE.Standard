@@ -1,21 +1,22 @@
-import { eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes";
-import { DomRegistry } from "../addressing/dom-registry";
-import { CommandDispatcher } from "../transport/command-dispatcher";
-import { EffectRegistry } from "../effects/effect-registry";
-import { EventCatalog } from "../extensions/events";
-import { InteractionEngine } from "../interactions/interaction-engine";
-import { isInert } from "../interactions/interactive-state";
-import { ValidationEngine } from "../interactions/validation-engine";
-import { MetadataIndex } from "../metadata/metadata-index";
-import type { UICommandRequest } from "../metadata/metadata-index";
-import { ValueBindingEngine, ValueSettleEventNames } from "../updates/value-binding-engine";
-import { isBehindEventBoundary } from "./event-boundary";
-import { CommandTurns } from "./command-turns";
-import type { CommandTurn } from "./command-turns";
-import { EventCompletionContext, EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor";
-import { EventRegistry } from "./event-registry";
-import { EventRequestFactory } from "./event-request-factory";
-import { logError } from "../runtime/logger";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
+import type { DomRegistry } from "../addressing/dom-registry.ts";
+import type { CommandDispatcher } from "../transport/command-dispatcher.ts";
+import type { EffectRegistry } from "../effects/effect-registry.ts";
+import type { EventCatalog } from "../extensions/events.ts";
+import type { InteractionEngine } from "../interactions/interaction-engine.ts";
+import { isInert } from "../interactions/interactive-state.ts";
+import type { ValidationEngine } from "../interactions/validation-engine.ts";
+import type { MetadataIndex, UICommandRequest } from "../metadata/metadata-index.ts";
+import { ValueSettleEventNames } from "../updates/value-binding-engine.ts";
+import type { ValueBindingEngine } from "../updates/value-binding-engine.ts";
+import { isBehindEventBoundary } from "./event-boundary.ts";
+import { CommandTurns } from "./command-turns.ts";
+import type { CommandTurn } from "./command-turns.ts";
+import type { EventCompletionContext, EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor.ts";
+import { EventRegistry } from "./event-registry.ts";
+import { EventRequestFactory } from "./event-request-factory.ts";
+import { logError } from "../runtime/logger.ts";
 
 export type EventPipelineOptions = {
     readonly root?: ParentNode;

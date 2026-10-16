@@ -18,7 +18,10 @@ internal abstract partial class UIRuntimeBase
             || Volatile.Read(ref _fullResyncRequested) == 1;
 
     /// <inheritdoc />
-    public async Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default)
+    public Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default)
+        => FlushAsync(DrainTarget.Flush, cancellationToken);
+
+    private async Task<ServerChangeSet> FlushAsync(DrainTarget target, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
         EnsureStarted();
@@ -30,7 +33,15 @@ internal abstract partial class UIRuntimeBase
         if (Volatile.Read(ref _disposeRequested) != 0)
             return ServerChangeSet.Empty;
 
-        return await DrainAsync(action: null, DrainTarget.Flush, publish: true, cancellationToken).ConfigureAwait(false);
+        return await DrainAsync(action: null, target, publish: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> FlushToDispatcherAsync(CancellationToken cancellationToken)
+    {
+        ServerChangeSet changes = await FlushAsync(DrainTarget.Dispatched, cancellationToken).ConfigureAwait(false);
+
+        return !changes.IsEmpty && AttachedInstanceIds.Count > 0;
     }
 
     /// <summary>
@@ -92,15 +103,27 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// What one caller's answer carries: its own copy where the runtime batches, the rest left for the flush to send the other
-    /// attached instances; nothing where the runtime sends as it drains, since the change set it drains goes to every instance,
-    /// the caller's included.
+    /// What one caller's answer carries: nothing. Where the runtime sends as it drains, the caller's share went out with every
+    /// instance's; where it batches, its copy went to the dispatcher for it alone, behind every set drained before it and ahead of every
+    /// set drained after, and the answer goes once that copy is sent, so the answer's effects act on the page its changes made. The copy
+    /// comes back only where the dispatcher took none.
     /// </summary>
     private async Task<ServerChangeSet> AnswerAsync(string instanceId, CancellationToken cancellationToken)
     {
-        ServerChangeSet changes = await DrainAsync(action: null, DrainTarget.Answer(instanceId), publish: true, cancellationToken).ConfigureAwait(false);
+        if (SendsWhatItDrains)
+        {
+            // Taken whole and sent to every instance, whoever asked.
+            _ = await DrainAsync(action: null, DrainTarget.Leave, publish: true, cancellationToken).ConfigureAwait(false);
 
-        // Cut by the caller's watermark already: what is added to the answer from here on is appended, never cut again.
-        return SendsWhatItDrains ? ServerChangeSet.Empty : UICollectionInsertMerge.Merge(changes);
+            return ServerChangeSet.Empty;
+        }
+
+        AnswerSends sends = new();
+        ServerChangeSet changes = await DrainAsync(action: null, DrainTarget.Answer(instanceId, sends), publish: true, cancellationToken).ConfigureAwait(false);
+
+        if (sends.Sent is { } sent)
+            await sent.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        return UIChangeDelivery.MergeRuns(changes);
     }
 }

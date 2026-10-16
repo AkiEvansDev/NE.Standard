@@ -1,6 +1,6 @@
 // Switching tabs: a click moves one attribute over strip and pages already in the DOM, and the new key goes back the two-way path.
 
-import { BindSelectedKeyAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { BindSelectedKeyAttribute, TabActionsAttribute, TabKeyAttribute, TabPageAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import { isFieldKey } from "./caret-fields.ts";
 import { happenedInside, observeComponents } from "./dom-mutations.ts";
 import { isLaidOut } from "./element-visibility.ts";
@@ -13,15 +13,14 @@ import { OverflowButtonClass, StripFitter } from "./strip-overflow.ts";
 import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch.ts";
 
 const RootClass = "ui-tabs";
-const HeaderClass = "ui-tab-header";
-const SelectedModifier = "ui-tab-header--selected";
-const OverflowedModifier = "ui-tab-header--overflowed";
+const CaptionClass = "ui-tab-caption";
+const SelectedModifier = "ui-tab-caption--selected";
+const OverflowedModifier = "ui-tab-caption--overflowed";
 const OverflowingModifier = "ui-tabs--overflowing";
 const NoOverflowModifier = "ui-tabs--no-overflow";
 const StripClass = "ui-tabs__strip";
-
-const TabKeyAttribute = "data-ui-tab-key";
-const PageAttribute = "data-ui-tab-page";
+// The band a strip with actions at its end stands in (TabsComponentRenderer), the strip still the tablist.
+const BandClass = "ui-tabs__band";
 
 export type TabsEngineOptions = {
     readonly root?: ParentNode;
@@ -52,7 +51,7 @@ export class TabsEngine {
         observeComponents(
             this.root,
             `.${RootClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `[${PageAttribute}]`, `.${RootClass}`) },
+            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `[${TabPageAttribute}]`, `.${RootClass}`) },
             roots => this.applyAll(roots)
         );
     }
@@ -77,6 +76,10 @@ export class TabsEngine {
         const previous = headers.find(header => header.classList.contains(SelectedModifier)) ?? null;
         let current: HTMLElement | null = null;
 
+        // A tab's own actions come and go with it, before the captions are fitted into the room they leave.
+        for (const group of ownDescendants(root, `[${TabActionsAttribute}]`, `.${RootClass}`))
+            group.hidden = (group.getAttribute(TabActionsAttribute) ?? "") !== selected;
+
         for (const header of headers) {
             const own = (header.getAttribute(TabKeyAttribute) ?? "") === selected;
 
@@ -95,7 +98,7 @@ export class TabsEngine {
         applyRovingTabIndex(headers.filter(header => !header.classList.contains(OverflowedModifier)), current);
 
         for (const page of this.ownPages(root)) {
-            page.hidden = (page.getAttribute(PageAttribute) ?? "") !== selected;
+            page.hidden = (page.getAttribute(TabPageAttribute) ?? "") !== selected;
 
             if (!page.hidden && previous !== null && previous !== current)
                 fadeInPage(page);
@@ -104,7 +107,7 @@ export class TabsEngine {
 
     /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */
     private fitHeaders(root: HTMLElement, headers: readonly HTMLElement[], selected: HTMLElement | null): void {
-        const strip = root.querySelector<HTMLElement>(`:scope > .${StripClass}`);
+        const strip = root.querySelector<HTMLElement>(`:scope > .${StripClass}, :scope > .${BandClass} > .${StripClass}`);
         const button = strip?.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`) ?? null;
 
         if (strip !== null && button !== null)
@@ -142,7 +145,7 @@ export class TabsEngine {
             return;
         }
 
-        const header = domEvent.target.closest<HTMLElement>(`.${HeaderClass}`);
+        const header = domEvent.target.closest<HTMLElement>(`.${CaptionClass}`);
 
         if (header === null || isInert(header))
             return;
@@ -162,7 +165,7 @@ export class TabsEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element) || isFieldKey(domEvent) || !isPlainKey(domEvent))
             return;
 
-        const header = domEvent.target.closest<HTMLElement>(`.${HeaderClass}`);
+        const header = domEvent.target.closest<HTMLElement>(`.${CaptionClass}`);
         const root = header?.closest<HTMLElement>(`.${RootClass}`) ?? null;
 
         if (header === null || root === null)
@@ -191,11 +194,11 @@ export class TabsEngine {
     }
 
     private ownHeaders(root: HTMLElement): HTMLElement[] {
-        return ownDescendants(root, `.${HeaderClass}`, `.${RootClass}`);
+        return ownDescendants(root, `.${CaptionClass}`, `.${RootClass}`);
     }
 
     private ownPages(root: HTMLElement): HTMLElement[] {
-        return ownDescendants(root, `[${PageAttribute}]`, `.${RootClass}`);
+        return ownDescendants(root, `[${TabPageAttribute}]`, `.${RootClass}`);
     }
 }
 

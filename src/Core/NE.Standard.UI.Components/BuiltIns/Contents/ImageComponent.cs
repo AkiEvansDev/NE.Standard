@@ -49,14 +49,16 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     public UIImageFit? Fit { get; set; }
 
     /// <summary>
-    /// Gets or sets the corner radius applied to the image, optionally overridden per breakpoint.
+    /// Gets or sets the picture's corner rounding, optionally overridden per breakpoint — the same corners a bordered component's
+    /// <c>BorderRadius</c> sets; unset, square.
     /// </summary>
+    /// <remarks>Only the corners: a picture draws no border, so it takes no border colour or thickness.</remarks>
     [UIComponentProperty(DefaultValue = null)]
-    public UIResponsive<UICornerRadius>? CornerRadius { get; set; }
+    public UIResponsive<UICornerRadius>? BorderRadius { get; set; }
 
     /// <summary>
     /// Gets or sets the image's shape — <see cref="UIImageShape.Circle"/> for a person's avatar: a square box, cropped to its middle
-    /// unless <see cref="Fit"/> says otherwise; a circle outranks <see cref="CornerRadius"/>.
+    /// unless <see cref="Fit"/> says otherwise; a circle outranks <see cref="BorderRadius"/>.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIImageShape? Shape { get; set; }

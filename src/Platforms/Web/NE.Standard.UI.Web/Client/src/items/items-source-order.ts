@@ -36,6 +36,18 @@ export function removeSourceItem(order: Element[], element: Element): void {
         order.splice(at, 1);
 }
 
+/** Takes every item of `removed` out of the order in one pass: a splice per item is quadratic over a long list. */
+export function removeSourceItems(order: Element[], removed: ReadonlySet<Element>): void {
+    let kept = 0;
+
+    for (const element of order) {
+        if (!removed.has(element))
+            order[kept++] = element;
+    }
+
+    order.length = kept;
+}
+
 /** Moves an item to a source index and returns the item that now follows it. */
 export function moveSourceItem(order: Element[], element: Element, newIndex: number | null): Element | null {
     removeSourceItem(order, element);

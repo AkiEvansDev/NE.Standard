@@ -66,6 +66,33 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
     internal int? ReplacingCount { get; set; }
 
     /// <summary>
+    /// The sources whose read is under way on the current flow, innermost first: what that read awaits — a rule source the author's
+    /// read writes through <c>InvokeAsync</c> — must not wait for the read itself to end. Set in an async method, it reverts as it returns.
+    /// </summary>
+    private static readonly AsyncLocal<SourceRead?> ReadsOnFlow = new();
+
+    private sealed record SourceRead(UIItemSourceBase Source, SourceRead? Outer);
+
+    /// <summary>Whether this source's read is under way on the current flow, so a read of it here would wait for itself.</summary>
+    internal bool IsReadOnThisFlow
+    {
+        get
+        {
+            for (SourceRead? read = ReadsOnFlow.Value; read is not null; read = read.Outer)
+            {
+                if (ReferenceEquals(read.Source, this))
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>Marks the current flow as reading this source, until the async method that marks it returns.</summary>
+    private protected void MarkReadOnThisFlow()
+        => ReadsOnFlow.Value = new SourceRead(this, ReadsOnFlow.Value);
+
+    /// <summary>
     /// Reads a window and makes it the realized one. Called by the runtime when the client asks.
     /// </summary>
     public abstract Task LoadWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken = default);
@@ -96,7 +123,10 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     [RecursiveMember(false)]
     public RecursiveCollection<TItem> Items { get; } = [];
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Reads a window and makes it the realized one, called by the runtime when the client asks; an extend anchored on a row that is
+    /// no longer the window's edge reads nothing.
+    /// </summary>
     /// <remarks>Reads of one source take turns, each applied before the next begins, whoever asked for them.</remarks>
     public sealed override async Task LoadWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken = default)
     {
@@ -111,6 +141,14 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         await _loading.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // Asked from the client's old window — a sort or a search reloaded it from the start meanwhile — it would join the rows
+            // after its anchor's new place to a window that no longer ends there. Not read: the client decides again from the window
+            // it now gets.
+            if (IsStaleExtend(request))
+                return;
+
+            MarkReadOnThisFlow();
+
             UIItemWindow<TItem> window = await GetWindowAsync(request, cancellationToken).ConfigureAwait(false);
 
             ArgumentNullException.ThrowIfNull(window);
@@ -125,6 +163,28 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         finally
         {
             _ = _loading.Release();
+        }
+    }
+
+    /// <summary>
+    /// Whether an extend is anchored on a row that is no longer the edge it extends: the window's first for <c>Before</c>, its last for
+    /// <c>After</c>. An empty window takes any read whole.
+    /// </summary>
+    private bool IsStaleExtend(UIItemWindowRequest request)
+    {
+        if (request.Mode != UIItemWindowMode.Extend || request.Anchor.Kind is not (UIItemAnchorKind.Before or UIItemAnchorKind.After))
+            return false;
+
+        lock (_window)
+        {
+            var count = Items.Count;
+
+            if (count == 0)
+                return false;
+
+            TItem edge = Items[request.Anchor.Kind == UIItemAnchorKind.Before ? 0 : count - 1];
+
+            return !string.Equals(edge.Id, request.Anchor.Key, StringComparison.Ordinal);
         }
     }
 
@@ -164,12 +224,13 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     {
         var before = request.Anchor.Kind is UIItemAnchorKind.Before or UIItemAnchorKind.Start;
 
-        // Drop items the window already holds rather than repeating them: two rows under one key would collide client-side.
+        // Drop items the window already holds rather than repeating them: two rows under one key would collide client-side. Looked up
+        // by the window's own index by key, not a scan of it per row read.
         List<TItem> fresh = new(window.Items.Count);
 
         for (var i = 0; i < window.Items.Count; i++)
         {
-            if (Find(window.Items[i].Id) is null)
+            if (!Items.TryGetRecursiveValue(PathSegment.WithKey(window.Items[i].Id), out _))
                 fresh.Add(window.Items[i]);
         }
 
@@ -204,7 +265,10 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         TrimWindow(fromTheEnd: before);
     }
 
-    /// <summary>Trims the window back to its limit in one removal, from the end or the start.</summary>
+    /// <summary>
+    /// Trims the window back to its limit in one removal, from the end or the start, marked a trim: the rows leave the page, not the
+    /// source.
+    /// </summary>
     private void TrimWindow(bool fromTheEnd)
     {
         var excess = Items.Count - Math.Max(1, MaxWindowSize);
@@ -214,7 +278,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
 
         if (fromTheEnd)
         {
-            Items.RemoveRange(Items.Count - excess, excess);
+            Items.TrimRange(Items.Count - excess, excess);
             HasMoreAfter = true;
         }
         else
@@ -222,7 +286,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
             // The last item trimmed is the one before the window now.
             GroupBefore = Items[excess - 1] is IBindableGroup trimmed ? trimmed.Group : null;
 
-            Items.RemoveRange(0, excess);
+            Items.TrimRange(0, excess);
             HasMoreBefore = true;
 
             // The window starts that many items later; an offset left behind would misplace the next read.
@@ -280,16 +344,9 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
         }
     }
 
+    // The window's own index by key and its index of items, not a scan: a write, a removal and an arrival each look a row up.
     private int IndexOf(string key)
-    {
-        for (var i = 0; i < Items.Count; i++)
-        {
-            if (string.Equals(Items[i].Id, key, StringComparison.Ordinal))
-                return i;
-        }
-
-        return -1;
-    }
+        => Items.TryGetRecursiveValue(PathSegment.WithKey(key), out var found) && found is TItem item ? Items.IndexOf(item) : -1;
 
     /// <summary>
     /// Adds an item at the end of the window — a message that just arrived, for a viewer already at the end.
@@ -329,7 +386,8 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     }
 
     /// <summary>
-    /// Adds an item at the start of the window.
+    /// Adds a new item at the start of the window — one the source just took in where the window starts, the mirror of
+    /// <see cref="Append"/>: the window still starts at the same place, now on the new item, and the source holds one more.
     /// </summary>
     /// <remarks>An item the window already holds under that key is replaced where it stands.</remarks>
     protected void Prepend(TItem item)
@@ -342,10 +400,6 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
                 return;
 
             Items.Insert(0, item);
-
-            // The window now starts one item earlier; an offset that disagrees with it would misplace later requests.
-            if (Offset is int offset && offset > 0)
-                Offset = offset - 1;
 
             if (TotalCount is int total)
                 TotalCount = total + 1;
@@ -380,6 +434,46 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
                 TotalCount = total - 1;
 
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Removes an item the source no longer holds, by key and by where it stood in the source, returning whether the window held it.
+    /// One before the window moves the window's start back by one, and one just before it or the last after it changes what stands
+    /// around the window, which <see cref="Remove(string)"/> cannot tell.
+    /// </summary>
+    protected bool Remove(string key, int sourceIndex)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentOutOfRangeException.ThrowIfNegative(sourceIndex);
+
+        lock (_window)
+        {
+            if (Remove(key))
+                return true;
+
+            if (Offset is not int offset)
+                return false;
+
+            // Before the window: everything it holds stands one place earlier now.
+            if (sourceIndex < offset)
+            {
+                Offset = offset - 1;
+
+                // The item just before the window gone, the one now there is another, whose group the source did not say.
+                if (sourceIndex == offset - 1)
+                    GroupBefore = null;
+
+                if (offset == 1)
+                    HasMoreBefore = false;
+            }
+            else if (TotalCount is int total && offset + Items.Count >= total)
+            {
+                // After it: the last item after the window gone, the window ends the source.
+                HasMoreAfter = false;
+            }
+
+            return false;
         }
     }
 

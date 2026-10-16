@@ -6,7 +6,7 @@ namespace DemoApp.Views.Layouts.CollapsiblePanel;
 
 /// <summary>
 /// One panel and every property that can be bound to it; then the places a panel folds from: the three edges of a workspace,
-/// and a band across the top of a screen.
+/// a band across the top of a screen, and a side panel with no switch of its own, opened from a button of the page's.
 /// </summary>
 /// <remarks>
 /// Four panes because <c>Side</c> is not bindable; the viewer's own switch and the <c>Expanded</c> row may disagree. Every
@@ -17,6 +17,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string PanelGroup = nameof(CollapsiblePanelController.PanelGroup);
     private const string BorderGroup = nameof(CollapsiblePanelController.BorderGroup);
+    private const string DetailsGroup = nameof(CollapsiblePanelController.DetailsGroup);
 
     public static string ViewKey => "demo.layouts.collapsible-panel";
 
@@ -67,7 +68,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => [CreateWorkspaceGroup(), CreateBandGroup()];
+        => [CreateWorkspaceGroup(), CreateBandGroup(), CreateDetailsGroup()];
 
     /// <summary>
     /// A workspace with three panes, each folding toward the edge it sits on; the side panes wear their titles beside their switches.
@@ -163,6 +164,56 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                     .SetPlacement(1, 2, 24, 1)
                 ),
             columns: 24
+        );
+    }
+
+    /// <summary>
+    /// <c>ShowCollapseToggle</c> off: the panel draws no switch, and a button in the work's own head opens and folds it through the
+    /// bound <c>Expanded</c>.
+    /// </summary>
+    private static ContainerComponent CreateDetailsGroup()
+    {
+        return DemoUI.CreateExample("Opened from the page's own button",
+            new ContainerComponent()
+                .SetColumn(24, UIGridUnit.Auto())
+                .SetOverflow(UIOverflow.Hidden)
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetContent(UILayout.Stack(12)
+                        .AddChild(UILayout.Ends(
+                                UIText.Subtitle("db-us-east-2", "Dedicated · us-east · Maintenance"),
+                                new ButtonComponent()
+                                    .OnClick(nameof(CollapsiblePanelController.ToggleDetails))
+                                    .SetType(UIButtonType.Ghost)
+                                    .SetSize(UIButtonSize.Small)
+                                    .SetIcon(DemoIcons.Outline(DemoIcons.FileText))
+                                    .SetTitle("Details")
+                            )
+                        )
+                        .AddChild(new ParagraphComponent()
+                            .SetDescription("The database is being resized to Dedicated under change request CHG-482. Writes are held for the window; reads are served from the replica in eu-central.")
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetWrapMode(UITextWrapMode.Wrap)
+                        )
+                    )
+                    .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 23, 1))
+                )
+                .AddChild(new CollapsiblePanelComponent()
+                    .SetSide(UISide.Right)
+                    .SetShowCollapseToggle(false)
+                    .BindExpanded(nameof(PanelDetailsGroupContext.Expanded), UIBindingScope.Relative)
+                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
+                    .SetPadding(UIThickness.Uniform(12))
+                    // Under the work on a phone, a side's width beside it from the medium width up.
+                    .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 12, 0, 0), md: UIThickness.All(16, 0, 0, 0)))
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), md: UILayoutLength.Absolute(240)))
+                    .SetContent(UIDetails.List(("Plan", "Dedicated"), ("Window", "Sat 02:00–04:00 UTC"), ("Approved by", "Grace Kim")))
+                    .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(24, 1, 1, 1))
+                ),
+            columns: 24,
+            note: "SetShowCollapseToggle(false): the panel draws no switch of its own, so nothing on its edge says it is there. The Details button in the work's head writes Expanded on the controller, and the panel opens or folds to it; the work takes back the room it leaves.",
+            context: DetailsGroup
         );
     }
 }

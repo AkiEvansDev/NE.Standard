@@ -77,7 +77,8 @@
 @ui-adornment-live: ~":not(:disabled, [aria-disabled='true'])";
 
 // A glyph button inside a field (a clear, a picker toggle): round, borderless, muted. Hover moves its ink alone — the row already
-// lifts, and a wash too would read as a button on a button — and nothing while `aria-disabled` (a read-only field's toggle).
+// lifts, and a wash too would read as a button on a button — and nothing while `aria-disabled` (a read-only field's toggle). Drawn
+// smaller than a target, it takes a target's press round it (`::after`; its glyph is its `::before`).
 .ui-field-adornment() {
     position: relative;
     display: inline-flex;
@@ -93,6 +94,7 @@
     color: var(--ui-text-muted);
     cursor: pointer;
     .ui-interactive-base();
+    .ui-hit-area();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 
     @media @{ui-can-hover} {
@@ -117,10 +119,7 @@
     margin-right: -@ui-space-1;
     cursor: default;
 
-    > .ui-button,
-    > .ui-flyout > .ui-flyout__anchor > .ui-button {
-        .ui-field-action-button();
-    }
+    .ui-field-action-buttons();
 
     // The leading group (the caller's class with `--leading`) follows the value in the tab order and stands first all the same,
     // before a caption inside too.
@@ -128,6 +127,14 @@
         order: -1;
         margin-right: 0;
         margin-left: -@ui-space-1;
+    }
+}
+
+// A group's own buttons, a flyout's anchor among them, each as a field's action.
+.ui-field-action-buttons() {
+    > .ui-button,
+    > .ui-flyout > .ui-flyout__anchor > .ui-button {
+        .ui-field-action-button();
     }
 }
 
@@ -225,7 +232,10 @@
     padding-left: 0.4em;
 }
 
+// One of a stepper's two arrows. Half a field's height, it takes a target's press past its box (`::after`; its chevron is its
+// `::before`): the upper one upward, the lower one downward, so neither takes the other's.
 .ui-field-step() {
+    position: relative;
     display: flex;
     flex: 1 1 0;
     align-items: center;
@@ -255,6 +265,24 @@
 
     &::before {
         .ui-chevron(@ui-glyph-xs);
+    }
+
+    // Each grows only as far as the field's edge, the stepper's step (`@ui-space-1`) out: on a small field a target's square reached
+    // 12 px past it, into the caption's line above and the next row below.
+    &:first-child {
+        .ui-hit-area(after; start);
+
+        &::after {
+            top: ~"clamp(calc(-1 * @{ui-space-1}), calc(100% - @{ui-hit-target}), 0px)";
+        }
+    }
+
+    &:last-child {
+        .ui-hit-area(after; end);
+
+        &::after {
+            bottom: ~"clamp(calc(-1 * @{ui-space-1}), calc(100% - @{ui-hit-target}), 0px)";
+        }
     }
 }
 

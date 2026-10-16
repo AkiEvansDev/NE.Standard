@@ -22,6 +22,25 @@
     .ui-placement-host();
 }
 
+// A stroke on one side alone (a quote's, a callout's) keeps that side's corners square and rounds the far ones as a list entry does;
+// an authored radius wins. Physical sides, as the thickness is.
+
+:is(.ui-surface, .ui-card).ui-border--left {
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"0 @{ui-list-entry-radius} @{ui-list-entry-radius} 0");
+}
+
+:is(.ui-surface, .ui-card).ui-border--right {
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"@{ui-list-entry-radius} 0 0 @{ui-list-entry-radius}");
+}
+
+:is(.ui-surface, .ui-card).ui-border--top {
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"0 0 @{ui-list-entry-radius} @{ui-list-entry-radius}");
+}
+
+:is(.ui-surface, .ui-card).ui-border--bottom {
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"@{ui-list-entry-radius} @{ui-list-entry-radius} 0 0");
+}
+
 // A surface pays for its own padding; a card's content band and an expander's summary and content carry theirs.
 .ui-surface {
     .ui-responsive-property(padding, --ui-padding, @ui-space-4);
@@ -48,8 +67,16 @@
     }
 
     @media @{ui-can-hover} {
-        .ui-surface--clickable.ui-surface--raised@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
+        .ui-surface--clickable.ui-surface--raised:not(.ui-surface--quiet-hover)@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
             .ui-elevation-2();
+        }
+    }
+
+    // A quiet one (QuietHover), a strip the pointer crosses on its way elsewhere, takes half the wash and no lift, so it does not flash
+    // under a passing pointer; its press is any surface's.
+    @media @{ui-can-hover} {
+        .ui-surface--clickable.ui-surface--quiet-hover@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
+            background-color: color-mix(in srgb, var(--ui-color-on-surface) 5%, var(--ui-surface-fill));
         }
     }
 

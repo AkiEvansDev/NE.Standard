@@ -62,7 +62,7 @@ export class CommandBarEngine {
         // Commands arriving, leaving or regrouped. A label or a Visibility changing moves a command's own width, which the fitter
         // watches; the fit's own classes are not watched here, or every fit would ask for the next.
         // Not a change inside a command (a label's words, a badge's count): a fit reads the layout, and a streamed page changes often.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, relevant: changesCommands }, roots => this.applyAll(roots));
+        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true, relevant: changesCommands }, roots => this.applyAll(roots));
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {

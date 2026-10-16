@@ -35,9 +35,13 @@ public static class UIText
     public static TextComponent Body(string title, string? description = null)
         => Create(title, description).AsBody();
 
-    /// <summary>The small line.</summary>
+    /// <summary>The small line, and a line under it as small in the muted ink: never larger than what it explains.</summary>
     public static TextComponent Caption(string title, string? description = null)
-        => Create(title, description).AsCaption();
+    {
+        TextComponent caption = Create(title, description).AsCaption();
+
+        return description is null ? caption : caption.SetDescriptionType(UITextAppearance.Caption).SetDescriptionColor(UIThemeColor.Muted);
+    }
 
     /// <summary>The small capitals a thing is labelled by, in the muted ink.</summary>
     public static TextComponent Label(string label)
@@ -52,7 +56,7 @@ public static class UIText
         => Paragraph(text).SetDescriptionType(UITextAppearance.Caption).Muted();
 
     /// <summary>
-    /// A quote, as a messenger draws a reply or an edit: a stroke at the start in <paramref name="accent"/> (the brand where none is
+    /// A quote, as a messenger draws a reply or an edit: a stroke on the left in <paramref name="accent"/> (the brand where none is
     /// given), the title a caption in that colour — who, or "Editing" — and one muted line under it, the start of the words. Both are
     /// content, a person's name and words shown as written; a <see cref="UIPhrase.Of"/> key still translates.
     /// <paramref name="clickCommand"/> makes the whole quote pressable (a jump to what it quotes), <paramref name="closeCommand"/> ends it
@@ -126,12 +130,12 @@ public static class UIText
                 );
         }
 
-        // The stroke is the surface's own start edge, the rest of its edge and its fill none: the quote stands on whatever holds it, a
-        // message's tint included, and a press's wash stays inside the stroke.
+        // The stroke is the surface's left edge, the rest of its edge and its fill none: the quote stands on whatever holds it, a
+        // message's tint included, and a press's wash stays inside the stroke. A stroke on one side alone keeps its corners square and
+        // rounds the far ones as a list's entry (ui-surface.less), so the wash follows the theme's corner.
         SurfaceComponent quote = new SurfaceComponent()
             .SetBackground(UIThemeColor.Transparent)
             .SetBorderThickness(UIThickness.All(QuoteStroke, 0, 0, 0))
-            .SetBorderRadius(UICornerRadius.Uniform(0))
             .SetPadding(UIThickness.All(10, 2, 0, 2))
             .SetContent(layout);
 

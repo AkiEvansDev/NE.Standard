@@ -99,10 +99,17 @@ export function markSelectedRows(root: HTMLElement, rows: readonly HTMLElement[]
 
         row.toggleAttribute(SelectedAttribute, selected);
 
-        if (choosing)
-            row.setAttribute("aria-selected", selected ? "true" : "false");
-        else
+        // Written only where it changes, as the toggle above is: an arrow in a long list moves two marks, and setting an attribute to
+        // the value it holds still wakes every observer of the row.
+        const announced = choosing ? (selected ? "true" : "false") : null;
+
+        if (row.getAttribute("aria-selected") === announced)
+            continue;
+
+        if (announced === null)
             row.removeAttribute("aria-selected");
+        else
+            row.setAttribute("aria-selected", announced);
     }
 }
 

@@ -13,9 +13,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <remarks>
 /// <c>Value</c> holds the picture's URL; the chosen file uploads at once, its handle landing in <see cref="SelectionId"/>, with a
 /// local preview shown until the controller replies — under <see cref="Crop"/>, once the reader has framed it. Nothing removes the picture on its own — offer a button that clears
-/// <c>Value</c>. With <see cref="Multiple"/>, or in the <see cref="UIImageInputShape.Shelf"/> shape, the control becomes a shelf of
+/// <c>Value</c>. With <see cref="Multiple"/>, or as the <see cref="UIImageInputVariant.Shelf"/> variant, the control becomes a shelf of
 /// pictures whose handles arrive in <see cref="SelectionIds"/>, and <c>Value</c>, <c>Caption</c> and <see cref="SelectionId"/> go unused.
-/// Only the <see cref="UIImageInputShape.Inline"/> shape, whose row has a line of text, reads <c>Placeholder</c>.
+/// Only the <see cref="UIImageInputVariant.Inline"/> variant, whose row has a line of text, reads <c>Placeholder</c>.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 public abstract partial class ImageInputComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IMaxFileSizeComponent
@@ -24,11 +24,11 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     private const string DefaultAccept = "image/*";
 
     /// <summary>
-    /// Gets or sets which of the four shapes the control takes.
+    /// Gets or sets which of the four looks the control is drawn as.
     /// </summary>
-    /// <remarks>Render-time only: the shape is how the control is built.</remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = UIImageInputShape.Picture)]
-    public UIImageInputShape? Shape { get; set; }
+    /// <remarks>Render-time only: the variant is how the control is built.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = UIImageInputVariant.Picture)]
+    public UIImageInputVariant? Variant { get; set; }
 
     /// <summary>
     /// Gets or sets the id of the uploaded picture, written by the client once the file has been sent.
@@ -48,8 +48,8 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     /// Gets or sets whether several pictures are taken at once, each shown as a square the viewer can remove.
     /// </summary>
     /// <remarks>
-    /// Render-time only: a shelf is a different build from a picture. Read together with <see cref="UIImageInputShape.Picture"/>;
-    /// <see cref="UIImageInputShape.Shelf"/> takes several pictures without it.
+    /// Render-time only: a shelf is a different build from a picture. Read together with <see cref="UIImageInputVariant.Picture"/>;
+    /// <see cref="UIImageInputVariant.Shelf"/> takes several pictures without it.
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool? Multiple { get; set; }
@@ -82,7 +82,7 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     public long? MaxFileSize { get; set; }
 
     /// <summary>
-    /// Gets or sets the glyph shown while there is no picture; unset, the shape draws its own.
+    /// Gets or sets the glyph shown while there is no picture; unset, the variant draws its own.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? PlaceholderIcon { get; set; }
@@ -111,7 +111,7 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     /// circle, and the square the frame holds is what is sent.
     /// </summary>
     /// <remarks>
-    /// Render-time only, as the shape is. For a single picture — the picture, avatar and inline shapes; a shelf takes its pictures
+    /// Render-time only, as the variant is. For a single picture — the picture, avatar and inline variants; a shelf takes its pictures
     /// as they are, and a crop on one fails the render. The crop runs in the browser, so <see cref="MaxFileSize"/> weighs the
     /// cropped picture, and Cancel leaves the input as it was.
     /// </remarks>

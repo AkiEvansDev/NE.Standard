@@ -15,6 +15,10 @@ class FakeDataTransfer {
         if (!this.types.includes(type))
             this.types.push(type);
     }
+
+    public setDragImage(): void {
+        // The picture is the browser's: nothing here reads it.
+    }
 }
 
 class FakeDragEvent extends FakeEvent {
@@ -253,6 +257,42 @@ test("a drag over the source's own rows is no drop on the component around it; o
 
     assert.equal(drag("dragover", target.rows[0], dataTransfer, 7).defaultPrevented, true);
     assert.equal(target.rows[0].getAttribute("data-ui-row-drop"), "after");
+});
+
+test("a drag from another list reads the rows of a long list it stands over once, and again after a scroll moved them", () => {
+    const source = list("1", ["a"], Cards);
+    const target = list("2", Array.from({ length: 200 }, (_, index) => `k${index}`), Cards);
+    const dataTransfer = new FakeDataTransfer();
+    const count = { reads: 0 };
+
+    for (const row of target.rows) {
+        const box = row.getBoundingClientRect.bind(row);
+
+        row.getBoundingClientRect = (): DOMRect => {
+            count.reads++;
+            return box();
+        };
+    }
+
+    page(source.root, target.root);
+    source.rows[0].dispatchEvent(new FakePointerEvent("pointerdown"));
+    drag("dragstart", source.rows[0], dataTransfer);
+    drag("dragover", target.host, dataTransfer, 507);
+    count.reads = 0;
+
+    // In the room between rows, the nearest row is found among the boxes as read: only the rows marked beside are read again.
+    drag("dragover", target.host, dataTransfer, 508);
+    drag("dragover", target.host, dataTransfer, 807);
+
+    assert.ok(count.reads <= 20, `${count.reads} boxes read`);
+    assert.equal(target.rows[80].getAttribute("data-ui-row-drop"), "after");
+
+    count.reads = 0;
+    target.host.dispatchEvent(new FakeEvent("scroll"));
+    drag("dragover", target.host, dataTransfer, 107);
+
+    assert.ok(count.reads >= target.rows.length, `${count.reads} boxes read`);
+    assert.equal(target.rows[10].getAttribute("data-ui-row-drop"), "after");
 });
 
 test("a field taking the kind wears the drop's mark, and says it draws a box, which then wears the edge alone; the drop takes both off", () => {

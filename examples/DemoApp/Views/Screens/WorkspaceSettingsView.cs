@@ -33,7 +33,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
         => UICard.Create("Profile", "How you appear to the rest of the staff.", UILayout.Stack(16,
             new ImageInputComponent()
                 .SetTitle("Picture")
-                .SetShape(UIImageInputShape.Avatar)
+                .SetVariant(UIImageInputVariant.Avatar)
                 .SetPlaceholderIcon(DemoIcons.Outline(DemoIcons.UserRound))
                 .SetFormId(ProfileFormId),
             new TextInputComponent()

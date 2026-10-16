@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Shell.Commands;
 
 namespace NE.Standard.UI.Views;
 
@@ -40,6 +41,10 @@ internal sealed partial class DefaultErrorController : UIControllerBase
         ShowMessageOf(navigation);
         return Task.CompletedTask;
     }
+
+    [UICommand]
+    public static UICommandResult GoHome()
+        => DefaultNotFoundController.GoHomeResult();
 
     // The page is open to anyone at its own address, so a free-text message in the query would be shown on the application's origin.
     private void ShowMessageOf(UINavigationRequest navigation)

@@ -29,6 +29,7 @@ using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Assets;
 using NE.Standard.UI.Web.Html;
 using NE.Standard.UI.Web.Rendering;
+using HeaderNames = Microsoft.Net.Http.Headers.HeaderNames;
 using StringWithQualityHeaderValue = Microsoft.Net.Http.Headers.StringWithQualityHeaderValue;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -66,8 +67,9 @@ public static partial class WebEndpointRouteBuilderExtensions
         cancellationToken.ThrowIfCancellationRequested();
 
         // Built now rather than on the first request: a route compiled at Startup compiles here, so a view naming a command its
-        // controller lacks fails the deployment, not its first visitor.
+        // controller lacks fails the deployment, not its first visitor — and so does a session cookie name a browser would drop.
         _ = endpoints.ServiceProvider.GetRequiredService<UIApplication>();
+        _ = endpoints.ServiceProvider.GetRequiredService<WebSessionCookie>();
 
         // The framework's own page, asset, file and content responses all sit behind this filter; the hub is a
         // different kind of endpoint and carries no body a browser could sniff.
@@ -77,6 +79,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         WebFileEndpoints.Map(group);
         WebValueEndpoint.Map(group);
+        WebSessionKeyEndpoint.Map(group);
         WebManifestEndpoint.Map(group);
         WebContentEndpoint.Map(group);
         WebWordsEndpoint.Map(group);
@@ -262,7 +265,9 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         Log.Rendering(logger, route);
 
-        if (IsSystemRoute(route))
+        // Before the session or a filter is touched: a page fetched as an image or a script by a sibling site's content would otherwise
+        // run its navigation hooks as whoever views that content.
+        if (IsSystemRoute(route) || !IsDocumentRequest(http))
             return Results.NotFound();
 
         UINavigationRequest navigation = new()
@@ -333,6 +338,10 @@ public static partial class WebEndpointRouteBuilderExtensions
             .PrepareAsync(host, resolution, shape, words, http.RequestAborted)
             .ConfigureAwait(false);
 
+        // The controller signed in as the render built its runtime: this response hands out the new key, in place of the one it carried.
+        if (hydration.SignedInKey is { } signedInKey)
+            http.RequestServices.GetRequiredService<WebSessionCookie>().Write(http, application.Sessions, signedInKey.Value);
+
         var hydrated = Stopwatch.GetTimestamp();
 
         // The shared shape carries no bound value; a page with a controller is rendered again with this session's own so the
@@ -391,7 +400,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         if (shell.StandInNavigation is not null && string.Equals(UIRoutePath.Normalize(resolution.Route.Route), application.ErrorHandling.NotFoundRoute, StringComparison.OrdinalIgnoreCase))
             http.Response.StatusCode = StatusCodes.Status404NotFound;
 
-        return new ShellDocumentResult(shell, resolution, metrics, logger, started, shaped, hydrated, painted);
+        return new ShellDocumentResult(shell, resolution, endpointOptions, metrics, logger, started, shaped, hydrated, painted);
     }
 
     /// <summary>The view's title in the session's language: a plain key, or a key filled with the view's own arguments.</summary>
@@ -411,7 +420,7 @@ public static partial class WebEndpointRouteBuilderExtensions
     /// The document written straight into the response's pipe — no string of the page, which on a large page is several copies on
     /// the large object heap a request — and a page this session's values are in, so no cache may keep it.
     /// </summary>
-    private sealed class ShellDocumentResult(WebShellContext shell, UIViewResolution resolution, WebUIMetrics metrics, ILogger logger, long started, long shaped, long hydrated, long painted) : IResult
+    private sealed class ShellDocumentResult(WebShellContext shell, UIViewResolution resolution, WebEndpointOptions options, WebUIMetrics metrics, ILogger logger, long started, long shaped, long hydrated, long painted) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -419,6 +428,8 @@ public static partial class WebEndpointRouteBuilderExtensions
 
             httpContext.Response.ContentType = "text/html; charset=utf-8";
             httpContext.Response.Headers.CacheControl = "private, no-cache";
+
+            RestrictFraming(httpContext.Response, options);
 
             long length;
 
@@ -447,6 +458,31 @@ public static partial class WebEndpointRouteBuilderExtensions
 
             _ = await httpContext.Response.BodyWriter.FlushAsync(httpContext.RequestAborted).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Who may frame the page: its own origin, unless the host names others — a signed-in page a sibling site frames can be steered
+        /// into presses its reader never meant. <c>X-Frame-Options</c> only for the page's own origin, the one thing it can say.
+        /// </summary>
+        /// <remarks>
+        /// Added beside whatever policy the host sent, never over it — a browser enforces each <c>Content-Security-Policy</c> header on
+        /// its own, so a host's <c>script-src</c> holds on the page as well; and a host's own <c>X-Frame-Options</c> is left as it is.
+        /// </remarks>
+        private static void RestrictFraming(HttpResponse response, WebEndpointOptions options)
+        {
+            if (!options.RestrictFraming)
+                return;
+
+            if (options.FrameAncestors is { } ancestors)
+            {
+                response.Headers.Append(HeaderNames.ContentSecurityPolicy, $"frame-ancestors {ancestors}");
+                return;
+            }
+
+            if (StringValues.IsNullOrEmpty(response.Headers.XFrameOptions))
+                response.Headers.XFrameOptions = "SAMEORIGIN";
+
+            response.Headers.Append(HeaderNames.ContentSecurityPolicy, "frame-ancestors 'self'");
+        }
     }
 
     // All of the framework's prefix, not a list of what is mapped there: an address under it that nothing answers is a 404, not a page.
@@ -455,6 +491,26 @@ public static partial class WebEndpointRouteBuilderExtensions
         || route.StartsWith(FrameworkPrefix, StringComparison.Ordinal)
         || route.Equals(FrameworkPrefix[..^1], StringComparison.Ordinal)
         || route.Equals("/favicon.ico", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Whether the browser asks for the page as a document, or as a frame where the page may be framed; a request without
+    /// <c>Sec-Fetch-Dest</c> — an older browser, a test client — is taken as one.
+    /// </summary>
+    private static bool IsDocumentRequest(HttpContext http)
+    {
+        var destination = http.Request.Headers["Sec-Fetch-Dest"].ToString();
+
+        if (destination.Length == 0 || destination.Equals("document", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!destination.Equals("iframe", StringComparison.OrdinalIgnoreCase) && !destination.Equals("frame", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        WebEndpointOptions options = http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
+
+        // Restricted to the page's own origin, a frame another site asks for would show nothing, its hooks run all the same.
+        return !options.RestrictFraming || options.FrameAncestors is not null || !WebRequestGuards.IsCrossSiteRequest(http);
+    }
 
     private static Dictionary<string, object?>? CreateParameters(IQueryCollection query)
     {
@@ -500,7 +556,7 @@ public static partial class WebEndpointRouteBuilderExtensions
     {
         if (resolution.IssuedSecret is { } issued)
         {
-            WriteSessionCookie(http, options, cookie, issued.Value);
+            cookie.Write(http, options, issued.Value);
             return;
         }
 
@@ -514,20 +570,9 @@ public static partial class WebEndpointRouteBuilderExtensions
             IUserSessionStore store = http.RequestServices.GetRequiredService<IUserSessionStore>();
 
             if (await store.TryGetAsync(sessionId, http.RequestAborted).ConfigureAwait(false) is { PendingIdRotation: false })
-                WriteSessionCookie(http, options, cookie, presented);
+                cookie.Write(http, options, presented);
         });
     }
-
-    private static void WriteSessionCookie(HttpContext http, UISessionOptions options, WebSessionCookie cookie, string secret)
-        => http.Response.Cookies.Append(cookie.Name, secret, new CookieOptions
-        {
-            HttpOnly = true,
-            IsEssential = true,
-            SameSite = SameSiteMode.Lax,
-            Secure = http.Request.IsHttps,
-            Path = "/",
-            MaxAge = options.ClientKeyLifetime
-        });
 
     /// <summary>The secret the request presented, where it is the key of <paramref name="sessionId"/>.</summary>
     private static string? PresentedSecretOf(HttpContext http, WebSessionCookie cookie, string sessionId)

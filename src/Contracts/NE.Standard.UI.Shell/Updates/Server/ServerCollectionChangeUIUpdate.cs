@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Shell.Updates.Server;
@@ -45,6 +46,12 @@ public sealed class ServerCollectionChangeUIUpdate : ServerUIUpdate
     public ServerCollectionMoveChange[] Moves { get; init; } = [];
 
     /// <summary>
+    /// Gets whether a remove only trimmed a window: its rows leave the page but not the source, and may come back. Sent only when true.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Trimmed { get; init; }
+
+    /// <summary>
     /// Validates the collection change update.
     /// </summary>
     public void Validate()
@@ -72,6 +79,9 @@ public sealed class ServerCollectionChangeUIUpdate : ServerUIUpdate
             ArgumentNullException.ThrowIfNull(Moves[i]);
             Moves[i].Validate();
         }
+
+        if (Trimmed && Action != CollectionUpdateAction.Remove)
+            throw new InvalidOperationException($"Collection action '{Action}' cannot be a trim; only a remove is.");
 
         switch (Action)
         {

@@ -268,6 +268,22 @@
     opacity: @ui-drag-ghost-opacity;
 }
 
+// A dragged element's picture (drag-picture.ts), in the top layer at the pointer: lifted off the page as a carried pane is, on a
+// floating panel's ground, its corners a list entry's. The popover's own box taken off; the copy inside wears its look inline.
+.ui-drag-picture {
+    position: fixed;
+    inset: 0 auto auto 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    border-radius: @ui-list-entry-radius;
+    background: @ui-popup-ground;
+    color: inherit;
+    pointer-events: none;
+    .ui-elevation-3();
+}
+
 // Text selection, the one rule set (STYLING.md): the page is pressed, not read, so nothing selects but reading words — a Text's or a
 // Paragraph's body, a validation message, a package's rendered document (`.ui-content-text`, WebClassNames.ContentText) — and a field's
 // value. A component's TextSelectable (`data-ui-text-select`) sets the custom property its subtree reads, so the nearest one that says

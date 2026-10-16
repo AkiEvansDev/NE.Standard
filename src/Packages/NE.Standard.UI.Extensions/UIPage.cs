@@ -57,14 +57,12 @@ public static class UIPage
         UIResponsive<UIVisibility> phone = UIResponsive<UIVisibility>.Create(UIVisibility.Visible, md: UIVisibility.Collapsed);
         UIResponsive<UIVisibility> wide = UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
 
-        // A leading action's glyph, 11 px inside its button, stands on the content's 24 px edge; the shell's drawer toggle band
+        // The content's 24 px edge, on which an action at either end stands its glyph (GlyphEdge); the shell's drawer toggle band
         // replaces the start padding with its own step.
-        var start = leading is null ? 24 : 24 - LeadingGlyphInset;
-
         ContainerComponent header = new ContainerComponent()
             // The name's line on the shell's drawer toggle's middle: 10 on a phone (the toggle 12 down and 36 tall), 20 from md (the
             // toggle 22 down, side-drawers.less).
-            .SetPadding(UIResponsive<UIThickness>.Create(UIThickness.All(start, 10, 16, 4), md: UIThickness.All(start, 20, 24, 4)));
+            .SetPadding(UIResponsive<UIThickness>.Create(UIThickness.All(24, 10, 16, 4), md: UIThickness.All(24, 20, 24, 4)));
 
         // First in the band's order, as it stands, so the keyboard reaches it before the far end; at the row's top, level with the far
         // end and, on a phone, with the drawer toggle. From md the name stands as far after it as the glyph inside it, so an action
@@ -75,6 +73,7 @@ public static class UIPage
                 .SetColumn(1, UIGridUnit.Auto())
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
+                    .SetGlyphEdge(UIAlignment.Start)
                     .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 0, 4, 0), md: UIThickness.All(0, 0, LeadingGlyphInset, 0)))
                     .SetVerticalAlignment(UIAlignment.Start)
                     .AddChild(leading)
@@ -117,6 +116,7 @@ public static class UIPage
             .SetColumn(24, UIGridUnit.Auto())
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
+                .SetGlyphEdge(UIAlignment.End)
                 .SetSpacing(UIResponsive<double>.Create(8, md: 12))
                 .SetWrap(actionsUnder)
                 .SetMargin(UIResponsive<UIThickness>.Create(actionsUnder ? UIThickness.All(0, 12, 0, 0) : UIThickness.All(8, 0, 0, 0), md: beside))
@@ -145,7 +145,7 @@ public static class UIPage
     // Half a control's 40 px less the name's 28 px line: a one-line name stands in the far end's middle, a wrapped one's first line too.
     private const double PhoneTitleInset = 6;
 
-    // Half of an icon button's 40 px less its 18 px glyph.
+    // Half of an icon button's 40 px less its 18 px glyph: from md, the name's gap after the leading action's glyph.
     private const double LeadingGlyphInset = 11;
 
     /// <summary>The page's name, from <paramref name="column"/> across <paramref name="span"/>, where <paramref name="visibility"/> shows it.</summary>
@@ -228,6 +228,7 @@ public static class UIPage
 
         return header.AddChild(new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
+            .SetGlyphEdge(UIAlignment.End)
             .SetSpacing(4)
             .SetMargin(UIThickness.All(12, 0, 0, 0))
             .SetVerticalAlignment(UIAlignment.Center)
@@ -280,6 +281,7 @@ public static class UIPage
     {
         StackPanelComponent cell = new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
+            .SetGlyphEdge(UIAlignment.Start)
             .SetMargin(UIThickness.All(0, 0, 8, 0))
             .SetVerticalAlignment(UIAlignment.Center)
             .AddChild(leading)
@@ -418,9 +420,9 @@ public static class UIPage
 
     /// <summary>
     /// Where something would be and nothing is yet — a pane before a row is chosen, a page with nothing made — drawn as a list draws its
-    /// own empty state, because it is that state (<see cref="DefaultEmptyTemplate"/>): the icon in the brand's colour, the muted body
-    /// title and the caption under it, both wrapping; <paramref name="action"/> (the button that makes the first one, a link to where
-    /// they are) under the words. The block stands in the middle of the room it is given.
+    /// own empty state, because it is that state (<see cref="DefaultEmptyTemplate"/>): the icon in the brand's colour, the body title in
+    /// the text's own ink and the muted caption under it, both wrapping; <paramref name="action"/> (the button that makes the first one,
+    /// a link to where they are) under the words. The block stands in the middle of the room it is given.
     /// </summary>
     public static ContainerComponent Empty(string icon, string title, string? line = null, IVisualComponent? action = null)
     {
@@ -452,7 +454,7 @@ public static class UIPage
     }
 
     /// <summary>
-    /// What came of a press, in place of the form it ends — "Check your inbox", "Thank you", "Not for this account": a raised panel
+    /// What came of a press, in place of the form it ends — "Check your inbox", "Thank you": a raised panel
     /// with the mark in <paramref name="tone"/>'s colour (<paramref name="icon"/>, else the tone's own) before the title, the line
     /// under it, and the ways on from it at its far end, the safe one first. One on an empty page is <see cref="UICard.Centered"/>.
     /// </summary>
@@ -471,7 +473,8 @@ public static class UIPage
         if (icon is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(icon);
 
-        StackPanelComponent content = UILayout.Stack(16, new TextComponent()
+        // The line keeps close under the title, as one text's two lines do; the room is between the words and the ways on.
+        StackPanelComponent words = UILayout.Stack(8, new TextComponent()
             .SetIcon(icon ?? UIMessage.GlyphOf(tone))
             .SetIconColor(UIThemeColor.FromStyle(UIMessage.ColorOf(tone)))
             .SetTitle(title)
@@ -480,7 +483,9 @@ public static class UIPage
         );
 
         if (line is not null)
-            _ = content.AddChild(line.SetDescriptionType(UITextAppearance.Caption).Muted());
+            _ = words.AddChild(line.SetDescriptionType(UITextAppearance.Caption).Muted());
+
+        StackPanelComponent content = UILayout.Stack(16, words);
 
         if (actions.Length > 0)
         {
@@ -500,6 +505,28 @@ public static class UIPage
             .SetPadding(UIThickness.Uniform(24))
             .SetLiveRegion(tone is UIMessageSeverity.Warning or UIMessageSeverity.Danger ? UILiveRegion.Alert : UILiveRegion.Status)
             .SetContent(content);
+    }
+
+    /// <summary>
+    /// A page's state standing in for all of it — not found, refused, failed — as the framework's own not-found and error pages draw
+    /// theirs (<see cref="StatusComponent"/>): the mark on a faint disc in <paramref name="tone"/>'s colour (<paramref name="icon"/>,
+    /// else the tone's own), the title, the line under it and the ways on, the safe one first, centred. A line the controller says
+    /// is bound through <see cref="StatusComponent{T}.Words"/>; what ends a form, in the form's place, is an <see cref="Outcome(string?, UIMessageSeverity, string, string?, IVisualComponent[])"/>.
+    /// </summary>
+    public static StatusComponent Status(string? icon, UIMessageSeverity tone, string title, string? line, params IVisualComponent[] actions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentNullException.ThrowIfNull(actions);
+
+        if (icon is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(icon);
+
+        StatusComponent status = new(icon ?? UIMessage.GlyphOf(tone), UIMessage.ColorOf(tone), title, line);
+
+        foreach (IVisualComponent action in actions)
+            _ = status.AddAction(action);
+
+        return status;
     }
 
     /// <summary>

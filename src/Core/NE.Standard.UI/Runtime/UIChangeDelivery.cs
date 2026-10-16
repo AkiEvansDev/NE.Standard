@@ -11,7 +11,8 @@ namespace NE.Standard.UI.Runtime;
 
 /// <summary>
 /// Sends a change set to a runtime's attached instances, each as <see cref="IUIRuntime.ChangesFor"/> gives it: without what its
-/// snapshot or its own write already holds — each with its runs of inserts on one list merged (<see cref="UICollectionInsertMerge"/>).
+/// snapshot or its own write already holds — each with its runs of inserts and of removes on one list merged
+/// (<see cref="UICollectionInsertMerge"/>, <see cref="UICollectionRemoveMerge"/>).
 /// </summary>
 internal static class UIChangeDelivery
 {
@@ -32,11 +33,11 @@ internal static class UIChangeDelivery
             if (ReferenceEquals(own, changes))
                 (unaffected ??= []).Add(instanceId);
             else if (!own.IsEmpty)
-                failure = await TrySendAsync(sink, handle, [instanceId], UICollectionInsertMerge.Merge(own), failure, cancellationToken).ConfigureAwait(false);
+                failure = await TrySendAsync(sink, handle, [instanceId], MergeRuns(own), failure, cancellationToken).ConfigureAwait(false);
         }
 
         if (unaffected is not null)
-            failure = await TrySendAsync(sink, handle, unaffected, UICollectionInsertMerge.Merge(changes), failure, cancellationToken).ConfigureAwait(false);
+            failure = await TrySendAsync(sink, handle, unaffected, MergeRuns(changes), failure, cancellationToken).ConfigureAwait(false);
 
         if (failure is null)
             return;
@@ -47,6 +48,10 @@ internal static class UIChangeDelivery
 
         failure.Throw();
     }
+
+    /// <summary>One instance's share with its runs of inserts and of removes on one list merged, each into one.</summary>
+    public static ServerChangeSet MergeRuns(ServerChangeSet changes)
+        => UICollectionRemoveMerge.Merge(UICollectionInsertMerge.Merge(changes));
 
     /// <summary>Sends one share, answering the first failure of the delivery: <paramref name="failure"/> where one came before, else this one's.</summary>
     private static async Task<ExceptionDispatchInfo?> TrySendAsync(IUIUpdateSink sink, UIHandle handle, IReadOnlyCollection<string> instanceIds, ServerChangeSet changes, ExceptionDispatchInfo? failure, CancellationToken cancellationToken)

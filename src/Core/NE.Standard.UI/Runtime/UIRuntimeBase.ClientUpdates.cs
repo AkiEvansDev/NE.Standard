@@ -107,11 +107,14 @@ internal abstract partial class UIRuntimeBase
                 ArgumentNullException.ThrowIfNull(update);
 
                 // A value is the only update a client sends.
-                if (update is not ClientValueUIUpdate valueUpdate)
+                if (update is not ClientValueUIUpdate sent)
                     throw new UnreachableException();
 
+                // Trimmed once, so the gates, the write, its answer and its hold all read the one row it names.
+                ClientValueUIUpdate valueUpdate = TrimToComponentKeys(sent);
+
                 // Resolved once, and its text read by the input's format at most once, for the gates and the write alike.
-                CompiledUIBindingResolution resolution = View.Bindings.ResolveWrite(valueUpdate.Address);
+                CompiledUIBindingResolution resolution = ResolveClientWrite(valueUpdate.Address);
                 ClientValueRead? read = null;
 
                 // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
@@ -164,6 +167,38 @@ internal abstract partial class UIRuntimeBase
 
         return (sourceWrites, refusals, staleWindows);
     }
+
+    /// <summary>
+    /// The write addressed by the keys of the rows its component stands in, and no more: an interaction in a row writing back a
+    /// component outside it sends the row's keys along. Left past the gates, a surplus key would have them judge another row than
+    /// the one the write lands on.
+    /// </summary>
+    private ClientValueUIUpdate TrimToComponentKeys(ClientValueUIUpdate update)
+    {
+        UIComponentAddress component = update.Address.Component;
+
+        if (component.DynamicParameters.Length == 0
+            || !View.Graph.TryGet(component.Id, out UIComponentNode? node)
+            || component.DynamicParameters.Length <= node.ContextParameterCount)
+        {
+            return update;
+        }
+
+        return new ClientValueUIUpdate
+        {
+            Address = new UIPropertyAddress(component.Id, update.Address.Property, TakeDynamicParameters(component.DynamicParameters, node.ContextParameterCount)),
+            Value = update.Value
+        };
+    }
+
+    /// <summary>
+    /// The binding a client's write lands on, read by the outer row keys it is bound under. An address no page of this compile could
+    /// send — no binding there, or fewer row keys than it reads — is a forged call, refused as one rather than failed with a stack.
+    /// </summary>
+    private CompiledUIBindingResolution ResolveClientWrite(UIPropertyAddress address)
+        => View.Bindings.TryResolveWrite(address, out CompiledUIBindingResolution resolution)
+            ? resolution
+            : throw new UnauthorizedAccessException($"No value of this page is written at '{address}', or not under the row keys it names.");
 
     /// <summary>
     /// Holds aside a write that belongs to a windowed source. Everything else is applied inline.

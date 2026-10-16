@@ -35,6 +35,15 @@ test("a placeholder is filled by name and an unknown one is left standing", () =
     assert.equal(strings.format("ui.file.count", { count: 3 }), "3 files ({other})");
 });
 
+test("words a package formats for markup take their string arguments escaped, an author's text too, and its own markup and numbers as written", () => {
+    const strings = new ClientWords();
+
+    strings.useTable(tableOf("en", { "pkg.point": "**{series}** at {x}: {y}" }));
+
+    assert.equal(strings.format("pkg.point", { series: "p*q", x: { text: "[a](b)" }, y: 1.5 }, true), "**p\\*q** at \\[a\\]\\(b\\): 1.5");
+    assert.equal(strings.format("pkg.point", { series: "p*q", x: { text: "[a](b)" }, y: 1.5 }), "**p*q** at [a](b): 1.5");
+});
+
 test("a table replaces the words before it, and a registered word still wins over it", () => {
     const strings = new ClientWords();
 
@@ -170,6 +179,26 @@ test("a word written on an element is marked with its key, and written again in 
 
     assert.equal(element.getAttribute("aria-label"), "更多标签");
     assert.equal(element.textContent, "第 2 页，共 5 页");
+});
+
+test("a word on the tooltip, which reads markup, takes its string arguments escaped, written and written again; anywhere else as given", () => {
+    const strings = new ClientWords();
+    const element = new FakeElement();
+    const root = new FakeRoot([element]);
+    const args = { label: "[C++](https://evil.example) (2020)" };
+
+    strings.useTable(tableOf("en", { "ui.select.remove": "Remove {label}" }));
+    strings.write(element as unknown as Element, "data-ui-tooltip", "ui.select.remove", args);
+    strings.write(element as unknown as Element, "aria-label", "ui.select.remove", args);
+
+    assert.equal(element.getAttribute("data-ui-tooltip"), "Remove \\[C++\\]\\(https://evil.example\\) \\(2020\\)");
+    assert.equal(element.getAttribute("aria-label"), "Remove [C++](https://evil.example) (2020)");
+
+    strings.useTable(tableOf("ru", { "ui.select.remove": "Убрать {label}" }));
+    strings.rewriteMarks(root as unknown as ParentNode);
+
+    assert.equal(element.getAttribute("data-ui-tooltip"), "Убрать \\[C++\\]\\(https://evil.example\\) \\(2020\\)");
+    assert.equal(element.getAttribute("aria-label"), "Убрать [C++](https://evil.example) (2020)");
 });
 
 test("an author's text marked as itself is looked up as a plain value, and marks inside a template are written too", () => {

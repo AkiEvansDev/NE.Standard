@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Net.Http.Headers;
 
 namespace NE.Standard.UI.Web.Hosting;
 
@@ -45,6 +46,11 @@ internal static class WebRequestGuards
 
     private static int DefaultPort(string scheme)
         => string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ? 443 : 80;
+
+    /// <summary>Whether a body is declared JSON: a <c>text/plain</c> one is a request any page may send without asking.</summary>
+    public static bool IsJson(string? contentType)
+        => MediaTypeHeaderValue.TryParse(contentType, out MediaTypeHeaderValue? parsed)
+            && parsed.MediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>One answer for every size limit — a file's, a session's, a staged value's — so a client reads one status.</summary>
     public static IResult TooLarge(string detail)

@@ -1,8 +1,9 @@
-// The order a sorted host comes back to: what is known stays in its order, and a rebuilt host's own order wins.
+// The order a sorted host comes back to: what is known stays in its order, and a rebuilt host's own order wins. Rows removed together
+// leave it in one pass.
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getSourceOrder, mergeSourceOrder, setSourceOrder } from "../src/items/items-source-order.ts";
+import { getSourceOrder, mergeSourceOrder, removeSourceItems, setSourceOrder } from "../src/items/items-source-order.ts";
 
 test("keeps the known order for what is still present", () => {
     assert.deepEqual(mergeSourceOrder(["a", "b", "c", "d"], ["d", "b", "a"]), ["a", "b", "d"]);
@@ -27,4 +28,20 @@ test("a refill that only reorders the same rows is the new source order, not mer
     setSourceOrder(host, [c, a, b]);
 
     assert.deepEqual(getSourceOrder(host, [a, b, c]), [c, a, b]);
+});
+
+test("rows taken out together leave the order in one pass, the rest in their order, with no splice per row", () => {
+    const rows = Array.from({ length: 6 }, () => ({})) as Element[];
+    const order = [...rows];
+    let splices = 0;
+
+    order.splice = (start: number, count?: number): Element[] => {
+        splices++;
+        return rows.slice(start, count);
+    };
+
+    removeSourceItems(order, new Set([rows[1], rows[3], rows[4]]));
+
+    assert.deepEqual([...order], [rows[0], rows[2], rows[5]]);
+    assert.equal(splices, 0);
 });

@@ -5,7 +5,7 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Inputs.ImageInput;
 
 /// <summary>
-/// The three shapes side by side, every one bound to the same rows; then each shape in the place it is made for, and a shelf of
+/// The three variants side by side, every one bound to the same rows; then each variant in the place it is made for, and a shelf of
 /// several.
 /// </summary>
 /// <remarks>Choosing a file on any pane runs the controller's command, which reads the upload back and shows it on all three. The chat
@@ -28,12 +28,12 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(360,
-            ("Avatar", frame => frame.AddChild(Bind(new ImageInputComponent().SetShape(UIImageInputShape.Avatar)))),
-            ("Picture", frame => frame.AddChild(Bind(new ImageInputComponent().SetShape(UIImageInputShape.Picture)))),
-            ("Inline", frame => frame.AddChild(Bind(new ImageInputComponent().SetShape(UIImageInputShape.Inline))))
+            ("Avatar", frame => frame.AddChild(Bind(new ImageInputComponent().SetVariant(UIImageInputVariant.Avatar)))),
+            ("Picture", frame => frame.AddChild(Bind(new ImageInputComponent().SetVariant(UIImageInputVariant.Picture)))),
+            ("Inline", frame => frame.AddChild(Bind(new ImageInputComponent().SetVariant(UIImageInputVariant.Inline))))
         );
 
-    /// <summary>The same rows on every pane: <c>Shape</c> is authoring-only, so each shape is its own instance.</summary>
+    /// <summary>The same rows on every pane: <c>Variant</c> is authoring-only, so each variant is its own instance.</summary>
     private static ImageInputComponent Bind(ImageInputComponent input)
         => input
             .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
@@ -133,7 +133,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
                 .SetContent(UILayout.Stack(16)
                     .AddChild(UILayout.Row(16)
                         .AddChild(new ImageInputComponent()
-                            .SetShape(UIImageInputShape.Avatar)
+                            .SetVariant(UIImageInputVariant.Avatar)
                             .SetTooltip("Change the photo")
                             .SetValue(DemoImages.Avatar)
                         )
@@ -154,7 +154,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
                     .AddChild(UIText.Label("The rest of the team, the same control at the same size").SetTitleWrap(true))
                     .AddChild(UILayout.Row(16)
                         .AddChild(new ImageInputComponent()
-                            .SetShape(UIImageInputShape.Avatar)
+                            .SetVariant(UIImageInputVariant.Avatar)
                             .SetTooltip("Change the photo")
                         )
                         .AddChild(UILayout.Stack(2)
@@ -171,12 +171,12 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
                         )
                     )
                 ),
-            note: "Avatar is the shape for a picture replaced where it is read: no drop area, no filename — the pencil appears over the photo itself."
+            note: "Avatar is the variant for a picture replaced where it is read: no drop area, no filename — the pencil appears over the photo itself."
         );
     }
 
     /// <summary>
-    /// The row shape, for a form where a picture is one field among others — an invoice's settings, outlined throughout.
+    /// The row variant, for a form where a picture is one field among others — an invoice's settings, outlined throughout.
     /// </summary>
     private static ContainerComponent CreateInlineGroup()
     {
@@ -189,7 +189,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(new ImageInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
-                    .SetShape(UIImageInputShape.Inline)
+                    .SetVariant(UIImageInputVariant.Inline)
                     .SetTitle("Logo on invoices")
                     .SetPlaceholder("PNG or JPEG, two megabytes at most")
                     .SetAccept("image/png,image/jpeg")
@@ -198,7 +198,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(new ImageInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
-                    .SetShape(UIImageInputShape.Inline)
+                    .SetVariant(UIImageInputVariant.Inline)
                     .SetTitle("Already chosen")
                     .SetValue(DemoImages.NightStreet)
                     .SetPlaceholder("The thumbnail is the value")
@@ -216,7 +216,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
             UILayout.Row(32)
                 .AddChild(UILayout.Row(16)
                     .AddChild(new ImageInputComponent()
-                        .SetShape(UIImageInputShape.Avatar)
+                        .SetVariant(UIImageInputVariant.Avatar)
                         .SetCrop(UIImageCrop.Circle)
                         // An avatar is never drawn larger than this; a quarter of the default keeps the upload small.
                         .SetCropSize(256)
@@ -262,7 +262,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
                 .SetTitle("Incident screenshots")
                 .SetPlaceholder("Drop screenshots here, or pick them"),
             columns: 24,
-            note: "SetMultiple(true) turns the picture shape into a shelf; bind SelectionIds to read the pictures back, and clear it to empty the shelf."
+            note: "SetMultiple(true) turns the picture variant into a shelf; bind SelectionIds to read the pictures back, and clear it to empty the shelf."
         );
     }
 }

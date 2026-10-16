@@ -6,7 +6,8 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Inputs.TextArea;
 
 /// <summary>
-/// One multi-line field and every property that can be bound to it; then where it is used, a box that grows with its text, and how tall it starts.
+/// One multi-line field and every property that can be bound to it; then where it is used, a box that grows with its text, how tall it
+/// starts, and a thread's comment box whose Enter posts and whose Escape takes an edit back.
 /// </summary>
 /// <remarks>A text area has no affixes, no input type and no clear button; <c>Rows</c> is only where it starts. <c>SubmitOnEnter</c> and the field's actions have no row: Enter needs a form to submit, and the actions are components; the Chat screen's composer has both.</remarks>
 internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
@@ -17,6 +18,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
     private const string ContentGroup = nameof(TextAreaController.ContentGroup);
     private const string BadgeGroup = nameof(TextAreaController.BadgeGroup);
     private const string BorderGroup = nameof(TextAreaController.BorderGroup);
+    private const string CommentsGroup = nameof(TextAreaController.CommentsGroup);
     private const string Incident = "The scheduler stopped acknowledging heartbeats at 09:14 UTC. Three regions failed over cleanly; eu-west held its lease for another ninety seconds and served stale reads for the duration.";
 
     public static string ViewKey => "demo.inputs.text-area";
@@ -82,9 +84,10 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(TextAreaController.CycleBorderOption))
         );
 
-    // Every group across the page: the two places side by side, then the growing box, then the three heights in thirds.
+    // Every group across the page: the two places side by side, then the growing box, then the three heights in thirds, then the thread
+    // at a thread's width.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateFormGroup(), CreateGrowGroup(), CreateHeightGroup()];
+        => [CreateFormGroup(), CreateGrowGroup(), CreateHeightGroup(), CreateCommentsGroup()];
 
     /// <summary>
     /// The two places it lives: a labelled box of prose that is saved with the page, and a small box that is sent, kept small so the
@@ -171,6 +174,59 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             ),
             columns: 24,
             note: "`Rows` is the height the box is drawn at, not where it stays; `Vertical` is the only resize a column survives, since the other two let the box push its neighbours out."
+        );
+    }
+
+    /// <summary>
+    /// A thread's comment box: Enter posts and Shift+Enter breaks the line; the pencil on the reader's own comment puts it in the box,
+    /// Enter saves the edit and Escape takes it back. Escape is the box's cancel only while an edit is under way.
+    /// </summary>
+    private static ContainerComponent CreateCommentsGroup()
+    {
+        return DemoUI.CreateExample("A thread's comment box",
+            UILayout.Stack(12)
+                .AddChild(new ItemsViewComponent()
+                    .BindItems(nameof(CommentsGroupContext.Comments), UIBindingScope.Relative)
+                    .SetSpacing(8)
+                    .SetTemplate(new ContainerComponent()
+                        .SetColumn(24, UIGridUnit.Auto())
+                        // A paragraph, not a text: a comment keeps the lines Shift+Enter broke it into.
+                        .AddChild(new ParagraphComponent()
+                            .SetIcon(DemoIcons.MessageSquare)
+                            .SetIconColor(UIThemeColor.Muted)
+                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .SetTitleType(UITextAppearance.Caption)
+                            .SetTitleColor(UIThemeColor.Muted)
+                            .BindDescription(nameof(DemoCommentItem.Body), UIBindingScope.Relative)
+                            .SetDescriptionType(UITextAppearance.Body)
+                            .SetPlacement(1, 1, 23, 1)
+                        )
+                        .AddChild(UIIconButtons.Edit()
+                            .SetSize(UIButtonSize.Small)
+                            .SetMargin(UIThickness.All(8, 0, 0, 0))
+                            .SetVerticalAlignment(UIAlignment.Start)
+                            .BindVisibility(nameof(DemoCommentItem.EditVisibility), UIBindingScope.Relative)
+                            .OnClick(nameof(TextAreaController.EditComment), UIAction.ArgCurrentItemKey("id"))
+                            .SetPlacement(24, 1, 1, 1)
+                        )
+                    )
+                )
+                // Tonal, as a field its thread already frames is; one row until there is more to say.
+                .AddChild(new TextAreaComponent()
+                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetPlaceholder("Add to the thread")
+                    .SetRows(1)
+                    .SetAutoGrow(6)
+                    .BindValue(nameof(CommentsGroupContext.Draft), UIBindingScope.Relative)
+                    .OnEnter(nameof(TextAreaController.PostComment))
+                    .OnEscape(nameof(TextAreaController.DropCommentEdit))
+                    .BindCancelOnEscape(nameof(CommentsGroupContext.Editing), UIBindingScope.Relative)
+                )
+                .SetMaxWidth(UILayoutLength.Absolute(560))
+                .SetHorizontalAlignment(UIAlignment.Start),
+            columns: 24,
+            note: "`OnEnter`: Enter posts what the box holds, then runs the command, and Shift+Enter breaks the line. Press the pencil on your own comment: the box takes its words, and Enter saves the edit. Escape (`OnEscape`) puts the words back as they were, sends nothing, runs its command, and the box gets back what it held before. Escape is that cancel only while an edit is under way (`BindCancelOnEscape`): otherwise it leaves the box, and a comment half written stays.",
+            context: CommentsGroup
         );
     }
 }

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -13,6 +15,7 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -216,9 +219,13 @@ internal abstract partial class UIRuntimeBase
     /// <summary>
     /// Whether the collection host an update addresses is on the page: the row it sits in wears the template variant it belongs to.
     /// </summary>
+    /// <remarks>
+    /// Read on every nested collection's update and attach, so a host standing in no template of a host that names variants — where
+    /// every row wears its template — answers from one set lookup, without its path built or a row read.
+    /// </remarks>
     private bool IsStampedFor(UIComponentAddress component)
     {
-        if (component.DynamicParameters.Length == 0 || !View.Bindings.TryGetCollection(component.Id, out CompiledUIBinding? binding))
+        if (component.DynamicParameters.Length == 0 || !InVariantTemplates.Contains(component.Id) || !View.Bindings.TryGetCollection(component.Id, out CompiledUIBinding? binding))
             return true;
 
         // Each row the host stands in ends at a key or an index of its path, the innermost last; what follows names the collection.
@@ -232,6 +239,57 @@ internal abstract partial class UIRuntimeBase
         }
 
         return rows == 0 || IsStampedForRows(component.Id, path, rows);
+    }
+
+    /// <summary>The components of this runtime's view that stand in a template of a host naming variants (<see cref="StandsInVariantTemplates"/>).</summary>
+    private FrozenSet<UIComponentId> InVariantTemplates => field ??= VariantTemplateComponents.GetValue(View, static view => FindInVariantTemplates(view.Graph));
+
+    // Once per compiled view, shared by its runtimes.
+    private static readonly ConditionalWeakTable<CompiledView, FrozenSet<UIComponentId>> VariantTemplateComponents = [];
+
+    private static FrozenSet<UIComponentId> FindInVariantTemplates(UIComponentGraph graph)
+    {
+        HashSet<UIComponentId> found = [];
+
+        foreach (UIComponentNode node in graph.All)
+        {
+            if (StandsInVariantTemplates(graph, node))
+                _ = found.Add(node.ComponentId);
+        }
+
+        return found.ToFrozenSet();
+    }
+
+    /// <summary>
+    /// Whether a component stands in a row template of a host with template variants: the only place a row may wear another template
+    /// than the one the component is in — a variant in place of the default, or another variant.
+    /// </summary>
+    private static bool StandsInVariantTemplates(UIComponentGraph graph, UIComponentNode node)
+    {
+        while (node.ParentId is UIComponentId parentId && graph.TryGet(parentId, out UIComponentNode? parent))
+        {
+            if (TryGetTemplateSlot(parent, node.ComponentId, out _) && graph.GetSlots(parent.ComponentId, UIComponentSlotKind.TemplateVariant).Count > 0)
+                return true;
+
+            node = parent;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetTemplateSlot(UIComponentNode parent, UIComponentId rootId, [NotNullWhen(true)] out UIComponentSlot? found)
+    {
+        foreach (UIComponentSlot slot in parent.Slots)
+        {
+            if (slot.RootComponentId == rootId && slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant)
+            {
+                found = slot;
+                return true;
+            }
+        }
+
+        found = null;
+        return false;
     }
 
     /// <summary>
@@ -263,21 +321,6 @@ internal abstract partial class UIRuntimeBase
 
         // A template past the path's rows is an author-declared list's, whose rows the path does not name.
         return true;
-    }
-
-    private static bool TryGetTemplateSlot(UIComponentNode parent, UIComponentId rootId, [NotNullWhen(true)] out UIComponentSlot? found)
-    {
-        foreach (UIComponentSlot slot in parent.Slots)
-        {
-            if (slot.RootComponentId == rootId && slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant)
-            {
-                found = slot;
-                return true;
-            }
-        }
-
-        found = null;
-        return false;
     }
 
     /// <summary>The path up to the end of its <paramref name="row"/>-th row, counting keys and indexes from the outermost.</summary>
@@ -390,8 +433,9 @@ internal abstract partial class UIRuntimeBase
 
     private static string? ReadItemProperty(object? item, string propertyName)
     {
+        // One segment read in place, not a path parsed from the name on every queued collection update.
         if (item is RecursiveObservable observable)
-            return observable.TryGetRecursiveValue(propertyName, out var value) ? value?.ToString() : null;
+            return observable.TryGetRecursiveValue(PathSegment.ForProperty(propertyName), out var value) ? value?.ToString() : null;
 
         if (item is null)
             return null;

@@ -719,6 +719,18 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     /// <summary>
+    /// <see cref="RenderProperty{T}(WebRenderContext, IHtmlElementBuilder, UIProperty, Action{IHtmlElementBuilder, T}, ReadOnlySpan{WebDomOperation})"/>
+    /// with its words read as inline markup or not whatever the operations say: an instance writing its markup as text (a description
+    /// marked plain) shows a phrase's arguments unescaped.
+    /// </summary>
+    internal static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, UIProperty property, bool markup, Action<IHtmlElementBuilder, T?> renderStatic, params ReadOnlySpan<WebDomOperation> operations)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return RenderProperty(context, target, context.Node.TypeKey, property, markup, renderStatic, operations);
+    }
+
+    /// <summary>
     /// Renders one property and registers what it does to the DOM, so the static markup and a live patch agree.
     /// </summary>
     /// <remarks>
@@ -726,6 +738,38 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// property on the page.
     /// </remarks>
     public static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, Action<IHtmlElementBuilder, T?> renderStatic, params ReadOnlySpan<WebDomOperation> operations)
+        => RenderProperty(context, target, propertyOwnerTypeKey, property, ReadsMarkup(operations), renderStatic, operations);
+
+    /// <summary>
+    /// Whether a property's words are read as inline markup — an operation writes markup or the tooltip, or reads the words as markup
+    /// to name something — where a phrase's arguments written as text are data and escaped; <c>shown-words.ts</c> asks the same per
+    /// operation and target.
+    /// </summary>
+    /// <remarks>
+    /// One value paints the whole property, so its operations must agree: a list where one reads markup and another hands the words on
+    /// as they are (a text, an attribute, a property or a data value) is refused, since that one would show the escapes at first paint
+    /// and not after a push.
+    /// </remarks>
+    public static bool ReadsMarkup(ReadOnlySpan<WebDomOperation> operations)
+    {
+        WebDomOperation? markup = null;
+        WebDomOperation? text = null;
+
+        foreach (WebDomOperation operation in operations)
+        {
+            if (operation is { Kind: nameof(WebDomOperationKind.Markup) } or { Kind: nameof(WebDomOperationKind.Attribute), Name: WebAttributes.Tooltip } or { Converter: WebDomConverters.InlineMarkupPlainText })
+                markup ??= operation;
+            else if (operation.Kind is nameof(WebDomOperationKind.Text) or nameof(WebDomOperationKind.Attribute) or nameof(WebDomOperationKind.Property) or nameof(WebDomOperationKind.Data))
+                text ??= operation;
+        }
+
+        if (markup is not null && text is not null)
+            throw new InvalidOperationException($"A property's operations read its words as inline markup ({markup.Kind} {markup.Name ?? markup.Target}) and as text ({text.Kind} {text.Name ?? text.Target}): one value paints both, so a pushed phrase would show differently. Give the text its own property, or read it as markup too.");
+
+        return markup is not null;
+    }
+
+    private static WebRenderValueKind RenderProperty<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, bool markup, Action<IHtmlElementBuilder, T?> renderStatic, ReadOnlySpan<WebDomOperation> operations)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
@@ -733,7 +777,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
         ArgumentNullException.ThrowIfNull(renderStatic);
 
-        WebRenderValueKind kind = ResolveRenderValue(context, property, out T? value, out CompiledUIBinding? binding, out RenderedWord word);
+        WebRenderValueKind kind = ResolveRenderValue(context, property, out T? value, out CompiledUIBinding? binding, out RenderedWord word, markup);
         UIPropertyAddress address = new(context.Node.ComponentId, property);
         var propertyId = context.Metadata.RegisterProperty(propertyOwnerTypeKey, property, word.Translatable, operations);
         context.Metadata.RegisterRenderedProperty(address, propertyId, word.Content);
@@ -849,8 +893,12 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// client to translate again after a switch (a unit, a caption in a model).
     /// </remarks>
     public static WebRenderValueKind ResolveRenderWord(WebRenderContext context, UIProperty property, out object? key, out string? words)
+        => ResolveRenderWord(context, property, markup: false, out key, out words);
+
+    /// <summary><paramref name="words"/> as inline markup reads them where <paramref name="markup"/>: a phrase's arguments written as text escaped.</summary>
+    private static WebRenderValueKind ResolveRenderWord(WebRenderContext context, UIProperty property, bool markup, out object? key, out string? words)
     {
-        WebRenderValueKind kind = ResolveRenderValue(context, property, out words, out _, out RenderedWord word);
+        WebRenderValueKind kind = ResolveRenderValue(context, property, out words, out _, out RenderedWord word, markup);
 
         key = word.Key;
         return kind;
@@ -867,7 +915,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     {
         ArgumentNullException.ThrowIfNull(element);
 
-        WebRenderValueKind kind = ResolveRenderWord(context, property, out var key, out var words);
+        // A bound value's first paint is written as it stands, so it is resolved as the place reads it; a key is escaped by WebWords.
+        WebRenderValueKind kind = ResolveRenderWord(context, property, WebWords.ReadsMarkup(attribute), out var key, out var words);
 
         switch (key)
         {
@@ -904,16 +953,23 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     /// <summary>
     /// Reads a property's render-time value, translated for the page where it is a key or a phrase: the words the page shows, not
-    /// the author's key — <see cref="ResolveRenderWord"/> gives both.
+    /// the author's key — <see cref="ResolveRenderWord(WebRenderContext, UIProperty, out object?, out string?)"/> gives both.
     /// </summary>
     public static WebRenderValueKind ResolveRenderValue<T>(WebRenderContext context, UIProperty property, out T? value, out CompiledUIBinding? binding)
-        => ResolveRenderValue(context, property, out value, out binding, out _);
+        => ResolveRenderValue(context, property, out value, out binding, out _, markup: false);
+
+    /// <summary>
+    /// <see cref="ResolveRenderValue{T}(WebRenderContext, UIProperty, out T, out CompiledUIBinding?)"/>, and with
+    /// <paramref name="markup"/> the words as inline markup reads them: a phrase's arguments written as text escaped.
+    /// </summary>
+    public static WebRenderValueKind ResolveRenderValue<T>(WebRenderContext context, UIProperty property, out T? value, out CompiledUIBinding? binding, bool markup)
+        => ResolveRenderValue(context, property, out value, out binding, out _, markup);
 
     /// <summary>
     /// Reads a property's render-time value, translated where it is a key, and says which key it was — what the page records to
     /// write the value again in another language.
     /// </summary>
-    private static WebRenderValueKind ResolveRenderValue<T>(WebRenderContext context, UIProperty property, out T? value, out CompiledUIBinding? binding, out RenderedWord word)
+    private static WebRenderValueKind ResolveRenderValue<T>(WebRenderContext context, UIProperty property, out T? value, out CompiledUIBinding? binding, out RenderedWord word, bool markup)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(property.Name);
@@ -951,7 +1007,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 var translatable = propertyValue.IsTranslatable && !IsContentItem(scopeItem);
 
                 word = word with { Key = ReadWordKey(translatable, bindingValue), FromItem = true, Painted = bindingValue as UIPhrase };
-                bindingValue = TranslateRenderedValue(context, translatable, bindingValue);
+                bindingValue = TranslateRenderedValue(context, translatable, bindingValue, markup);
 
                 value = CastRenderedValue<T>(bindingValue, property);
                 return WebRenderValueKind.Static;
@@ -959,7 +1015,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
             // Still a binding, but carrying this session's value so a renderer deriving from several properties
             // at once (a slider's fill from value, min and max) sees the real ones.
-            _ = TryReadSessionValue(context, property, propertyValue, binding, out value, out UIPhrase? painted);
+            _ = TryReadSessionValue(context, property, propertyValue, binding, markup, out value, out UIPhrase? painted);
             word = word with { Painted = painted };
 
             return WebRenderValueKind.Binding;
@@ -969,7 +1025,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         var rawValue = view.Interactions.TryGetFirstPaintValue(new UIPropertyAddress(context.Node.ComponentId, property), out var firstPaint) ? firstPaint : propertyValue.Value;
 
         word = word with { Key = ReadWordKey(propertyValue.IsTranslatable, rawValue), Painted = rawValue as UIPhrase };
-        rawValue = TranslateRenderedValue(context, propertyValue.IsTranslatable, rawValue);
+        rawValue = TranslateRenderedValue(context, propertyValue.IsTranslatable, rawValue, markup);
 
         value = CastRenderedValue<T>(rawValue, property);
         return WebRenderValueKind.Static;
@@ -985,13 +1041,13 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     /// <summary>
-    /// A phrase is always translated; a plain string only on a translatable property this instance does not show as written, read
-    /// off no item marked content.
+    /// A phrase is always translated, its string arguments escaped where its words are <paramref name="markup"/>; a plain string only
+    /// on a translatable property this instance does not show as written, read off no item marked content.
     /// </summary>
-    private static object? TranslateRenderedValue(WebRenderContext context, bool translatable, object? value)
+    private static object? TranslateRenderedValue(WebRenderContext context, bool translatable, object? value, bool markup)
         => value switch
         {
-            UIPhrase phrase => context.Translate(phrase),
+            UIPhrase phrase => context.Translate(phrase, markup),
             string text when translatable => context.Translate(text),
             _ => value
         };
@@ -1060,7 +1116,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     /// <summary>This session's value for a bound property, when the render was given any.</summary>
-    private static bool TryReadSessionValue<T>(WebRenderContext context, UIProperty property, CompiledUIPropertyValue propertyValue, CompiledUIBinding binding, out T? value, out UIPhrase? painted)
+    private static bool TryReadSessionValue<T>(WebRenderContext context, UIProperty property, CompiledUIPropertyValue propertyValue, CompiledUIBinding binding, bool markup, out T? value, out UIPhrase? painted)
     {
         value = default;
         painted = null;
@@ -1090,7 +1146,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         }
 
         painted = raw as UIPhrase;
-        raw = TranslateRenderedValue(context, translatable, raw);
+        raw = TranslateRenderedValue(context, translatable, raw, markup);
 
         if (raw is null)
             return true;

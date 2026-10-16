@@ -48,7 +48,7 @@ export class ThemeSwitcherEngine {
         // A switch from anywhere moves every field: the root's theme is the one truth, written by the SetTheme effect alone.
         new MutationObserver(() => this.showTheme()).observe(document.documentElement, { attributes: true, attributeFilter: [ThemeAttribute] });
         // A field drawn after the page loaded — a row of a list, a part patched in — comes with no choice marked: the server writes none.
-        observeComponents(this.root, FieldSelector, { childList: true }, fields => this.showTheme(fields));
+        observeComponents(this.root, FieldSelector, { childList: true, addedOnly: true }, fields => this.showTheme(fields));
 
         this.showTheme();
     }

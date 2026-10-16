@@ -45,6 +45,7 @@ import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
 import { browserNotificationPermission, isOnScreen } from "../runtime/client-state";
 import { clientStrings } from "../runtime/client-strings";
 import { logError, logWarn } from "../runtime/logger";
+import { pageSessionKey } from "../runtime/session-key";
 import type { NotificationClick } from "../runtime/worker-messages";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { applyInsertText } from "./insert-text.ts";
@@ -407,15 +408,20 @@ export class EffectRegistry {
                 return;
             }
 
-            const anchor = document.createElement("a");
+            const requestPath = effect.requestPath;
 
-            anchor.href = effect.requestPath;
-            anchor.download = effect.fileName ?? "";
-            anchor.style.display = "none";
+            // Once a sign-in's key is traded: a file staged for this page is the session's as the server holds it, the new id after a sign-in.
+            pageSessionKey.load(() => {
+                const anchor = document.createElement("a");
 
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
+                anchor.href = requestPath;
+                anchor.download = effect.fileName ?? "";
+                anchor.style.display = "none";
+
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+            });
         });
 
         this.register("ShowNotification", context => {

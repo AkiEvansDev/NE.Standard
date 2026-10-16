@@ -91,12 +91,23 @@
     text-align: start;
 }
 
-// Down a list where some entries carry an icon (`data-ui-menu-icons`, menu-icons.ts), one without keeps the icon's room — its 1em glyph
-// and the text body's 0.375em gap — so every entry's words start on one edge: they zigzagged (a column chooser). A caption and a rule
-// stand at the edge, and a folded menu or a rail, whose entries centre, keeps none.
+// An entry's icon room before its words, in the words' own em: its 1em glyph and the text body's 0.375em gap (ui-text.less).
+@ui-menu-icon-room: 1.375;
+
+// Down a list where some entries carry an icon (`data-ui-menu-icons`, menu-icons.ts), one without keeps the icon's room so every entry's
+// words start on one edge: they zigzagged (a column chooser). A caption and a rule stand at the edge, and a folded menu or a rail,
+// whose entries centre, keeps none.
 .ui-menu.ui-orientation--vertical:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item:not([data-ui-menu-passive]) > .ui-menu-item:not([data-ui-text-icon]) > .ui-button__content {
-    padding-inline-start: 1.375em;
+    padding-inline-start: unit(@ui-menu-icon-room, em);
 }
+
+    // A section unfolded under its group starts its words under the group's where those stand past an icon's room, so a child's own
+    // icon stands under the group's words: set in by that room, the two entries' paddings being one (a responsive one too, as long as
+    // both wear it). The entry's words are the body's type. With no icon in the group's list, the plain indent below; a flyout is
+    // beside its group, never set in.
+    .ui-menu.ui-orientation--vertical:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item > .ui-menu__submenu:not([data-ui-menu-flyout]) {
+        padding-left: calc(@ui-menu-icon-room * var(--ui-text-body-font-size));
+    }
 
 // Along a bar the entries are square, as a tab strip's captions are: a row of rounded pills reads as buttons, not as a bar.
 .ui-menu.ui-orientation--horizontal .ui-menu-item {

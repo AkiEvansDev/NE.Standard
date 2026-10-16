@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Server;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 
@@ -21,10 +22,11 @@ internal sealed class WebHydration
 {
     private static readonly JsonSerializerOptions JsonOptions = WebWireJson.CreateOptions();
 
-    private WebHydration(string json, IWebRenderValues? values)
+    private WebHydration(string json, IWebRenderValues? values, UISessionSecret? signedInKey = null)
     {
         Json = json;
         Values = values;
+        SignedInKey = signedInKey;
     }
 
     /// <summary>The page's hydration JSON: its words, and on a page with a controller its id, compile and values.</summary>
@@ -34,6 +36,12 @@ internal sealed class WebHydration
     /// The same values, for the render that paints them — null on a page with no controller, served from its cached markup.
     /// </summary>
     public IWebRenderValues? Values { get; }
+
+    /// <summary>
+    /// The key of a sign-in the controller made as the render built its runtime, which the render's response hands the client; none
+    /// where it made none.
+    /// </summary>
+    public UISessionSecret? SignedInKey { get; }
 
     public static async Task<WebHydration> PrepareAsync(IUIHost host, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
     {
@@ -54,7 +62,7 @@ internal sealed class WebHydration
         // A runtime kept while its session moved to another language or theme hears it first, so the paint is not its old text.
         await UIHost.HearBeforeRenderAsync(existing, resolution, cancellationToken).ConfigureAwait(false);
 
-        return await ReadAsync(existing, pageId: null, resolution, render, words, cancellationToken).ConfigureAwait(false);
+        return await ReadAsync(existing, pageId: null, resolution, render, words, signedInKey: null, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<WebHydration> PrepareNewAsync(IUIHost host, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
@@ -73,7 +81,9 @@ internal sealed class WebHydration
 
         try
         {
-            return await ReadAsync(runtime.Runtime, pageId, resolution, render, words, cancellationToken).ConfigureAwait(false);
+            UISessionSecret? signedInKey = (host as UIHost)?.TakeRenderKey(runtime.Handle);
+
+            return await ReadAsync(runtime.Runtime, pageId, resolution, render, words, signedInKey, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -82,7 +92,7 @@ internal sealed class WebHydration
         }
     }
 
-    private static async Task<WebHydration> ReadAsync(IUIRuntime? runtime, string? pageId, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
+    private static async Task<WebHydration> ReadAsync(IUIRuntime? runtime, string? pageId, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, UISessionSecret? signedInKey, CancellationToken cancellationToken)
     {
         UIRenderSnapshot snapshot = await WebInitialChanges
             .BuildAsync(runtime, pageId, render.InitBindingIds ?? [], cancellationToken)
@@ -96,7 +106,8 @@ internal sealed class WebHydration
         // `identity` names the parameters the route keys its runtimes by: an address differing in one goes to another runtime in place.
         return new WebHydration(
             JsonSerializer.Serialize(new { pageId, view, sequence = snapshot.Sequence, identity = resolution.Route.IdentityParameters, changes, words = words.Table, title = words.Title }, JsonOptions),
-            WebRenderValues.Create(changes)
+            WebRenderValues.Create(changes),
+            signedInKey
         );
     }
 }

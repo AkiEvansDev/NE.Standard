@@ -1,4 +1,5 @@
 // `.ts` on the value imports: `node --test` loads this module as it is.
+import { SmallGhostButtonClasses, TooltipAttribute } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { toColorToken } from "../rendering/web-dom-converters.ts";
 import type { NotificationActionModel } from "../metadata/metadata-index.ts";
@@ -127,9 +128,11 @@ export class NotificationEngine {
         const close = document.createElement("button");
 
         close.type = "button";
-        close.className = CloseClass;
+        // The dialog's ×: a small ghost button, its wash, its press and its tooltip, named by the same word.
+        close.className = `${CloseClass} ${SmallGhostButtonClasses}`;
         // Marked, so a language switched while the toast stays says the close in the new one.
-        clientStrings.write(close, "aria-label", "ui.notification.close");
+        clientStrings.write(close, "aria-label", "ui.action.close");
+        clientStrings.write(close, TooltipAttribute, "ui.action.close");
         close.addEventListener("click", () => this.dismiss(element));
 
         element.append(close);

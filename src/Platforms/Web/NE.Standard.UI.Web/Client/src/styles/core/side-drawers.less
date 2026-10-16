@@ -204,6 +204,16 @@
             padding-inline-end: @ui-space-2;
         }
 
+        // Beside a drawer's button no action hangs past the band's edge (ui-button.less): the edge is the step after the button, not
+        // the content's, and a hung box would stand on the button.
+        @{ui-drawers}@{ui-drawers-left} > [data-ui-region][data-ui-drawer-toggles~="left-side"] > [data-ui-id] > .ui-stack-panel--glyph-start {
+            --ui-glyph-hang-start: 0;
+        }
+
+        @{ui-drawers}@{ui-drawers-right} > [data-ui-region][data-ui-drawer-toggles~="right-side"] > [data-ui-id] > .ui-stack-panel--glyph-end {
+            --ui-glyph-hang-end: 0;
+        }
+
     // A side's own switch puts its drawer away (side-drawer-engine.ts), and takes the place and the size of the button that opened
     // it (the engine measures them) at the edge the drawer came from (ui-collapsible.less puts it there), and what shares
     // its row follows it: one button stays put as the drawer comes and goes. Read only here, so a side standing in its column again

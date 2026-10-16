@@ -11,7 +11,7 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 /// <summary>
 /// Represents an observable recursive collection whose item changes are forwarded as collection path changes.
 /// </summary>
-public class RecursiveCollection<T> : RecursiveObservable, IList<T>
+public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveCollection
     where T : RecursiveObservable
 {
     private sealed class ItemForwarder
@@ -369,8 +369,12 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
     }
 
     private void ReindexRangeNoLock(int startIndex)
+        => ReindexRangeNoLock(startIndex, _items.Count - 1);
+
+    /// <summary>Writes the index of every item from <paramref name="startIndex"/> to <paramref name="endIndex"/>, both included.</summary>
+    private void ReindexRangeNoLock(int startIndex, int endIndex)
     {
-        for (var i = startIndex; i < _items.Count; i++)
+        for (var i = startIndex; i <= endIndex; i++)
             _indicesByItem[_items[i]] = i;
     }
 
@@ -427,6 +431,10 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
         lock (_sync)
             return _indicesByItem.TryGetValue(item, out var index) ? index : -1;
     }
+
+    /// <inheritdoc />
+    int IRecursiveCollection.IndexOf(object item)
+        => item is T typed ? IndexOf(typed) : -1;
 
     /// <inheritdoc />
     public void Insert(int index, T item)
@@ -495,6 +503,16 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
     /// Removes a contiguous range of items and emits a single collection remove change.
     /// </summary>
     public void RemoveRange(int index, int count)
+        => RemoveRangeCore(index, count, trimmed: false);
+
+    /// <summary>
+    /// Removes a contiguous range of items that still exist where the collection reads them from — a window's far side trimmed — and
+    /// emits a single remove change marked <see cref="RecursiveChange.Trimmed"/>.
+    /// </summary>
+    public void TrimRange(int index, int count)
+        => RemoveRangeCore(index, count, trimmed: true);
+
+    private void RemoveRangeCore(int index, int count, bool trimmed)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(index);
         ArgumentOutOfRangeException.ThrowIfNegative(count);
@@ -520,17 +538,99 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
 
             ReindexRangeNoLock(index);
 
-            change = RecursiveChange.Remove(RecursivePath.Empty, index, count, oldItemIds);
+            change = trimmed
+                ? RecursiveChange.Trim(RecursivePath.Empty, index, count, oldItemIds)
+                : RecursiveChange.Remove(RecursivePath.Empty, index, count, oldItemIds);
         }
 
+        ReleaseRemoved(removedItems);
+
+        Notify(change);
+        NotifyCountChanged();
+    }
+
+    /// <summary>Lets go of items taken out of the list, outside the lock.</summary>
+    private void ReleaseRemoved(T[] removedItems)
+    {
         for (var i = 0; i < removedItems.Length; i++)
         {
             removedItems[i].DetachOwner(this);
             removedItems[i].ResetNotifier();
         }
+    }
 
-        Notify(change);
+    /// <summary>
+    /// Removes every item <paramref name="match"/> picks, in one pass and one reindex, and emits one remove change per run of
+    /// neighbouring items it took, in order; answers how many went.
+    /// </summary>
+    /// <remarks>
+    /// <paramref name="match"/> runs under the collection's lock on every item before anything changes: it must not change the
+    /// collection, and one that throws leaves it as it was. Runs rather than a reset: a reset reads as emptied, and runs let the page
+    /// keep every row they do not name.
+    /// </remarks>
+    public int RemoveAll(Predicate<T> match)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+
+        T[] removedItems;
+        RecursiveChange[] changes;
+
+        lock (_sync)
+        {
+            List<(int Start, int Count)>? runs = null;
+            var removed = 0;
+
+            for (var i = 0; i < _items.Count; i++)
+            {
+                if (!match(_items[i]))
+                    continue;
+
+                if (runs is { Count: > 0 } && runs[^1].Start + runs[^1].Count == i)
+                    runs[^1] = (runs[^1].Start, runs[^1].Count + 1);
+                else
+                    (runs ??= []).Add((i, 1));
+
+                removed++;
+            }
+
+            if (runs is null)
+                return 0;
+
+            removedItems = new T[removed];
+            changes = new RecursiveChange[runs.Count];
+
+            var taken = 0;
+
+            for (var r = 0; r < runs.Count; r++)
+            {
+                (var start, var count) = runs[r];
+
+                // Where the run stands once the runs before it are gone: the changes are replayed in their order.
+                changes[r] = RecursiveChange.Remove(RecursivePath.Empty, start - taken, count, GetItemIdsNoLock(start, count));
+
+                for (var i = 0; i < count; i++)
+                {
+                    removedItems[taken + i] = _items[start + i];
+                    RemoveMapsNoLock(_items[start + i]);
+                }
+
+                taken += count;
+            }
+
+            // The maps no longer hold the removed items, so the ones the list holds that the maps do not are exactly those.
+            _ = _items.RemoveAll(item => !_indicesByItem.ContainsKey(item));
+
+            ReindexRangeNoLock(runs[0].Start);
+        }
+
+        ReleaseRemoved(removedItems);
+
+        for (var i = 0; i < changes.Length; i++)
+            Notify(changes[i]);
+
         NotifyCountChanged();
+
+        return removedItems.Length;
     }
 
     /// <summary>
@@ -558,7 +658,8 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>
             _items.RemoveAt(oldIndex);
             _items.Insert(newIndex, movedItem);
 
-            ReindexRangeNoLock(Math.Min(oldIndex, newIndex));
+            // Only the items between the two places moved; past the farther one each stands where it stood.
+            ReindexRangeNoLock(Math.Min(oldIndex, newIndex), Math.Max(oldIndex, newIndex));
 
             change = RecursiveChange.Move(RecursivePath.Empty, oldIndex, newIndex, count: 1, itemIds);
         }

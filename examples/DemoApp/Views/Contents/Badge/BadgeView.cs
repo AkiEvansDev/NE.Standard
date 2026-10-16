@@ -57,7 +57,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateColumns([CreateCarriedGroup(), CreateCountGroup()], [CreateStatusGroup(), CreateCategoryGroup(), CreateFillGroup()]);
 
     /// <summary>
-    /// The badge as a property of something else: a <c>BadgeText</c> laid out with the words it qualifies.
+    /// The badge as a property of something else: a <c>BadgeText</c> laid out with the words it qualifies, or several under a title.
     /// </summary>
     private static ContainerComponent CreateCarriedGroup()
     {
@@ -109,6 +109,18 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                     )
                 )
+                // A list's row: the badges under the title in place of a description, the row's actions at its end.
+                .AddChild(UILayout.Ends(
+                    UIText.WithBadges("billing · #481", [
+                        new BadgeItem { BadgeText = "production", BadgeStyle = UIBadgeType.Success },
+                        new BadgeItem { BadgeText = "12 of 12", BadgeIcon = DemoIcons.Outline(DemoIcons.Check) },
+                        new BadgeItem { BadgeText = "eu-west", BadgeStyle = UIBadgeType.Surface }
+                    ], DemoIcons.Outline(DemoIcons.Server)),
+                    UIIconButtons.Edit(),
+                    UIIconButtons.Delete()
+                    )
+                ),
+            note: "A text's BadgeText is one badge beside its title; UIText.WithBadges puts several under it, a service's state at a glance."
         );
     }
 

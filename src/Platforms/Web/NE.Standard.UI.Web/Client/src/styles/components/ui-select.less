@@ -37,7 +37,7 @@
     flex: 1 1 auto;
     min-width: 0;
     .ui-text-nowrap();
-    color: var(--ui-text-muted);
+    color: var(--ui-text-placeholder);
 }
 
 // The text input's clear cross, a step smaller beside the chevron; only with a value, never on a read-only select.
@@ -116,18 +116,23 @@
         text-align: end;
     }
 
+// A row of a popup list as a menu's entry is, its height and padding: a list read down, not pressed one by one. A template shorter
+// than the row stands in its middle: a block centring its content, not a flex row, where a component root's own `align-self: normal`
+// (runtime.less) stretches it to the row's height and leaves its words at the top.
 .ui-select__option {
     display: block;
-    padding: @ui-space-2 @ui-space-3;
+    align-content: center;
+    min-height: @ui-list-row-height;
+    padding: @ui-space-1 @ui-space-2;
     border-radius: @ui-list-entry-radius;
     cursor: pointer;
     transition: background-color @ui-motion-fast @ui-motion-ease;
 }
 
-    // A small field's list is as dense as the field: caption text, and half the padding. Not as a phone's sheet, whose rows are a
-    // finger's and whose words are the list's own (ui-sheet.less).
+    // A small field's list is as dense as the field: caption text, a row the small field's height, a target still. Not as a phone's
+    // sheet, whose rows are a finger's and whose words are the list's own (ui-sheet.less).
     .ui-input--small .ui-select__popup:where(:not([data-ui-sheet])) .ui-select__option {
-        padding: @ui-space-1 @ui-space-2;
+        min-height: @ui-control-height-sm;
     }
 
         .ui-input--small .ui-select__popup:where(:not([data-ui-sheet])) .ui-select__option > .ui-text {

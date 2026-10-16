@@ -37,13 +37,45 @@ export type ItemsQuery = {
 /** A sort in force, whether authored or the viewer's: what the comparison reads. */
 export type ActiveSort = Pick<WebRenderItemsSortMetadata, "itemProperty" | "direction">;
 
+// The query last parsed off each element carrying one, by its text: a patch to every row of a list reads it, and would parse it as often.
+const parsedQueries = new WeakMap<Element, { readonly text: string; readonly query: ItemsQuery | null }>();
+
 /** The viewer's query off the element the host's component carries it on; null when there is none or it does not parse. */
 export function readItemsQuery(host: Element): ItemsQuery | null {
-    const text = host.closest(ComponentSelector)?.querySelector(`:scope > [${ItemsQueryAttribute}]`)?.getAttribute(ItemsQueryAttribute) ?? null;
+    const carrier = queryCarrier(host);
+    const text = carrier?.getAttribute(ItemsQueryAttribute) ?? null;
 
-    if (text === null || text.length === 0)
+    if (carrier === null || text === null || text.length === 0)
         return null;
 
+    const parsed = parsedQueries.get(carrier);
+
+    if (parsed !== undefined && parsed.text === text)
+        return parsed.query;
+
+    const query = parseItemsQuery(host, text);
+
+    parsedQueries.set(carrier, { text, query });
+
+    return query;
+}
+
+/** The element carrying the viewer's query: one of the component's own children, looked for among them alone, never through its rows. */
+function queryCarrier(host: Element): Element | null {
+    const owner = host.closest(ComponentSelector);
+
+    if (owner === null)
+        return null;
+
+    for (const child of owner.children) {
+        if (child.hasAttribute(ItemsQueryAttribute))
+            return child;
+    }
+
+    return null;
+}
+
+function parseItemsQuery(host: Element, text: string): ItemsQuery | null {
     try {
         return JSON.parse(text) as ItemsQuery;
     }

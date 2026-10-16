@@ -24,6 +24,10 @@ public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedR
     [UIComponentProperty(DefaultValue = false)]
     public bool? Clickable { get; set; }
 
+    /// <summary>Whether a clickable surface answers hover quietly — half the wash, no lift — for a strip the pointer crosses on its way elsewhere.</summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? QuietHover { get; set; }
+
     /// <summary>
     /// What the surface is to a screen reader when it holds a message — a status, read when the reader is free, or an alert, read at
     /// once — so its words are read as they change and as it is shown; unset, neither. A clickable surface is a button or a group

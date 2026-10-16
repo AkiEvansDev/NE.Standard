@@ -1,6 +1,7 @@
-import { EventCatalog } from "../extensions/events";
-import { normalizeEventName } from "../metadata/metadata-index";
-import { EventRegistration, RegisteredEvent } from "./event-descriptor";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import type { EventCatalog } from "../extensions/events.ts";
+import { normalizeEventName } from "../metadata/metadata-index.ts";
+import type { EventRegistration, RegisteredEvent } from "./event-descriptor.ts";
 
 export class EventRegistry {
     private readonly catalog: EventCatalog;

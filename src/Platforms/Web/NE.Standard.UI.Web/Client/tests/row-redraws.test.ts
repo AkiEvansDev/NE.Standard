@@ -94,10 +94,10 @@ test("a group header is a wrapper standing in its anchor row, around the templat
     assert.equal(drawnUnder, ancestors);
 });
 
-test("groups keep the order they last stood in, a new one after them in the order it first comes", () => {
-    const { buckets, order } = bucketByGroup(["b1", "a1", "c1", "b2", "a2"], item => item[0], ["c", "b"]);
+test("groups stand in the order they first come, as the server draws them, whatever order they stood in before", () => {
+    const { buckets, order } = bucketByGroup(["b1", "a1", "c1", "b2", "a2"], item => item[0]);
 
-    assert.deepEqual(order, ["c", "b", "a"]);
+    assert.deepEqual(order, ["b", "a", "c"]);
     assert.deepEqual(buckets.get("b"), ["b1", "b2"]);
     assert.deepEqual(buckets.get("a"), ["a1", "a2"]);
 });

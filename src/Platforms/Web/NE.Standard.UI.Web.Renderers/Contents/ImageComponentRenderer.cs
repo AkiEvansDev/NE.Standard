@@ -38,7 +38,7 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
         }, FitOperations);
 
         // Through the border's radius chain, which the shape's circle outranks in the stylesheet.
-        ResponsiveRenderer.ApplyResponsiveRadius(context, root, ImageComponent.CornerRadiusProperty, WebResponsiveCss.BorderRadiusVariable);
+        ResponsiveRenderer.ApplyResponsiveRadius(context, root, ImageComponent.BorderRadiusProperty, WebResponsiveCss.BorderRadiusVariable);
 
         _ = RenderProperty<UIImageShape?>(context, root, ImageComponent.ShapeProperty, static (target, value) =>
         {

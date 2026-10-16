@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
+using NE.Standard.UI.Components.BuiltIns.Templates;
 
 namespace DemoApp.Views.Screens;
 
@@ -329,6 +330,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.Primary)
                         .BindDescription(nameof(DemoChatMessage.Text), UIBindingScope.Relative)
+                        // What a person typed, as typed: an asterisk or a bracket in it is no markup.
+                        .SetDescriptionPlain(true)
                         .SetDescriptionType(UITextAppearance.Body),
                     CreatePhotos(),
                     CreateFiles(),
@@ -360,7 +363,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                     .BindSource(nameof(DemoChatPhoto.Source), UIBindingScope.Relative)
                     .BindAltText(nameof(DemoChatPhoto.Title), UIBindingScope.Relative)
                     .SetFit(UIImageFit.Cover)
-                    .SetCornerRadius(UICornerRadius.Uniform(6))
+                    .SetBorderRadius(UICornerRadius.Uniform(6))
                     .SetWidth(UILayoutLength.Absolute(88))
                     .SetHeight(UILayoutLength.Absolute(88))
                 )
@@ -379,12 +382,9 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .SetLayoutType(UIItemsLayoutType.Wrap)
             .SetSpacing(4)
             .SetMargin(UIThickness.All(0, 4, 0, 2))
-            .SetTemplate(new FileTileComponent()
-                .BindFileName(nameof(DemoChatFile.Title), UIBindingScope.Relative)
-                .BindFileSize(nameof(DemoChatFile.Size), UIBindingScope.Relative)
-                .BindContentType(nameof(DemoChatFile.ContentType), UIBindingScope.Relative)
+            .SetTemplate(new DefaultFileTemplate()
                 .SetClickable(true)
-                .OnClick(nameof(ChatController.OpenFile), UIAction.ArgRelative("name", nameof(DemoChatFile.Title)))
+                .OnClick(nameof(ChatController.OpenFile), UIAction.ArgRelative("name", nameof(FileItem.FileName)))
             );
 
     /// <summary>
@@ -418,7 +418,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .SetPadding(UIThickness.All(8, 8, 8, 8))
             .AddChild(UILayout.Stack(8,
                     new ImageInputComponent(AttachmentsId)
-                        .SetShape(UIImageInputShape.Shelf)
+                        .SetVariant(UIImageInputVariant.Shelf)
                         // Empty: any file, a picture shown as its thumbnail and anything else as its kind's glyph.
                         .SetAccept(string.Empty)
                         .SetMaxFileSize(5 * 1024 * 1024)

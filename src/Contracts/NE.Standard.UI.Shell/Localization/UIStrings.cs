@@ -37,7 +37,6 @@ public static partial class UIStrings
     public const string PickerLetterHour = "ui.picker.letter.hour";
     public const string PickerLetterMinute = "ui.picker.letter.minute";
     public const string PickerLetterSecond = "ui.picker.letter.second";
-    public const string NotificationClose = "ui.notification.close";
 
     /// <summary>The fallback toast's button that leads to a system notification's address, where the effect names no words.</summary>
     public const string NotificationOpen = "ui.notification.open";
@@ -200,6 +199,9 @@ public static partial class UIStrings
     public const string NotFoundPageTitle = "ui.notfound.page";
     public const string ErrorTitle = "ui.error.title";
     public const string ErrorMessage = "ui.error.message";
+
+    /// <summary>The not-found and error pages' way back to the application's root.</summary>
+    public const string StatusHome = "ui.status.home";
     public const string CommandRefused = "ui.command.refused";
     public const string CommandBusy = "ui.command.busy";
     public const string CommandFailed = "ui.command.failed";
@@ -261,7 +263,6 @@ public static partial class UIStrings
         [PickerLetterHour] = "H",
         [PickerLetterMinute] = "m",
         [PickerLetterSecond] = "s",
-        [NotificationClose] = "Close",
         [NotificationOpen] = "Open",
         [MessageDismiss] = "Dismiss",
         [ActionPin] = "Pin",
@@ -368,11 +369,12 @@ public static partial class UIStrings
         [LanguageSwitch] = "Language: {language} ({code}), switch to {other} ({otherCode})",
         [LanguageCurrent] = "Language: {language} ({code})",
         [LanguageField] = "Language",
-        [NotFoundTitle] = "404",
+        [NotFoundTitle] = "Page not found",
         [NotFoundDescription] = "The page you are looking for does not exist.",
         [NotFoundPageTitle] = "Page not found",
         [ErrorTitle] = "Something went wrong",
         [ErrorMessage] = "Something went wrong. Please try again.",
+        [StatusHome] = "Go to the home page",
         [CommandRefused] = "You are not allowed to do that.",
         [CommandBusy] = "That is already running.",
         [CommandFailed] = "Something went wrong. Please try again.",

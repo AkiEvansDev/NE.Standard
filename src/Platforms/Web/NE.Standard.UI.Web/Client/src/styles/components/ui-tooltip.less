@@ -33,7 +33,7 @@
 // square corners, or the corner's curve bent the line into a brace. The words keep their distance from the bar, less the border it covers.
 .ui-tooltip[data-ui-tooltip-severity] {
     --ui-tooltip-accent: var(--ui-color-danger-ink);
-    padding-left: calc(@ui-space-2 + 3px - var(--ui-border-width, 1px));
+    padding-left: calc(@ui-space-2 + @ui-severity-stroke - var(--ui-border-width, 1px));
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
@@ -46,7 +46,7 @@
     top: calc(-1 * var(--ui-border-width, 1px));
     bottom: calc(-1 * var(--ui-border-width, 1px));
     left: calc(-1 * var(--ui-border-width, 1px));
-    border-left: 3px solid var(--ui-tooltip-accent);
+    border-left: @ui-severity-stroke solid var(--ui-tooltip-accent);
 }
 
 .ui-tooltip[data-ui-tooltip-severity="warning"] {

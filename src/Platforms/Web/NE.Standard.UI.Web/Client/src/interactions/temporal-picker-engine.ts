@@ -129,7 +129,7 @@ export class TemporalPickerEngine {
 
         // A picker may arrive late (a built row, a cell's editor), so its field is written here, and a calendar in place drawn — once:
         // drawing its grid wakes this again, and a grid drawn every time would wake itself forever.
-        observeComponents(this.root, TemporalRootSelector, { childList: true }, pickers => this.arrive(pickers));
+        observeComponents(this.root, TemporalRootSelector, { childList: true, addedOnly: true }, pickers => this.arrive(pickers));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);

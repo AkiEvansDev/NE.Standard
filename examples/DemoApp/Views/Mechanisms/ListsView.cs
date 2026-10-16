@@ -6,8 +6,8 @@ namespace DemoApp.Views.Mechanisms;
 
 /// <summary>
 /// What a list does once it is too big to hold: two thousand rows held whole but drawn a few at a time, as rows and as tiles, and
-/// filtered in the page, a hundred thousand the server never sends whole — in a list, filtered on the server, in a table, a page at
-/// a time — and a window of rows each carrying fields of its own; one behaviour to a section.
+/// filtered in the page, a hundred thousand the server never sends whole — in a list, filtered on the server, in a table scrolled and
+/// in one paged — and a window of rows each carrying fields of its own; one behaviour to a section.
 /// </summary>
 /// <remarks>
 /// What differs from the component pages is where the items come from, which is a story rather than a property. The page is words,
@@ -23,7 +23,7 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
     /// <summary>Id of the field the server-side filter names; bound, since the rule resolves on the server.</summary>
     private const string ServerFilterId = "lists-server-filter";
 
-    /// <summary>Id of the paged list, which its pager is aimed at.</summary>
+    /// <summary>Id of the paged table, which its pager is aimed at.</summary>
     private const string PagedListId = "lists-paged";
 
     public static string ViewKey => "demo.mechanisms.lists";
@@ -188,16 +188,18 @@ internal sealed class ListsView : DemoMechanismView, IUIViewDefinition
             words: true
         );
 
+    /// <summary>A table paged rather than scrolled: the pager under it asks the source for a page, as it would a list's.</summary>
     private static ContainerComponent CreatePagedGroup()
         => DemoUI.CreateExample(Words + "paged.title",
             UILayout.Stack(8)
-                .AddChild(new ItemsViewComponent(PagedListId)
+                .AddChild(new TableComponent(PagedListId)
                     .BindSource(nameof(ListsController.PagedRows))
                     .SetWindowSize(ListsController.PageSize)
                     .SetPaging(true)
-                    .VerticalScrollOnly()
-                    .SetHeight(UILayoutLength.Absolute(260))
-                    .SetTemplate(CreateRowTemplate())
+                    .SetHorizontalScroll(UIScrollMode.Auto)
+                    .AddTextColumn("demo.mechanisms.lists.table.row", nameof(DemoRowItem.Title), UIGridUnit.Absolute(160))
+                    .AddTextColumn("demo.mechanisms.lists.table.detail", nameof(DemoRowItem.Detail))
+                    .SetMaxHeight(UILayoutLength.Absolute(300))
                 )
                 .AddChild(new PagerComponent()
                     .SetTarget(PagedListId)

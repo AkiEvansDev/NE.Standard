@@ -11,6 +11,9 @@ import { inlineMarkupToPlainText } from "./inline-markup.ts";
 
 export type WebDomConverter = (value: unknown) => string | undefined;
 
+/** The converter naming something by words read as inline markup: their plain text (`WebDomConverters.InlineMarkupPlainText`). */
+export const InlineMarkupPlainTextConverter = "inlineMarkupPlainText";
+
 const enumNames = new Map<string, string>([
     ["Default", "default"],
     ["Primary", "primary"],
@@ -172,6 +175,7 @@ const onColorVarNames = new Map<string, string>([
 ]);
 
 const badgePlacementTokens = ["inline", "trailing"];
+const borderEdgeTokens = ["none", "left", "top", "right", "bottom"];
 const inputAppearanceTokens = ["filled", "outline", "underline", "ghost", "tonal"];
 const buttonSizeTokens = ["small", "medium", "large"];
 const inputSizeTokens = ["small", "medium", "large"];
@@ -258,7 +262,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["safeUrl", value => toSafeLink(value)],
     ["safeImageSource", value => toSafeImageSource(value)],
     // Nothing stays nothing, so the attribute it writes is removed rather than emptied.
-    ["inlineMarkupPlainText", value => value === null || value === undefined ? undefined : inlineMarkupToPlainText(String(value))],
+    [InlineMarkupPlainTextConverter, value => value === null || value === undefined ? undefined : inlineMarkupToPlainText(String(value))],
     // A two-state ARIA attribute the first paint writes for no value too: anything but true is "false".
     ["ariaBooleanAttribute", value => value === true ? "true" : "false"],
     // One blank where there is none, so `:placeholder-shown` still says the field is empty (TextInputComponentRenderer).
@@ -309,7 +313,11 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["overflowCss", value => toToken(value, overflowTokens)],
     ["layoutLengthCss", value => toLayoutLength(value)],
     ["thicknessCss", value => toThickness(value)],
-    familyClass("borderNoneClass", toClassFamily(["ui-border--none"]), value => toBorderNoneClass(value)),
+    familyClass("borderEdgeClass", toTokenClassFamily("ui-border--", borderEdgeTokens), value => {
+        const edge = toBorderEdge(value);
+
+        return edge === undefined ? "" : `ui-border--${edge}`;
+    }),
     ["radiusCss", value => toRadius(value)],
     ["gridUnitCss", value => toGridUnit(value)],
     ["pixelsCss", value => toPixels(value)],
@@ -603,22 +611,45 @@ function toThicknessSum(value: unknown, axis: "horizontal" | "vertical"): string
     return axis === "horizontal" ? toPixels(sides.left + sides.right) : toPixels(sides.top + sides.bottom);
 }
 
-// Mirrors WebClassNames.BorderNone: a thickness of nothing on every side, at every breakpoint it sets, says the component draws no
-// edge of its own.
-function toBorderNoneClass(value: unknown): string {
+// Mirrors WebClassNames.BorderEdge: nothing on every side says the component draws no edge of its own, a stroke on one side alone
+// names that side — the same one at every breakpoint the thickness sets.
+function toBorderEdge(value: unknown): string | undefined {
     if (value === null || value === undefined) {
-        return "";
+        return undefined;
     }
 
     if (typeof value === "object" && "base" in value) {
         const tiers = responsiveTiers.map(tier => toResponsiveTier(value, tier)).filter(tier => tier !== null && tier !== undefined);
+        const edges = new Set(tiers.map(tier => toBorderEdge(tier)));
 
-        return tiers.every(tier => toBorderNoneClass(tier) !== "") ? "ui-border--none" : "";
+        return edges.size === 0 ? "none" : edges.size === 1 ? [...edges][0] : undefined;
     }
 
     const sides = toThicknessSides(value);
 
-    return sides !== undefined && sides.top === 0 && sides.right === 0 && sides.bottom === 0 && sides.left === 0 ? "ui-border--none" : "";
+    if (sides === undefined) {
+        return undefined;
+    }
+
+    const { top, right, bottom, left } = sides;
+
+    if (top === 0 && right === 0 && bottom === 0 && left === 0) {
+        return "none";
+    }
+
+    if (top === 0 && right === 0 && bottom === 0) {
+        return "left";
+    }
+
+    if (left === 0 && right === 0 && bottom === 0) {
+        return "top";
+    }
+
+    if (left === 0 && top === 0 && bottom === 0) {
+        return "right";
+    }
+
+    return left === 0 && top === 0 && right === 0 ? "bottom" : undefined;
 }
 
 function toRadius(value: unknown): string {

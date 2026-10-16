@@ -44,14 +44,33 @@ public sealed class WebRenderContext
     /// (<see cref="WebMoments"/>), which the page writes again in the reader's zone.
     /// </summary>
     public string Translate(string key, IReadOnlyDictionary<string, object?>? arguments)
-        => Translator.Translate(ViewResolution.Session.Language, key, WebMoments.Paint(arguments, ViewResolution.Session.Language, Temporal)) ?? key;
+        => Translate(key, arguments, markup: false);
+
+    /// <summary>
+    /// <see cref="Translate(string, IReadOnlyDictionary{string, object?})"/>, and with <paramref name="markup"/>, for words read as inline
+    /// markup, every argument written as text escaped (<see cref="UIWords.EscapeMarkup"/>).
+    /// </summary>
+    public string Translate(string key, IReadOnlyDictionary<string, object?>? arguments, bool markup)
+    {
+        var language = ViewResolution.Session.Language;
+        // Before the moments are painted: a moment is no text argument, and its paint stays the text the boot script looks for.
+        IReadOnlyDictionary<string, object?>? data = markup ? UIWords.EscapeMarkup(arguments, Translate) : arguments;
+
+        return Translator.Translate(language, key, WebMoments.Paint(data, language, Temporal)) ?? key;
+    }
 
     /// <summary>Translates a phrase — its key with its arguments — for this session's language; an author's text as a plain value.</summary>
     public string Translate(UIPhrase phrase)
+        => Translate(phrase, markup: false);
+
+    /// <summary>
+    /// <see cref="Translate(UIPhrase)"/>, and with <paramref name="markup"/> a phrase's arguments written as text escaped, its own text never.
+    /// </summary>
+    public string Translate(UIPhrase phrase, bool markup)
     {
         ArgumentNullException.ThrowIfNull(phrase);
 
-        return phrase.IsText ? Translate(phrase.Key) : Translate(phrase.Key, phrase.Arguments);
+        return phrase.IsText ? Translate(phrase.Key) : Translate(phrase.Key, phrase.Arguments, markup);
     }
 
     /// <summary>

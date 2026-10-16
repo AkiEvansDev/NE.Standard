@@ -29,8 +29,8 @@ public static class WebWords
 
     /// <summary>
     /// Writes <paramref name="key"/>'s words for the page's language on <paramref name="attribute"/>, or as the element's text when it
-    /// is <see langword="null"/>, filled from <paramref name="arguments"/> — a moment as its first paint in the application's patterns —
-    /// and marks it.
+    /// is <see langword="null"/>, filled from <paramref name="arguments"/> — a moment as its first paint in the application's patterns,
+    /// a string escaped on the tooltip, which reads markup — and marks it.
     /// </summary>
     public static void Write(WebRenderContext context, IHtmlElementBuilder element, string? attribute, string key, IReadOnlyDictionary<string, object?>? arguments = null)
     {
@@ -38,8 +38,15 @@ public static class WebWords
         ArgumentNullException.ThrowIfNull(element);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        WriteMarked(element, attribute, context.Translate(key, arguments), Mark(key, arguments));
+        WriteMarked(element, attribute, context.Translate(key, arguments, ReadsMarkup(attribute)), Mark(key, arguments));
     }
+
+    /// <summary>
+    /// Whether words written on <paramref name="attribute"/> — the element's text where it is <see langword="null"/> — are read as inline
+    /// markup: the tooltip's are, any other place's are text.
+    /// </summary>
+    public static bool ReadsMarkup(string? attribute)
+        => string.Equals(attribute, WebAttributes.Tooltip, StringComparison.Ordinal);
 
     /// <summary>The mark of a key's words: <c>[key]</c>, or <c>[key, arguments]</c> with each moment in a moment's shape.</summary>
     private static object[] Mark(string key, IReadOnlyDictionary<string, object?>? arguments)
@@ -55,8 +62,11 @@ public static class WebWords
         ArgumentNullException.ThrowIfNull(element);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        WriteMarked(element, attribute, translator.Translate(language, key, arguments) ?? key, Mark(key, arguments));
+        WriteMarked(element, attribute, translator.Translate(language, key, ReadsMarkup(attribute) ? EscapeMarkup(translator, language, arguments) : arguments) ?? key, Mark(key, arguments));
     }
+
+    private static IReadOnlyDictionary<string, object?>? EscapeMarkup(ITranslator translator, string language, IReadOnlyDictionary<string, object?>? arguments)
+        => UIWords.EscapeMarkup(arguments, text => translator.Translate(language, text) ?? text);
 
     /// <summary>
     /// Writes an author's text — a column's caption, a dialog's label — translated as a plain value is (a key only where the

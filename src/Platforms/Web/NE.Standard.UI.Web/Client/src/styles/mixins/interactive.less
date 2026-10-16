@@ -12,6 +12,32 @@
     touch-action: manipulation;
 }
 
+// The least a pointer's target measures (WCAG 2.5.8, target size).
+@ui-hit-target: 24px;
+
+// A control drawn smaller than a target takes the press over a target's square round its middle, on its `@layer` pseudo-element: it
+// draws nothing and takes no room, so nothing moves. Where a neighbour shares its column it grows one way only, `@block: start` up (an
+// upper stepper) or `end` down, so neither takes the other's press. The host is positioned and leaves `@layer` free.
+.ui-hit-area(@layer: after; @block: both) {
+    @pseudo: ~"::@{layer}";
+
+    &@{pseudo} {
+        content: "";
+        position: absolute;
+        inset: ~"min(0px, calc(50% - @{ui-hit-target} / 2))";
+
+        & when (@block = start) {
+            top: ~"min(0px, calc(100% - @{ui-hit-target}))";
+            bottom: 0;
+        }
+
+        & when (@block = end) {
+            top: 0;
+            bottom: ~"min(0px, calc(100% - @{ui-hit-target}))";
+        }
+    }
+}
+
 // Hides the native control visually while keeping it in the tab order and accessibility tree, which display: none would not.
 // Its parent is positioned: placed by a far ancestor, a focusable one is scrolled to where it landed when it takes the focus.
 .ui-visually-hidden() {
@@ -52,6 +78,10 @@
 // A button that answers the pointer: not disabled or loading, nor holding a popup the pointer is in (`:hover` holds on ancestors;
 // owned-popup.ts marks the owner). State rules and take-backs all spell it, so they tie (the popup part weighs nothing).
 @ui-button-live: ~":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not([data-ui-popup-hover]))";
+
+// A split button whose two parts answer the pointer apart; one in menu mode answers on its root, as a button does.
+@ui-split-parts: ~'.ui-split-button:not([data-ui-split-mode="menu"])';
+@ui-not-split-parts: ~":not(@{ui-split-parts})";
 
 // A field root that answers the pointer: not disabled or read-only (a read-only one keeps its focus edge, but lifts nothing).
 @ui-field-live: ~":not(.ui-disabled):not(.ui-readonly)";
