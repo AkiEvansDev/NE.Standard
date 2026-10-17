@@ -1,0 +1,310 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Designing a page — NE.Standard</title>
+    <meta name="description" content="Which component for which job, and the choices that keep a page readable on a phone, a tablet and a desktop.">
+    <link rel="stylesheet" href="site.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <script src="site.js" defer></script>
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <button class="pages-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Pages</button>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <input class="nav-filter" type="search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" hidden>
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up an application as a library and a web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li><a href="extensions.html" title="One-call shorthands over the built-in components for the page parts, panes, cards, empty states, outcomes, folds, inline messages, dialogs, quotes, people, form rows, button pairs, text roles and show-when rules a screen writes again and again.">Presets</a></li>
+                <li class="current"><a href="design.html" title="Which component for which job, and the choices that keep a page readable on a phone, a tablet and a desktop.">Designing a page</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, validation on inputs, and forms.">Binding</a></li>
+                <li><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation keys and content, UIPhrase and plurals, switching the page&#39;s language in place, the framework&#39;s own words, and missing translations.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command or page is reported.">Dialogs and notifications</a></li>
+                <li><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="testing.html" title="Test a view and its controller together without a browser — boot the application&#39;s startup, open a page, act on its components and read what it shows.">Testing an application</a></li>
+                <li><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums and value types</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/pane-container.html" title="A container whose panes the viewer moves between their places.">Pane container</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/file-tile.html" title="A file as a square tile: its kind&#39;s glyph, its name and its size.">File tile</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/status.html" title="A page&#39;s state standing in for its content — not found, refused, failed.">Status</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line unless it is told to wrap.">Text</a></li>
+                <li><a href="components/timestamp.html" title="A moment shown in the reader&#39;s own time zone and language, formatted by the page.">Timestamp</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/language-switcher.html" title="A button that switches the page to another language in place, and tells the session.">Language switcher</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/badge-select.html" title="A multi-select whose options are badges — a ticket&#39;s labels, a contact&#39;s tags — chosen into the field as the badges themselves.">Badge select</a></li>
+                <li><a href="components/calendar.html" title="A month&#39;s calendar drawn in place, whose press on a day chooses it.">Calendar</a></li>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/multi-select.html" title="A dropdown input that holds several options out of a bound list.">Multi select</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A select whose open list carries a search field pinned over its options.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value, or a band of two, by dragging handles along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/pager.html" title="The pages of a paged items view or table.">Pager</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-caption.html" title="One caption in a TabsComponent&#39;s strip.">Tab caption</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-file-template.html" title="The built-in template drawing an IFileModel as a file&#39;s tile.">Default file template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Designing a page</h1>
+<p>The components draw themselves well on their own; what makes a page read well is which one stands where. These are the
+framework's own rules — the demo's screens follow them — gathered in one place, each with the API that carries it. None is
+enforced: a page that needs something else says so with a property. The other guides say how each piece works; this one says
+when to reach for it.</p>
+<h2 id="the-page-and-the-device">The page and the device</h2>
+<p><strong>Start from the phone.</strong> Every responsive value — a width, a placement, a visibility, a spacing — starts at the base tier and
+changes from a breakpoint up (<code>UIResponsive&lt;T&gt;</code>, <a href="views.html">views</a>): the narrow layout is the one written first, the wide one
+the exception. The breakpoints are 640, 768, 1280 and 1536 CSS pixels (<code>Sm</code>, <code>Md</code>, <code>Xl</code>, <code>Xxl</code>).</p>
+<p><strong>A page has five regions</strong> — a header, a left and a right side, the content and a footer — and they are its landmarks to a screen
+reader, so put things where they belong rather than building a header inside the content. <code>UIViewOptions</code> says how they stand:</p>
+<ul>
+<li><strong>Navigation goes on the left side</strong>, as a sidebar menu, or a navigation rail where there are a handful of destinations
+(<code>UIMenuDisplay.Rail</code>); on a phone a rail alone becomes the bottom navigation bar by itself (<a href="items.html">items</a>).</li>
+<li><strong>The sides become drawers below a width</strong> (<code>SideDrawers</code>): below <code>Md</code> by default, which suits a phone. A page whose main device
+is a tablet — a chat, a reader — keeps the content's whole width there with <code>BelowXl</code>, and a reader who wants a side to stay
+pins it. A side the reader works in beside the content — generation settings beside a chat — is modeless
+(<code>LeftDrawerModal = false</code>), so the page stays usable while it is open.</li>
+<li><strong>A side is not a dialog.</strong> A side holds what belongs to the page — its navigation, its filters, its details — and is a
+landmark; a dialog holds a task that interrupts it — confirm, create, edit one thing — and goes when the task is done. A
+sheet (<code>UIDialogPlacement.Left</code>, <code>Right</code>, <code>Bottom</code>) is still a dialog: reach for it for a passing task, not for a panel the
+reader keeps returning to.</li>
+<li><strong>A page that fills the screen</strong> — a messenger, an editor beside its preview — says so with <code>ScrollContentOnly</code> and a content
+root of <code>Fill()</code> height, so its panes scroll inside themselves; any other page lets the document scroll, which on a phone
+lets the browser fold its toolbar away.</li>
+<li><strong>A list beside the thing chosen in it is <code>UILayout.Panes</code></strong> — chats and a conversation, a tree and a note, mail and a
+message: side by side from <code>Md</code> with the list 280 px wide, one at a time below it, the detail in the list's place with a Back
+of its own and a placeholder (<code>UIPage.Empty</code>) while nothing is chosen. Its widths and breakpoint are the preset's; a copy
+built by hand drifts from the others.</li>
+</ul>
+<h2 id="layout">Layout</h2>
+<p><strong>Pick the simplest arrangement that says what you mean.</strong> A column of things is a stack (<code>UILayout.Stack</code>), a line of them a
+row (<code>UILayout.Row</code>), a set of like things that wraps a wrap panel with <code>ItemMinWidth</code>, so its lines stand in even columns.
+Something at a row's start and things at its far end — a title and its buttons, a line and its action — is <code>UILayout.Ends</code>, the
+end as wide as it is, never two equal halves; cards on two columns, each read top to bottom, are <code>UILayout.Board</code>. A
+container's 24-column grid is for a layout that really is a grid — a form of fields side by side, a dashboard — and its
+placements are responsive values like any other (<a href="views.html">views</a>, <em>The placement grid</em>). A container starts with one star
+row: set it with <code>SetRow(1, …)</code> and add the rest with <code>AddRow</code>.</p>
+<p><strong>Let the container give the air.</strong> Space between children is the container's <code>Spacing</code>, on the page scale of 4, 8, 12, 16 and
+24 pixels; a child's own margin is for the exception. Things that are one unit — a title and its description, a field and its
+message — stand close by themselves; never widen the gap inside a unit to separate it from its neighbour, widen the gap
+around it.</p>
+<p><strong>Defaults follow what a component is.</strong> Text, a paragraph and a link stand at the start of their line, as words do; a button,
+an icon and a badge are centred in their cell; a container, a table and a list stretch. Set an alignment only where the
+default is wrong for the place.</p>
+<p><strong>Draw a surface only where there is a thing.</strong> A card (<code>UICard.Create</code>) or a surface frames one object — a record, a summary, a
+settings group; a page of cards inside cards reads as noise. One card alone on a page — a sign-in, a refusal — stands in the
+middle at a form's width (<code>UICard.Centered</code>). A layout panel paints nothing by default. A band that should be noticed — the
+filters over a list, a question at a page's foot — is <code>UIPage.Band</code>, a tinted surface, or a message (<em>Feedback</em>, below).</p>
+<p><strong>Keep reading to a column.</strong> Text and a page of cards do not run to a wide screen's edges: <code>UIPage.Column</code> holds them to one of
+three widths — <code>Reading</code> (720 px), <code>Form</code> (440 px), <code>Wide</code> (1080 px, a form beside its summary) — never one of the page's own. A row a list jumps to is an <code>ActionComponent</code>; where it
+needs content of its own — a glyph before a time, two lines laid out by hand — it is a clickable <code>SurfaceComponent</code> on
+<code>UISurfaceStyle.Flat</code>, the action row's ground with no shadow: a <code>Raised</code> row floats, and a list of them is a stack of cards.</p>
+<h2 id="text">Text</h2>
+<p><strong>Use a role, not a size.</strong> A text's <code>TitleType</code> — <code>Display</code>, <code>Title</code>, <code>Subtitle</code>, <code>Body</code>, <code>Caption</code>, <code>Overline</code> — is a role of
+the theme, and <code>UIText.Title(…)</code>, <code>UIText.Body(…)</code> and their kin set it in one call. A page has one <code>Display</code> or <code>Title</code> at most;
+a group under it a <code>Subtitle</code>. A person — a list's row, a byline — is <code>UIText.Person</code>: the round picture and the name over a muted
+line, at one of two sizes.</p>
+<p><strong>A title keeps one line; words that run on are a description or a paragraph.</strong> A title is cut short with an ellipsis rather
+than pushing the layout down, so say it in a few words. A text's description keeps one line too unless it asks to wrap
+(<code>SetWrapMode(UITextWrapMode.Wrap)</code>); a card's and an expander's header wrap theirs by default. Prose is a
+<code>ParagraphComponent</code> (<code>UIText.Paragraph</code>), which wraps and may clamp to a number of lines (<code>MaxLines</code>); a document — help, a
+release note, a model's reply — is a Markdown display (<a href="https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput">CodeInput</a>),
+which may also draw its own runs in colours of the theme.</p>
+<p><strong>Only words meant to be read can be selected.</strong> Reading words — a paragraph, a table's cells, a Markdown document — select as
+on any page; a control's label does not, so a press never starts a selection. <code>TextSelectable</code> changes it where a page needs to.</p>
+<h2 id="forms">Forms</h2>
+<p><strong>One field, one job, its caption above it.</strong> A field's <code>Title</code> is its caption and its name to a screen reader; a field with
+no visible caption still takes an <code>AccessibleName</code>. A caption beside the value inside the field (<code>UIInputTitlePlacement.Inside</code>)
+suits a single row — a filter bar, a settings line — not a form.</p>
+<p><strong>Pick the appearance by the form.</strong> <code>Tonal</code>, the default, almost everywhere: a field in a card or a row, a lone field beside its
+own button (a search, a promo code with Apply), a short centred form (a sign-in), a field that edits a value in place. <code>Filled</code>,
+set on purpose, for a long, complex form whose fields stack — settings, data entry, a checkout — where the line under each finds
+its edge. <code>Ghost</code> for a field inside a list row. One form keeps one appearance — a code input too, which starts as <code>Ghost</code> (an
+editor is read, not filled in) and takes the form's appearance where it stands among fields.</p>
+<p><strong>Explain under the field, not in its caption.</strong> What may be typed, what it is for, how much is left: a hint under the field,
+<code>UIForm.Field(input, hint)</code>, which wraps. A longer explanation a reader opens on demand is the field's help badge
+(<code>SetHelp(phrase)</code>).</p>
+<p><strong>A toggle's words are a short phrase.</strong> A checkbox's and a switch's title and description keep one line each beside the box,
+cut short past it; a choice that needs a sentence to explain takes that sentence as the field's hint, which starts under the
+toggle's words rather than under the box — never a margin of your own:</p>
+<pre><code class="language-csharp">UIForm.Field(
+    new SwitchComponent()
+        .SetTitle(&quot;Thinking&quot;)
+        .BindValue(nameof(SettingsController.Thinking)),
+    &quot;The model thinks before it answers. Off, it answers at once and spends no tokens on it.&quot;
+)
+</code></pre>
+<p><strong>Let the validation speak where the value is.</strong> A field's own rules run in the browser and show under the field; what only
+the server can judge comes from the controller (<code>BindValidation</code>) and stands in the same place. Keep the submit button enabled:
+a press on it shows every error and takes the reader to the first (<a href="binding.html">binding</a>, <em>Validation</em>).</p>
+<h2 id="actions">Actions</h2>
+<p><strong>One primary action per area.</strong> A form's submit, a dialog's confirm, an empty list's &quot;Create&quot; is <code>Primary</code>
+(<code>UIButtons.Primary</code>); the alternatives beside it are <code>Ghost</code>; <code>Outline</code> (<code>UIButtons.Outline</code>) is for where a bare button
+would read as words — an action on a message's colour, an alternative stretched under a stretched primary, a choice drawn as a
+card, a filter chip. A destructive one is
+<code>Danger</code>, and asks first in a dialog when it cannot be undone. A form's foot is <code>UIButtons.Pair</code> — the safe answer first, the committing one last, at the far
+edge — and a row of commands <code>UIButtons.Toolbar</code>.</p>
+<p><strong>An icon alone needs a tooltip.</strong> A button with no title is named by its tooltip, for a screen reader and a pointer alike;
+without one it is unnamed. Use icon-only buttons where the icon is unmistakable — close, search, more — and words elsewhere.</p>
+<p><strong>Show that a press is being worked on.</strong> A command that takes more than a moment runs from <code>OnClickShowingLoading</code>, which keeps
+the button's spinner until it answers and refuses a second press — a submit's, a change's or a search's with
+<code>ShowLoadingDuring(eventName)</code>; one that takes minutes and should go on while the reader is
+away is a job the runtime owns (<code>Context.Runtime.Start</code>, <a href="controllers.html">controllers</a>).</p>
+<p><strong>Put the actions of a thing on the thing.</strong> A row's or a card's own actions are its context menu (<code>SetContextMenu</code>), which a
+press-and-hold on a phone opens too, and its action bar shows the common ones in place (<a href="views.html">views</a>, <em>Context menu</em>).</p>
+<h2 id="colour">Colour</h2>
+<p><strong>Spend colour by role.</strong> <code>UIThemeColor.Primary</code>, <code>Accent</code>, <code>Success</code>, <code>Warning</code>, <code>Danger</code>, <code>Info</code> and <code>Muted</code> follow the theme
+in both modes and stay readable on every ground; a raw colour (<code>UIThemeColor.FromColorVariant</code>) is for content that is a colour
+— a label's colour the reader picked, a chart's series — not for a page's chrome. A word in colour is used sparingly: one
+accent in a line reads, five do not.</p>
+<p><strong>Check the dark theme.</strong> Both modes are first-class and a reader may switch at any time; a page tried only in one mode is half
+tried. A surface or a field takes its ground from where it stands, so the same component reads on the page, on a card and in a
+dialog without a colour of its own.</p>
+<p><strong>A status is a badge, a severity a message.</strong> A short state on an item — &quot;Draft&quot;, &quot;3 new&quot; — is a badge (<code>Fill</code> filled, tinted
+or outlined by how loud it should be); a sentence about the page is a message.</p>
+<h2 id="feedback">Feedback</h2>
+<p><strong>Say it where it belongs and as long as it is true.</strong> A sentence that stays true while the page is open — a quota reached, a
+form saved with warnings — is an in-page message (<code>UIMessage.Warning</code>, <code>UIPage.Banner</code> across the page). A confirmation that
+something happened — saved, sent, deleted — is a toast (<code>ShowNotificationEffect</code>), with a way back where there is one (<em>Undo</em>,
+<em>Open</em>). A question the reader must answer before going on is a dialog. Something that happened while the page is not on screen
+is the system's notification (<code>ShowSystemNotificationEffect</code>) (<a href="dialogs-and-notifications.html">dialogs and notifications</a>).</p>
+<p><strong>An empty list says what goes there.</strong> A list with nothing in it shows its empty template — what would be here, and the action
+that adds the first one (<code>ConfigureDefaultEmptyTemplate</code>) — rather than a blank region. A region with nothing in it outside a
+list — a pane before a row is chosen — says it the same way, with the same component: <code>UIPage.Empty</code>.</p>
+<p><strong>What a submit came to replaces its form.</strong> &quot;Check your inbox&quot;, &quot;Order placed&quot;, &quot;Not for this account&quot;: <code>UIPage.Outcome</code>, the
+tone's mark before the title, the line, the ways on — in the form's place, read out as it appears.</p>
+<p><strong>Expect the update mid-way.</strong> A value the server pushes lands while the reader is reading, typing or selecting: a value
+changes in place rather than redrawing its page, and a reply streamed into a Markdown display keeps what the reader selected
+in the paragraphs already written. A page that rebuilds a whole list or panel on every change loses that — change the item,
+not the collection.</p>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <span class="version">Documents 1.10.0</span> ·
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>
