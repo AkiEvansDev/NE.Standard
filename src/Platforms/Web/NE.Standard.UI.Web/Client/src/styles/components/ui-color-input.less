@@ -75,16 +75,22 @@
     cursor: default;
 }
 
-// A boundary, since a pale value needs one: an inset shadow, as a border shows the page through at the corners; as wide as
-// #RRGGBBAA, so swatches down a column line up.
+// A boundary, since a pale value needs one: an inset shadow, as a border shows the page through at the corners. As wide as the
+// control, which is as wide as #RRGGBBAA unless a Width says otherwise, so swatches down a column line up: a query container, its
+// own width that and never its text's, so a narrower Width holds it and the text goes (below). A min-width as wide as the text
+// stood it over whatever came after.
 .ui-color-input__swatch--button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: auto;
-    min-width: calc(8ch + 2 * @ui-space-3);
+    min-width: 0;
+    container-type: inline-size;
+    contain-intrinsic-inline-size: 8ch;
+    flex: 1 1 auto;
     height: auto;
-    min-height: @ui-control-height;
+    // A field's height, a floor a smaller Height on the control goes under (its sizes inherit here): a fixed one overflowed it.
+    .ui-responsive-floor(min-height, --ui-min-height, @ui-control-height, --ui-height);
     padding: 0 @ui-space-3;
     // No edge to draw an authored thickness with, as ever: the boundary is the inset shadow. Its corners are the author's.
     border: none;
@@ -97,7 +103,15 @@
 }
 
     .ui-color-input:not([data-ui-color-no-opacity]) > .ui-color-input__swatch--button {
-        min-width: calc(10ch + 2 * @ui-space-3);
+        contain-intrinsic-inline-size: 10ch;
+    }
+
+    // Narrower than an opaque value, the swatch is the colour alone: a cut "#006E" reads as another colour. Under the default
+    // 8ch, which rounding put a hair under itself.
+    @container (width < 7.5ch) {
+        .ui-color-input__swatch--button > .ui-color-input__text--over {
+            display: none;
+        }
     }
 
 // The picked colour is a filled ground, so the swatch answers as a filled button does: shaded, never washed, more under a press.

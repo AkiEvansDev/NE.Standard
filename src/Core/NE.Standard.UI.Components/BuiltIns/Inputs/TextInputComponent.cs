@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
@@ -39,6 +40,26 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     public IReadOnlyList<IButtonComponent> TrailingActions => _actions.Trailing;
 
+    /// <summary>
+    /// Gets the leading action flagged in the field (<see cref="AddLeadingAction(IButtonComponent, bool)"/>), first at the row's start
+    /// and kept there under <see cref="ActionsBelow"/>.
+    /// </summary>
+    public IButtonComponent? LeadingInFieldAction => _actions.LeadingInField;
+
+    /// <summary>
+    /// Gets the trailing action flagged in the field (<see cref="AddTrailingAction(IButtonComponent, bool)"/>), last at the row's end
+    /// and kept there under <see cref="ActionsBelow"/>.
+    /// </summary>
+    public IButtonComponent? TrailingInFieldAction => _actions.TrailingInField;
+
+    /// <summary>
+    /// Gets or sets the width tier below which the actions stand in a row under the field — the leading ones at its start, the
+    /// trailing ones at its end — while the in-field ones stay in the row; unset, they all stand in the row at every width.
+    /// </summary>
+    /// <remarks>Render-time only. The same components move, so a flyout or a split button among them keeps its one popup.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
+    public UIResponsiveTier? ActionsBelow { get; set; }
+
     /// <inheritdoc/>
     public IReadOnlyDictionary<string, IVisualComponent> Regions => _actions.Regions;
 
@@ -68,18 +89,31 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// Adds a button at the start of the row, after those added before; the field dresses it as an adornment.
     /// </summary>
     public T AddLeadingAction(IButtonComponent action)
-    {
-        _actions.AddLeading(action);
-        return Self;
-    }
+        => AddLeadingAction(action, false);
 
     /// <summary>
     /// Adds a flyout at the start of the row, after the actions added before: its anchor, a button, dressed as an adornment, and its
     /// content opening from it — an emoji panel, a list of snippets.
     /// </summary>
     public T AddLeadingAction(FlyoutComponent flyout)
+        => AddLeadingAction(flyout, false);
+
+    /// <summary>
+    /// Adds a button at the start of the row; <paramref name="inField"/> flags it as standing in the field (an emoji), first at the
+    /// row's start and kept there under <see cref="ActionsBelow"/>. One leading action of a field is in it.
+    /// </summary>
+    public T AddLeadingAction(IButtonComponent action, bool inField)
     {
-        _actions.AddLeading(flyout);
+        _actions.AddLeading(action, inField);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a flyout at the start of the row; <paramref name="inField"/> flags it as standing in the field, as the button's overload.
+    /// </summary>
+    public T AddLeadingAction(FlyoutComponent flyout, bool inField)
+    {
+        _actions.AddLeading(flyout, inField);
         return Self;
     }
 
@@ -87,18 +121,31 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// Adds a button at the end of the row, after those added before; the field dresses it as an adornment.
     /// </summary>
     public T AddTrailingAction(IButtonComponent action)
-    {
-        _actions.AddTrailing(action);
-        return Self;
-    }
+        => AddTrailingAction(action, false);
 
     /// <summary>
     /// Adds a flyout at the end of the row, after the actions added before: its anchor, a button, dressed as an adornment, and its
     /// content opening from it.
     /// </summary>
     public T AddTrailingAction(FlyoutComponent flyout)
+        => AddTrailingAction(flyout, false);
+
+    /// <summary>
+    /// Adds a button at the end of the row; <paramref name="inField"/> flags it as standing in the field (a Send), last at the row's
+    /// end and kept there under <see cref="ActionsBelow"/>. One trailing action of a field is in it.
+    /// </summary>
+    public T AddTrailingAction(IButtonComponent action, bool inField)
     {
-        _actions.AddTrailing(flyout);
+        _actions.AddTrailing(action, inField);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a flyout at the end of the row; <paramref name="inField"/> flags it as standing in the field, as the button's overload.
+    /// </summary>
+    public T AddTrailingAction(FlyoutComponent flyout, bool inField)
+    {
+        _actions.AddTrailing(flyout, inField);
         return Self;
     }
 

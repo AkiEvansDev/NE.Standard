@@ -1,6 +1,19 @@
 @import "../core/tokens.less";
 @import "../mixins/elevation.less";
 @import "../mixins/focus.less";
+@import "../mixins/responsive.less";
+
+// Where a pane keeps its size (`AddPane(…, keepsSize: true)`), the tracks stand in the order the panes lay them, per tier
+// (PaneContainerComponentRenderer, pane-container-engine.ts's carrySizes): under a splitter's own, over the authored ones.
+.ui-container.ui-pane-container {
+    @pane-columns: .ui-responsive-chain(--ui-pane-columns; ~"var(--ui-columns, repeat(24, minmax(0, 1fr)))")[@value];
+    @pane-rows: .ui-responsive-chain(--ui-pane-rows; ~"var(--ui-rows, minmax(0, 1fr))")[@value];
+
+    .ui-responsive-reset(--ui-pane-columns);
+    .ui-responsive-reset(--ui-pane-rows);
+    .ui-responsive-property(grid-template-columns, --ui-split-columns, @pane-columns);
+    .ui-responsive-property(grid-template-rows, --ui-split-rows, @pane-rows);
+}
 
 // A pane container is a container (ui-container.less places its places as children); a place holds one pane, which fills it, and
 // pane-container-engine.ts carries a pane to another place.

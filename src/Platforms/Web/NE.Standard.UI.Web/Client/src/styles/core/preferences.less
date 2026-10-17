@@ -8,7 +8,7 @@
 // win ties.
 
 // Every loading ring on the page, by its wearer: the one thing both answers below keep.
-@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, .ui-progress--circular:not([aria-valuenow]) .ui-progress__ring, @{ui-loading-ringed}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
+@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, .ui-progress--circular:not([aria-valuenow]) .ui-progress__ring, @{ui-loading-ringed}::before, @{ui-pending-ringed}::before, @{ui-pending-veiled}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-tab-item[data-ui-pending] > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-button[data-ui-pending][data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, .ui-search__field[data-ui-search-waiting] > .ui-search__glyph::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
 
 // The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
 @ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar], .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-bar], .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-bar]";
@@ -325,8 +325,8 @@
         background: Highlight;
     }
 
-    // A bar's fill is its reading; the track gets an edge, since its tint is gone too.
-    .ui-progress--linear > .ui-progress__track {
+    // A bar's fill is its reading; the track gets an edge, since its tint is gone too. Not the page's load bar, whose track has no tint.
+    .ui-progress--linear:not(.ui-navigation-progress) > .ui-progress__track {
         outline: 1px solid CanvasText;
     }
 

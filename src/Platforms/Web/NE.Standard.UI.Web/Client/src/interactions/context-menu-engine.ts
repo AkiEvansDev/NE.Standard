@@ -89,11 +89,13 @@ export class ContextMenuEngine {
         // the browser's own one for a press already answered never reaches it.
         // A long press in a field is the field's: its caret, its selection, the system's own menu for its text. A checkbox's or a slider's
         // is the row's, as a right press there is. A finger that moves on to drag what it held puts the menu away as a press outside would.
+        // The hold shows on the part whose menu it asks for.
         new LongPress({
             root: this.root,
             first: typeof window === "undefined" ? undefined : window,
             holds: target => target.closest(`[${ContextMenuOwnerAttribute}]`) !== null && !takesTyping(target),
-            closeMenu: () => this.menus.close(this.menus.current, "outside")
+            closeMenu: () => this.menus.close(this.menus.current, "outside"),
+            shows: heldPart
         });
 
         this.root.addEventListener("contextmenu", domEvent => this.handleContextMenu(domEvent), true);
@@ -198,20 +200,7 @@ export class ContextMenuEngine {
  * or null where none opens; a context menu's entry chord (`shortcut-engine.ts`) presses its entry in the menu this answers.
  */
 export function contextMenuAt(target: Element): { readonly owner: HTMLElement; readonly menu: HTMLElement } | null {
-    const refusing = target.closest(`[${NoContextMenuAttribute}]`);
-
-    for (let owner = target.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`); owner !== null; owner = owner.parentElement?.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`) ?? null) {
-        // A part of the owner that refuses a menu — a panel standing over a canvas — keeps the owner's menu off it, as a row does.
-        if (refusing !== null && owner.contains(refusing))
-            return null;
-
-        // A strip with only its captions' named menu has nothing for its pages, nor has an inert owner: the owner around answers.
-        if (!offersMenu(owner, target) || isInert(owner))
-            continue;
-
-        if (isRefused(owner))
-            return null;
-
+    for (const owner of offeringOwners(target)) {
         // Asked only now, past the refusals: a row's menu waiting to be drawn is drawn by the asking.
         const menu = candidateMenus(owner, target).find(candidate => prepareMenu(candidate, target, false));
 
@@ -221,6 +210,42 @@ export function contextMenuAt(target: Element): { readonly owner: HTMLElement; r
     }
 
     return null;
+}
+
+/** The owners a right press on `target` asks in turn, nearest first, past the ones with nothing to offer it and up to a refusal. */
+function* offeringOwners(target: Element): Generator<HTMLElement, void> {
+    const refusing = target.closest(`[${NoContextMenuAttribute}]`);
+
+    for (let owner = target.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`); owner !== null; owner = owner.parentElement?.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`) ?? null) {
+        // A part of the owner that refuses a menu — a panel standing over a canvas — keeps the owner's menu off it, as a row does.
+        if (refusing !== null && owner.contains(refusing))
+            return;
+
+        // A strip with only its captions' named menu has nothing for its pages, nor has an inert owner: the owner around answers.
+        if (!offersMenu(owner, target) || isInert(owner))
+            continue;
+
+        if (isRefused(owner))
+            return;
+
+        yield owner;
+    }
+}
+
+/**
+ * The part a finger held on `target` shows its hold on: the row it is in where the menu's owner holds the rows, else the owner; null
+ * where no owner offers a menu. Asked without the opening's own asking, which would draw a row's waiting menu for a hold let go.
+ */
+function heldPart(target: Element): Element | null {
+    const nearest = offeringOwners(target).next();
+
+    if (nearest.done === true)
+        return null;
+
+    const owner = nearest.value;
+    const row = target.closest<HTMLElement>(SelectionRowSelector);
+
+    return row !== null && row !== owner && owner.contains(row) ? rowBox(row) ?? row : owner;
 }
 
 /** Where a context menu's owner is: the attribute the renderer writes on it, for a part looking for its own. */

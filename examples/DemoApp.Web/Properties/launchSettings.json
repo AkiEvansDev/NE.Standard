@@ -9,6 +9,16 @@
       },
       "applicationUrl": "http://localhost:5100"
     },
+    "DemoApp.Web (slow network)": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "NE__Hub__SimulatedLatency": "800"
+      },
+      "applicationUrl": "http://localhost:5100"
+    },
     "DemoApp.Web (LAN)": {
       "commandName": "Project",
       "launchBrowser": false,

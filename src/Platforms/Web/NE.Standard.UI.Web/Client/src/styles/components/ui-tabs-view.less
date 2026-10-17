@@ -78,11 +78,14 @@
 }
 
 // A loading tab's label fades under the ring, as a button with no icon does; the ring is ::before, as ::after is the caption's line.
-.ui-tab-item.ui-loading > .ui-tab-item__caption > .ui-tab-item__label {
+// A press waiting on a late answer (data-ui-pending) looks the same.
+.ui-tab-item.ui-loading > .ui-tab-item__caption > .ui-tab-item__label,
+.ui-tab-item[data-ui-pending] > .ui-tab-item__caption > .ui-tab-item__label {
     opacity: @ui-loading-label-opacity;
 }
 
-.ui-tab-item.ui-loading > .ui-tab-item__caption::before {
+.ui-tab-item.ui-loading > .ui-tab-item__caption::before,
+.ui-tab-item[data-ui-pending] > .ui-tab-item__caption::before {
     content: "";
     position: absolute;
     top: 50%;

@@ -13,6 +13,7 @@ internal sealed class UICommandDescriptor : IUICommandMetadata
     public required UIAccessRule[] AccessRules { get; init; }
     public required UICommandConcurrencyMode ConcurrencyMode { get; init; }
     public int MaxConcurrent { get; init; } = 1;
+    public bool ShowsPending { get; init; } = true;
     public bool? AllowAnonymous { get; init; }
     public required IUICommandFilter[] Filters { get; init; }
 

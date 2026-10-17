@@ -2,6 +2,7 @@ using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -30,7 +31,9 @@ public abstract class WebStartupBase<TStartup>
         _ = services.AddOptions<WebViewRenderCacheOptions>();
         _ = services.AddOptions<WebEndpointOptions>();
         _ = services.AddOptions<WebValueOptions>();
-        _ = services.AddOptions<WebHubOptions>();
+        // Ahead of the application's own Configure, which so has the last word; a host with no configuration reads none.
+        _ = services.AddOptions<WebHubOptions>()
+            .Configure<IServiceProvider>(static (options, provider) => options.ReadConfiguration(provider.GetService<IConfiguration>()));
         _ = services.AddOptions<WebResponseCompressionOptions>();
 
         ConfigureServices(services);
@@ -57,7 +60,12 @@ public abstract class WebStartupBase<TStartup>
                 static (options, ui) => options.EnableForHttps = ui.Value.EnableForHttps
             );
 
-        _ = services.AddSignalR(static options => options.AddFilter<WebHubCallLimiter>()).AddJsonProtocol(WebHubProtocol.Configure);
+        // The limiter first: a call it refuses is refused at once, not after the simulated wait.
+        _ = services.AddSignalR(static options =>
+        {
+            options.AddFilter<WebHubCallLimiter>();
+            options.AddFilter<WebHubLatency>();
+        }).AddJsonProtocol(WebHubProtocol.Configure);
 
         services.TryAddSingleton<IWebAssetRegistry, WebAssetRegistry>();
         services.TryAddSingleton<IWebRendererRegistry, WebRendererRegistry>();
@@ -76,6 +84,7 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton<WebOutgoingValues>();
         services.TryAddSingleton<WebRuntimeStamps>();
         services.TryAddSingleton<WebHubCallLimiter>();
+        services.TryAddSingleton<WebHubLatency>();
         services.TryAddSingleton<WebUIMetrics>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
         // A sign-in's new key reaches its page as a one-time token the page trades for the cookie.

@@ -343,3 +343,68 @@ html {
                 background: color-mix(in srgb, var(--ui-color-on-surface) 48%, transparent);
             }
         }
+
+    // The arrows at the track's ends, a step a press and repeating while held, shown as the pointer nears the bar, as a platform's
+    // overlay bar shows them; a scroll alone shows the thumb. Their room is kept either way, so the thumb at an end stands clear of a
+    // rounded corner. A triangle as wide as the thumb, on its line and in its colour, by the track's end.
+    .ui-overlay-scrollbar__arrow {
+        position: absolute;
+        opacity: 0;
+        transition: opacity @ui-motion-fast @ui-motion-ease;
+        touch-action: none;
+    }
+
+        .ui-overlay-scrollbar--near > .ui-overlay-scrollbar__arrow {
+            opacity: 1;
+        }
+
+        .ui-overlay-scrollbar--shown.ui-overlay-scrollbar--near > .ui-overlay-scrollbar__arrow {
+            pointer-events: auto;
+        }
+
+        .ui-overlay-scrollbar__arrow::before {
+            content: "";
+            position: absolute;
+            background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+            transition: background-color @ui-motion-fast @ui-motion-ease;
+        }
+
+        // The thumb's 6 px across, 2 px in from the edge as it is; 4 px along, 2 px off the track's end, where the thumb stops.
+        .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow::before {
+            right: 2px;
+            width: 6px;
+            height: 4px;
+        }
+
+        .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow::before {
+            bottom: 2px;
+            width: 4px;
+            height: 6px;
+        }
+
+        .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow--back::before {
+            bottom: 2px;
+            clip-path: polygon(50% 0, 100% 100%, 0 100%);
+        }
+
+        .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow--forward::before {
+            top: 2px;
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+        }
+
+        .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow--back::before {
+            right: 2px;
+            clip-path: polygon(0 50%, 100% 0, 100% 100%);
+        }
+
+        .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow--forward::before {
+            left: 2px;
+            clip-path: polygon(0 0, 100% 50%, 0 100%);
+        }
+
+        // Darker under the pointer, as the thumb is.
+        @media @{ui-can-hover} {
+            .ui-overlay-scrollbar__arrow:hover::before {
+                background: color-mix(in srgb, var(--ui-color-on-surface) 48%, transparent);
+            }
+        }

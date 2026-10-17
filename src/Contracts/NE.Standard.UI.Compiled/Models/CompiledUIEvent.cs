@@ -32,4 +32,10 @@ public sealed class CompiledUIEvent
     /// (<c>IFormSubmittingComponent</c>).
     /// </summary>
     public bool SubmitsForm { get; init; }
+
+    /// <summary>
+    /// Gets whether the element pressed to run the command shows it is working when the answer is slow (the command's
+    /// <c>UICommandAttribute.ShowsPending</c>).
+    /// </summary>
+    public bool ShowsPending { get; init; } = true;
 }

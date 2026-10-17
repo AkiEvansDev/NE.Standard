@@ -1,6 +1,6 @@
 // A finger held still on a part with a context menu opens the menu, as iOS Safari never does on its own: half a second held within a
 // small slop, not a scroll, a pan or a pinch, never in a field. Where the browser sends its own `contextmenu` too, the menu opens
-// once, and the release's click presses nothing.
+// once, and the release's click presses nothing. Held past a tap, the hold is shown on the menu's part until it opens or is let go.
 
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
@@ -392,4 +392,92 @@ test("on a handle a drag holds from its press, a slide after the menu opened tak
     assert.equal(isOpen(at), true);
     pointer("pointerup", at.entry, { x: 10, y: 60 });
     close(at);
+});
+
+// What the held part was told, in order: the hold shown on it, then its end.
+const holdNews: { readonly type: string; readonly part: FakeElement | null; readonly detail: Record<string, unknown> }[] = [];
+
+for (const type of ["ui-long-press-hold", "ui-long-press-hold-end"]) {
+    fakeDocument.body.addEventListener(type, domEvent => holdNews.push({ type, part: domEvent.target, detail: (domEvent as FakeCustomEvent).detail as Record<string, unknown> }));
+}
+
+test("a finger held past a tap shows its hold on the menu's part, for the time left; the hold ends as the menu opens", () => {
+    const at = scene();
+
+    holdNews.length = 0;
+    pointer("pointerdown", at.text, { x: 40, y: 60 });
+    mock.timers.tick(149);
+    assert.equal(holdNews.length, 0, "a tap is shown nothing");
+
+    mock.timers.tick(1);
+    assert.deepEqual(holdNews, [{ type: "ui-long-press-hold", part: at.owner, detail: { pointerId: 1, target: at.text, clientX: 40, clientY: 60, duration: 350 } }]);
+
+    mock.timers.tick(350);
+    assert.equal(isOpen(at), true);
+    assert.deepEqual(holdNews[1], { type: "ui-long-press-hold-end", part: at.owner, detail: { pointerId: 1, opened: true } });
+
+    pointer("pointerup", at.text);
+    assert.equal(holdNews.length, 2, "the release after the opening ended the hold again");
+    close(at);
+});
+
+test("a hold let go, moved past the slop, cancelled or joined by a second finger ends unopened; a mouse held shows nothing", () => {
+    const at = scene();
+
+    for (const end of ["pointerup", "pointermove", "pointercancel", "pointerdown"]) {
+        holdNews.length = 0;
+        pointer("pointerdown", at.text, { x: 10, y: 10 });
+        mock.timers.tick(200);
+        pointer(end, at.text, { x: 10, y: 40, pointerId: end === "pointerdown" ? 2 : 1 });
+        assert.deepEqual(holdNews.map(news => [news.type, news.detail.opened]), [["ui-long-press-hold", undefined], ["ui-long-press-hold-end", false]], end);
+
+        mock.timers.tick(500);
+        assert.equal(isOpen(at), false, end);
+        pointer("pointerup", at.text);
+    }
+
+    holdNews.length = 0;
+    pointer("pointerdown", at.text, { pointerType: "mouse" });
+    mock.timers.tick(600);
+    pointer("pointerup", at.text, { pointerType: "mouse" });
+    assert.equal(holdNews.length, 0);
+});
+
+test("the browser's own menu before the time ends the hold as an opening, once the menu took it", () => {
+    const at = scene();
+
+    holdNews.length = 0;
+    pointer("pointerdown", at.text);
+    mock.timers.tick(400);
+    at.text.dispatchEvent(new FakeMouseEvent("contextmenu", { pointerType: "touch", button: 2 }));
+    assert.equal(isOpen(at), true);
+    assert.equal(holdNews.length, 1, "the hold ended before the menu's own listener heard its opening");
+
+    mock.timers.tick(0);
+    assert.deepEqual(holdNews[1].detail, { pointerId: 1, opened: true });
+
+    mock.timers.tick(500);
+    assert.equal(holdNews.length, 2);
+    pointer("pointerup", at.text);
+    close(at);
+});
+
+test("a hold on a row of a host whose menu it is shows on the row; on a part with no menu to offer it shows nothing", () => {
+    const at = scene();
+    const words = new FakeElement("span");
+    const row = FakeElement.of("ui-items-view__item").append(words);
+
+    at.owner.append(row);
+    holdNews.length = 0;
+    pointer("pointerdown", words);
+    mock.timers.tick(150);
+    assert.equal(holdNews[0].part, row);
+    pointer("pointerup", words);
+
+    at.owner.setAttribute("data-ui-no-context-menu", "");
+    holdNews.length = 0;
+    pointer("pointerdown", words);
+    mock.timers.tick(600);
+    assert.equal(holdNews.length, 0);
+    pointer("pointerup", words);
 });

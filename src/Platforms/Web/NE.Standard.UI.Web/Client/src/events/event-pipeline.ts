@@ -16,6 +16,7 @@ import type { CommandTurn } from "./command-turns.ts";
 import type { EventCompletionContext, EventDispatchContext, EventRegistration, RegisteredEvent } from "./event-descriptor.ts";
 import { EventRegistry } from "./event-registry.ts";
 import { EventRequestFactory } from "./event-request-factory.ts";
+import { markPending, PendingDelayMilliseconds, PendingEventName } from "./pending-mark.ts";
 import { logError } from "../runtime/logger.ts";
 
 export type EventPipelineOptions = {
@@ -37,12 +38,18 @@ export type EventPipelineOptions = {
     readonly validationEngine?: ValidationEngine;
 
     readonly valueBinding?: ValueBindingEngine;
+
+    /** Whether a command sent now waits for the connection to attach again; a press then is marked pending at once. */
+    readonly isReattaching?: () => boolean;
 };
 
 type EventOutcome = Pick<EventCompletionContext, "dispatched" | "success" | "error">;
 
 /** An event the page turned away before it reached the server: nothing ran, and nothing landed. */
 const Refused: EventOutcome = { dispatched: false, success: false };
+
+/** The end of a press that shows no pending mark. */
+const NoMark = (): void => undefined;
 
 /** A command that left the page and came to nothing — the connection dropped under it — as against a failure before it was sent. */
 class DispatchFailure extends Error {
@@ -228,6 +235,7 @@ export class EventPipeline {
             return Refused;
         }
 
+        const endMark = this.startPendingMark(eventName, element, context);
         // Taken as raised: an .OnChange command waits for its value's answer, and one raised after it must not reach the server first.
         const turn = this.turns.take();
 
@@ -236,7 +244,19 @@ export class EventPipeline {
         }
         finally {
             turn.done();
+            endMark();
         }
+    }
+
+    /**
+     * The press's pending mark, from the press to the answer (`pending-mark.ts`): at once while the connection is coming back, which
+     * holds the command whatever the server's speed. A press alone: a value's, a drop's or a move's change already stands on the page.
+     */
+    private startPendingMark(eventName: string, element: Element, context: EventDispatchContext): () => void {
+        if (eventName !== PendingEventName || context.metadata?.showsPending === false)
+            return NoMark;
+
+        return markPending(element, this.options.isReattaching?.() === true ? 0 : PendingDelayMilliseconds);
     }
 
     /** Sends the command behind what it waits for — its form's values, its own value's answer, the commands and values before it. */

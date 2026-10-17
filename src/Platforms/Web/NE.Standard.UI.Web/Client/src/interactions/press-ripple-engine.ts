@@ -5,10 +5,16 @@
 // Cheap: one listener per phase on the root, one rect read at the press, and a wave of its own (press-wave.ts) whose circle's scale
 // and whose opacity are all that animates — the two things the compositor runs alone, so a long task (a runtime's page applied)
 // leaves the wave growing rather than stopped half-way, as a property drawn by the page's own frames was.
+// A finger held for a context menu (long-press.ts) is answered here too, the one owner of the wave: the press's own wave, where it
+// has one, is retimed to fill as the menu opens; elsewhere the menu's part grows one from the finger. Either settles as the menu opens
+// and goes as a cancelled press's does when the hold is let go. Under reduced motion, or a theme without the ripple, the hold shows
+// the wash alone: the wave drawn whole, unmoving.
 
 import { ButtonClass, ComponentIdAttribute, MenuItemClass, NoRowSelectAttribute, PopupRoleSelector, RowEditingAttribute, SelectionAttribute, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
+import { LongPressHoldEndEventName, LongPressHoldEventName } from "./long-press.ts";
+import type { LongPressHoldDetail, LongPressHoldEndDetail } from "./long-press.ts";
 import { ownControlOf } from "./own-control.ts";
 import { PressInkClass, PressWaveClass } from "./press-wave.ts";
 import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
@@ -26,24 +32,34 @@ const TargetSelector = `${EntrySelector}, ${RowSelector}`;
 
 const PressingClass = "ui-pressing";
 const HeldClass = "ui-press-held";
+// On a held part not positioned of its own while its wave stands on it: any component may own a menu, so the stylesheet cannot list them.
+const PlacedClass = "ui-press-placed";
 
 export type PressRippleEngineOptions = {
     readonly root?: ParentNode;
     /** Whether a component raises a click of its own (a row's click command): such a row answers a press though it chooses nothing. */
     readonly clicks?: (component: Element) => boolean;
+    /** Whether a press answers with the wave (the theme's `PressRipple`); without it a held finger's hold shows the wash alone. */
+    readonly waves?: boolean;
 };
 
 type Press = {
     readonly element: HTMLElement;
     readonly wave: HTMLElement;
-    readonly started: number;
-    readonly grow: Animation;
+    // Null for the wash alone, which does not move.
+    readonly grow: Animation | null;
+    // A hold's own wave, not a press's: let go, it goes as a cancelled press's does.
+    readonly hold: boolean;
+    // When the circle reaches the frame at the rate it grows now, and that rate.
+    fills: number;
+    rate: number;
     fade: Animation | null;
 };
 
-/** Started only where the page's theme carries the flag; every element it touches otherwise never sees it. */
+/** Every element it touches answers only while pressed; off the theme's flag a press draws nothing, and only a held finger is answered. */
 export class PressRippleEngine {
     private readonly clicks: (component: Element) => boolean;
+    private readonly waves: boolean;
     // By pointer, so a second finger's press and release are its own; one press per element, a new one replacing it.
     private readonly presses = new Map<number, Press>();
 
@@ -51,6 +67,7 @@ export class PressRippleEngine {
         const root = options.root ?? document;
 
         this.clicks = options.clicks ?? (() => false);
+        this.waves = options.waves ?? true;
 
         root.addEventListener("pointerdown", domEvent => this.handlePointerDown(domEvent), true);
         root.addEventListener("pointerup", domEvent => this.release(domEvent, false), true);
@@ -58,6 +75,8 @@ export class PressRippleEngine {
         // A press that became a drag is no longer a press, and its wave goes at once rather than fading: the browser draws the dragged
         // row's picture as `dragstart` ends, and a fading wave was drawn into it as a blot behind the row's words.
         root.addEventListener("dragstart", () => this.finishAll(), true);
+        root.addEventListener(LongPressHoldEventName, domEvent => this.handleHold(domEvent));
+        root.addEventListener(LongPressHoldEndEventName, domEvent => this.handleHoldEnd(domEvent));
     }
 
     private handlePointerDown(domEvent: Event): void {
@@ -70,30 +89,102 @@ export class PressRippleEngine {
         // Nothing plays under reduced motion: the press keeps its wash, which is no movement.
         const element = this.pressedElement(domEvent.target);
 
-        if (element === null || typeof element.animate !== "function" || prefersReducedMotion())
+        if (element === null || !this.moves(element))
             return;
 
-        for (const [pointerId, press] of this.presses) {
+        this.start(domEvent.pointerId, element, domEvent.clientX, domEvent.clientY, motion.ripple, false);
+        element.classList.add(HeldClass);
+    }
+
+    /** Whether a wave may grow on the element: the theme's flag, and no reduced motion. */
+    private moves(element: HTMLElement): boolean {
+        return this.waves && typeof element.animate === "function" && !prefersReducedMotion();
+    }
+
+    /**
+     * Puts a wave on the element round the pointer's point (`x`, `y`), growing over `duration`, or drawn whole for the wash alone
+     * where `duration` is null; a wave another pointer left on it goes first.
+     */
+    private start(pointerId: number, element: HTMLElement, x: number, y: number, duration: number | null, hold: boolean): void {
+        for (const [other, press] of this.presses) {
             if (press.element === element)
-                this.finish(pointerId, press);
+                this.finish(other, press);
         }
 
         const bounds = element.getBoundingClientRect();
-        const x = domEvent.clientX - bounds.left;
-        const y = domEvent.clientY - bounds.top;
+        const left = x - bounds.left;
+        const top = y - bounds.top;
         // To the farthest corner, so the circle reaches every corner of the frame and is never an ellipse.
-        const radius = Math.hypot(Math.max(x, bounds.width - x), Math.max(y, bounds.height - y));
+        const radius = Math.hypot(Math.max(left, bounds.width - left), Math.max(top, bounds.height - top));
 
         // The wave stands in the padding box, inside the border the rect counts.
-        const { wave, ink } = createWave(x - element.clientLeft, y - element.clientTop, radius);
+        const { wave, ink } = createWave(left - element.clientLeft, top - element.clientTop, radius);
 
-        element.classList.add(PressingClass, HeldClass);
+        element.classList.add(PressingClass);
         // Last, after the element's own parts: a script reading its first child (a wrapped row's scope) reads what it did.
         element.append(wave);
 
-        const grow = ink.animate([{ transform: "scale(0)" }, { transform: "scale(1)" }], { duration: motion.ripple, easing: motion.ease, fill: "forwards" });
+        const grow = duration === null ? null : ink.animate([{ transform: "scale(0)" }, { transform: "scale(1)" }], { duration, easing: motion.ease, fill: "forwards" });
 
-        this.presses.set(domEvent.pointerId, { element, wave, started: performance.now(), grow, fade: null });
+        this.presses.set(pointerId, { element, wave, grow, hold, fills: performance.now() + (duration ?? 0), rate: 1, fade: null });
+    }
+
+    /**
+     * A finger held for a context menu: a press's own wave is the hold's, filling as the menu opens; elsewhere the menu's part answers,
+     * unless the press there answers in its ink alone. The wash alone, unmoving, where a wave may not grow and the press has no wash.
+     */
+    private handleHold(domEvent: Event): void {
+        const detail = domEvent instanceof CustomEvent ? (domEvent.detail as LongPressHoldDetail | null) : null;
+        const part = domEvent.target;
+
+        if (detail === null || !(part instanceof HTMLElement) || isInert(part) || detail.target.closest(InkOnlySelector) !== null)
+            return;
+
+        // A wave of the pointer's that is already fading was an earlier press's.
+        const press = this.presses.get(detail.pointerId);
+
+        if (press !== undefined && press.fade === null) {
+            this.retime(press, performance.now() + detail.duration);
+            return;
+        }
+
+        const moves = this.moves(part);
+
+        // The press's own wash says as much where no wave grows: a second one over it would read as a deeper press.
+        if (!moves && this.pressedElement(detail.target) !== null)
+            return;
+
+        this.start(detail.pointerId, part, detail.clientX, detail.clientY, moves ? detail.duration : null, true);
+
+        if (getComputedStyle(part).position === "static")
+            part.classList.add(PlacedClass);
+    }
+
+    /** Sets the circle growing to reach the frame at `fills`; a wave already there stays. */
+    private retime(press: Press, fills: number): void {
+        const now = performance.now();
+        const left = Math.max(0, press.fills - now) * press.rate;
+
+        if (press.grow === null || left === 0 || fills <= now)
+            return;
+
+        press.rate = left / (fills - now);
+        press.fills = fills;
+        press.grow.updatePlaybackRate(press.rate);
+    }
+
+    /** The hold opened its menu, and its wave settles as a released press's; let go, a hold's own goes, a press's grows at its own pace again. */
+    private handleHoldEnd(domEvent: Event): void {
+        const detail = domEvent instanceof CustomEvent ? (domEvent.detail as LongPressHoldEndDetail | null) : null;
+        const press = detail === null ? undefined : this.presses.get(detail.pointerId);
+
+        if (detail === null || press === undefined || press.fade !== null)
+            return;
+
+        if (detail.opened || press.hold)
+            this.end(detail.pointerId, !detail.opened);
+        else
+            this.retime(press, performance.now() + Math.max(0, press.fills - performance.now()) * press.rate);
     }
 
     /** The element a press lands on that answers it with the wave, or null: the nearest one, and only if it takes the press. */
@@ -147,8 +238,11 @@ export class PressRippleEngine {
     }
 
     private release(domEvent: Event, cancelled: boolean): void {
-        if (domEvent instanceof PointerEvent)
-            this.end(domEvent.pointerId, cancelled);
+        if (!(domEvent instanceof PointerEvent))
+            return;
+
+        // A hold's own wave is no press: lifted before the menu opened, it goes as a cancelled one.
+        this.end(domEvent.pointerId, cancelled || this.presses.get(domEvent.pointerId)?.hold === true);
     }
 
     private finishAll(): void {
@@ -158,7 +252,7 @@ export class PressRippleEngine {
 
     /**
      * Lets a press go. Released, a wave still growing finishes quickly, so a quick click still shows one, then fades; cancelled, it fades
-     * where it stands.
+     * where it stands. The wash alone goes at once.
      */
     private end(pointerId: number, cancelled: boolean): void {
         const press = this.presses.get(pointerId);
@@ -166,29 +260,33 @@ export class PressRippleEngine {
         if (press === undefined || press.fade !== null)
             return;
 
+        if (press.grow === null) {
+            this.finish(pointerId, press);
+            return;
+        }
+
         press.element.classList.remove(HeldClass);
 
-        const remaining = Math.max(0, motion.ripple - (performance.now() - press.started));
-        let delay = 0;
+        const now = performance.now();
+        const remaining = Math.max(0, press.fills - now);
+        const delay = cancelled ? 0 : Math.min(remaining, motion.fast);
 
-        if (!cancelled && remaining > 0) {
-            delay = Math.min(remaining, motion.fast);
-            press.grow.updatePlaybackRate(remaining / delay);
-        }
+        if (delay > 0)
+            this.retime(press, now + delay);
 
         press.fade = press.wave.animate([{ opacity: 1 }, { opacity: 0 }], { duration: motion.normal, delay, easing: motion.exit, fill: "forwards" });
         press.fade.addEventListener("finish", () => this.finish(pointerId, press));
     }
 
     /**
-     * Takes a press's wave away whole: its animations, its element, its class, and its entry, unless another press of the pointer
+     * Takes a press's wave away whole: its animations, its element, its classes, and its entry, unless another press of the pointer
      * replaced it.
      */
     private finish(pointerId: number, press: Press): void {
-        press.grow.cancel();
+        press.grow?.cancel();
         press.fade?.cancel();
         press.wave.remove();
-        press.element.classList.remove(PressingClass, HeldClass);
+        press.element.classList.remove(PressingClass, HeldClass, PlacedClass);
 
         if (this.presses.get(pointerId) === press)
             this.presses.delete(pointerId);

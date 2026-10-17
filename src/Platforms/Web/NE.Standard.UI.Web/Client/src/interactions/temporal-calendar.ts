@@ -10,7 +10,7 @@ import { applyRovingTabIndex } from "./roving-focus.ts";
 import {
     clampToRange, defaultMoment, FirstDayAttribute, isDayOffered, isRange, parseCanonical, readDayOffer, readValue, readValueOf, RootClass, toCanonical, writeValueOf
 } from "./temporal-dom.ts";
-import { chooseDay as choosePeriodDay, isWithinChosenPeriod, isWithinPeriod, startOfDay, withTime } from "./temporal-range.ts";
+import { chooseDay as choosePeriodDay, isChosenPeriodSpanning, isWithinChosenPeriod, isWithinPeriod, startOfDay, withTime } from "./temporal-range.ts";
 import type { DayOffer } from "./temporal-dom.ts";
 import type { PeriodEnd } from "./temporal-range.ts";
 
@@ -127,6 +127,7 @@ function renderDayGrid(root: HTMLElement, state: CalendarState, culture: Tempora
     // A period marks both ends and tints the days between them; a single value marks its one day.
     const periodStart = range ? readValueOf(root, false) : value;
     const periodEnd = range ? readValueOf(root, true) : null;
+    const spans = range && isChosenPeriodSpanning({ start: periodStart, end: periodEnd }, state.choosingEnd);
     const start = startOfGrid(state.view, firstDay);
 
     for (let index = 0; index < 42; index++) {
@@ -159,6 +160,13 @@ function renderDayGrid(root: HTMLElement, state: CalendarState, culture: Tempora
 
         if (isStart || isEnd)
             cell.classList.add(`${DayClass}--selected`);
+
+        // An end the band runs from, under its own ground (ui-temporal-input.less).
+        if (spans && isStart)
+            cell.classList.add(`${DayClass}--period-start`);
+
+        if (spans && isEnd)
+            cell.classList.add(`${DayClass}--period-end`);
 
         if (range && (isStart || isEnd))
             cell.setAttribute("aria-description", clientStrings.text(isStart ? "ui.picker.start" : "ui.picker.end"));
@@ -423,11 +431,15 @@ export function applyRovingDay(surface: HTMLElement, state: CalendarState, value
 export function applyPeriodPreview(root: HTMLElement, state: CalendarState): void {
     const start = state.activeEnd === "end" && state.hoverDay !== null ? readValueOf(root, false) : null;
     const hover = state.hoverDay;
+    // The band runs from the start to the pointer's day only past the start; before it, a click starts the period over.
+    const previews = start !== null && hover !== null && startOfDay(hover).getTime() > startOfDay(start).getTime();
 
     for (const cell of root.querySelectorAll<HTMLElement>(`.${DayClass}`)) {
         const day = parseCanonical(cell.getAttribute(DayAttribute) ?? "", "date");
 
-        cell.classList.toggle(`${DayClass}--preview`, day !== null && start !== null && hover !== null && isWithinPeriod(day, start, addDays(hover, 1)));
+        cell.classList.toggle(`${DayClass}--preview`, previews && day !== null && isWithinPeriod(day, start, addDays(hover, 1)));
+        cell.classList.toggle(`${DayClass}--preview-start`, previews && day !== null && isSameDay(day, start));
+        cell.classList.toggle(`${DayClass}--preview-end`, previews && day !== null && isSameDay(day, hover));
     }
 }
 

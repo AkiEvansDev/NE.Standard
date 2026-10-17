@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { chooseDay, isWithinChosenPeriod, isWithinPeriod, orderPeriod } from "../src/interactions/temporal-range.ts";
+import { chooseDay, isChosenPeriodSpanning, isWithinChosenPeriod, isWithinPeriod, orderPeriod } from "../src/interactions/temporal-range.ts";
 
 const day = (date: number, hour = 0) => new Date(2026, 8, date, hour, 30);
 
@@ -77,4 +77,11 @@ test("a new start short of the old end tints no chosen span until the end is cho
 
     assert.equal(isWithinChosenPeriod(day(11), ended, !ended.complete), true);
     assert.equal(isWithinChosenPeriod(day(15), ended, !ended.complete), false);
+});
+
+test("a band joins a period's ends once it runs past its first day, and not while its end is being chosen", () => {
+    assert.equal(isChosenPeriodSpanning({ start: day(10), end: day(11) }, false), true, "two days side by side are one band");
+    assert.equal(isChosenPeriodSpanning({ start: day(10), end: day(10) }, false), false);
+    assert.equal(isChosenPeriodSpanning({ start: day(10), end: null }, false), false);
+    assert.equal(isChosenPeriodSpanning({ start: day(10), end: day(14) }, true), false);
 });

@@ -14,12 +14,12 @@
     "@microsoft/signalr": "10.0.11"
   },
   "devDependencies": {
-    "@types/node": "26.6.2",
-    "knip": "6.38.0",
+    "@types/node": "26.6.5",
+    "knip": "6.41.0",
     "less": "4.9.1",
-    "oxlint": "1.85.0",
-    "oxlint-tsgolint": "7.0.2003",
+    "oxlint": "1.88.0",
+    "oxlint-tsgolint": "7.0.2004",
     "typescript": "7.0.2",
-    "vite": "8.3.0"
+    "vite": "8.3.4"
   }
 }

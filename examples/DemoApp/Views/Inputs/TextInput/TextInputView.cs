@@ -160,7 +160,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
 
     /// <summary>
     /// A field's own buttons, dressed as the field's and not as a form's: at both ends, a copy that reads the field as it is when pressed,
-    /// and a panel in the action's slot whose entries put a placeholder where the caret is.
+    /// a panel in the action's slot whose entries put a placeholder where the caret is, and a comment's tools under it on a phone.
     /// </summary>
     private static ContainerComponent CreateActionsGroup()
     {
@@ -213,6 +213,18 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                         )
                     )
                 )
+                // On a phone the words take the row: the clip and the emoji in a row under it, Post kept at its end.
+                .AddChild(new TextInputComponent()
+                    .SetPlaceholder("Comment on the release")
+                    .AddLeadingAction(UIIconButtons.Attach())
+                    .AddTrailingAction(new ButtonComponent()
+                        .SetType(UIButtonType.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
+                        .SetTooltip("Emoji")
+                    )
+                    .AddTrailingAction(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("Post"), inField: true)
+                    .SetActionsBelow(UIResponsiveTier.Md)
+                )
                 .AddChild(new ButtonComponent()
                     .SetType(UIButtonType.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
@@ -222,7 +234,8 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                 ),
             note: "`AddLeadingAction` and `AddTrailingAction` stand the buttons in the order they were added; they follow the text in the tab order whichever end they stand at. "
                 + "The copy takes what the field holds when pressed, the button under the fields a fixed line; neither makes a round trip. "
-                + "The + is a flyout in the action's slot (`SetTrailingAction(FlyoutComponent)`): an entry inserts its key (`{plan}`) at the caret, or over the selection, on the page alone, and the field keeps its caret while the panel has the focus."
+                + "The + is a flyout in the action's slot (`SetTrailingAction(FlyoutComponent)`): an entry inserts its key (`{plan}`) at the caret, or over the selection, on the page alone, and the field keeps its caret while the panel has the focus. "
+                + "The comment's Post, a button with words, is flagged `AddTrailingAction(post, inField: true)` and the field `SetActionsBelow(UIResponsiveTier.Md)`: below the medium width the clip and the emoji stand in a row under the field, at its two ends, under the field's own edges, while Post stays at the text's end."
         );
     }
 

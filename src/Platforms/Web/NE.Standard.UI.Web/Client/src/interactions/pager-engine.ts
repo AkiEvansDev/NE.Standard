@@ -1,6 +1,7 @@
 // A pager aimed at a paged host (`PagerComponent`): it draws where the host's window stands — the pages by number, the rows the page
-// holds, the page size — and asks for another page by offset through the window engine, the host's own window request. Page Up and
-// Page Down in a paged host turn its page too, the keyboard's row keeping its place on the page.
+// holds, the page size — and asks for another page by offset through the window engine, the host's own window request. The page
+// asked for is marked at once, the old rows standing until the new ones land, and the host's own page again once the read ends,
+// whatever came of it. Page Up and Page Down in a paged host turn its page too, the keyboard's row keeping its place on the page.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
@@ -70,6 +71,8 @@ export class PagerEngine {
     private readonly store = new ClientStore();
     // The pagers whose kept size was read: once each, on its first sync, before the window engine asks for a first window.
     private readonly restored = new WeakSet<HTMLElement>();
+    // The window each host is asked for while it is read, by the offset it starts at: its pagers mark that page meanwhile.
+    private readonly turning = new WeakMap<Element, number>();
 
     // The whole size choice counts as inside: a press on its button is this engine's to toggle, not the dismissal's to close.
     private readonly menus = new OwnedPopups({
@@ -181,7 +184,9 @@ export class PagerEngine {
         }
 
         const state = readPageState(host);
-        const signature = `${state.offset}|${state.count}|${state.size}|${state.total}|${state.moreAfter}`;
+        const turning = this.turning.get(host);
+        const shown = this.shownState(host, state);
+        const signature = `${state.offset}|${state.count}|${state.size}|${state.total}|${state.moreAfter}|${turning ?? ""}`;
 
         if (this.drawn.get(pager) === signature)
             return;
@@ -191,14 +196,28 @@ export class PagerEngine {
         const culture = readNumberCulture(pager);
         const figure = (value: number): string => formatNumber(value, "N0", culture);
 
-        this.drawNumbers(pager, state, culture);
+        // The numbers and the ends go by the page asked for; the line and the size say the rows on show, which are the old page's yet.
+        this.drawNumbers(pager, shown, culture);
         drawRange(pager, state, figure);
         drawSize(pager, state, figure);
 
         for (const button of pager.querySelectorAll<HTMLElement>(`:scope > .${ButtonClass}[${PagerPageAttribute}]`))
-            componentStates.setDisabled(button, pageOffset(state, button.getAttribute(PagerPageAttribute) ?? "") === null);
+            componentStates.setDisabled(button, pageOffset(shown, button.getAttribute(PagerPageAttribute) ?? "") === null);
 
         applyStop(pager);
+    }
+
+    /**
+     * The host's page as its pagers show it: the one asked for while it is read, else the one it holds. Past the page asked for, a
+     * source that counts has rows where its count says so; one that does not is taken to have more, as it said of the page it holds.
+     */
+    private shownState(host: Element, state = readPageState(host)): PageState {
+        const turning = this.turning.get(host);
+
+        if (turning === undefined)
+            return state;
+
+        return { ...state, offset: turning, moreAfter: state.total === null ? state.moreAfter : turning + state.size < state.total };
     }
 
     /** The numbered pages, the current one marked; the keyboard on a number the redraw took away goes to the current page. */
@@ -250,7 +269,8 @@ export class PagerEngine {
         if (button === null || host === null)
             return;
 
-        const offset = pageOffset(readPageState(host), button.getAttribute(PagerPageAttribute) ?? "");
+        // From the page marked: a second press of Next before the first page lands goes on from the page it asked for.
+        const offset = pageOffset(this.shownState(host), button.getAttribute(PagerPageAttribute) ?? "");
 
         if (offset === null)
             return;
@@ -261,10 +281,36 @@ export class PagerEngine {
 
     /** Asks for the page and shows it from its first row: a list that scrolls opens the new page at its top, as a book's page does. */
     private async turnAsync(host: HTMLElement, offset: number): Promise<void> {
-        await this.options.windows.requestOffsetAsync(host, offset);
+        await this.requestPageAsync(host, offset);
 
         if (readHostScroll(host).top > 0)
             scrollHostTo(host, 0);
+    }
+
+    /**
+     * Asks the host for the window at `offset`, its pagers marking that page at once; once the read ends — the rows landed, or it
+     * failed and they did not — they mark the page the host holds, unless a later turn of the host is under way and marks its own.
+     */
+    private async requestPageAsync(host: HTMLElement, offset: number): Promise<void> {
+        this.turning.set(host, offset);
+        this.syncPagersOf(host);
+
+        try {
+            await this.options.windows.requestOffsetAsync(host, offset);
+        }
+        finally {
+            if (this.turning.get(host) === offset) {
+                this.turning.delete(host);
+                this.syncPagersOf(host);
+            }
+        }
+    }
+
+    private syncPagersOf(host: Element): void {
+        for (const pager of this.root.querySelectorAll<HTMLElement>(PagerSelector)) {
+            if (this.hostOf(pager) === host)
+                this.sync(pager);
+        }
     }
 
     /** The arrows walk the pager's buttons, one stop of the Tab order, and walk the sizes while their list is open. */
@@ -419,7 +465,7 @@ export class PagerEngine {
         if (host === null || !host.hasAttribute(WindowPagedAttribute))
             return;
 
-        const offset = pageOffset(readPageState(host), domEvent.key === "PageDown" ? "next" : "previous");
+        const offset = pageOffset(this.shownState(host), domEvent.key === "PageDown" ? "next" : "previous");
 
         if (offset === null)
             return;
@@ -434,7 +480,7 @@ export class PagerEngine {
         const lit = litRow(before);
         const index = lit === null ? 0 : Math.max(0, before.indexOf(lit));
 
-        await this.options.windows.requestOffsetAsync(host, offset);
+        await this.requestPageAsync(host, offset);
 
         const rows = ownRows(root);
 

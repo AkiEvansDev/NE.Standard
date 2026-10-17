@@ -358,3 +358,32 @@ test("the pointer's band is measured as it comes onto an element, not on every m
     assert.equal(reads, 2);
     assert.equal(chat.hasAttribute("data-ui-pane-near"), false);
 });
+
+test("a pane that keeps its size carries its tracks to the place beside its own, and back again", context => {
+    const space = workspace(["sheet", "parameters"]);
+    const tracks = [...Array.from({ length: 23 }, () => "minmax(0, 1fr)"), "280px"];
+
+    space.container.setAttribute("data-ui-pane-columns", JSON.stringify(tracks));
+    space.places[0].setAttribute("data-ui-pane-cells", JSON.stringify([[1, 1, 23, 1], null, null, null, null]));
+    space.places[1].setAttribute("data-ui-pane-cells", JSON.stringify([[24, 1, 1, 1], null, null, null, null]));
+    space.panes.get("parameters")!.setAttribute("data-ui-pane-keeps-size", "");
+    start(context, space);
+
+    const grip = gripOf(space.panes.get("parameters"));
+
+    pointer(grip, "pointerdown", 150);
+    pointer(grip, "pointermove", 50);
+    pointer(grip, "pointerup", 50);
+
+    const style = (element: FakeElement, name: string): unknown => element.style[name];
+
+    assert.deepEqual(standing(space.places), ["parameters", "sheet"]);
+    assert.deepEqual([style(space.places[0], "--ui-placement-column-md"), style(space.places[0], "--ui-placement-column-span-md")], ["1", "1"]);
+    assert.deepEqual([style(space.places[1], "--ui-placement-column-xxl"), style(space.places[1], "--ui-placement-column-span-xxl")], ["2", "23"]);
+    assert.equal(style(space.container, "--ui-pane-columns"), ["280px", ...tracks.slice(0, 23)].join(" "));
+
+    push(space.container, "sheet,parameters");
+
+    assert.deepEqual([style(space.places[1], "--ui-placement-column"), style(space.places[1], "--ui-placement-column-span")], ["24", "1"]);
+    assert.equal(style(space.container, "--ui-pane-columns-xl"), undefined, "back home, the tracks stand as authored");
+});

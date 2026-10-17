@@ -31,7 +31,7 @@ internal static class UIViewFingerprint
         }
 
         foreach (CompiledUIEvent compiledEvent in events)
-            Append(text, "e", compiledEvent.Id.Value, compiledEvent.Address.ComponentId.Value, compiledEvent.Address.EventName, compiledEvent.Command);
+            Append(text, "e", compiledEvent.Id.Value, compiledEvent.Address.ComponentId.Value, compiledEvent.Address.EventName, compiledEvent.Command, compiledEvent.ShowsPending);
 
         foreach (CompiledUIInteraction interaction in interactions)
         {

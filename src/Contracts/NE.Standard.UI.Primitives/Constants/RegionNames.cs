@@ -60,6 +60,18 @@ public static class RegionNames
     public const string LeadingAction = "leading-action";
 
     /// <summary>
+    /// The leading action a field flags as standing in it — a composer's emoji: the first at the field's start, and kept there when
+    /// the others move under the field.
+    /// </summary>
+    public const string LeadingInFieldAction = "leading-in-field-action";
+
+    /// <summary>
+    /// The trailing action a field flags as standing in it — a composer's Send: the last at the field's end, and kept there when
+    /// the others move under the field.
+    /// </summary>
+    public const string TrailingInFieldAction = "trailing-in-field-action";
+
+    /// <summary>
     /// What a collapsible control carries beside its collapse toggle, in one row with it — a search, a title — seen only while open.
     /// </summary>
     public const string ToggleContent = "toggle-content";

@@ -369,7 +369,8 @@ public sealed class WebRenderMetadata
             {
                 EventId = compiledEvent.Id,
                 Address = compiledEvent.Address,
-                DynamicParameterComponentIds = GetDynamicParameterComponentIds(compiledEvent.Arguments)
+                DynamicParameterComponentIds = GetDynamicParameterComponentIds(compiledEvent.Arguments),
+                ShowsPending = compiledEvent.ShowsPending
             };
 
             metadata.Validate();

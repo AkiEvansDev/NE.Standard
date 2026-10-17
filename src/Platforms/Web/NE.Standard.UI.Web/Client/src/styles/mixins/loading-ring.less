@@ -12,6 +12,16 @@
     animation: ui-spin @ui-loading-ring-turn linear infinite;
 }
 
+// A glyph's own `::before` turned into the ring in its place, whatever draws the glyph — a font's, a mask's, a picture's: what a
+// waiting control shows where its icon stood. Its wearer goes in @ui-loading-rings too.
+.ui-glyph-loading-ring() {
+    content: "";
+    background: none;
+    mask: none;
+    -webkit-mask: none;
+    .ui-loading-ring();
+}
+
 @keyframes ui-spin {
     from {
         transform: rotate(0deg);

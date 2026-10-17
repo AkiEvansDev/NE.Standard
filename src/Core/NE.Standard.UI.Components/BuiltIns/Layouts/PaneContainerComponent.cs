@@ -10,6 +10,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A container whose panes the viewer moves between their places by a grip at each pane's top: a pane dropped on another's place
 /// trades places with it. The places are the cells the panes were added at; a splitter between them sizes the places, not the panes.
+/// A pane added to keep its size takes its own tracks to a place beside its own (<see cref="UIPaneLayout.Arrange"/>).
 /// </summary>
 /// <remarks>
 /// <see cref="Layout"/> names the panes in the order of their places, as <c>chat,tasks,tree</c>. Bound, it comes back from the page
@@ -44,8 +45,12 @@ public abstract partial class PaneContainerComponent<T>(string? id = null) : Con
     /// <summary>
     /// Adds a pane, named for the layout, at the cells of a place of its own; the order panes are added in is the order of their places.
     /// </summary>
-    /// <remarks>A name is letters, digits, <c>-</c> and <c>_</c>, as a layout separates names by commas.</remarks>
-    public T AddPane(string name, UIResponsive<UIGridPlacement> place, IVisualComponent content)
+    /// <remarks>
+    /// A name is letters, digits, <c>-</c> and <c>_</c>, as a layout separates names by commas. With <paramref name="keepsSize"/>,
+    /// the pane keeps its size where it trades with a place lined up beside its own, with no splitter on that axis: a 280 px column
+    /// moved to the other side of a wide one stays 280 px, the wide one taking what is left; elsewhere it takes the place's size.
+    /// </remarks>
+    public T AddPane(string name, UIResponsive<UIGridPlacement> place, IVisualComponent content, bool keepsSize = false)
     {
         ValidateName(name);
         ArgumentNullException.ThrowIfNull(content);
@@ -59,7 +64,7 @@ public abstract partial class PaneContainerComponent<T>(string? id = null) : Con
         ValidatePlace(place);
 
         _panes.Add(name, content);
-        _places.Add(new UIPanePlace(name, place));
+        _places.Add(new UIPanePlace(name, place, keepsSize));
         return Self;
     }
 

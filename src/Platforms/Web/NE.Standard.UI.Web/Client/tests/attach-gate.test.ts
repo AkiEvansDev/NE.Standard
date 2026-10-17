@@ -151,3 +151,22 @@ test("a lost gate nobody waits on reports no unhandled rejection", async () => {
 
     assert.deepEqual(unhandled, []);
 });
+
+test("only a wait after an attach is a re-attach: the page's first is not, nor a gate closed for good", () => {
+    const gate = new AttachGate();
+
+    assert.equal(gate.reattaching, false);
+
+    gate.markAttached();
+    assert.equal(gate.reattaching, false);
+
+    gate.rearm();
+    assert.equal(gate.reattaching, true);
+
+    gate.markAttached();
+    assert.equal(gate.reattaching, false);
+
+    gate.rearm();
+    gate.close(new Error("lost"));
+    assert.equal(gate.reattaching, false);
+});

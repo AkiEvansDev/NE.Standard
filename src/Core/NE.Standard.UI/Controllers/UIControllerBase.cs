@@ -338,6 +338,10 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     internal static bool DeclaresCommand(Type controllerType, string command)
         => CommandCache.GetOrAdd(controllerType, BuildCommandCache).ContainsKey(command);
 
+    /// <summary>Whether the element pressed to run the command shows it is working (<see cref="UICommandAttribute.ShowsPending"/>); the view compiler asks.</summary>
+    internal static bool ShowsPending(Type controllerType, string command)
+        => !CommandCache.GetOrAdd(controllerType, BuildCommandCache).TryGetValue(command, out UICommandDescriptor? descriptor) || descriptor.ShowsPending;
+
     /// <inheritdoc />
     public IUICommandMetadata GetCommandMetadata(string command)
     {
@@ -519,6 +523,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
                     AccessRules = BuildAccessRules(method),
                     Filters = ReadCommandFilters(controllerType, method),
                     ConcurrencyMode = attribute.ConcurrencyMode,
+                    ShowsPending = attribute.ShowsPending,
                     MaxConcurrent = attribute.MaxConcurrent >= 1
                         ? attribute.MaxConcurrent
                         : throw new InvalidOperationException($"Command '{commandName}' on controller '{current.Name}' allows {attribute.MaxConcurrent} concurrent runs; at least one is needed.")

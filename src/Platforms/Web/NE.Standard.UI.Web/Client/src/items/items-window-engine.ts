@@ -35,6 +35,9 @@ const TileSizeProperty = "--ui-window-tile";
 // How many skeleton rows stand after the rows of a host that cannot count while its next ones are read: enough to be seen at its end.
 const PendingRows = 3;
 
+// What a paged host's component root says while it is read, in place of the edge: a page comes whole, over the one it replaces.
+const PageTurnPending = "page";
+
 export type ItemsWindowEngineOptions = {
     readonly root?: ParentNode;
     /** Settles once the window's rows are applied. */
@@ -390,11 +393,12 @@ export class ItemsWindowEngine {
             forgetSizes(state);
 
         // Which edge the rows come in at, where an indicator stands; busy, as a loading component says it is. On the component's root
-        // too, which draws the indicator: the stylesheet reads no child's mark.
+        // too, which draws the indicator, and a paged host's shimmer over the page it turns from: the stylesheet reads no child's mark.
         const owner = host.closest(ComponentSelector);
+        const edge = anchor.toLowerCase();
 
-        host.setAttribute(WindowPendingAttribute, anchor.toLowerCase());
-        owner?.setAttribute(WindowPendingAttribute, anchor.toLowerCase());
+        host.setAttribute(WindowPendingAttribute, edge);
+        owner?.setAttribute(WindowPendingAttribute, host.hasAttribute(WindowPagedAttribute) ? PageTurnPending : edge);
         host.setAttribute("aria-busy", "true");
 
         // A host that cannot count has no spacer to stand for the rows on their way, so a few skeleton rows follow its last one.

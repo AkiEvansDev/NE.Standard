@@ -1,7 +1,11 @@
 // A search field over a list: it asks the server as the reader types, and narrows the list itself only where the list is its own —
-// static options. A list the server answers `OnSearch` with stands as it is until the answer, and shows that answer whole.
+// static options. A list the server answers `OnSearch` with stands as it is until the answer, and shows that answer whole; a query
+// the server takes past a moment to answer turns the field's glyph into the loading ring until the last one asked is answered.
 
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, SelectClass } from "../addressing/dom-attributes.ts";
+import type { EventRegistration } from "../events/event-descriptor.ts";
+import { PendingDelayMilliseconds } from "../events/pending-mark.ts";
 import { CommitPauses } from "./debounced-commit-engine.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
@@ -16,6 +20,68 @@ const SearchInputClass = "ui-search__input";
 const ListClass = "ui-select__list";
 const OptionClass = "ui-select__option";
 const DefaultDebounceMilliseconds = 300;
+// On the field's box while a query is past its moment unanswered: the glyph in it is the loading ring (ui-search.less).
+const WaitingAttribute = "data-ui-search-waiting";
+const FieldClass = "ui-search__field";
+
+/** The queries a field has asked and not had answered, and the moment that shows the ring if they outlast it. */
+type SearchWait = { asked: number; timer: number | null };
+
+const waits = new WeakMap<Element, SearchWait>();
+
+/**
+ * How the pipeline reads a search's `search`: from the query's command taken to its answer — answered, failed, refused, the connection
+ * dropped — the field waits; a query asked while one is still unanswered keeps the wait, and the ring with it.
+ */
+export const SearchEvent: { readonly name: string; readonly registration: Omit<EventRegistration, "name"> } = {
+    name: "search",
+    registration: {
+        started: context => awaitAnswer(context.domEvent.target),
+        completed: context => settleAnswer(context.domEvent.target)
+    }
+};
+
+function awaitAnswer(target: EventTarget | null): void {
+    if (!(target instanceof Element))
+        return;
+
+    const wait = waits.get(target) ?? { asked: 0, timer: null };
+
+    waits.set(target, wait);
+
+    if (wait.asked++ > 0)
+        return;
+
+    // Busy to a screen reader at once; the ring for the eye only past the moment.
+    listOf(target)?.setAttribute("aria-busy", "true");
+    wait.timer = window.setTimeout(() => {
+        wait.timer = null;
+        target.closest(`.${FieldClass}`)?.setAttribute(WaitingAttribute, "");
+    }, PendingDelayMilliseconds);
+}
+
+function settleAnswer(target: EventTarget | null): void {
+    if (!(target instanceof Element))
+        return;
+
+    const wait = waits.get(target);
+
+    if (wait === undefined || --wait.asked > 0)
+        return;
+
+    waits.delete(target);
+
+    if (wait.timer !== null)
+        window.clearTimeout(wait.timer);
+
+    listOf(target)?.removeAttribute("aria-busy");
+    target.closest(`.${FieldClass}`)?.removeAttribute(WaitingAttribute);
+}
+
+/** The listbox a search's field asks the options of. */
+function listOf(input: Element): Element | null {
+    return input.closest(`.${SelectClass}`)?.querySelector(`.${ListClass}`) ?? null;
+}
 
 export type SearchInputEngineOptions = {
     readonly root?: ParentNode;

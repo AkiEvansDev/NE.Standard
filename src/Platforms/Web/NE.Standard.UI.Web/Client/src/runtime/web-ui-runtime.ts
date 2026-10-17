@@ -19,7 +19,7 @@ import { FieldEnterEvent, FieldKeysEngine } from "../interactions/field-keys-eng
 import { ImageFallbackEngine } from "../interactions/image-fallback-engine";
 import { RadioGroupSyncEngine } from "../interactions/radio-group-sync-engine";
 import { SelectInteractionEngine } from "../interactions/select-interaction-engine";
-import { SearchInputEngine } from "../interactions/search-input-engine";
+import { SearchEvent, SearchInputEngine } from "../interactions/search-input-engine";
 import { CommitGate } from "../interactions/commit-gate";
 import { commitWaiting, DebouncedCommitEngine, hasWaitingCommits } from "../interactions/debounced-commit-engine";
 import { sizesFieldsToContent, TextAreaGrowEngine } from "../interactions/text-area-grow-engine";
@@ -116,6 +116,7 @@ import { EffectRegistration, EffectRegistry } from "../effects/effect-registry";
 import { DialogEngine } from "../interactions/dialog-engine";
 import { showLeaveDialog } from "../interactions/leave-dialog";
 import { LeaveGuard } from "../interactions/leave-guard";
+import { NavigationProgress } from "../interactions/navigation-progress";
 import { AddressHistory, differsInIdentity, readQueryParameters } from "../effects/address-history";
 import { observeComponents } from "../interactions/dom-mutations";
 import { NotificationEngine } from "../interactions/notification-engine";
@@ -308,6 +309,8 @@ export class WebUIRuntime {
     private readonly notifications: NotificationEngine;
     private readonly effects: EffectRegistry;
     private readonly leaveGuard: LeaveGuard;
+    // A link's press of its own; a leave the page decides and a switch to another runtime start it here.
+    private readonly navigationProgress = new NavigationProgress({ window });
     // A sign-in's one-time token on its way to the new key's cookie: every page load the page starts waits for it.
     private readonly sessionKey = pageSessionKey;
     private readonly address: AddressHistory;
@@ -338,6 +341,9 @@ export class WebUIRuntime {
 
     // The content region a switch to another runtime turned inert, until an attach is answered.
     private inertContent: Element | null = null;
+
+    // Ends the load bar a switch to another runtime started, as its content is given back or the page gives up.
+    private endSwitchProgress: (() => void) | null = null;
 
     // Sends what the page's fields still hold and resolves once every value given is answered; built with the value engine.
     private readonly settleValues: () => Promise<void>;
@@ -580,7 +586,10 @@ export class WebUIRuntime {
                     get href(): string {
                         return window.location.href;
                     },
-                    assign: url => this.sessionKey.load(() => window.location.assign(url))
+                    assign: url => {
+                    this.navigationProgress.start();
+                    this.sessionKey.load(() => window.location.assign(url));
+                }
                 },
                 addEventListener: (type, listener) => window.addEventListener(type, listener),
                 removeEventListener: (type, listener) => window.removeEventListener(type, listener)
@@ -640,12 +649,13 @@ export class WebUIRuntime {
         // Apart from the list: whether a sort orders a host is the rules', and a virtualized host's order its values'.
         startEngine("items reorder", ({ root }) => new ItemsReorderEngine({ root, services: { metadata: this.metadata, state: propertyState, keysOf: host => this.virtualization.keysOf(host) } }), this.engineContext);
 
-        // A theme flag, not a per-page choice: off the flag, the whole engine never starts. Apart from the list: a row answers a press
-        // where its click is the view's, which the metadata knows.
-        startEngine("press ripple", ({ root }) => document.documentElement.hasAttribute(PressRippleAttribute) ? new PressRippleEngine({
+        // A theme flag, not a per-page choice: off the flag, a press draws nothing and a finger held for a context menu shows the wash
+        // alone. Apart from the list: a row answers a press where its click is the view's, which the metadata knows.
+        startEngine("press ripple", ({ root }) => new PressRippleEngine({
             root,
-            clicks: component => this.metadata.hasServerEventForComponent("click", readComponentId(component)) || interactionEngine.hasEventForComponent("click", readComponentId(component))
-        }) : undefined, this.engineContext);
+            clicks: component => this.metadata.hasServerEventForComponent("click", readComponentId(component)) || interactionEngine.hasEventForComponent("click", readComponentId(component)),
+            waves: document.documentElement.hasAttribute(PressRippleAttribute)
+        }), this.engineContext);
 
         // A theme flag too, and only where a pointer hovers: a touch screen draws no bar at all (core/scrollbar.less).
         startEngine("overlay scrollbars", () => document.documentElement.hasAttribute(OverlayScrollbarsAttribute)
@@ -663,7 +673,8 @@ export class WebUIRuntime {
             effects: this.effects,
             events: options.events,
             validationEngine,
-            valueBinding
+            valueBinding,
+            isReattaching: () => this.transport.isReattaching
         });
 
         // Every event the compiled view declares, attached bare; a package's `registerEvent` for one of them may attach it its own way.
@@ -690,6 +701,8 @@ export class WebUIRuntime {
         }
         // A field's Enter waits for the value it committed, so the command reads what was typed.
         this.eventPipeline.addEvent(FieldEnterEvent.name, FieldEnterEvent.registration);
+        // A search's query waits for its answer, its field's glyph a ring past a moment.
+        this.eventPipeline.addEvent(SearchEvent.name, SearchEvent.registration);
 
         // After the pipeline, whose events the view's own chords are, and after every engine's keydown, so one that took the key wins.
         startEngine("shortcuts", ({ root, dom }) => new ShortcutEngine({
@@ -913,6 +926,9 @@ export class WebUIRuntime {
      * content takes no press or key until the attach that says so (`createAttachRequest`) is answered with the other's whole state.
      */
     private async switchRuntimeAsync(): Promise<void> {
+        // A page load to the eye, though nothing unloads: the bar a link's load shows, from the press to the other runtime's state.
+        this.endSwitchProgress = this.navigationProgress.start();
+
         try {
             await this.settleValues();
         }
@@ -1082,6 +1098,9 @@ export class WebUIRuntime {
         this.connectionLost = true;
         logError("the connection to the server is lost; the page offers a reload.", reason);
         this.connection.lost();
+        // A switch to another runtime under way is over: no other runtime's state is coming.
+        this.endSwitchProgress?.();
+        this.endSwitchProgress = null;
 
         const lost = new Error("the connection to the server is lost; reload the page.", { cause: reason });
 
@@ -1537,6 +1556,8 @@ export class WebUIRuntime {
     private releaseInertContent(): void {
         this.inertContent?.removeAttribute("inert");
         this.inertContent = null;
+        this.endSwitchProgress?.();
+        this.endSwitchProgress = null;
     }
 }
 

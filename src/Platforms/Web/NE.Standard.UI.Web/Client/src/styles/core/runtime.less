@@ -364,11 +364,13 @@ body {
 @ui-loading-ringed: ~".ui-loading:not(.ui-button[data-ui-text-icon]):not([data-ui-input-prefix-icon]):not(.ui-icon):not(.ui-tab-item):not(.ui-file-tile)";
 @ui-loading-veiled: ~".ui-loading:not(.ui-button):not([data-ui-input-prefix-icon]):not(.ui-icon):not(.ui-tab-item):not(.ui-file-tile)";
 
-@{ui-loading-ringed} {
+@{ui-loading-ringed},
+@{ui-pending-veiled} {
     position: relative;
 }
 
-    @{ui-loading-veiled}::after {
+    @{ui-loading-veiled}::after,
+    @{ui-pending-veiled}::after {
         content: "";
         position: absolute;
         inset: 0;
@@ -378,7 +380,9 @@ body {
         pointer-events: none;
     }
 
-    @{ui-loading-ringed}::before {
+    @{ui-loading-ringed}::before,
+    @{ui-pending-ringed}::before,
+    @{ui-pending-veiled}::before {
         content: "";
         position: absolute;
         top: 50%;
@@ -390,3 +394,15 @@ body {
         pointer-events: none;
         .ui-loading-ring();
     }
+
+// A press whose answer is late (data-ui-pending, events/pending-mark.ts) wears the loading look: a button, a tab item, the ring in its
+// icon's place (ui-button.less) or this one over a label that fades; anything else, a row or a card, the veil and the ring, its own
+// ::before and ::after (a row's bar, a drop line) given up while it waits, as under an author's loading — a fade alone read as
+// nothing happening. An author's loading says it already; a disabled element cannot be pressed.
+@ui-pending-ringed: ~".ui-button[data-ui-pending]:not([data-ui-text-icon])";
+@ui-pending-veiled: ~"[data-ui-pending]:not(.ui-loading, .ui-disabled, .ui-button, .ui-tab-item, .ui-icon, .ui-file-tile, [data-ui-input-prefix-icon])";
+
+[data-ui-pending]:not(.ui-loading) {
+    cursor: progress !important;
+}
+

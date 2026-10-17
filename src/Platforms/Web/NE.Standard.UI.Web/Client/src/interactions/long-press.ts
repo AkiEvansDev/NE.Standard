@@ -3,17 +3,42 @@
 // menu and the other is spent, so the menu opens once. A long press is never also a click. On a part that drags as well, holding still
 // opens the menu and moving on without lifting closes it, the drag going on: the browser's own drag, which starts before the time is
 // up (Android's, at about 400 ms), opens the menu as it starts. The same hold, given an `answer`, does something else — a control's
-// tooltip words (tooltip-engine.ts) — timed, spent and cancelled by a second finger alike.
+// tooltip words (tooltip-engine.ts) — timed, spent and cancelled by a second finger alike. Given a part to show it on, a hold past a
+// moment says it is being read: `ui-long-press-hold` there, then `ui-long-press-hold-end` as it opens the menu or is let go, which the
+// press ripple engine answers.
 
 // `.ts` on the value import: `node --test` loads this module as it is.
 import { ContextMenuAttribute, SplittingAttribute } from "../addressing/dom-attributes.ts";
 
 const LongPressDelay = 500;
+// A tap and a scroll's start are over before it: only a finger meaning to hold is shown its hold.
+const HoldShownDelay = 150;
 /** How far the finger may drift, in pixels, and still be held still: past it the press is a scroll, a pan or a drag. */
 const LongPressSlop = 10;
 
 // The `contextmenu` events raised here, which the context menu engine reads as a finger's opening.
 const raised = new WeakSet<Event>();
+
+/** Raised on the part a finger is held on once the hold is shown, with the time left until it opens the menu. */
+export const LongPressHoldEventName = "ui-long-press-hold";
+
+/** Raised where a shown hold ended: the menu it asked for opened, or the finger let go, moved on or became a scroll. */
+export const LongPressHoldEndEventName = "ui-long-press-hold-end";
+
+export type LongPressHoldDetail = {
+    readonly pointerId: number;
+    /** What the finger went down on, inside the part. */
+    readonly target: Element;
+    readonly clientX: number;
+    readonly clientY: number;
+    /** Milliseconds until the hold opens the menu. */
+    readonly duration: number;
+};
+
+export type LongPressHoldEndDetail = {
+    readonly pointerId: number;
+    readonly opened: boolean;
+};
 
 /** Whether a `contextmenu` is the one this module raised for a long press. */
 export function isLongPressOpening(domEvent: Event): boolean {
@@ -26,6 +51,7 @@ type Press = {
     readonly y: number;
     readonly target: Element;
     readonly timer: ReturnType<typeof setTimeout>;
+    readonly shown: ReturnType<typeof setTimeout> | null;
 };
 
 export type LongPressOptions = {
@@ -41,13 +67,20 @@ export type LongPressOptions = {
     readonly answer?: (target: Element) => boolean;
     /** Closes the menu a long press opened, as a press outside it would: the finger moved on to drag what it held. */
     readonly closeMenu?: () => void;
+    /** The part a held finger shows its hold on, or null; left out, a hold shows nothing. */
+    readonly shows?: (target: Element) => Element | null;
 };
 
 export class LongPress {
+    private readonly root: ParentNode;
     private readonly holds: (target: Element) => boolean;
     private readonly answer: ((target: Element) => boolean) | undefined;
     private readonly closeMenu: () => void;
+    private readonly shows: ((target: Element) => Element | null) | undefined;
     private press: Press | null = null;
+
+    // The part showing the hold, until it opens or is let go.
+    private shown: { readonly pointerId: number; readonly part: Element } | null = null;
 
     // What the press a menu opened for went down on, until the next press: its own `contextmenu` and its click are spent.
     private answered: Element | null = null;
@@ -60,9 +93,11 @@ export class LongPress {
     private dragging = false;
 
     public constructor(options: LongPressOptions) {
+        this.root = options.root;
         this.holds = options.holds;
         this.answer = options.answer;
         this.closeMenu = options.closeMenu ?? (() => undefined);
+        this.shows = options.shows;
 
         // Capturing, and registered before the context menu engine's own listener, so a spent `contextmenu` never reaches it.
         options.root.addEventListener("pointerdown", domEvent => this.handleDown(domEvent), true);
@@ -97,8 +132,37 @@ export class LongPress {
         const target = domEvent.target;
         const x = pointer.clientX ?? 0;
         const y = pointer.clientY ?? 0;
+        const shown = this.shows === undefined ? null : setTimeout(() => this.showHold(), HoldShownDelay);
 
-        this.press = { pointerId: pointer.pointerId ?? 0, x, y, target, timer: setTimeout(() => this.fireHeld(), LongPressDelay) };
+        this.press = { pointerId: pointer.pointerId ?? 0, x, y, target, timer: setTimeout(() => this.fireHeld(), LongPressDelay), shown };
+    }
+
+    /** Held past a tap: the part answers, from where the finger went down, for the time left until the menu opens. */
+    private showHold(): void {
+        const press = this.press;
+        const part = press === null || !press.target.isConnected ? null : this.shows?.(press.target) ?? null;
+
+        if (press === null || part === null)
+            return;
+
+        const detail: LongPressHoldDetail = { pointerId: press.pointerId, target: press.target, clientX: press.x, clientY: press.y, duration: LongPressDelay - HoldShownDelay };
+
+        this.shown = { pointerId: press.pointerId, part };
+        part.dispatchEvent(new CustomEvent<LongPressHoldDetail>(LongPressHoldEventName, { bubbles: true, detail }));
+    }
+
+    /** The shown hold is over; the root hears it where its part has left the page, so its answer is never left behind. */
+    private endHold(opened: boolean): void {
+        const shown = this.shown;
+
+        if (shown === null)
+            return;
+
+        this.shown = null;
+
+        const detail: LongPressHoldEndDetail = { pointerId: shown.pointerId, opened };
+
+        (shown.part.isConnected ? shown.part : this.root).dispatchEvent(new CustomEvent<LongPressHoldEndDetail>(LongPressHoldEndEventName, { bubbles: true, detail }));
     }
 
     private handleMove(domEvent: Event): void {
@@ -128,11 +192,21 @@ export class LongPress {
         this.closeMenu();
     }
 
+    /** The press is no longer a hold: nothing is timed, and a hold shown goes. */
     private cancel(): void {
+        this.forget();
+        this.endHold(false);
+    }
+
+    private forget(): void {
         if (this.press === null)
             return;
 
         clearTimeout(this.press.timer);
+
+        if (this.press.shown !== null)
+            clearTimeout(this.press.shown);
+
         this.press = null;
     }
 
@@ -140,19 +214,22 @@ export class LongPress {
     private fireHeld(): void {
         const press = this.press;
 
-        this.press = null;
+        this.forget();
 
         if (press !== null)
             this.fire(press);
     }
 
     private fire(press: Press): void {
-        if (!press.target.isConnected)
+        if (!press.target.isConnected) {
+            this.endHold(false);
             return;
+        }
 
         // Not a menu: nothing to slide to or to leave for a drag, only the browser's menu and the release's click to spend.
         if (this.answer !== undefined) {
             this.answered = this.answer(press.target) ? press.target : null;
+            this.endHold(this.answered !== null);
             return;
         }
 
@@ -164,6 +241,7 @@ export class LongPress {
         // Spent only where a menu took it: with none, the browser's own menu, where it sends one, is the reader's as before.
         this.answered = opening.defaultPrevented ? press.target : null;
         this.openedAt = this.answered === null ? null : { pointerId: press.pointerId, x: press.x, y: press.y };
+        this.endHold(this.answered !== null);
     }
 
     /** The browser's own `contextmenu` for a press the timer answered is spent; one that comes first answers the press itself. */
@@ -183,8 +261,16 @@ export class LongPress {
         // The browser's own menu for the press a hold answers otherwise (Android's, at about the same time) does it now and is spent.
         if (this.answer !== undefined && press !== null && domEvent.target instanceof Node && press.target.contains(domEvent.target)) {
             domEvent.preventDefault();
-            this.cancel();
+            this.forget();
             this.fire(press);
+            return;
+        }
+
+        // The browser's own for the held part (Android's, at about 400 ms) opens the menu itself: the hold shown ends as an opening if a
+        // menu took it, read once every listener has heard it.
+        if (press !== null && this.shown !== null && domEvent.target instanceof Node && press.target.contains(domEvent.target)) {
+            this.forget();
+            setTimeout(() => this.endHold(domEvent.defaultPrevented));
             return;
         }
 
@@ -207,7 +293,7 @@ export class LongPress {
                 return;
 
             if (this.press === press)
-                this.cancel();
+                this.forget();
 
             this.fire(press);
             this.dragging = this.openedAt !== null;

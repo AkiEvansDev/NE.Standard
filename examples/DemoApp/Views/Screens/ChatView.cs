@@ -410,8 +410,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
 
     /// <summary>
     /// The composer: the files waiting on a shelf above the text — not on the page until one is attached — and a text area that grows
-    /// to six rows, sends on Enter and breaks the line on Shift+Enter, with the clip, the emoji and the quick replies before the text
-    /// and Send after it.
+    /// to six rows, sends on Enter and breaks the line on Shift+Enter, with the emoji, the clip and the quick replies before the text
+    /// and Send after it — below the medium width the clip and the quick replies in a row under the text, the emoji and Send beside it.
     /// </summary>
     private static ContainerComponent CreateComposer()
         => new ContainerComponent(ComposerPanelId)
@@ -434,26 +434,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .BindValue(nameof(ChatController.Draft))
                         // In the press itself, not from a command: a browser opens a chooser only inside the reader's own gesture.
                         .AddLeadingAction(UIIconButtons.Attach().InteractOn(EventNames.Click, new OpenPickerEffect(AttachmentsId)))
-                        // A tile's press puts its emoji at the caret on the page itself: no round trip, and the draft's own undo takes it back.
-                        .AddLeadingAction(new FlyoutComponent()
-                            .SetPopupPlacement(UIPopupPlacement.TopStart)
-                            .SetAnchor(new ButtonComponent()
-                                .SetType(UIButtonType.Ghost)
-                                .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
-                                .SetTooltip("Emoji")
-                            )
-                            .SetContent(new ItemsViewComponent()
-                                .SetItems([.. Emoji.Select(static emoji => new TextItem { Id = emoji, Title = emoji, IsContent = true })])
-                                .SetLayoutType(UIItemsLayoutType.Wrap)
-                                .SetSpacing(2)
-                                .SetWidth(UILayoutLength.Absolute(236))
-                                .SetTemplate(new ButtonComponent()
-                                    .SetType(UIButtonType.Ghost)
-                                    .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
-                                    .InteractOn(EventNames.Click, InsertTextEffect.CurrentItemKey(ChatController.ComposerId))
-                                )
-                            )
-                        )
+                        // In the field, as a messenger's: it stays beside the words on a phone.
+                        .AddLeadingAction(CreateEmojiPanel(), inField: true)
                         // A quick reply is the controller's words, so its command answers with the text to insert rather than rewriting the draft.
                         .AddLeadingAction(new SplitButtonComponent()
                             .SetMode(UISplitButtonMode.Menu)
@@ -464,8 +446,34 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                             .SetItems(ChatController.QuickReplies())
                             .OnItemClickWithItemKey(nameof(ChatController.InsertQuickReply))
                         )
-                        .AddTrailingAction(UIIconButtons.Send().OnSubmit(ComposerFormId, nameof(ChatController.SendAsync)))
+                        .AddTrailingAction(UIIconButtons.Send().OnSubmit(ComposerFormId, nameof(ChatController.SendAsync)), inField: true)
+                        // On a phone the words take the row between the emoji and Send: the other tools in a row under it.
+                        .SetActionsBelow(UIResponsiveTier.Md)
                 )
                 .SetPlacement(1, 1, 24, 1)
+            );
+
+    /// <summary>
+    /// The composer's emoji: a tile's press puts its emoji at the caret on the page itself — no round trip, and the draft's own undo
+    /// takes it back.
+    /// </summary>
+    private static FlyoutComponent CreateEmojiPanel()
+        => new FlyoutComponent()
+            .SetPopupPlacement(UIPopupPlacement.TopStart)
+            .SetAnchor(new ButtonComponent()
+                .SetType(UIButtonType.Ghost)
+                .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
+                .SetTooltip("Emoji")
+            )
+            .SetContent(new ItemsViewComponent()
+                .SetItems([.. Emoji.Select(static emoji => new TextItem { Id = emoji, Title = emoji, IsContent = true })])
+                .SetLayoutType(UIItemsLayoutType.Wrap)
+                .SetSpacing(2)
+                .SetWidth(UILayoutLength.Absolute(236))
+                .SetTemplate(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                    .InteractOn(EventNames.Click, InsertTextEffect.CurrentItemKey(ChatController.ComposerId))
+                )
             );
 }

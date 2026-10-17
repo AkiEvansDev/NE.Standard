@@ -42,6 +42,19 @@ test("a split button among a field's actions keeps no padding of its own; its pa
     }
 });
 
+test("a small field's icon-only action fits its line: a small glyph and a hair of padding", () => {
+    for (const host of [".ui-text-input__action", ".ui-text-area__action"]) {
+        const iconOnly = `.ui-input--small ${host} > .ui-button:not(.ui-split-button)[data-ui-text-icon]:not([data-ui-text-title])`;
+
+        // At the medium's 18 px glyph and 4 px round it stood 28 px tall and stretched the 24 px line.
+        assert.match(declarationsOf(iconOnly), /padding: [^;]*0\.125rem\)/);
+        // Read whole: the :not() list holds commas of its own, which the entry split above would cut.
+        const glyph = `.ui-input--small ${host} > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large)`;
+
+        assert.match(css, new RegExp(`${glyph.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^{]*\\{\\s*font-size: 1rem;`));
+    }
+});
+
 test("a flyout among a field's actions has its anchor compacted as the field's other buttons are", () => {
     for (const host of [".ui-text-input__action", ".ui-text-area__action"]) {
         const anchor = `${host} > .ui-flyout > .ui-flyout__anchor > .ui-button`;

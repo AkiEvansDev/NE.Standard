@@ -283,6 +283,11 @@
         padding: @ui-space-2 @ui-space-3;
     }
 
+    // An unfetched row's bar (ui-items-view.less's skeleton) starts where a cell's words do.
+    .ui-table > .ui-table__scroll > [data-ui-host-mode="windowed"] > [data-ui-window-spacer] {
+        padding-inline: @ui-space-3;
+    }
+
     // ShowEmptyTemplate off: an empty table says nothing; hidden, so a bound flag turned on shows it again.
     .ui-table--no-empty > .ui-table__scroll > .ui-table__host > [data-ui-empty-placeholder] {
         display: none;

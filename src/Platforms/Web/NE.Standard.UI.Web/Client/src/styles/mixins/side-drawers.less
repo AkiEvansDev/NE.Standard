@@ -11,38 +11,56 @@
 // side-drawer-width.ts reads the same widths for the engines.
 .ui-side-drawer-bands(@rules) {
     @media (max-width: (@ui-breakpoint-md - 0.02px)) {
-        @ui-drawers: ~'[data-ui-root][data-ui-side-drawers]';
-        @ui-drawers-left: ~'';
-        @ui-drawers-right: ~'';
-        @ui-pins-hold: false;
-        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers])';
+        .ui-side-drawer-band(sm);
         @rules();
     }
 
     @media (min-width: @ui-breakpoint-md) and (max-width: (@ui-breakpoint-xl - 0.02px)) {
-        @ui-drawers: ~'[data-ui-root]:is([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
-        @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
-        @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
-        @ui-pins-hold: true;
-        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+        .ui-side-drawer-band(md);
         @rules();
     }
 
     @media (min-width: @ui-breakpoint-xl) and (max-width: (@ui-breakpoint-xxl - 0.02px)) {
-        @ui-drawers: ~'[data-ui-root]:is([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
-        @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
-        @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
-        @ui-pins-hold: true;
-        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+        .ui-side-drawer-band(xl);
         @rules();
     }
 
     @media (min-width: @ui-breakpoint-xxl) {
-        @ui-drawers: ~'[data-ui-root][data-ui-side-drawers="always"]';
-        @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
-        @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
-        @ui-pins-hold: true;
-        @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="always"])';
+        .ui-side-drawer-band(xxl);
         @rules();
     }
+}
+
+// The same values for one tier of the responsive bands (mixins/responsive.less), which split the width at the same breakpoints: the
+// glyph edge (mixins/glyph-edge.less) reads them inside its own bands rather than nest one set of bands in the other.
+.ui-side-drawer-band(@tier) when (@tier = base), (@tier = sm) {
+    @ui-drawers: ~'[data-ui-root][data-ui-side-drawers]';
+    @ui-drawers-left: ~'';
+    @ui-drawers-right: ~'';
+    @ui-pins-hold: false;
+    @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers])';
+}
+
+.ui-side-drawer-band(@tier) when (@tier = md) {
+    @ui-drawers: ~'[data-ui-root]:is([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+    @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
+    @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
+    @ui-pins-hold: true;
+    @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+}
+
+.ui-side-drawer-band(@tier) when (@tier = xl) {
+    @ui-drawers: ~'[data-ui-root]:is([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+    @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
+    @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
+    @ui-pins-hold: true;
+    @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+}
+
+.ui-side-drawer-band(@tier) when (@tier = xxl) {
+    @ui-drawers: ~'[data-ui-root][data-ui-side-drawers="always"]';
+    @ui-drawers-left: ~':not([data-ui-pinned-left-side])';
+    @ui-drawers-right: ~':not([data-ui-pinned-right-side])';
+    @ui-pins-hold: true;
+    @ui-columns: ~'[data-ui-root]:not([data-ui-side-drawers="always"])';
 }

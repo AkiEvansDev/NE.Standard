@@ -6,8 +6,8 @@ namespace DemoApp.Views.Layouts.PaneContainer;
 
 /// <summary>
 /// A workspace of three panes — a chat, and a column of two tool panes beside it — whose layout and bars are bound, so what the viewer
-/// arranges is the controller's; then a board of four panes the browser keeps, a wall of places of two sizes, and an overview whose
-/// order the controller keeps and puts back.
+/// arranges is the controller's; then a board of four panes the browser keeps, a column that keeps its width, a wall of places of two
+/// sizes, and an overview whose order the controller keeps and puts back.
 /// </summary>
 internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
 {
@@ -90,7 +90,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
 
     // The board across the page; the wall beside the overview, both read at half of it.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateBoardGroup(), .. DemoUI.CreateColumns([CreateWallGroup()], [CreateOverviewGroup()])];
+        => [CreateBoardGroup(), CreateKeptGroup(), .. DemoUI.CreateColumns([CreateWallGroup()], [CreateOverviewGroup()])];
 
     /// <summary>
     /// Four panes in a square and no bars: a pane trades places across, down or corner to corner, and the layout is the browser's.
@@ -122,6 +122,26 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
                 .SetDescription(status)
                 .SetDescriptionType(UITextAppearance.Body)
             );
+
+    /// <summary>
+    /// A document and a 240 px outline beside it that keeps its size: carried to the other side, the outline stays as narrow and the
+    /// document as wide, where a pane without the option would take the size of the place it lands in. On a phone the outline stands
+    /// under the document.
+    /// </summary>
+    private static ContainerComponent CreateKeptGroup()
+    {
+        return DemoUI.CreateExample("A column that keeps its width",
+            new PaneContainerComponent("demo-panes-kept")
+                .SetColumn(UIGridPlacement.GridColumns, UIGridUnit.Absolute(240))
+                .AddRow(UIGridUnit.Auto())
+                .SetSpacing(8)
+                .SetHeight(UILayoutLength.Absolute(220))
+                .AddPane("document", UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), md: UIGridPlacement.At(1, 1, 23, 2)), BoardPane("Release notes", "The page you write"))
+                .AddPane("outline", UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 2, 24, 1), md: UIGridPlacement.At(24, 1, 1, 2)), BoardPane("Outline", "240 px on either side"), keepsSize: true),
+            columns: 24,
+            note: "The outline is added to keep its size: drag it by its grip onto the document and it stays 240 px on the other side, the document as wide as before. It keeps it beside its own place, with no splitter between."
+        );
+    }
 
     /// <summary>
     /// Places of two sizes: a pane carried onto the large place takes its size, and the one standing there goes to the small place.

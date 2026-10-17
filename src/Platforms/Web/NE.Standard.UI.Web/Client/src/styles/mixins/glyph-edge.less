@@ -1,16 +1,34 @@
 @import "./responsive.less";
+@import "./side-drawers.less";
 
 // An icon-only quiet button: a ghost or a link shows only its glyph at rest, which a glyph edge (StackPanel.GlyphEdge) stands on
 // the content's edge (ui-button.less).
 @ui-glyph-hung: ~".ui-button:is(.ui-button--ghost, .ui-button--link)[data-ui-text-icon]:not([data-ui-text-title])";
 
 // The first and the last child a glyph edge shows, at each width by that width's own Visibility (runtime.less bands it so): one
-// collapsed at a width leaves the next on the edge there alone. @rules reads them as @ui-glyph-start and @ui-glyph-end.
+// collapsed at a width leaves the next on the edge there alone. Nor is a drawer's own button the shell hides for its side's state
+// (core/side-drawers.less) shown: a pinned side's close left the pin before it standing its box on the edge. A row on the edge
+// passes it on to its own first or last child: a Back and an avatar in a pane header's leading row. The side-drawer bands split the
+// width where these do, so each band reads its own. @rules reads them as @ui-glyph-start and @ui-glyph-end.
 .ui-glyph-ends(@rules) {
     .ui-responsive-bands(data-ui-visibility data-ui-visibility-sm data-ui-visibility-md data-ui-visibility-xl data-ui-visibility-xxl; {
-        @ui-glyph-shown: ~":not(.ui-hidden, [@{name}='collapsed'])";
-        @ui-glyph-start: ~".ui-stack-panel--glyph-start > :nth-child(1 of @{ui-glyph-shown})";
-        @ui-glyph-end: ~".ui-stack-panel--glyph-end > :nth-last-child(1 of @{ui-glyph-shown})";
+        .ui-side-drawer-band(@tier);
+        .ui-glyph-drawer-buttons-hidden(@ui-pins-hold; @ui-drawers; @ui-columns);
+        @ui-glyph-shown: ~":not(.ui-hidden, [@{name}='collapsed'], @{ui-glyph-hidden})";
+        @ui-glyph-first: ~".ui-stack-panel--glyph-start > :nth-child(1 of @{ui-glyph-shown})";
+        @ui-glyph-last: ~".ui-stack-panel--glyph-end > :nth-last-child(1 of @{ui-glyph-shown})";
+        @ui-glyph-start: ~":is(@{ui-glyph-first}, @{ui-glyph-first}.ui-orientation--horizontal > :nth-child(1 of @{ui-glyph-shown}))";
+        @ui-glyph-end: ~":is(@{ui-glyph-last}, @{ui-glyph-last}.ui-orientation--horizontal > :nth-last-child(1 of @{ui-glyph-shown}))";
         @rules();
     });
+}
+
+// What core/side-drawers.less hides of the drawers' own buttons in a band: a pin below the medium breakpoint and beside the bottom
+// bar; a page's drawer button where the sides are columns, beside the bottom bar, and for a pinned side where a pin holds.
+.ui-glyph-drawer-buttons-hidden(@hold; @drawers; @columns) when (@hold) {
+    @ui-glyph-hidden: ~"[data-ui-left-bar] [data-ui-drawer-pin='left-side'], @{columns} :is([data-ui-drawer-toggle], [data-ui-drawer-pin]), @{drawers}[data-ui-left-bar] [data-ui-drawer-toggle='left-side'], @{drawers}[data-ui-pinned-left-side] [data-ui-drawer-toggle='left-side'], @{drawers}[data-ui-pinned-right-side] [data-ui-drawer-toggle='right-side']";
+}
+
+.ui-glyph-drawer-buttons-hidden(@hold; @drawers; @columns) when not (@hold) {
+    @ui-glyph-hidden: ~"[data-ui-drawer-pin], @{columns} [data-ui-drawer-toggle], @{drawers}[data-ui-left-bar] [data-ui-drawer-toggle='left-side']";
 }

@@ -306,6 +306,10 @@ test("a period in place takes two presses, and a third starts the next period", 
     assert.equal(scene.value.value, on(10));
     assert.equal(scene.end?.value, on(14));
     assert.ok(day(scene, on(12)).classes.has("ui-temporal-input__day--within"));
+    // The band runs from the start's middle to the end's, under their grounds.
+    assert.ok(day(scene, on(10)).classes.has("ui-temporal-input__day--period-start"));
+    assert.ok(day(scene, on(14)).classes.has("ui-temporal-input__day--period-end"));
+    assert.ok(!day(scene, on(12)).classes.has("ui-temporal-input__day--period-start"));
 
     day(scene, on(20)).click();
 

@@ -19,7 +19,7 @@ function declarations(selector: string): string | null {
 }
 
 const collapsedEntry = ".ui-menu[data-ui-collapsed]:not([data-ui-folding]) .ui-menu-item:not([data-ui-menu-flyout] *)";
-const railEntry = ".ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item";
+const railEntry = ".ui-menu--rail > .ui-menu__host > .ui-menu__item:where(:not([data-ui-menu-passive])) > .ui-menu-item";
 const header = " > .ui-button__content > .ui-text__body > .ui-text__header";
 const dot = ".ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon])";
 
@@ -47,6 +47,12 @@ test("a rail's groups never unfold inline and its captions are rules, as a folde
     assert.match(declarations(`${folded} .ui-menu__submenu:not([data-ui-menu-flyout])`) ?? "", /display: none;/);
     assert.match(declarations(`${folded} [data-ui-menu-group] > .ui-menu-item::after`) ?? "", /display: none;/);
     assert.match(declarations(`${folded} .ui-menu-item[data-ui-menu-item-kind="header"]`) ?? "", /border-top: 1px solid/);
+});
+
+test("a rail's rule and caption are a line, not an entry's slot with the line on top", () => {
+    assert.doesNotMatch(css, /\.ui-menu--rail > \.ui-menu__host > \.ui-menu__item > \.ui-menu-item \{/, "an entry's height reaches a passive row again");
+    assert.match(declarations(railEntry) ?? "", /min-height: var\([^;]*var\(--ui-menu-rail-entry-height\)\)/);
+    assert.match(declarations('.ui-menu-item[data-ui-menu-item-kind="separator"]') ?? "", /min-height: [^;]*, 0\)+;/);
 });
 
 test("a rail is narrow and its entries stand icon over a one-line label, the current one's icon filled", () => {

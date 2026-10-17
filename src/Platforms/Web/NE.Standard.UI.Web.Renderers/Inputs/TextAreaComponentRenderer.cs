@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -41,8 +40,10 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
         RenderInputHeader(context, root);
 
         // The author's buttons stand beside the text in one box, outside the text's own scroll; a bare area stays the box itself.
-        if (FieldActionsRenderer.Has(context, RegionNames.LeadingAction) || FieldActionsRenderer.Has(context, RegionNames.TrailingAction))
+        if (FieldActionsRenderer.HasAny(context))
         {
+            FieldActionsRenderer.RenderActionsBelow(context, root, TextAreaComponent.ActionsBelowProperty);
+
             _ = root.Element("div", box =>
             {
                 _ = box.Class($"{ClassName}__box");
@@ -52,9 +53,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
                 RenderField(context, root, box, boxed: true);
 
-                // After the text in the tab order, whichever end they stand at; the stylesheet puts the leading group first.
-                FieldActionsRenderer.Render(context, box, RegionNames.LeadingAction, $"{ClassName}__action {ClassName}__action--leading");
-                FieldActionsRenderer.Render(context, box, RegionNames.TrailingAction, $"{ClassName}__action");
+                FieldActionsRenderer.RenderGroups(context, box, $"{ClassName}__action");
             });
         }
         else

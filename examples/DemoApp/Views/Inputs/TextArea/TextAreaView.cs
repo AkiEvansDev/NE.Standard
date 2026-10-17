@@ -7,7 +7,7 @@ namespace DemoApp.Views.Inputs.TextArea;
 
 /// <summary>
 /// One multi-line field and every property that can be bound to it; then where it is used, a box that grows with its text, how tall it
-/// starts, and a thread's comment box whose Enter posts and whose Escape takes an edit back.
+/// starts, a thread's comment box whose Enter posts and whose Escape takes an edit back, and a composer's own buttons.
 /// </summary>
 /// <remarks>A text area has no affixes, no input type and no clear button; <c>Rows</c> is only where it starts. <c>SubmitOnEnter</c> and the field's actions have no row: Enter needs a form to submit, and the actions are components; the Chat screen's composer has both.</remarks>
 internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
@@ -85,9 +85,9 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
         );
 
     // Every group across the page: the two places side by side, then the growing box, then the three heights in thirds, then the thread
-    // at a thread's width.
+    // at a thread's width, then the actions at a composer's.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateFormGroup(), CreateGrowGroup(), CreateHeightGroup(), CreateCommentsGroup()];
+        => [CreateFormGroup(), CreateGrowGroup(), CreateHeightGroup(), CreateCommentsGroup(), CreateActionsGroup()];
 
     /// <summary>
     /// The two places it lives: a labelled box of prose that is saved with the page, and a small box that is sent, kept small so the
@@ -227,6 +227,39 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             columns: 24,
             note: "`OnEnter`: Enter posts what the box holds, then runs the command, and Shift+Enter breaks the line. Press the pencil on your own comment: the box takes its words, and Enter saves the edit. Escape (`OnEscape`) puts the words back as they were, sends nothing, runs its command, and the box gets back what it held before. Escape is that cancel only while an edit is under way (`BindCancelOnEscape`): otherwise it leaves the box, and a comment half written stays.",
             context: CommentsGroup
+        );
+    }
+
+    /// <summary>
+    /// A composer's own buttons beside its text, and on a phone in a row under it — the tools at its two ends, the emoji and Send kept
+    /// at the text's.
+    /// </summary>
+    private static ContainerComponent CreateActionsGroup()
+    {
+        ButtonComponent emoji = new ButtonComponent()
+            .SetType(UIButtonType.Ghost)
+            .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
+            .SetTooltip("Emoji");
+
+        return DemoUI.CreateExample("Its own buttons, under it on a phone",
+            new TextAreaComponent()
+                .SetAppearance(UIInputAppearance.Tonal)
+                .SetPlaceholder("Reply to the incident")
+                .SetRows(1)
+                .SetAutoGrow(6)
+                .AddLeadingAction(UIIconButtons.Attach())
+                .AddLeadingAction(emoji, inField: true)
+                .AddTrailingAction(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
+                    .SetTooltip("Quick replies")
+                )
+                .AddTrailingAction(UIIconButtons.Send(), inField: true)
+                .SetActionsBelow(UIResponsiveTier.Md)
+                .SetMaxWidth(UILayoutLength.Absolute(560))
+                .SetHorizontalAlignment(UIAlignment.Start),
+            columns: 24,
+            note: "`AddLeadingAction(emoji, inField: true)`, `AddTrailingAction(send, inField: true)` and `SetActionsBelow(UIResponsiveTier.Md)`: below the medium width the text takes the row between the emoji and Send, and the other buttons stand in a row under it, the leading ones at its start and the trailing ones at its end, each end under the field's own button. The same buttons move, so a flyout among them keeps its one panel."
         );
     }
 }

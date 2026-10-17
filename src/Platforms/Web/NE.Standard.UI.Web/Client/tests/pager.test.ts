@@ -133,8 +133,11 @@ type Scene = {
     readonly sizes: FakeElement;
 };
 
-/** A paged table of `total` rows at `offset`, `size` a page, and a pager aimed at it the way the renderer draws one. */
-function scene(offset: number, total: number | null, size = 20, mode = "Full", moreAfter = true, filled = true): Scene {
+/**
+ * A paged table of `total` rows at `offset`, `size` a page, and a pager aimed at it the way the renderer draws one; `read` answers
+ * a window asked for, at once by default.
+ */
+function scene(offset: number, total: number | null, size = 20, mode = "Full", moreAfter = true, filled = true, read: (offset: number) => Promise<void> = async () => undefined): Scene {
     const root = new FakeElement("div");
     const table = FakeElement.of("ui-table", { "data-ui-id": "7", "data-ui-name": "results" });
     const host = FakeElement.of("ui-table__host", {
@@ -184,6 +187,7 @@ function scene(offset: number, total: number | null, size = 20, mode = "Full", m
             requestOffsetAsync: async (_: Element, requested: number) => {
                 asked.push(requested);
                 await Promise.resolve();
+                await read(requested);
             }
         },
         pageKeys: real<EventTarget>(root)
@@ -226,16 +230,92 @@ test("an end with nowhere to go is turned off the framework's way, so the button
     assert.equal(end(pager, "first").disabled, false);
 });
 
-test("a press on an end or a number asks the host for that page's window, and the current page asks for nothing", () => {
+test("a press on an end or a number asks the host for that page's window, from the page marked last, and the marked page asks for nothing", () => {
     const { pager, asked } = scene(40, 100);
+    const presses: (() => FakeElement)[] = [
+        () => end(pager, "next"),
+        () => end(pager, "next"),
+        () => end(pager, "last"),
+        () => end(pager, "first"),
+        () => pager.querySelector("[data-ui-pager-page='2']")!,
+        () => pager.querySelector("[aria-current='page']")!
+    ];
 
-    for (const target of [end(pager, "next"), end(pager, "last"), end(pager, "first"), pager.querySelector("[data-ui-pager-page='2']")!, pager.querySelector("[aria-current='page']")!]) {
-        const click = new FakeEvent("click");
+    // Each asked before the one before it lands: the numbers are drawn again for the page marked, so each is found as it is pressed.
+    for (const target of presses)
+        target().dispatchEvent(new FakeEvent("click"));
 
-        target.dispatchEvent(click);
-    }
-
+    // The second Next marks the last page, so Last leads nowhere.
     assert.deepEqual(asked, [60, 80, 0, 20]);
+});
+
+/** Reads that wait for the test: each answered, by its offset, when the test says. */
+function heldReads(): { readonly read: (offset: number) => Promise<void>; answer: (offset: number) => Promise<void> } {
+    const waiting = new Map<number, () => void>();
+
+    return {
+        read: offset => new Promise<void>(resolve => waiting.set(offset, resolve)),
+        answer: async offset => {
+            // The read is asked a turn after the press.
+            await new Promise(settle => setTimeout(settle, 0));
+            waiting.get(offset)?.();
+            await new Promise(settle => setTimeout(settle, 0));
+        }
+    };
+}
+
+function marked(pager: FakeElement): string | undefined {
+    return pager.querySelector("[aria-current='page']")?.textContent;
+}
+
+test("the page asked for is marked at once, the ends going by it; the line says the rows on show until the new ones land", async () => {
+    const reads = heldReads();
+    const { pager, host } = scene(60, 100, 20, "Full", true, true, reads.read);
+
+    end(pager, "next").dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(marked(pager), "5");
+    assert.equal(pager.querySelectorAll("[aria-current]").length, 1);
+    assert.equal(end(pager, "next").getAttribute("aria-disabled"), "true");
+    assert.equal(end(pager, "last").getAttribute("aria-disabled"), "true");
+    assert.equal(pager.querySelector(".ui-pager__range")!.textContent, "61–80 of 100");
+
+    // The rows landed: the host holds the page asked for.
+    host.setAttribute("data-ui-window-offset", "80");
+    host.setAttribute("data-ui-window-more-after", "false");
+    await reads.answer(80);
+
+    assert.equal(marked(pager), "5");
+    assert.equal(pager.querySelector(".ui-pager__range")!.textContent, "81–100 of 100");
+});
+
+test("a read that came to nothing puts the mark back on the page the host holds", async () => {
+    const reads = heldReads();
+    const { pager } = scene(40, 100, 20, "Full", true, true, reads.read);
+
+    pager.querySelector("[data-ui-pager-page='1']")!.dispatchEvent(new FakeEvent("click"));
+    assert.equal(marked(pager), "1");
+    assert.equal(end(pager, "previous").getAttribute("aria-disabled"), "true");
+
+    await reads.answer(0);
+
+    assert.equal(marked(pager), "3");
+    assert.equal(end(pager, "previous").getAttribute("aria-disabled"), null);
+});
+
+test("a later turn keeps its mark though an earlier read ends before it", async () => {
+    const reads = heldReads();
+    const { pager } = scene(0, 100, 20, "Full", true, true, reads.read);
+
+    end(pager, "next").dispatchEvent(new FakeEvent("click"));
+    end(pager, "next").dispatchEvent(new FakeEvent("click"));
+    assert.equal(marked(pager), "3");
+
+    await reads.answer(20);
+    assert.equal(marked(pager), "3");
+
+    await reads.answer(40);
+    assert.equal(marked(pager), "1");
 });
 
 test("a page turned from the pager opens at its first row in a list that scrolls", async () => {
@@ -376,7 +456,7 @@ test("a kept size the pager no longer offers is dropped, and blocked storage kee
     }
 });
 
-test("Page Down and Page Up in a paged host turn its page, and at an end leave the key to the row cursor", async () => {
+test("Page Down and Page Up in a paged host turn its page from the page marked, and at an end leave the key to the row cursor", async () => {
     const { table, asked, root } = scene(40, 100);
     const down = new FakeKeyboardEvent("PageDown");
 
@@ -386,7 +466,7 @@ test("Page Down and Page Up in a paged host turn its page, and at an end leave t
     const up = new FakeKeyboardEvent("PageUp");
 
     table.dispatchEvent(up);
-    assert.deepEqual(asked, [60, 20]);
+    assert.deepEqual(asked, [60, 40]);
 
     const atEnd = scene(80, 100, 20, "Full", false);
     const pastEnd = new FakeKeyboardEvent("PageDown");

@@ -333,6 +333,11 @@ export const PaneLayoutAttribute = "data-ui-pane-layout";
 export const PanePlaceAttribute = "data-ui-pane-place";
 export const PaneAttribute = "data-ui-pane";
 export const BindLayoutAttribute = "data-ui-bind-layout";
+/** A pane that keeps its size wherever it lands; on such a container, a place's authored cells per tier and the tracks a pane may carry. */
+export const PaneKeepsSizeAttribute = "data-ui-pane-keeps-size";
+export const PaneCellsAttribute = "data-ui-pane-cells";
+export const PaneColumnsAttribute = "data-ui-pane-columns";
+export const PaneRowsAttribute = "data-ui-pane-rows";
 /** On a table header's resize handle and on every cell: the 0-based column it belongs to. */
 export const TableColumnAttribute = "data-ui-table-column";
 /** On a table's header cell: the column's key, the viewport tier below which the author hides the column, and whether it starts hidden. */
@@ -441,6 +446,8 @@ export const SplittingAttribute = "data-ui-splitting";
 export const KeyboardUpAttribute = "data-ui-keyboard-up";
 /** Client-only: on the document element, `reconnecting` once a dropped connection outlasts its grace, `lost` once it is given up. */
 export const ConnectionAttribute = "data-ui-connection";
+/** Client-only: on the element a press raised a command from while its answer is late (`pending-mark.ts`); never a server patch's. */
+export const PendingAttribute = "data-ui-pending";
 /** Client-only: on a container's child whose tracks a splitter took to nothing, so its squeezed words lend the row no height. */
 export const SplitFoldedAttribute = "data-ui-split-folded";
 /** Client-only: on a splitter with nothing left on one side, `before` or `after`: its line stands at that edge, shown only under the pointer. */

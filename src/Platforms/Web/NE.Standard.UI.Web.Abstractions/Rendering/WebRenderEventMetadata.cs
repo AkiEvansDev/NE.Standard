@@ -13,6 +13,9 @@ public sealed class WebRenderEventMetadata
 
     public IReadOnlyList<UIComponentId> DynamicParameterComponentIds { get; init; } = [];
 
+    /// <summary>Whether the element pressed to run the command shows it is working when the answer is slow.</summary>
+    public bool ShowsPending { get; init; } = true;
+
     public void Validate()
     {
         if (EventId.IsEmpty)

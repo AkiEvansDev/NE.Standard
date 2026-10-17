@@ -274,11 +274,6 @@
         .ui-entry-keyboard(~".ui-temporal-input__day--selected");
     }
 
-    // A period's day under the keyboard keeps its tint under the keyboard's wash: both are layers.
-    .ui-temporal-input__day:is(.ui-temporal-input__day--within, .ui-temporal-input__day--preview)@{ui-keyboard-focus}:not(.ui-temporal-input__day--selected) {
-        background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover)), linear-gradient(var(--ui-temporal-day-tint), var(--ui-temporal-day-tint));
-    }
-
     .ui-temporal-input__month {
         .ui-entry-keyboard(~".ui-temporal-input__month--selected");
     }
@@ -336,17 +331,58 @@
     .ui-filled-ground(var(--ui-color-primary); var(--ui-color-on-primary));
 }
 
-// The days within a period, paler as a preview so the ends stay strongest; a layer over the ground, so the washes go under it
-// and the quiet rule, which clears the ground, never takes the tint.
-.ui-temporal-input__day--within:not(.ui-temporal-input__day--selected) {
-    --ui-temporal-day-tint: color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
-    background-image: linear-gradient(var(--ui-temporal-day-tint), var(--ui-temporal-day-tint));
+// A period is one band along each week: the days within lie on it edge to edge across the grid's gap, and an end's own ground stands
+// over its half of it (temporal-calendar.ts marks an end the band runs from). Under the cells, in the grid's own stacking context,
+// so a pointer's, a key's or an end's ground lies over it and the quiet rule, which clears a cell's ground, never takes it. A week's
+// first and last day round it where the row breaks. Paler as a preview, so the ends stay strongest. Rejected: each day its own
+// tinted pill, which read as dots rather than a span.
+.ui-temporal-input__days {
+    isolation: isolate;
 }
 
-.ui-temporal-input__day--preview:not(.ui-temporal-input__day--selected) {
-    --ui-temporal-day-tint: color-mix(in srgb, var(--ui-color-primary) 12%, transparent);
-    background-image: linear-gradient(var(--ui-temporal-day-tint), var(--ui-temporal-day-tint));
+.ui-temporal-input__day:is(.ui-temporal-input__day--within, .ui-temporal-input__day--period-start, .ui-temporal-input__day--period-end) {
+    --ui-temporal-day-tint: color-mix(in srgb, var(--ui-color-primary) 22%, transparent);
 }
+
+.ui-temporal-input__day:is(.ui-temporal-input__day--preview, .ui-temporal-input__day--preview-start) {
+    --ui-temporal-day-tint: color-mix(in srgb, var(--ui-color-primary) 12%, transparent);
+}
+
+.ui-temporal-input__day:is(.ui-temporal-input__day--within, .ui-temporal-input__day--preview, .ui-temporal-input__day--period-start, .ui-temporal-input__day--period-end, .ui-temporal-input__day--preview-start) {
+    position: relative;
+
+    &::before {
+        content: "";
+        position: absolute;
+        z-index: -1;
+        inset-block: 0;
+        inset-inline: (@ui-list-entry-gap / -2);
+        background: var(--ui-temporal-day-tint);
+        pointer-events: none;
+    }
+
+    &:nth-child(7n + 1)::before {
+        inset-inline-start: 0;
+        border-start-start-radius: @ui-list-entry-radius;
+        border-end-start-radius: @ui-list-entry-radius;
+    }
+
+    &:nth-child(7n)::before {
+        inset-inline-end: 0;
+        border-start-end-radius: @ui-list-entry-radius;
+        border-end-end-radius: @ui-list-entry-radius;
+    }
+}
+
+    // Through the grid, so an end in a week's first or last column outranks the rounding above.
+    .ui-temporal-input__days > .ui-temporal-input__day:is(.ui-temporal-input__day--period-start, .ui-temporal-input__day--preview-start)::before {
+        inset-inline-start: 50%;
+    }
+
+    // The pointer's day closes a preview as the end closes the period.
+    .ui-temporal-input__days > .ui-temporal-input__day:is(.ui-temporal-input__day--period-end, .ui-temporal-input__day--preview-end)::before {
+        inset-inline-end: 50%;
+    }
 
 // Which end the next click on the calendar sets.
 .ui-temporal-input__period-caption {

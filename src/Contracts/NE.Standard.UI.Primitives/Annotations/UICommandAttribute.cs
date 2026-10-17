@@ -54,4 +54,11 @@ public sealed class UICommandAttribute : Attribute
     /// </summary>
     /// <remarks>Held on the server, whatever the page sends; an exclusive command already runs one at a time.</remarks>
     public int MaxConcurrent { get; init; } = 1;
+
+    /// <summary>
+    /// Gets or sets whether the element pressed to run the command shows it is working when the answer is slow — after a moment, or at
+    /// once while the connection is coming back. On by default; off for a command whose wait the view already says in its own way.
+    /// </summary>
+    /// <remarks>Read on a press (a click, a row's or a card's, a submit); a component the author shows loading is never marked again.</remarks>
+    public bool ShowsPending { get; init; } = true;
 }

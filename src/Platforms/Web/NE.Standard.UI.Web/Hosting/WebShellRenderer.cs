@@ -464,13 +464,14 @@ public static class WebShellRenderer
                     )
                 )
             )),
-            events = metadata.Events.Select(static compiledEvent => new
-            {
-                eventId = compiledEvent.EventId.Value,
-                componentId = compiledEvent.Address.ComponentId.Value,
-                eventName = compiledEvent.Address.EventName,
-                dynamicParameterComponentIds = compiledEvent.DynamicParameterComponentIds.Select(static id => id.Value)
-            }),
+            // `showsPending` only when a command turned the mark off.
+            events = metadata.Events.Select(static compiledEvent => Written(
+                ("eventId", compiledEvent.EventId.Value),
+                ("componentId", compiledEvent.Address.ComponentId.Value),
+                ("eventName", compiledEvent.Address.EventName),
+                ("dynamicParameterComponentIds", compiledEvent.DynamicParameterComponentIds.Select(static id => id.Value)),
+                ("showsPending", compiledEvent.ShowsPending ? null : false)
+            )),
             interactions = metadata.Interactions.Select(static interaction => new
             {
                 sourceKind = interaction.SourceKind.ToString(),

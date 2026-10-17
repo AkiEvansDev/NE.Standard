@@ -43,6 +43,11 @@ export function isWithinPeriod(day: Date, start: Date | null, end: Date | null):
     return time > startOfDay(start).getTime() && time < startOfDay(end).getTime();
 }
 
+/** Whether the chosen period runs past its first day, so its band joins its two ends; not while its end is being chosen. */
+export function isChosenPeriodSpanning(period: Period, choosingEnd: boolean): boolean {
+    return !choosingEnd && period.start !== null && period.end !== null && startOfDay(period.start).getTime() < startOfDay(period.end).getTime();
+}
+
 /** Whether `day` wears the chosen period's tint. */
 export function isWithinChosenPeriod(day: Date, period: Period, choosingEnd: boolean): boolean {
     // Not while the end is chosen: an end kept from before is not the span being made; only the pointer's preview is drawn.

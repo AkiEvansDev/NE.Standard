@@ -541,6 +541,18 @@ public static class WebAttributes
     /// <summary>On a pane: its name, as the layout lists it.</summary>
     public const string Pane = "data-ui-pane";
 
+    /// <summary>On a pane that keeps its size wherever it lands (<c>AddPane(…, keepsSize: true)</c>).</summary>
+    public const string PaneKeepsSize = "data-ui-pane-keeps-size";
+
+    /// <summary>On a place of a container with such a pane: the cells it was added at, per tier, as JSON (<c>[column, row, columnSpan, rowSpan]</c> or null).</summary>
+    public const string PaneCells = "data-ui-pane-cells";
+
+    /// <summary>On such a container: its columns as CSS tracks, as JSON, where a pane may carry its own along them (no splitter sizes them).</summary>
+    public const string PaneColumns = "data-ui-pane-columns";
+
+    /// <summary>On such a container: its rows as CSS tracks, as JSON, where a pane may carry its own along them.</summary>
+    public const string PaneRows = "data-ui-pane-rows";
+
     /// <summary>On a table's header cell: the column's key, for the columns engine.</summary>
     public const string TableColumnKey = "data-ui-table-column-key";
 

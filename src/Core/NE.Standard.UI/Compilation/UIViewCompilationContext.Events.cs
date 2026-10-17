@@ -36,7 +36,8 @@ internal sealed partial class UIViewCompilationContext
                     Address = new CompiledUIEventAddress(GetComponentId(component.Id), sourceEvent.Name),
                     Command = sourceEvent.Action.Command,
                     Arguments = BuildActionArguments(component, sourceEvent.Action, templatesByKey, componentContexts, rootPath),
-                    SubmitsForm = component is IFormSubmittingComponent submitting && submitting.SubmitsForm(sourceEvent.Name)
+                    SubmitsForm = component is IFormSubmittingComponent submitting && submitting.SubmitsForm(sourceEvent.Name),
+                    ShowsPending = CommandShowsPending(sourceEvent.Action.Command)
                 });
             }
         }
@@ -204,4 +205,8 @@ internal sealed partial class UIViewCompilationContext
             DynamicParameterComponentIds = GetDynamicParameterComponentIds(fullPath.Parameters)
         };
     }
+
+    /// <summary>Whether the command's press shows it is working; a built-in command, or one with no controller to read, does.</summary>
+    private bool CommandShowsPending(string command)
+        => _controllerType is null || !typeof(UIControllerBase).IsAssignableFrom(_controllerType) || UIControllerBase.ShowsPending(_controllerType, command);
 }

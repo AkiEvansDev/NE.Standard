@@ -127,8 +127,9 @@
 // A windowed list draws the rows it has not fetched as grey bars in their shape, never a spinner: a spacer stands for them, and the
 // window engine writes on it the row's measured height (`--ui-window-row`) and, in a wrapping list, a tile's step (`--ui-window-tile`)
 // for the masks that cut the bars — on the spacer, not the host, whose every row an inherited property written there would restyle. It reads `--ui-window-look` to put a few such rows after a list that cannot count while its next
-// rows come. A shimmer runs while a window is read; reduced motion stops it (core/preferences.less) and the bars stay.
-@ui-skeleton-host: ~".ui-items-view:not(.ui-items-view--indicator) > [data-ui-host-mode='windowed']";
+// rows come. A shimmer runs while a window is read; reduced motion stops it (core/preferences.less) and the bars stay. A table's rows
+// are alike, so its windowed host draws them the same way.
+@ui-skeleton-host: ~":is(.ui-items-view:not(.ui-items-view--indicator), .ui-table > .ui-table__scroll) > [data-ui-host-mode='windowed']";
 
 @{ui-skeleton-host} {
     --ui-window-look: skeleton;
@@ -163,10 +164,31 @@
         padding-inline: 0;
     }
 
-    @{ui-skeleton-host}[data-ui-window-pending] > [data-ui-window-spacer] {
+    @{ui-skeleton-host}[data-ui-window-pending] > [data-ui-window-spacer],
+    @{ui-page-turn}::after {
         background-image: linear-gradient(90deg, transparent, var(--ui-wash-hover), transparent);
         background-size: 40% 100%;
         animation: ui-skeleton-shimmer 1.4s linear infinite;
+    }
+
+// A paged host turning its page keeps the old page until the next lands, the shimmer sweeping over it on the view's root, which
+// stays in view however far the rows scrolled (items-window-engine.ts marks it `page`); reduced motion stops the sweep in the middle
+// of the rows. Positioned only meanwhile, so a layer inside the view keeps its own frame.
+@ui-page-turn: ~":is(.ui-items-view:not(.ui-items-view--indicator), .ui-table)[data-ui-window-pending='page']:not(.ui-loading)";
+
+@{ui-page-turn} {
+    position: relative;
+}
+
+    @{ui-page-turn}::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: inherit;
+        background-position: 50% 0;
+        background-repeat: no-repeat;
+        pointer-events: none;
     }
 
 @keyframes ui-skeleton-shimmer {

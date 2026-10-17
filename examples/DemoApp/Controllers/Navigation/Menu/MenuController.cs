@@ -219,6 +219,7 @@ internal sealed partial class BarsGroupContext : DemoGroupContext
             new MenuItem { Id = "archive", Title = "Archived conversations", Icon = DemoIcons.Outline(DemoIcons.Folder) },
             // Empty, not null: a dot on the icon's corner, something new with nothing to count.
             new MenuItem { Id = "profile", Title = "Profile", Icon = DemoIcons.Outline(DemoIcons.User), BadgeText = "" },
+            new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
             admin
         ];
     }

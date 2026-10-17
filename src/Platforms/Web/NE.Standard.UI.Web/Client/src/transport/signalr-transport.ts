@@ -60,6 +60,11 @@ export class SignalRTransport {
         return this.connection.state === HubConnectionState.Reconnecting;
     }
 
+    /** Whether a call made now waits for the page to attach again after a drop or a move to another runtime (`AttachGate.reattaching`). */
+    public get isReattaching(): boolean {
+        return this.gate.reattaching;
+    }
+
     /** A change set pushed, with the runtime that sent it; none from a host that does not say. */
     public onChanges(handler: (changes: ServerChangeSet, runtime: string | null) => void): void {
         this.connection.on("ui.changes", this.inbound.pushed((payload: unknown, sender?: unknown) => handler(payload as ServerChangeSet, readRuntime(sender))));

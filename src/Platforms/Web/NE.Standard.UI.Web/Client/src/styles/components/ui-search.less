@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/loading-ring.less";
 @import "../mixins/popup.less";
 
 // A search is a select whose open list carries its field: the popup a column of the field over the listbox, and only the listbox
@@ -62,6 +63,12 @@
 .ui-search__glyph {
     color: var(--ui-text-muted);
 }
+
+    // A query `OnSearch` has not answered past a moment (search-input-engine.ts): the glyph is the ring, as a field's leading glyph
+    // is while loading; the field still takes the reader's typing.
+    .ui-search__field[data-ui-search-waiting] > .ui-search__glyph::before {
+        .ui-glyph-loading-ring();
+    }
 
 // Typing replaces the selected term, so the browser's own cancel would be a second cross for nothing.
 .ui-search__input::-webkit-search-cancel-button {

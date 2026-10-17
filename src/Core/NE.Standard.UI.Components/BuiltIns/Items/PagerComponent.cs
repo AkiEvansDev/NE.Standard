@@ -17,7 +17,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// <c>ReplaceAddressEffect</c> when the source's <c>Offset</c> changes — and reads it back in <c>OnNavigatedAsync</c>, loading the
 /// window at that page's offset before the page draws.
 /// </remarks>
-public abstract partial class PagerComponent<T>(string? id = null) : VisualComponentBase<T>(id)
+public abstract partial class PagerComponent<T>(string? id = null) : VisualComponentBase<T>(id), IPagerComponent
     where T : PagerComponent<T>, IUIComponentDefinition
 {
     /// <summary>

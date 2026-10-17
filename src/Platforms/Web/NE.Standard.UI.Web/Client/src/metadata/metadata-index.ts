@@ -161,6 +161,8 @@ export type WebRenderEventMetadata = {
     readonly componentId: IdValue;
     readonly eventName: string;
     readonly dynamicParameterComponentIds?: readonly IdValue[];
+    // Sent only as false, for a command whose press is never marked pending (`UICommandAttribute.ShowsPending`).
+    readonly showsPending?: boolean;
 };
 
 type WebRenderEventAddress = {

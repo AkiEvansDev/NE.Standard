@@ -15,12 +15,18 @@ export class ConnectionDropped extends Error {
 export class AttachGate {
     private gate: Promise<void>;
     private pending = false;
+    private attached = false;
     private open: () => void = () => { };
     private fail: (error: unknown) => void = () => { };
     private closedBy: Error | null = null;
 
     public constructor() {
         this.gate = this.arm();
+    }
+
+    /** Whether calls wait for an attach after one was answered — a reconnect, a move to another runtime — rather than the page's first. */
+    public get reattaching(): boolean {
+        return this.pending && this.attached;
     }
 
     /** Why the gate is closed for good; null while it can still open. */
@@ -34,6 +40,7 @@ export class AttachGate {
 
     public markAttached(): void {
         this.pending = false;
+        this.attached = true;
         this.open();
     }
 

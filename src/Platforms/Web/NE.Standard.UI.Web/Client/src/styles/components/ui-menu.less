@@ -13,8 +13,9 @@
 @ui-menu-collapsed-entry: ~"@{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *)";
 // A rail (UIMenuDisplay.Rail) never folds, but its groups fly out as a collapsed menu's do, and its captions are rules.
 @ui-menu-rail: ~".ui-menu--rail";
-// A rail's own entries: its direct rows, never a flyout's, which are a plain nested menu.
-@ui-menu-rail-entry: ~".ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item";
+// A rail's own entries: its direct rows, never a flyout's, which are a plain nested menu, nor a caption's or a rule's, which are a
+// line (below): an entry's height stood an empty slot under it. In :where(), at the weight the rules below were written for.
+@ui-menu-rail-entry: ~".ui-menu--rail > .ui-menu__host > .ui-menu__item:where(:not([data-ui-menu-passive])) > .ui-menu-item";
 // Either: a menu with no room for its groups inline, nor for a shortcut; in :is(), at the collapsed menu's own weight.
 @ui-menu-folded: ~":is(@{ui-menu-collapsed}, @{ui-menu-rail})";
 // An entry whose badge stands on its icon's corner, as the words beside the icon are gone or under it.
@@ -167,6 +168,19 @@
 // A bar's current entry is marked along its bottom edge whatever Side says: a line on one side of a row reads as a box.
 .ui-menu.ui-orientation--horizontal .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-bottom);
+}
+
+// Along a bar the line alone says which entry is current, as a tab strip's does: the list's ground under it read as a stuck hover.
+// A group holding it drops the faint ground too, keeping its short mark. A rail keeps its look; a flyout off the bar is a popup's list.
+@ui-menu-bar-entry: ~".ui-menu.ui-orientation--horizontal:not(.ui-menu--rail) > .ui-menu__host > .ui-menu__item";
+
+@{ui-menu-bar-entry} > .ui-menu-item--selected {
+    .ui-selected-ground(transparent);
+    .ui-reveal-hover-off({ .ui-selected-ground(transparent); });
+}
+
+@{ui-menu-bar-entry}[data-ui-menu-group][data-ui-menu-holds-current] > .ui-menu-item:not(.ui-menu-item--selected) {
+    background-image: none;
 }
 
 // A folded group's flyout is a popup, and a popup's list marks no line: its current entry is its ground and ink alone, rounded as

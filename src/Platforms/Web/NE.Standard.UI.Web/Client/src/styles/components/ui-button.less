@@ -93,26 +93,33 @@
     // stands on the content's edge at any size, the wash running into the padding; a flyout's anchor hangs past its flyout (no :has).
     // Neither shrunk nor capped at its cell, so an auto column does not take the hang out of the button's own width. A band whose
     // edge is not the content's puts it off by `--ui-glyph-hang-start` or `-end` at 0 (core/side-drawers.less).
-    .ui-glyph-hang(@start; @end; @size; @inset) {
-        @{start}:is(@{ui-glyph-hung}@{size}),
-        @{start}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung}@{size} {
-            margin-inline-start: calc(-@inset * var(--ui-glyph-hang-start, 1));
-            flex-shrink: 0;
-            .ui-responsive-property(max-width, --ui-max-width, calc(100% + @inset));
-        }
+    // The inset by size, read by the edge's rules once rather than each size drawing its own copy of them.
+    @{ui-glyph-hung} {
+        --ui-glyph-inset: calc((@ui-control-height - @ui-glyph-md-lg) / 2);
+    }
 
-        @{end}:is(@{ui-glyph-hung}@{size}),
-        @{end}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung}@{size} {
-            margin-inline-end: calc(-@inset * var(--ui-glyph-hang-end, 1));
-            flex-shrink: 0;
-            .ui-responsive-property(max-width, --ui-max-width, calc(100% + @inset));
-        }
+    @{ui-glyph-hung}.ui-button--small {
+        --ui-glyph-inset: calc((@ui-button-height-sm - @ui-glyph-md) / 2);
+    }
+
+    @{ui-glyph-hung}.ui-button--large {
+        --ui-glyph-inset: calc((@ui-button-height-lg - @ui-glyph-xl) / 2);
     }
 
     .ui-glyph-ends({
-        .ui-glyph-hang(@ui-glyph-start; @ui-glyph-end; ~""; ((@ui-control-height - @ui-glyph-md-lg) / 2));
-        .ui-glyph-hang(@ui-glyph-start; @ui-glyph-end; ~".ui-button--small"; ((@ui-button-height-sm - @ui-glyph-md) / 2));
-        .ui-glyph-hang(@ui-glyph-start; @ui-glyph-end; ~".ui-button--large"; ((@ui-button-height-lg - @ui-glyph-xl) / 2));
+        @{ui-glyph-start}:is(@{ui-glyph-hung}),
+        @{ui-glyph-start}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung} {
+            margin-inline-start: calc(-1 * var(--ui-glyph-inset) * var(--ui-glyph-hang-start, 1));
+            flex-shrink: 0;
+            .ui-responsive-property(max-width, --ui-max-width, calc(100% + var(--ui-glyph-inset)));
+        }
+
+        @{ui-glyph-end}:is(@{ui-glyph-hung}),
+        @{ui-glyph-end}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung} {
+            margin-inline-end: calc(-1 * var(--ui-glyph-inset) * var(--ui-glyph-hang-end, 1));
+            flex-shrink: 0;
+            .ui-responsive-property(max-width, --ui-max-width, calc(100% + var(--ui-glyph-inset)));
+        }
     });
 
     // A panel clipping what it holds (Overflow Hidden) lets the hung box and its keyboard frame out: a large button's 12 px and the
@@ -146,8 +153,10 @@
         cursor: progress;
     }
 
-        // No veil on a button (runtime.less says why): a label with no icon to turn into the ring fades under it instead.
-        .ui-button.ui-loading:not([data-ui-text-icon]) > .ui-button__content {
+        // No veil on a button (runtime.less says why): a label with no icon to turn into the ring fades under it instead. A press
+        // waiting on a late answer (data-ui-pending) looks the same.
+        .ui-button.ui-loading:not([data-ui-text-icon]) > .ui-button__content,
+        .ui-button[data-ui-pending]:not([data-ui-text-icon]) > .ui-button__content {
             opacity: @ui-loading-label-opacity;
         }
 
@@ -158,13 +167,10 @@
     }
 
         // Replaces the glyph ligature with the loading ring, keeping width and label; a button with no icon takes the veil in runtime.less.
-        .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before {
-            content: "";
+        .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before,
+        .ui-button[data-ui-pending][data-ui-text-icon] .ui-text__icon::before {
             display: block;
-            background: none;
-            mask: none;
-            -webkit-mask: none;
-            .ui-loading-ring();
+            .ui-glyph-loading-ring();
         }
 
 // No elevation on filled variants: a control sitting on a surface does not cast a shadow here; cards, dialogs and popups still do.

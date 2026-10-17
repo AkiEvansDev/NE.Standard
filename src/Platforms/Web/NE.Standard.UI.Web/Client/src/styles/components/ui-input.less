@@ -140,11 +140,7 @@
 
     // Same trade a button makes: the leading glyph turns into the ring; the suffix is left alone, since it holds the field's controls.
     .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before {
-        content: "";
-        background: none;
-        mask: none;
-        -webkit-mask: none;
-        .ui-loading-ring();
+        .ui-glyph-loading-ring();
     }
 
 // The three inputs that open a popup, and the page switchers' fields, for the rule below.
@@ -158,12 +154,13 @@
 .ui-field-box {
     --ui-field-fill: var(--ui-field-rest);
     color: var(--ui-color-on-surface);
-    // Its own stacking context, or a descendant with a z-index (a sticky gutter) paints over the focus outline.
+    // Its own stacking context, so a descendant's z-index stays inside the box.
     isolation: isolate;
     .ui-field-ground();
 }
 
-// An outline, not an inset shadow, which paints under a child's own ground (a sticky gutter); pulled inward, it lands the same.
+// An outline pulled inward, lying inside the border as an inset shadow would. Neither covers a scroll container inside the box,
+// which Chrome paints as a layer over both: a package's editor clips its scroller one ring in (CodeInput's ui-code-input.less).
 @{ui-field-edged} > .ui-field-box@{ui-field-focus} {
     outline: var(--ui-input-focus-ring, 1px) solid var(--ui-field-ring, var(--ui-color-primary));
     outline-offset: calc(-1 * (var(--ui-input-focus-ring, 1px) + var(--ui-border-width, 1px)));
@@ -477,4 +474,247 @@ input.ui-field {
 .ui-input--ghost:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within,
 .ui-input--ghost:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
     border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
+}
+
+// A text field's actions in a row under it below the tier its root names (`ActionsBelow`, FieldActionsRenderer): the same nodes on
+// the root's grid, never moved or copied, so a flyout or a split button among them keeps its one popup. The field's parts and the
+// in-field actions stand on the field's row, the other actions on a row under it at its two ends, outside the box, under a hairline.
+@ui-below-root: ~":is(.ui-text-area, .ui-text-input)[data-ui-actions-below]";
+@ui-below-box: ~":is(.ui-text-area__box, .ui-text-input__row)";
+@ui-below-in-field-start: ~":is(.ui-text-area__action--in-field.ui-text-area__action--leading, .ui-text-input__action--in-field.ui-text-input__action--leading)";
+@ui-below-in-field-end: ~":is(.ui-text-area__action--in-field, .ui-text-input__action--in-field):not(.ui-text-area__action--leading, .ui-text-input__action--leading)";
+@ui-below-tools: ~":is(.ui-text-area__action, .ui-text-input__action):not(.ui-text-area__action--in-field, .ui-text-input__action--in-field)";
+
+// A ghost button with words at a field's outer end stands its words on the field's inset, where a glyph button's glyph stands and
+// the text starts: a whole step into the padding where a glyph's button takes half. Moved, not a margin, which shrank the button
+// inside its group. Not on a small field, whose buttons all take the same padding, nor on Underline, with no padding to step into.
+@ui-words-field: ~":is(.ui-text-area, .ui-text-input):not(.ui-input--small, .ui-input--underline)";
+@ui-words-button: ~".ui-button--ghost[data-ui-text-title]";
+@ui-leading-actions: ~":is(.ui-text-area__action--leading, .ui-text-input__action--leading)";
+@ui-trailing-actions: ~":is(.ui-text-area__action, .ui-text-input__action):not(.ui-text-area__action--leading, .ui-text-input__action--leading)";
+
+@{ui-words-field} > @{ui-below-box} {
+    > @{ui-leading-actions}:not(@{ui-leading-actions} + *) > @{ui-words-button}:first-child,
+    > @{ui-leading-actions}:not(@{ui-leading-actions} + *) > .ui-flyout:first-child > .ui-flyout__anchor > @{ui-words-button} {
+        left: -@ui-space-1;
+    }
+
+    > @{ui-trailing-actions}:last-child > @{ui-words-button}:last-child,
+    > @{ui-trailing-actions}:last-child > .ui-flyout:last-child > .ui-flyout__anchor > @{ui-words-button} {
+        right: -@ui-space-1;
+    }
+}
+
+// Where each part stands once a band below makes the root a grid, written once rather than per band: placement means nothing to
+// a flex item, and the pseudo-elements exist only where a band gives them content.
+@{ui-below-root} {
+    --ui-field-gap: 0.4em;
+
+    > * {
+        grid-column: 1 / -1;
+    }
+
+    > .ui-input__header {
+        grid-row: 1;
+    }
+
+    > .ui-validation-message {
+        grid-row: 4;
+    }
+
+    > @{ui-below-box} {
+        // The box's ground, on the field's row alone: it inherits every edge, fill and focus mark the box's own rules give it, and
+        // its height by size and appearance, so the actions' row stands on the page.
+        &::before {
+            grid-row: 2;
+            grid-column: 1 / -1;
+            min-height: inherit;
+            border: inherit;
+            border-radius: inherit;
+            background: inherit;
+            outline: inherit;
+            outline-offset: inherit;
+            box-shadow: inherit;
+            transition: inherit;
+        }
+
+        // The hairline's place between the field's row and the tools', the field's whole width (below).
+        &::after {
+            grid-row: 3;
+            grid-column: 1 / -1;
+            align-self: start;
+            pointer-events: none;
+        }
+
+        > * {
+            grid-row: 2;
+        }
+
+        > @{ui-below-in-field-start} {
+            grid-column: 2;
+        }
+
+        > @{ui-below-in-field-end} {
+            grid-column: -3;
+        }
+
+        // Between the field's insets, as its own buttons are, each group keeping the half step it takes into the inset there: an
+        // end's tools line up with the field's button above them, or with where one would stand.
+        > @{ui-below-tools} {
+            grid-row: 3;
+            grid-column: 2 / -2;
+            justify-self: start;
+        }
+
+        > .ui-text-area__action:not(.ui-text-area__action--leading, .ui-text-area__action--in-field),
+        > .ui-text-input__action:not(.ui-text-input__action--leading, .ui-text-input__action--in-field) {
+            justify-self: end;
+        }
+    }
+}
+
+// The text and the in-field actions end on the text's last line, as in the box; the box's insets at the row's two ends.
+.ui-text-area[data-ui-actions-below] {
+    grid-template-columns: var(--ui-text-area-inset) auto minmax(0, 1fr) auto var(--ui-text-area-inset);
+
+    > .ui-text-area__box > :is(.ui-text-area__field, .ui-text-area__action--in-field) {
+        align-self: end;
+    }
+
+    > .ui-text-area__box > .ui-text-area__field {
+        grid-column: 3;
+    }
+}
+
+// Each of the row's parts in a column of its own, in the row's order, so one not shown takes no room: the value's takes what is
+// left, a caption inside no more than its share, as in the row; the row's insets at its two ends.
+.ui-text-input[data-ui-actions-below] {
+    grid-template-columns: var(--ui-field-inset) auto fit-content(65%) auto auto minmax(0, 1fr) auto auto auto auto var(--ui-field-inset);
+
+    &.ui-input--small {
+        --ui-field-gap: @ui-field-padding-sm;
+    }
+
+    > .ui-text-input__row {
+        > * {
+            align-self: center;
+        }
+
+        > .ui-input__header {
+            grid-column: 3;
+        }
+
+        > .ui-input__affix-icon--prefix {
+            grid-column: 4;
+        }
+
+        > .ui-input__affix--prefix {
+            grid-column: 5;
+        }
+
+        > .ui-text-input__field {
+            grid-column: 6;
+        }
+
+        > .ui-input__affix--suffix {
+            grid-column: 7;
+        }
+
+        > .ui-input__affix-icon--suffix {
+            grid-column: 8;
+        }
+
+        > .ui-text-input__clear {
+            grid-column: 9;
+        }
+    }
+}
+
+// In each width band, narrowest first, the roots naming a tier wider than the band; none in the widest.
+@ui-actions-below: ~"[data-ui-actions-below]" ~"[data-ui-actions-below]:not([data-ui-actions-below='sm'])" ~":is([data-ui-actions-below='xl'], [data-ui-actions-below='xxl'])" ~"[data-ui-actions-below='xxl']" ~"";
+
+// The hairline itself, where the field draws no edge of its own: Outline's, Filled's and Underline's bottom edge stood on it, one
+// thick line. Decoration, and a border, which forced colours keep in the system's own colour.
+:is(.ui-input--ghost, .ui-input--tonal)@{ui-below-root} > @{ui-below-box}::after {
+    border-top: 1px solid var(--ui-color-border);
+}
+
+.ui-responsive-bands(@ui-actions-below; {
+    .ui-field-actions-below(@name);
+});
+
+// What a band below the tier switches on: the grid, the box's ground handed to its stand-in, the hairline, and margins standing in
+// for the gaps, so a caption, a message or a part not shown leaves no gap behind.
+.ui-field-actions-below(@roots) when not (@roots = ~"") {
+    :is(.ui-text-area, .ui-text-input)@{roots} {
+        display: grid;
+        gap: 0;
+
+        > .ui-input__header {
+            margin-bottom: @ui-space-1;
+        }
+
+        > .ui-validation-message {
+            margin-top: @ui-space-1;
+        }
+
+        > @{ui-below-box} {
+            display: contents;
+
+            &::before,
+            &::after {
+                content: "";
+            }
+
+            > @{ui-below-in-field-start} {
+                margin-right: var(--ui-field-gap);
+            }
+
+            > @{ui-below-in-field-end} {
+                margin-left: var(--ui-field-gap);
+            }
+
+            // 6 px under the hairline; their sides keep the field's own (above).
+            > @{ui-below-tools} {
+                margin-top: calc(1px + 1.5 * @ui-space-1);
+            }
+        }
+    }
+
+    // The tools' row has outer ends of its own, whatever stands in the field's row: words on the inset there too (above). A flyout's
+    // button with words there is left half a step in, for the size of every band's copy.
+    @{ui-words-field}@{roots} > @{ui-below-box} {
+        > @{ui-leading-actions}:not(.ui-text-area__action--in-field, .ui-text-input__action--in-field) > @{ui-words-button}:first-child {
+            left: -@ui-space-1;
+        }
+
+        > @{ui-trailing-actions}:not(.ui-text-area__action--in-field, .ui-text-input__action--in-field) > @{ui-words-button}:last-child {
+            right: -@ui-space-1;
+        }
+    }
+
+    .ui-text-area@{roots} > .ui-text-area__box {
+        > :is(.ui-text-area__field, .ui-text-area__action--in-field) {
+            margin-bottom: calc(@ui-space-1 + var(--ui-border-width, 1px));
+        }
+
+        > .ui-text-area__field {
+            margin-top: calc(@ui-space-1 + var(--ui-field-top-edge, var(--ui-border-width, 1px)));
+        }
+    }
+
+    .ui-text-input@{roots} > .ui-text-input__row {
+        // A caption inside is held by its column instead, whose share a percentage of its own would cut again.
+        > .ui-input__header {
+            max-width: none;
+        }
+
+        > :is(.ui-input__header, .ui-input__affix-icon--prefix, .ui-input__affix--prefix) {
+            margin-right: var(--ui-field-gap);
+        }
+
+        > :is(.ui-input__affix--suffix, .ui-input__affix-icon--suffix, .ui-text-input__clear) {
+            margin-left: var(--ui-field-gap);
+        }
+    }
 }

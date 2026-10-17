@@ -1,7 +1,7 @@
 // A windowed items view draws the rows it has not fetched as a skeleton: the window engine writes the row's measured height, and a
 // tile's step in a wrapping list, for the stylesheet's bars; marks the host busy while a window is read, with the edge it reads at;
 // and, after the rows of a host that cannot count, stands a few skeleton rows while its next ones come, taken away when they land.
-// A host whose look is the indicator (a conversation's) or none (a table's) gets none of those rows: nothing in it moves.
+// A host whose look is the indicator (a conversation's) or none (a package's own list) gets none of those rows: nothing in it moves.
 // Read from its very top, a host that cannot count keeps the row the reader saw in place and reads on while the reader is still
 // at the edge; a read that brought nothing asks again for nothing. A host that counts, its rows of different heights, keeps the row
 // the reader sees in place through every layout: rows read in above it, and rows landing below that move the mean row size its
@@ -134,7 +134,7 @@ test("a host that counts reads its window marked pending, its spacers standing f
     assert.equal(host.hasAttribute("data-ui-window-pending"), false);
 });
 
-test("a host whose stylesheet draws no skeleton — a table's — gets no skeleton rows", async () => {
+test("a host whose stylesheet draws no skeleton — a package's own list — gets no skeleton rows", async () => {
     const { host, engine, reads } = scene({ boxes: [[0, 0], [0, 30], [0, 60]], look: "" });
 
     engine.reconsider();

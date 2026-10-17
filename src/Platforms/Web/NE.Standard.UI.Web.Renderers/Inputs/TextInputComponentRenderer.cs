@@ -3,7 +3,6 @@ using System.Globalization;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -53,6 +52,8 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
         // Whether the clear button shows, on the root: the button itself is always rendered.
         RenderFlagAttribute(context, root, TextInputComponent.ShowClearButtonProperty, ClearShownAttribute);
+
+        FieldActionsRenderer.RenderActionsBelow(context, root, TextInputComponent.ActionsBelowProperty);
 
         _ = root.Element("span", row =>
         {
@@ -146,10 +147,8 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 _ = clear.Attribute(WebAttributes.Clear);
             });
 
-            // The author's buttons come after the value in the tab order, whichever end they stand at: the leading group follows it
-            // here and the stylesheet puts it first. After the clear, what the field can do with its value stands past what takes it away.
-            FieldActionsRenderer.Render(context, row, RegionNames.LeadingAction, $"{ClassName}__action {ClassName}__action--leading");
-            FieldActionsRenderer.Render(context, row, RegionNames.TrailingAction, $"{ClassName}__action");
+            // After the clear, what the field can do with its value stands past what takes it away.
+            FieldActionsRenderer.RenderGroups(context, row, $"{ClassName}__action");
         });
 
         RenderValidationMessage(context, root);

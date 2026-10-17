@@ -182,3 +182,20 @@
 .ui-progress:not([aria-valuenow]) .ui-progress__value {
     display: none;
 }
+
+// The page's own load under way (navigation-progress.ts): a progress with no reading, thin, in the brand's colour, along the window's
+// top, over the page and under a dialog and a notice. Fixed, so it moves nothing; its track has no ground, so it is the segment alone,
+// and its height is the bar's, which holds nothing else.
+.ui-navigation-progress {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: @ui-z-navigation;
+    color: var(--ui-color-primary);
+    pointer-events: none;
+}
+
+.ui-navigation-progress > .ui-progress__track {
+    height: 3px;
+    border-radius: 0;
+    background: none;
+}

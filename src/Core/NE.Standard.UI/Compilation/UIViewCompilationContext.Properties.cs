@@ -112,7 +112,8 @@ internal sealed partial class UIViewCompilationContext
     /// </summary>
     private void EnsurePagerTargetPages(IVisualComponent component)
     {
-        if (!TryGetPropertyDefinition(component.TypeKey, PagerComponent.TargetProperty, out UIPropertyDefinition? targetDefinition))
+        // A pager by its type, not by a property named Target, which another component may carry for its own sake.
+        if (component is not IPagerComponent || !TryGetPropertyDefinition(component.TypeKey, PagerComponent.TargetProperty, out UIPropertyDefinition? targetDefinition))
             return;
 
         if (TryGetPropertyDefinition(component.TypeKey, PagerComponent.PageSizesProperty, out UIPropertyDefinition? sizesDefinition) && sizesDefinition.Getter(component) is IReadOnlyList<int> sizes)
