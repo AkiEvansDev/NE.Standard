@@ -23,6 +23,10 @@ html {
     // No tap highlight (inherited, so one rule): a phone's browser flashes an unrounded box in its own colour over whatever the finger
     // touched before the control's own pressed and hover states, which answer the press. Keyboard focus rings are untouched.
     -webkit-tap-highlight-color: transparent;
+
+    // A phone's browser paints its system bar under the page in the document's background, not the body's: the window's foot's
+    // colour while one stands on the window's bottom edge (window-foot.ts); none, and the body's ground stands for the page as before.
+    background-color: var(--ui-window-foot, transparent);
 }
 
 // A load of another of the application's pages keeps this one drawn until the next has painted, then fades across to it, so the
@@ -50,6 +54,12 @@ body {
     font-size: var(--ui-text-body-font-size);
     line-height: var(--ui-text-body-line-height);
     font-weight: var(--ui-text-body-font-weight);
+}
+
+// Where the page runs under a phone's system bar, a foot on the window's bottom edge keeps clear of it by an edge in its own colour
+// (window-foot.ts): a border, not padding, so the component's own padding stands as authored.
+[data-ui-window-foot][data-ui-window-foot-edge] {
+    border-bottom: env(safe-area-inset-bottom, 0px) solid var(--ui-window-foot-ink, transparent);
 }
 
 button,

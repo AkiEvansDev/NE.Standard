@@ -278,4 +278,17 @@ public interface IVisualComponent : IBindableComponent
     /// itself, a canvas, a grip) and, on a touch screen, anything a long press opens a menu on never select; a field's value always does.
     /// </remarks>
     bool? TextSelectable { get; }
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="WindowFoot"/>.
+    /// </summary>
+    static UIProperty WindowFootProperty { get; } = new(nameof(WindowFoot));
+
+    /// <summary>
+    /// Gets whether this component is the window's foot where it stands at the window's bottom edge (a chat's composer, a pane's last
+    /// row): the phone's system bar under the page takes its colour, and where the page runs under that bar it keeps clear of it in
+    /// that colour. The page's bottom bar is one by itself.
+    /// </summary>
+    /// <remarks>Render-time only.</remarks>
+    bool? WindowFoot { get; }
 }

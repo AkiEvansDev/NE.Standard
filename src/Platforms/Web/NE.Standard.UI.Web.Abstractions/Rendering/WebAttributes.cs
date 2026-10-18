@@ -423,6 +423,12 @@ public static class WebAttributes
     public const string BottomBar = "data-ui-bottom-bar";
 
     /// <summary>
+    /// On a component root that is the window's foot (<c>WindowFoot</c>): where it stands at the window's bottom edge the phone's
+    /// system bar takes its colour (window-foot.ts), and it keeps clear of the bar where the page runs under it.
+    /// </summary>
+    public const string WindowFoot = "data-ui-window-foot";
+
+    /// <summary>
     /// On a left side that is a rail alone where the view keeps it a drawer (<c>UIViewOptions.RailBottomBar</c> off): where the view's
     /// sides are drawers its rail is drawn as a list (menu-group-engine.ts).
     /// </summary>

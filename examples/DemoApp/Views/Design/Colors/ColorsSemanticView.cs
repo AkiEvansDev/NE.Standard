@@ -1,6 +1,5 @@
 using System;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Styling.Theme;
 
 namespace DemoApp.Views.Design.Colors;
 

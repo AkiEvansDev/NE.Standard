@@ -199,6 +199,9 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 _ = target.Attribute(TextSelectAttribute, selectable ? "true" : "false");
         }, TextSelectOperations);
 
+        if (ResolveRenderValue(context, IVisualComponent.WindowFootProperty, out bool? windowFoot, out _) == WebRenderValueKind.Static && windowFoot == true)
+            _ = html.Attribute(WebAttributes.WindowFoot);
+
         _ = RenderProperty<UIAlignment?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HorizontalAlignmentProperty, static (target, value) =>
         {
             if (value is UIAlignment alignment)

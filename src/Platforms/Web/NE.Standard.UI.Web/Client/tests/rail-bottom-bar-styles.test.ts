@@ -207,7 +207,7 @@ test("a page's own drawer button shows only where its side is a drawer: not wher
 
 test("on a tablet the sides are drawers where the view names a wider width, and a pinned side keeps its column", () => {
     assert.match(declarations(tablet, `${wider}:not([data-ui-pinned-left-side]) > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /transform: translateX\(-100%\);/);
-    assert.match(tablet, /:not\(\[data-ui-pinned-right-side\]\) > \[data-ui-region="right-side"\] \{\s*right: 0;\s*transform: translateX\(100%\);/);
+    assert.match(tablet, /:not\(\[data-ui-pinned-right-side\]\) > \[data-ui-region="right-side"\] \{\s*right: 0;\s*padding-right: env\(safe-area-inset-right, 0px\);\s*padding-bottom: env\(safe-area-inset-bottom, 0px\);\s*transform: translateX\(100%\);/);
     assert.match(declarations(tablet, `${wider}:not([data-ui-pinned-left-side])[data-ui-drawer-open="left-side"] > [data-ui-region="left-side"],\n  ${wider}:not([data-ui-pinned-right-side])[data-ui-drawer-open="right-side"] > [data-ui-region="right-side"]`) ?? "", /visibility: visible;\s*transform: none;/);
     assert.match(mediaBlocks("@media (min-width: 1536px) {"), /\[data-ui-root\]\[data-ui-side-drawers="always"\]:not\(\[data-ui-pinned-left-side\]\) > \[data-ui-region="left-side"\]/, "always is a drawer on the widest screen too");
 });

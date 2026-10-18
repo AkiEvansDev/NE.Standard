@@ -160,6 +160,10 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = null)]
     public bool? TextSelectable { get; set; }
 
+    /// <inheritdoc />
+    [UIComponentProperty(Contract = typeof(IVisualComponent), IsBindable = false, DefaultValue = null)]
+    public bool? WindowFoot { get; set; }
+
     /// <summary>
     /// Sets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>.
     /// </summary>

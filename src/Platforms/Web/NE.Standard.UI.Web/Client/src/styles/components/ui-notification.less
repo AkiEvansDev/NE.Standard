@@ -5,9 +5,11 @@
 
 .ui-notification-host {
     position: fixed;
-    right: 0;
-    // Above a phone's bottom bar, whose height the engine writes as each toast comes (notification-engine.ts).
-    bottom: var(--ui-notification-lift, 0px);
+    // Clear of a phone's cut-out where it is turned on its side.
+    right: env(safe-area-inset-right, 0px);
+    // Above a phone's bottom bar, whose height the engine writes as each toast comes (notification-engine.ts), and with no bar above
+    // the system bar the page runs under; the bar's height holds that bar's already.
+    bottom: max(var(--ui-notification-lift, 0px), env(safe-area-inset-bottom, 0px));
     z-index: @ui-z-notification;
     display: flex;
     flex-direction: column;
@@ -30,8 +32,8 @@
 @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
     [data-ui-notifications="top"] .ui-notification--connection {
         position: fixed;
-        right: @ui-space-4;
-        bottom: calc(var(--ui-notification-lift, 0px) + @ui-space-4);
+        right: calc(@ui-space-4 + env(safe-area-inset-right, 0px));
+        bottom: calc(max(var(--ui-notification-lift, 0px), env(safe-area-inset-bottom, 0px)) + @ui-space-4);
     }
 }
 

@@ -93,7 +93,9 @@ public static class WebShellRenderer
         _ = head.Element("meta", meta =>
         {
             _ = meta.Attribute("name", "viewport");
-            _ = meta.Attribute("content", "width=device-width, initial-scale=1");
+            // Cover: without it env(safe-area-inset-*) is zero, and the shell's parts at the window's edges cannot keep clear of a
+            // phone's system bars.
+            _ = meta.Attribute("content", "width=device-width, initial-scale=1, viewport-fit=cover");
         });
 
         // The tab's name and the history entry's: without one a browser shows the address.

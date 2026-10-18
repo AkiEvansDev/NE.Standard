@@ -11,6 +11,7 @@
     <NEStandardUIUsing Include="NE.Standard.UI.Abstractions.Navigation" />
     <NEStandardUIUsing Include="NE.Standard.UI.Abstractions.Recursive" />
     <NEStandardUIUsing Include="NE.Standard.UI.Abstractions.Styling" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Abstractions.Styling.Theme" />
   </ItemGroup>
 
 </Project>

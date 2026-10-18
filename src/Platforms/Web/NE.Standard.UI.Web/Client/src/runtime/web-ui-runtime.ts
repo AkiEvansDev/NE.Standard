@@ -38,6 +38,7 @@ import { PagerEngine } from "../interactions/pager-engine";
 import { MenuGroupEngine } from "../interactions/menu-group-engine";
 import { MenuSearchEngine } from "../interactions/menu-search-engine";
 import { ScreenKeyboardEngine } from "../interactions/screen-keyboard";
+import { WindowFootEngine } from "../interactions/window-foot";
 import { SideDrawerEngine } from "../interactions/side-drawer-engine";
 import { CollapsibleEngine } from "../interactions/collapsible-engine";
 import { GridSplitterEngine } from "../interactions/grid-splitter-engine";
@@ -261,6 +262,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["menu search", ({ root }) => new MenuSearchEngine({ root })],
     ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
     ["screen keyboard", () => new ScreenKeyboardEngine()],
+    ["window foot", ({ root }) => new WindowFootEngine({ root })],
     ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
     ["pane container", ({ root }) => new PaneContainerEngine({ root })],
     ["accordion", ({ root }) => new AccordionEngine({ root })],

@@ -290,6 +290,8 @@ export function pinnedAttribute(side: string): string {
 export const BottomBarAttribute = "data-ui-bottom-bar";
 /** On a left side that is a rail alone kept a drawer (UIViewOptions.RailBottomBar off): where the view's sides are drawers its rail is a list. */
 export const RailDrawerAttribute = "data-ui-rail-drawer";
+/** On a component that is the window's foot (WindowFoot): the phone's system bar under the page takes its colour (window-foot.ts). */
+export const WindowFootAttribute = "data-ui-window-foot";
 /** On the root where the content region's root fills the height (WebAttributes.ContentFills): content-fills.ts keeps it. */
 export const ContentFillsAttribute = "data-ui-content-fills";
 /** On each band of the page, naming it: a side's drawer is found by it. */
@@ -444,6 +446,8 @@ export const LanguageAttribute = "data-ui-language";
 export const SplittingAttribute = "data-ui-splitting";
 /** Client-only: on the document element while a phone's on-screen keyboard is up, which the page's bottom bar steps aside for. */
 export const KeyboardUpAttribute = "data-ui-keyboard-up";
+/** Client-only: on a window's foot standing on the window's bottom edge where the page runs under the system bar, which it keeps clear of. */
+export const WindowFootEdgeAttribute = "data-ui-window-foot-edge";
 /** Client-only: on the document element, `reconnecting` once a dropped connection outlasts its grace, `lost` once it is given up. */
 export const ConnectionAttribute = "data-ui-connection";
 /** Client-only: on the element a press raised a command from while its answer is late (`pending-mark.ts`); never a server patch's. */

@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
 using NE.Colors;
-using NE.Standard.UI.Abstractions.Styling.Theme;
 
 namespace DemoApp.Controllers.Design.Colors;
 

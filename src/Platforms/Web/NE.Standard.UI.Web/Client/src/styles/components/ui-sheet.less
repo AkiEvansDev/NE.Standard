@@ -14,8 +14,8 @@
     max-height: 75dvh;
     overflow: auto;
     overscroll-behavior: contain;
-    // The safe area kept below, where a phone draws its home bar.
-    padding: 0 @ui-space-2 calc(@ui-space-2 + env(safe-area-inset-bottom));
+    // The safe area kept below, where a phone draws its home bar, and at the sides, where a phone on its side has its cut-out.
+    padding: 0 calc(@ui-space-2 + env(safe-area-inset-right, 0px)) calc(@ui-space-2 + env(safe-area-inset-bottom)) calc(@ui-space-2 + env(safe-area-inset-left, 0px));
     border-inline: none;
     border-bottom: none;
     .ui-sheet-edge();

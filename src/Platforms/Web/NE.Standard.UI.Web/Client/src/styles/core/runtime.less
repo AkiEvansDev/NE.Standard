@@ -19,6 +19,9 @@
     width: 100%;
     min-height: 100vh;
     min-width: 0;
+    // A phone turned on its side runs the page under its camera's cut-out (viewport-fit=cover): the page keeps clear of it, its ground
+    // running under.
+    padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
     background: var(--ui-color-background);
     color: var(--ui-color-on-background);
     z-index: 1;
