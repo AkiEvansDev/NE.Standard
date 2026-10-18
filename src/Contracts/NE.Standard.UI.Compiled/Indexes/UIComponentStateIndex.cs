@@ -75,4 +75,12 @@ public sealed class UIComponentStateIndex
 
         return state.TryGet(property, out value);
     }
+
+    /// <summary>
+    /// Gets a component's static text value; null where the property is unset, bound or blank.
+    /// </summary>
+    public string? GetStaticString(UIComponentId componentId, UIProperty property)
+        => TryGetValue(componentId, property, out CompiledUIPropertyValue? value) && !value.IsBind && value.Value is string text && !string.IsNullOrWhiteSpace(text)
+            ? text
+            : null;
 }

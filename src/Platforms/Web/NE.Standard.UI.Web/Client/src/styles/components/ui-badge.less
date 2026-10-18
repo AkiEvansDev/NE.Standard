@@ -177,7 +177,7 @@
 // filled rules, so a fill named wins over a style's own look by order alone.
 .ui-badge--colored:not(.ui-badge-fill--filled, .ui-badge-fill--outline),
 .ui-badge-fill--tinted {
-    background: color-mix(in srgb, var(--ui-badge-color, currentColor) 16%, transparent);
+    background: color-mix(in srgb, var(--ui-badge-color, currentColor) @ui-own-tint-share, transparent);
     color: var(--ui-badge-ink);
     box-shadow: none;
     --ui-faint-base: inherit;
@@ -198,7 +198,7 @@
 // Surface names no colour: tinted or outlined it takes the words around it, its ground or edge mixed from them as its filled edge is.
 .ui-badge-style--surface:not(.ui-badge--colored) {
     &.ui-badge-fill--tinted {
-        background: color-mix(in srgb, currentColor 10%, transparent);
+        background: @ui-neutral-tint;
         color: inherit;
     }
 

@@ -209,12 +209,19 @@ public static class UIText
             .SetVerticalAlignment(UIAlignment.Center)
             .SetMargin(UIThickness.All(12, 0, 0, 0))
             .AsContent(TextComponent.TitleProperty, TextComponent.DescriptionProperty)
-            .SetPlacement(2, 1, 23, 1);
+            .SetPlacement(2, 1, 1, 1);
 
-        return new ContainerComponent()
+        ContainerComponent person = new ContainerComponent()
             .SetColumn(1, UIGridUnit.Auto())
             .AddChild(picture)
             .AddChild(words);
+
+        // The words in one star column, the rest none: sized to its words in a row, a person shared them out over 23 star columns,
+        // each rounded down to the layout's sub-pixel, and the name ended in an ellipsis a fraction of a pixel short.
+        for (var column = 3; column <= UIGridPlacement.GridColumns; column++)
+            _ = person.SetColumn(column, UIGridUnit.Absolute(0));
+
+        return person;
     }
 
     /// <summary>

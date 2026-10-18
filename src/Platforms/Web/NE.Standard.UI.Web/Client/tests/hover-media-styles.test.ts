@@ -3,11 +3,12 @@
 // marks and selection stand outside it, so a phone still shows them.
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import less from "less";
+import { addOnEntries } from "./add-on-stylesheets.ts";
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -93,16 +94,6 @@ test("every hover look is drawn only where the pointer can hover", () => {
 
     assert.deepEqual(loose.map(rule => rule.selector), []);
 });
-
-// Every add-on's entry stylesheet, where the tree holds them: a slice's own mirror has the core alone.
-const addOns = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../../../addons");
-const addOnEntries = existsSync(addOns) ? [
-    "Charts/src/NE.Standard.UI.Web.Charts/Client/src/styles/ui-charts.less",
-    "CodeInput/src/NE.Standard.UI.Web.CodeInput/Client/src/styles/ui-code-input.less",
-    "CodeInput/src/NE.Standard.UI.Web.CodeInput/Client/src/styles/ui-markdown.less",
-    "DataGrid/src/NE.Standard.UI.Web.DataGrid/Client/src/styles/ui-data-grid.less",
-    "Graph/src/NE.Standard.UI.Web.Graph/Client/src/styles/ui-graph.less"
-].map(entry => resolve(addOns, entry)) : [];
 
 // What a hover brings up that a finger needs, its tap's hover the only way there: a node's handle a link is pulled from.
 const fingerReveals = [".ui-graph:not(.ui-graph--connecting) .ui-graph__node:hover > .ui-graph__handle"];

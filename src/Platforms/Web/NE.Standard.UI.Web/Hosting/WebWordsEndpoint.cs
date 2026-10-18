@@ -105,9 +105,6 @@ internal sealed class WebWordsAsset
 {
     public const string ContentType = "application/json; charset=utf-8";
 
-    // The wire's conventions: the temporal and number blocks' names are the ones the culture attributes and the metadata use.
-    private static readonly JsonSerializerOptions PackJsonOptions = WebWireJson.CreateOptions();
-
     private readonly Lazy<WebAssetCompression.Compressed> _compressed;
 
     private WebWordsAsset(string language, byte[] bytes, string version, string stringsJson, string temporalJson)
@@ -196,7 +193,7 @@ internal sealed class WebWordsAsset
 
         // The pack a number in the page's culture is drawn with after a switch, as its culture attribute carries it.
         writer.WritePropertyName("number");
-        JsonSerializer.Serialize(writer, WebNumberCulturePack.FromCulture(WebCultures.Resolve(language)), PackJsonOptions);
+        JsonSerializer.Serialize(writer, WebNumberCulturePack.FromCulture(UICultures.Resolve(language)), WebWireJson.Options);
         writer.WriteEndObject();
     }
 
@@ -209,15 +206,15 @@ internal sealed class WebWordsAsset
     /// </remarks>
     private static string WriteTemporal(string language, UITemporalOptions? options)
     {
-        CultureInfo culture = WebCultures.Resolve(language);
+        CultureInfo culture = UICultures.Resolve(language);
         using MemoryStream buffer = new();
 
         using (Utf8JsonWriter writer = new(buffer))
         {
             // One object of both, each written by the wire's own conventions, as a field's culture attribute carries the pack.
             writer.WriteStartObject();
-            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalCulturePack.FromCulture(culture), PackJsonOptions));
-            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalPatterns.Resolve(culture, options, ownCulture: false), PackJsonOptions));
+            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalCulturePack.FromCulture(culture), WebWireJson.Options));
+            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalPatterns.Resolve(culture, options, ownCulture: false), WebWireJson.Options));
             writer.WriteEndObject();
         }
 

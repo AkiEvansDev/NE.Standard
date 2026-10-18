@@ -44,20 +44,4 @@ internal sealed partial class RadioGroupController() : DemoStandardController
 
     [RecursiveMember]
     public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleOptionsOption(string id)
-        => OptionsGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
 }

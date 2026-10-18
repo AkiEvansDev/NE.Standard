@@ -69,3 +69,20 @@ test("a chosen row with pinned cells draws its mark once, above them", () => {
     assert.match(css, new RegExp(`\\n${`${row} > .ui-table__cell--pinned`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},[^{]*\\.ui-row__grip \\{\\s*box-shadow: none;`), "each pinned cell draws the mark again");
     assert.doesNotMatch(css, /\.ui-table \[data-ui-items-host\] > \.ui-table__row/, "a table row rule reaches a nested table's rows");
 });
+
+test("a folded panel with no switch of its own takes no room at all", () => {
+    assert.match(declarations(".ui-collapsible-panel.ui-collapsible--no-switch[data-ui-collapsed]") ?? "", /display: none;/, "its fill and padding stood as an empty strip");
+});
+
+test("a folded right or bottom panel keeps its rail on its own edge", () => {
+    const folded = ".ui-collapsible-panel:is([data-ui-collapsed], [data-ui-folding])";
+
+    assert.match(declarations(`${folded}.ui-side--right`) ?? "", /justify-self: end;/);
+    assert.match(declarations(`.ui-stack-panel.ui-orientation--vertical > ${folded}.ui-side--right`) ?? "", /align-self: flex-end;/);
+    assert.match(declarations(`:not(.ui-stack-panel.ui-orientation--vertical) > ${folded}.ui-side--bottom`) ?? "", /align-self: end;/, "across a vertical stack align-self is the other axis");
+});
+
+test("a row's trailing words give way short of room, and nothing else in a stack does", () => {
+    assert.match(declarations(".ui-stack-panel > [data-ui-id]") ?? "", /flex-shrink: 0;/);
+    assert.match(declarations(".ui-stack-panel.ui-orientation--horizontal > .ui-content-text:last-child") ?? "", /flex-shrink: 1;/, "a caption ran under the panel's edge cut mid-letter");
+});

@@ -533,8 +533,11 @@ export const ListTriggerClass = "ui-select__trigger";
 const ListTriggerSelector = `.${ListTriggerClass}` as const;
 /** A button's root, a select family's root, a text input's root, and the mark of a field whose value was refused. */
 export const ButtonClass = "ui-button";
+/** A button's Ghost look and its Small size, as WebClassNames writes them. */
+const GhostButtonClass = "ui-button--ghost";
+const SmallButtonClass = "ui-button--small";
 /** A small ghost button's look, as the page draws one of its own (an action bar's icon, a strip's overflow entry). */
-export const SmallGhostButtonClasses = `${ButtonClass} ui-button--ghost ui-button--small`;
+export const SmallGhostButtonClasses = `${ButtonClass} ${GhostButtonClass} ${SmallButtonClass}`;
 export const SelectClass = "ui-select";
 /** On a text body's component root while its title, its description, its icon, its badge's icon or its badge's text shows. */
 export const TextTitleAttribute = "data-ui-text-title";
@@ -585,6 +588,8 @@ export const pluginDomNames = {
     readOnlyClass: ReadOnlyClass,
     hiddenClass: HiddenClass,
     buttonClass: ButtonClass,
+    ghostButtonClass: GhostButtonClass,
+    smallButtonClass: SmallButtonClass,
     selectClass: SelectClass,
     textInputClass: TextInputClass,
     invalidClass: InvalidClass,
@@ -641,4 +646,12 @@ export function ensureElementId(element: Element, prefix: string): string {
     }
 
     return element.id;
+}
+
+/** Writes the attribute only when it changes, so its observers are not woken for nothing; null takes it off. */
+export function writeAttribute(element: Element, name: string, value: string | null): void {
+    if (value === null)
+        element.removeAttribute(name);
+    else if (element.getAttribute(name) !== value)
+        element.setAttribute(name, value);
 }

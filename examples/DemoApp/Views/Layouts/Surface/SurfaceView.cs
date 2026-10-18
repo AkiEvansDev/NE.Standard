@@ -26,15 +26,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new SurfaceComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSurface($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Surface)}")
             .BindClickable($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Clickable)}")
             .BindPadding($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Padding)}")
@@ -42,9 +34,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
             .BindBackgroundImage($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.BackgroundImage)}")
             .BindBackgroundImageFit($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageFit)}")
             .BindOverflow($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Overflow)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             // Set rather than bound: it is what the surface holds rather than something about the surface.
             .SetContent(new ParagraphComponent()
                 .SetTitle("A surface")
@@ -57,9 +47,9 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(SurfaceGroup, "Surface", nameof(SurfaceController.CycleSurfaceOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(SurfaceController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(SurfaceGroup, "Surface"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // Paired by height: the band beside the empty state, the strip of readings beside the tiles.

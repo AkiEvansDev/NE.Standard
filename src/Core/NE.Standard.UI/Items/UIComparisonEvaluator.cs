@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Globalization;
-using System.Text;
 using System.Text.RegularExpressions;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
@@ -31,66 +30,24 @@ public static class UIComparisonEvaluator
         if (UIScriptNumber.ReadsAsNull(right))
             right = null;
 
-        var text = AsText(left);
+        var text = UIScriptText.Of(left);
 
         return @operator switch
         {
             UIComparisonOperator.Required => left is not null and not false && !string.IsNullOrWhiteSpace(text),
-            UIComparisonOperator.Equal => string.Equals(text, AsText(right), StringComparison.Ordinal),
-            UIComparisonOperator.NotEqual => !string.Equals(text, AsText(right), StringComparison.Ordinal),
+            UIComparisonOperator.Equal => string.Equals(text, UIScriptText.Of(right), StringComparison.Ordinal),
+            UIComparisonOperator.NotEqual => !string.Equals(text, UIScriptText.Of(right), StringComparison.Ordinal),
             UIComparisonOperator.Greater => IsOrdered(left, right, static order => order > 0),
             UIComparisonOperator.GreaterOrEqual => IsOrdered(left, right, static order => order >= 0),
             UIComparisonOperator.Less => IsOrdered(left, right, static order => order < 0),
             UIComparisonOperator.LessOrEqual => IsOrdered(left, right, static order => order <= 0),
-            UIComparisonOperator.Like => text.Contains(AsText(right), StringComparison.Ordinal),
-            UIComparisonOperator.LikeIgnoreCase => text.Contains(AsText(right), StringComparison.OrdinalIgnoreCase),
+            UIComparisonOperator.Like => text.Contains(UIScriptText.Of(right), StringComparison.Ordinal),
+            UIComparisonOperator.LikeIgnoreCase => text.Contains(UIScriptText.Of(right), StringComparison.OrdinalIgnoreCase),
             UIComparisonOperator.In => IsIn(text, right),
             UIComparisonOperator.Regex => IsRegexMatch(text, right),
             UIComparisonOperator.RegexEach => IsEveryRegexMatch(left, right),
             _ => false
         };
-    }
-
-    /// <summary>
-    /// The value as text, matching what <c>String(value)</c> answers on the client.
-    /// </summary>
-    private static string AsText(object? value)
-        => value switch
-        {
-            // A list's NaN too, which travels as the null String([1, null]) leaves empty.
-            _ when UIScriptNumber.ReadsAsNull(value) => string.Empty,
-            string text => text,
-            bool flag => flag ? "true" : "false",
-            // As the page holds a number, a double, and writes it: a decimal's or a long's digits past a double's read as the page's.
-            _ when UIScriptNumber.TryRead(value, out var number) => UIScriptNumber.Format(number),
-            // A moment as the wire writes it, which is the text the client compares and the shape that orders as the moments do.
-            DateTime moment => moment.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", CultureInfo.InvariantCulture),
-            DateTimeOffset moment => moment.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", CultureInfo.InvariantCulture),
-            DateOnly date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            TimeOnly time => time.ToString("HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture),
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            IEnumerable elements => JoinElements(elements),
-            _ => value.ToString() ?? string.Empty
-        };
-
-    /// <summary>
-    /// Joins elements the way JavaScript's <c>String(array)</c> would — comma-separated, empty for an empty array.
-    /// </summary>
-    private static string JoinElements(IEnumerable elements)
-    {
-        StringBuilder builder = new();
-        var first = true;
-
-        foreach (var element in elements)
-        {
-            if (!first)
-                _ = builder.Append(',');
-
-            _ = builder.Append(AsText(element));
-            first = false;
-        }
-
-        return builder.ToString();
     }
 
     /// <summary>
@@ -106,7 +63,7 @@ public static class UIComparisonEvaluator
 
         // One side a number and the other not stays incomparable, as in JavaScript; two texts order as text, which is what
         // dates in the wire's ISO shape need.
-        return double.IsNaN(leftNumber) && double.IsNaN(rightNumber) && IsText(left) && IsText(right) && asked(string.CompareOrdinal(AsText(left), AsText(right)));
+        return double.IsNaN(leftNumber) && double.IsNaN(rightNumber) && IsText(left) && IsText(right) && asked(string.CompareOrdinal(UIScriptText.Of(left), UIScriptText.Of(right)));
     }
 
     /// <summary>
@@ -140,7 +97,7 @@ public static class UIComparisonEvaluator
                 break;
         }
 
-        var text = AsText(value).Trim();
+        var text = UIScriptText.Of(value).Trim();
 
         if (text.Length == 0)
             return 0;
@@ -162,7 +119,7 @@ public static class UIComparisonEvaluator
 
         foreach (var candidate in candidates)
         {
-            if (string.Equals(AsText(candidate), text, StringComparison.Ordinal))
+            if (string.Equals(UIScriptText.Of(candidate), text, StringComparison.Ordinal))
                 return true;
         }
 
@@ -173,7 +130,7 @@ public static class UIComparisonEvaluator
     {
         try
         {
-            return Regex.IsMatch(text, AsText(right), RegexOptions.None, RegexTimeout);
+            return Regex.IsMatch(text, UIScriptText.Of(right), RegexOptions.None, RegexTimeout);
         }
         catch (Exception exception) when (exception is ArgumentException or RegexMatchTimeoutException)
         {
@@ -189,11 +146,11 @@ public static class UIComparisonEvaluator
             return true;
 
         if (left is string || left is not IEnumerable items)
-            return IsRegexMatch(AsText(left), right);
+            return IsRegexMatch(UIScriptText.Of(left), right);
 
         foreach (var item in items)
         {
-            if (!IsRegexMatch(AsText(item), right))
+            if (!IsRegexMatch(UIScriptText.Of(item), right))
                 return false;
         }
 

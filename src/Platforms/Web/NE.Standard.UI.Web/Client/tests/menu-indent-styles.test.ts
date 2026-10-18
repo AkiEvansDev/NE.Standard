@@ -46,7 +46,7 @@ function selectors(list: string): string[] {
 const unfolded = ".ui-menu.ui-orientation--vertical:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail)";
 
 test("an entry without an icon keeps the icon's room in a list where others carry one", () => {
-    assert.match(rules(`${unfolded} > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item:not([data-ui-menu-passive]) > .ui-menu-item:not([data-ui-text-icon]) > .ui-button__content`), /padding-inline-start: 1\.375em;/);
+    assert.match(rules(`${unfolded} > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item > .ui-menu-item:not([data-ui-text-icon]):not([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) > .ui-button__content`), /padding-inline-start: 1\.375em;/);
 });
 
 test("a section under a group whose words stand past an icon's room is set in by that room, in the words' own type", () => {

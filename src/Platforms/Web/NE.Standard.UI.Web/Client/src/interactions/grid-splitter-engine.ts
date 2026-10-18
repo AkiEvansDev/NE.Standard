@@ -2,7 +2,7 @@
 // container's Columns/Rows are not bindable. A bound Position also gives the share to the controller and takes it from there.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { BindPositionAttribute, ColumnLimitsAttribute, RowLimitsAttribute, SplitEdgeAttribute, SplitFoldedAttribute, SplitterPositionAttribute, SplitterStepAttribute } from "../addressing/dom-attributes.ts";
+import { BindPositionAttribute, ColumnLimitsAttribute, RowLimitsAttribute, SplitEdgeAttribute, SplitFoldedAttribute, SplitterPositionAttribute, SplitterStepAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
 import { currentResponsiveTier, resolveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier.ts";
 import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
 import { OnceWarner } from "../runtime/logger.ts";
@@ -506,10 +506,7 @@ export class GridSplitterEngine {
 
         const edge = runIsEmpty(sizes, runs.before) ? "before" : runIsEmpty(sizes, runs.after) ? "after" : null;
 
-        if (edge === null)
-            splitter.removeAttribute(SplitEdgeAttribute);
-        else if (splitter.getAttribute(SplitEdgeAttribute) !== edge)
-            splitter.setAttribute(SplitEdgeAttribute, edge);
+        writeAttribute(splitter, SplitEdgeAttribute, edge);
 
         foldEmptyPanes(container, tracks === undefined ? null : { axis, tracks: narrowRunTracks(tracks, sizes, runs, FoldPixels) });
     }

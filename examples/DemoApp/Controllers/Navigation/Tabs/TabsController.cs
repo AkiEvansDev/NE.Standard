@@ -9,8 +9,4 @@ internal sealed partial class TabsController() : DemoStandardController
 {
     [RecursiveMember]
     public partial TabsGroupContext TabsGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleTabsGroupOption(string id)
-        => TabsGroup.CycleOption(id);
 }

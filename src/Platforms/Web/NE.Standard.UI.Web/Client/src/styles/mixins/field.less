@@ -14,12 +14,8 @@
     // Six points past resting, not the washes' ten: hover is a level of its own, not a full step change.
     --ui-field-hover: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-field-ground));
     // Outline's and Underline's border on hover; a control that doesn't lift (a code field) sets it to its rest.
-    --ui-field-hover-accent: color-mix(in srgb, var(--ui-color-primary) 60%, transparent);
-    border-style: solid;
-    border-color: var(--ui-field-rest);
-    // The width and the corners through their chains: an authored BorderThickness and BorderRadius (BorderStyleRenderer) win.
-    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
-    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-input));
+    --ui-field-hover-accent: color-mix(in srgb, var(--ui-mark-field) 60%, transparent);
+    .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-input); var(--ui-field-rest));
     background: var(--ui-field-rest);
     transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
@@ -120,9 +116,11 @@
     cursor: default;
 
     .ui-field-action-buttons();
+    // Each group on its side of the field, as the markup also puts it (FieldActionsRenderer); the order matters for a pair alone,
+    // whose two groups stand across the field from each other beside it (ui-input.less).
+    order: 1;
 
-    // The leading group (the caller's class with `--leading`) follows the value in the tab order and stands first all the same,
-    // before a caption inside too.
+    // The leading group (the caller's class with `--leading`), before a caption inside too.
     &--leading {
         order: -1;
         margin-right: 0;
@@ -211,7 +209,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, black 45%, transparent);
+    background: @ui-picture-plate;
     color: white;
     opacity: 0;
     transition: opacity @ui-motion-fast @ui-motion-ease;
@@ -323,7 +321,7 @@
     border-color: @color;
 }
 
-.ui-field-edge-active(@color: var(--ui-color-primary)) {
+.ui-field-edge-active(@color: var(--ui-mark-field)) {
     border-color: @color;
     box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) @color;
 }
@@ -358,6 +356,10 @@
         }
     }
 }
+
+// A Ghost field under the pointer: its focus's wash at 80%, a step under the focus it would take. Rejected: half and 70%, which read
+// as nothing on the dark page.
+@ui-ghost-hover-wash: color-mix(in srgb, var(--ui-wash-hover) 80%, transparent);
 
 // A field showing any message, which colours its edge in the message's own colour (--ui-validation-color): an error, a warning, an info.
 @ui-validation-marked: ~".ui-invalid, .ui-validation--warning, .ui-validation--info";

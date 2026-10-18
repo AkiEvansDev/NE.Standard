@@ -1,7 +1,7 @@
 // A menu's Surface names the ground of the popup it fills — a right-click menu's host, a split button's list (`ui-menu.less`): the render
 // marks that popup (`data-ui-menu-surface`), and this keeps the mark as the Surface changes.
 
-import { MenuHostPopupSelector, MenuSurfaceAttribute } from "../addressing/dom-attributes.ts";
+import { MenuHostPopupSelector, MenuSurfaceAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
 import { surfaceStyleWord } from "../rendering/web-dom-converters.ts";
 
 /** The operation's kind, as `MenuComponentRenderer.MenuSurfaceOperationKind` spells it on the server. */
@@ -14,10 +14,5 @@ export function writeMenuSurface(menu: Element): void {
     if (popup === null || !popup.matches(MenuHostPopupSelector))
         return;
 
-    const word = surfaceStyleWord(menu);
-
-    if (word === null)
-        popup.removeAttribute(MenuSurfaceAttribute);
-    else if (popup.getAttribute(MenuSurfaceAttribute) !== word)
-        popup.setAttribute(MenuSurfaceAttribute, word);
+    writeAttribute(popup, MenuSurfaceAttribute, surfaceStyleWord(menu));
 }

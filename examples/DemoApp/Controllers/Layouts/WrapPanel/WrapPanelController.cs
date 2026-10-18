@@ -9,8 +9,4 @@ internal sealed partial class WrapPanelController() : DemoStandardController
 {
     [RecursiveMember]
     public partial WrapPanelGroupContext WrapGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleWrapGroupOption(string id)
-        => WrapGroup.CycleOption(id);
 }

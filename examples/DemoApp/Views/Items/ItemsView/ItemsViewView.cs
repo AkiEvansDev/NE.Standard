@@ -44,15 +44,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ItemsViewComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindItems($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Items)}")
             .BindLayoutType($"{ItemsGroup}.{nameof(ItemsViewGroupContext.LayoutType)}")
             .BindOrientation($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Orientation)}")
@@ -79,8 +71,8 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ItemsGroup, "Items", nameof(ItemsViewController.CycleItemsGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ItemsGroup, "Items")
         );
 
     protected override IVisualComponent[] CreateExamples()

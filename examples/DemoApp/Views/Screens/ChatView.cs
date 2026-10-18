@@ -411,7 +411,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     /// <summary>
     /// The composer: the files waiting on a shelf above the text — not on the page until one is attached — and a text area that grows
     /// to six rows, sends on Enter and breaks the line on Shift+Enter, with the emoji, the clip and the quick replies before the text
-    /// and Send after it — below the medium width the clip and the quick replies in a row under the text, the emoji and Send beside it.
+    /// and Send after it — below the medium width the clip and the quick replies in a row under the text, at its start and its end, the
+    /// emoji and Send beside it.
     /// </summary>
     private static ContainerComponent CreateComposer()
         => new ContainerComponent(ComposerPanelId)
@@ -436,16 +437,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .AddLeadingAction(UIIconButtons.Attach().InteractOn(EventNames.Click, new OpenPickerEffect(AttachmentsId)))
                         // In the field, as a messenger's: it stays beside the words on a phone.
                         .AddLeadingAction(CreateEmojiPanel(), inField: true)
-                        // A quick reply is the controller's words, so its command answers with the text to insert rather than rewriting the draft.
-                        .AddLeadingAction(new SplitButtonComponent()
-                            .SetMode(UISplitButtonMode.Menu)
-                            .SetType(UIButtonType.Ghost)
-                            .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
-                            .SetTooltip("Quick replies")
-                            .SetPopupPlacement(UIPopupPlacement.TopStart)
-                            .SetItems(ChatController.QuickReplies())
-                            .OnItemClickWithItemKey(nameof(ChatController.InsertQuickReply))
-                        )
+                        // On a phone at the end of the row under the text, under Send, where the thumb is; beside the text at its start.
+                        .AddLeadingAction(CreateQuickReplies(), belowAt: UIAlignment.End)
                         .AddTrailingAction(UIIconButtons.Send().OnSubmit(ComposerFormId, nameof(ChatController.SendAsync)), inField: true)
                         // On a phone the words take the row between the emoji and Send: the other tools in a row under it.
                         .SetActionsBelow(UIResponsiveTier.Md)
@@ -476,4 +469,18 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                     .InteractOn(EventNames.Click, InsertTextEffect.CurrentItemKey(ChatController.ComposerId))
                 )
             );
+
+    /// <summary>
+    /// The composer's quick replies: a reply is the controller's words, so its command answers with the text to insert rather than
+    /// rewriting the draft.
+    /// </summary>
+    private static SplitButtonComponent CreateQuickReplies()
+        => new SplitButtonComponent()
+            .SetMode(UISplitButtonMode.Menu)
+            .SetType(UIButtonType.Ghost)
+            .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
+            .SetTooltip("Quick replies")
+            .SetPopupPlacement(UIPopupPlacement.TopStart)
+            .SetItems(ChatController.QuickReplies())
+            .OnItemClickWithItemKey(nameof(ChatController.InsertQuickReply));
 }

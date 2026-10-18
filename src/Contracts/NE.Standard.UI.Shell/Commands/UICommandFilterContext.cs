@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using NE.Standard.UI.Shell.Filters;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Runtime;
 
@@ -9,7 +10,7 @@ namespace NE.Standard.UI.Shell.Commands;
 /// <summary>
 /// What a command filter is given about the invocation it is intercepting.
 /// </summary>
-public sealed class UICommandFilterContext
+public sealed class UICommandFilterContext : IUIFilterContext
 {
     /// <summary>
     /// Creates a filter context for one command invocation.

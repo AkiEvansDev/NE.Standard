@@ -36,7 +36,6 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
 
     private static readonly WebDomOperation[] SurfaceOperations = [SurfaceStyleRenderer.SurfaceClassOperation, WebDomOperation.Custom(MenuSurfaceOperationKind)];
 
-    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
 
     public override string ComponentTypeKey => MenuComponent.ComponentTypeKey;
 
@@ -47,11 +46,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
-        {
-            if (value is UIOrientation orientation)
-                _ = target.Class(WebClassNames.Orientation(orientation));
-        }, OrientationOperations);
+        OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
 
         // Render-time only: a nested menu is its entry's block, folded and flown out by the group engine through the wrapper above it.
         _ = ResolveRenderValue(context, MenuComponent.NestedProperty, out bool? nested, out _);

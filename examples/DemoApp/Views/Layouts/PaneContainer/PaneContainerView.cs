@@ -84,8 +84,8 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(PaneGroup, "Panes", nameof(PaneContainerController.CyclePaneOption), note: "Bound both ways: move a pane or a bar in the preview and its row here changes; step a row and the preview moves.")
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(PaneGroup, "Panes", note: "Bound both ways: move a pane or a bar in the preview and its row here changes; step a row and the preview moves.")
         );
 
     // The board across the page; the wall beside the overview, both read at half of it.

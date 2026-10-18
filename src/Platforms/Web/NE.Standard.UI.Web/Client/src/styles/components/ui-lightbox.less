@@ -10,8 +10,8 @@
 // The room round the picture: the × stands in the top band, and the bottom one keeps the picture centred.
 @ui-lightbox-band: 3.5rem;
 
-// The controls over a photograph of any colours: light ink on a dark plate, in either theme.
-@ui-lightbox-plate: color-mix(in srgb, black 55%, transparent);
+// The controls over a photograph of any colours: light ink on the picture plate a replaceable picture's glass is, in either theme,
+// darker under the pointer.
 @ui-lightbox-plate-hover: color-mix(in srgb, black 72%, transparent);
 @ui-lightbox-ink: white;
 @ui-lightbox-veil: color-mix(in srgb, black 88%, transparent);
@@ -142,7 +142,7 @@
     justify-items: center;
     padding: @ui-space-1 @ui-space-3;
     border-radius: 999px;
-    background: @ui-lightbox-plate;
+    background: @ui-picture-plate;
     color: @ui-lightbox-ink;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -165,7 +165,7 @@
     padding: 0;
     border: none;
     border-radius: 999px;
-    background: @ui-lightbox-plate;
+    background: @ui-picture-plate;
     color: @ui-lightbox-ink;
     cursor: pointer;
     pointer-events: auto;

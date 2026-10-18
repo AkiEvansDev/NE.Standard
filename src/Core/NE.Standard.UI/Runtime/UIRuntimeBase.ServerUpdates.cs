@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
-using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Scheduling;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -187,10 +186,7 @@ internal abstract partial class UIRuntimeBase
         {
             CompiledUIBinding binding = bindings[i];
 
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
-            if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
+            if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
             AddPendingUpdateNoLock(BuildServerValueNoLock(binding, path, dynamicParameters, value, ref content));
@@ -262,10 +258,7 @@ internal abstract partial class UIRuntimeBase
         {
             CompiledUIBinding binding = bindings[i];
 
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
-            if (!TryBuildDynamicParameters(binding, baseParameters, out var dynamicParameters))
+            if (!TryAddressPush(binding, baseParameters, out var dynamicParameters))
                 continue;
 
             AddPendingUpdateNoLock(BuildServerValueNoLock(binding, View.Bindings.MaterializePath(binding, baseParameters), dynamicParameters));

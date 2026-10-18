@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views;
@@ -12,11 +13,14 @@ internal sealed class HomeView : DemoView, IUIViewDefinition
 
     protected override void DrawContent(WrapPanelComponent container)
     {
-        foreach ((var sectionTitle, _, (string Route, string Label)[] links) in DemoUI.NavSections)
-            _ = container.AddChild(CreateLinksGroup(sectionTitle, links));
+        foreach (DemoUI.NavSection[] band in DemoUI.NavBands)
+        {
+            foreach (DemoUI.NavSection section in band)
+                _ = container.AddChild(CreateLinksGroup(section.Title, section.Links));
+        }
     }
 
-    private static ContainerComponent CreateLinksGroup(string sectionTitle, (string Route, string Label)[] links)
+    private static ContainerComponent CreateLinksGroup(string sectionTitle, IEnumerable<(string Route, string Label)> links)
     {
         return DemoUI.CreateGroup(null, sectionTitle,
             content =>

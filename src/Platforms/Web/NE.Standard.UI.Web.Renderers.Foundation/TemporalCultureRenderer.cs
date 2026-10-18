@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Text.Json;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -14,18 +15,15 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// </summary>
 public static class TemporalCultureRenderer
 {
-    // The wire's conventions: the client reads the same camel-cased names the temporal input's engine and the metadata use.
-    private static readonly JsonSerializerOptions PackJsonOptions = WebWireJson.CreateOptions();
-
     /// <summary>Writes the pack for an authored culture name; an unknown or empty name is the invariant culture.</summary>
     public static void RenderTemporalCulture(IHtmlElementBuilder target, string? cultureName)
-        => RenderTemporalCulture(target, WebCultures.Resolve(cultureName));
+        => RenderTemporalCulture(target, UICultures.Resolve(cultureName));
 
     public static void RenderTemporalCulture(IHtmlElementBuilder target, CultureInfo culture)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(culture);
 
-        _ = target.Attribute(WebAttributes.TemporalCulture, JsonSerializer.Serialize(WebTemporalCulturePack.FromCulture(culture), PackJsonOptions));
+        _ = target.Attribute(WebAttributes.TemporalCulture, JsonSerializer.Serialize(WebTemporalCulturePack.FromCulture(culture), WebWireJson.Options));
     }
 }

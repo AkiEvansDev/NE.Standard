@@ -9,8 +9,4 @@ internal sealed partial class IconController() : DemoStandardController
 {
     [RecursiveMember]
     public partial IconGroupContext IconGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleIconOption(string id)
-        => IconGroup.CycleOption(id);
 }

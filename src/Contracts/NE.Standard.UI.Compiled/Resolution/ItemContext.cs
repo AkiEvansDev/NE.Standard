@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Localization;
 
@@ -31,11 +32,11 @@ public sealed class ItemContext(object? item)
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(scopes);
 
-        return TryResolve(template.Template, template.PropertyNames, parameters, scopes, out value);
+        return TryResolve(template.Parsed, parameters, scopes, out value);
     }
 
     /// <summary>
-    /// Attempts to resolve a binding template string against the item and the enclosing scopes.
+    /// Attempts to resolve a binding template string against the item and the enclosing scopes; false where it is no template.
     /// </summary>
     public bool TryResolveBindingTemplate(string template, CompiledUIBindingParameter[] parameters, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
     {
@@ -43,51 +44,34 @@ public sealed class ItemContext(object? item)
         ArgumentNullException.ThrowIfNull(parameters);
         ArgumentNullException.ThrowIfNull(scopes);
 
-        return TryResolve(template, null, parameters, scopes, out value);
+        value = null;
+
+        return RecursivePathTemplate.TryParse(template, out RecursivePathTemplate? parsed) && TryResolve(parsed, parameters, scopes, out value);
     }
 
-    /// <summary>
-    /// The walk itself; <paramref name="propertyNames"/>, where a compiled template has them split already, spares a string per
-    /// property per row.
-    /// </summary>
-    private bool TryResolve(string template, string[]? propertyNames, CompiledUIBindingParameter[] parameters, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
+    /// <summary>The walk itself, over the template parsed once.</summary>
+    private bool TryResolve(RecursivePathTemplate template, CompiledUIBindingParameter[] parameters, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
     {
         value = null;
         var current = Item;
 
-        if (template.Length == 0 || template == ".")
+        // The item itself, whatever parameters come with it, as the page reads an empty template.
+        if (template.Parts.Length == 0)
         {
             value = current;
             return true;
         }
 
-        ReadOnlySpan<char> span = template.AsSpan();
         var parameterIndex = 0;
-        var nameIndex = 0;
-        var i = 0;
-        var expectSegment = true;
 
         // A failed property read is soft: a Dynamic parameter discards `current`, so only a path that ends still
         // invalid, or a Fixed parameter with nothing to resolve against, is a real failure.
         var currentValid = true;
 
-        while (i < span.Length)
+        foreach (RecursivePathTemplatePart part in template.Parts)
         {
-            if (span[i] == '.')
+            if (part.IsParameter)
             {
-                if (expectSegment)
-                    return false;
-
-                expectSegment = true;
-                i++;
-                continue;
-            }
-
-            if (span[i] == '[')
-            {
-                if (i + 1 >= span.Length || span[i + 1] != ']')
-                    return false;
-
                 parameterIndex = SkipScopeParameters(parameters, parameterIndex);
 
                 if (parameterIndex >= parameters.Length)
@@ -108,35 +92,19 @@ public sealed class ItemContext(object? item)
                         return false;
                 }
 
-                i += 2;
-                expectSegment = false;
                 continue;
             }
 
-            var start = i;
-
-            while (i < span.Length && span[i] != '.' && span[i] != '[')
-                i++;
-
-            if (i == start)
-                return false;
-
             if (currentValid)
             {
-                var name = propertyNames is null ? span[start..i].ToString() : propertyNames[nameIndex];
-
-                if (TryReadProperty(current, name, out var read))
+                if (TryReadProperty(current, part.Segment.Property, out var read))
                     current = read;
                 else
                     currentValid = false;
             }
-
-            nameIndex++;
-
-            expectSegment = false;
         }
 
-        if (expectSegment || SkipScopeParameters(parameters, parameterIndex) != parameters.Length || !currentValid)
+        if (SkipScopeParameters(parameters, parameterIndex) != parameters.Length || !currentValid)
             return false;
 
         value = current;
@@ -363,7 +331,7 @@ public sealed class ItemContext(object? item)
     }
 
     /// <summary>Caches the reflection lookup per (type, name); it runs once per bound property, per item, per render.</summary>
-    private static PropertyInfo? ResolveProperty(Type type, string propertyName)
+    internal static PropertyInfo? ResolveProperty(Type type, string propertyName)
         => PropertyCache.GetOrAdd((type, propertyName), static key => FindProperty(key.Type, key.Name));
 
     /// <summary>

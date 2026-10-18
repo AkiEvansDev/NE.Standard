@@ -4,7 +4,7 @@
 import {
     ColumnLimitsAttribute, DragHandleStartClass, RowsDraggableAttribute, RowsDragHandleAttribute, TableColumnAttribute, TableColumnKeyAttribute, TableDraggingAttribute, TableDropAttribute, TableFixedAttribute,
     TableHeaderClass, TableHiddenAttribute, TableHideBelowAttribute, TableLastAttribute, TableReorderingAttribute, TableResizerClass, TableRowClass,
-    TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute, TableStartsHiddenAttribute
+    TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute, TableStartsHiddenAttribute, writeAttribute
 } from "../addressing/dom-attributes.ts";
 import { currentResponsiveTier, responsiveTierQuery, responsiveTiers } from "../rendering/responsive-tier.ts";
 import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
@@ -312,10 +312,7 @@ export class TableColumnsEngine {
 
         const names = [...hidden].sort((a, b) => a - b).join(" ");
 
-        if (names.length === 0)
-            table.removeAttribute(TableHiddenAttribute);
-        else if (table.getAttribute(TableHiddenAttribute) !== names)
-            table.setAttribute(TableHiddenAttribute, names);
+        writeAttribute(table, TableHiddenAttribute, names.length === 0 ? null : names);
 
         // The last place nothing hides — not the last header cell nor the last index once the viewer moved or hid a column.
         const last = [...order].reverse().find(index => !hidden.has(index));

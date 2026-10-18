@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Reflection;
 using System.Text;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Data;
@@ -55,7 +56,7 @@ internal sealed partial class UIViewCompilationContext
         if (_controllerType is null || collectionPath.Source.Kind != CompiledUIBindingSourceKind.Controller)
             return;
 
-        Type? collectionType = TryResolveControllerPathType(collectionPath.Template.Template);
+        Type? collectionType = TryResolveControllerPathType(collectionPath.Template);
 
         if (collectionType is null)
             return;
@@ -78,7 +79,7 @@ internal sealed partial class UIViewCompilationContext
         if (!IsWindowedItemsHost(component) || _controllerType is null || sourcePath.Source.Kind != CompiledUIBindingSourceKind.Controller)
             return;
 
-        Type? sourceType = TryResolveControllerPathType(sourcePath.Template.Template);
+        Type? sourceType = TryResolveControllerPathType(sourcePath.Template);
 
         if (sourceType is null || typeof(UIItemSourceBase).IsAssignableFrom(sourceType))
             return;
@@ -128,18 +129,22 @@ internal sealed partial class UIViewCompilationContext
     /// <summary>A compiled controller path as written: its fixed segments filled in, a row's left as "[]".</summary>
     private static string DescribePath(CompiledPath path)
     {
-        var parts = path.Template.Template.Split("[]");
-        StringBuilder builder = new(parts[0]);
+        StringBuilder builder = new();
 
-        for (var i = 1; i < parts.Length; i++)
+        foreach (RecursivePathTemplatePart part in path.Template.Parts)
         {
-            _ = builder.Append(path.Parameters[i - 1].Value switch
+            if (!part.IsParameter)
             {
-                int index => string.Create(CultureInfo.InvariantCulture, $"[{index}]"),
-                string key => $"[\"{key}\"]",
-                _ => "[]"
-            });
-            _ = builder.Append(parts[i]);
+                if (builder.Length > 0)
+                    _ = builder.Append('.');
+
+                _ = builder.Append(part.Segment.Property);
+                continue;
+            }
+
+            var value = path.Parameters[part.ParameterIndex].Value;
+
+            _ = builder.Append(UIRowKeys.IsPathParameter(value) ? PathSegment.ForParameter(value).ToString() : "[]");
         }
 
         return builder.ToString();
@@ -158,7 +163,7 @@ internal sealed partial class UIViewCompilationContext
         if (_controllerType is null || path.Source.Kind != CompiledUIBindingSourceKind.Controller)
             return;
 
-        _ = TryResolveControllerPathType(path.Template.Template, out var missingProperty, out Type? owner);
+        _ = TryResolveControllerPathType(path.Template, out var missingProperty, out Type? owner);
 
         if (missingProperty is null || owner is null || IsDeclaredByDerivedType(owner, missingProperty))
             return;
@@ -216,48 +221,38 @@ internal sealed partial class UIViewCompilationContext
     /// Walks a binding template against the controller's CLR types, returning what it lands on, or
     /// <see langword="null"/> as soon as a segment cannot be resolved.
     /// </summary>
-    private Type? TryResolveControllerPathType(string template)
+    private Type? TryResolveControllerPathType(RecursivePathTemplate template)
         => TryResolveControllerPathType(template, out _, out _);
 
-    /// <inheritdoc cref="TryResolveControllerPathType(string)" />
-    private Type? TryResolveControllerPathType(string template, out string? missingProperty, out Type? missingPropertyOwner)
+    /// <inheritdoc cref="TryResolveControllerPathType(RecursivePathTemplate)" />
+    private Type? TryResolveControllerPathType(RecursivePathTemplate template, out string? missingProperty, out Type? missingPropertyOwner)
     {
         missingProperty = null;
         missingPropertyOwner = null;
 
         Type? current = _controllerType;
-        var index = 0;
 
-        while (current is not null && index < template.Length)
+        foreach (RecursivePathTemplatePart part in template.Parts)
         {
-            if (template[index] == '.')
-            {
-                index++;
-                continue;
-            }
+            if (current is null)
+                break;
 
-            if (template[index] == '[')
+            if (part.IsParameter)
             {
                 // Both a parameter and a fixed index or key render as "[]" — either way the walk steps into the collection's element type.
-                index += 2;
                 current = TryResolveElementType(current);
                 continue;
             }
-
-            var start = index;
-
-            while (index < template.Length && template[index] != '.' && template[index] != '[')
-                index++;
 
             // Nothing is known about what an `object` holds, so a property it does not declare is not a missing one.
             if (current == typeof(object))
                 return null;
 
-            PropertyInfo? property = FindProperty(current, template[start..index]);
+            PropertyInfo? property = FindProperty(current, part.Segment.Property);
 
             if (property is null)
             {
-                missingProperty = template[start..index];
+                missingProperty = part.Segment.Property;
                 missingPropertyOwner = current;
                 return null;
             }

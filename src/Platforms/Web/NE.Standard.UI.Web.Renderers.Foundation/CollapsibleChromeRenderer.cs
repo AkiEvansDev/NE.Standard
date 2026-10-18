@@ -19,6 +19,7 @@ public static class CollapsibleChromeRenderer
     /// <summary>The class on what the fold closes, which the engine slides shut and open.</summary>
     public const string ContentClassName = "ui-collapsible__content";
 
+    private const string NoSwitchClassName = "ui-collapsible--no-switch";
     private const string ToggleClassName = "ui-collapsible__toggle";
     private const string BarClassName = "ui-collapsible__bar";
     private const string BarContentClassName = "ui-collapsible__bar-content";
@@ -58,6 +59,11 @@ public static class CollapsibleChromeRenderer
         _ = WebComponentRendererBase.ResolveRenderValue(context, ICollapsibleComponent.ShowCollapseToggleProperty, out bool? toggle, out _);
 
         var show = toggle == true;
+
+        // Render-time only, as the property is: a panel with no switch of its own is nothing folded, and a stylesheet may not look
+        // for the switch inside it (no `:has()`).
+        if (!show)
+            _ = root.Class(NoSwitchClassName);
 
         var hasContent = context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out _, RegionNames.ToggleContent);
 

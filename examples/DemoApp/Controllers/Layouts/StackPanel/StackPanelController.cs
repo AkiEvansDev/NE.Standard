@@ -9,8 +9,4 @@ internal sealed partial class StackPanelController() : DemoStandardController
 {
     [RecursiveMember]
     public partial StackPanelGroupContext StackGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleStackGroupOption(string id)
-        => StackGroup.CycleOption(id);
 }

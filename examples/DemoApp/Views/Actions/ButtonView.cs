@@ -36,12 +36,12 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ButtonGroup, "Button", nameof(ButtonController.CycleButtonOption)),
-            DemoUI.CreateOptionSection(LayoutGroup, "Layout", nameof(ButtonController.CycleLayoutOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(ButtonController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(ButtonController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ButtonController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ButtonGroup, "Button"),
+            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()
@@ -165,25 +165,19 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(300))
                     .AddChild(UIText.Label("At the end of a row"))
                     .AddChild(new SurfaceComponent()
-                        .SetContent(new ContainerComponent()
-                            .SetColumn(24, UIGridUnit.Auto())
-                            .AddChild(new TextComponent()
+                        .SetContent(UILayout.Ends(
+                            new TextComponent()
                                 .SetIcon(DemoIcons.Bell)
                                 .SetTitle("Deploy notifications")
                                 .SetTitleType(UITextAppearance.Body)
                                 .SetDescription("Mailed to on-call")
                                 .SetDescriptionType(UITextAppearance.Caption)
-                                .SetDescriptionColor(UIThemeColor.Muted)
-                                .SetVerticalAlignment(UIAlignment.Center)
-                                .SetPlacement(1, 1, 23, 1)
-                            )
+                                .SetDescriptionColor(UIThemeColor.Muted),
                             // Small, so the button keeps the row's height instead of setting it.
-                            .AddChild(new ButtonComponent()
+                            new ButtonComponent()
                                 .SetType(UIButtonType.Ghost)
                                 .SetSize(UIButtonSize.Small)
-                                .SetVerticalAlignment(UIAlignment.Center)
                                 .SetTitle("Change")
-                                .SetPlacement(24, 1, 1, 1)
                             )
                         )
                     )

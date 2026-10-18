@@ -59,14 +59,9 @@ public sealed class ServerCollectionChangeUIUpdate : ServerUIUpdate
         if (Component.Id.IsEmpty)
             throw new InvalidOperationException("Component id must not be empty.");
 
+        // The address's row keys were held to UIRowKeys.IsKey when it was made; a default one holds none.
         ArgumentNullException.ThrowIfNull(Items);
         ArgumentNullException.ThrowIfNull(Moves);
-
-        for (var i = 0; i < Component.DynamicParameters.Length; i++)
-        {
-            if (Component.DynamicParameters[i] is not null and not int and not string)
-                throw new InvalidOperationException($"Dynamic parameter #{i} must be int or string.");
-        }
 
         for (var i = 0; i < Items.Length; i++)
         {

@@ -53,22 +53,14 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
             .BindVisibility($"{MessageGroup}.{nameof(MessageGroupContext.ActionVisibility)}");
 
         return UIMessage.Create(severity, title, body, action, dismissible: true)
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .SetPlacement(1, 1, 24, 1);
     }
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption), "Visibility brings back a message its × put away."),
-            DemoUI.CreateOptionSection(MessageGroup, "Message", nameof(MessageController.CycleMessageOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard", "Visibility brings back a message its × put away."),
+            DemoUI.CreateOptionSection(MessageGroup, "Message")
         );
 
     protected override IVisualComponent[] CreateExamples()
@@ -134,7 +126,7 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// The banner as a page wears it: edge to edge over the content, its words in line with the page's name.
+    /// The banner as a page wears it: edge to edge over the content, its mark in line with the page's name.
     /// </summary>
     private static ContainerComponent CreateBannerGroup()
     {
@@ -143,9 +135,9 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
                 .SetPadding(UIThickness.Uniform(0))
                 .SetContent(UILayout.Stack(0)
                     .AddChild(UIPage.Banner(UIMessage.Warning("Read-only until 18:00 UTC", "The database is moving to a larger server.", dismissible: true)))
-                    .AddChild(UIText.Note("The page's content starts here, its edge where the banner's words start.").SetMargin(UIThickness.All(24, 16, 24, 16)))
+                    .AddChild(UIText.Note("The page's content starts here, its edge where the banner's mark stands.").SetMargin(UIThickness.All(24, 16, 24, 16)))
                 ),
-            note: "UIPage.Banner lays a message across: square, a rule under it, its words in line with the page's name. This page wears one over its content."
+            note: "UIPage.Banner lays a message across: square, a rule under it, its mark in line with the page's name. This page wears one over its content."
         );
     }
 }

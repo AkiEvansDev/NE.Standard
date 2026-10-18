@@ -30,23 +30,15 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
 
     private static BreadcrumbsComponent Bind(BreadcrumbsComponent trail)
         => trail
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSpacing($"{TrailGroup}.{nameof(BreadcrumbsGroupContext.Spacing)}")
             .BindItems($"{TrailGroup}.{nameof(BreadcrumbsGroupContext.Steps)}")
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(TrailGroup, "Trail", nameof(BreadcrumbsController.CycleTrailGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(TrailGroup, "Trail")
         );
 
     protected override IVisualComponent[] CreateExamples()

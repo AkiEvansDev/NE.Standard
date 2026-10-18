@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
 
 namespace DemoApp.Controllers.Inputs.Search;
@@ -250,39 +252,14 @@ internal sealed partial class SearchController() : DemoStandardController
             _ => ServicesList
         };
 
-    [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
     /// <summary>
     /// Runs the search itself: writing the term from the server does not raise the control's own event.
     /// </summary>
-    [UICommand]
-    public void CycleTermOption(string id)
+    protected override Task OnOptionCycledAsync(string group, string id, CancellationToken cancellationToken)
     {
-        TermGroup.CycleOption(id);
-
-        if (id == nameof(SearchTermGroupContext.SearchText))
+        if (group == nameof(TermGroup) && id == nameof(SearchTermGroupContext.SearchText))
             Search();
+
+        return Task.CompletedTask;
     }
-
-    [UICommand]
-    public void CycleFieldOption(string id)
-        => FieldGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleResultsOption(string id)
-        => ResultsGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 }

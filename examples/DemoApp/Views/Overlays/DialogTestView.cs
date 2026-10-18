@@ -204,13 +204,6 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             .BindValue($"{FiltersGroup}.{property}")
             .OnChange(nameof(DialogTestController.ApplyFilters));
 
-    private static ButtonComponent CreateButton(string title, string command, UIButtonType type)
-        => new ButtonComponent()
-            .OnClick(command)
-            .SetType(type)
-            .SetHorizontalAlignment(UIAlignment.Start)
-            .SetTitle(title);
-
     private static StackPanelComponent CreateButtons(params ButtonComponent[] buttons)
     {
         StackPanelComponent row = new StackPanelComponent()

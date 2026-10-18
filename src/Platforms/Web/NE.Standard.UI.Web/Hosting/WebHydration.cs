@@ -20,8 +20,6 @@ namespace NE.Standard.UI.Web.Hosting;
 /// </remarks>
 internal sealed class WebHydration
 {
-    private static readonly JsonSerializerOptions JsonOptions = WebWireJson.CreateOptions();
-
     private WebHydration(string json, IWebRenderValues? values, UISessionSecret? signedInKey = null)
     {
         Json = json;
@@ -52,7 +50,7 @@ internal sealed class WebHydration
 
         // A page with no controller is finished the moment it is rendered: nothing to fill in, only its words to tell the client.
         if (!resolution.HasController)
-            return new WebHydration(JsonSerializer.Serialize(new { words = words.Table, title = words.Title }, JsonOptions), null);
+            return new WebHydration(JsonSerializer.Serialize(new { words = words.Table, title = words.Title }, WebWireJson.Options), null);
 
         IUIRuntime? existing = host.TryGetRenderRuntime(resolution);
 
@@ -105,7 +103,7 @@ internal sealed class WebHydration
         // `sequence` is where the runtime the render prepared stood: the page's first attach presents it and is sent only what came after.
         // `identity` names the parameters the route keys its runtimes by: an address differing in one goes to another runtime in place.
         return new WebHydration(
-            JsonSerializer.Serialize(new { pageId, view, sequence = snapshot.Sequence, identity = resolution.Route.IdentityParameters, changes, words = words.Table, title = words.Title }, JsonOptions),
+            JsonSerializer.Serialize(new { pageId, view, sequence = snapshot.Sequence, identity = resolution.Route.IdentityParameters, changes, words = words.Table, title = words.Title }, WebWireJson.Options),
             WebRenderValues.Create(changes),
             signedInKey
         );

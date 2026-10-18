@@ -33,15 +33,15 @@
 @ui-list-keyboard: ~"[data-ui-active]:not([data-ui-pointer-focus])";
 
 // Where the keyboard stands in a list — a host's row, a menu's or a popup list's entry, a select's option: one look everywhere, a frame
-// inside the entry in the brand's ink, which reads 3:1 on either page (the focus ring's colour is a theme's own), and which the
-// pointer's mark never wears. The washes alone were lost against a stripe or a chosen ground. An outline, not a box-shadow, so a
-// row's separator and a chosen entry's mark stay. Forced colours draw their own dashed mark (core/preferences.less).
+// inside the entry in the theme's keyboard mark (`--ui-mark-keyboard`, the brand's ink unless the theme makes it neutral), which reads
+// 3:1 on either page (the focus ring's colour is a theme's own), and which the pointer's mark never wears. The washes alone were lost
+// against a stripe or a chosen ground. An outline, not a box-shadow, so a row's separator and a chosen entry's mark stay. Forced colours draw their own dashed mark (core/preferences.less).
 // One shape wherever it is drawn: a 2 px line whose corners are `@ui-keyboard-frame-radius`. An outline's corner is its host's widened
 // by its offset, so the host's corner while it is framed (`@host`) and the offset together keep the one radius: a host whose own corner
 // is smaller or none (a row, a cell, an entry) takes the frame's for the while (`@takes: true`, `chain` through the border chain on a
 // root an author's corners are written on), the frame on its edge; a host whose corner is the frame's (a button) keeps its own
 // (`@takes: false`). `@ink` the words' own colour on a filled ground, where the brand's ink would vanish into the brand's fill.
-.ui-keyboard-frame(@ink: var(--ui-color-primary-ink); @host: @ui-keyboard-frame-radius; @takes: true; @offset: -2px) {
+.ui-keyboard-frame(@ink: var(--ui-mark-keyboard); @host: @ui-keyboard-frame-radius; @takes: true; @offset: -2px) {
     @media (forced-colors: none) {
         outline: 2px solid @ink;
         outline-offset: @offset;
@@ -57,7 +57,7 @@
 }
 
 // Inside a host whose own corner, `@host`, is larger than the frame's (a card's): the frame stands in from it until concentric.
-.ui-keyboard-frame-inside(@host; @ink: var(--ui-color-primary-ink)) {
+.ui-keyboard-frame-inside(@host; @ink: var(--ui-mark-keyboard)) {
     .ui-keyboard-frame(@ink: @ink; @takes: false; @offset: ~"calc(@{ui-keyboard-frame-radius} - @{host} - 2px)");
 }
 
@@ -67,22 +67,23 @@
     .ui-keyboard-frame(@host: ~"calc(@{ui-keyboard-frame-radius} - 2px - @{gap})"; @offset: @gap);
 }
 
-// Inside a host that draws a 2 px mark under its edge (a tab's caption over its chosen line): `@gap` in from it on three sides, the fourth
-// on the mark, so frame and line read as one. The host reaches down over the mark while framed, a transparent border its margin takes
-// back, so nothing moves and the mark, placed from the padding box, stays; it takes the corner that keeps the frame's one radius (`@takes:
-// chain` on a root an author's corners are written on). Not a pseudo-element: a caption's are its line, its loading ring, its picture's blur.
-.ui-keyboard-frame-inset(@gap: 2px; @takes: true) {
-    .ui-keyboard-frame(@host: ~"calc(@{ui-keyboard-frame-radius} + @{gap})"; @takes: @takes; @offset: ~"calc(-2px - @{gap})");
+// Inside a host that draws a 2 px mark under its edge (a tab's caption over its chosen line): on its edges, its foot on the mark and square
+// there, so the frame stands on the straight line as a tab does — rounded down to the line, its corners stood clear of it. The host reaches
+// down over the mark while framed, a transparent border its margin takes back, so nothing moves and the mark, placed from the padding box,
+// stays; it takes the frame's corner above and none below (`@takes: chain` on a root an author's corners are written on). Not a
+// pseudo-element: a caption's are its line, its loading ring, its picture's blur.
+.ui-keyboard-frame-inset(@takes: true) {
+    .ui-keyboard-frame(@host: ~"@{ui-keyboard-frame-radius} @{ui-keyboard-frame-radius} 0 0"; @takes: @takes);
 
     @media (forced-colors: none) {
-        margin-bottom: ~"calc(-2px - @{gap})";
-        border-bottom: ~"calc(2px + @{gap})" solid transparent;
+        margin-bottom: -2px;
+        border-bottom: 2px solid transparent;
     }
 }
 
 // What a drop target wears while something it takes is over it (runtime.less, a field's box in ui-input.less): a dashed edge inside
 // it, in an ink, not a fill, so it reads 3:1 on the ground it stands on, a field's fill included; `@ink` the refusal's for a refused one.
-.ui-drop-edge(@ink: var(--ui-color-primary-ink)) {
+.ui-drop-edge(@ink: var(--ui-mark-selected)) {
     outline: 2px dashed @ink;
     outline-offset: -2px;
 }

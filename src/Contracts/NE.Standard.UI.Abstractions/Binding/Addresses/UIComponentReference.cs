@@ -64,7 +64,7 @@ public readonly record struct UIComponentReference
 
         for (var i = 0; i < dynamicParameters.Length; i++)
         {
-            if (dynamicParameters[i] is not null and not int and not string)
+            if (!UIRowKeys.IsKey(dynamicParameters[i]))
                 throw new ArgumentException($"Dynamic parameter #{i} must be int or string.", nameof(dynamicParameters));
         }
     }

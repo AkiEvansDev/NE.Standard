@@ -59,9 +59,11 @@ export class StripFitter {
     private readonly options: StripFitterOptions;
     private readonly list: StripOverflowMenu;
 
-    // Width and wrap at the last fit: a room growing taller changes nothing, and the fit's own class changes are not a switch.
+    // Width, wrap and the space between the captions at the last fit: a room growing taller changes nothing, and the fit's own class changes are
+    // not a switch.
     private readonly fittedWidths = new WeakMap<Element, number>();
     private readonly wraps = new WeakMap<Element, boolean>();
+    private readonly spacings = new WeakMap<Element, StripSpacing>();
 
     // A strip is fitted again whenever its room's width changes (a trailing strip's, a caption's too); observed on first sight, and
     // fitted once however many of its boxes changed together.
@@ -90,13 +92,14 @@ export class StripFitter {
         })
         : null;
 
-    // ShowOverflow switched live is a root class the engines' observers miss; only the root's class is watched, so the rest cost nothing.
+    // ShowOverflow switched live is a root class the engines' observers miss, and a Spacing patched live the root's style, which
+    // moves the captions with no box changing size; only the root's own class and style are watched, so the rest cost nothing.
     private readonly switches = typeof MutationObserver === "function"
         ? new MutationObserver(records => {
             const roots = new Set<HTMLElement>();
 
             for (const record of records) {
-                if (record.target instanceof HTMLElement && this.wraps.get(record.target) !== this.options.wraps(record.target))
+                if (record.target instanceof HTMLElement && (this.wraps.get(record.target) !== this.options.wraps(record.target) || this.spacingChanged(record.target)))
                     roots.add(record.target);
             }
 
@@ -114,11 +117,13 @@ export class StripFitter {
     public fit(root: HTMLElement, layout: StripLayout): void {
         // Watched whatever the strip does with its captions: a room that changed size has a strip of another height under it.
         this.resizes?.observe(layout.room);
-        this.switches?.observe(root, { attributeFilter: ["class"] });
+        this.switches?.observe(root, { attributeFilter: ["class", "style"] });
 
         const wraps = this.options.wraps(root);
+        const host = layout.captions[0]?.parentElement ?? null;
 
         this.wraps.set(root, wraps);
+        this.spacings.set(root, { host, spacing: spacingOf(host) });
 
         if (wraps) {
             for (const caption of layout.captions)
@@ -145,6 +150,12 @@ export class StripFitter {
             this.closeListOf(root);
     }
 
+    private spacingChanged(root: HTMLElement): boolean {
+        const fitted = this.spacings.get(root);
+
+        return fitted !== undefined && spacingOf(fitted.host) !== fitted.spacing;
+    }
+
     private fitTrailing(layout: StripLayout, showButton: () => void): boolean {
         for (const caption of layout.captions)
             this.resizes?.observe(caption);
@@ -166,6 +177,14 @@ export class StripFitter {
 
         this.list.open(button, root, entries());
     }
+}
+
+/** The box the captions stand in and the space between them at the last fit. */
+type StripSpacing = { readonly host: HTMLElement | null; readonly spacing: string };
+
+/** The space between the captions as their box lays them out, `""` with none to read. */
+function spacingOf(host: HTMLElement | null): string {
+    return host === null ? "" : getComputedStyle(host).columnGap ?? "";
 }
 
 type StripFit = StripLayout & {

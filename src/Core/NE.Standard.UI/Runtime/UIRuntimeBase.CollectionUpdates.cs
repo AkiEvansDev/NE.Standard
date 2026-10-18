@@ -38,10 +38,7 @@ internal abstract partial class UIRuntimeBase
         {
             CompiledUIBinding binding = collectionBindings[bindingIndex];
 
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
-            if (!TryBuildDynamicParameters(binding, materializedParameters, out var ownerDynamicParameters))
+            if (!TryAddressPush(binding, materializedParameters, out var ownerDynamicParameters))
                 continue;
 
             // The list went whole this round, its rows' own lists with it: what is queued under it is what the page should get.
@@ -120,16 +117,13 @@ internal abstract partial class UIRuntimeBase
             CompiledUIBinding binding = collectionBindings[i];
             UIComponentId hostId = binding.Address.Component.Id;
 
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
             var redraws = own && (IsTemplateKeyProperty(hostId, path[^1].Property) || IsGroupProperty(hostId, path[^1].Property) || TakesItemValues(hostId));
 
             // One the host's rows bind reaches its rules as that value does, and a row the reader writes in is not redrawn under it.
             if (!redraws && (!ReadsByRule(hostId, path, row + 1) || IsBoundInRows(hostId, path)))
                 continue;
 
-            if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
+            if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
             // Sent whole this round already, the row with it.
@@ -350,10 +344,7 @@ internal abstract partial class UIRuntimeBase
         {
             CompiledUIBinding binding = collectionBindings[i];
 
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
-            if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
+            if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
             UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);

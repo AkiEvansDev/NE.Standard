@@ -54,7 +54,6 @@ test("more contrast asked of the system lifts every border to the mark on each p
     const block = /@media \(prefers-contrast: more\) \{\s*\[data-ui-theme\] \{([^}]*)\}/.exec(css)?.[1] ?? "";
 
     assert.match(block, /--ui-color-border: var\(--ui-color-mark\);/);
-    assert.match(block, /--ui-border-subtle: var\(--ui-color-mark\);/);
 });
 
 test("a Tonal field is the fill alone: it answers the pointer as Filled does and draws no line", () => {
@@ -66,6 +65,27 @@ test("a Tonal field is the fill alone: it answers the pointer as Filled does and
     // A search's field in its list is drawn by the same rules, under a head wearing its appearance; Ghost's line is a divider.
     assert.match(css, /\.ui-search__head\.ui-input--ghost > \.ui-search__field \{[^}]*border-color: var\(--ui-color-border\);/);
     assert.doesNotMatch(css, /ui-search__field--/);
+});
+
+test("a Ghost field shows its focus's wash at 80% under the pointer and no edge, a key-value row's editor too, but not under a row's own wash", () => {
+    const wash = /background: color-mix\(in srgb, var\(--ui-wash-hover\) 80%, transparent\);/;
+    const hover = /\n {2}:where\(\.ui-input--ghost[^{]*:hover,\s*:where\(\.ui-text-area\.ui-input--ghost[^{]*\) > \.ui-field-box:hover \{([^}]*)\}/.exec(css)?.[1] ?? "";
+
+    assert.match(hover, wash);
+    assert.doesNotMatch(hover, /border-color/);
+    // A package's editor (a code input's box) keeps its rest under the pointer: only a text area's box joins the rows.
+    assert.ok(!css.includes(":where(.ui-input--ghost:not(.ui-disabled):not(.ui-readonly)) > .ui-field-box:hover"), "every ghost box answers the pointer");
+
+    const pictureRow = /\.ui-image-input--inline\.ui-input--ghost[^{]*:hover \{([^}]*)\}/.exec(css)?.[1] ?? "";
+
+    assert.match(pictureRow, wash);
+    // The row's editor keeps the field's washes: no rule of its own takes the pointer's off.
+    assert.doesNotMatch(css, /\.ui-key-value-action__value-input \.ui-input--ghost:not\([^{]*\):hover \{/);
+
+    // One wash under the pointer: in a row that washes itself, the editor's own come off.
+    const underRow = /\.ui-key-value-action__row[^{]*:hover \.ui-input--ghost:not\(\.ui-disabled\) > :is\([^)]*\) \{([^}]*)\}/.exec(css)?.[1] ?? "";
+
+    assert.match(underRow, /background: none;/);
 });
 
 test("a range's track and a picture's drop edge read in the mark; a button group's strip draws no field's line", () => {
@@ -93,7 +113,7 @@ test("a field told to leave out its focus edge draws no brand edge under a focus
     const focus = ":focus-within:where(:not([data-ui-pointer-focus], [data-ui-focus-within='pointer']))";
     const rules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map(match => ({ selector: match[1].trim(), body: match[2] }));
     // A colour picker's own channel fields are its popup's, not the field the author told: they keep their focus edge.
-    const edges = rules.filter(rule => rule.selector.includes(focus) && /var\(--ui-color-primary\)|--ui-input-focus-ring/.test(rule.body) && !rule.selector.startsWith(".ui-color-input__field-input"));
+    const edges = rules.filter(rule => rule.selector.includes(focus) && /var\(--ui-mark-field\)|--ui-input-focus-ring/.test(rule.body) && !rule.selector.startsWith(".ui-color-input__field-input"));
 
     assert.ok(edges.length >= 4, "the field's focus edges were not found");
 

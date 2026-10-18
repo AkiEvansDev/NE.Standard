@@ -3,7 +3,7 @@
 // and said to a screen reader on the cells, whose tree follows the markup rather than the stylesheet's order.
 
 // `.ts` on the value import: `node --test` loads this module as it is.
-import { TableColumnAttribute, TableHiddenAttribute, TableResizerClass, TableRowClass } from "../addressing/dom-attributes.ts";
+import { TableColumnAttribute, TableHiddenAttribute, TableResizerClass, TableRowClass, writeAttribute } from "../addressing/dom-attributes.ts";
 
 /** Where the viewer put each column, one variable per column, which the stylesheet hands its cells as `order`. */
 export const OrderVariablePrefix = "--ui-table-order-";
@@ -71,10 +71,4 @@ export function stampColumnIndices(table: Element, order: readonly number[], hid
         else
             writeAttribute(cell, "aria-colindex", position);
     }
-}
-
-/** Only when it changes, so the table's own observers are not woken for nothing. */
-function writeAttribute(element: Element, name: string, value: string): void {
-    if (element.getAttribute(name) !== value)
-        element.setAttribute(name, value);
 }

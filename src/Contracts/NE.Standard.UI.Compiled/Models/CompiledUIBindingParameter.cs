@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
 
 namespace NE.Standard.UI.Compiled.Models;
@@ -71,7 +72,7 @@ public sealed class CompiledUIBindingParameter
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        return value is not int and not string
+        return !UIRowKeys.IsPathParameter(value)
             ? throw new ArgumentException("Binding parameter must be int or string.", nameof(value))
             : new CompiledUIBindingParameter
             {

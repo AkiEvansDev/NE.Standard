@@ -1,24 +1,17 @@
 using System;
-using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
+using NE.Standard.UI.Shell.Filters;
 
 namespace NE.Standard.UI.Shell.Navigation;
 
 /// <summary>
 /// Intercepts the resolution of a view, so a route can carry cross-cutting behaviour of its own.
 /// </summary>
-public interface IUIViewFilter
-{
-    /// <summary>
-    /// Gets the order this filter runs in, lowest first. Ties break by attachment: global, then view, then
-    /// controller.
-    /// </summary>
-    int Order => 0;
-
-    /// <summary>
-    /// Runs the filter around the rest of the pipeline.
-    /// </summary>
-    Task InvokeAsync(UIViewFilterContext context, Func<Task> next);
-}
+/// <remarks>
+/// Ordered by <see cref="IUIFilter{TContext}.Order"/>, ties broken by attachment: global, then view, then controller.
+/// </remarks>
+[SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "Names the view side of IUIFilter, which an attribute implements and the pipeline collects.")]
+public interface IUIViewFilter : IUIFilter<UIViewFilterContext>;
 
 /// <summary>
 /// Creates a view filter from the service provider, for a filter attribute that needs dependencies.

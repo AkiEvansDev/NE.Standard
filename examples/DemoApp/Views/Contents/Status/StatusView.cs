@@ -20,20 +20,12 @@ internal sealed class StatusView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(UIPage.Status(DemoIcons.Outline(DemoIcons.Search), UIMessageSeverity.Info, "Nothing at this address", "The page was moved or the link was mistyped.", UIButtons.Primary("Go to the home page"))
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 280);
 
     protected override ContainerComponent CreateOptions()
-        => DemoUI.CreateOptions(DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)));
+        => DemoUI.CreateOptions(DemoUI.CreateOptionSection(MainGroup, "Standard"));
 
     protected override IVisualComponent[] CreateExamples()
         => DemoUI.CreateColumns([CreateNotFoundGroup(), CreateFailureGroup()], [CreateRefusalGroup(), CreateSuccessGroup()]);

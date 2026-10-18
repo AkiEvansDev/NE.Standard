@@ -1,6 +1,7 @@
 // What every temporal control reads off its own root: the wire contract the C# renderers write, so a name changed here changes there too.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { writeAttribute } from "../addressing/dom-attributes.ts";
 import { clockHour12, dateTimePattern, formatTemporal, localDate, matchTemporalToken, parseWrittenMoment, readTemporal, writtenMomentDate } from "../rendering/temporal-format.ts";
 import type { TemporalCulturePack, TemporalLanguage, TemporalPatterns } from "../rendering/temporal-format.ts";
 import type { Phrase } from "../runtime/words.ts";
@@ -167,11 +168,6 @@ export function defaultFormat(mode: TemporalMode, step: TimeStep, patterns: Temp
     const seconds = step.unit === "second";
 
     return mode === "date" ? patterns.date : mode === "time" ? (seconds ? patterns.longTime : patterns.shortTime) : dateTimePattern(patterns, seconds);
-}
-
-function writeAttribute(root: HTMLElement, attribute: string, value: string): void {
-    if (root.getAttribute(attribute) !== value)
-        root.setAttribute(attribute, value);
 }
 
 export function isRange(root: HTMLElement): boolean {

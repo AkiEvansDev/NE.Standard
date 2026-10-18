@@ -197,17 +197,12 @@ public sealed partial class UITestPage
     /// </summary>
     internal UIComponentId RowTemplate(UIComponentId hostId, object?[] hostKeys, object? item)
     {
+        var keyProperty = Read(hostId, hostKeys, ITemplatedComponent.TemplateKeyPropertyProperty) as string;
+        var fallbackKey = Read(hostId, hostKeys, ITemplatedComponent.FallbackTemplateKeyProperty) as string;
         UIComponentSlot? slot = null;
 
-        if (Read(hostId, hostKeys, ITemplatedComponent.TemplateKeyPropertyProperty) is string { Length: > 0 } keyProperty
-            && ItemContext.TryReadProperty(item, keyProperty, out var key)
-            && Convert.ToString(key, System.Globalization.CultureInfo.InvariantCulture) is { Length: > 0 } variant)
-        {
+        if (ItemTemplateSelection.ResolveVariant(View.Graph, hostId, keyProperty, fallbackKey, item) is { } variant)
             _ = View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out slot, variant);
-        }
-
-        if (slot is null && Read(hostId, hostKeys, ITemplatedComponent.FallbackTemplateKeyProperty) is string { Length: > 0 } fallback)
-            _ = View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out slot, fallback);
 
         if (slot is null)
             _ = View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out slot, TemplateNames.Row);

@@ -109,7 +109,7 @@ internal sealed partial class NoteEditorController : UIControllerBase
             return base.OnLeaveRequestedAsync(target, cancellationToken);
 
         _leaveTarget = target;
-        LeaveQuestion = $"“{Title}” has changes that are not saved. Save them before going to {target}?";
+        LeaveQuestion = $"“{Title}” has changes that are not saved. Save them before leaving the note?";
 
         return Task.FromResult(UICommandResult.Ok([new OpenDialogEffect(LeaveDialogKey)]));
     }

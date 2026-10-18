@@ -122,10 +122,6 @@ internal sealed partial class CommandBarController() : DemoStandardController
     [RecursiveMember]
     public partial DeployActionsGroupContext DeployGroup { get; set; } = new();
 
-    [UICommand]
-    public void CycleBarGroupOption(string id)
-        => BarGroup.CycleOption(id);
-
     /// <summary>
     /// One command for the whole bar, told which button by its key.
     /// </summary>

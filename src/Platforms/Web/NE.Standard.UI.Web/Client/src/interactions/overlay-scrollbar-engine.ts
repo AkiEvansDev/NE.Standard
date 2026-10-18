@@ -55,7 +55,7 @@ type Axis = "y" | "x";
 
 type Box = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number; readonly width: number; readonly height: number };
 
-type Track = { readonly start: number; readonly length: number; readonly thumb: number; readonly max: number };
+type Track = { readonly start: number; readonly length: number; readonly thumb: number; readonly max: number; readonly arrow: number };
 
 /** Where a thumb stands on the viewport. */
 type ThumbBox = { readonly left: number; readonly top: number; readonly width: number; readonly height: number };
@@ -836,11 +836,11 @@ export function thumbBox(scroller: Element, axis: Axis, client: Box, both: boole
 
 /** Where the arrows stand at the ends of the thumb's track, in the thumb's strip; null where the track keeps none. */
 export function arrowBoxes(scroller: Element, axis: Axis, client: Box, both: boolean): Arrows {
-    if (arrowRoom(client, axis, both) === 0)
-        return null;
-
     const rtl = isRightToLeft(scroller);
     const track = trackOf(scroller, axis, client, both, rtl);
+
+    if (track.arrow === 0)
+        return null;
 
     if (axis === "y") {
         const left = rtl ? client.left : client.right - Strip;
@@ -857,19 +857,33 @@ export function arrowBoxes(scroller: Element, axis: Axis, client: Box, both: boo
  * The room an arrow takes at each end of the track: kept whether the arrows show or not, so the thumb at an end stands clear of a
  * rounded corner rather than running into it; none on a track too short to give it.
  */
-function arrowRoom(client: Box, axis: Axis, both: boolean): number {
-    return (axis === "y" ? client.height : client.width) - 2 * Inset - (both ? Strip : 0) >= ArrowedLeast ? Arrow : 0;
+function arrowRoom(client: Box, axis: Axis, both: boolean, stuck: number): number {
+    return (axis === "y" ? client.height : client.width) - stuck - 2 * Inset - (both ? Strip : 0) >= ArrowedLeast ? Arrow : 0;
 }
 
 function trackOf(scroller: Element, axis: Axis, client: Box, both: boolean, rtl: boolean): Track {
-    const arrow = arrowRoom(client, axis, both);
+    const stuck = axis === "y" ? stuckRows(scroller) : { top: 0, bottom: 0 };
+    const arrow = arrowRoom(client, axis, both, stuck.top + stuck.bottom);
     // Where the scroller scrolls both ways the two thumbs keep clear of each other's corner: the vertical one's side, the bottom's end.
-    const start = (axis === "y" ? client.top : client.left) + Inset + arrow + (both && rtl && axis === "x" ? Strip : 0);
-    const length = (axis === "y" ? client.height : client.width) - 2 * Inset - 2 * arrow - (both ? Strip : 0);
+    const start = (axis === "y" ? client.top + stuck.top : client.left) + Inset + arrow + (both && rtl && axis === "x" ? Strip : 0);
+    const length = (axis === "y" ? client.height - stuck.top - stuck.bottom : client.width) - 2 * Inset - 2 * arrow - (both ? Strip : 0);
     const shown = axis === "y" ? scroller.clientHeight : scroller.clientWidth;
     const whole = axis === "y" ? scroller.scrollHeight : scroller.scrollWidth;
 
-    return { start, length, thumb: Math.min(length, Math.max(LeastThumb, (length * shown) / whole)), max: whole - shown };
+    return { start, length, thumb: Math.min(length, Math.max(LeastThumb, (length * shown) / whole)), max: whole - shown, arrow };
+}
+
+/**
+ * What sticks over the scroller's top and bottom — a table's header, a package's totals — as its `scroll-padding` says for the rows
+ * the keyboard brings into view (ui-table.less): the upright bar runs beside the rows that scroll, not beside what stays.
+ */
+function stuckRows(scroller: Element): { readonly top: number; readonly bottom: number } {
+    if (scroller === document.scrollingElement)
+        return { top: 0, bottom: 0 };
+
+    const style = getComputedStyle(scroller);
+
+    return { top: Number.parseFloat(style.scrollPaddingTop) || 0, bottom: Number.parseFloat(style.scrollPaddingBottom) || 0 };
 }
 
 /**

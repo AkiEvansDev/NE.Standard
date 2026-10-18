@@ -162,6 +162,9 @@ public static class WebDomConverters
 
     /// <summary>A paragraph's <c>ui-text--max-lines</c> while its <c>MaxLines</c> is above zero; otherwise none.</summary>
     public const string MaxLinesClass = "maxLinesClass";
+
+    /// <summary>A text area's <c>ui-text-area--grow</c> while its most rows are above zero; otherwise none.</summary>
+    public const string TextAreaGrowClass = "textAreaGrowClass";
     public const string ProgressVariantClass = "progressVariantClass";
     public const string ProgressValueText = "progressValueText";
 

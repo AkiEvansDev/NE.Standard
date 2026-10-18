@@ -1,10 +1,8 @@
 using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
@@ -14,7 +12,6 @@ public sealed class SeparatorComponentRenderer : WebComponentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string LabelAttribute = "data-ui-separator-label";
 
-    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
 
     private static readonly WebDomOperation[] LabelOperations =
     [
@@ -31,11 +28,7 @@ public sealed class SeparatorComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
-        {
-            if (value is UIOrientation orientation)
-                _ = target.Class(WebClassNames.Orientation(orientation));
-        }, OrientationOperations);
+        OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
 
         // The rule is an inner __line, not a border on the root, so a label can interrupt it rather than float over it.
         _ = root.Element("span", line =>

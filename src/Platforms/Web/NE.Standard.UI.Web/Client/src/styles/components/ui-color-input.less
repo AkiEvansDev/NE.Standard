@@ -142,10 +142,7 @@
 // No hover of its own: a plate under a decorative glyph reads as a second button. Still a <button> for the keyboard and aria-expanded.
 .ui-color-input__toggle {
     position: relative;
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
+    .ui-glyph-host();
     margin-inline-start: auto;
     padding: 0;
     border: none;
@@ -191,12 +188,9 @@
 }
 
 .ui-color-input__tab {
+    .ui-bare-button();
     .ui-tab-caption-box();
-    border: 0;
-    background: none;
     .ui-tab-caption-rest-ink();
-    cursor: pointer;
-    font: inherit;
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
@@ -344,7 +338,7 @@
 }
 
 .ui-color-input__chip[data-ui-color-name-selected] {
-    outline: 2px solid var(--ui-color-primary);
+    outline: 2px solid var(--ui-mark-selected-fill);
     outline-offset: 1px;
 }
 

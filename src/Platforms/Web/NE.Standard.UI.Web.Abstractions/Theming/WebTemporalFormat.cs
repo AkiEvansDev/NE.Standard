@@ -56,20 +56,8 @@ public static class WebTemporalFormat
         StringBuilder result = new(format.Length + 8);
         var genitiveMonth = HasDayNumberToken(format);
 
-        for (var index = 0; index < format.Length;)
-        {
-            var token = UITemporalPattern.Match(format, index);
-
-            if (token is null)
-            {
-                _ = result.Append(format[index]);
-                index++;
-                continue;
-            }
-
-            _ = result.Append(Render(token, value, culture, genitiveMonth));
-            index += token.Length;
-        }
+        foreach (UITemporalPatternPiece piece in UITemporalPattern.Walk(format))
+            _ = piece.Token is string token ? result.Append(Render(token, value, culture, genitiveMonth)) : result.Append(format[piece.Index]);
 
         return result.ToString();
     }
@@ -80,20 +68,10 @@ public static class WebTemporalFormat
     /// </summary>
     private static bool HasDayNumberToken(string format)
     {
-        for (var index = 0; index < format.Length;)
+        foreach (UITemporalPatternPiece piece in UITemporalPattern.Walk(format))
         {
-            var token = UITemporalPattern.Match(format, index);
-
-            if (token is null)
-            {
-                index++;
-                continue;
-            }
-
-            if (token is "d" or "dd")
+            if (piece.Token is "d" or "dd")
                 return true;
-
-            index += token.Length;
         }
 
         return false;
@@ -139,14 +117,11 @@ public static class WebTemporalFormat
 
         StringBuilder result = new(format.Length);
 
-        for (var index = 0; index < format.Length;)
+        foreach (UITemporalPatternPiece piece in UITemporalPattern.Walk(format))
         {
-            var token = UITemporalPattern.Match(format, index);
-
-            if (token is null)
+            if (piece.Token is not string token)
             {
-                _ = result.Append(format[index]);
-                index++;
+                _ = result.Append(format[piece.Index]);
                 continue;
             }
 
@@ -154,8 +129,6 @@ public static class WebTemporalFormat
 
             for (var i = 0; i < token.Length; i++)
                 _ = result.Append(letter);
-
-            index += token.Length;
         }
 
         return result.ToString();

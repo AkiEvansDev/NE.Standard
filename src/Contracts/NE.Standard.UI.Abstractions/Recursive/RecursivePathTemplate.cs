@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using NE.Standard.UI.Primitives.Recursive;
 
@@ -9,34 +10,12 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 /// <summary>
 /// Represents a recursive path template with parameterized index or key segments.
 /// </summary>
+/// <remarks>
+/// The one reading of the template grammar (<c>Items[].Title</c>): a walker over a template reads its <see cref="Parts"/>, never the
+/// string.
+/// </remarks>
 public sealed class RecursivePathTemplate
 {
-    private enum TemplatePartKind
-    {
-        Segment = 0,
-        Parameter = 1,
-    }
-
-    private readonly struct TemplatePart
-    {
-        private TemplatePart(TemplatePartKind kind, PathSegment segment, int parameterIndex)
-        {
-            Kind = kind;
-            Segment = segment;
-            ParameterIndex = parameterIndex;
-        }
-
-        public TemplatePartKind Kind { get; }
-        public PathSegment Segment { get; }
-        public int ParameterIndex { get; }
-
-        public static TemplatePart Fixed(PathSegment segment)
-            => new(TemplatePartKind.Segment, segment, -1);
-
-        public static TemplatePart Parameter(int parameterIndex)
-            => new(TemplatePartKind.Parameter, default, parameterIndex);
-    }
-
     /// <summary>
     /// Gets the empty path template.
     /// </summary>
@@ -47,9 +26,9 @@ public sealed class RecursivePathTemplate
     /// </summary>
     public static IEqualityComparer<RecursivePath> ShapeComparer { get; } = new PathShapeComparer();
 
-    private readonly TemplatePart[] _parts;
+    private readonly RecursivePathTemplatePart[] _parts;
 
-    private RecursivePathTemplate(string template, int parameterCount, TemplatePart[] parts)
+    private RecursivePathTemplate(string template, int parameterCount, RecursivePathTemplatePart[] parts)
     {
         Template = template;
         ParameterCount = parameterCount;
@@ -65,6 +44,11 @@ public sealed class RecursivePathTemplate
     /// Gets the number of parameters required to materialize the template.
     /// </summary>
     public int ParameterCount { get; }
+
+    /// <summary>
+    /// Gets the template's steps in order: the properties it names and the slots its parameters fill.
+    /// </summary>
+    public ReadOnlySpan<RecursivePathTemplatePart> Parts => _parts;
 
     /// <summary>
     /// Materializes the template using index or key parameters.
@@ -84,27 +68,69 @@ public sealed class RecursivePathTemplate
 
         for (var i = 0; i < _parts.Length; i++)
         {
-            TemplatePart part = _parts[i];
+            RecursivePathTemplatePart part = _parts[i];
 
-            segments[i] = part.Kind switch
-            {
-                TemplatePartKind.Segment => part.Segment,
-                TemplatePartKind.Parameter => CreateParameterizedSegment(parameters[part.ParameterIndex]),
-                _ => throw new UnreachableException()
-            };
+            segments[i] = part.IsParameter ? PathSegment.ForParameter(parameters[part.ParameterIndex]) : part.Segment;
         }
 
         return new RecursivePath(segments, true);
     }
 
-    private static PathSegment CreateParameterizedSegment(object? parameter)
+    /// <summary>
+    /// Appends <paramref name="other"/>'s steps after this template's, its parameters numbered after this one's.
+    /// </summary>
+    public RecursivePathTemplate Append(RecursivePathTemplate other)
     {
-        return parameter switch
+        ArgumentNullException.ThrowIfNull(other);
+
+        if (other._parts.Length == 0)
+            return this;
+
+        if (_parts.Length == 0)
+            return other;
+
+        RecursivePathTemplatePart[] parts = new RecursivePathTemplatePart[_parts.Length + other._parts.Length];
+        _parts.CopyTo(parts, 0);
+
+        for (var i = 0; i < other._parts.Length; i++)
         {
-            int index => PathSegment.AtIndex(index),
-            string key => PathSegment.WithKey(key),
-            _ => throw new ArgumentException("Path template parameters must be int or string.", nameof(parameter)),
-        };
+            RecursivePathTemplatePart part = other._parts[i];
+
+            parts[_parts.Length + i] = part.IsParameter ? RecursivePathTemplatePart.ForParameter(ParameterCount + part.ParameterIndex) : part;
+        }
+
+        return Create(parts, ParameterCount + other.ParameterCount);
+    }
+
+    /// <summary>
+    /// Appends a slot (<c>[]</c>) its next parameter fills.
+    /// </summary>
+    public RecursivePathTemplate AppendParameter()
+        => Create([.. _parts, RecursivePathTemplatePart.ForParameter(ParameterCount)], ParameterCount + 1);
+
+    /// <summary>
+    /// Gets the template's first <paramref name="count"/> parts: an ancestor every path of this template passes through.
+    /// </summary>
+    public RecursivePathTemplate Take(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, _parts.Length);
+
+        if (count == _parts.Length)
+            return this;
+
+        if (count == 0)
+            return Empty;
+
+        var parameterCount = 0;
+
+        for (var i = 0; i < count; i++)
+        {
+            if (_parts[i].IsParameter)
+                parameterCount++;
+        }
+
+        return Create(_parts[..count], parameterCount);
     }
 
     /// <summary>
@@ -115,10 +141,31 @@ public sealed class RecursivePathTemplate
     {
         ArgumentNullException.ThrowIfNull(template);
 
-        if (template.Length == 0 || template == ".")
-            return Empty;
+        return TryParse(template, out RecursivePathTemplate? parsed, out var error) ? parsed : throw new FormatException(error);
+    }
 
-        List<TemplatePart> parts = [];
+    /// <summary>
+    /// Parses a recursive path template; false where it is not a valid one.
+    /// </summary>
+    public static bool TryParse(string template, [NotNullWhen(true)] out RecursivePathTemplate? parsed)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+
+        return TryParse(template, out parsed, out _);
+    }
+
+    private static bool TryParse(string template, [NotNullWhen(true)] out RecursivePathTemplate? parsed, [NotNullWhen(false)] out string? error)
+    {
+        parsed = null;
+        error = null;
+
+        if (template.Length == 0 || template == ".")
+        {
+            parsed = Empty;
+            return true;
+        }
+
+        List<RecursivePathTemplatePart> parts = [];
         ReadOnlySpan<char> span = template.AsSpan();
 
         var i = 0;
@@ -130,7 +177,10 @@ public sealed class RecursivePathTemplate
             if (span[i] == '.')
             {
                 if (expectSegment)
-                    throw new FormatException($"Invalid path template '{template}'.");
+                {
+                    error = $"Invalid path template '{template}'.";
+                    return false;
+                }
 
                 expectSegment = true;
                 i++;
@@ -140,9 +190,12 @@ public sealed class RecursivePathTemplate
             if (span[i] == '[')
             {
                 if (i + 1 >= span.Length || span[i + 1] != ']')
-                    throw new FormatException($"Invalid parameter segment in path template '{template}'.");
+                {
+                    error = $"Invalid parameter segment in path template '{template}'.";
+                    return false;
+                }
 
-                parts.Add(TemplatePart.Parameter(parameterCount));
+                parts.Add(RecursivePathTemplatePart.ForParameter(parameterCount));
                 parameterCount++;
 
                 i += 2;
@@ -156,22 +209,32 @@ public sealed class RecursivePathTemplate
                 i++;
 
             if (i == start)
-                throw new FormatException($"Invalid property segment in path template '{template}'.");
+            {
+                error = $"Invalid property segment in path template '{template}'.";
+                return false;
+            }
 
-            parts.Add(TemplatePart.Fixed(PathSegment.ForProperty(span[start..i].ToString())));
+            parts.Add(RecursivePathTemplatePart.ForProperty(PathSegment.ForProperty(span[start..i].ToString())));
             expectSegment = false;
         }
 
-        return expectSegment ? throw new FormatException($"Invalid path template '{template}'.") : Create([.. parts], parameterCount);
+        if (expectSegment)
+        {
+            error = $"Invalid path template '{template}'.";
+            return false;
+        }
+
+        parsed = Create([.. parts], parameterCount);
+        return true;
     }
 
-    private static RecursivePathTemplate Create(TemplatePart[] parts, int parameterCount)
+    private static RecursivePathTemplate Create(RecursivePathTemplatePart[] parts, int parameterCount)
     {
         var template = BuildTemplate(parts);
         return new RecursivePathTemplate(template, parameterCount, parts);
     }
 
-    private static string BuildTemplate(ReadOnlySpan<TemplatePart> parts)
+    private static string BuildTemplate(ReadOnlySpan<RecursivePathTemplatePart> parts)
     {
         if (parts.Length == 0)
             return string.Empty;
@@ -180,32 +243,18 @@ public sealed class RecursivePathTemplate
 
         for (var i = 0; i < parts.Length; i++)
         {
-            TemplatePart part = parts[i];
+            RecursivePathTemplatePart part = parts[i];
 
-            if (part.Kind == TemplatePartKind.Parameter)
+            if (part.IsParameter)
             {
                 _ = builder.Append("[]");
                 continue;
             }
 
-            PathSegment segment = part.Segment;
+            if (builder.Length > 0)
+                _ = builder.Append('.');
 
-            switch (segment.Kind)
-            {
-                case PathSegmentKind.Property:
-                    if (builder.Length > 0)
-                        _ = builder.Append('.');
-                    _ = builder.Append(segment.Property);
-                    break;
-
-                case PathSegmentKind.Index:
-                case PathSegmentKind.Key:
-                    _ = builder.Append("[]");
-                    break;
-
-                default:
-                    throw new UnreachableException();
-            }
+            _ = builder.Append(part.Segment.Property);
         }
 
         return builder.ToString();
@@ -229,14 +278,14 @@ public sealed class RecursivePathTemplate
     private static RecursivePathTemplate BuildFromPath(RecursivePath path)
     {
         ReadOnlySpan<PathSegment> segments = path.AsSpan();
-        TemplatePart[] parts = new TemplatePart[segments.Length];
+        RecursivePathTemplatePart[] parts = new RecursivePathTemplatePart[segments.Length];
         var parameterCount = 0;
 
         for (var i = 0; i < segments.Length; i++)
         {
             parts[i] = segments[i].Kind == PathSegmentKind.Property
-                ? TemplatePart.Fixed(segments[i])
-                : TemplatePart.Parameter(parameterCount++);
+                ? RecursivePathTemplatePart.ForProperty(segments[i])
+                : RecursivePathTemplatePart.ForParameter(parameterCount++);
         }
 
         return Create(parts, parameterCount);

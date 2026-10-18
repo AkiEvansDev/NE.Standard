@@ -39,16 +39,4 @@ internal sealed partial class LanguageSwitcherController() : DemoStandardControl
 
     [RecursiveMember]
     public partial SwitcherFieldGroupContext FieldGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleSwitcherGroupOption(string id)
-        => SwitcherGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleFieldGroupOption(string id)
-        => FieldGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderGroupOption(string id)
-        => BorderGroup.CycleOption(id);
 }

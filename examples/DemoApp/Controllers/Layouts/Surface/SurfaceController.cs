@@ -14,12 +14,4 @@ internal sealed partial class SurfaceController() : DemoStandardController
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleSurfaceOption(string id)
-        => SurfaceGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 }

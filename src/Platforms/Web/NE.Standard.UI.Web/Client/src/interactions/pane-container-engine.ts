@@ -21,6 +21,8 @@ const LiftedAttribute = "data-ui-pane-lifted";
 const TargetAttribute = "data-ui-pane-target";
 const MovingAttribute = "data-ui-pane-moving";
 const NearAttribute = "data-ui-pane-near";
+// On a lifted pane stood in the top layer (`raise`), for the stylesheet to take the popover's own box off it.
+const RaisedAttribute = "data-ui-pane-raised";
 // Where a pane's name is read from: the first title-sized text of its own, which a pane's header (`UIHeaderSize.Pane`) leads with.
 const TitleSelector = ".ui-text-type--display, .ui-text-type--title, .ui-text-type--subtitle";
 const LayoutSlot = "panes";
@@ -56,6 +58,9 @@ export class PaneContainerEngine {
     // A lift the keyboard holds: the grip keeps the focus, the arrows choose the place and Space or Enter puts the pane there.
     private held: Lift | null = null;
 
+    // The lift whose pane stands in the top layer, held where its place is as the page scrolls under it.
+    private raised: Lift | null = null;
+
     // The pane whose top the pointer is over, its grip shown.
     private near: HTMLElement | null = null;
 
@@ -83,7 +88,7 @@ export class PaneContainerEngine {
         this.root.addEventListener("pointermove", domEvent => this.handlePointerMove(domEvent), { passive: true });
         this.root.addEventListener("pointerout", domEvent => this.handlePointerOut(domEvent), { passive: true });
         this.root.addEventListener("pointerover", () => this.forgetNearTop(), { passive: true });
-        this.root.addEventListener("scroll", () => this.forgetNearTop(), { capture: true, passive: true });
+        this.root.addEventListener("scroll", () => this.handleScroll(), { capture: true, passive: true });
         window.addEventListener("resize", () => this.forgetNearTop());
 
         this.arrangeEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`), false);
@@ -146,7 +151,11 @@ export class PaneContainerEngine {
         pane.setAttribute(LiftedAttribute, "");
         container.setAttribute(MovingAttribute, "");
 
-        return { container, grip, pane, origin, start: point, target: null };
+        const lift: Lift = { container, grip, pane, origin, start: point, target: null };
+
+        this.raise(lift);
+
+        return lift;
     }
 
     /** A hold whose pane was re-rendered away: removing the focused grip raises no `focusout` to let it down. */
@@ -158,6 +167,30 @@ export class PaneContainerEngine {
 
         this.held = null;
         this.settle(held);
+    }
+
+    /**
+     * Stands the pane in the top layer at the box it stood in, out of every box that clips round it — its container's, a scroller's —
+     * which cut it flat as it went; its place keeps its size meanwhile, so nothing beside it moves.
+     */
+    private raise(lift: Lift): void {
+        const { pane, origin } = lift;
+
+        if (typeof pane.showPopover !== "function")
+            return;
+
+        const box = origin.getBoundingClientRect();
+
+        origin.style.minWidth = `${box.width}px`;
+        origin.style.minHeight = `${box.height}px`;
+        pane.style.left = `${box.left}px`;
+        pane.style.top = `${box.top}px`;
+        pane.style.width = `${box.width}px`;
+        pane.style.height = `${box.height}px`;
+        pane.setAttribute("popover", "manual");
+        pane.setAttribute(RaisedAttribute, "");
+        pane.showPopover();
+        this.raised = lift;
     }
 
     /** The pane follows the pointer, over the page, and the place under the pointer is marked as the one it would trade with. */
@@ -211,11 +244,35 @@ export class PaneContainerEngine {
 
     /** Takes the lift's marks off, the keyboard's on the grip too, the pane's offset left for its slide to start from. */
     private settle(lift: Lift): void {
+        this.lower(lift);
         lift.target?.removeAttribute(TargetAttribute);
         lift.pane.removeAttribute(LiftedAttribute);
         lift.container.removeAttribute(MovingAttribute);
         lift.grip.setAttribute("aria-pressed", "false");
         lift.grip.removeAttribute(OwnsKeysAttribute);
+    }
+
+    /** Back in its place in the page, its offset kept for the slide that follows to start from where it was let go. */
+    private lower(lift: Lift): void {
+        const { pane, origin } = lift;
+
+        if (this.raised === lift)
+            this.raised = null;
+
+        if (!pane.hasAttribute(RaisedAttribute))
+            return;
+
+        if (pane.matches(":popover-open"))
+            pane.hidePopover();
+
+        pane.removeAttribute("popover");
+        pane.removeAttribute(RaisedAttribute);
+
+        for (const property of ["left", "top", "width", "height"] as const)
+            pane.style[property] = "";
+
+        origin.style.minWidth = "";
+        origin.style.minHeight = "";
     }
 
     /** Writes the layout the panes now stand in, and gives it to whoever keeps it: the controller where bound, else the browser. */
@@ -346,6 +403,21 @@ export class PaneContainerEngine {
         }
 
         this.markNear(domEvent.clientY - near.top < GripZonePixels ? pane : null);
+    }
+
+    /** A scroll moves the place under a raised pane, which goes with it, as it did standing in the page. */
+    private handleScroll(): void {
+        this.forgetNearTop();
+
+        const raised = this.raised;
+
+        if (raised === null)
+            return;
+
+        const box = raised.origin.getBoundingClientRect();
+
+        raised.pane.style.left = `${box.left}px`;
+        raised.pane.style.top = `${box.top}px`;
     }
 
     private forgetNearTop(): void {

@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Shell.Localization;
 
 namespace NE.Standard.UI.Runtime;
 
@@ -43,7 +44,7 @@ internal static class UIFormattedValueNormalizer
         if (value is not string text || string.IsNullOrWhiteSpace(text))
             return UIFormattedValueNormalization.Untouched;
 
-        CultureInfo cultureInfo = ResolveCulture(culture);
+        CultureInfo cultureInfo = UICultures.Resolve(culture);
 
         // No format and an invariant culture: the client already sends canonical strings for unformatted input.
         if (string.IsNullOrWhiteSpace(format) && ReferenceEquals(cultureInfo, CultureInfo.InvariantCulture))
@@ -61,21 +62,6 @@ internal static class UIFormattedValueNormalizer
 
         normalized = value;
         return UIFormattedValueNormalization.Rejected;
-    }
-
-    private static CultureInfo ResolveCulture(string? culture)
-    {
-        if (string.IsNullOrWhiteSpace(culture))
-            return CultureInfo.InvariantCulture;
-
-        try
-        {
-            return CultureInfo.GetCultureInfo(culture);
-        }
-        catch (CultureNotFoundException)
-        {
-            return CultureInfo.InvariantCulture;
-        }
     }
 
     private static bool IsTemporalFormat(string? format)

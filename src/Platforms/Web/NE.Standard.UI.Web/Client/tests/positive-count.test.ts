@@ -42,6 +42,8 @@ test("a count above zero is its text; zero, a negative, a fraction or nothing is
     assert.equal(convert("positiveFlagAttribute", 0), undefined);
     assert.equal(convert("maxLinesClass", 3), "ui-text--max-lines");
     assert.equal(convert("maxLinesClass", 0), "");
+    assert.equal(convert("textAreaGrowClass", 6), "ui-text-area--grow");
+    assert.equal(convert("textAreaGrowClass", 0), "");
 });
 
 test("a text area's rows pushed to zero take the attribute and the variable away", () => {
@@ -63,4 +65,15 @@ test("a text area's rows pushed to zero take the attribute and the variable away
     assert.equal(area.hasAttribute("rows"), false);
     assert.equal(area.style["--ui-text-area-rows"], undefined);
     assert.equal(area.hasAttribute("data-ui-text-area-grow"), false);
+});
+
+test("a text area's most rows pushed live mark its root while it grows, and take the mark away at zero", () => {
+    const root = new FakeElement();
+    const mark = { kind: "Class", converter: "textAreaGrowClass" };
+
+    patch(root, mark, 6);
+    assert.equal(root.classList.contains("ui-text-area--grow"), true);
+
+    patch(root, mark, 0);
+    assert.equal(root.classList.contains("ui-text-area--grow"), false);
 });

@@ -5,6 +5,7 @@
 @import "../mixins/interactive.less";
 @import "../mixins/range.less";
 @import "../mixins/responsive.less";
+@import "../mixins/text.less";
 
 // The mark, not the field's edge: under Filled the edge is the fill, so a dashed edge in that colour would vanish; the dashed edge is
 // all that says a picture may be dropped here, so it reads 3:1 as a control's edge does.
@@ -198,9 +199,7 @@
         display: block;
         flex: 1 1 auto;
         min-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
+        .ui-text-nowrap();
         color: var(--ui-color-on-surface);
     }
 
@@ -233,10 +232,7 @@
 
 .ui-input--underline.ui-image-input--inline > .ui-image-input__surface {
     --ui-field-fill: var(--ui-field-ground);
-    border-style: none none solid none;
-    .ui-responsive-property(border-width, --ui-border-thickness, ~"0 0 var(--ui-border-width, 1px) 0");
-    border-color: var(--ui-color-mark);
-    .ui-responsive-property(border-radius, --ui-border-radius, 0);
+    .ui-authored-border(~"0 0 var(--ui-border-width, 1px) 0"; 0; var(--ui-color-mark); none none solid none);
     background: none;
     min-height: 1.75rem;
     padding-left: 0;
@@ -292,6 +288,11 @@
     .ui-image-input@{ui-field-live}:not(.ui-image-input--inline, [data-ui-image-dragging])@{ui-image-edge-hover},
     .ui-image-input--inline:is(.ui-input--filled, .ui-input--tonal)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
         border-color: var(--ui-field-hover);
+    }
+
+    // Ghost's row: the paler wash of the field it is, as a text field's ghost row shows (ui-input.less).
+    .ui-image-input--inline.ui-input--ghost@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
+        background: @ui-ghost-hover-wash;
     }
 
     // Filled keeps its line under the pointer.
@@ -423,8 +424,7 @@
 // its name.
 .ui-image-input__tile > .ui-file-tile__name {
     display: block;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    .ui-text-nowrap();
 }
 
 // The cross over a square: a veil the pointer or the keyboard brings up, the same weight as every other clear control.

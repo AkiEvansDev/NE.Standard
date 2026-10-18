@@ -2,14 +2,14 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using NE.Standard.UI.Primitives.Json;
 
 namespace NE.Standard.UI.Abstractions.Effects;
 
 /// <summary>
 /// Serializes client effects using their runtime type while keeping the public transport shape stable.
 /// </summary>
-public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
+public sealed class ClientEffectJsonConverter : UIRuntimeTypeJsonConverter<ClientEffect>
 {
     private static readonly FrozenDictionary<string, Type> BuiltInTypes = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
@@ -52,7 +52,7 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
     {
         using JsonDocument document = JsonDocument.ParseValue(ref reader);
 
-        if (!TryGetProperty(document.RootElement, "kind", out JsonElement kindElement) || kindElement.ValueKind != JsonValueKind.String)
+        if (!document.RootElement.TryGetPropertyIgnoreCase("kind", out JsonElement kindElement) || kindElement.ValueKind != JsonValueKind.String)
             throw new JsonException("Client effect kind is required.");
 
         var kind = kindElement.GetString() ?? string.Empty;
@@ -61,34 +61,5 @@ public sealed class ClientEffectJsonConverter : JsonConverter<ClientEffect>
         return BuiltInTypes.TryGetValue(kind, out Type? effectType)
             ? (ClientEffect?)document.RootElement.Deserialize(effectType, options)
             : throw new JsonException($"Client effect kind '{kind}' has no type to read back.");
-    }
-
-    private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
-    {
-        foreach (JsonProperty property in element.EnumerateObject())
-        {
-            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = property.Value;
-                return true;
-            }
-        }
-
-        value = default;
-        return false;
-    }
-
-    /// <inheritdoc />
-    public override void Write(Utf8JsonWriter writer, ClientEffect value, JsonSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-
-        if (value is null)
-        {
-            writer.WriteNullValue();
-            return;
-        }
-
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
     }
 }

@@ -42,15 +42,7 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
 
     private static TimestampComponent Bind(TimestampComponent timestamp)
         => timestamp
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindValue($"{TimestampGroup}.{nameof(TimestampGroupContext.Value)}")
             .BindTextType($"{TimestampGroup}.{nameof(TimestampGroupContext.TextType)}")
             .BindColor($"{TimestampGroup}.{nameof(TimestampGroupContext.Color)}")
@@ -60,8 +52,8 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(TimestampGroup, "Timestamp", nameof(TimestampController.CycleTimestampOption), "Value steps through now, yesterday, in two hours, a fixed day, none and five minutes ago, each read at the press.")
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(TimestampGroup, "Timestamp", "Value steps through now, yesterday, in two hours, a fixed day, none and five minutes ago, each read at the press.")
         );
 
     protected override IVisualComponent[] CreateExamples()

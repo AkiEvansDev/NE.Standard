@@ -38,15 +38,7 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TreeComponent("bucket-objects")
             .BindItems($"{NodesGroup}.{nameof(TreeNodesGroupContext.Items)}")
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSurface($"{TreeGroup}.{nameof(TreeGroupContext.Surface)}")
             .BindIndent($"{TreeGroup}.{nameof(TreeGroupContext.Indent)}")
             .BindRenamable($"{TreeGroup}.{nameof(TreeGroupContext.Renamable)}")
@@ -59,19 +51,17 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
             .BindSelectedKey($"{TreeGroup}.{nameof(TreeGroupContext.SelectedKey)}")
             .BindSelectedKeys($"{TreeGroup}.{nameof(TreeGroupContext.SelectedKeys)}")
             .BindSelectionStyle($"{TreeGroup}.{nameof(TreeGroupContext.SelectionStyle)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .SetMaxHeight(UILayoutLength.Absolute(260))
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 320);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(TreeGroup, "Tree", nameof(TreeController.CycleTreeOption)),
-            DemoUI.CreateOptionSection(NodesGroup, "Nodes", nameof(TreeController.CycleNodesOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(TreeController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(TreeGroup, "Tree"),
+            DemoUI.CreateOptionSection(NodesGroup, "Nodes"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()
@@ -113,8 +103,8 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                             .SetItems(
                             [
                                 new MenuItem { Id = TreeFilesGroupContext.NewFileAction, Title = "New object", Icon = DemoIcons.Outline(DemoIcons.File) },
-                                new MenuItem { Id = TreeFilesGroupContext.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
-                                new MenuItem { Id = TreeFilesGroupContext.DeleteAction, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close) }
+                                UIMenuItems.Rename(TreeFilesGroupContext.RenameAction),
+                                UIMenuItems.Delete(TreeFilesGroupContext.DeleteAction)
                             ])
                             .OnItemClick(nameof(TreeController.NodeAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
                         )
@@ -123,8 +113,8 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                         .SetContextMenu(new MenuComponent()
                             .SetItems(
                             [
-                                new MenuItem { Id = TreeFilesGroupContext.RenameAction, Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
-                                new MenuItem { Id = TreeFilesGroupContext.DeleteAction, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close) }
+                                UIMenuItems.Rename(TreeFilesGroupContext.RenameAction),
+                                UIMenuItems.Delete(TreeFilesGroupContext.DeleteAction)
                             ])
                             .OnItemClick(nameof(TreeController.NodeAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
                         )

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Primitives.Interaction;
@@ -74,6 +75,21 @@ public readonly record struct UIActionArgument
     /// </summary>
     public static UIActionArgument Literal(object? value)
         => new(value);
+
+    /// <summary>
+    /// Creates literal action arguments from named values, keeping their names and order.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument>[] Literals(params KeyValuePair<string, object?>[] arguments)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+
+        KeyValuePair<string, UIActionArgument>[] mapped = new KeyValuePair<string, UIActionArgument>[arguments.Length];
+
+        for (var i = 0; i < arguments.Length; i++)
+            mapped[i] = new(arguments[i].Key, Literal(arguments[i].Value));
+
+        return mapped;
+    }
 
     /// <summary>
     /// Creates an action argument resolved from the current item.

@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -123,7 +124,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                 _ = RenderProperty<decimal?>(context, input, IInputComponent.ValueProperty, (target, value) =>
                 {
                     if (value is decimal current)
-                        _ = target.Attribute("value", trimZeros ? TrimTrailingZeros(current) : current.ToString(CultureInfo.InvariantCulture));
+                        _ = target.Attribute("value", (trimZeros ? WebNumberFormat.WithoutTrailingZeros(current) : current).ToString(CultureInfo.InvariantCulture));
                 }, ValueOperations);
             });
 
@@ -141,13 +142,5 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
         });
 
         RenderValidationMessage(context, root);
-    }
-
-    /// <summary>A value's invariant text without the zeros its scale carries past the last digit (<c>1.500</c> as <c>1.5</c>).</summary>
-    internal static string TrimTrailingZeros(decimal value)
-    {
-        var text = value.ToString(CultureInfo.InvariantCulture);
-
-        return text.Contains('.', StringComparison.Ordinal) ? text.TrimEnd('0').TrimEnd('.') : text;
     }
 }

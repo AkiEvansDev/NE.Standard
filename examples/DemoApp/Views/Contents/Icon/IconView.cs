@@ -22,15 +22,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new IconComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindIcon($"{IconGroup}.{nameof(IconGroupContext.Icon)}")
             .BindColor($"{IconGroup}.{nameof(IconGroupContext.Color)}")
             .BindSize($"{IconGroup}.{nameof(IconGroupContext.Size)}")
@@ -41,8 +33,8 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(IconGroup, "Icon", nameof(IconController.CycleIconOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(IconGroup, "Icon")
         );
 
     protected override IVisualComponent[] CreateExamples()
@@ -185,7 +177,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                 .AddChild(new TextComponent()
                     .SetIcon(DemoImages.Avatar)
                     .SetTitle("Robin Hale")
-                    .SetDescription("A square photograph, no size given: a tile the block's height.")
+                    .SetDescription("A square photograph, no size given: a tile as tall as the title and one line under it, centred when the words run on.")
                     .SetWrapMode(UITextWrapMode.Wrap)
                 )
                 .AddChild(new TextComponent()

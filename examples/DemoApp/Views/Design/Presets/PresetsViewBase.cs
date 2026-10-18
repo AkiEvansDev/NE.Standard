@@ -179,8 +179,9 @@ internal abstract class PresetsViewBase : DemoView
                 .SetPadding(UIThickness.Uniform(0))
                 .SetContent(UILayout.Stack(0,
                     UIPage.Banner(UIMessage.Warning("Read-only until 18:00 UTC", "The database is moving to a larger server.", dismissible: true)),
-                    UIText.Note("The page's content starts here, its edge where the banner's words start.").SetMargin(UIThickness.All(24, 16, 24, 16))
-                )),
+                    UIText.Note("The page's content starts here, its edge where the banner's mark stands.").SetMargin(UIThickness.All(24, 16, 24, 16))
+                )
+            ),
             note: "A UIMessage laid across the top of the content: edge to edge, square, a rule under it, its mark in line with the header's name. The content's first child, outside its padding."
         );
 
@@ -264,7 +265,7 @@ internal abstract class PresetsViewBase : DemoView
                     UIPage.Header(UIHeaderSize.Strip, null, "Explorer", null, UIIconButtons.New(), UIIconButtons.Refresh()),
                     new TreeComponent().SetItems([new TreeNode { Id = "incidents", Title = "incidents" }, new TreeNode { Id = "checks", Title = "checks" }])
                 )),
-            note: "UIHeaderSize.Strip: a panel's caption over the list or the tree in it — an explorer's. The name a muted label, set in by a row's 8 px so it stands over the rows' words; the far end's icon buttons on its row."
+            note: "UIHeaderSize.Strip: a panel's caption over the list or the tree in it — an explorer's. The name a muted label, set in by a list row's 8 px so it stands over a list's words, and over a tree's chevrons as here; the far end's icon buttons on its row, small unless their size is said."
         );
 
     protected static ContainerComponent CreateBandGroup()

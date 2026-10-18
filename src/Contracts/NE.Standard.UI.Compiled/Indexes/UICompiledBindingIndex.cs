@@ -97,25 +97,23 @@ public sealed class UICompiledBindingIndex
 
         foreach (CompiledUIBindingTemplate template in templates.All)
         {
-            AddShape(byShape, template.Template);
+            AddShape(byShape, template.Parsed);
 
-            foreach (var ancestorTemplate in EnumerateAncestorTemplates(template.Template))
+            foreach (RecursivePathTemplate ancestorTemplate in EnumerateAncestorTemplates(template.Parsed))
                 AddShape(byShape, ancestorTemplate);
         }
 
         return byShape.ToFrozenDictionary(RecursivePathTemplate.ShapeComparer);
     }
 
-    private static void AddShape(Dictionary<RecursivePath, string> byShape, string template)
+    private static void AddShape(Dictionary<RecursivePath, string> byShape, RecursivePathTemplate parsed)
     {
-        RecursivePathTemplate parsed = RecursivePathTemplate.Parse(template);
-
         // Any parameter values will do: the shape comparer reads only where the slots are.
         var placeholders = new object[parsed.ParameterCount];
 
         Array.Fill(placeholders, 0);
 
-        _ = byShape.TryAdd(parsed.Materialize(placeholders), template);
+        _ = byShape.TryAdd(parsed.Materialize(placeholders), parsed.Template);
     }
 
     /// <summary>
@@ -431,32 +429,20 @@ public sealed class UICompiledBindingIndex
     {
         CompiledUIBindingTemplate template = templates.GetRequired(binding.TemplateId);
 
-        foreach (var ancestorTemplate in EnumerateAncestorTemplates(template.Template))
+        foreach (RecursivePathTemplate ancestorTemplate in EnumerateAncestorTemplates(template.Parsed))
         {
-            BindingTemplateStringKindKey key = new(binding.SourceId, ancestorTemplate, binding.Kind);
+            BindingTemplateStringKindKey key = new(binding.SourceId, ancestorTemplate.Template, binding.Kind);
 
             GroupingIndex.Add(index, key, binding);
         }
     }
 
-    private static IEnumerable<string> EnumerateAncestorTemplates(string template)
+    /// <summary>The templates every path of <paramref name="template"/> passes through, the empty one first; none for the empty one.</summary>
+    private static IEnumerable<RecursivePathTemplate> EnumerateAncestorTemplates(RecursivePathTemplate template)
     {
-        ArgumentNullException.ThrowIfNull(template);
+        var count = template.Parts.Length;
 
-        if (template.Length == 0)
-            yield break;
-
-        yield return string.Empty;
-
-        for (var i = 0; i < template.Length; i++)
-        {
-            if (template[i] is not '.' and not '[')
-                continue;
-
-            if (i == 0)
-                continue;
-
-            yield return template[..i];
-        }
+        for (var i = 0; i < count; i++)
+            yield return template.Take(i);
     }
 }

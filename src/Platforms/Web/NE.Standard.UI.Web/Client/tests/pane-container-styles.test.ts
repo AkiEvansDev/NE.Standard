@@ -28,3 +28,14 @@ test("a grip is shown by a key's focus, never by the focus a drag leaves on it",
 test("a grip is pale at rest, the muted ink only under the pointer", () => {
     assert.match(declarations(grip) ?? "", /color: color-mix\(in srgb, .+ 50%, transparent\);/);
 });
+
+test("a pane raised into the top layer takes the popover's own box off, and stands where the engine writes", () => {
+    const raised = declarations(".ui-pane-container__pane[data-ui-pane-raised]") ?? "";
+
+    assert.match(raised, /position: fixed;/);
+    assert.match(raised, /inset: auto;/, "the popover's own inset 0 would stretch it over the window");
+    assert.match(raised, /margin: 0;/);
+    assert.match(raised, /background: none;/, "the popover's canvas ground showed round the pane");
+    assert.match(raised, /color: inherit;/);
+    assert.doesNotMatch(css, /overflow-clip-margin: 100vmax/, "the container's clip is no longer stood off");
+});

@@ -54,15 +54,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
 
     private static MenuComponent Bind(MenuComponent menu)
         => menu
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindOrientation($"{MenuGroup}.{nameof(MenuGroupContext.Orientation)}")
             .BindSpacing($"{MenuGroup}.{nameof(MenuGroupContext.Spacing)}")
             .BindExpanded($"{MenuGroup}.{nameof(MenuGroupContext.Expanded)}")
@@ -99,8 +91,8 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(MenuGroup, "Menu", nameof(MenuController.CycleMenuGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(MenuGroup, "Menu")
         );
 
     protected override IVisualComponent[] CreateExamples()

@@ -65,6 +65,18 @@ public readonly record struct PathSegment
         return new PathSegment(PathSegmentKind.Key, string.Empty, -1, key);
     }
 
+    /// <summary>
+    /// Creates the segment a path parameter stands for: an index for an <see cref="int"/>, a key for a string.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="parameter"/> is no path parameter (<see cref="Binding.Addresses.UIRowKeys.IsPathParameter"/>).</exception>
+    public static PathSegment ForParameter(object? parameter)
+        => parameter switch
+        {
+            int index => AtIndex(index),
+            string key => WithKey(key),
+            _ => throw new ArgumentException("A path parameter is an int or a string.", nameof(parameter))
+        };
+
     public override string ToString()
         => Kind switch
         {

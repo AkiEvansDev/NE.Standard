@@ -1,22 +1,19 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
-using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -170,11 +167,8 @@ internal abstract partial class UIRuntimeBase
         {
             CompiledUIBinding binding = bindings[i];
 
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
             // A collection two rows down wants two keys; it is reached from its own row below, not from here.
-            if (!TryBuildDynamicParameters(binding, baseParameters, out var dynamicParameters))
+            if (!TryAddressPush(binding, baseParameters, out var dynamicParameters))
                 continue;
 
             AppendWholeCollectionNoLock(binding, View.Bindings.MaterializePath(binding, baseParameters), dynamicParameters);
@@ -368,85 +362,28 @@ internal abstract partial class UIRuntimeBase
         if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.KeyProperty is not null && slot.Key is not null)
             return WearsCompositeSlot(host.ComponentId, item, slot.Key, slot.KeyProperty);
 
+        var keyProperty = View.State.GetStaticString(host.ComponentId, ITemplatedComponent.TemplateKeyPropertyProperty);
+        var fallbackKey = View.State.GetStaticString(host.ComponentId, ITemplatedComponent.FallbackTemplateKeyProperty);
+
         // With no key and no fallback a row wears no variant in place of the default, so a variant is a slot drawn beside it.
-        if (slot.Kind == UIComponentSlotKind.TemplateVariant && !NamesVariants(host.ComponentId))
+        if (slot.Kind == UIComponentSlotKind.TemplateVariant && keyProperty is null && fallbackKey is null)
             return true;
 
-        var worn = ResolveWornVariant(host.ComponentId, item);
+        var worn = ItemTemplateSelection.ResolveVariant(View.Graph, host.ComponentId, keyProperty, fallbackKey, item);
 
         return slot.Kind == UIComponentSlotKind.TemplateVariant
-            ? string.Equals(slot.Key, worn, StringComparison.Ordinal) || !IsKeyValue(host.ComponentId, item, slot.Key)
+            ? string.Equals(slot.Key, worn, StringComparison.Ordinal) || !ItemTemplateSelection.CouldName(item, keyProperty, slot.Key)
             : worn is null;
     }
 
+    /// <summary>Whether a row wears a composite's slot: the one its kind names (<c>node:folder</c>), else the slot itself (<c>node</c>).</summary>
     private bool WearsCompositeSlot(UIComponentId hostId, object? item, string slotKey, string keyProperty)
     {
         var colon = slotKey.IndexOf(':', StringComparison.Ordinal);
-        var kind = colon < 0 ? null : slotKey[(colon + 1)..];
         var baseKey = colon < 0 ? slotKey : slotKey[..colon];
-        var itemKind = ReadItemProperty(item, keyProperty);
 
-        if (kind is not null)
-            return string.Equals(kind, itemKind, StringComparison.Ordinal);
-
-        return string.IsNullOrEmpty(itemKind) || !View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, $"{baseKey}:{itemKind}");
+        return string.Equals(slotKey, ItemTemplateSelection.ResolveCompositeVariant(View.Graph, hostId, baseKey, keyProperty, item), StringComparison.Ordinal);
     }
-
-    /// <summary>Whether the host picks a variant per row at all: by its key property, or by its fallback.</summary>
-    private bool NamesVariants(UIComponentId hostId)
-        => ReadStaticString(hostId, ITemplatedComponent.TemplateKeyPropertyProperty) is not null || ReadStaticString(hostId, ITemplatedComponent.FallbackTemplateKeyProperty) is not null;
-
-    private string? ResolveWornVariant(UIComponentId hostId, object? item)
-    {
-        var keyProperty = ReadStaticString(hostId, ITemplatedComponent.TemplateKeyPropertyProperty);
-        var fallback = ReadStaticString(hostId, ITemplatedComponent.FallbackTemplateKeyProperty);
-
-        if (keyProperty is not null && ReadItemProperty(item, keyProperty) is { Length: > 0 } key && View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, key))
-            return key;
-
-        return fallback is not null && View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, fallback) ? fallback : null;
-    }
-
-    /// <summary>
-    /// Whether the host's key property could take this variant's key: an enum-typed key property names exactly its members, any
-    /// other type may name anything.
-    /// </summary>
-    private bool IsKeyValue(UIComponentId hostId, object? item, string? key)
-    {
-        if (key is null || item is null || ReadStaticString(hostId, ITemplatedComponent.TemplateKeyPropertyProperty) is not { } keyProperty)
-            return true;
-
-        Type? type = ItemProperties.GetOrAdd((item.GetType(), keyProperty), static key => key.Type.GetProperty(key.Name))?.PropertyType;
-
-        if (type is null)
-            return true;
-
-        type = Nullable.GetUnderlyingType(type) ?? type;
-
-        return !type.IsEnum || Enum.IsDefined(type, key);
-    }
-
-    private string? ReadStaticString(UIComponentId componentId, UIProperty property)
-        => View.State.TryGetValue(componentId, property, out CompiledUIPropertyValue? value) && !value.IsBind && value.Value is string text && text.Length > 0
-            ? text
-            : null;
-
-    private static string? ReadItemProperty(object? item, string propertyName)
-    {
-        // One segment read in place, not a path parsed from the name on every queued collection update.
-        if (item is RecursiveObservable observable)
-            return observable.TryGetRecursiveValue(PathSegment.ForProperty(propertyName), out var value) ? value?.ToString() : null;
-
-        if (item is null)
-            return null;
-
-        // A plain item is read by reflection; the lookup is cached, since this runs on every queued collection update.
-        PropertyInfo? property = ItemProperties.GetOrAdd((item.GetType(), propertyName), static key => key.Type.GetProperty(key.Name));
-
-        return property?.GetValue(item)?.ToString();
-    }
-
-    private static readonly ConcurrentDictionary<(Type Type, string Name), PropertyInfo?> ItemProperties = new();
 
     /// <summary>
     /// Re-sends every bound collection a <c>Set</c> replaced: one bound at the path itself (a list assigned anew), and one under it (a
@@ -466,10 +403,7 @@ internal abstract partial class UIRuntimeBase
         {
             CompiledUIBinding binding = bindings[i];
 
-            if (binding.Mode == UIBindingMode.OneWayToSource)
-                continue;
-
-            if (!TryBuildDynamicParameters(binding, materializedParameters, out var dynamicParameters))
+            if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
             AppendWholeCollectionNoLock(binding, path, dynamicParameters);

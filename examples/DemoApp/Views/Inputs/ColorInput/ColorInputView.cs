@@ -29,15 +29,7 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
 
     private static ColorInputComponent Bind(ColorInputComponent input)
         => input
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindValue($"{ValueGroup}.{nameof(ColorValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(ColorValueGroupContext.IsReadOnly)}")
             .BindSize($"{ValueGroup}.{nameof(ColorValueGroupContext.Size)}")
@@ -47,37 +39,20 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
             .BindShowPicker($"{FieldGroup}.{nameof(ColorFieldGroupContext.ShowPicker)}")
             .BindShowPalette($"{FieldGroup}.{nameof(ColorFieldGroupContext.ShowPalette)}")
             .BindShowOpacity($"{FieldGroup}.{nameof(ColorFieldGroupContext.ShowOpacity)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}")
+            .BindTextContent(ContentGroup)
+            .BindBadge(BadgeGroup)
             .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
             .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
             .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}");
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ValueGroup, "Value", nameof(ColorInputController.CycleValueOption)),
-            DemoUI.CreateOptionSection(FieldGroup, "Field", nameof(ColorInputController.CycleFieldOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(ColorInputController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(ColorInputController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ColorInputController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()

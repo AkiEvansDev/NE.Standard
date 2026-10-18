@@ -39,23 +39,8 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
 
     private static ParagraphComponent Bind(ParagraphComponent paragraph)
         => paragraph
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
+            .BindStandard()
+            .BindTextContent(ContentGroup)
             .BindDescription($"{ContentGroup}.{nameof(TextContentGroupContext.Description)}")
             .BindDescriptionType($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionType)}")
             .BindDescriptionColor($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionColor)}")
@@ -79,10 +64,10 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(LayoutGroup, "Layout", nameof(ParagraphController.CycleLayoutOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(ParagraphController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(ParagraphController.CycleBadgeOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge")
         );
 
     protected override IVisualComponent[] CreateExamples()

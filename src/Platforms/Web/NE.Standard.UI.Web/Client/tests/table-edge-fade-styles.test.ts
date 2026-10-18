@@ -75,14 +75,15 @@ test("the start shades in over the first stretch of the scroll and the end out o
     const start = declarations(block, `${scrolling}:not(.ui-table--pinned) > .ui-table__scroll::before`);
     const end = declarations(block, `${scrolling} > .ui-table__scroll::after`);
 
-    assert.match(start, /left: 0;[\s\S]*linear-gradient\(to right, color-mix\(in srgb, var\(--ui-color-on-surface\) 18%, transparent\), transparent\);[\s\S]*animation-name: ui-table-edge-start;/);
-    assert.match(end, /right: 0;[\s\S]*linear-gradient\(to left, color-mix\(in srgb, var\(--ui-color-on-surface\) 18%, transparent\), transparent\);[\s\S]*animation-name: ui-table-edge-end;/);
+    // Into the ground the table stands on, not a light strip on a dark page.
+    assert.match(start, /left: 0;[\s\S]*linear-gradient\(to right, var\(--ui-ground, var\(--ui-color-background\)\), transparent\);[\s\S]*animation-name: ui-table-edge-start;/);
+    assert.match(end, /right: 0;[\s\S]*linear-gradient\(to left, var\(--ui-ground, var\(--ui-color-background\)\), transparent\);[\s\S]*animation-name: ui-table-edge-end;/);
     assert.match(css, /@keyframes ui-table-edge-start \{\s*0% \{\s*opacity: 0;\s*\}\s*8%,\s*100% \{\s*opacity: 1;/);
     assert.match(css, /@keyframes ui-table-edge-end \{\s*0%,\s*92% \{\s*opacity: 1;\s*\}\s*100% \{\s*opacity: 0;/);
 });
 
 test("the edge's shade is the one a pinned column casts over what scrolled under it", () => {
-    assert.match(css, /\.ui-table\[data-ui-table-scrolled\][^{]*::after \{\s*box-shadow: 2px 0 6px color-mix\(in srgb, var\(--ui-color-on-surface\) 18%, transparent\);/);
+    assert.match(css, /\.ui-table\[data-ui-table-scrolled\][^{]*::after \{\s*box-shadow: 2px 0 6px var\(--ui-ground, var\(--ui-color-background\)\);/);
 });
 
 test("less motion leaves the shades on the scroll's own length, as a strip's fade", () => {

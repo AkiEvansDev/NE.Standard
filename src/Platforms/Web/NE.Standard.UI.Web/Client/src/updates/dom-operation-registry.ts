@@ -1,6 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import type { ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
-import { PlainTextAttribute } from "../addressing/dom-attributes.ts";
+import { PlainTextAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
 import { isNullishValue, toDomString } from "../extensions/value-readers.ts";
 import { getDomOperationKind, getValueCondition } from "../metadata/metadata-index.ts";
 import type { WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index.ts";
@@ -97,18 +97,18 @@ export class DomOperationRegistry {
             // The raw value decides whether the attribute belongs there at all: an empty attribute is not an absent one. An operation
             // that converts null leaves it to its converter, for an attribute the first paint writes for no value.
             if ((context.operation.convertsNull !== true && isNullishValue(context.value)) || isNullishValue(context.convertedValue)) {
-                removeAttributeIfPresent(context.target, name);
+                writeAttribute(context.target, name, null);
                 return;
             }
 
-            setAttributeIfChanged(context.target, name, toDomString(context.convertedValue));
+            writeAttribute(context.target, name, toDomString(context.convertedValue));
         });
 
         this.register("RemoveAttribute", context => {
             const name = requireOperationName(context.operation);
 
             forgetWords(context.target, name);
-            removeAttributeIfPresent(context.target, name);
+            writeAttribute(context.target, name, null);
         });
 
         this.register("ToggleAttribute", context => {
@@ -253,14 +253,14 @@ function toggleTrackedAttribute(element: Element, key: string, name: string, ena
 
     if (enabled) {
         owners.add(key);
-        setAttributeIfChanged(element, name, value);
+        writeAttribute(element, name, value);
         return;
     }
 
     owners.delete(key);
 
     if (owners.size === 0) {
-        removeAttributeIfPresent(element, name);
+        writeAttribute(element, name, null);
     }
 }
 
@@ -303,16 +303,6 @@ function replaceTrackedClass(element: Element, key: string, nextClass: string, f
 
 function createClassOperationKey(context: DomOperationContext): string {
     return `${context.resolved.componentId}:${context.resolved.propertyId}:${context.operation.kind}:${context.operation.name ?? ""}:${context.operation.converter ?? ""}`;
-}
-
-function setAttributeIfChanged(target: Element, name: string, value: string): void {
-    if (target.getAttribute(name) !== value)
-        target.setAttribute(name, value);
-}
-
-function removeAttributeIfPresent(target: Element, name: string): void {
-    if (target.hasAttribute(name))
-        target.removeAttribute(name);
 }
 
 function requireOperationName(operation: WebDomOperation): string {

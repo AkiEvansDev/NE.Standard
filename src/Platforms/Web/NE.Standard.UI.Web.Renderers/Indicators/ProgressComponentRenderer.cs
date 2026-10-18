@@ -163,5 +163,5 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
     // Without its trailing zeros: the wire carries a JSON number, which a push writes as 12.5 where 12.50m would print 12.50.
     private static string FormatNumber(decimal value)
-        => (value / 1.0000000000000000000000000000m).ToString(CultureInfo.InvariantCulture);
+        => WebNumberFormat.WithoutTrailingZeros(value).ToString(CultureInfo.InvariantCulture);
 }

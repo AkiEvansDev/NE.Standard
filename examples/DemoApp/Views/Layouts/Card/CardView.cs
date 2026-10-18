@@ -43,15 +43,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new CardComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSurface($"{CardGroup}.{nameof(CardSurfaceGroupContext.Surface)}")
             .BindClickable($"{CardGroup}.{nameof(CardSurfaceGroupContext.Clickable)}")
             .BindPadding($"{CardGroup}.{nameof(CardSurfaceGroupContext.Padding)}")
@@ -62,9 +54,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
             .BindBackgroundImageDimMode($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageDimMode)}")
             .BindBackgroundImageBlur($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageBlur)}")
             .BindOverflow($"{CardGroup}.{nameof(CardSurfaceGroupContext.Overflow)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .ConfigureDefaultHeader(BindHeader)
             .SetContent(new ParagraphComponent()
                 .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
@@ -93,14 +83,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static void BindHeader(CardHeaderRegion header)
         => _ = header
-            .BindIcon($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{HeaderTextGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{HeaderTextGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{HeaderTextGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{HeaderTextGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{HeaderTextGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
+            .BindTextContent(HeaderTextGroup)
             .BindDescription($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Description)}")
             .BindDescriptionType($"{HeaderTextGroup}.{nameof(TextContentGroupContext.DescriptionType)}")
             .BindDescriptionColor($"{HeaderTextGroup}.{nameof(TextContentGroupContext.DescriptionColor)}")
@@ -120,12 +103,12 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(CardGroup, "Card", nameof(CardController.CycleCardOption)),
-            DemoUI.CreateOptionSection(HeaderGroup, "Layout", nameof(CardController.CycleHeaderOption)),
-            DemoUI.CreateOptionSection(HeaderTextGroup, "Content", nameof(CardController.CycleHeaderTextOption)),
-            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Badge", nameof(CardController.CycleHeaderBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(CardController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(CardGroup, "Card"),
+            DemoUI.CreateOptionSection(HeaderGroup, "Layout"),
+            DemoUI.CreateOptionSection(HeaderTextGroup, "Content"),
+            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // The press beside the two short behaviours stacked, as tall together; the three-way comparison and the held content across the page.

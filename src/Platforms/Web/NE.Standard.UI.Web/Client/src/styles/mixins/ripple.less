@@ -5,8 +5,8 @@
 // its ink a circle round the point the pointer went down at. The engine animates the ink's scale and the wave's opacity alone, which
 // the compositor runs without the page's script, so a long task leaves the wave moving.
 
-// The pressed thing's own ink: a dark wave on a light ground, a light one on a dark ground and on a filled button.
-@ui-ripple-ink: color-mix(in srgb, currentColor 16%, transparent);
+// The pressed thing's own ink at the theme's press share: a dark wave on a light ground, a light one on a dark ground and on a filled button.
+@ui-ripple-ink: color-mix(in srgb, currentColor var(--ui-wash-active-share), transparent);
 
 // How far an icon that is the whole face gives under a held press.
 @ui-press-icon-scale: 0.88;

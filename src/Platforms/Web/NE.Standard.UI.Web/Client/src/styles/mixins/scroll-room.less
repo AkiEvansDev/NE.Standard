@@ -7,6 +7,11 @@
 @ui-scrollers-y: ~":is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll):is(.ui-scroll-y--auto, .ui-scroll-y--always), .ui-text-area__field";
 @ui-scrollers-x: ~":is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll):is(.ui-scroll-x--auto, .ui-scroll-x--always)";
 
+// What bounds a scroller by its own size: a Height, a MaxHeight or a Fill on its root, at any tier. One without grows with its rows
+// unless an outer box bounds it.
+@ui-scroll-bound: ~'[style*="--ui-height"], [style*="--ui-max-height"]';
+@ui-scrollers-y-unbounded: ~":is(.ui-items-view:not(@{ui-scroll-bound}) > :is(.ui-items-view__host, [data-ui-items-host]), .ui-tree:not(@{ui-scroll-bound}) > .ui-tree__host, .ui-scroll:not(@{ui-scroll-bound})):is(.ui-scroll-y--auto, .ui-scroll-y--always)";
+
 // Keeps the room down the box's inline end, where an upright bar stands in either direction.
 .ui-scroll-room-y() {
     --ui-scroll-room-y: var(--ui-scrollbar-room);
@@ -18,12 +23,14 @@
     }
 }
 
-// Keeps the room down the inline end only while the box holds more than it shows, read off its own scroll timeline; where none runs,
-// it keeps none. One value from end to end, so less motion's zero duration (core/preferences.less) still keeps it while the timeline runs.
+// Keeps the room down the inline end only while the box holds more than it shows, read off its own scroll timeline: none while it fits,
+// on a scroller that keeps it otherwise too. Where no timeline runs the box keeps what it has, a popup none and a scroller the room. One
+// value from end to end, so less motion's zero duration (core/preferences.less) still keeps it while the timeline runs.
 .ui-scroll-room-y-while-overflowing() {
     @media @{ui-can-hover} and (forced-colors: none) {
         @supports (animation-timeline: scroll()) {
             html[data-ui-overlay-scrollbars] & {
+                --ui-scroll-room-y: 0px;
                 animation: ui-scroll-room-overflowing linear both;
                 animation-timeline: scroll(self block);
             }

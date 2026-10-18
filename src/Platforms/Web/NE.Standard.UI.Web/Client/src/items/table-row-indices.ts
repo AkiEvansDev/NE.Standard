@@ -2,7 +2,7 @@
 // a reader counts the rows it cannot see: `aria-rowcount` on the table, `aria-rowindex` on every row, the header row the first.
 
 // `.ts` on the value import: `node --test` runs this module directly.
-import { TableScrollClass } from "../addressing/dom-attributes.ts";
+import { TableScrollClass, writeAttribute } from "../addressing/dom-attributes.ts";
 
 const TableClass = "ui-table";
 const NoHeaderClass = "ui-table--no-header";
@@ -38,15 +38,9 @@ export function stampRowIndices(host: Element, rows: readonly (readonly [Element
     if (total !== null)
         trail.forEach((row, i) => setIndex(row, lead.length + total + i));
 
-    setAttribute(table, "aria-rowcount", total === null ? "-1" : String(lead.length + total + trail.length));
+    writeAttribute(table, "aria-rowcount", total === null ? "-1" : String(lead.length + total + trail.length));
 }
 
 function setIndex(row: Element, place: number): void {
-    setAttribute(row, "aria-rowindex", String(place + 1));
-}
-
-/** Only when it changes, so the host's own observers are not woken for nothing. */
-function setAttribute(element: Element, name: string, value: string): void {
-    if (element.getAttribute(name) !== value)
-        element.setAttribute(name, value);
+    writeAttribute(row, "aria-rowindex", String(place + 1));
 }

@@ -17,6 +17,16 @@
     .ui-responsive-property(@property, @variable, ~"min(@{floor}, @{size})");
 }
 
+// A border an author may set (BorderThickness, BorderRadius) on the element that draws it. Its style declared, since
+// BorderStyleRenderer never writes one and a width alone draws nothing; the width and corners through their chains, so the author's
+// tiers win over the default. `@style` switches sides off by style, not width, so an authored thickness thickens the sides left alone.
+.ui-authored-border(@width: 0; @radius: 0; @color: transparent; @style: solid) {
+    border-style: @style;
+    .ui-responsive-property(border-width, --ui-border-thickness, @width);
+    border-color: @color;
+    .ui-responsive-property(border-radius, --ui-border-radius, @radius);
+}
+
 // Resets a property's five tiers on a component root that re-declares them, and fences each into its band there.
 .ui-responsive-reset(@variable) {
     @{variable}: initial;

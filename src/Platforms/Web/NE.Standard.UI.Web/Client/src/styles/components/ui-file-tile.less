@@ -1,12 +1,13 @@
 @import "../core/tokens.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
+@import "../mixins/text.less";
 
 // A file as a tile (file-tile.ts): its kind's `ne-` glyph over its name and size, on a faint ground of its own that reads on the page
 // and inside a bubble alike. The file tile's root, and an image input shelf's square for a file that is no picture.
 .ui-file-tile {
     // The clickable surface's wash mixes into this fill (ui-surface.less), so a pressable tile reacts as a surface does.
-    --ui-surface-fill: color-mix(in srgb, var(--ui-color-on-surface) 8%, transparent);
+    --ui-surface-fill: @ui-ink-ground;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -37,12 +38,8 @@
 
     // Two lines, then an ellipsis; a name with no space to wrap at breaks anywhere rather than running past the square.
     .ui-file-tile__name {
-        display: -webkit-box;
+        .ui-text-clamp(2);
         max-width: 100%;
-        overflow: hidden;
-        line-clamp: 2;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
         overflow-wrap: anywhere;
         color: var(--ui-color-on-surface);
         font-size: 0.75rem;

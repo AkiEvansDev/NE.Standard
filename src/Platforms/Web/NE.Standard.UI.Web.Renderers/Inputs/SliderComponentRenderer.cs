@@ -2,11 +2,9 @@ using System;
 using System.Globalization;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -28,7 +26,6 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
     ];
 
     // Every slider registers these same lists, so they are built once rather than per slider.
-    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
     private static readonly WebDomOperation[] MinDistanceOperations = [WebDomOperation.Attribute(WebAttributes.SliderMinDistance)];
 
     private static readonly WebDomOperation[] ValueOperations =
@@ -58,11 +55,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         RenderInputSize(context, root);
         RenderInputHeader(context, root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
-        {
-            if (value is UIOrientation orientation)
-                _ = target.Class(WebClassNames.Orientation(orientation));
-        }, OrientationOperations);
+        OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
 
         RenderFlagClass(context, root, SliderComponent.ShowValueProperty, "ui-slider--show-value");
 

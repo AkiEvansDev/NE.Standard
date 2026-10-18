@@ -2,7 +2,7 @@
 // fold walked by its rows' parents), writes every moment the server painted in UTC — a timestamp, a moment in words — in the reader's
 // zone, marks a theme field's current choice, and holds every region with a part a package's engine draws, before the first paint.
 
-import { MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget } from "./addressing/dom-attributes.ts";
+import { MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
 import { momentsOfMark, readMomentsAttribute, readPageTemporal, serverMomentPaint } from "./rendering/moment-first-paint.ts";
 import type { PaintedMoment } from "./rendering/moment-first-paint.ts";
 import type { TemporalLanguage } from "./rendering/temporal-format.ts";
@@ -155,12 +155,7 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
                         continue;
 
                     // Guarded, since a pending patch is applied again on every batch the parser hands over.
-                    if (value === null) {
-                        if (target.hasAttribute(name))
-                            target.removeAttribute(name);
-                    }
-                    else if (target.getAttribute(name) !== value)
-                        target.setAttribute(name, value);
+                    writeAttribute(target, name, value);
                 }
 
                 if (target instanceof HTMLElement) {

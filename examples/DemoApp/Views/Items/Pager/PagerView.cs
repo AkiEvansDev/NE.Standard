@@ -45,15 +45,7 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
                 .SetTarget(PreviewListId)
                 .SetPageSizes([5, 10, 20])
                 .BindMode($"{PagerGroup}.{nameof(PagerGroupContext.Mode)}")
-                .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-                .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-                .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-                .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-                .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-                .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-                .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-                .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-                .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+                .BindStandard()
                 .SetPlacement(1, 2, 24, 1)
             ), contentMinHeight: 340);
 
@@ -72,8 +64,8 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(PagerGroup, "Pager", nameof(PagerController.CyclePagerOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(PagerGroup, "Pager")
         );
 
     protected override IVisualComponent[] CreateExamples()

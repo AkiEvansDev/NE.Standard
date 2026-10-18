@@ -12,7 +12,7 @@ import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import { isCaretInput } from "./caret-fields.ts";
 import { dropWaiting } from "./debounced-commit-engine.ts";
 import { isCancellingField } from "./field-escape.ts";
-import { isComposing } from "./keyboard-shortcut.ts";
+import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { isInert } from "./interactive-state.ts";
 import { focusHolderAround, giveKeyboardBack } from "./popup-focus.ts";
 
@@ -249,5 +249,5 @@ function submitsOnEnter(area: HTMLTextAreaElement, domEvent: KeyboardEvent): boo
 
 /** Enter with no modifier: a chord keeps the field's ordinary rule. */
 function isPlainEnter(domEvent: KeyboardEvent): boolean {
-    return domEvent.key === "Enter" && !domEvent.shiftKey && !domEvent.ctrlKey && !domEvent.altKey && !domEvent.metaKey;
+    return domEvent.key === "Enter" && isPlainKey(domEvent);
 }

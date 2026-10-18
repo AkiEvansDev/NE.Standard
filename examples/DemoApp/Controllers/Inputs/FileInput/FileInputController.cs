@@ -123,21 +123,13 @@ internal sealed partial class FileInputController() : DemoStandardController
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
 
-    [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleFileOption(string id)
-        => FileGroup.CycleOption(id);
-
     /// <summary>
     /// Asks the upload service what <c>SelectionId</c> stands for; with nothing chosen the row says so.
     /// </summary>
-    [UICommand]
-    public async Task CycleUploadOption(string id, CancellationToken cancellationToken)
+    protected override async Task OnOptionCycledAsync(string group, string id, CancellationToken cancellationToken)
     {
-        UploadGroup.CycleOption(id);
+        if (group != nameof(UploadGroup))
+            return;
 
         var selectionId = ValueGroup.SelectionId;
 
@@ -160,16 +152,4 @@ internal sealed partial class FileInputController() : DemoStandardController
             UploadGroup.Report(error.Message);
         }
     }
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 }

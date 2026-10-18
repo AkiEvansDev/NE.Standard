@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
+@import "../mixins/drag-bar.less";
 @import "../mixins/responsive.less";
 
 .ui-text-area {
@@ -18,6 +19,20 @@
     // At least the overlay bar's room, which its words wrap before (core/scrollbar.less).
     padding-inline-end: max(@ui-space-3, var(--ui-scroll-room-y));
     font: inherit;
+}
+
+// The corner a reader drags the area larger by wears the dots a Graph node's corner does, in a dragged handle's inks; the browser's
+// own where it draws no styled resizer (Firefox) and in forced colours, which would drop the gradients.
+@media (forced-colors: none) {
+    .ui-text-area__field::-webkit-resizer {
+        .ui-resize-dots(var(--ui-color-border); 3px);
+    }
+
+    @media @{ui-can-hover} {
+        .ui-text-area__field:hover::-webkit-resizer {
+            .ui-resize-dots(@ui-scroll-ink; 3px);
+        }
+    }
 }
 
 // With the author's buttons, the box is a wrapper: the text in a lane of its own that scrolls, the buttons at its ends on the bottom
@@ -47,7 +62,8 @@
     min-height: calc(1lh + 2 * @ui-space-1);
 }
 
-.ui-input--underline > .ui-text-area__box > .ui-text-area__action {
+.ui-input--underline > .ui-text-area__box > .ui-text-area__action,
+.ui-input--underline > .ui-text-area__box > .ui-text-area__below > .ui-text-area__action {
     margin-right: 0;
     margin-left: 0;
 }
@@ -74,4 +90,11 @@
     overflow-y: auto;
     resize: none !important;
     field-sizing: content;
+}
+
+// Its text sizes its height alone: a root that shrinks to its content (an alignment other than Stretch) took the width of the text
+// too, so the box narrowed to its placeholder and jumped wider with each key. It fills its room instead, up to its MaxWidth, and the
+// alignment places it there; an authored Width still wins. The render marks the root with its field (`ui-text-area--grow`).
+.ui-text-area.ui-text-area--grow {
+    .ui-responsive-property(width, --ui-width, var(--ui-fill-width));
 }

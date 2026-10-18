@@ -35,15 +35,11 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     /// <summary>The client's row decorator that gives a row it builds its grip (<see cref="RenderRowGrip"/>).</summary>
     protected const string RowGripDecorator = "grip";
 
-    // The wire's conventions, so the text a render writes is the text a patch would: camel-cased, an enum by its name.
-    private static readonly JsonSerializerOptions QueryJsonOptions = WebWireJson.CreateOptions();
-
     /// <summary>What a virtualized static host paints before the client runs; the client takes over from these rows and holds the rest as values.</summary>
     protected const int VirtualizedFirstPaintRows = 40;
 
     // Every items component registers these same lists, so they are built once rather than per instance.
     private static readonly WebDomOperation[] LayoutTypeOperations = [WebDomOperation.Class(converter: WebDomConverters.ItemsViewLayoutClass)];
-    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
     private static readonly WebDomOperation[] SelectionModeOperations = [WebDomOperation.Attribute(WebAttributes.Selection, converter: WebDomConverters.SelectionModeAttribute)];
     private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey)];
     private static readonly WebDomOperation[] ItemsQueryOperations = [WebDomOperation.Attribute(WebAttributes.ItemsQuery)];
@@ -60,11 +56,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
                 _ = target.Class(WebClassNames.ItemsViewLayout(layoutType));
         }, LayoutTypeOperations);
 
-        _ = RenderProperty<UIOrientation?>(context, root, orientationProperty, static (target, value) =>
-        {
-            if (value is UIOrientation orientation)
-                _ = target.Class(WebClassNames.Orientation(orientation));
-        }, OrientationOperations);
+        OrientationStyleRenderer.RenderOrientation(context, root, orientationProperty);
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, spacingProperty, "--ui-items-view-spacing");
     }
@@ -109,7 +101,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             _ = RenderProperty<UIItemsQuery?>(context, query, IItemsComponent.QueryProperty, static (target, value) =>
             {
                 if (value is { IsEmpty: false })
-                    _ = target.Attribute(WebAttributes.ItemsQuery, JsonSerializer.Serialize(value, QueryJsonOptions));
+                    _ = target.Attribute(WebAttributes.ItemsQuery, JsonSerializer.Serialize(value, WebWireJson.Options));
             }, ItemsQueryOperations);
         });
     }
@@ -289,30 +281,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
 
-        _ = RenderProperty<UIScrollMode?>(context, host, IScrollableComponent.HorizontalScrollProperty, static (target, value) =>
-        {
-            if (value is UIScrollMode scrollMode)
-                _ = target.Class(WebClassNames.ScrollX(scrollMode));
-        }, horizontalOperations ?? HostScrollXOperations);
-
-        _ = RenderProperty<UIScrollMode?>(context, host, IScrollableComponent.VerticalScrollProperty, static (target, value) =>
-        {
-            if (value is UIScrollMode scrollMode)
-                _ = target.Class(WebClassNames.ScrollY(scrollMode));
-        }, HostScrollYOperations);
-
-        _ = RenderProperty<UIScrollSnapMode?>(context, host, IScrollableComponent.ScrollSnapProperty, static (target, value) =>
-        {
-            if (value is UIScrollSnapMode scrollSnap)
-                _ = target.Class(WebClassNames.ScrollSnap(scrollSnap));
-        }, HostScrollSnapOperations);
-
-        // The enum name, not a lowercased form: a patched value arrives as the name and is compared against it.
-        _ = RenderProperty<UIScrollAnchor?>(context, host, IScrollableComponent.ScrollAnchorProperty, static (target, value) =>
-        {
-            if (value is UIScrollAnchor anchor)
-                _ = target.Attribute(WebAttributes.ScrollAnchor, anchor.ToString());
-        }, HostScrollAnchorOperations);
+        ScrollStyleRenderer.RenderScroll(context, host, horizontalOperations ?? HostScrollXOperations, HostScrollYOperations, HostScrollSnapOperations, HostScrollAnchorOperations);
     }
 
     private static readonly WebDomOperation[] WindowPagedOperations = [WebDomOperation.ToggleAttribute(WebAttributes.WindowPaged, target: $"[{WebAttributes.ItemsHost}]", condition: WebValueCondition.IsTrue)];
@@ -353,7 +322,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         _ = RenderProperty<IReadOnlyDictionary<string, object>?>(context, host, IItemsHostComponent.WindowAggregatesProperty, static (target, value) =>
         {
             if (value is { Count: > 0 })
-                _ = target.Attribute(WebAttributes.WindowAggregates, JsonSerializer.Serialize(value, QueryJsonOptions));
+                _ = target.Attribute(WebAttributes.WindowAggregates, JsonSerializer.Serialize(value, WebWireJson.Options));
         }, WindowAggregatesOperations);
     }
 
@@ -437,8 +406,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var templateKeyPropertyName = ResolveStaticStringProperty(context, ITemplatedComponent.TemplateKeyPropertyProperty);
-        var fallbackTemplateKey = ResolveStaticStringProperty(context, ITemplatedComponent.FallbackTemplateKeyProperty);
+        var templateKeyPropertyName = context.ViewResolution.View.State.GetStaticString(context.Node.ComponentId, ITemplatedComponent.TemplateKeyPropertyProperty);
+        var fallbackTemplateKey = context.ViewResolution.View.State.GetStaticString(context.Node.ComponentId, ITemplatedComponent.FallbackTemplateKeyProperty);
 
         context.Metadata.RegisterItemsTemplate(context.Node.ComponentId, templateKeyPropertyName, fallbackTemplateKey, itemWrapperElementName, itemWrapperClassName, composite, rowDecorator, itemWrapperRole, announcesSelection);
     }
@@ -836,13 +805,9 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         CompiledView view = context.ViewResolution.View;
 
         // A typed variant the item names first, the slot's own variant otherwise — the same fallback the client's composite renderer makes.
-        UIComponentSlot? slot = null;
-        var typedKey = variantKeyPropertyName is null ? null : ReadItemString(item, variantKeyPropertyName);
+        var worn = ItemTemplateSelection.ResolveCompositeVariant(view.Graph, context.Node.ComponentId, variantKey, variantKeyPropertyName, item);
 
-        if (typedKey is not null)
-            _ = view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out slot, $"{variantKey}:{typedKey}");
-
-        if (slot is null && !view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out slot, variantKey))
+        if (!view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out UIComponentSlot? slot, worn))
             return;
 
         UIDynamicParameterScope parameter = CreateParameterScope(slot.RootComponentId, item);
@@ -926,62 +891,10 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
     private static bool TryResolveItemTemplate(WebRenderContext context, object? item, [NotNullWhen(true)] out UIComponentSlot? slot)
     {
-        var key = ResolveItemTemplateKey(context, item);
         CompiledView view = context.ViewResolution.View;
+        UIComponentId hostId = context.Node.ComponentId;
 
-        if (!string.IsNullOrWhiteSpace(key) &&
-            view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out slot, key))
-        {
-            return true;
-        }
-
-        var fallbackKey = ResolveStaticStringProperty(context, ITemplatedComponent.FallbackTemplateKeyProperty);
-
-        if (!string.IsNullOrWhiteSpace(fallbackKey) &&
-            view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out slot, fallbackKey))
-        {
-            return true;
-        }
-
-        return view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Template, out slot);
-    }
-
-    private static string? ResolveItemTemplateKey(WebRenderContext context, object? item)
-    {
-        var templateKeyProperty = ResolveStaticStringProperty(context, ITemplatedComponent.TemplateKeyPropertyProperty);
-
-        return string.IsNullOrWhiteSpace(templateKeyProperty) ? null : ReadItemString(item, templateKeyProperty);
-    }
-
-    /// <summary>An item's property as the text a template key is matched by; null when the item has none or it is empty.</summary>
-    private static string? ReadItemString(object? item, string propertyName)
-    {
-        var value = ItemContext.TryReadProperty(item, propertyName, out var itemValue) ? itemValue : null;
-
-        var text = value switch
-        {
-            null => null,
-            string stringValue => stringValue,
-            _ => Convert.ToString(value, CultureInfo.InvariantCulture)
-        };
-
-        return string.IsNullOrWhiteSpace(text) ? null : text;
-    }
-
-    private static string? ResolveStaticStringProperty(WebRenderContext context, UIProperty property)
-    {
-        CompiledView view = context.ViewResolution.View;
-
-        if (!view.State.TryGetValue(context.Node.ComponentId, property, out CompiledUIPropertyValue? propertyValue) ||
-            propertyValue is null ||
-            propertyValue.IsBind ||
-            propertyValue.Value is null)
-        {
-            return null;
-        }
-
-        return propertyValue.Value as string ??
-               throw new InvalidOperationException($"Property '{property.Name}' value must be a string.");
+        return ItemTemplateSelection.TryResolveSlot(view.Graph, hostId, view.State.GetStaticString(hostId, ITemplatedComponent.TemplateKeyPropertyProperty), view.State.GetStaticString(hostId, ITemplatedComponent.FallbackTemplateKeyProperty), item, out slot);
     }
 
     /// <summary>Builds the addressing scope for one rendered item; refuses an item that carries no key.</summary>

@@ -27,15 +27,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new FlyoutComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindIsOpen($"{FlyoutGroup}.{nameof(FlyoutGroupContext.IsOpen)}")
             .BindPopupPlacement($"{FlyoutGroup}.{nameof(FlyoutGroupContext.FlyoutPlacement)}")
             .BindCloseOnBackdrop($"{FlyoutGroup}.{nameof(FlyoutGroupContext.CloseOnBackdrop)}")
@@ -69,8 +61,8 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(FlyoutGroup, "Flyout", nameof(FlyoutController.CycleFlyoutGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(FlyoutGroup, "Flyout")
         );
 
     protected override IVisualComponent[] CreateExamples()

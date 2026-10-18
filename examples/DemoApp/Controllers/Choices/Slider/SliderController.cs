@@ -157,20 +157,4 @@ internal sealed partial class SliderController() : DemoStandardController
 
     [RecursiveMember]
     public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleTrackOption(string id)
-        => TrackGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
 }

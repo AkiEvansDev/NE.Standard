@@ -13,131 +13,179 @@ internal static class DemoUI
     /// <summary>The sidebar's authored id, which keys its collapsed state and open section.</summary>
     private const string SidebarId = "demo-sidebar";
 
-    public static readonly (string Title, string Icon, (string Route, string Label)[] Links)[] NavSections =
+    /// <summary>
+    /// The sidebar's sections in bands, a rule between bands: what the framework is as a whole — applications, mechanisms, design —
+    /// then its components.
+    /// </summary>
+    public static readonly NavSection[][] NavBands =
     [
-        // First, because these are the pages a reader judges the whole by: pieces of an application, not a component each; the
-        // security screens together at the end.
-        ("demo.nav.section.screens", DemoIcons.Outline(DemoIcons.Screens),
         [
-            ("/screens/checkout", "demo.nav.screens.checkout"),
-            ("/screens/settings", "demo.nav.screens.settings"),
-            ("/screens/catalogue", "demo.nav.screens.catalogue"),
-            ("/screens/inbox", "demo.nav.screens.inbox"),
-            ("/screens/article", "demo.nav.screens.article"),
-            ("/screens/chat", "demo.nav.screens.chat"),
-            ("/screens/files", "demo.nav.screens.files"),
-            ("/screens/notes", "demo.nav.screens.notes"),
-            ("/screens/sign-in", "demo.nav.screens.sign-in"),
-            ("/screens/sign-up", "demo.nav.screens.sign-up"),
-            ("/screens/account", "demo.nav.screens.account"),
-            ("/screens/admin", "demo.nav.screens.admin"),
-        ]),
-        // What the framework does across components, each page a set of live experiments rather than one component's look.
-        ("demo.nav.section.mechanisms", DemoIcons.Outline(DemoIcons.Mechanism),
+            // First, because these are the pages a reader judges the whole by: pieces of an application, not a component each — a shop,
+            // reading, talk and work, the settings last — and the security screens set apart after them.
+            new("demo.nav.section.screens", DemoIcons.Outline(DemoIcons.Screens),
+            [
+                ("/screens/catalogue", "demo.nav.screens.catalogue"),
+                ("/screens/checkout", "demo.nav.screens.checkout"),
+                ("/screens/article", "demo.nav.screens.article"),
+                ("/screens/inbox", "demo.nav.screens.inbox"),
+                ("/screens/chat", "demo.nav.screens.chat"),
+                ("/screens/files", "demo.nav.screens.files"),
+                ("/screens/notes", "demo.nav.screens.notes"),
+                ("/screens/settings", "demo.nav.screens.settings"),
+            ],
+            [
+                ("/screens/sign-in", "demo.nav.screens.sign-in"),
+                ("/screens/sign-up", "demo.nav.screens.sign-up"),
+                ("/screens/account", "demo.nav.screens.account"),
+                ("/screens/admin", "demo.nav.screens.admin"),
+            ]
+            ),
+            // What the framework does across components, each page a set of live experiments rather than one component's look: in the
+            // order an application meets them, its words last.
+            new("demo.nav.section.mechanisms", DemoIcons.Outline(DemoIcons.Mechanism),
+            [
+                ("/mechanisms/values", "demo.nav.mechanisms.values"),
+                ("/mechanisms/commands", "demo.nav.mechanisms.commands"),
+                ("/mechanisms/lists", "demo.nav.mechanisms.lists"),
+                ("/mechanisms/pages", "demo.nav.mechanisms.pages"),
+                ("/mechanisms/words", "demo.nav.mechanisms.words"),
+            ]
+            ),
+            // The reference a screen is drawn from: the colours, and the presets that compose the framework's parts.
+            new("demo.nav.section.design", DemoIcons.Outline(DemoIcons.Palette),
+            [
+                ("/design/colors", "demo.nav.design.colors"),
+                ("/design/presets", "demo.nav.design.presets"),
+            ]
+            ),
+        ],
         [
-            ("/mechanisms/words", "demo.nav.mechanisms.words"),
-            ("/mechanisms/commands", "demo.nav.mechanisms.commands"),
-            ("/mechanisms/values", "demo.nav.mechanisms.values"),
-            ("/mechanisms/lists", "demo.nav.mechanisms.lists"),
-            ("/mechanisms/pages", "demo.nav.mechanisms.pages"),
-        ]),
-        // The reference a screen is drawn from: the colours, and the presets that compose the framework's parts.
-        ("demo.nav.section.design", DemoIcons.Outline(DemoIcons.Palette),
-        [
-            ("/design/colors", "demo.nav.design.colors"),
-            ("/design/presets", "demo.nav.design.presets"),
-        ]),
-        // Then the components in the order a screen is built: what lays it out, what it shows, what it does, what it asks, what it
-        // lists, how it is left, what it says back and what opens over it. Within a group a family stands together, simple first.
-        ("demo.nav.section.layouts", DemoIcons.Outline(DemoIcons.LayoutDashboard),
-        [
-            ("/layouts/container", "demo.nav.layouts.container"),
-            ("/layouts/stack-panel", "demo.nav.layouts.stack-panel"),
-            ("/layouts/wrap-panel", "demo.nav.layouts.wrap-panel"),
-            ("/layouts/scroll", "demo.nav.layouts.scroll"),
-            ("/layouts/grid-splitter", "demo.nav.layouts.grid-splitter"),
-            ("/layouts/pane-container", "demo.nav.layouts.pane-container"),
-            ("/layouts/collapsible-panel", "demo.nav.layouts.collapsible-panel"),
-            ("/layouts/surface", "demo.nav.layouts.surface"),
-            ("/layouts/card", "demo.nav.layouts.card"),
-            ("/layouts/expander", "demo.nav.layouts.expander"),
-            ("/layouts/accordion", "demo.nav.layouts.accordion"),
-        ]),
-        ("demo.nav.section.contents", DemoIcons.Outline(DemoIcons.FileText),
-        [
-            ("/contents/text", "demo.nav.contents.text"),
-            ("/contents/paragraph", "demo.nav.contents.paragraph"),
-            ("/contents/link", "demo.nav.contents.link"),
-            ("/contents/timestamp", "demo.nav.contents.timestamp"),
-            ("/contents/icon", "demo.nav.contents.icon"),
-            ("/contents/image", "demo.nav.contents.image"),
-            ("/contents/badge", "demo.nav.contents.badge"),
-            ("/contents/separator", "demo.nav.contents.separator"),
-            ("/contents/file-tile", "demo.nav.contents.file-tile"),
-            ("/contents/status", "demo.nav.contents.status"),
-        ]),
-        ("demo.nav.section.actions", DemoIcons.Outline(DemoIcons.Press),
-        [
-            ("/actions/button", "demo.nav.actions.button"),
-            ("/actions/split-button", "demo.nav.actions.split-button"),
-            ("/actions/button-group", "demo.nav.actions.button-group"),
-            ("/actions/action", "demo.nav.actions.action"),
-            ("/actions/command-bar", "demo.nav.actions.command-bar"),
-            ("/actions/theme-switcher", "demo.nav.actions.theme-switcher"),
-            ("/actions/language-switcher", "demo.nav.actions.language-switcher"),
-        ]),
-        ("demo.nav.section.inputs", DemoIcons.Outline(DemoIcons.Sliders),
-        [
-            ("/inputs/text-input", "demo.nav.inputs.text-input"),
-            ("/inputs/text-area", "demo.nav.inputs.text-area"),
-            ("/inputs/number-input", "demo.nav.inputs.number-input"),
-            ("/inputs/search", "demo.nav.inputs.search"),
-            ("/inputs/date-input", "demo.nav.inputs.date-input"),
-            ("/inputs/time-input", "demo.nav.inputs.time-input"),
-            ("/inputs/date-time-input", "demo.nav.inputs.date-time-input"),
-            ("/inputs/calendar", "demo.nav.inputs.calendar"),
-            ("/inputs/color-input", "demo.nav.inputs.color-input"),
-            ("/inputs/file-input", "demo.nav.inputs.file-input"),
-            ("/inputs/image-input", "demo.nav.inputs.image-input"),
-        ]),
-        ("demo.nav.section.choices", DemoIcons.Outline(DemoIcons.BadgeCheck),
-        [
-            ("/choices/checkbox", "demo.nav.choices.checkbox"),
-            ("/choices/switch", "demo.nav.choices.switch"),
-            ("/choices/radio-group", "demo.nav.choices.radio-group"),
-            ("/choices/select", "demo.nav.choices.select"),
-            ("/choices/multi-select", "demo.nav.choices.multi-select"),
-            ("/choices/badge-select", "demo.nav.choices.badge-select"),
-            ("/choices/slider", "demo.nav.choices.slider"),
-        ]),
-        ("demo.nav.section.items", DemoIcons.Outline(DemoIcons.List),
-        [
-            ("/items/items-view", "demo.nav.items.items-view"),
-            ("/items/table", "demo.nav.items.table"),
-            ("/items/tree", "demo.nav.items.tree"),
-            ("/items/key-value-action", "demo.nav.items.key-value-action"),
-            ("/items/pager", "demo.nav.items.pager"),
-        ]),
-        ("demo.nav.section.navigation", DemoIcons.Outline(DemoIcons.Navigation),
-        [
-            ("/navigation/menu", "demo.nav.navigation.menu"),
-            ("/navigation/tabs", "demo.nav.navigation.tabs"),
-            ("/navigation/tabs-view", "demo.nav.navigation.tabs-view"),
-            ("/navigation/breadcrumbs", "demo.nav.navigation.breadcrumbs"),
-        ]),
-        ("demo.nav.section.feedback", DemoIcons.Outline(DemoIcons.Alert),
-        [
-            ("/feedback/message", "demo.nav.feedback.message"),
-            ("/feedback/progress", "demo.nav.feedback.progress"),
-            ("/feedback/spinner", "demo.nav.feedback.spinner"),
-        ]),
-        ("demo.nav.section.overlays", DemoIcons.Outline(DemoIcons.MessageSquare),
-        [
-            ("/overlays/flyout", "demo.nav.overlays.flyout"),
-            ("/overlays/dialog", "demo.nav.overlays.dialog"),
-            ("/overlays/notification", "demo.nav.overlays.notification"),
-        ]),
+            // Then the components in the order a screen is built: what lays it out, what it shows, what it does, what it asks, what it
+            // lists, how it is left, what it says back and what opens over it. Within a group a family stands together, simple first.
+            new("demo.nav.section.layouts", DemoIcons.Outline(DemoIcons.LayoutDashboard),
+            [
+                ("/layouts/container", "demo.nav.layouts.container"),
+                ("/layouts/stack-panel", "demo.nav.layouts.stack-panel"),
+                ("/layouts/wrap-panel", "demo.nav.layouts.wrap-panel"),
+            ],
+            [
+                ("/layouts/scroll", "demo.nav.layouts.scroll"),
+                ("/layouts/grid-splitter", "demo.nav.layouts.grid-splitter"),
+                ("/layouts/pane-container", "demo.nav.layouts.pane-container"),
+                ("/layouts/collapsible-panel", "demo.nav.layouts.collapsible-panel"),
+            ],
+            [
+                ("/layouts/surface", "demo.nav.layouts.surface"),
+                ("/layouts/card", "demo.nav.layouts.card"),
+                ("/layouts/expander", "demo.nav.layouts.expander"),
+                ("/layouts/accordion", "demo.nav.layouts.accordion"),
+            ]
+            ),
+            new("demo.nav.section.contents", DemoIcons.Outline(DemoIcons.FileText),
+            [
+                ("/contents/text", "demo.nav.contents.text"),
+                ("/contents/paragraph", "demo.nav.contents.paragraph"),
+                ("/contents/link", "demo.nav.contents.link"),
+                ("/contents/timestamp", "demo.nav.contents.timestamp"),
+            ],
+            [
+                ("/contents/icon", "demo.nav.contents.icon"),
+                ("/contents/image", "demo.nav.contents.image"),
+                ("/contents/file-tile", "demo.nav.contents.file-tile"),
+            ],
+            [
+                ("/contents/badge", "demo.nav.contents.badge"),
+                ("/contents/status", "demo.nav.contents.status"),
+                ("/contents/separator", "demo.nav.contents.separator"),
+            ]
+            ),
+            new("demo.nav.section.actions", DemoIcons.Outline(DemoIcons.Press),
+            [
+                ("/actions/button", "demo.nav.actions.button"),
+                ("/actions/split-button", "demo.nav.actions.split-button"),
+                ("/actions/button-group", "demo.nav.actions.button-group"),
+                ("/actions/action", "demo.nav.actions.action"),
+                ("/actions/command-bar", "demo.nav.actions.command-bar"),
+            ],
+            [
+                ("/actions/theme-switcher", "demo.nav.actions.theme-switcher"),
+                ("/actions/language-switcher", "demo.nav.actions.language-switcher"),
+            ]
+            ),
+            new("demo.nav.section.inputs", DemoIcons.Outline(DemoIcons.Sliders),
+            [
+                ("/inputs/text-input", "demo.nav.inputs.text-input"),
+                ("/inputs/text-area", "demo.nav.inputs.text-area"),
+                ("/inputs/number-input", "demo.nav.inputs.number-input"),
+                ("/inputs/search", "demo.nav.inputs.search"),
+            ],
+            [
+                ("/inputs/date-input", "demo.nav.inputs.date-input"),
+                ("/inputs/time-input", "demo.nav.inputs.time-input"),
+                ("/inputs/date-time-input", "demo.nav.inputs.date-time-input"),
+                ("/inputs/calendar", "demo.nav.inputs.calendar"),
+            ],
+            [
+                ("/inputs/color-input", "demo.nav.inputs.color-input"),
+                ("/inputs/file-input", "demo.nav.inputs.file-input"),
+                ("/inputs/image-input", "demo.nav.inputs.image-input"),
+            ]
+            ),
+            new("demo.nav.section.choices", DemoIcons.Outline(DemoIcons.BadgeCheck),
+            [
+                ("/choices/checkbox", "demo.nav.choices.checkbox"),
+                ("/choices/switch", "demo.nav.choices.switch"),
+                ("/choices/radio-group", "demo.nav.choices.radio-group"),
+            ],
+            [
+                ("/choices/select", "demo.nav.choices.select"),
+                ("/choices/multi-select", "demo.nav.choices.multi-select"),
+                ("/choices/badge-select", "demo.nav.choices.badge-select"),
+            ],
+            [
+                ("/choices/slider", "demo.nav.choices.slider"),
+            ]
+            ),
+            new("demo.nav.section.items", DemoIcons.Outline(DemoIcons.List),
+            [
+                ("/items/items-view", "demo.nav.items.items-view"),
+                ("/items/key-value-action", "demo.nav.items.key-value-action"),
+                ("/items/table", "demo.nav.items.table"),
+                ("/items/tree", "demo.nav.items.tree"),
+                ("/items/pager", "demo.nav.items.pager"),
+            ]
+            ),
+            new("demo.nav.section.navigation", DemoIcons.Outline(DemoIcons.Navigation),
+            [
+                ("/navigation/menu", "demo.nav.navigation.menu"),
+                ("/navigation/breadcrumbs", "demo.nav.navigation.breadcrumbs"),
+                ("/navigation/tabs", "demo.nav.navigation.tabs"),
+                ("/navigation/tabs-view", "demo.nav.navigation.tabs-view"),
+            ]
+            ),
+            new("demo.nav.section.feedback", DemoIcons.Outline(DemoIcons.Alert),
+            [
+                ("/feedback/message", "demo.nav.feedback.message"),
+                ("/feedback/progress", "demo.nav.feedback.progress"),
+                ("/feedback/spinner", "demo.nav.feedback.spinner"),
+            ]
+            ),
+            new("demo.nav.section.overlays", DemoIcons.Outline(DemoIcons.MessageSquare),
+            [
+                ("/overlays/flyout", "demo.nav.overlays.flyout"),
+                ("/overlays/dialog", "demo.nav.overlays.dialog"),
+                ("/overlays/notification", "demo.nav.overlays.notification"),
+            ]
+            ),
+        ],
     ];
+
+    /// <summary>A sidebar section: its title key, its icon, and its links in families, which a rule sets apart.</summary>
+    public sealed record NavSection(string Title, string Icon, params (string Route, string Label)[][] Families)
+    {
+        /// <summary>Every link, family after family.</summary>
+        public IEnumerable<(string Route, string Label)> Links => Families.SelectMany(static family => family);
+    }
 
     /// <summary>
     /// The page band from the preset; the theme and language switchers are on every page, controller or not, since the theme and the
@@ -166,26 +214,13 @@ internal static class DemoUI
             CreateNavEntry("/", "demo.nav.home", currentRoute, DemoIcons.Outline(DemoIcons.Home))
         ];
 
-        foreach ((var sectionTitle, var sectionIcon, (string Route, string Label)[] links) in NavSections)
+        for (var band = 0; band < NavBands.Length; band++)
         {
-            MenuItem section = new() { Id = sectionTitle, Title = sectionTitle, Icon = sectionIcon };
+            // Home stands apart from the first band, the overview from the components.
+            entries.Add(CreateRule($"demo.nav.rule.{band}"));
 
-            foreach ((var route, var label) in links)
-                section.Items.Add(CreateNavEntry(route, label, currentRoute));
-
-            // A section with one page is that page: a fold over a single entry is a click for nothing.
-            if (section.Items.Count == 1)
-            {
-                MenuItem only = section.Items[0];
-                only.Icon = sectionIcon;
-                entries.Add(only);
-                continue;
-            }
-
-            // The current page's section opens in the HTML itself, so nothing shifts after the first paint.
-            section.Expanded = HoldsCurrentRoute(section);
-
-            entries.Add(section);
+            foreach (NavSection navSection in NavBands[band])
+                entries.Add(CreateNavSection(navSection, currentRoute));
         }
 
         // The width sits on the menu, not the container, or opening a section would move the whole page.
@@ -200,6 +235,37 @@ internal static class DemoUI
                 .SetMinWidth(UILayoutLength.Absolute(180))
                 .SetItems([.. entries])
             );
+    }
+
+    private static MenuItem CreateRule(string id)
+        => new() { Id = id, Kind = UIMenuItemKind.Separator };
+
+    /// <summary>A section's fold, its families of links a rule apart; a section with one page is that page.</summary>
+    private static MenuItem CreateNavSection(NavSection navSection, string currentRoute)
+    {
+        MenuItem section = new() { Id = navSection.Title, Title = navSection.Title, Icon = navSection.Icon };
+
+        for (var family = 0; family < navSection.Families.Length; family++)
+        {
+            if (family > 0)
+                section.Items.Add(CreateRule($"{navSection.Title}.rule.{family}"));
+
+            foreach ((var route, var label) in navSection.Families[family])
+                section.Items.Add(CreateNavEntry(route, label, currentRoute));
+        }
+
+        // A fold over a single entry is a click for nothing.
+        if (section.Items.Count == 1)
+        {
+            MenuItem only = section.Items[0];
+            only.Icon = navSection.Icon;
+            return only;
+        }
+
+        // The current page's section opens in the HTML itself, so nothing shifts after the first paint.
+        section.Expanded = HoldsCurrentRoute(section);
+
+        return section;
     }
 
     private static bool HoldsCurrentRoute(MenuItem section)
@@ -735,11 +801,10 @@ internal static class DemoUI
     /// One themed block of options: the rows its controller context registered, as a key/value/action list.
     /// </summary>
     /// <remarks>The rows come from the context, not the caller, so the value column stays live off a bound collection.</remarks>
-    public static ExpanderComponent CreateOptionSection(string context, string title, string cycleCommand, string? note = null)
+    public static ExpanderComponent CreateOptionSection(string context, string title, string? note = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(context);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        ArgumentException.ThrowIfNullOrWhiteSpace(cycleCommand);
 
         // No edge of its own, the expander draws one; no action column, because the whole row is the control.
         KeyValueActionComponent rows = new KeyValueActionComponent()
@@ -747,7 +812,7 @@ internal static class DemoUI
             .SetShowActions(false)
             .SetRowHoverable(true)
             .BindItems(nameof(DemoGroupContext.OptionRows), UIBindingScope.Relative)
-            .OnRowClickWithItemKey(cycleCommand)
+            .OnRowClick(nameof(DemoController.CycleOption), UIAction.Arg("group", context), UIAction.ArgCurrentItemKey("id"))
             .SetPlacement(1, 1, 24, 1);
 
         // Closed to start with: the list reads as a table of contents until a section is asked for.

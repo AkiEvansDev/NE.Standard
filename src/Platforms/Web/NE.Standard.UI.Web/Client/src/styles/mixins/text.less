@@ -9,6 +9,16 @@
     white-space: nowrap;
 }
 
+// At most @lines lines, an ellipsis on the last one kept: the prefixed box is still the only one every engine clamps, the standard
+// `line-clamp` beside it for the engines that read it alone.
+.ui-text-clamp(@lines) {
+    display: -webkit-box;
+    overflow: hidden;
+    line-clamp: @lines;
+    -webkit-line-clamp: @lines;
+    -webkit-box-orient: vertical;
+}
+
 // A one-line description tight under its title, as a Text draws one. The gap is the line-height's, since a negative margin overlaps
 // selection highlights; overflow-clip-margin keeps descenders, which containers clip.
 .ui-text-description-line() {

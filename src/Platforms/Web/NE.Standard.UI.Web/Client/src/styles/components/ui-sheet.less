@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/dialog.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/interactive.less";
 
 // A list popup on a phone, shown as a sheet (popup-sheet.ts): along the bottom at the screen's width, its top corners rounded, at
 // most three quarters of the screen high and scrolling after, sliding up as it opens and down as it closes. The mark and the popover
@@ -77,8 +78,8 @@
 }
 
 // Every entry a finger's height: a menu's — a link entry too, which carries no role —, a select's option, a choice's; not the icons
-// of an action bar's row atop a menu.
-[data-ui-sheet][popover] :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], .ui-menu-item):not(.ui-action-bar > *) {
+// of an action bar's row atop a menu, nor a menu's caption or rule, which take no press (ui-menu.less), at no added weight.
+[data-ui-sheet][popover] :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], .ui-menu-item):not(.ui-action-bar > *, @{ui-menu-passive-kinds}) {
     min-height: 3rem;
 }
 
@@ -104,6 +105,7 @@
 
 // The row atop a nested list: back to the list under it, named by the entry it opened from.
 .ui-sheet__back {
+    .ui-bare-button();
     display: flex;
     flex: none;
     align-items: center;
@@ -112,15 +114,9 @@
     min-height: 3rem;
     margin-bottom: @ui-space-1;
     padding: 0 @ui-space-2;
-    border: none;
     border-bottom: 1px solid var(--ui-color-border);
     border-radius: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
     font-weight: 600;
-    text-align: start;
-    cursor: pointer;
 }
 
     // The standard Back's arrow (popup-sheet.ts), pointing the way the page reads back.

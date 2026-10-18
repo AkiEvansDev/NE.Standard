@@ -75,10 +75,6 @@ internal sealed partial class BreadcrumbsController() : DemoStandardController
     [RecursiveMember]
     public partial FolderBrowserContext Browser { get; set; } = new();
 
-    [UICommand]
-    public void CycleTrailGroupOption(string id)
-        => TrailGroup.CycleOption(id);
-
     /// <summary>
     /// One command for both a step and a folder row, each naming the folder it stands for.
     /// </summary>

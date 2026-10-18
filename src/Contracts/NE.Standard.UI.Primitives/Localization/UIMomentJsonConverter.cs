@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NE.Standard.UI.Primitives.Json;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Primitives.Localization;
@@ -45,15 +46,7 @@ public sealed class UIMomentJsonConverter : JsonConverter<UIMoment>
 
     /// <summary>Whether an object on the wire is a moment rather than a phrase: it names one.</summary>
     internal static bool IsMoment(JsonElement element)
-    {
-        foreach (JsonProperty property in element.EnumerateObject())
-        {
-            if (string.Equals(property.Name, MomentName, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
+        => element.TryGetPropertyIgnoreCase(MomentName, out _);
 
     /// <summary>Reads <c>{"moment":…,"format"?:…}</c>, refusing any other member, an instant in another shape and a format no timestamp has.</summary>
     internal static UIMoment ReadMoment(JsonElement element)

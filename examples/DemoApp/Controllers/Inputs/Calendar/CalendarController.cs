@@ -162,14 +162,6 @@ internal sealed partial class CalendarController() : DemoStandardController
     public partial CalendarPickGroupContext PickGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleDaysOption(string id)
-        => DaysGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
     public void Picked()
         => PickGroup.Picked();
 }

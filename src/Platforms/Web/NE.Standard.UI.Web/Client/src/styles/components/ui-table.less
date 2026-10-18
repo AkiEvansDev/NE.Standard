@@ -6,6 +6,7 @@
 @import "../mixins/row-grip.less";
 @import "../mixins/selected.less";
 @import "../mixins/table.less";
+@import "../mixins/text.less";
 
 // A row's wash and its cursor wash, registered as colours so a row fades them (.ui-row-ground()), and a pinned cell or a tile with it.
 // Registered once here for every host with rows.
@@ -21,9 +22,10 @@
     initial-value: transparent;
 }
 
-// The shadow of what lies past an edge of the box: under the last pinned column once something has scrolled beneath it, and at an
-// edge the box still scrolls toward.
-@ui-table-edge-shadow: color-mix(in srgb, var(--ui-color-on-surface) 18%, transparent);
+// The shade of what lies past an edge of the box: under the last pinned column once something has scrolled beneath it, and at an
+// edge the box still scrolls toward. The ground the table stands on, so what runs under the edge fades into it. Rejected: the text's
+// colour at 18%, which drew a light strip on a dark page.
+@ui-table-edge-shadow: var(--ui-ground, var(--ui-color-background));
 
 // A column: a package's band above the box and its pager below stand beside the frame, not inside it.
 // The column variables the engine writes on the root inherit, so each table resets them: a nested table (a grid's detail) reads its
@@ -48,10 +50,7 @@
     flex: 1 1 auto;
     min-height: 0;
     // Border and fill follow BorderThickness/-Color/-Radius and Surface, which the renderer writes on this box, not the root.
-    border-style: solid;
-    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
-    border-color: var(--ui-color-border);
-    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-row));
+    .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-row); var(--ui-color-border));
     background: var(--ui-surface-color, transparent);
     // The corners clip the header's ground and the host's scrollbar; the rows carry no overhang of their own.
     overflow: hidden;
@@ -129,7 +128,7 @@
         z-index: 3;
         grid-row: 1 / span 3;
         grid-column: 1 / -1;
-        width: @ui-space-3;
+        width: @ui-space-5;
         pointer-events: none;
         opacity: 0;
         animation-timing-function: linear;
@@ -221,9 +220,7 @@
 
 .ui-table__caption {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    .ui-text-nowrap();
 }
 
 // A column's own mark before its caption: it keeps its size while the caption gives way to an ellipsis.
@@ -546,7 +543,7 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: var(--ui-color-primary);
+    background: var(--ui-mark-selected-fill);
     pointer-events: none;
     z-index: 2;
 }
@@ -606,11 +603,11 @@
 }
 
 .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="before"] > .ui-table__cell {
-    box-shadow: inset 0 2px 0 var(--ui-color-primary);
+    box-shadow: inset 0 2px 0 var(--ui-mark-selected-fill);
 }
 
 .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="after"] > .ui-table__cell {
-    box-shadow: inset 0 -2px 0 var(--ui-color-primary);
+    box-shadow: inset 0 -2px 0 var(--ui-mark-selected-fill);
 }
 
 // A table dragged by grips (DragHandle): a track of its own past the columns' or before them holds each row's grip, the whole row's
@@ -654,7 +651,7 @@
         left: 0;
         right: 0;
         height: 2px;
-        background: var(--ui-color-primary);
+        background: var(--ui-mark-selected-fill);
         visibility: visible;
         pointer-events: none;
     }

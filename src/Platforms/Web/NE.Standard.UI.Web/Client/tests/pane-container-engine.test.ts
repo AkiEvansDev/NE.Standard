@@ -1,6 +1,6 @@
 // A pane container's engine over a stand-in DOM: a layout pushed while a pane is lifted waits for it to come down, a hold whose pane
 // was re-rendered away lets the next lift through, a place a splitter folded is no target, and a container nested in a pane that
-// arrives is arranged as its own; a grip shows only over its pane's top band.
+// arrives is arranged as its own; a grip shows only over its pane's top band; a lifted pane stands in the top layer.
 
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
@@ -386,4 +386,45 @@ test("a pane that keeps its size carries its tracks to the place beside its own,
 
     assert.deepEqual([style(space.places[1], "--ui-placement-column"), style(space.places[1], "--ui-placement-column-span")], ["24", "1"]);
     assert.equal(style(space.container, "--ui-pane-columns-xl"), undefined, "back home, the tracks stand as authored");
+});
+
+test("a lifted pane stands in the top layer at its place's box, the place keeping its size, and comes down where it was let go", context => {
+    const space = workspace(["chat", "tasks", "tree"]);
+    const pane = space.panes.get("chat")!;
+    const grip = gripOf(pane);
+    const root = start(context, space);
+
+    space.places[0].rect = { left: 10, top: 20, width: 100, height: 80 };
+    pointer(grip, "pointerdown", 50);
+
+    assert.equal(pane.matches(":popover-open"), true, "a container or a scroller round it cut the pane flat as it went");
+    assert.equal(pane.getAttribute("popover"), "manual");
+    assert.deepEqual([pane.style.left, pane.style.top, pane.style.width, pane.style.height], ["10px", "20px", "100px", "80px"]);
+    assert.deepEqual([space.places[0].style.minWidth, space.places[0].style.minHeight], ["100px", "80px"], "the panes beside it moved into its room");
+
+    space.places[0].rect = { left: 10, top: -30, width: 100, height: 80 };
+    root.dispatchEvent(new FakeEvent("scroll"));
+    assert.equal(pane.style.top, "-30px", "a scroll under it leaves it where the page was");
+
+    pointer(grip, "pointermove", 60);
+    pointer(grip, "pointerup", 60);
+
+    assert.equal(pane.matches(":popover-open"), false);
+    assert.equal(pane.hasAttribute("popover"), false, "a popover not shown is not drawn at all");
+    assert.equal(pane.hasAttribute("data-ui-pane-raised"), false);
+    assert.deepEqual([pane.style.left, pane.style.top, pane.style.width, pane.style.height, space.places[0].style.minWidth], ["", "", "", "", ""]);
+});
+
+test("the keyboard's lift stands the pane in the top layer too, and Escape brings it down", context => {
+    const space = workspace(["chat", "tasks"]);
+    const pane = space.panes.get("chat")!;
+    const grip = gripOf(pane);
+
+    start(context, space);
+    key(grip, " ");
+    assert.equal(pane.matches(":popover-open"), true);
+
+    key(grip, "Escape");
+    assert.equal(pane.matches(":popover-open"), false);
+    assert.equal(pane.hasAttribute("popover"), false);
 });

@@ -155,7 +155,7 @@ internal static class DemoStorageTree
 /// <summary>
 /// The properties that answer for the whole tree: its step, its chrome, and which rows are chosen.
 /// </summary>
-internal sealed partial class TreeGroupContext : DemoGroupContext
+internal sealed partial class TreeGroupContext : SelectionGroupContext
 {
     [RecursiveMember]
     public partial UISurfaceStyle? Surface { get; set; } = UISurfaceStyle.Background;
@@ -181,20 +181,12 @@ internal sealed partial class TreeGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UIScrollMode? VerticalScroll { get; set; }
 
-    [RecursiveMember]
-    public partial UISelectionMode? SelectionMode { get; set; } = UISelectionMode.One;
-
-    [RecursiveMember]
-    public partial string? SelectedKey { get; set; } = "manifest";
-
-    [RecursiveMember]
-    public partial IReadOnlyList<string>? SelectedKeys { get; set; }
-
-    [RecursiveMember]
-    public partial UISelectionStyle? SelectionStyle { get; set; }
-
     public TreeGroupContext()
+        : base(["manifest", "db-snapshot-21"], [["db-snapshot-21", "db-snapshot-22"], ["incident-report"]])
     {
+        SelectionMode = UISelectionMode.One;
+        SelectedKey = "manifest";
+
         AddOption(nameof(Surface), CycleSurface, () => Surface);
         AddOption(nameof(Indent), CycleIndent, () => Indent);
         AddOption(nameof(Renamable), ToggleRenamable, () => Renamable);
@@ -203,10 +195,7 @@ internal sealed partial class TreeGroupContext : DemoGroupContext
         AddOption(nameof(ShowFoldChevron), ToggleShowFoldChevron, () => ShowFoldChevron);
         AddOption(nameof(RowHoverable), ToggleRowHoverable, () => RowHoverable);
         AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
-        AddOption(nameof(SelectionMode), CycleSelectionMode, () => SelectionMode);
-        AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
-        AddOption(nameof(SelectedKeys), CycleSelectedKeys, () => SelectedKeys is null ? null : string.Join(", ", SelectedKeys));
-        AddOption(nameof(SelectionStyle), CycleSelectionStyle, () => SelectionStyle);
+        AddSelectionOptions();
     }
 
     public void CycleSurface()
@@ -237,19 +226,6 @@ internal sealed partial class TreeGroupContext : DemoGroupContext
     // Read against the preview's height cap: with Auto the rows scroll inside the tree.
     public void CycleVerticalScroll()
         => SetLastChange(nameof(VerticalScroll), VerticalScroll = CycleEnum(VerticalScroll));
-
-    // The mode picks which of the two key rows the tree reads; the arrows choose a row only with One.
-    public void CycleSelectionMode()
-        => SetLastChange(nameof(SelectionMode), SelectionMode = CycleEnum(SelectionMode));
-
-    public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "manifest", "db-snapshot-21"));
-
-    public void CycleSelectedKeys()
-        => SetLastChange(nameof(SelectedKeys), SelectedKeys = CycleValue(SelectedKeys, null, ["db-snapshot-21", "db-snapshot-22"], ["incident-report"]));
-
-    public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
 }
 
 /// <summary>
@@ -858,18 +834,6 @@ internal sealed partial class TreeController() : DemoStandardController
 
     [RecursiveMember]
     public partial TreeNotesGroupContext NotesGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleTreeOption(string id)
-        => TreeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleNodesOption(string id)
-        => NodesGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 
     [UICommand]
     public void OpenNode(string id)

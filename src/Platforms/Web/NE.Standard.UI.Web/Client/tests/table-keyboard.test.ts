@@ -297,5 +297,5 @@ test("the header's keyboard stop and the keyboard's row are marked only for a fo
     assert.match(css, /\.ui-table > \.ui-table__scroll > \.ui-table__header > \.ui-table__header-cell:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*box-shadow: inset 0 0 0 100vmax var\(--ui-wash-hover\);/);
     assert.match(css, /\.ui-table:not\(\[role="grid"\]\):focus:not\(\[data-ui-pointer-focus\]\) > \.ui-table__scroll > \[data-ui-items-host\] > \.ui-table__row\[data-ui-row-focus\]:not\(\[data-ui-selected\]\)/);
     // A grid's row keeps the wash, and its cursor's cell wears the frame.
-    assert.match(css, /\.ui-table\[role="grid"\]:focus:not\(\[data-ui-pointer-focus\]\) > \.ui-table__scroll > \[data-ui-items-host\] > \.ui-table__row\[data-ui-row-focus\] > \[data-ui-cell-focus\] \{\s*outline: 2px solid var\(--ui-color-primary-ink\);/);
+    assert.match(css, /\.ui-table\[role="grid"\]:focus:not\(\[data-ui-pointer-focus\]\) > \.ui-table__scroll > \[data-ui-items-host\] > \.ui-table__row\[data-ui-row-focus\] > \[data-ui-cell-focus\] \{\s*outline: 2px solid var\(--ui-mark-keyboard\);/);
 });

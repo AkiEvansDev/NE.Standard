@@ -36,13 +36,13 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ButtonGroup, "Button", nameof(ActionController.CycleButtonOption)),
-            DemoUI.CreateOptionSection(ActionGroup, "Action", nameof(ActionController.CycleActionOption)),
-            DemoUI.CreateOptionSection(LayoutGroup, "Layout", nameof(ActionController.CycleLayoutOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(ActionController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(ActionController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ActionController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ButtonGroup, "Button"),
+            DemoUI.CreateOptionSection(ActionGroup, "Action"),
+            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()

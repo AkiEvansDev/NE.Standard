@@ -54,7 +54,8 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
 
     /// <summary>
     /// Gets or sets the width tier below which the actions stand in a row under the field — the leading ones at its start, the
-    /// trailing ones at its end — while the in-field ones stay in the row; unset, they all stand in the row at every width.
+    /// trailing ones at its end, or at the end an action's <c>belowAt</c> names — while the in-field ones stay in the row; unset, they
+    /// all stand in the row at every width.
     /// </summary>
     /// <remarks>Render-time only. The same components move, so a flyout or a split button among them keeps its one popup.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
@@ -118,6 +119,26 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     }
 
     /// <summary>
+    /// Adds a button at the start of the row that stands at <paramref name="belowAt"/> of the row under the field
+    /// (<see cref="ActionsBelow"/>) — a panel's button at the end its panel opens from; beside the text it stands last at the start.
+    /// </summary>
+    public T AddLeadingAction(IButtonComponent action, UIAlignment belowAt)
+    {
+        _actions.AddLeading(action, belowAt);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a flyout at the start of the row that stands at <paramref name="belowAt"/> of the row under the field, as the button's
+    /// overload.
+    /// </summary>
+    public T AddLeadingAction(FlyoutComponent flyout, UIAlignment belowAt)
+    {
+        _actions.AddLeading(flyout, belowAt);
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a button at the end of the row, after those added before; the field dresses it as an adornment.
     /// </summary>
     public T AddTrailingAction(IButtonComponent action)
@@ -132,7 +153,8 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
 
     /// <summary>
     /// Adds a button at the end of the row; <paramref name="inField"/> flags it as standing in the field (a Send), last at the row's
-    /// end and kept there under <see cref="ActionsBelow"/>. One trailing action of a field is in it.
+    /// end and kept there under <see cref="ActionsBelow"/>. One trailing action of a field is in it: a Send and a Stop that replace
+    /// each other are one button, its icon and command bound.
     /// </summary>
     public T AddTrailingAction(IButtonComponent action, bool inField)
     {
@@ -146,6 +168,26 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     public T AddTrailingAction(FlyoutComponent flyout, bool inField)
     {
         _actions.AddTrailing(flyout, inField);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a button at the end of the row that stands at <paramref name="belowAt"/> of the row under the field
+    /// (<see cref="ActionsBelow"/>); beside the text it stands first at the end.
+    /// </summary>
+    public T AddTrailingAction(IButtonComponent action, UIAlignment belowAt)
+    {
+        _actions.AddTrailing(action, belowAt);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a flyout at the end of the row that stands at <paramref name="belowAt"/> of the row under the field, as the button's
+    /// overload.
+    /// </summary>
+    public T AddTrailingAction(FlyoutComponent flyout, UIAlignment belowAt)
+    {
+        _actions.AddTrailing(flyout, belowAt);
         return Self;
     }
 

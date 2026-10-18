@@ -38,8 +38,4 @@ internal sealed partial class GridSplitterController() : DemoStandardController
 {
     [RecursiveMember]
     public partial GridSplitterGroupContext SplitterGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleSplitterOption(string id)
-        => SplitterGroup.CycleOption(id);
 }

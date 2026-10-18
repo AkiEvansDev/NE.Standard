@@ -1,13 +1,13 @@
 using System;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using NE.Standard.UI.Primitives.Json;
 
 namespace NE.Standard.UI.Shell.Updates.Server;
 
 /// <summary>
 /// Serializes server UI updates using their runtime type while keeping the public transport shape stable.
 /// </summary>
-public sealed class ServerUIUpdateJsonConverter : JsonConverter<ServerUIUpdate>
+public sealed class ServerUIUpdateJsonConverter : UIRuntimeTypeJsonConverter<ServerUIUpdate>
 {
     /// <inheritdoc />
     public override ServerUIUpdate? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -32,7 +32,7 @@ public sealed class ServerUIUpdateJsonConverter : JsonConverter<ServerUIUpdate>
 
     private static bool TryReadKind(JsonElement element, out ServerUIUpdateKind kind)
     {
-        if (!TryGetProperty(element, "kind", out JsonElement kindElement))
+        if (!element.TryGetPropertyIgnoreCase("kind", out JsonElement kindElement))
         {
             kind = default;
             return false;
@@ -53,34 +53,5 @@ public sealed class ServerUIUpdateJsonConverter : JsonConverter<ServerUIUpdate>
 
         kind = default;
         return false;
-    }
-
-    private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
-    {
-        foreach (JsonProperty property in element.EnumerateObject())
-        {
-            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = property.Value;
-                return true;
-            }
-        }
-
-        value = default;
-        return false;
-    }
-
-    /// <inheritdoc />
-    public override void Write(Utf8JsonWriter writer, ServerUIUpdate value, JsonSerializerOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(writer);
-
-        if (value is null)
-        {
-            writer.WriteNullValue();
-            return;
-        }
-
-        JsonSerializer.Serialize(writer, value, value.GetType(), options);
     }
 }

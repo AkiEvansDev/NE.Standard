@@ -1,6 +1,10 @@
 // One shadow scale for the whole library; surfaces pick a level rather than inventing a box-shadow.
+
+// The first level, as a value, for a shadow that lays more beside it (a range's handle and its halo).
+@ui-elevation-1-shadow: 0 1px 2px var(--ui-color-shadow);
+
 .ui-elevation-1() {
-    box-shadow: 0 1px 2px var(--ui-color-shadow);
+    box-shadow: @ui-elevation-1-shadow;
 }
 
 .ui-elevation-2() {

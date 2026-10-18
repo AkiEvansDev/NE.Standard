@@ -1,6 +1,8 @@
+@import "../core/tokens.less";
+
 // A round picture with none (icon-stand-in.ts, image-fallback-engine.ts): its fallback glyph on the neutral circle a badge stands on,
 // both shares of the ink around it, so they read on either theme's page and take an icon's colour where one is given.
-@ui-stand-in-ground: color-mix(in srgb, currentColor 10%, transparent);
+@ui-stand-in-ground: @ui-neutral-tint;
 @ui-stand-in-ink: color-mix(in srgb, currentColor 60%, transparent);
 // The glyph's share of the circle: the person's drawing stands inside its em, so at this size it fills about half the circle.
 @ui-stand-in-glyph-share: 75cqmin;

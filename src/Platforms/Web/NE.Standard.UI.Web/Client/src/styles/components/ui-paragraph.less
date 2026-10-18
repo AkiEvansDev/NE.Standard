@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/text.less";
 
 // A paragraph's wrapping description keeps its authored breaks, where a wrapping text's fold into the run (ui-text.less).
 .ui-paragraph.ui-text--wrap@{ui-text-with-description} > .ui-text__body > .ui-text__description {
@@ -10,22 +11,26 @@
     grid-template-columns: minmax(0, 1fr);
 }
 
-.ui-paragraph[data-ui-text-icon]:is(.ui-text--align-center, .ui-text--align-end) {
-    grid-template-columns: auto minmax(0, 1fr);
+// The icon's track at its glyph's width: `auto` took a share of the description spanning both tracks and cut the title to an ellipsis.
+// Named as ui-text.less names a text with an icon, or its content-sized tracks for an icon outrank this.
+@{ui-text-with-icon}.ui-paragraph:is(.ui-text--align-center, .ui-text--align-end) {
+    grid-template-columns: min-content minmax(0, 1fr);
 }
 
 // MaxLines clamps a wrapping paragraph, an ellipsis on the last line it keeps; without it, Wrap runs on.
 .ui-paragraph.ui-text--wrap.ui-text--max-lines@{ui-text-with-description} > .ui-text__body > .ui-text__description {
-    display: -webkit-box;
-    overflow: hidden;
-    line-clamp: var(--ui-text-max-lines);
-    -webkit-line-clamp: var(--ui-text-max-lines);
-    -webkit-box-orient: vertical;
+    .ui-text-clamp(var(--ui-text-max-lines));
     // Room for the keyboard's frame round a link on an edge line, which the clip cut, given back by the margin so nothing moves: the
     // clip is the padding box. Two pixels, the frame's reach round running words, within the next line's empty leading.
     padding: 2px;
     margin: -2px;
 }
+
+    // Under a title the margin adds to the description's own pull towards it (ui-text.less), rather than replacing it: it stood 3 px
+    // further off its title than the same words unclamped.
+    .ui-paragraph.ui-text--wrap.ui-text--max-lines@{ui-text-with-both} > .ui-text__body > .ui-text__description {
+        margin-top: calc((1em - 1lh) / 2 - 2px);
+    }
 
 // The quote line runs the block's full height, in a transparent border, as padding would shadow the root's Padding. A pseudo-element,
 // not the root's background: a wrapped view's tile wash (.ui-tile-wash()) rewrites the root's background-image. Not while loading,

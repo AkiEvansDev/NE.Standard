@@ -95,7 +95,7 @@ test("every button of a bar wears the keyboard's frame where the keyboard stands
     ]) {
         const frame = nestedRule(selector);
 
-        assert.match(frame, /outline: 2px solid var\(--ui-color-primary-ink\);/);
+        assert.match(frame, /outline: 2px solid var\(--ui-mark-keyboard\);/);
         assert.match(frame, /outline-offset: -2px;/);
     }
 });

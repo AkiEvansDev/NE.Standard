@@ -617,8 +617,9 @@ test("an icon that is the whole face shrinks while held and springs back; a butt
     const held = rule(".ui-button[data-ui-text-icon]:not([data-ui-text-title]).ui-press-held > .ui-button__content > .ui-text__icon");
 
     assert.match(held, /scale: 0\.88;/);
-    assert.match(rule(".ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon"), /transition: scale 200ms cubic-bezier\(0\.34, 1\.56, 0\.64, 1\);/);
-    assert.ok(css.includes(".ui-menu--rail > .ui-menu__host > .ui-menu__item:where(:not([data-ui-menu-passive])) > .ui-menu-item).ui-press-held > .ui-button__content > .ui-text__icon"), "a rail's entry does not shrink its icon");
+    // At a line's start: the icon scale's `:where()` names the same glyph inside its own list.
+    assert.match(rule("\n.ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon"), /transition: scale 200ms cubic-bezier\(0\.34, 1\.56, 0\.64, 1\);/);
+    assert.ok(css.includes('.ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:where(:not([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]))).ui-press-held > .ui-button__content > .ui-text__icon'), "a rail's entry does not shrink its icon");
 
     const pressed = [...css.matchAll(/([^{}]*\.ui-press(?:ing|-held|-placed)[^{}]*)\{([^}]*)\}/g)].filter(match => !/(?:icon|::before|::after)\s*$/.test(match[1].trim()));
 
@@ -637,7 +638,7 @@ test("the wave is a layer of the element's own frame and corners, cutting the ci
     assert.match(layer, /overflow: hidden;/);
     assert.match(layer, /pointer-events: none;/);
     assert.match(layer, /grid-area: auto;/, "a grid's `> *` placement made a cell the wave's box");
-    assert.match(rule(".ui-pressing > .ui-press-wave > .ui-press-wave__ink {"), /border-radius: 50%;[\s\S]*background: color-mix\(in srgb, currentColor 16%, transparent\);/);
+    assert.match(rule(".ui-pressing > .ui-press-wave > .ui-press-wave__ink {"), /border-radius: 50%;[\s\S]*background: color-mix\(in srgb, currentColor var\(--ui-wash-active-share\), transparent\);/, "the wave is the theme's press share of the pressed thing's ink");
 
     // On the pressed element itself nothing is clipped, so an adornment overhanging it stays whole.
     for (const match of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {

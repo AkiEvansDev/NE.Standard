@@ -135,24 +135,4 @@ internal sealed partial class ImageInputController() : DemoStandardController
             ValueGroup.Show($"data:{file.Metadata.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}");
         }
     }
-
-    [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleImageOption(string id)
-        => ImageGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 }

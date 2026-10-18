@@ -19,6 +19,10 @@
     align-items: center;
     .ui-responsive-property(gap, --ui-breadcrumbs-spacing, 2px);
     min-width: 0;
+    // Each line's first step stands its words, not its box, on the trail's edge: hung out by the padding a step keeps by default,
+    // into the holder's room, the keyboard's frame inside the step with it. By the default alone: a step's authored padding is its
+    // own, which the host cannot read without a :has() (STYLING), so such a trail stands in by what it adds.
+    margin-inline-start: -@ui-space-1;
 }
 
 .ui-breadcrumbs__item {

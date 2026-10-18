@@ -142,11 +142,4 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
             words: true
         );
     }
-
-    private static ButtonComponent CreateButton(string title, string command, UIButtonType type)
-        => new ButtonComponent()
-            .OnClick(command)
-            .SetType(type)
-            .SetHorizontalAlignment(UIAlignment.Start)
-            .SetTitle(title);
 }

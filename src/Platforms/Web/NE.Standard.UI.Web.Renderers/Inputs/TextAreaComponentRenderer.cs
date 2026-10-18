@@ -18,11 +18,17 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
     // Through converters, so a pushed count of zero or less writes nothing, as the first paint does.
     private static readonly WebDomOperation[] RowsOperations = [WebDomOperation.Attribute("rows", converter: WebDomConverters.PositiveCount), WebDomOperation.Style(RowsVariable, converter: WebDomConverters.PositiveCount)];
-    private static readonly WebDomOperation[] MaxRowsOperations = [WebDomOperation.Attribute(WebAttributes.TextAreaGrow, converter: WebDomConverters.PositiveFlagAttribute), WebDomOperation.Style(MaxRowsVariable, converter: WebDomConverters.PositiveCount)];
+    // A growing area's root is marked too: its text sizes its height alone, so the root fills its room rather than shrinking to it.
+    private const string GrowClassName = "ui-text-area--grow";
+
+    private static readonly WebDomOperation[] MaxRowsOperations =
+    [
+        WebDomOperation.Attribute(WebAttributes.TextAreaGrow, converter: WebDomConverters.PositiveFlagAttribute),
+        WebDomOperation.Style(MaxRowsVariable, converter: WebDomConverters.PositiveCount),
+        WebDomOperation.Class(target: "root", converter: WebDomConverters.TextAreaGrowClass)
+    ];
 
     private static readonly WebDomOperation[] ResizeOperations = [WebDomOperation.Style("resize", converter: WebDomConverters.TextAreaResizeCss)];
-    private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
-    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)];
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
 
     public override string ComponentTypeKey => TextAreaComponent.ComponentTypeKey;
@@ -51,9 +57,11 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
                 BorderStyleRenderer.RenderBorderStyle(context, box);
 
+                FieldActionsRenderer.RenderLeadingGroups(context, box, $"{ClassName}__action", $"{ClassName}__below");
+
                 RenderField(context, root, box, boxed: true);
 
-                FieldActionsRenderer.RenderGroups(context, box, $"{ClassName}__action");
+                FieldActionsRenderer.RenderTrailingGroups(context, box, $"{ClassName}__action", $"{ClassName}__below");
             });
         }
         else
@@ -88,10 +96,13 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
                     _ = target.Attribute("rows", rows.ToString(CultureInfo.InvariantCulture)).Style(RowsVariable, rows.ToString(CultureInfo.InvariantCulture));
             }, RowsOperations);
 
-            _ = RenderProperty<int?>(context, textarea, TextAreaComponent.MaxRowsProperty, static (target, value) =>
+            _ = RenderProperty<int?>(context, textarea, TextAreaComponent.MaxRowsProperty, (target, value) =>
             {
-                if (value is int maxRows and > 0)
-                    _ = target.Attribute(WebAttributes.TextAreaGrow).Style(MaxRowsVariable, maxRows.ToString(CultureInfo.InvariantCulture));
+                if (value is not (int maxRows and > 0))
+                    return;
+
+                _ = target.Attribute(WebAttributes.TextAreaGrow).Style(MaxRowsVariable, maxRows.ToString(CultureInfo.InvariantCulture));
+                _ = root.Class(GrowClassName);
             }, MaxRowsOperations);
 
             RenderFlagAttribute(context, textarea, TextAreaComponent.SubmitOnEnterProperty, WebAttributes.SubmitOnEnter);
@@ -102,18 +113,9 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
                     _ = target.Style("resize", resize.ToString().ToLowerInvariant());
             }, ResizeOperations);
 
-            _ = RenderProperty<int?>(context, textarea, TextAreaComponent.MaxLengthProperty, static (target, value) =>
-            {
-                if (value is int maxLength)
-                    _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
-            }, MaxLengthOperations);
+            NativeInputRendererBase.RenderMaxLength(context, textarea);
 
-            // Read by DebouncedCommitEngine on every keystroke, so a bound value is in force at once.
-            _ = RenderProperty<int?>(context, textarea, TextAreaComponent.DebounceMillisecondsProperty, static (target, value) =>
-            {
-                if (value is int milliseconds and >= 0)
-                    _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-            }, DebounceOperations);
+            NativeInputRendererBase.RenderDebounce(context, textarea, TextAreaComponent.DebounceMillisecondsProperty);
 
             // Read by `readBoundElementValue` off whichever element carries it, textarea or input alike.
             RenderFlagAttribute(context, textarea, TextAreaComponent.TrimInputProperty, WebAttributes.TrimInput);

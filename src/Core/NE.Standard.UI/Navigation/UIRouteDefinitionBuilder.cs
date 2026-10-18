@@ -9,7 +9,9 @@ using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Security;
+using NE.Standard.UI.Security;
 using NE.Standard.UI.Shell.Controllers;
+using NE.Standard.UI.Shell.Filters;
 using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Views;
@@ -294,25 +296,14 @@ public sealed class UIRouteDefinitionBuilder
     /// </summary>
     private static void EnsureAuthorizeNotOpened(Type type)
     {
-        Type? authorizing = null;
+        if (!UIAuthorizeOpening.TryFind(type, static level => level.BaseType, out Type? authorizing, out Type? level))
+            return;
 
-        for (Type? level = type; level is not null; level = level.BaseType)
-        {
-            if (authorizing is null && level.IsDefined(typeof(UIAuthorizeAttribute), inherit: false))
-                authorizing = level;
+        var message = ReferenceEquals(authorizing, level)
+            ? $"'{level.FullName}' carries both [UIAuthorize] and [UIAllowAnonymous]; the anonymous one wins and its route would take anyone. Keep one."
+            : $"'{authorizing.FullName}' carries [UIAuthorize], but [UIAllowAnonymous] on its base '{level.FullName}' wins and its route would take anyone. Remove one, or declare [UIAllowAnonymous] on the type that means it.";
 
-            if (!level.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: false))
-                continue;
-
-            if (authorizing is null)
-                return;
-
-            var message = ReferenceEquals(authorizing, level)
-                ? $"'{level.FullName}' carries both [UIAuthorize] and [UIAllowAnonymous]; the anonymous one wins and its route would take anyone. Keep one."
-                : $"'{authorizing.FullName}' carries [UIAuthorize], but [UIAllowAnonymous] on its base '{level.FullName}' wins and its route would take anyone. Remove one, or declare [UIAllowAnonymous] on the type that means it.";
-
-            throw new InvalidOperationException(message);
-        }
+        throw new InvalidOperationException(message);
     }
 
     /// <summary>
@@ -332,7 +323,7 @@ public sealed class UIRouteDefinitionBuilder
     }
 
     /// <summary>
-    /// Collects the view filters attached to the route, view first then controller, ordered by <see cref="IUIViewFilter.Order"/>.
+    /// Collects the view filters attached to the route, view first then controller, ordered by <see cref="IUIFilter{TContext}.Order"/>.
     /// </summary>
     private static IUIViewFilter[] ReadViewFilters(Type viewType, Type? controllerType)
     {

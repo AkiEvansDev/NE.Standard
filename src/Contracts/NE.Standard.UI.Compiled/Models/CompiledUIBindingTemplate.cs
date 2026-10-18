@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Recursive;
 
 namespace NE.Standard.UI.Compiled.Models;
 
@@ -29,41 +29,7 @@ public sealed class CompiledUIBindingTemplate
     public int ParameterCount { get; init; }
 
     /// <summary>
-    /// The template's property names in order, split once: the item walk reads them for every row it renders.
+    /// Gets the template parsed once: every walk over it — a row's values, the controller's initial lists — reads its parts.
     /// </summary>
-    internal string[] PropertyNames => field ??= SplitPropertyNames(Template);
-
-    /// <summary>The names the item walk reads, split by the same grammar; it stops where the walk would fail.</summary>
-    private static string[] SplitPropertyNames(string template)
-    {
-        List<string> names = [];
-        var i = 0;
-
-        while (i < template.Length)
-        {
-            if (template[i] == '.')
-            {
-                i++;
-                continue;
-            }
-
-            if (template[i] == '[')
-            {
-                if (i + 1 >= template.Length || template[i + 1] != ']')
-                    break;
-
-                i += 2;
-                continue;
-            }
-
-            var start = i;
-
-            while (i < template.Length && template[i] != '.' && template[i] != '[')
-                i++;
-
-            names.Add(template[start..i]);
-        }
-
-        return [.. names];
-    }
+    public RecursivePathTemplate Parsed => field ??= RecursivePathTemplate.Parse(Template);
 }

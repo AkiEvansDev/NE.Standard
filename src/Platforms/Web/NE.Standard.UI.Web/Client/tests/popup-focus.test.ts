@@ -122,6 +122,42 @@ test("a modifier held alone keeps the pointer's mark; the next real key takes it
     assert.equal(isPointerLast(), false);
 });
 
+test("typing, the caret's keys, Enter and Escape in a field the pointer put the caret in leave the pointer the last input", () => {
+    const field = new FakeInput();
+    const edit = new FakeElement("button");
+
+    notePress(real(field));
+    focusBy(field);
+
+    for (const name of ["a", " ", "Backspace", "ArrowLeft", "ArrowDown", "Home", "Enter", "Escape"])
+        noteKey(key(name, field));
+
+    assert.equal(isPointerLast(), true);
+
+    focusBy(edit);
+
+    assert.equal(edit.hasAttribute(Mark), true);
+});
+
+test("Tab, a chord, and an arrow walking a combobox's list from its field are the keyboard's", () => {
+    const field = new FakeInput();
+    const search = new FakeInput("search");
+
+    search.setAttribute("role", "combobox");
+
+    for (const [name, target, ctrl] of [["Tab", field, false], ["a", field, true], ["ArrowDown", search, false], ["PageUp", search, false]] as const) {
+        notePress(real(target));
+        focusBy(target);
+
+        const event = new FakeKeyboardEvent(name, target);
+
+        event.ctrlKey = ctrl;
+        noteKey(event as unknown as Event);
+
+        assert.equal(isPointerLast(), false, name);
+    }
+});
+
 test("a real key takes the mark off an element that never held the focus too: a search's current option", () => {
     const field = new FakeInput("search");
     const option = new FakeElement();

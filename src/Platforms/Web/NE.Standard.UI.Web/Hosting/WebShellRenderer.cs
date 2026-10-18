@@ -31,8 +31,6 @@ public static class WebShellRenderer
     // An icon of no bytes: the browser shows its own blank and fetches nothing.
     private const string EmptyIcon = "data:,";
 
-    private static readonly JsonSerializerOptions MetadataJsonOptions = WebWireJson.CreateOptions();
-
     // The theme's stylesheet once per theme rather than once a page: a theme is an immutable record the application holds for good.
     private static readonly ConditionalWeakTable<UITheme, string> ThemeCss = [];
 
@@ -221,7 +219,7 @@ public static class WebShellRenderer
             _ = root.Attribute("role", "none");
 
             if (context.StandInNavigation is UINavigationRequest standIn)
-                _ = root.Attribute(WebAttributes.Navigation, JsonSerializer.Serialize(new { route = standIn.Route, parameters = standIn.Parameters }, MetadataJsonOptions));
+                _ = root.Attribute(WebAttributes.Navigation, JsonSerializer.Serialize(new { route = standIn.Route, parameters = standIn.Parameters }, WebWireJson.Options));
 
             if (context.ScrollContentOnly)
                 _ = root.Attribute(ScrollContentAttribute);
@@ -359,7 +357,7 @@ public static class WebShellRenderer
     {
         ArgumentNullException.ThrowIfNull(strings);
 
-        return JsonSerializer.Serialize(strings, MetadataJsonOptions);
+        return JsonSerializer.Serialize(strings, WebWireJson.Options);
     }
 
     /// <summary>
@@ -581,6 +579,6 @@ public static class WebShellRenderer
             })
         };
 
-        return JsonSerializer.Serialize(model, MetadataJsonOptions);
+        return JsonSerializer.Serialize(model, WebWireJson.Options);
     }
 }

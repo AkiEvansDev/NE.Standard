@@ -31,15 +31,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TabsViewComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSelectedKey($"{TabsViewGroup}.{nameof(TabsViewGroupContext.SelectedKey)}")
             .BindRenamable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Renamable)}")
             .BindDraggable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Draggable)}")
@@ -59,9 +51,9 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(TabsViewGroup, "Tabs view", nameof(TabsViewController.CycleTabsViewGroupOption)),
-            DemoUI.CreateOptionSection(FirstTabGroup, "First tab", nameof(TabsViewController.CycleFirstTabGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(TabsViewGroup, "Tabs view"),
+            DemoUI.CreateOptionSection(FirstTabGroup, "First tab")
         );
 
     protected override IVisualComponent[] CreateExamples()

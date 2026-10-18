@@ -157,3 +157,16 @@ test("the arrows stand at the track's ends, in the thumb's strip, and the thumb 
 
     assert.equal(end.top + end.height, 300 - 2 - 12);
 });
+
+test("a table's upright bar runs beside its rows, under the header sticking over them and over a footer, as its scroll padding says", () => {
+    const table = scroller({ left: 0, top: 0, width: 600, height: 400 }, { width: 600, height: 400 }, { width: 600, height: 2000 }, { scrollPaddingTop: "40px", scrollPaddingBottom: "32px" });
+    const client = clientBox(real(table));
+    const thumb = thumbBox(real(table), "y", client, false);
+    const arrows = arrowBoxes(real(table), "y", client, false);
+
+    // The header's 40 px, the bar's 2 px inset and the arrow's 12 px above the thumb.
+    assert.equal(thumb.top, 40 + 2 + 12);
+    assert.equal(arrows?.back.top, 40 + 2);
+    // The footer's 32 px under the forward arrow's square.
+    assert.equal(arrows.forward.top + arrows.forward.height, 400 - 32 - 2);
+});

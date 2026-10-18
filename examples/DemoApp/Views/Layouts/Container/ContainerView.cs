@@ -89,24 +89,14 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
 
     private static ContainerComponent Bind(ContainerComponent container)
         => container
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSpacing($"{ContainerGroup}.{nameof(ContainerGroupContext.Spacing)}")
             .BindPadding($"{ContainerGroup}.{nameof(ContainerGroupContext.Padding)}")
             .BindBackground($"{ContainerGroup}.{nameof(ContainerGroupContext.Background)}")
             .BindBackgroundImage($"{ContainerGroup}.{nameof(ContainerGroupContext.BackgroundImage)}")
             .BindBackgroundImageFit($"{ContainerGroup}.{nameof(ContainerGroupContext.BackgroundImageFit)}")
             .BindOverflow($"{ContainerGroup}.{nameof(ContainerGroupContext.Overflow)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>
@@ -133,9 +123,9 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ContainerGroup, "Container", nameof(ContainerController.CycleContainerGroupOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ContainerController.CycleBorderGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ContainerGroup, "Container"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // The two screen parts across the page; the corner badges beside the panel with a scrolling middle.

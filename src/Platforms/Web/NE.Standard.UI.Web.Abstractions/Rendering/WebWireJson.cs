@@ -62,7 +62,21 @@ public static class WebWireJson
     }
 
     /// <summary>
-    /// A fresh web-flavoured options instance carrying the conventions.
+    /// The one read-only options instance carrying the conventions, for everything the platform writes with them and adds nothing to:
+    /// shared, so the metadata of every type it writes is built once rather than once per writer.
+    /// </summary>
+    public static JsonSerializerOptions Options { get; } = CreateReadOnlyOptions();
+
+    private static JsonSerializerOptions CreateReadOnlyOptions()
+    {
+        JsonSerializerOptions options = CreateOptions();
+        options.MakeReadOnly();
+
+        return options;
+    }
+
+    /// <summary>
+    /// A fresh web-flavoured options instance carrying the conventions, for a writer that adds to them; any other takes <see cref="Options"/>.
     /// </summary>
     public static JsonSerializerOptions CreateOptions()
     {

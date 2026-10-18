@@ -20,22 +20,6 @@ internal abstract partial class ToggleController(string sampleTitle, string samp
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 }
 
 internal sealed partial class CheckboxController() : ToggleController("Take automatic backups", "Every server is snapshotted each night.");

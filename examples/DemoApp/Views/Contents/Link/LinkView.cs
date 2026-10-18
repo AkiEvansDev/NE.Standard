@@ -24,44 +24,19 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new LinkComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindUrl($"{LinkGroup}.{nameof(LinkGroupContext.Url)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}")
+            .BindTextContent(ContentGroup)
+            .BindBadge(BadgeGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(LinkGroup, "Link", nameof(LinkController.CycleLinkGroupOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(LinkController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(LinkController.CycleBadgeOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(LinkGroup, "Link"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge")
         );
 
     // The two comparisons that fit a half side by side; the sentence against its neighbour across the page, its two answers in halves.

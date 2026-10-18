@@ -67,7 +67,7 @@ public static class WebMoments
         if (arguments is null || !HoldsMoment(arguments))
             return arguments;
 
-        return PaintArguments(arguments, WebCultures.Resolve(language), options);
+        return PaintArguments(arguments, UICultures.Resolve(language), options);
     }
 
     /// <summary>

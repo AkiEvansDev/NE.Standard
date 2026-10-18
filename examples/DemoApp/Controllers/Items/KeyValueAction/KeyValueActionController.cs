@@ -426,18 +426,6 @@ internal sealed partial class KeyValueActionController() : DemoStandardControlle
     public partial KeyValueActionInputsGroupContext InputsGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleListOption(string id)
-        => ListGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleItemsOption(string id)
-        => ItemsGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
-
-    [UICommand]
     public void ClickRowWithItem(KeyValueActionItem item)
         => ClickGroup.RecordItem(item);
 

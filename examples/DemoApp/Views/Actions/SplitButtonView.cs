@@ -68,12 +68,12 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ButtonGroup, "Button", nameof(SplitButtonController.CycleButtonOption)),
-            DemoUI.CreateOptionSection(LayoutGroup, "Layout", nameof(SplitButtonController.CycleLayoutOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(SplitButtonController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(SplitButtonController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(SplitButtonController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ButtonGroup, "Button"),
+            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()

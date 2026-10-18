@@ -79,13 +79,6 @@ internal abstract partial class DemoStandardController : DemoController
     [RecursiveMember]
     public partial StandardGroupContext MainGroup { get; set; } = new();
 
-    /// <summary>
-    /// Cycles one Standard row's property, told apart by the row's own key.
-    /// </summary>
-    [UICommand]
-    public void CycleMainOption(string id)
-        => MainGroup.CycleOption(id);
-
     [UICommand]
     public void CycleVisibility()
         => MainGroup.CycleVisibility();

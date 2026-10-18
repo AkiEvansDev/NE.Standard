@@ -1193,7 +1193,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        return WebCultures.Resolve(context.ViewResolution.Session.Language);
+        return UICultures.Resolve(context.ViewResolution.Session.Language);
     }
 
     /// <summary>The culture a formatted input writes its value in: its own <c>Culture</c>, else the page's — the session's language.</summary>
@@ -1203,7 +1203,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
         _ = ResolveRenderValue(context, IFormattedInputComponent.CultureProperty, out string? culture, out _);
 
-        return string.IsNullOrWhiteSpace(culture) ? ResolveCulture(context) : WebCultures.Resolve(culture);
+        return string.IsNullOrWhiteSpace(culture) ? ResolveCulture(context) : UICultures.Resolve(culture);
     }
 
     /// <summary>The items of an items component, and whether they are left to the client to render.</summary>

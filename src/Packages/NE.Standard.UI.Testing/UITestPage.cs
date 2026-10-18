@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -194,10 +193,7 @@ public sealed partial class UITestPage
             UIPhrase phrase => translator.Translate(language, phrase.Key, phrase.Arguments),
             string text => translator.Translate(language, text),
             // As the page writes them: a number by its shortest digits (1.5, not 1.50), a flag in the wire's words.
-            bool flag => flag ? "true" : "false",
-            _ when UIScriptNumber.TryRead(value, out var number) => UIScriptNumber.Format(number),
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString()
+            _ => UIScriptText.Of(value)
         };
     }
 

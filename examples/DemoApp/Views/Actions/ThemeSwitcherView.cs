@@ -44,9 +44,7 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
             .BindTooltip($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.Tooltip)}")
             .BindTooltipPlacement($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.TooltipPlacement)}")
             .BindBackground($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.Background)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
 
     private static ThemeSwitcherComponent CreateField()
@@ -69,10 +67,10 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(SwitcherGroup, "Theme switcher", nameof(ThemeSwitcherController.CycleSwitcherGroupOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ThemeSwitcherController.CycleBorderGroupOption)),
-            DemoUI.CreateOptionSection(FieldGroup, "Field", nameof(ThemeSwitcherController.CycleFieldGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(SwitcherGroup, "Theme switcher"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field")
         );
 
     // The head across the page, as a head is; the sidebar's foot beside the form, the two about as tall.

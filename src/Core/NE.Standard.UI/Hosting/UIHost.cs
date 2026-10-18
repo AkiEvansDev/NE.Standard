@@ -21,6 +21,7 @@ using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Controllers;
+using NE.Standard.UI.Filters;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Security;
@@ -323,13 +324,15 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         {
             UIViewFilterContext filterContext = new(navigation, entry.Definition, session.Session, requestServices?.ServiceProvider ?? _services, phase, connection);
 
-            await RunViewFilterPipelineAsync(filters, filterContext, () =>
+            Func<Task> chain = UIFilterChain.Fold(filters, filterContext, () =>
             {
                 resolution = CreateViewResolution(entry, filterContext, session);
                 filterContext.Resolution = resolution;
 
                 return Task.CompletedTask;
-            }).ConfigureAwait(false);
+            });
+
+            await chain().ConfigureAwait(false);
 
             return (resolution, filterContext.RedirectNavigation);
         }
@@ -351,24 +354,6 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         filters.AddRange(route.ViewFilters);
 
         return [.. filters.OrderBy(static filter => filter.Order)];
-    }
-
-    /// <summary>
-    /// Runs the view resolution inside the route's view filter chain.
-    /// </summary>
-    private static Task RunViewFilterPipelineAsync(IUIViewFilter[] filters, UIViewFilterContext context, Func<Task> resolveView)
-    {
-        Func<Task> next = resolveView;
-
-        for (var i = filters.Length - 1; i >= 0; i--)
-        {
-            IUIViewFilter filter = filters[i];
-            Func<Task> inner = next;
-
-            next = () => filter.InvokeAsync(context, inner);
-        }
-
-        return next();
     }
 
     private static UIViewResolution CreateViewResolution(UIRouteEntry entry, UIViewFilterContext context, ResolvedSession session)

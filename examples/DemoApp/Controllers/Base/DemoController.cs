@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using NE.Standard.UI.Primitives.Recursive;
 
 namespace DemoApp.Controllers.Base;
@@ -85,6 +87,23 @@ internal partial class DemoGroupContext : RecursiveObservable
     /// <summary>The same line from a key, in the reader's language.</summary>
     internal void LogEvent(UIPhrase message)
         => Message = UIPhrase.Of("demo.log", ("time", DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture)), ("message", message));
+
+    /// <summary>Moves the row a drop named to the place it asked for; the page moved it ahead, and this is the answer that keeps it.</summary>
+    protected void MoveByKey<T>(RecursiveCollection<T> items, string id, int index)
+        where T : RecursiveObservable, IBindableItem
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i].Id != id)
+                continue;
+
+            items.Move(i, index);
+            LogEvent($"{id} -> place {index + 1}");
+            return;
+        }
+    }
 
     protected static T CycleEnum<T>(T current) where T : struct, Enum
     {
@@ -170,6 +189,24 @@ internal readonly record struct DemoOption(Action Cycle, Func<object?> Read);
 
 internal abstract class DemoController : UIControllerBase
 {
+    /// <summary>
+    /// Cycles one option row: the section is the controller's group named <paramref name="group"/>, the row its key.
+    /// </summary>
+    [UICommand]
+    public Task CycleOption(string group, string id, CancellationToken cancellationToken)
+    {
+        if (!TryGetRecursiveValue(group, out var value) || value is not DemoGroupContext context)
+            return Task.CompletedTask;
+
+        context.CycleOption(id);
+
+        return OnOptionCycledAsync(group, id, cancellationToken);
+    }
+
+    /// <summary>What a page does after one of its rows cycled, where a row reaches past its own section.</summary>
+    protected virtual Task OnOptionCycledAsync(string group, string id, CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
     /// <summary>
     /// Re-reads an option row when the preview writes the property back; a group context forwards its
     /// notifications upwards, so its own <c>OnNotify</c> never runs.

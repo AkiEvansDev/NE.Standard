@@ -1,5 +1,5 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
-import { TooltipAttribute, WordsAttribute, WordsTextTarget } from "../addressing/dom-attributes.ts";
+import { TooltipAttribute, WordsAttribute, WordsTextTarget, writeAttribute } from "../addressing/dom-attributes.ts";
 import { logDebug, logWarn } from "./logger.ts";
 import { hasKeyPrefix, holdsMoment, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
 import type { WordLookup } from "./words.ts";
@@ -589,10 +589,7 @@ function markWords(element: Element, attribute: string | null, mark: unknown): v
     // A word written again as it stood — a caret's line that did not move — is not a mutation to every observer.
     const text = JSON.stringify(marks);
 
-    if (Object.keys(marks).length === 0)
-        element.removeAttribute(WordsAttribute);
-    else if (element.getAttribute(WordsAttribute) !== text)
-        element.setAttribute(WordsAttribute, text);
+    writeAttribute(element, WordsAttribute, Object.keys(marks).length === 0 ? null : text);
 }
 
 /** The words an element's text was written in, as a value writes them again: a key's as a phrase, an author's text as itself; else null. */

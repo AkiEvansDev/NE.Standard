@@ -31,15 +31,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ExpanderComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindExpanded($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Expanded)}")
             .BindShowChevron($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.ShowChevron)}")
             .BindVariant($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Variant)}")
@@ -47,9 +39,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
             .BindPadding($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Padding)}")
             .BindBackground($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Background)}")
             .BindOverflow($"{ExpanderGroup}.{nameof(ExpanderSurfaceGroupContext.Overflow)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .ConfigureDefaultHeader(BindHeader)
             .SetContent(new ParagraphComponent()
                 .SetDescription("Snapshots are kept for 30 days, replicated once within the region, and taken each night inside the backup window.")
@@ -64,14 +54,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static void BindHeader(ExpanderHeaderRegion header)
         => _ = header
-            .BindIcon($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{HeaderTextGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{HeaderTextGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{HeaderTextGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{HeaderTextGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{HeaderTextGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
+            .BindTextContent(HeaderTextGroup)
             .BindDescription($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Description)}")
             .BindDescriptionType($"{HeaderTextGroup}.{nameof(TextContentGroupContext.DescriptionType)}")
             .BindDescriptionColor($"{HeaderTextGroup}.{nameof(TextContentGroupContext.DescriptionColor)}")
@@ -90,12 +73,12 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ExpanderGroup, "Expander", nameof(ExpanderController.CycleExpanderOption)),
-            DemoUI.CreateOptionSection(HeaderGroup, "Layout", nameof(ExpanderController.CycleHeaderOption)),
-            DemoUI.CreateOptionSection(HeaderTextGroup, "Content", nameof(ExpanderController.CycleHeaderTextOption)),
-            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Badge", nameof(ExpanderController.CycleHeaderBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ExpanderController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ExpanderGroup, "Expander"),
+            DemoUI.CreateOptionSection(HeaderGroup, "Layout"),
+            DemoUI.CreateOptionSection(HeaderTextGroup, "Content"),
+            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // The questions over the quiet fold, as tall together as the section read on its first open beside them.

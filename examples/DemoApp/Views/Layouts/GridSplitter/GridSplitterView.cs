@@ -60,15 +60,7 @@ internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
     private static GridSplitterComponent Bind(GridSplitterComponent splitter, UIOrientation orientation)
         => splitter
             .SetOrientation(orientation)
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindStep($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Step)}")
             .BindColor($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Color)}")
             .BindPosition($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Position)}");
@@ -88,8 +80,8 @@ internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(SplitterGroup, "Splitter", nameof(GridSplitterController.CycleSplitterOption), note: "Step is the keyboard's: focus a bar (Tab, or a click) and press the arrows — each press moves it by Step. A drag follows the pointer whatever Step says. Position is the share before the bar, written back by every drag; both bars bind it here.")
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(SplitterGroup, "Splitter", note: "Step is the keyboard's: focus a bar (Tab, or a click) and press the arrows — each press moves it by Step. A drag follows the pointer whatever Step says. Position is the share before the bar, written back by every drag; both bars bind it here.")
         );
 
     protected override IVisualComponent[] CreateExamples()

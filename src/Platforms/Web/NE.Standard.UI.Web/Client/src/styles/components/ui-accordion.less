@@ -5,11 +5,7 @@
     // Always a column: one section open at a time only means something down an axis where it can grow.
     display: flex;
     flex-direction: column;
-    // Declared so BorderThickness has something to draw with — see .ui-stack-panel for why all three.
-    border-style: solid;
-    .ui-responsive-property(border-width, --ui-border-thickness, 0);
-    border-color: transparent;
-    .ui-responsive-property(border-radius, --ui-border-radius, 0);
+    .ui-authored-border();
 }
 
 .ui-accordion > [data-ui-id] {

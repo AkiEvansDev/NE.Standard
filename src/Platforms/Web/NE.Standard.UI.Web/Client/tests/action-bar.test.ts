@@ -901,6 +901,35 @@ test("the chosen host pressed again asks its menu again: kept shut for the press
     assert.notEqual(barOf(at.host), null);
 });
 
+test("a modal dialog opened as the press ends takes the host's choice away: no bar stands over the dialog, nor comes back after it", () => {
+    const at = scene();
+    const dialog = FakeElement.of("ui-dialog", { "data-ui-dialog": "picker", "data-ui-dialog-modal": "", hidden: "" });
+    let dragging = false;
+
+    fakeDocument.body.append(dialog);
+    at.menu.addEventListener("ui-context-menu-opening", domEvent => {
+        if (dragging)
+            domEvent.preventDefault();
+    });
+
+    // A wire pulled from the chosen node's pin keeps the bar shut, and its letting go opens the canvas's picker.
+    press(at.text);
+    dragging = true;
+    press(at.text);
+    dragging = false;
+    dialog.removeAttribute("hidden");
+    at.text.dispatchEvent(new FakeMouseEvent("pointerup", { pointerType: "mouse", button: 0 }));
+    assert.equal(barOf(at.host), null);
+
+    dialog.setAttribute("hidden", "");
+    at.text.dispatchEvent(new FakeMouseEvent("pointerup", { pointerType: "mouse", button: 0 }));
+    assert.equal(barOf(at.host), null);
+
+    press(at.text);
+    assert.notEqual(barOf(at.host), null);
+    dialog.remove();
+});
+
 test("a press on an icon is its entry's own press, after the opening the menu would hear before it", () => {
     const at = scene();
     const openings: { readonly target: unknown; readonly actionBar?: boolean }[] = [];

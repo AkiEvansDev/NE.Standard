@@ -12,12 +12,4 @@ internal sealed partial class ContainerController() : DemoStandardController
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleContainerGroupOption(string id)
-        => ContainerGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderGroupOption(string id)
-        => BorderGroup.CycleOption(id);
 }

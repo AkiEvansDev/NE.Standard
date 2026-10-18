@@ -57,49 +57,23 @@
     --ui-tooltip-accent: var(--ui-color-info-ink);
 }
 
-// The tail is the tooltip's corner rotated onto its edge; --ui-popup-arrow is the anchor's centre, so a shifted tooltip still aims at it.
+// The tail aims at the control from the tooltip's edge facing it (`.ui-popup-arrow()`).
 .ui-tooltip::after {
-    content: "";
-    position: absolute;
-    bottom: 100%;
-    left: var(--ui-popup-arrow, 50%);
-    width: 0.45rem;
-    height: 0.45rem;
-    border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
-    border-left: var(--ui-border-width, 1px) solid var(--ui-color-border);
-    background: @ui-popup-ground;
-    transform: translate(-50%, 55%) rotate(45deg);
+    .ui-popup-arrow(bottom);
 }
 
     // Above the control — the ordinary case, and where a tooltip with no room below ends up as well.
     .ui-tooltip[data-ui-placement^="top"]::after {
-        top: 100%;
-        bottom: auto;
-        border-top: none;
-        border-left: none;
-        border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        transform: translate(-50%, -55%) rotate(45deg);
+        .ui-popup-arrow-edge(top);
     }
 
-    // Beside the control: the tail moves to the leading or trailing edge, and the engine's offset is measured down the edge, not along it.
+    // Beside the control: the tail moves to the leading or trailing edge.
     .ui-tooltip[data-ui-placement^="left"]::after {
-        top: var(--ui-popup-arrow, 50%);
-        bottom: auto;
-        left: 100%;
-        border-left: none;
-        border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        transform: translate(-55%, -50%) rotate(45deg);
+        .ui-popup-arrow-edge(left);
     }
 
     .ui-tooltip[data-ui-placement^="right"]::after {
-        top: var(--ui-popup-arrow, 50%);
-        bottom: auto;
-        left: auto;
-        right: 100%;
-        border-top: none;
-        border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        transform: translate(55%, -50%) rotate(45deg);
+        .ui-popup-arrow-edge(right);
     }
 
     // Beside the control on its leading side the bar faces the control and is the pointer: a tail there cut a notch into the bar.

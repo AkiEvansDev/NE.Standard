@@ -5,7 +5,6 @@ using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -32,7 +31,6 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         WebDomOperation.ToggleAttribute("aria-readonly", target: $".{HostClassName}", condition: WebValueCondition.IsTrue, value: "true")
     ];
 
-    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")];
 
     public override string ComponentTypeKey => RadioGroupComponent.ComponentTypeKey;
@@ -50,11 +48,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-radio-group-spacing");
 
-        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
-        {
-            if (value is UIOrientation orientation)
-                _ = target.Class(WebClassNames.Orientation(orientation));
-        }, OrientationOperations);
+        OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
 
         // One RenderProperty drives one element, but this value has to reach N radios: the initial `checked` is
         // decided here, and live changes fan out from a root attribute RadioGroupSyncEngine watches.

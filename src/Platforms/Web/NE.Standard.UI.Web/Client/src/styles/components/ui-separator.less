@@ -13,8 +13,9 @@
     .ui-responsive-floor(min-height, --ui-min-height, 1rem, --ui-height);
 }
 
+// The border's own colour, as a card's edge and a row's rule beside it: a fainter rule read as a second kind of line.
 :where(.ui-separator__line) {
-    color: var(--ui-border-subtle, var(--ui-color-border));
+    color: var(--ui-color-border);
 }
 
 .ui-separator__line.ui-color--muted {
@@ -37,8 +38,9 @@
     color: inherit;
 }
 
+// The faint ink, as a text's fold: an aside fainter than muted words.
 .ui-separator__line.ui-color--muted[data-ui-separator-label] .ui-separator__label {
-    color: color-mix(in srgb, @ui-text-muted 55%, transparent);
+    color: color-mix(in srgb, @ui-text-muted percentage(@ui-text-faint-share), transparent);
 }
 
 .ui-separator__line[style] .ui-separator__label {

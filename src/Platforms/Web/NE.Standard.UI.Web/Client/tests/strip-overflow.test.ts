@@ -1,5 +1,7 @@
 // The strip fitter watches each strip's room for a change of width and fits the strip again; a strip gone from the page — a dialog
-// closed, a row redrawn — is let go of, not kept alive by the observer for the rest of the session nor fitted while detached.
+// closed, a row redrawn — is let go of, not kept alive by the observer for the rest of the session nor fitted while detached. A
+// change to the root's style or class that moves the captions with no box changing size — a Spacing patched live — fits it again
+// too; one that changes neither the wrap nor the gap does not.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,10 +15,22 @@ const resizes = {
     report: (_entries: readonly ResizeEntry[]): void => undefined
 };
 
+/** The fitter's watch on each root's own attributes, driven by the test: its callback to report a changed root through. */
+const switches = {
+    report: (_targets: readonly FakeElement[]): void => undefined
+};
+
+/** The gap each box lays its captions out with, as its computed style reads back. */
+const gaps = new Map<FakeElement, string>();
+
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
-    getComputedStyle: () => ({ display: "flex", getPropertyValue: () => "" }),
+    getComputedStyle: (element: FakeElement) => ({ display: "flex", columnGap: gaps.get(element) ?? "normal", getPropertyValue: () => "" }),
     MutationObserver: class {
+        public constructor(callback: (records: readonly { readonly target: FakeElement }[]) => void) {
+            switches.report = targets => callback(targets.map(target => ({ target })));
+        }
+
         public observe(): void {
         }
     },
@@ -74,4 +88,35 @@ test("a strip gone from the page is let go of and not fitted, while one still on
     assert.equal(resizes.observed.has(gone.room), false);
     assert.equal(resizes.observed.has(kept.room), true);
     assert.deepEqual(refitted, [kept.root]);
+});
+
+test("a gap patched live between the captions fits the strip again; a class change that moves nothing does not", () => {
+    const refitted: FakeElement[] = [];
+    const fitter = new StripFitter({
+        rootClass: "ui-command-bar",
+        overflowingClass: "ui-command-bar--overflowing",
+        wraps: () => false,
+        hiddenClass: "ui-command-bar__overflowed",
+        trailing: true,
+        refit: root => void refitted.push(real<FakeElement>(root)),
+        pick: () => undefined
+    });
+
+    fakeDocument.body.children.length = 0;
+
+    const caption = FakeElement.of("ui-command-bar__item");
+    const host = FakeElement.of("ui-command-bar__host").append(caption);
+    const button = FakeElement.of("ui-command-bar__overflow", {}, "button");
+    const root = FakeElement.of("ui-command-bar").append(host, button);
+
+    fakeDocument.body.append(root);
+    gaps.set(host, "8px");
+    fitter.fit(real(root), { room: real(root), button: real(button), captions: [real(caption)], selected: null });
+
+    switches.report([root]);
+    assert.deepEqual(refitted, []);
+
+    gaps.set(host, "24px");
+    switches.report([root]);
+    assert.deepEqual(refitted, [root]);
 });

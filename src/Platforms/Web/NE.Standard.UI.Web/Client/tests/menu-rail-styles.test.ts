@@ -19,16 +19,19 @@ function declarations(selector: string): string | null {
 }
 
 const collapsedEntry = ".ui-menu[data-ui-collapsed]:not([data-ui-folding]) .ui-menu-item:not([data-ui-menu-flyout] *)";
-const railEntry = ".ui-menu--rail > .ui-menu__host > .ui-menu__item:where(:not([data-ui-menu-passive])) > .ui-menu-item";
+// A folded entry's padding and line, which a caption's and a rule's are not.
+const collapsedLine = '.ui-menu[data-ui-collapsed]:not([data-ui-folding]) .ui-menu-item:not([data-ui-menu-flyout] *, [data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"])';
+const railEntry = '.ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:where(:not([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]))';
 const header = " > .ui-button__content > .ui-text__body > .ui-text__header";
 const dot = ".ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon])";
 
 test("a folded entry's words leave the eye but not a screen reader, and its body stays for the badge", () => {
     assert.doesNotMatch(css, /\.ui-menu-item > \.ui-button__content > \.ui-text__body \{\s*display: none;/, "the body, badge and all, is gone again");
-    assert.match(declarations(`${collapsedEntry}${header} > .ui-text__title`) ?? "", /clip: rect\(0, 0, 0, 0\);/, "the title is not visually hidden");
+    // An entry with an icon; one without stands its title's first letter there (menu-collapsed-letter-styles.test.ts).
+    assert.match(declarations(`${collapsedEntry}[data-ui-text-icon]${header} > .ui-text__title`) ?? "", /clip: rect\(0, 0, 0, 0\);/, "the title is not visually hidden");
     assert.match(declarations(`${collapsedEntry} > .ui-button__content > .ui-text__body > .ui-text__description`) ?? "", /display: none;/);
     assert.match(declarations(`${collapsedEntry} > .ui-button__content.ui-text > .ui-text__body`) ?? "", /width: 0;/, "the empty body's header gap pushes the glyph aside");
-    assert.match(declarations(`${collapsedEntry} > .ui-text`) ?? "", /min-block-size: 1lh;/, "a folded entry is shorter than open, so the rail's icons move up at the end of the fold");
+    assert.match(declarations(`${collapsedLine} > .ui-text`) ?? "", /min-block-size: 1lh;/, "a folded entry is shorter than open, so the rail's icons move up at the end of the fold");
 });
 
 test("a folded entry's and a rail entry's badge stands on the icon's corner, an empty text as a dot", () => {
@@ -46,7 +49,7 @@ test("a rail's groups never unfold inline and its captions are rules, as a folde
 
     assert.match(declarations(`${folded} .ui-menu__submenu:not([data-ui-menu-flyout])`) ?? "", /display: none;/);
     assert.match(declarations(`${folded} [data-ui-menu-group] > .ui-menu-item::after`) ?? "", /display: none;/);
-    assert.match(declarations(`${folded} .ui-menu-item[data-ui-menu-item-kind="header"]`) ?? "", /border-top: 1px solid/);
+    assert.match(declarations(`${folded} .ui-menu-item[data-ui-menu-item-kind="header"]:not([data-ui-menu-flyout] *)`) ?? "", /border-top: 1px solid/);
 });
 
 test("a rail's rule and caption are a line, not an entry's slot with the line on top", () => {

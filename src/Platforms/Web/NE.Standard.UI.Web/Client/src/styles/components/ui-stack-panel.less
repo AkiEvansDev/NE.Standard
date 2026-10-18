@@ -7,11 +7,7 @@
 
     display: flex;
     .ui-responsive-property(gap, --ui-stack-panel-spacing, 0);
-    // Declared so BorderThickness has something to draw with: BorderStyleRenderer never writes border-style itself.
-    border-style: solid;
-    .ui-responsive-property(border-width, --ui-border-thickness, 0);
-    border-color: transparent;
-    .ui-responsive-property(border-radius, --ui-border-radius, 0);
+    .ui-authored-border();
     // Read here, or Background on a panel wrote a custom property nothing painted.
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
@@ -19,6 +15,12 @@
 
 .ui-stack-panel > [data-ui-id] {
     flex-shrink: 0;
+}
+
+// Short of room, a row's trailing words give way and end in their ellipsis, rather than run under the panel's edge cut mid-letter.
+// The last text only: every text giving way cut the row's name, which takes a share by its width, to "bill…" beside a long caption.
+.ui-stack-panel.ui-orientation--horizontal > .ui-content-text:last-child {
+    flex-shrink: 1;
 }
 
 // A control with no caption over it beside captioned fields (StackPanel.AlignWithFieldBoxes, UIForm.Row) stands level with their boxes:

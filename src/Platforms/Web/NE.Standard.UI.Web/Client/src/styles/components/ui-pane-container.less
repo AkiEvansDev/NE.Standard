@@ -17,14 +17,7 @@
 
 // A pane container is a container (ui-container.less places its places as children); a place holds one pane, which fills it, and
 // pane-container-engine.ts carries a pane to another place.
-.ui-pane-container__place {
-    position: relative;
-    display: grid;
-    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-    min-width: 0;
-    min-height: 0;
-}
-
+.ui-pane-container__place,
 .ui-pane-container__pane {
     position: relative;
     display: grid;
@@ -113,13 +106,26 @@
     cursor: grabbing;
 }
 
+// Lifted, the pane stands in the top layer (pane-container-engine.ts), out of every box that clips round its container, a scroller's
+// too, which cut it flat as it went: at the box it stood in, which the engine writes inline, the popover's own box taken off it.
+.ui-pane-container__pane[data-ui-pane-raised] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    overflow: visible;
+    color: inherit;
+    background: none;
+}
+
 .ui-pane-container__place[data-ui-pane-target]::after {
     content: "";
     position: absolute;
     z-index: 1;
     inset: 0;
     border-radius: @ui-part-radius-sm;
-    background-color: color-mix(in srgb, var(--ui-color-primary) 8%, transparent);
+    background-color: color-mix(in srgb, var(--ui-mark-selected-fill) 8%, transparent);
     .ui-drop-edge();
     pointer-events: none;
 }

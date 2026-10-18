@@ -53,10 +53,6 @@ internal sealed partial class PaneContainerController() : DemoStandardController
     [RecursiveMember]
     public partial PaneOverviewGroupContext OverviewGroup { get; set; } = new();
 
-    [UICommand]
-    public void CyclePaneOption(string id)
-        => PaneGroup.CycleOption(id);
-
     /// <summary>A value the controller writes moves the panes, so putting the default back is one assignment.</summary>
     [UICommand]
     public void RestoreOverview()

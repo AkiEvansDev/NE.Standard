@@ -30,15 +30,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new SelectComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindItems($"{OptionsGroup}.{nameof(OptionListGroupContext.Options)}")
             .BindValue($"{ValueGroup}.{nameof(OptionValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(OptionValueGroupContext.IsReadOnly)}")
@@ -49,40 +41,21 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
             .BindSuffixIcon($"{FieldGroup}.{nameof(SelectFieldGroupContext.SuffixIcon)}")
             .BindShowClearButton($"{FieldGroup}.{nameof(SelectFieldGroupContext.ShowClearButton)}")
             .BindShowChevron($"{FieldGroup}.{nameof(SelectFieldGroupContext.ShowChevron)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindTextContent(ContentGroup)
+            .BindBadge(BadgeGroup)
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ValueGroup, "Value", nameof(SelectController.CycleValueOption)),
-            DemoUI.CreateOptionSection(FieldGroup, "Field", nameof(SelectController.CycleFieldOption)),
-            DemoUI.CreateOptionSection(OptionsGroup, "Options", nameof(SelectController.CycleOptionsOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(SelectController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(SelectController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(SelectController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field"),
+            DemoUI.CreateOptionSection(OptionsGroup, "Options"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     /// <summary>

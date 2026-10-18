@@ -9,8 +9,4 @@ internal sealed partial class ProgressController() : DemoStandardController
 {
     [RecursiveMember]
     public partial ProgressGroupContext ProgressGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleProgressGroupOption(string id)
-        => ProgressGroup.CycleOption(id);
 }

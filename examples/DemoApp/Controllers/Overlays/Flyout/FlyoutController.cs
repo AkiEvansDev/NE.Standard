@@ -9,8 +9,4 @@ internal sealed partial class FlyoutController() : DemoStandardController
 {
     [RecursiveMember]
     public partial FlyoutGroupContext FlyoutGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleFlyoutGroupOption(string id)
-        => FlyoutGroup.CycleOption(id);
 }

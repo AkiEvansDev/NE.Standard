@@ -23,71 +23,53 @@ internal sealed class SwitchView : ToggleView, IUIViewDefinition
     /// <summary>
     /// The layout a switch is drawn for: a settings list, the control at the far end of each row rather than in front of it.
     /// </summary>
-    /// <remarks>Composed by hand, not a property: the control is as wide as itself, so the row is a grid with it in the last column.</remarks>
+    /// <remarks>Not a property: the row is <c>UILayout.Ends</c>, the control at its far end as wide as itself.</remarks>
     private static ContainerComponent CreateRowEndGroup()
     {
         return DemoUI.CreateExample("Settings, at the end of each row",
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(4)
-                    .AddChild(new ContainerComponent()
-                        .SetPadding(UIThickness.All(0, 6, 0, 6))
-                        .SetColumn(24, UIGridUnit.Auto())
-                        .AddChild(new TextComponent()
+                    .AddChild(UILayout.Ends(
+                        new TextComponent()
                             .SetIcon(DemoIcons.Bell)
                             .SetTitle("Deploy notifications")
                             .SetTitleType(UITextAppearance.Body)
                             .SetDescription("Mailed to the admins on call")
                             .SetDescriptionType(UITextAppearance.Caption)
-                            .SetDescriptionColor(UIThemeColor.Muted)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(1, 1, 23, 1)
-                        )
-                        .AddChild(new SwitchComponent()
+                            .SetDescriptionColor(UIThemeColor.Muted),
+                        new SwitchComponent()
                             .SetValue(true)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(24, 1, 1, 1)
                         )
-                    )
-                    .AddChild(new ContainerComponent()
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
-                        .SetColumn(24, UIGridUnit.Auto())
-                        .AddChild(new TextComponent()
+                    )
+                    .AddChild(UILayout.Ends(
+                        new TextComponent()
                             .SetIcon(DemoIcons.History)
                             .SetTitle("Keep snapshots")
                             .SetTitleType(UITextAppearance.Body)
                             .SetDescription("Thirty days, then they are dropped")
                             .SetDescriptionType(UITextAppearance.Caption)
-                            .SetDescriptionColor(UIThemeColor.Muted)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(1, 1, 23, 1)
-                        )
-                        .AddChild(new SwitchComponent()
+                            .SetDescriptionColor(UIThemeColor.Muted),
+                        new SwitchComponent()
                             .SetValue(false)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(24, 1, 1, 1)
                         )
-                    )
-                    .AddChild(new ContainerComponent()
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
-                        .SetColumn(24, UIGridUnit.Auto())
-                        .AddChild(new TextComponent()
+                    )
+                    .AddChild(UILayout.Ends(
+                        new TextComponent()
                             .SetIcon(DemoIcons.Refresh)
                             .SetTitle("Restart on a failed health check")
                             .SetTitleType(UITextAppearance.Body)
                             .SetDescription("After three missed answers in a row")
                             .SetDescriptionType(UITextAppearance.Caption)
-                            .SetDescriptionColor(UIThemeColor.Muted)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(1, 1, 23, 1)
-                        )
-                        .AddChild(new SwitchComponent()
+                            .SetDescriptionColor(UIThemeColor.Muted),
+                        new SwitchComponent()
                             .SetValue(true)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(24, 1, 1, 1)
                         )
+                        .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
                 ),
-            note: "A switch is a checkbox drawn as a track and a knob, for a setting that is turned on rather than agreed to; at the far end of its row the text is the subject and the switch only answers it. The label it carries and the control it is not are on [the checkbox's page](/inputs/checkbox).",
+            note: "A switch is a checkbox drawn as a track and a knob, for a setting that is turned on rather than agreed to; at the far end of its row the text is the subject and the switch only answers it. The label it carries and the control it is not are on [the checkbox's page](/choices/checkbox).",
             columns: 24
         );
     }

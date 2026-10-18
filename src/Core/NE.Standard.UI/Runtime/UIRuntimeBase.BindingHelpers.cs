@@ -4,6 +4,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Shell.Updates.Client;
 
 namespace NE.Standard.UI.Runtime;
@@ -53,12 +54,19 @@ internal abstract partial class UIRuntimeBase
     private static object?[] BindingKeys(ClientValueUIUpdate update, CompiledUIBinding binding)
         => TakeDynamicParameters(update.Address.Component.DynamicParameters, CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters));
 
-    private static bool TryBuildDynamicParameters(CompiledUIBinding binding, object[] materializedParameters, out object?[] dynamicParameters)
+    /// <summary>
+    /// The row keys a push to <paramref name="binding"/> is addressed by, from the controller path's own parameters; false for a
+    /// binding that only writes back, which is never pushed, and for one the path does not reach.
+    /// </summary>
+    private static bool TryAddressPush(CompiledUIBinding binding, object[] materializedParameters, out object?[] dynamicParameters)
     {
         ArgumentNullException.ThrowIfNull(binding);
         ArgumentNullException.ThrowIfNull(materializedParameters);
 
         dynamicParameters = [];
+
+        if (binding.Mode == UIBindingMode.OneWayToSource)
+            return false;
 
         // A binding under a nested items source is unaddressable from a controller change: its scope key has no materialized path.
         if (CompiledUIBindingParameterResolver.CountScope(binding.Parameters) > 0)

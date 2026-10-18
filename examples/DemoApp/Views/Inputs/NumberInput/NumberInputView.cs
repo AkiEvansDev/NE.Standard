@@ -27,15 +27,7 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new NumberInputComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindValue($"{ValueGroup}.{nameof(NumberValueGroupContext.Value)}")
             .BindMin($"{ValueGroup}.{nameof(NumberValueGroupContext.Min)}")
             .BindMax($"{ValueGroup}.{nameof(NumberValueGroupContext.Max)}")
@@ -54,40 +46,21 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
             .BindAllowNegative($"{FormatGroup}.{nameof(NumberFormatGroupContext.AllowNegative)}")
             .BindAllowThousandsSeparator($"{FormatGroup}.{nameof(NumberFormatGroupContext.AllowThousandsSeparator)}")
             .BindTrimTrailingZeros($"{FormatGroup}.{nameof(NumberFormatGroupContext.TrimTrailingZeros)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindTextContent(ContentGroup)
+            .BindBadge(BadgeGroup)
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ValueGroup, "Value", nameof(NumberInputController.CycleValueOption)),
-            DemoUI.CreateOptionSection(FieldGroup, "Field", nameof(NumberInputController.CycleFieldOption)),
-            DemoUI.CreateOptionSection(FormatGroup, "Format", nameof(NumberInputController.CycleFormatOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(NumberInputController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(NumberInputController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(NumberInputController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field"),
+            DemoUI.CreateOptionSection(FormatGroup, "Format"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()

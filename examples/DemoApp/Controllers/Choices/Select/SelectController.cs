@@ -44,30 +44,6 @@ internal sealed partial class SelectController() : DemoStandardController
     public partial BorderGroupContext BorderGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleFieldOption(string id)
-        => FieldGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleOptionsOption(string id)
-        => OptionsGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
-
-    [UICommand]
     public static UICommandResult OpenRoster()
         => UICommandResult.Ok([new OpenDialogEffect(RosterKey)]);
 

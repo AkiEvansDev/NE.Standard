@@ -89,14 +89,10 @@ public static class UIWords
     private static string FormatArgument(object? value, Func<UIPhrase, string>? translateNested)
         => value switch
         {
-            // A NaN or an infinity as the null the page holds it as.
-            _ when UIScriptNumber.ReadsAsNull(value) => string.Empty,
-            string text => text,
-            bool flag => flag ? "true" : "false",
             UIPhrase nested => translateNested is null ? Format(nested.Key, nested.Arguments) : translateNested(nested),
             _ when UIMoment.TryRead(value, out UIMoment moment) => moment.ToString(),
-            _ when UIScriptNumber.TryRead(value, out var number) => UIScriptNumber.Format(number),
-            _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
+            // The rest as the page writes it: a NaN or an infinity as the null the page holds it as.
+            _ => UIScriptText.Of(value)
         };
 
     /// <summary>

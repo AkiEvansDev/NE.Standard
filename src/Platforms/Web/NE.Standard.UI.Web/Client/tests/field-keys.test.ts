@@ -145,8 +145,8 @@ test("Shift+Enter in an area that submits on Enter is a line break, and an Enter
     area.value = "こんにちは";
 
     for (const chord of [{ shiftKey: true }, { isComposing: true }, { keyCode: 229 }]) {
-        // The plain stand-in has no chord and never composes; these are what a browser's event would carry.
-        const domEvent = Object.assign(new FakeKeyboardEvent("Enter", area), chord);
+        // The plain stand-in holds no chord and never composes; these are what a browser's event would carry.
+        const domEvent = Object.assign(new FakeKeyboardEvent("Enter", area), chord as Readonly<Record<string, unknown>>);
 
         area.dispatchEvent(domEvent);
 

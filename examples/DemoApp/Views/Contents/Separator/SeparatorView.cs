@@ -30,15 +30,7 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
                 .SetTitleType(UITextAppearance.Body)
             )
             .AddChild(new SeparatorComponent()
-                .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-                .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-                .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-                .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-                .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-                .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-                .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-                .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-                .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+                .BindStandard()
                 .BindOrientation($"{SeparatorGroup}.{nameof(SeparatorGroupContext.Orientation)}")
                 .BindLabel($"{SeparatorGroup}.{nameof(SeparatorGroupContext.Label)}")
                 .BindColor($"{SeparatorGroup}.{nameof(SeparatorGroupContext.Color)}")
@@ -52,8 +44,8 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(SeparatorGroup, "Separator", nameof(SeparatorController.CycleSeparatorGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(SeparatorGroup, "Separator")
         );
 
     protected override IVisualComponent[] CreateExamples()

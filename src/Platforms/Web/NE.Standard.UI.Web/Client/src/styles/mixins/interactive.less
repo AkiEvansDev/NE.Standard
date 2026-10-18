@@ -12,6 +12,31 @@
     touch-action: manipulation;
 }
 
+// The browser's own frame, ground, type, margin and padding taken off a button, which answers the pointer with its hand; each use
+// adds what it is, after the call so its own values win.
+.ui-bare-button() {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+// A word that acts, in the primary ink at the caption's size, a list entry's height and corners: a date picker's Clear and Today, a
+// grid's filters' Clear. Its hover and press are its user's.
+.ui-word-action() {
+    .ui-bare-button();
+    min-height: @ui-list-row-height;
+    padding: 0 @ui-space-2;
+    border-radius: @ui-list-entry-radius;
+    color: var(--ui-color-primary-ink);
+    font-size: var(--ui-text-caption-font-size);
+    .ui-interactive-base();
+}
+
 // The least a pointer's target measures (WCAG 2.5.8, target size).
 @ui-hit-target: 24px;
 

@@ -24,28 +24,4 @@ internal sealed partial class ActionController() : DemoStandardController
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleButtonOption(string id)
-        => ButtonGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleActionOption(string id)
-        => ActionGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleLayoutOption(string id)
-        => LayoutGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 }

@@ -546,10 +546,6 @@ internal sealed partial class ItemsViewController() : DemoStandardController
     public partial BoardGroupContext BoardGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleItemsGroupOption(string id)
-        => ItemsGroup.CycleOption(id);
-
-    [UICommand]
     public void MoveItem(string id, int index)
         => ItemsGroup.MoveService(id, index);
 

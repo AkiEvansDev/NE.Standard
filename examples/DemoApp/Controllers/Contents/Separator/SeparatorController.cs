@@ -9,8 +9,4 @@ internal sealed partial class SeparatorController() : DemoStandardController
 {
     [RecursiveMember]
     public partial SeparatorGroupContext SeparatorGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleSeparatorGroupOption(string id)
-        => SeparatorGroup.CycleOption(id);
 }

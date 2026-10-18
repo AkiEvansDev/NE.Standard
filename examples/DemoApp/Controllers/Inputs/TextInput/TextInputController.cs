@@ -165,26 +165,6 @@ internal sealed partial class TextInputController() : DemoStandardController
     public partial TextInputLabelsGroupContext LabelsGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleValueOption(string id)
-        => ValueGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleFieldOption(string id)
-        => FieldGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
-
-    [UICommand]
     public void AddLabel()
         => LabelsGroup.AddLabel();
 

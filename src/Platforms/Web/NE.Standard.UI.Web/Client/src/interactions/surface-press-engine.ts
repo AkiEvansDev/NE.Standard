@@ -4,7 +4,7 @@
 // Under the pointer it washes and presses only where no control of its own takes the pointer: `data-ui-inner-pointer` says so.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { ComponentIdAttribute, DisabledClass, FileTileClass, InnerPointerAttribute, LoadingClass } from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, DisabledClass, FileTileClass, InnerPointerAttribute, LoadingClass, writeAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isPlainKey, SpaceRelease } from "./keyboard-shortcut.ts";
 import { ControlSelector, isOwnControlOf, soleControlOf } from "./own-control.ts";
@@ -194,11 +194,4 @@ function writeInnerPointer(element: Element, word: InnerPointer, on: boolean): v
         words.push(word);
 
     writeAttribute(element, InnerPointerAttribute, words.length === 0 ? null : words.sort().join(" "));
-}
-
-function writeAttribute(element: Element, name: string, value: string | null): void {
-    if (value === null)
-        element.removeAttribute(name);
-    else if (element.getAttribute(name) !== value)
-        element.setAttribute(name, value);
 }

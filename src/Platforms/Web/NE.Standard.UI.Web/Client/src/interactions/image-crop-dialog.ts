@@ -5,7 +5,7 @@
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports, and types imported as types.
 import { clientStrings } from "../runtime/client-strings.ts";
 import type { DialogEngine } from "./dialog-engine.ts";
-import { isComposing } from "./keyboard-shortcut.ts";
+import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { centredView, cropFileName, cropOutputSide, cropOutputType, cropRect, cropScale, MaxCropZoom, panView, workingScale, zoomView } from "./image-crop.ts";
 import type { CropFrame, CropPicture, CropRect, CropView } from "./image-crop.ts";
 import { buildPageDialog, PageDialogParts } from "./page-dialog.ts";
@@ -286,7 +286,7 @@ function handleKeyDown(crop: CropParts, domEvent: KeyboardEvent): void {
         return;
     }
 
-    if (domEvent.target !== crop.stage || domEvent.ctrlKey || domEvent.altKey || domEvent.metaKey)
+    if (domEvent.target !== crop.stage || !isPlainKey(domEvent, { shift: true }))
         return;
 
     const step = domEvent.shiftKey ? ArrowStep * 5 : ArrowStep;

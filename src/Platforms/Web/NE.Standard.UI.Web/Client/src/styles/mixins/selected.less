@@ -88,7 +88,7 @@
     }
 
     .ui-button--outline@{ui-row-own} {
-        .ui-reveal-hover-off({ border-color: color-mix(in srgb, currentColor 48%, transparent); });
+        .ui-reveal-hover-off({ border-color: @ui-outline-edge-hover; });
     }
 
     .ui-button--link@{ui-row-own} {
@@ -170,9 +170,12 @@
         .ui-keyboard-frame();
     }
 
+    // A chosen row's line stands on its leading edge: the frame stays straight there, standing on the line, as a tab's on its own.
     @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
         .ui-row-cursor-layer();
         .ui-keyboard-frame();
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
     }
 
     // A key moves the cursor at once, frame and wash together: the washes' fade trailed the frame, which has none.

@@ -72,6 +72,18 @@ public static class RegionNames
     public const string TrailingInFieldAction = "trailing-in-field-action";
 
     /// <summary>
+    /// The first of the leading actions a field stands at the end of the row under it — a panel's button on the side its panel
+    /// opens from: beside the text the last at its start. The others named by <see cref="FieldAction"/>.
+    /// </summary>
+    public const string LeadingBelowEndAction = "leading-below-end-action";
+
+    /// <summary>
+    /// The first of the trailing actions a field stands at the start of the row under it: beside the text the first at its end.
+    /// The others named by <see cref="FieldAction"/>.
+    /// </summary>
+    public const string TrailingBelowStartAction = "trailing-below-start-action";
+
+    /// <summary>
     /// What a collapsible control carries beside its collapse toggle, in one row with it — a search, a title — seen only while open.
     /// </summary>
     public const string ToggleContent = "toggle-content";
@@ -82,8 +94,9 @@ public static class RegionNames
     public const string TabMenu = "tab-menu";
 
     /// <summary>
-    /// The region of a field's action at <paramref name="index"/> on one side (<see cref="LeadingAction"/> or
-    /// <see cref="TrailingAction"/>): the side's own name for the first, so a field with one action keeps it, then numbered from 2.
+    /// The region of a field's action at <paramref name="index"/> on one side (<see cref="LeadingAction"/>, <see cref="TrailingAction"/>,
+    /// <see cref="LeadingBelowEndAction"/> or <see cref="TrailingBelowStartAction"/>): the side's own name for the first, so a field
+    /// with one action keeps it, then numbered from 2.
     /// </summary>
     public static string FieldAction(string side, int index)
     {

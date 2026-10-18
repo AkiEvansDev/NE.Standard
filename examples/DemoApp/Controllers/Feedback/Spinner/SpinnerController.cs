@@ -9,8 +9,4 @@ internal sealed partial class SpinnerController() : DemoStandardController
 {
     [RecursiveMember]
     public partial SpinnerGroupContext SpinnerGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleSpinnerGroupOption(string id)
-        => SpinnerGroup.CycleOption(id);
 }

@@ -2,7 +2,7 @@
 // step follows it in, which the stylesheet hides the wrapper and drops its separator by; the render writes both for the first paint.
 // A step Visibility collapses keeps its place and mark (the step before it is still a page above); only `ui-hidden` takes one out.
 
-import { StepCollapsedAttribute, StepEndAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { StepCollapsedAttribute, StepEndAttribute, VisibilityTierAttributes, writeAttribute } from "../addressing/dom-attributes.ts";
 import { responsiveTiers } from "../rendering/responsive-tier.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { ownDescendants } from "./own-descendants.ts";
@@ -103,8 +103,5 @@ function isCollapsedAt(item: HTMLElement, tier: number): boolean {
 function writeTiers(item: HTMLElement, attribute: string, tiers: readonly string[]): void {
     const value = tiers.join(" ");
 
-    if (value.length === 0)
-        item.removeAttribute(attribute);
-    else if (item.getAttribute(attribute) !== value)
-        item.setAttribute(attribute, value);
+    writeAttribute(item, attribute, value.length === 0 ? null : value);
 }

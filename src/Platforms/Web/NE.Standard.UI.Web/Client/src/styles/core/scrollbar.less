@@ -4,7 +4,7 @@
 // One scrollbar everywhere: `scrollbar-color` inherits (on `html`), `scrollbar-width` doesn't (on `*`); `::-webkit-scrollbar`
 // excludes both, so it is gated behind `@supports` for engines lacking them.
 html {
-    scrollbar-color: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent) transparent;
+    scrollbar-color: @ui-scroll-ink transparent;
 }
 
 * {
@@ -33,7 +33,7 @@ html {
 
     html::-webkit-scrollbar-thumb,
     *::-webkit-scrollbar-thumb {
-        background: color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent);
+        background: @ui-scroll-ink;
         border: 4px solid transparent;
         border-radius: 999px;
         background-clip: content-box;
@@ -42,7 +42,7 @@ html {
     @media @{ui-can-hover} {
         html::-webkit-scrollbar-thumb:hover,
         *::-webkit-scrollbar-thumb:hover {
-            background: color-mix(in srgb, var(--ui-color-on-surface) 38%, transparent);
+            background: @ui-scroll-ink-hover;
         }
     }
 
@@ -77,8 +77,9 @@ html {
 // The overlay bar's room: the edge a box keeps on the side its bar stands on — its Padding there, widened to this where it is less —
 // so no word runs under the thumb (2 to 8 px in) and no application pads for it: a Padding of 12 or more holds the thumb in itself.
 // Rejected: the room past the Padding — a list padded 12 on both sides stood 12 and 24. The framework's scrollers keep it (a list's, a
-// tree's, a scroll container, a text area), the roots of the shell's regions along a bar, and a popup while it overflows (mixins/
-// popup.less). An application may set it (0 gives the room back); the classic bar keeps its own room and this none.
+// tree's, a scroll container, a text area) — always where their own size bounds them, else while they overflow — the roots of the
+// shell's regions along a bar, and a popup while it overflows (mixins/popup.less). An application may set it (0 gives the room back);
+// the classic bar keeps its own room and this none.
 :root {
     --ui-scrollbar-room: 12px;
 }
@@ -143,9 +144,9 @@ html {
     initial-value: 0px;
 }
 
-// Kept whether or not the scroller holds more than it shows, so its rows never narrow as it starts to scroll: a list that only grows
-// with its rows ends the room short of its edge too. Rejected: the room only while it overflows (read off its scroll timeline) — the
-// rows jumped 12 px the moment it did, as the classic bar's do; a popup alone keeps it so, sized as it opens.
+// Kept whether or not the scroller holds more than it shows, so its rows never narrow as it starts to scroll — on a scroller its own
+// size bounds (a text area by its rows); one that grows with its rows keeps it only while it overflows, below. Rejected for a bounded
+// one: the room only while it overflows — the rows jumped 12 px the moment it did, as the classic bar's do.
 @media @{ui-can-hover} and (forced-colors: none) {
     html[data-ui-overlay-scrollbars] {
         @{ui-scrollers-y} {
@@ -241,6 +242,13 @@ html {
     }
 }
 
+// A list, a tree or a scroll container no size of its own bounds grows with its rows in a page, a dialog or a drawer that scrolls for
+// it: the room only while it overflows (bounded by an outer grid), so its rows end where the fields over it do. After the hung room's
+// rules, which it outranks while it fits.
+@{ui-scrollers-y-unbounded} {
+    .ui-scroll-room-y-while-overflowing();
+}
+
 .ui-scroll-room-page-edge() {
     > :is([data-ui-region="header"], [data-ui-region="footer"], [data-ui-region="right-side"]),
     > [data-ui-region="content"][data-ui-page-end] {
@@ -249,8 +257,8 @@ html {
 }
 
 // The room a region keeps in its root: never 12 past 12. Not in a list's or a tree's, whose host keeps its own — one that does not
-// scroll takes the region's — nor in a rail or a collapsed panel, centred icons the room would push off centre; and in a region that
-// scrolls alone, not in a root filling its height (Fill, as content-fills.ts reads it): the region never scrolls, its panes do.
+// scroll, or grows with its rows, takes the region's — nor in a rail or a collapsed panel, centred icons the room would push off centre;
+// and in a region that scrolls alone, not in a root filling its height (Fill, as content-fills.ts reads it): its panes scroll.
 .ui-region-room(@scrolls-alone: false) {
     @unfilled: if((@scrolls-alone), ~':not([style*="--ui-height: var(--ui-fill-height"])', ~"");
 
@@ -259,16 +267,19 @@ html {
     }
 
     > .ui-items-view@{unfilled} > :is(.ui-items-view__host, [data-ui-items-host]).ui-scroll-y--disabled,
-    > .ui-tree@{unfilled} > .ui-tree__host.ui-scroll-y--disabled {
+    > .ui-tree@{unfilled} > .ui-tree__host.ui-scroll-y--disabled,
+    > .ui-items-view:not(@{ui-scroll-bound}) > :is(.ui-items-view__host, [data-ui-items-host]),
+    > .ui-tree:not(@{ui-scroll-bound}) > .ui-tree__host {
         .ui-scroll-room-y();
     }
 }
 
-// What a popup keeps while it overflows (.ui-scroll-room-y-while-overflowing): its scroll timeline runs only then.
+// What a popup or a growing scroller keeps while it overflows (.ui-scroll-room-y-while-overflowing): its scroll timeline runs only
+// then. Less what it hangs into a container's free air, as a bounded scroller keeps.
 @keyframes ui-scroll-room-overflowing {
     from,
     to {
-        --ui-scroll-room-y: var(--ui-scrollbar-room);
+        --ui-scroll-room-y: calc(var(--ui-scrollbar-room) - var(--ui-scroll-hung));
     }
 }
 
@@ -319,7 +330,7 @@ html {
             content: "";
             position: absolute;
             border-radius: 999px;
-            background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+            background: @ui-scroll-ink;
             transition: background-color @ui-motion-fast @ui-motion-ease;
         }
 
@@ -340,13 +351,15 @@ html {
         // Under the pointer, or held, it darkens and keeps its width; the engine runs only where a pointer hovers.
         @media @{ui-can-hover} {
             :is(.ui-overlay-scrollbar__thumb:hover, .ui-overlay-scrollbar__thumb--held)::before {
-                background: color-mix(in srgb, var(--ui-color-on-surface) 48%, transparent);
+                background: @ui-scroll-ink-hover;
             }
         }
 
     // The arrows at the track's ends, a step a press and repeating while held, shown as the pointer nears the bar, as a platform's
     // overlay bar shows them; a scroll alone shows the thumb. Their room is kept either way, so the thumb at an end stands clear of a
-    // rounded corner. A triangle as wide as the thumb, on its line and in its colour, by the track's end.
+    // rounded corner. A blunt triangle as wide as the thumb, on its line and in its colour, its flat side to the thumb, in the middle of its
+    // square, as a platform's overlay bar draws it. Rejected: 6 by 4 px against the thumb (specks lost in the strip); 8 by 6 at the
+    // scroller's edge (wider than the thumb, it read as a part apart from the bar).
     .ui-overlay-scrollbar__arrow {
         position: absolute;
         opacity: 0;
@@ -365,46 +378,48 @@ html {
         .ui-overlay-scrollbar__arrow::before {
             content: "";
             position: absolute;
-            background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+            background: @ui-scroll-ink;
             transition: background-color @ui-motion-fast @ui-motion-ease;
         }
 
-        // The thumb's 6 px across, 2 px in from the edge as it is; 4 px along, 2 px off the track's end, where the thumb stops.
+        // The thumb's 6 px across, 2 px in from the edge as it is; 5 px along, centred in its square, a few pixels short of the thumb's end.
         .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow::before {
+            top: 0;
             right: 2px;
+            bottom: 0;
             width: 6px;
-            height: 4px;
+            height: 5px;
+            margin-block: auto;
         }
 
         .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow::before {
+            right: 0;
             bottom: 2px;
-            width: 4px;
+            left: 0;
+            width: 5px;
             height: 6px;
+            margin-inline: auto;
         }
 
         .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow--back::before {
-            bottom: 2px;
-            clip-path: polygon(50% 0, 100% 100%, 0 100%);
+            clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%);
         }
 
         .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow--forward::before {
-            top: 2px;
-            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            clip-path: polygon(0 0, 100% 0, 60% 100%, 40% 100%);
         }
 
         .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow--back::before {
-            right: 2px;
-            clip-path: polygon(0 50%, 100% 0, 100% 100%);
+            clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%);
         }
 
         .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow--forward::before {
-            left: 2px;
-            clip-path: polygon(0 0, 100% 50%, 0 100%);
+            clip-path: polygon(0 0, 100% 40%, 100% 60%, 0 100%);
         }
 
         // Darker under the pointer, as the thumb is.
         @media @{ui-can-hover} {
             .ui-overlay-scrollbar__arrow:hover::before {
-                background: color-mix(in srgb, var(--ui-color-on-surface) 48%, transparent);
+                background: @ui-scroll-ink-hover;
             }
         }

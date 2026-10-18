@@ -21,15 +21,11 @@
 
     .ui-split-button__main,
     .ui-split-button__toggle {
+        .ui-bare-button();
         display: inline-flex;
         align-items: center;
         justify-content: center;
         min-height: 0;
-        border: 0;
-        background: none;
-        color: inherit;
-        font: inherit;
-        cursor: pointer;
         .ui-interactive-base();
         transition: background-color @ui-motion-fast @ui-motion-ease;
     }
@@ -111,7 +107,7 @@
     }
 
     @{ui-split-parts}.ui-button--outline {
-        .ui-reveal-hover-off({ border-color: color-mix(in srgb, currentColor 48%, transparent); });
+        .ui-reveal-hover-off({ border-color: @ui-outline-edge-hover; });
     }
 
     // A link's brighter ink on the hovered part alone, as ui-button.less brightens a link's parts rather than its root.

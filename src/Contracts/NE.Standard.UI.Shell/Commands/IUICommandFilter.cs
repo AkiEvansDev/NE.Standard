@@ -1,25 +1,16 @@
 using System;
-using System.Threading.Tasks;
+using System.Diagnostics.CodeAnalysis;
+using NE.Standard.UI.Shell.Filters;
 
 namespace NE.Standard.UI.Shell.Commands;
 
 /// <summary>Intercepts the execution of a command, so a controller can carry cross-cutting behaviour of its own.</summary>
 /// <remarks>
 /// A filter can change what is reported, not undo what already happened: blocking an effect requires short-circuiting before it runs.
+/// Ordered by <see cref="IUIFilter{TContext}.Order"/>, ties broken by attachment: global, then controller, then the command method.
 /// </remarks>
-public interface IUICommandFilter
-{
-    /// <summary>
-    /// Gets the order this filter runs in, lowest first. Ties break by attachment: global, then controller,
-    /// then the command method.
-    /// </summary>
-    int Order => 0;
-
-    /// <summary>
-    /// Runs the filter around the rest of the pipeline.
-    /// </summary>
-    Task InvokeAsync(UICommandFilterContext context, Func<Task> next);
-}
+[SuppressMessage("Design", "CA1040:Avoid empty interfaces", Justification = "Names the command side of IUIFilter, which an attribute implements and the pipeline collects.")]
+public interface IUICommandFilter : IUIFilter<UICommandFilterContext>;
 
 /// <summary>
 /// Creates a command filter from the service provider, for a filter attribute that needs dependencies.

@@ -4,6 +4,7 @@
 
 // `.ts` on the value imports: `node --test` runs this module directly.
 import { TableColumnAttribute, TableHeaderClass, TableResizerClass, TableScrollClass } from "../addressing/dom-attributes.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import { isRovingCandidate, isRovingKey, resolveRovingTarget } from "./roving-focus.ts";
 import { readColumnLayout } from "./table-column-layout.ts";
 
@@ -110,7 +111,7 @@ export function headerTableOf(target: Element): HTMLElement | null {
  * sizes it).
  */
 export function handleHeaderKey(domEvent: KeyboardEvent, table: HTMLElement, toRows: (column: string | null) => void): boolean {
-    if (domEvent.ctrlKey || domEvent.metaKey || domEvent.altKey || domEvent.shiftKey || !(domEvent.target instanceof HTMLElement))
+    if (!isPlainKey(domEvent) || !(domEvent.target instanceof HTMLElement))
         return false;
 
     switch (domEvent.key) {

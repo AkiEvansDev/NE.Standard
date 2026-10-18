@@ -151,6 +151,10 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     {
         ArgumentNullException.ThrowIfNull(template);
 
+        // A field in a row is the row's next line rather than a box on it, as a grid's cell editor is: Ghost unless the author says.
+        if (template is IFieldInputComponent { Appearance: null } field)
+            field.Appearance = UIInputAppearance.Ghost;
+
         // Spelled out rather than left to the input's own default: a draft that never came back would be no draft.
         return template.Bind(IInputComponent.ValueProperty, nameof(IKeyValueActionModel.EditValue), UIBindingScope.Relative, UIBindingMode.TwoWay);
     }

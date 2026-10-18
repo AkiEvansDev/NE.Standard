@@ -3,6 +3,7 @@ using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Templates;
@@ -194,7 +195,7 @@ public static class UIPage
     /// it (a status: "Not saved"), the far end on the same row, and no edge of its own, the pane's padding being it. A
     /// <paramref name="leading"/> action (<c>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</c>, an avatar, both in a row)
     /// stands before the name. <see cref="UIHeaderSize.Strip"/> is a panel's caption over the list or the tree in it — an explorer's
-    /// "Files": the name in the label role, set in by a row's 8 px so it stands over the rows' words, the far end on its row.
+    /// "Files": the name in the label role, set in by a list row's 8 px so it stands over a list's words and a tree's chevrons, the far end on its row; its icon buttons with no size said are small.
     /// </summary>
     public static ContainerComponent Header(UIHeaderSize size, IVisualComponent? leading, string title, string? description = null, params IVisualComponent[] trailing)
         => size == UIHeaderSize.Page ? Header(leading, title, description, false, trailing) : PaneHeader(leading, title, description, false, size == UIHeaderSize.Strip, trailing);
@@ -214,9 +215,12 @@ public static class UIPage
             .SetColumn(PaneLeadingColumn, UIGridUnit.Auto())
             .SetColumn(24, UIGridUnit.Auto());
 
-        // A row's own inset (a list's, a tree's), so the caption's words stand over the rows' words under it.
+        // A list row's own inset: the caption stands over a list's words, and over a tree's chevrons, as an explorer's does.
         if (strip)
+        {
             _ = header.SetPadding(UIThickness.All(StripInset, 0, 0, 0));
+            SmallStripIcons(leading, trailing);
+        }
 
         if (leading is not null)
             _ = header.AddChild(PaneLeading(leading));
@@ -235,6 +239,23 @@ public static class UIPage
             .AddChildren(trailing)
             .SetPlacement(24, 1, 1, 1)
         );
+    }
+
+    /// <summary>
+    /// A strip's buttons with no size said are small, a tree row's height. A medium icon hangs its box 11 px past the content's edge
+    /// (#214), more than a panel's 8 px padding and the 6 px a clipping layout leaves, so its wash and keyboard frame were cut; a
+    /// small one hangs 6.
+    /// </summary>
+    private static void SmallStripIcons(IVisualComponent? leading, IVisualComponent[] trailing)
+    {
+        if (leading is ButtonComponent { Size: null } first)
+            _ = first.SetSize(UIButtonSize.Small);
+
+        foreach (IVisualComponent component in trailing)
+        {
+            if (component is ButtonComponent { Size: null } button)
+                _ = button.SetSize(UIButtonSize.Small);
+        }
     }
 
     /// <summary>
@@ -301,7 +322,7 @@ public static class UIPage
 
     private const int PaneLeadingColumn = 1;
 
-    // A list's and a tree's row inset: an explorer's caption over a tree.
+    // A list row's inset; over a tree the caption stands on the chevrons, not the words after them.
     private const double StripInset = 8;
 
     /// <summary>

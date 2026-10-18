@@ -27,21 +27,11 @@ internal sealed class AccordionView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new AccordionComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindPadding($"{AccordionGroup}.{nameof(AccordionSurfaceGroupContext.Padding)}")
             .BindBackground($"{AccordionGroup}.{nameof(AccordionSurfaceGroupContext.Background)}")
             .BindOverflow($"{AccordionGroup}.{nameof(AccordionSurfaceGroupContext.Overflow)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             // Set rather than bound: the sections are what the accordion holds, not something about it.
             .AddChild(new ExpanderComponent()
                 .SetExpanded(true)
@@ -75,9 +65,9 @@ internal sealed class AccordionView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(AccordionGroup, "Accordion", nameof(AccordionController.CycleAccordionOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(AccordionController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(AccordionGroup, "Accordion"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // The two read-only ones side by side; the steps across the page, with their line under them.

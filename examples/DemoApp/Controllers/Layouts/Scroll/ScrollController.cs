@@ -90,10 +90,6 @@ internal sealed partial class ScrollController() : DemoStandardController
     public partial ScrollAnchorGroupContext AnchorGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleScrollGroupOption(string id)
-        => ScrollGroup.CycleOption(id);
-
-    [UICommand]
     public void SendMessage()
         => AnchorGroup.Send();
 

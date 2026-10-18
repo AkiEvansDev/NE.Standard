@@ -10,10 +10,7 @@
     display: flex;
     flex-direction: column;
     // Border and fill follow BorderThickness/-Color/-Radius and Surface, the same knobs Card uses.
-    border-style: solid;
-    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
-    border-color: var(--ui-color-border);
-    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-row));
+    .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-row); var(--ui-color-border));
     background: var(--ui-surface-color, transparent);
     // Rows carry the inset, so wash and separator run border to border with no negative margin, which subgrid clips unevenly.
     padding: 0;
@@ -56,8 +53,8 @@
         .ui-row-hover();
         background-clip: padding-box;
 
-        // One wash, not two: the editing cell's own focus-within wash (below) comes off under a hover the row already answers.
-        .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+        // One wash, not two: the editing cell's own — its focus's, its pointer's — comes off under a hover the row already answers.
+        .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}) {
             background: none;
         }
     }
@@ -203,8 +200,9 @@
         min-height: @ui-button-height-sm;
     }
 
-    // No box or wash under the caret: the row is the box, and a field with no edge of its own does not react.
-    .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+    // No edge under the caret: the row is the box, and a field with no edge of its own does not react. A field a rule has marked keeps
+    // its severity's edge while it is being put right. Its washes stay, as a Ghost field's anywhere: the pointer's paler than the focus's.
+    .ui-key-value-action__value-input .ui-input--ghost:not(.ui-disabled, @{ui-validation-marked}) > :is(@{ui-input-field-state}):focus-within {
         border-color: transparent;
         box-shadow: none;
     }
@@ -224,9 +222,10 @@
         display: grid;
     }
 
-// The framework's pencil, check and cross, their words kept for the reader.
-.ui-key-value-action--editable .ui-key-value-action__action .ui-button,
-.ui-key-value-action__edit-action .ui-button {
+// The framework's pencil, check and cross, their words kept for the reader: the action slot's own button and the edit stack's two,
+// never a button further in, as a menu entry under them would be.
+.ui-key-value-action--editable .ui-key-value-action__action > .ui-button,
+.ui-key-value-action__edit-action > .ui-stack-panel > .ui-button {
     position: relative;
     // A square the small button's height with the glyph centred in it: the glyph is the whole label.
     display: inline-flex;
@@ -237,19 +236,19 @@
     aspect-ratio: 1;
 }
 
-    .ui-key-value-action--editable .ui-key-value-action__action .ui-button .ui-button__content,
-    .ui-key-value-action__edit-action .ui-button .ui-button__content {
+    .ui-key-value-action--editable .ui-key-value-action__action > .ui-button > .ui-button__content,
+    .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button > .ui-button__content {
         .ui-visually-hidden();
     }
 
-    .ui-key-value-action--editable .ui-key-value-action__action .ui-button::before {
+    .ui-key-value-action--editable .ui-key-value-action__action > .ui-button::before {
         .ui-pencil-glyph(@ui-glyph-sm);
     }
 
-    .ui-key-value-action__edit-action .ui-button:first-child::before {
+    .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button:first-child::before {
         .ui-check-glyph(@ui-glyph-sm);
     }
 
-    .ui-key-value-action__edit-action .ui-button:last-child {
+    .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button:last-child {
         .ui-cross-glyph(@ui-glyph-sm);
     }

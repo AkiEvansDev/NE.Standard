@@ -1,10 +1,11 @@
 using System.Globalization;
 
-namespace NE.Standard.UI.Web.Abstractions.Theming;
+namespace NE.Standard.UI.Shell.Localization;
 
-/// <summary>Resolves an authored culture name the way <c>UIFormattedValueNormalizer</c> does: an unknown or empty one is invariant.</summary>
-public static class WebCultures
+/// <summary>Resolves an authored culture name, the one rule the server's value parsing and a platform's formatting share.</summary>
+public static class UICultures
 {
+    /// <summary>The culture of that name; an unknown or empty one is the invariant culture rather than a failure.</summary>
     public static CultureInfo Resolve(string? culture)
     {
         if (string.IsNullOrWhiteSpace(culture))

@@ -228,17 +228,13 @@
 .ui-temporal-input__month,
 .ui-temporal-input__time-cell,
 .ui-temporal-input__nav {
+    .ui-bare-button();
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: @ui-list-row-height;
     padding: 0 @ui-space-1;
-    border: none;
     border-radius: @ui-list-entry-radius;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    cursor: pointer;
     .ui-interactive-base();
 }
 
@@ -292,8 +288,7 @@
     .ui-temporal-input__time-cell:disabled,
     .ui-temporal-input__nav:disabled {
         color: var(--ui-text-muted);
-        opacity: var(--ui-disabled-opacity);
-        cursor: default;
+        .ui-disabled-state();
     }
 
 .ui-temporal-input__day--outside {
@@ -492,7 +487,5 @@
 }
 
     .ui-temporal-input__popup-footer > .ui-temporal-input__nav {
-        padding: 0 @ui-space-2;
-        color: var(--ui-color-primary-ink);
-        font-size: var(--ui-text-caption-font-size);
+        .ui-word-action();
     }

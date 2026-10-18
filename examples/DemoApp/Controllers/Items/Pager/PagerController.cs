@@ -118,8 +118,4 @@ internal sealed partial class PagerController() : DemoStandardController
         await Cards.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 8), cancellationToken).ConfigureAwait(false);
         await Narrow.LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, 20), cancellationToken).ConfigureAwait(false);
     }
-
-    [UICommand]
-    public void CyclePagerOption(string id)
-        => PagerGroup.CycleOption(id);
 }

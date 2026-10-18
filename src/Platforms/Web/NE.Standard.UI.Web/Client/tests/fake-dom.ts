@@ -1,7 +1,10 @@
 // A small stand-in for the DOM, for the tests of engines that read the focus, containment, a few attributes and classes, and
-// events bubbling up a tree: enough selectors for the framework's own lists (classes, attributes, roles, `:not()`, `:is()`,
-// `:disabled`, `:scope`, `:active`, `:focus-visible`, `:modal`, `:popover-open`, the child and descendant combinators), and nothing
-// laid out but what a test says.
+// events bubbling up a tree: enough selectors for the framework's own lists (classes, attributes, roles, `*`, `[name^=value]`,
+// `:not()`, `:is()`, `:disabled`, `:scope`, `:active`, `:focus-visible`, `:modal`, `:popover-open`, the child and descendant
+// combinators), and nothing laid out but what a test says. The window — its timers and capturing listeners — is installed on request
+// (`fakeWindowGlobals`).
+// One file for every client: a package's `tests/fake-dom.ts` is a byte-for-byte copy of this one (PluginApiSyncTests), since a mirror
+// type-checks its tests without the core's sources beside it. Grow this file and copy it over, never a copy.
 
 type Listener = (domEvent: FakeEvent) => void;
 
@@ -11,7 +14,13 @@ export class FakeEvent {
     public readonly key: string;
     public target: FakeElement | null = null;
     public defaultPrevented = false;
-    public readonly isComposing = false;
+    public readonly isComposing: boolean = false;
+    /** Raised by the browser rather than by a script; a test says so where it plays the browser. */
+    public isTrusted = false;
+    public shiftKey = false;
+    public altKey = false;
+    public ctrlKey = false;
+    public metaKey = false;
 
     public constructor(type: string, key = "") {
         this.type = type;
@@ -38,9 +47,10 @@ export class FakeEvent {
 }
 
 export class FakeKeyboardEvent extends FakeEvent {
-    public constructor(key: string, target: FakeElement | null = null) {
+    public constructor(key: string, target: FakeElement | null = null, shiftKey = false) {
         super("keydown", key);
         this.target = target;
+        this.shiftKey = shiftKey;
     }
 }
 
@@ -54,6 +64,8 @@ export class FakeElement {
     public readonly attributes = new Map<string, string>();
     public readonly classes = new Set<string>();
     public laidOut = true;
+    /** The `hidden` property: the element and all under it are laid out no more. */
+    public hidden = false;
     /** Laid out but `visibility: hidden` (a fade not yet begun): it keeps its box and refuses the focus. */
     public visible = true;
     public disabled = false;
@@ -119,11 +131,12 @@ export class FakeElement {
         return copy;
     }
 
-    /** Puts the children last; a string as a text node, as the browser does. */
+    /** Puts the children last, each taken from wherever it stood; a string as a text node, as the browser does. */
     public append(...children: (FakeElement | string)[]): this {
         for (const given of children) {
             const child = typeof given === "string" ? fakeDocument.createTextNode(given) : given;
 
+            child.detach();
             child.parent = this;
             this.children.push(child);
         }
@@ -310,9 +323,9 @@ export class FakeElement {
     public scrollIntoView(): void {
     }
 
-    /** A press run from script, as `HTMLElement.click()` runs it: a click on the element, laid out or not. */
+    /** A press run from script, as `HTMLElement.click()` runs it: a click on the element, laid out or not, counting no presses as a key's. */
     public click(): void {
-        this.dispatchEvent(new FakeEvent("click"));
+        this.dispatchEvent(Object.assign(new FakeEvent("click"), { detail: 0 }));
     }
 
     /** Where its box stands without a transform: a drawer still sliding in has its `rect` off the edge and this at it. */
@@ -371,16 +384,29 @@ export class FakeElement {
         if (this.parent === null)
             return;
 
-        this.parent.children.splice(this.parent.children.indexOf(this), 1);
+        const active = fakeDocument.activeElement;
 
+        // Chromium: a field that held the focus, edited since it took it, says `change` as it goes, while still on the page.
+        if (active instanceof FakeInput && this.contains(active) && active.value !== active.valueAtFocus)
+            fakeWindow.dispatch(active, Object.assign(new FakeEvent("change"), { isTrusted: true }));
+
+        this.detach();
+
+        // A browser drops the focus of a removed element to the body, and says nothing of it.
         if (fakeDocument.activeElement !== null && this.contains(fakeDocument.activeElement))
             fakeDocument.activeElement = fakeDocument.body;
-
-        this.parent = null;
     }
 
+    /**
+     * A box where it is laid out: none where it is not, or where it or anything above it is `hidden`. `laidOut` is its own alone, as
+     * `display: contents` is: a wrapping list's row is drawn by its tile.
+     */
     public getClientRects(): unknown[] {
-        return this.laidOut ? [{}] : [];
+        return this.laidOut && !this.isHidden() ? [{}] : [];
+    }
+
+    private isHidden(): boolean {
+        return this.hidden || (this.parent?.isHidden() ?? false);
     }
 
     /** Whether it is drawn: it and everything above it laid out and visible. */
@@ -463,6 +489,19 @@ export class FakeElement {
         return this.parent === null ? this : this.parent.top();
     }
 
+    /** Out of its parent's children; a test that emptied the children by hand has left only the parent to forget. */
+    private detach(): void {
+        if (this.parent === null)
+            return;
+
+        const index = this.parent.children.indexOf(this);
+
+        if (index >= 0)
+            this.parent.children.splice(index, 1);
+
+        this.parent = null;
+    }
+
     private descendants(): FakeElement[] {
         return this.children.flatMap(child => [child, ...child.descendants()]);
     }
@@ -478,13 +517,23 @@ export class FakeInput extends FakeElement {
     public selection: [number, number] | null = null;
     /** The end the selection was made from, as the browser keeps it. */
     public selectionDirection: "forward" | "backward" | "none" = "none";
+    /** What it held as it took the focus. */
+    public valueAtFocus = "";
+    /** Whether its text was selected whole, as `select()` does. */
+    public selected = false;
 
     public constructor(type = "text") {
         super("input");
         this.type = type;
     }
 
+    public override focus(): void {
+        this.valueAtFocus = this.value;
+        super.focus();
+    }
+
     public select(): void {
+        this.selected = true;
     }
 
     /** The browser's: null on a type that keeps no selection a page can read (an email, a number field). */
@@ -547,6 +596,42 @@ export class FakeLabel extends FakeElement {
     }
 }
 
+/**
+ * A native `<dialog>`: shown modal and closed, the focus it held going back to what had it before, then its `close` event.
+ * @public a package's tests use it
+ */
+export class FakeDialog extends FakeElement {
+    public open = false;
+    private opener: FakeElement | null = null;
+
+    public constructor() {
+        super("dialog");
+    }
+
+    public showModal(): void {
+        this.opener = fakeDocument.activeElement;
+        this.open = true;
+        this.modal = true;
+    }
+
+    public close(): void {
+        if (!this.open)
+            return;
+
+        this.open = false;
+        this.modal = false;
+
+        if (fakeDocument.activeElement !== null && this.contains(fakeDocument.activeElement)) {
+            if (this.opener !== null && this.opener.isConnected)
+                this.opener.focus();
+            else
+                fakeDocument.activeElement.blur();
+        }
+
+        this.dispatchEvent(new FakeEvent("close"));
+    }
+}
+
 /** The page's document as a type: the stand-in below is never one, so a root asked `instanceof Document` is an element. */
 class FakeDocumentType {
     public readonly nodeType = 9;
@@ -554,6 +639,9 @@ class FakeDocumentType {
 
 export const fakeDocument = {
     activeElement: null as FakeElement | null,
+    /** Whether the window holds the focus: false while the reader is in another window. */
+    focused: true,
+    hasFocus: (): boolean => fakeDocument.focused,
     body: new FakeElement("body"),
     documentElement: new FakeElement("html"),
     createElement: (tagName: string): FakeElement => tagName === "input" ? new FakeInput() : new FakeElement(tagName),
@@ -581,6 +669,44 @@ export const fakeDocument = {
 };
 
 fakeDocument.activeElement = fakeDocument.body;
+
+/**
+ * The window as the engines reach it: timers the test runs by hand, and listeners that hear an event before any element does.
+ * @public a package's tests use it
+ */
+export const fakeWindow = {
+    timers: [] as (() => void)[],
+    listeners: new Map<string, Listener[]>(),
+    setTimeout: (callback: () => void): number => fakeWindow.timers.push(callback),
+    addEventListener: (type: string, listener: Listener): void => {
+        fakeWindow.listeners.set(type, [...fakeWindow.listeners.get(type) ?? [], listener]);
+    },
+    /** Runs every timer set so far, and those they set. */
+    runTimers: (): void => {
+        for (let callback = fakeWindow.timers.shift(); callback !== undefined; callback = fakeWindow.timers.shift())
+            callback();
+    },
+    /** Raises an event as the browser does: the window's capturing listeners first, then the target and every element above it. */
+    dispatch: (target: FakeElement, domEvent: FakeEvent): void => {
+        domEvent.target = target;
+
+        for (const listener of fakeWindow.listeners.get(domEvent.type) ?? [])
+            listener(domEvent);
+
+        if (!domEvent.stopped && !domEvent.stoppedHere)
+            target.dispatchEvent(domEvent);
+    }
+};
+
+/**
+ * The window's globals, for `installFakeDom` where the module under test reaches the window: its timers, its listeners, a style's visibility.
+ * @public a package's tests use it
+ */
+export const fakeWindowGlobals: Readonly<Record<string, unknown>> = {
+    window: fakeWindow,
+    FocusEvent: FakeEvent,
+    getComputedStyle: (element: FakeElement): { visibility: string } => ({ visibility: element.visible ? "visible" : "hidden" })
+};
 
 /** Puts the stand-in in place of the browser's globals; before the module under test loads, since it reads them as it runs. */
 export function installFakeDom(extra: Readonly<Record<string, unknown>> = {}): void {
@@ -695,7 +821,7 @@ function matchesComplex(element: FakeElement, compounds: readonly string[], comb
     return false;
 }
 
-const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:="((?:[^"\\]|\\.)*)"|=['"]?([^'"\]]*)['"]?)?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope|active|focus-visible|modal|popover-open))/;
+const Token = /^(?:([a-z]+)|\.([\w-]+)|\[([\w-]+)(?:(\^?)=(?:"((?:[^"\\]|\\.)*)"|['"]?([^'"\]]*)['"]?))?\]|:not\(((?:[^()]|\([^()]*\))*)\)|:is\(((?:[^()]|\([^()]*\))*)\)|:(disabled|scope|active|focus-visible|modal|popover-open))/;
 
 function matchesCompound(element: FakeElement, compound: string, scope: FakeElement | null): boolean {
     let rest = compound.trim();
@@ -712,7 +838,7 @@ function matchesCompound(element: FakeElement, compound: string, scope: FakeElem
         if (token === null)
             throw new Error(`The stand-in does not read "${compound}".`);
 
-        const [whole, tag, className, attribute, quoted, plain, negated, alternatives, pseudo] = token;
+        const [whole, tag, className, attribute, prefix, quoted, plain, negated, alternatives, pseudo] = token;
         // A double-quoted value as CSS escapes it (`cssAttributeValue`): a backslash takes the character after it as itself.
         const value = quoted === undefined ? plain : quoted.replace(/\\(.)/g, "$1");
 
@@ -722,7 +848,10 @@ function matchesCompound(element: FakeElement, compound: string, scope: FakeElem
         if (className !== undefined && !element.classes.has(className))
             return false;
 
-        if (attribute !== undefined && (!element.attributes.has(attribute) || (value !== undefined && element.attributes.get(attribute) !== value)))
+        // `[name^=value]` matches a value that starts with it, `[name=value]` the value alone.
+        const actual = attribute === undefined ? undefined : element.attributes.get(attribute);
+
+        if (attribute !== undefined && (actual === undefined || (value !== undefined && (prefix === "^" ? !actual.startsWith(value) : actual !== value))))
             return false;
 
         if (negated !== undefined && matchesSelector(element, negated, scope))

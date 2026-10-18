@@ -15,16 +15,4 @@ internal sealed partial class LinkController() : DemoStandardController
 
     [RecursiveMember]
     public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleLinkGroupOption(string id)
-        => LinkGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
 }

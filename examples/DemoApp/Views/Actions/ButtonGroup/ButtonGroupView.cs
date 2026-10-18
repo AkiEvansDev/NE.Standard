@@ -26,23 +26,13 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ButtonGroupComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSelectedKey($"{SegmentGroup}.{nameof(SegmentGroupContext.SelectedKey)}")
             .BindSize($"{SegmentGroup}.{nameof(SegmentGroupContext.Size)}")
             .BindSelectionStyle($"{SegmentGroup}.{nameof(SegmentGroupContext.SelectionStyle)}")
             .BindPadding($"{SegmentGroup}.{nameof(SegmentGroupContext.Padding)}")
             .BindBackground($"{SegmentGroup}.{nameof(SegmentGroupContext.Background)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .SetItems([
                 new ButtonItem { Id = SegmentGroupContext.ListKey, Icon = DemoIcons.Outline(DemoIcons.List), Title = "List" },
                 new ButtonItem { Id = SegmentGroupContext.BoardKey, Icon = DemoIcons.Outline(DemoIcons.LayoutDashboard), Title = "Board" },
@@ -53,9 +43,9 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(SegmentGroup, "Group", nameof(ButtonGroupController.CycleSegmentOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(ButtonGroupController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(SegmentGroup, "Group"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()
@@ -69,16 +59,12 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("A view switched from a toolbar",
             new SurfaceComponent()
                 .SetPadding(UIThickness.All(12, 8, 12, 8))
-                .SetContent(new ContainerComponent()
-                    .SetColumn(24, UIGridUnit.Auto())
-                    .AddChild(new TextComponent()
+                .SetContent(UILayout.Ends(
+                    new TextComponent()
                         .SetTitle("Deploys")
                         .SetDescription("48 in the last day")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetVerticalAlignment(UIAlignment.Center)
-                        .SetPlacement(1, 1, 23, 1)
-                    )
-                    .AddChild(new ButtonGroupComponent()
+                        .SetDescriptionType(UITextAppearance.Caption),
+                    new ButtonGroupComponent()
                         .SetSize(UIButtonSize.Small)
                         .SetSelectedKey("list")
                         .SetItems([
@@ -86,7 +72,6 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
                             new ButtonItem { Id = "board", Icon = DemoIcons.Outline(DemoIcons.LayoutDashboard), Tooltip = "Board" },
                             new ButtonItem { Id = "timeline", Icon = DemoIcons.Outline(DemoIcons.History), Tooltip = "Timeline" }
                         ])
-                        .SetPlacement(24, 1, 1, 1)
                     )
                 ),
             note: "Glyphs alone, with the word in the tooltip: a strip at a toolbar's end is read by its pictures."

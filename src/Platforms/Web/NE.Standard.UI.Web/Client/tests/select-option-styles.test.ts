@@ -43,7 +43,7 @@ test("a small field's option is a step denser: its caption text in the small fie
 });
 
 test("on a phone's sheet an option keeps a finger's row", () => {
-    assert.match(css, /\[data-ui-sheet\]\[popover\] :is\(\[role="menuitem"\], \[role="menuitemcheckbox"\], \[role="menuitemradio"\], \[role="option"\], \.ui-menu-item\):not\(\.ui-action-bar > \*\) \{\s*min-height: 3rem;/);
+    assert.match(css, /\[data-ui-sheet\]\[popover\] :is\(\[role="menuitem"\], \[role="menuitemcheckbox"\], \[role="menuitemradio"\], \[role="option"\], \.ui-menu-item\):not\(\.ui-action-bar > \*, \[data-ui-menu-item-kind="header"\], \[data-ui-menu-item-kind="separator"\]\) \{\s*min-height: 3rem;/);
 });
 
 test("a template shorter than the row stands in its middle: a select's option centres its block, a multi-select's its flex item", () => {

@@ -9,8 +9,4 @@ internal sealed partial class ImageController() : DemoStandardController
 {
     [RecursiveMember]
     public partial ImageGroupContext ImageGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleImageOption(string id)
-        => ImageGroup.CycleOption(id);
 }

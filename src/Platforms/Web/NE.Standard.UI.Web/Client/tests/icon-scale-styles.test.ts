@@ -1,6 +1,7 @@
 // Icon sizes read back from the stylesheet: one scale of whole, even pixels (tokens.less), and no icon sized as a fraction of its
 // text — at 1.25em of a 14px body an icon stood at 17.5px, where the icon fonts round their ascent and stood the glyph off its
-// middle. An icon-only control takes its step by its size; the core's own glyphs take theirs from the scale.
+// middle. An icon-only control takes its step by its size; the core's own glyphs take theirs from the scale. Every add-on's stylesheet
+// is held to the same rule from here.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -8,6 +9,7 @@ import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import less from "less";
+import { addOnEntries } from "./add-on-stylesheets.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = resolve(here, "../src/ui.less");
@@ -38,10 +40,10 @@ function rule(selector: string): string {
 }
 
 /** Every rule that sizes an icon: one naming an icon, a glyph or a chevron, or drawing with the core's glyph font. */
-function iconRules(): { selector: string; size: string }[] {
+function iconRules(text: string = css): { selector: string; size: string }[] {
     const rules: { selector: string; size: string }[] = [];
 
-    for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const match of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
         const selector = match[1].trim();
         const body = match[2];
         const size = /(?:^|;)\s*font-size: ([^;]+);/.exec(body)?.[1];
@@ -63,21 +65,36 @@ test("the scale is whole, even pixels, defined once among the tokens", () => {
     assert.doesNotMatch(glyphs, /^@ui-glyph-[a-z-]+: [\d.]+r?em;/m, "the glyphs' mixins read the scale, they define no step of their own");
 });
 
+/** An em is a whole one, a rem or a pixel a whole pixel: never a fraction of the text, where an icon stands off its middle. */
+function assertWholeSizes(rules: readonly { selector: string; size: string }[]): void {
+    for (const { selector, size } of rules) {
+        for (const [, amount, unit] of size.matchAll(/(\d*\.?\d+)(em|rem|px)\b/g)) {
+            if (unit === "em")
+                assert.equal(Number(amount), 1, `${selector}: font-size ${size}`);
+            else
+                assert.ok(Number.isInteger(Number(amount) * (unit === "rem" ? Rem : 1)), `${selector}: font-size ${size}`);
+        }
+    }
+}
+
 test("no icon is sized as a fraction of its text: an em is a whole one, a rem or a pixel a whole pixel", () => {
     const rules = iconRules();
 
     assert.ok(rules.length > 40, `only ${rules.length} icon rules found`);
+    assertWholeSizes(rules);
+});
 
-    for (const { selector, size } of rules) {
-        for (const [, amount, unit] of size.matchAll(/(\d*\.?\d+)(em|rem|px)\b/g)) {
-            const pixels = unit === "em" ? null : Number(amount) * (unit === "rem" ? Rem : 1);
+test("no add-on's icon is sized as a fraction of its text either", async () => {
+    let checked = 0;
 
-            if (unit === "em")
-                assert.equal(Number(amount), 1, `${selector}: font-size ${size}`);
-            else
-                assert.ok(Number.isInteger(pixels), `${selector}: font-size ${size}`);
-        }
+    for (const entry of addOnEntries) {
+        const rules = iconRules((await less.render(readFileSync(entry, "utf8"), { filename: entry })).css);
+
+        checked += rules.length;
+        assertWholeSizes(rules);
     }
+
+    assert.ok(addOnEntries.length === 0 || checked > 0, "no add-on icon rule found");
 });
 
 test("the core's own glyphs are drawn at a step of the scale, or at the em of a host sized by one", () => {
@@ -92,11 +109,12 @@ test("the core's own glyphs are drawn at a step of the scale, or at the em of a 
 });
 
 test("an icon-only button takes the scale's step by its size, where 1.25em of its label's type stood on half pixels", () => {
-    const icon = ":not([data-ui-text-title]) .ui-text__icon)";
+    // The button's own glyph alone, on the root or in a split button's main part, never a glyph in a list the button holds.
+    const icon = (button: string): string => `:where(${button}[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon, ${button}[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main > .ui-button__content > .ui-text__icon)`;
 
-    assert.match(rule(`:where(.ui-button[data-ui-text-icon]${icon}`), new RegExp(`font-size: ${rem("md-lg")};`));
-    assert.match(rule(`:where(.ui-button--small[data-ui-text-icon]${icon}`), new RegExp(`font-size: ${rem("md")};`));
-    assert.match(rule(`:where(.ui-button--large[data-ui-text-icon]${icon}`), new RegExp(`font-size: ${rem("xl")};`));
+    assert.match(rule(icon(".ui-button")), new RegExp(`font-size: ${rem("md-lg")};`));
+    assert.match(rule(icon(".ui-button--small")), new RegExp(`font-size: ${rem("md")};`));
+    assert.match(rule(icon(".ui-button--large")), new RegExp(`font-size: ${rem("xl")};`));
 });
 
 test("the theme switcher, an icon strip and a field's picture take the same steps", () => {

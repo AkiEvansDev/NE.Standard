@@ -115,10 +115,6 @@ internal sealed partial class TimestampController() : DemoStandardController
     public partial ActivityGroupContext ActivityGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleTimestampOption(string id)
-        => TimestampGroup.CycleOption(id);
-
-    [UICommand]
     public void StampNow()
         => StampGroup.Stamp();
 }

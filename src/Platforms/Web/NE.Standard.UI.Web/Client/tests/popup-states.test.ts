@@ -91,8 +91,10 @@ test("a select's option is lit by the list's mark alone, never by a hover of its
     assert.match(rule(".ui-select__option:not([aria-selected=\"true\"]):not([aria-disabled=\"true\"]):active") ?? "", /--ui-wash-active/);
 });
 
-// The keyboard's frame (`.ui-keyboard-frame()`): an outline in the brand's ink, under no forced colours, which draw their own mark.
-const KeyboardFrame = "\\{\\s*outline: 2px solid var\\(--ui-color-primary-ink\\);\\s*outline-offset: -2px;";
+// The keyboard's frame (`.ui-keyboard-frame()`): an outline in the keyboard's mark, under no forced colours, which draw their own mark.
+const KeyboardFrame = "\\{\\s*outline: 2px solid var\\(--ui-mark-keyboard\\);\\s*outline-offset: -2px;";
+// A menu's entry lays it inside its border, on the line its current entry draws there.
+const EntryFrame = "\\{\\s*outline: 2px solid var\\(--ui-mark-keyboard\\);\\s*outline-offset: (?:-2px|calc\\(-2px - var\\(--ui-border-width, 1px\\)\\));";
 
 test("a select's option the arrows made current wears the keyboard's frame; the pointer's current, its wash alone", () => {
     assert.match(css, new RegExp(`@media \\(forced-colors: none\\) \\{\\s*\\.ui-select__option\\[data-ui-active\\]:not\\(\\[data-ui-pointer-focus\\]\\) ${KeyboardFrame}`));
@@ -107,7 +109,7 @@ test("a list's keyboard entry is lit only under a focus a key gave, and stays as
         const keyboard = `${focus}(?::not\\([^)]*\\))*`;
 
         // The frame on the chosen entry too: where the keyboard is, whatever else the entry says.
-        assert.match(css, new RegExp(`${focus} ${KeyboardFrame}`), `${entry} wears no keyboard frame`);
+        assert.match(css, new RegExp(`${focus} ${EntryFrame}`), `${entry} wears no keyboard frame`);
         assert.match(css, new RegExp(`${keyboard} \\{\\s*background-image: linear-gradient\\(var\\(--ui-wash-hover\\)`), `${entry} draws no keyboard wash`);
         assert.match(css, new RegExp(`${keyboard}:hover:not\\(:active\\) \\{\\s*background-color: transparent;`), `${entry} stacks the pointer's wash on the keyboard's`);
     }
@@ -127,7 +129,7 @@ test("a resting pointer's entry stays quiet, and a chip wears the frame, by the 
 test("a field lights its edge for no focus the pointer handed back, and a field with a message keeps its edge through any focus", () => {
     const handedBack = ":focus-within:where(:not([data-ui-pointer-focus], [data-ui-focus-within='pointer']))";
 
-    assert.doesNotMatch(css, /:focus-within \{\s*border-color: var\(--ui-color-primary\)/, "a field's edge lights on a bare :focus-within");
-    assert.ok(css.includes(`${handedBack} {\n  border-color: var(--ui-color-primary);`), "a field's edge does not skip a focus the pointer handed back");
+    assert.doesNotMatch(css, /:focus-within \{\s*border-color: var\(--ui-mark-field\)/, "a field's edge lights on a bare :focus-within");
+    assert.ok(css.includes(`${handedBack} {\n  border-color: var(--ui-mark-field);`), "a field's edge does not skip a focus the pointer handed back");
     assert.match(css, /\n:is\(\.ui-invalid, \.ui-validation--warning, \.ui-validation--info\) > :is\([^)]*\) \{\s*border-color: var\(--ui-validation-color/, "a field with a message has no edge of its own");
 });

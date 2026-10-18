@@ -19,11 +19,7 @@
 
     column-gap: var(--ui-wrap-panel-gap);
     row-gap: var(--ui-wrap-panel-line-gap);
-    // Declared so BorderThickness has something to draw with — see the note on .ui-stack-panel.
-    border-style: solid;
-    .ui-responsive-property(border-width, --ui-border-thickness, 0);
-    border-color: transparent;
-    .ui-responsive-property(border-radius, --ui-border-radius, 0);
+    .ui-authored-border();
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 }

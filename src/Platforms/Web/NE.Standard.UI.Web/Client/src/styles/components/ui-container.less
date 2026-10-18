@@ -16,10 +16,7 @@
     .ui-responsive-property(--ui-container-gap, --ui-container-spacing, 0px);
     row-gap: var(--ui-container-gap);
     column-gap: min(var(--ui-container-gap), calc((100% - var(--ui-container-fixed-columns, 0px)) / 24));
-    border-style: solid;
-    .ui-responsive-property(border-width, --ui-border-thickness, 0);
-    border-color: transparent;
-    .ui-responsive-property(border-radius, --ui-border-radius, 0);
+    .ui-authored-border();
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 

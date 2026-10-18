@@ -12,7 +12,6 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 
 public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 {
-    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
 
     private const string FieldAlignedClassName = "ui-stack-panel--field-aligned";
     private const string FieldAlignedVariable = "--ui-field-aligned";
@@ -38,11 +37,7 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
-        {
-            if (value is UIOrientation orientation)
-                _ = target.Class(WebClassNames.Orientation(orientation));
-        }, OrientationOperations);
+        OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-stack-panel-spacing");
 

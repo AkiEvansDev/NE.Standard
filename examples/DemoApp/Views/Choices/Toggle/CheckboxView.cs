@@ -51,49 +51,37 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
     /// <summary>
     /// The other layout a settings screen uses: the control at the far end of the row rather than in front of it.
     /// </summary>
-    /// <remarks>Composed by hand, not a property: the control is as wide as itself, so the row is a grid with it in the last column.</remarks>
+    /// <remarks>Not a property: the row is <c>UILayout.Ends</c>, the control at its far end as wide as itself.</remarks>
     private static ContainerComponent CreateRowEndGroup()
     {
         return DemoUI.CreateExample("At the far end of a row",
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(4)
-                    .AddChild(new ContainerComponent()
-                        .SetPadding(UIThickness.All(0, 6, 0, 6))
-                        .SetColumn(24, UIGridUnit.Auto())
-                        .AddChild(new TextComponent()
+                    .AddChild(UILayout.Ends(
+                        new TextComponent()
                             .SetIcon(DemoIcons.Bell)
                             .SetTitle("Deploy notifications")
                             .SetTitleType(UITextAppearance.Body)
                             .SetDescription("Mailed to the admins on call")
                             .SetDescriptionType(UITextAppearance.Caption)
-                            .SetDescriptionColor(UIThemeColor.Muted)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(1, 1, 23, 1)
-                        )
-                        .AddChild(new CheckboxComponent()
+                            .SetDescriptionColor(UIThemeColor.Muted),
+                        new CheckboxComponent()
                             .SetValue(true)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(24, 1, 1, 1)
                         )
-                    )
-                    .AddChild(new ContainerComponent()
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
-                        .SetColumn(24, UIGridUnit.Auto())
-                        .AddChild(new TextComponent()
+                    )
+                    .AddChild(UILayout.Ends(
+                        new TextComponent()
                             .SetIcon(DemoIcons.History)
                             .SetTitle("Keep snapshots")
                             .SetTitleType(UITextAppearance.Body)
                             .SetDescription("Thirty days, then they are dropped")
                             .SetDescriptionType(UITextAppearance.Caption)
-                            .SetDescriptionColor(UIThemeColor.Muted)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(1, 1, 23, 1)
-                        )
-                        .AddChild(new CheckboxComponent()
+                            .SetDescriptionColor(UIThemeColor.Muted),
+                        new CheckboxComponent()
                             .SetValue(false)
-                            .SetVerticalAlignment(UIAlignment.Center)
-                            .SetPlacement(24, 1, 1, 1)
                         )
+                        .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
                 ),
             note: "In front of the text the control is the row's subject; at the far end the text is, and the control only answers it."
@@ -142,7 +130,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
                     .SetHelp("Off, they are kept for thirty days and billed as storage.")
                     .SetValue(false)
                 ),
-            note: "The last one carries a help badge (`SetHelp`): a press on it shows its words and leaves the box as it was, since the badge is a stop of its own and not part of the label."
+            note: "The last one carries a help badge (`SetHelp`): a press on it shows its words and leaves the box as it was, since the badge is not part of the label. It is no stop of its own: its words describe the checkbox."
         );
     }
 

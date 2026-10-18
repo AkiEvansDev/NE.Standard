@@ -9,10 +9,7 @@
 // One fill, one edge, one radius, shared by surface, card and expander; the three variants restate it in order so the last one wins.
 :is(.ui-surface, .ui-card, .ui-expander) {
     --ui-surface-fill: var(--ui-surface-color, transparent);
-    border-style: solid;
-    .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
-    border-color: var(--ui-color-border);
-    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
+    .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-card); var(--ui-color-border));
     background-color: var(--ui-surface-fill);
     .ui-surface-image();
 }
@@ -58,11 +55,11 @@
     transition: @ui-root-transition, background-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease;
 }
 
-    // The ghost wash mixed into the fill, so a tinted surface reacts in its own colour; :hover holds on every ancestor, so not over a
+    // The theme's wash share mixed into the fill, so a tinted surface reacts in its own colour; :hover holds on every ancestor, so not over a
     // control of its own (surface-press-engine.ts marks the surface).
     @media @{ui-can-hover} {
         .ui-surface--clickable@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
-            background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-fill));
+            background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), var(--ui-surface-fill));
         }
     }
 
@@ -76,13 +73,13 @@
     // under a passing pointer; its press is any surface's.
     @media @{ui-can-hover} {
         .ui-surface--clickable.ui-surface--quiet-hover@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
-            background-color: color-mix(in srgb, var(--ui-color-on-surface) 5%, var(--ui-surface-fill));
+            background-color: color-mix(in srgb, var(--ui-color-on-surface) calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));
         }
     }
 
 // :active bubbles to every ancestor, so presses on an inner control are excluded to stop the card animating underneath it.
 .ui-surface--clickable@{ui-button-live}:active:not([data-ui-inner-pointer~="press"]) {
-    background-color: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-surface-fill));
+    background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-active-share), var(--ui-surface-fill));
 }
 
     .ui-surface--clickable.ui-surface--raised@{ui-button-live}:active:not([data-ui-inner-pointer~="press"]) {

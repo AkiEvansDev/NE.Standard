@@ -54,14 +54,6 @@ internal sealed partial class CollapsiblePanelController() : DemoStandardControl
     public partial PanelDetailsGroupContext DetailsGroup { get; set; } = new();
 
     [UICommand]
-    public void CyclePanelOption(string id)
-        => PanelGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
-
-    [UICommand]
     public void ToggleDetails()
     {
         DetailsGroup.Expanded = !DetailsGroup.Expanded;

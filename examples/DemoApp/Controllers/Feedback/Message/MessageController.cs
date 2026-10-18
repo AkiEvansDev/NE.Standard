@@ -79,10 +79,6 @@ internal sealed partial class MessageController : DemoStandardController
     public partial SyncGroupContext SyncGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleMessageOption(string id)
-        => MessageGroup.CycleOption(id);
-
-    [UICommand]
     public void Upgrade()
         => ActionGroup.LogEvent("upgrade asked for");
 

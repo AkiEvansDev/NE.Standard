@@ -6,7 +6,7 @@ using NE.Standard.UI.Web.Abstractions.Html;
 
 namespace NE.Standard.UI.Web.Html;
 
-internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
+internal sealed class HtmlElementBuilder : HtmlChildrenBuilder, IHtmlElementBuilder, IHtmlContent
 {
     private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -26,7 +26,6 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
     };
 
     private readonly List<KeyValuePair<string, string?>> _attributes = [];
-    private readonly List<IHtmlContent> _children = [];
 
     // Made on first use: most elements carry no inline style and many no class, and a page is tens of thousands of elements.
     private List<string>? _classes;
@@ -95,46 +94,6 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
         return this;
     }
 
-    public IHtmlBuilder Raw(string value)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        _children.Add(new RawHtmlContent(value));
-
-        return this;
-    }
-
-    public IHtmlBuilder Text(string value)
-    {
-        ArgumentNullException.ThrowIfNull(value);
-
-        _children.Add(new TextHtmlContent(value));
-
-        return this;
-    }
-
-    public IHtmlBuilder Element(string tag, Action<IHtmlElementBuilder> configure)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(tag);
-        ArgumentNullException.ThrowIfNull(configure);
-
-        HtmlElementBuilder element = new(tag);
-        configure(element);
-
-        _children.Add(element);
-
-        return this;
-    }
-
-    public IHtmlBuilder Content(IHtmlContent content)
-    {
-        ArgumentNullException.ThrowIfNull(content);
-
-        _children.Add(content);
-
-        return this;
-    }
-
     public void WriteTo(TextWriter writer)
     {
         ArgumentNullException.ThrowIfNull(writer);
@@ -162,8 +121,7 @@ internal sealed class HtmlElementBuilder : IHtmlElementBuilder, IHtmlContent
 
         writer.Write('>');
 
-        for (var i = 0; i < _children.Count; i++)
-            _children[i].WriteTo(writer);
+        WriteChildren(writer);
 
         writer.Write("</");
         writer.Write(Tag);

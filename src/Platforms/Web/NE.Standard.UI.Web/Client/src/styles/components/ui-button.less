@@ -15,11 +15,7 @@
     .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
-    // The border, too, through its chains (BorderThickness, BorderRadius): a flat width or corner would swallow the author's.
-    border-style: solid;
-    border-color: transparent;
-    .ui-responsive-property(border-width, --ui-border-thickness, 1px);
-    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-button));
+    .ui-authored-border(1px; var(--ui-radius-button); transparent);
     background-color: var(--ui-surface-color, transparent);
     // The blur's layer on `::before`: `::after` is the loading veil (core/runtime.less).
     .ui-surface-image(before);
@@ -52,14 +48,18 @@
     .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-5);
 }
 
-    // Matches only a label still at the default Body role; an author who sets an explicit TitleType is left alone.
-    .ui-button--small .ui-button__content.ui-text-type--body {
+    // Matches only a label still at the default Body role; an author who sets an explicit TitleType is left alone. The button's own
+    // label alone, on the root or in a split button's main part: a descendant rule reached the entries of a split button's list,
+    // menu items of their own size.
+    .ui-button--small > .ui-button__content.ui-text-type--body,
+    .ui-button--small > .ui-split-button__main > .ui-button__content.ui-text-type--body {
         font-size: var(--ui-text-caption-font-size);
         line-height: var(--ui-text-caption-line-height);
         font-weight: var(--ui-text-caption-font-weight);
     }
 
-    .ui-button--large .ui-button__content.ui-text-type--body {
+    .ui-button--large > .ui-button__content.ui-text-type--body,
+    .ui-button--large > .ui-split-button__main > .ui-button__content.ui-text-type--body {
         font-size: var(--ui-text-subtitle-font-size);
         line-height: var(--ui-text-subtitle-line-height);
         font-weight: var(--ui-text-subtitle-font-weight);
@@ -77,15 +77,18 @@
 
         // A step of the icon scale by the button's size, where 1.25em of the label's type stood on half pixels (15, 17.5, 22.5);
         // :where() keeps an authored IconSize winning.
-        :where(.ui-button[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
+        :where(.ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon,
+        .ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main > .ui-button__content > .ui-text__icon) {
             font-size: @ui-glyph-md-lg;
         }
 
-        :where(.ui-button--small[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
+        :where(.ui-button--small[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon,
+        .ui-button--small[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main > .ui-button__content > .ui-text__icon) {
             font-size: @ui-glyph-md;
         }
 
-        :where(.ui-button--large[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon) {
+        :where(.ui-button--large[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon,
+        .ui-button--large[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main > .ui-button__content > .ui-text__icon) {
             font-size: @ui-glyph-xl;
         }
 
@@ -188,7 +191,7 @@
 
 // The variants with no ground of their own write in the ink of the one they stand on: the page's, or a filled ground's on-colour.
 .ui-button--outline {
-    border-color: color-mix(in srgb, currentColor 34%, transparent);
+    border-color: @ui-outline-edge;
     background-color: var(--ui-surface-color, transparent);
     color: @ui-text-ink;
 }
@@ -208,9 +211,9 @@
     border-color: transparent;
     background-color: var(--ui-surface-color, transparent);
     color: @ui-link-ink;
-    // Its own hue, not the neutral wash: a link is a word in the brand colour, and a neutral film reads as a ghost.
-    --ui-wash-hover: color-mix(in srgb, @ui-link-ink 10%, transparent);
-    --ui-wash-active: color-mix(in srgb, @ui-link-ink 18%, transparent);
+    // Its own hue at the theme's wash shares, not the neutral wash: a link is a word in the brand colour, and a neutral film reads as a ghost.
+    --ui-wash-hover: color-mix(in srgb, @ui-link-ink var(--ui-wash-hover-share), transparent);
+    --ui-wash-active: color-mix(in srgb, @ui-link-ink var(--ui-wash-active-share), transparent);
 }
 
     // On a filled ground its word is the ground's ink, as the text around it, so the underline says it is a link; none on the page,
@@ -243,16 +246,15 @@
     .ui-reveal-hover(@transition: false);
 }
 
-    // 48%, not near-solid: only firms up the hairline edge, since the wash above already says "pointed at".
     @media @{ui-can-hover} {
         .ui-button--outline@{ui-button-live}:hover {
-            border-color: color-mix(in srgb, currentColor 48%, transparent);
+            border-color: @ui-outline-edge-hover;
         }
     }
 
-    // currentColor, not the shared wash, so a recoloured outline button presses in its own hue, at the active 16% so it beats hover.
+    // currentColor, not the shared wash, so a recoloured outline button presses in its own hue, at the active share so it beats hover.
     .ui-button--outline@{ui-button-live}:active {
-        background-color: color-mix(in srgb, currentColor 16%, transparent);
+        background-color: color-mix(in srgb, currentColor var(--ui-wash-active-share), transparent);
     }
 
 .ui-button--ghost@{ui-button-live},
@@ -260,16 +262,16 @@
     .ui-reveal-hover(@transition: false);
 }
 
-// A surface button owns an opaque ground, so the wash is mixed into it rather than laid translucent over the page.
+// A surface button owns an opaque ground, so the wash's share is mixed into it rather than laid translucent over the page.
 .ui-button--surface@{ui-button-live} {
     @media @{ui-can-hover} {
         &:hover {
-            background-color: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-surface-color, var(--ui-surface-raised)));
+            background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), var(--ui-surface-color, var(--ui-surface-raised)));
         }
     }
 
     &:active {
-        background-color: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-surface-color, var(--ui-surface-raised)));
+        background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-active-share), var(--ui-surface-color, var(--ui-surface-raised)));
     }
 }
 

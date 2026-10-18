@@ -15,6 +15,7 @@ import { isOwnControlOf, ownControlOf, ownPressControlsOf, soleControlOf } from 
 import { bringBackToTabOrder, takeOutOfTabOrder } from "./tab-out.ts";
 import { FocusableSelector, firstFocusable, focusAsLastInput, isPointerLast, markPointerFocus } from "./popup-focus.ts";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
 import type { RowAxis } from "./row-cursor.ts";
 import {
     cellAcrossLines, cellAlongRow, cellOf, claimCellKey, columnCellOf, cursorCellOf, cursorColumnOf, dispatchRowEvent, enterRowCursor, focusedRow, hostKeyTarget, isRowKey,
@@ -301,7 +302,7 @@ export class ItemsSelectionEngine {
         }
 
         // Up past the first row, or in a table with no row to stand on, goes to its header, as the grid pattern's Up from a top cell does.
-        if (domEvent.key === "ArrowUp" && !domEvent.shiftKey && !domEvent.ctrlKey && !domEvent.metaKey && root.matches(TableRootSelector) && enterHeader(root, cursorColumnOf(root))) {
+        if (domEvent.key === "ArrowUp" && isPlainKey(domEvent, { alt: true }) && root.matches(TableRootSelector) && enterHeader(root, cursorColumnOf(root))) {
             domEvent.preventDefault();
             return;
         }
@@ -346,7 +347,7 @@ export class ItemsSelectionEngine {
             return false;
 
         const cell = cursorCellOf(row);
-        const plain = !domEvent.ctrlKey && !domEvent.metaKey && !domEvent.shiftKey;
+        const plain = isPlainKey(domEvent, { alt: true });
 
         switch (domEvent.key) {
             case "ArrowLeft":
@@ -598,7 +599,7 @@ function isCellKey(domEvent: KeyboardEvent): boolean {
 function actOnCell(cell: HTMLElement, domEvent: KeyboardEvent): boolean {
     const key = domEvent.key;
     const typed = typeAheadCharacter(domEvent) !== null;
-    const plain = !domEvent.ctrlKey && !domEvent.metaKey && !domEvent.altKey;
+    const plain = isPlainKey(domEvent, { shift: true });
 
     if (!typed && (!plain || (key !== "Enter" && key !== "F2" && key !== " ")))
         return false;

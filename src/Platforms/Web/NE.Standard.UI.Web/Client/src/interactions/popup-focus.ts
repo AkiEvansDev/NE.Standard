@@ -1,6 +1,7 @@
 // Focus into a popup and back out, and the one rule over every focus while the pointer was last: it is marked `data-ui-pointer-focus`,
 // so no keyboard mark is drawn for it — but on an editable text entry, whose edge says where typing goes, as `:focus-visible` does.
-// A key other than a modifier held alone, or the element losing the focus (but a list's current entry), takes the mark off. The
+// A key other than a modifier held alone or one working in the text entry the pointer put the caret in, or the element losing the
+// focus (but a list's current entry), takes the mark off. The
 // focused element's ancestors up to its component root say whose the focus is (`data-ui-focus-within`), which a field's edge and a
 // list's quiet read in place of a `:has()`: that made Chrome re-check the page on every focus.
 
@@ -28,6 +29,9 @@ export const FocusableSelector = [
 const ModifierKeys = new Set([
     "Shift", "Control", "Alt", "AltGraph", "Meta", "OS", "Hyper", "Super", "Fn", "FnLock", "Symbol", "SymbolLock", "CapsLock", "NumLock", "ScrollLock"
 ]);
+
+// What walks a combobox's list from its field rather than its caret.
+const ListWalkKeys = new Set(["ArrowDown", "ArrowUp", "PageDown", "PageUp"]);
 
 // Whether the reader's last input was a press of the pointer rather than a key, whether that press was a finger's, and what held the
 // focus as that press began.
@@ -75,9 +79,12 @@ export function notePress(target: EventTarget | null, pointerType = ""): void {
     markFocusWithin(active);
 }
 
-/** A key makes the keyboard the last input and takes every mark off; a modifier held alone changes nothing. */
+/**
+ * A key makes the keyboard the last input and takes every mark off; a modifier held alone changes nothing, and neither does a key that
+ * works in the text entry the pointer put the caret in.
+ */
 export function noteKey(domEvent: Event): void {
-    if (domEvent instanceof KeyboardEvent && ModifierKeys.has(domEvent.key))
+    if (domEvent instanceof KeyboardEvent && (ModifierKeys.has(domEvent.key) || (pointerLast && isEntryKey(domEvent))))
         return;
 
     pointerLast = false;
@@ -86,6 +93,19 @@ export function noteKey(domEvent: Event): void {
         markPointerFocus(element, false);
 
     markFocusWithin(document.activeElement);
+}
+
+/**
+ * Typing, the caret's keys, and an Enter or an Escape letting go of the entry: where the focus goes from there (a key-value row's Edit,
+ * a dialog's opener) is still the pointer's, so it wears no keyboard frame. Tab, a chord, and the arrows walking a combobox's list, whose
+ * current option the keyboard's frame lights, are the keyboard's. Rejected: every key the keyboard's — Enter in a field the pointer
+ * opened framed the Edit it gave the focus back to.
+ */
+function isEntryKey(domEvent: KeyboardEvent): boolean {
+    if (!isEditableEntry(domEvent.target) || domEvent.key === "Tab" || domEvent.altKey || domEvent.ctrlKey || domEvent.metaKey)
+        return false;
+
+    return !(ListWalkKeys.has(domEvent.key) && domEvent.target instanceof Element && domEvent.target.getAttribute("role") === "combobox");
 }
 
 /**

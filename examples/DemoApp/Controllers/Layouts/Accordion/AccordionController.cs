@@ -61,14 +61,6 @@ internal sealed partial class AccordionController() : DemoStandardController
     [RecursiveMember]
     public partial ReleaseStepsGroupContext StepsGroup { get; set; } = new();
 
-    [UICommand]
-    public void CycleAccordionOption(string id)
-        => AccordionGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
-
     /// <summary>Closes the step it is pressed in as well: the accordion would, but the controller's state must not wait on the page to say so.</summary>
     [UICommand]
     public void OpenRegions()

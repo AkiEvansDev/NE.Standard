@@ -320,10 +320,6 @@ internal sealed partial class MenuController() : DemoStandardController
     [RecursiveMember]
     public partial FiltersGroupContext FiltersGroup { get; set; } = new();
 
-    [UICommand]
-    public void CycleMenuGroupOption(string id)
-        => MenuGroup.CycleOption(id);
-
     /// <summary>
     /// One command for the whole menu, told which entry by its key.
     /// </summary>

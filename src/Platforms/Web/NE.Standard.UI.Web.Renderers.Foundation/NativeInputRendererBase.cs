@@ -25,6 +25,8 @@ public static class NativeInputRendererBase
     // One per attribute a form's id is written under, its writers built once: a form id is rendered on every field of the page.
     private static readonly ConcurrentDictionary<string, FormIdMark> FormIdMarks = new(StringComparer.Ordinal);
     private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder")];
+    private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
+    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)];
     private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyAriaOperations = [WebDomOperation.ToggleAttribute("aria-readonly", condition: WebValueCondition.IsTrue, value: "true"), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyMarkOperations = [ReadOnlyMarkOperation];
@@ -172,6 +174,35 @@ public static class NativeInputRendererBase
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute("placeholder", value);
         }, PlaceholderOperations);
+    }
+
+    /// <summary>A text field's longest value (<see cref="ITextLengthComponent"/>) as its native <c>maxlength</c>.</summary>
+    public static void RenderMaxLength(WebRenderContext context, IHtmlElementBuilder input)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(input);
+
+        _ = WebComponentRendererBase.RenderProperty<int?>(context, input, ITextLengthComponent.MaxLengthProperty, static (target, value) =>
+        {
+            if (value is int maxLength)
+                _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
+        }, MaxLengthOperations);
+    }
+
+    /// <summary>
+    /// A field's commit delay (<see cref="IDebounceInputComponent"/>), read by <c>DebouncedCommitEngine</c> on every keystroke, so a
+    /// bound value is in force at once; a negative one is written as none, by the first paint and a patch alike.
+    /// </summary>
+    public static void RenderDebounce(WebRenderContext context, IHtmlElementBuilder input, UIProperty debounceProperty)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(input);
+
+        _ = WebComponentRendererBase.RenderProperty<int?>(context, input, debounceProperty, static (target, value) =>
+        {
+            if (value is int milliseconds and >= 0)
+                _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
+        }, DebounceOperations);
     }
 
     /// <summary><c>IsReadOnly</c> as the root's mark and a native text field's own <c>readonly</c>.</summary>

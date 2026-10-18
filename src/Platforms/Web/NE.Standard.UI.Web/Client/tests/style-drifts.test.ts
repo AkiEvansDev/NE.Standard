@@ -60,7 +60,7 @@ test("the pager's current page takes no hover of its own: the ghost's wash answe
 
 test("a file and a picture dragged over a field wear every drop target's edge: two pixels, dashed, in the ink", () => {
     for (const part of ["[data-ui-file-dragging] > .ui-file-input__row", "[data-ui-image-dragging]"]) {
-        assert.match(bodiesOf(part), /outline: 2px dashed var\(--ui-color-primary-ink\);/, part);
+        assert.match(bodiesOf(part), /outline: 2px dashed var\(--ui-mark-selected\);/, part);
         assert.match(bodiesOf(part.replace("]", "=\"refused\"]")), /outline: 2px dashed var\(--ui-color-danger-ink\);/, part);
     }
 });
@@ -83,7 +83,7 @@ test("a menu split button answers the pointer on its root, as a button does: no 
 });
 
 test("the keyboard's frame on a table's header stop, a colour slider's and the crop zoom's handle, a colour chip and the swatch", () => {
-    const frame = /outline: 2px solid var\(--ui-color-primary-ink\);/;
+    const frame = /outline: 2px solid var\(--ui-mark-keyboard\);/;
 
     for (const part of [".ui-table__header-cell:focus-visible", ".ui-color-input__slider-input:focus-visible", ".ui-image-crop__zoom:focus-visible", ".ui-color-input__chip:focus-visible", ".ui-color-input__swatch--button:focus-visible"])
         assert.match(bodiesOf(part), frame, part);
@@ -91,7 +91,7 @@ test("the keyboard's frame on a table's header stop, a colour slider's and the c
 
 test("a colour picker's hex and channel fields answer the pointer and the focus with a field's edges", () => {
     assert.ok(rules.some(rule => rule.selector.startsWith(".ui-color-input__field-input") && rule.selector.endsWith(":hover") && rule.body.includes("border-color: var(--ui-field-hover);")));
-    assert.ok(rules.some(rule => rule.selector.startsWith(".ui-color-input__field-input") && rule.selector.includes(":focus-within") && rule.body.includes("border-color: var(--ui-color-primary);")));
+    assert.ok(rules.some(rule => rule.selector.startsWith(".ui-color-input__field-input") && rule.selector.includes(":focus-within") && rule.body.includes("border-color: var(--ui-mark-field);")));
 });
 
 test("a key-value list's row hover is its own rows', live ones only, as an items view's", () => {

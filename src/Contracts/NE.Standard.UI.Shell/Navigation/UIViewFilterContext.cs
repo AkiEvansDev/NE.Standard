@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Shell.Filters;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
@@ -9,7 +10,7 @@ namespace NE.Standard.UI.Shell.Navigation;
 /// <summary>
 /// What a view filter is given about the request it is intercepting.
 /// </summary>
-public sealed class UIViewFilterContext
+public sealed class UIViewFilterContext : IUIFilterContext
 {
     /// <summary>
     /// Creates a filter context for one view resolution attempt.

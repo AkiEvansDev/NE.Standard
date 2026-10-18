@@ -9,6 +9,15 @@
     display: flex;
 }
 
+// A row's line is its commands' height whatever the bar's own: on one flex line the "…" stretched to the bar, a square as tall as a
+// bar its parent stretched, and the room it reserved sent commands into the list that fitted. A vertical bar keeps its flex column,
+// its commands at its top.
+.ui-command-bar:not(.ui-orientation--vertical) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: center;
+}
+
 // Wrapped lines stand together in the middle, as one line does: left `normal`, a bar taller than its lines spread them over its height.
 .ui-command-bar__host {
     display: flex;

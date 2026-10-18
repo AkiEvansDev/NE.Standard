@@ -17,7 +17,6 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-command-bar__item";
 
-    private static readonly WebDomOperation[] OrientationOperations = [WebDomOperation.Class(converter: WebDomConverters.OrientationClass)];
     private static readonly WebDomOperation[] GroupSeparatorOperations = [WebDomOperation.Class(converter: WebDomConverters.GroupSeparatorClass)];
 
     public override string ComponentTypeKey => CommandBarComponent.ComponentTypeKey;
@@ -29,11 +28,7 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIOrientation?>(context, root, IOrientationComponent.OrientationProperty, static (target, value) =>
-        {
-            if (value is UIOrientation orientation)
-                _ = target.Class(WebClassNames.Orientation(orientation));
-        }, OrientationOperations);
+        OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
 
         RenderFlagClass(context, root, CommandBarComponent.WrapProperty, "ui-command-bar--wrap");
 

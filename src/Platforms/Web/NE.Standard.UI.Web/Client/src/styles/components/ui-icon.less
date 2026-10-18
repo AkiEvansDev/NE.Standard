@@ -3,10 +3,7 @@
 @import "../mixins/stand-in.less";
 
 .ui-icon {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
+    .ui-glyph-host();
     width: 1em;
     height: 1em;
     font-style: normal;
@@ -84,7 +81,7 @@
     box-sizing: content-box;
     .ui-responsive-property(padding, --ui-padding, 0.5em);
     border-radius: 50%;
-    background-color: color-mix(in srgb, currentColor 16%, transparent);
+    background-color: color-mix(in srgb, currentColor @ui-own-tint-share, transparent);
 }
 
 // A round picture icon with no picture (icon-stand-in.ts): the neutral circle where the picture would stand, its fallback glyph laid

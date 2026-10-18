@@ -133,10 +133,6 @@ internal sealed partial class FileTileController() : DemoStandardController
     public partial FileTileUploadGroupContext UploadGroup { get; set; } = new();
 
     [UICommand]
-    public void CycleFileOption(string id)
-        => FileGroup.CycleOption(id);
-
-    [UICommand]
     public void OpenAttachment(string name)
         => AttachmentsGroup.LogEvent($"opening {name}");
 

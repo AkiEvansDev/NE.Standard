@@ -30,15 +30,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TextAreaComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindValue($"{ValueGroup}.{nameof(TextValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(TextValueGroupContext.IsReadOnly)}")
             .BindSize($"{ValueGroup}.{nameof(TextValueGroupContext.Size)}")
@@ -49,39 +41,20 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             .BindRows($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.Rows)}")
             .BindMaxRows($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.MaxRows)}")
             .BindResize($"{FieldGroup}.{nameof(TextAreaFieldGroupContext.Resize)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindTextContent(ContentGroup)
+            .BindBadge(BadgeGroup)
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ValueGroup, "Value", nameof(TextAreaController.CycleValueOption)),
-            DemoUI.CreateOptionSection(FieldGroup, "Field", nameof(TextAreaController.CycleFieldOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(TextAreaController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(TextAreaController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(TextAreaController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // Every group across the page: the two places side by side, then the growing box, then the three heights in thirds, then the thread
@@ -259,7 +232,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
                 .SetMaxWidth(UILayoutLength.Absolute(560))
                 .SetHorizontalAlignment(UIAlignment.Start),
             columns: 24,
-            note: "`AddLeadingAction(emoji, inField: true)`, `AddTrailingAction(send, inField: true)` and `SetActionsBelow(UIResponsiveTier.Md)`: below the medium width the text takes the row between the emoji and Send, and the other buttons stand in a row under it, the leading ones at its start and the trailing ones at its end, each end under the field's own button. The same buttons move, so a flyout among them keeps its one panel."
+            note: "`AddLeadingAction(emoji, inField: true)`, `AddTrailingAction(send, inField: true)` and `SetActionsBelow(UIResponsiveTier.Md)`: below the medium width the text takes the row between the emoji and Send, and the other buttons stand in a row under it, the leading ones at its start and the trailing ones at its end, each end under the field's own button; `belowAt: UIAlignment.End` stands a leading one at the end there, as the chat screen's quick replies. The same buttons move, so a flyout among them keeps its one panel."
         );
     }
 }

@@ -49,16 +49,7 @@ public static class ItemClickComponentExtensions
     /// </summary>
     public static T OnItemClickLiteral<T>(this T component, string command, params KeyValuePair<string, object?>[] arguments)
         where T : IItemClickComponent
-    {
-        ArgumentNullException.ThrowIfNull(arguments);
-
-        KeyValuePair<string, UIActionArgument>[] mapped = new KeyValuePair<string, UIActionArgument>[arguments.Length];
-
-        for (var i = 0; i < arguments.Length; i++)
-            mapped[i] = new(arguments[i].Key, UIActionArgument.Literal(arguments[i].Value));
-
-        return component.OnItemClick(command, mapped);
-    }
+        => component.OnItemClick(command, UIActionArgument.Literals(arguments));
 
     /// <summary>
     /// Registers a click command that passes the clicked item as an argument.

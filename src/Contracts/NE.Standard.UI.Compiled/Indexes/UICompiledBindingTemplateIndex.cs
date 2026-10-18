@@ -17,7 +17,6 @@ public sealed class UICompiledBindingTemplateIndex
 
     private readonly FrozenDictionary<UIBindingTemplateId, CompiledUIBindingTemplate> _templatesById;
     private readonly FrozenDictionary<TemplateKey, CompiledUIBindingTemplate> _templatesByKey;
-    private readonly FrozenDictionary<UIBindingTemplateId, RecursivePathTemplate> _recursiveTemplatesById;
     private readonly CompiledUIBindingTemplate[] _all;
 
     /// <summary>
@@ -31,7 +30,6 @@ public sealed class UICompiledBindingTemplateIndex
 
         Dictionary<UIBindingTemplateId, CompiledUIBindingTemplate> byId = new(templates.Length);
         Dictionary<TemplateKey, CompiledUIBindingTemplate> byKey = [];
-        Dictionary<UIBindingTemplateId, RecursivePathTemplate> recursiveById = new(templates.Length);
 
         for (var i = 0; i < templates.Length; i++)
         {
@@ -45,7 +43,7 @@ public sealed class UICompiledBindingTemplateIndex
 
             ArgumentNullException.ThrowIfNull(template.Template);
 
-            RecursivePathTemplate recursiveTemplate = RecursivePathTemplate.Parse(template.Template);
+            RecursivePathTemplate recursiveTemplate = template.Parsed;
 
             if (recursiveTemplate.ParameterCount != template.ParameterCount)
                 throw new InvalidOperationException($"Binding template '{template.Id}' declares {template.ParameterCount} parameters, but parsed template has {recursiveTemplate.ParameterCount} parameters.");
@@ -57,13 +55,10 @@ public sealed class UICompiledBindingTemplateIndex
 
             if (!byKey.TryAdd(key, template))
                 throw new InvalidOperationException($"Binding template '{template.Template}' for source '{template.SourceId}' is already registered.");
-
-            recursiveById.Add(template.Id, recursiveTemplate);
         }
 
         _templatesById = byId.ToFrozenDictionary();
         _templatesByKey = byKey.ToFrozenDictionary();
-        _recursiveTemplatesById = recursiveById.ToFrozenDictionary();
     }
 
     /// <summary>
@@ -144,8 +139,8 @@ public sealed class UICompiledBindingTemplateIndex
 
         ArgumentNullException.ThrowIfNull(parameters);
 
-        return !_recursiveTemplatesById.TryGetValue(templateId, out RecursivePathTemplate? template)
+        return !_templatesById.TryGetValue(templateId, out CompiledUIBindingTemplate? template)
             ? throw new InvalidOperationException($"Binding template '{templateId}' was not found.")
-            : template.Materialize(parameters);
+            : template.Parsed.Materialize(parameters);
     }
 }

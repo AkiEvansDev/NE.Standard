@@ -88,6 +88,38 @@
 // can be slid along it (a 14 % step of the text read 1.4:1).
 @ui-range-track: ~"var(--ui-color-mark)";
 
+// One share per meaning (DECISIONS): a look two places draw for the same reason reads one variable, so the two never drift apart.
+
+// What a progress runs along — a progress bar's and ring's track, a chart's share bar's rest and its gauge's ring, a node's run line:
+// the ink's share as the empty track. A number, so a ring faded as one group takes it as its opacity. A range's track is the mark.
+@ui-track-share: 0.18;
+@ui-track-ink: color-mix(in srgb, currentColor percentage(@ui-track-share), transparent);
+
+// A scrollbar's thumb and its arrows, and a dragged bar's thick line: one ink at rest, a firmer one under the pointer or held.
+@ui-scroll-ink: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+@ui-scroll-ink-hover: color-mix(in srgb, var(--ui-color-on-surface) 48%, transparent);
+
+// An outline button's edge, in its own ink. 48% under the pointer, not near-solid: it only firms up the hairline, since the wash
+// already says "pointed at".
+@ui-outline-edge: color-mix(in srgb, currentColor 34%, transparent);
+@ui-outline-edge-hover: color-mix(in srgb, currentColor 48%, transparent);
+
+// A colour's own tint under its words or its glyph: a tinted badge's ground, an icon's Circle disc, a multi-select's chip. The theme
+// bounds a raw colour's words against this share (`WebThemeCssBuilder.BadgeTintShare`, held equal by ThemeShareSyncTests).
+@ui-own-tint-share: 16%;
+// The neutral tint of the words around, with no colour named: a Surface badge tinted, a round picture's stand-in circle.
+@ui-neutral-tint: color-mix(in srgb, currentColor 10%, transparent);
+
+// A small mark that offers a press and firms up under the pointer: a grid's idle sort mark, a node's pin.
+@ui-offer-opacity: 0.35;
+@ui-offer-opacity-hover: 0.7;
+
+// The ring, in a thing's own colour, round one the pointer holds or could land on: a slider's handle, a pin a pulled link can take.
+@ui-halo-share: 22%;
+
+// The dark plate light marks stand on over a picture of any colours: a replaceable picture's glass, the lightbox's controls.
+@ui-picture-plate: color-mix(in srgb, black 50%, transparent);
+
 // How close to the viewport's edge a popup may sit; must match anchored-popup.ts's own margin.
 @ui-popup-viewport-margin: 4px;
 
@@ -109,8 +141,14 @@
 // share, lifts the ink only where a base is set — unset or reset, the veil is transparent and the page's muted is what it was.
 @ui-text-muted-share: 0.75;
 @ui-text-muted-filled-share: 0.87;
+// An aside's share of its ink, under the 4.5:1 floor on purpose: a muted separator's label at 55% of the muted ink, a text's fold at
+// 55% of its words — at the muted ink itself they read as loud as the words around them (DECISIONS).
+@ui-text-faint-share: 0.55;
 @ui-faint-lift: color-mix(in srgb, var(--ui-faint-base, transparent) percentage(((@ui-text-muted-filled-share - @ui-text-muted-share) / (1 - @ui-text-muted-share))), transparent);
 @ui-text-muted: color-mix(in srgb, @ui-text-ink percentage(@ui-text-muted-share), @ui-faint-lift);
+
+// A faint ground of the ink a part stands on, so it reads on any ground: a file tile's, Markdown's code.
+@ui-ink-ground: color-mix(in srgb, @ui-text-ink 7%, transparent);
 
 // The ground a part stands on, for a part cut out of it (a chart's hollow marker, the edge between two sectors). `--ui-ground` is
 // written where `--ui-faint-base` is: a Background's colour inline, a filled button's or badge's fill, and the own colour of a
@@ -137,7 +175,9 @@
 
 // Selected text (reset.less, a package's editor drawing selections of its own): translucent, so the covered text keeps its colour.
 // The brand's ink, not its fill: on a dark page the fill is as dark as the page, and a third of it was all but unseen.
-@ui-text-selection: color-mix(in srgb, var(--ui-color-primary-ink) 48%, transparent);
+// A selection drawn in a ground's own colour (a graph node's rename field) takes the same share.
+@ui-text-selection-share: 48%;
+@ui-text-selection: color-mix(in srgb, var(--ui-color-primary-ink) @ui-text-selection-share, transparent);
 
 // A quote's stroke, one width wherever one is drawn: a paragraph's quote line, a Markdown blockquote, the Extensions quote (its
 // `UIText.Quote` writes the same 3 px as a border, held equal by QuoteStrokeSyncTests). A quotation inside text is drawn in one

@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Items;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Indexes;
@@ -60,7 +61,7 @@ internal static class UIItemProjectionBuilder
         foreach (CompiledUIBinding binding in bindings.All)
         {
             if (binding.Kind == CompiledUIBindingKind.ComponentProperty && binding.Parameters.Length > 0)
-                AddBindingRead(graph, hostsByRoot, reads, binding, templates.GetRequired(binding.TemplateId).Template);
+                AddBindingRead(graph, hostsByRoot, reads, binding, templates.GetRequired(binding.TemplateId).Parsed);
         }
 
         Dictionary<UIComponentId, UIItemProjection> projections = new(reads.Count);
@@ -170,7 +171,7 @@ internal static class UIItemProjectionBuilder
     /// The path a binding reads off an item, as the page walks it: what follows the last row key it names, off the item of the row
     /// that key is; a binding naming no row key reads its whole path off the innermost row around it.
     /// </summary>
-    private static void AddBindingRead(UIComponentGraph graph, Dictionary<UIComponentId, UIComponentId> hostsByRoot, Dictionary<UIComponentId, Reads> reads, CompiledUIBinding binding, string template)
+    private static void AddBindingRead(UIComponentGraph graph, Dictionary<UIComponentId, UIComponentId> hostsByRoot, Dictionary<UIComponentId, Reads> reads, CompiledUIBinding binding, RecursivePathTemplate template)
     {
         // A scope parameter has no `[]` in the template: the page drops it before matching them.
         var slots = 0;
@@ -205,32 +206,20 @@ internal static class UIItemProjectionBuilder
             return;
         }
 
-        var start = lastDynamic < 0 ? 0 : IndexAfterSlot(template, lastDynamic);
+        ReadOnlySpan<RecursivePathTemplatePart> parts = template.Parts;
         List<string> path = [];
         var whole = false;
-        var i = start;
 
-        while (i < template.Length)
+        for (var i = lastDynamic < 0 ? 0 : IndexAfterSlot(parts, lastDynamic); i < parts.Length; i++)
         {
-            if (template[i] == '.')
-            {
-                i++;
-                continue;
-            }
-
             // A fixed key walks into a list the page reads as it stands: the list is kept whole.
-            if (template[i] == '[')
+            if (parts[i].IsParameter)
             {
                 whole = true;
                 break;
             }
 
-            var segmentStart = i;
-
-            while (i < template.Length && template[i] != '.' && template[i] != '[')
-                i++;
-
-            path.Add(template[segmentStart..i]);
+            path.Add(parts[i].Segment.Property);
         }
 
         // A binding of the row's item itself reads all of it.
@@ -243,18 +232,16 @@ internal static class UIItemProjectionBuilder
         hostReads.Root.Add([.. path], whole ? Fallback.Raw : Fallback.Of(binding.TargetFallbackValue));
     }
 
-    /// <summary>The index just past the <paramref name="slot"/>-th <c>[]</c> of a template.</summary>
-    private static int IndexAfterSlot(string template, int slot)
+    /// <summary>The index of the part just past the <paramref name="slot"/>-th <c>[]</c> of a template.</summary>
+    private static int IndexAfterSlot(ReadOnlySpan<RecursivePathTemplatePart> parts, int slot)
     {
-        var seen = -1;
-
-        for (var i = 0; i + 1 < template.Length; i++)
+        for (var i = 0; i < parts.Length; i++)
         {
-            if (template[i] == '[' && template[i + 1] == ']' && ++seen == slot)
-                return i + 2;
+            if (parts[i].ParameterIndex == slot)
+                return i + 1;
         }
 
-        return template.Length;
+        return parts.Length;
     }
 
     /// <summary>The host whose row template the component sits in, nearest first; null outside every row.</summary>

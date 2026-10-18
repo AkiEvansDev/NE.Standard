@@ -183,4 +183,11 @@ public static class WebNumberFormat
 
         return true;
     }
+
+    /// <summary>
+    /// A decimal at the least scale that holds it (<c>1.500</c> as <c>1.5</c>), its digits otherwise kept: the wire writes a JSON number,
+    /// which the page reads and writes without the zeros a decimal's scale carries.
+    /// </summary>
+    public static decimal WithoutTrailingZeros(decimal value)
+        => value / 1.0000000000000000000000000000m;
 }

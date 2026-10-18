@@ -22,8 +22,6 @@ public static class WebWords
     /// <summary>The mark's name for the element's own text, which only an element holding nothing but the word may take.</summary>
     public const string TextTarget = "#text";
 
-    private static readonly JsonSerializerOptions JsonOptions = WebWireJson.CreateOptions();
-
     // Every word written on one element so far, so a second word on it joins the mark rather than replacing it.
     private static readonly ConditionalWeakTable<IHtmlElementBuilder, Dictionary<string, object>> Marks = [];
 
@@ -103,6 +101,6 @@ public static class WebWords
 
         marks[attribute ?? TextTarget] = mark;
 
-        _ = element.Attribute(WebAttributes.Words, JsonSerializer.Serialize(marks, JsonOptions));
+        _ = element.Attribute(WebAttributes.Words, JsonSerializer.Serialize(marks, WebWireJson.Options));
     }
 }

@@ -177,9 +177,8 @@ internal abstract partial class UIRuntimeBase
             return;
 
         CompiledUIBindingTemplate template = View.Templates.GetRequired(binding.TemplateId);
-        List<TemplateElement> elements = ParseTemplateElements(template.Template, binding.Parameters);
 
-        foreach ((RecursivePath path, var dynamicParameters) in EnumerateMaterializedCollectionPaths(elements))
+        foreach ((RecursivePath path, var dynamicParameters) in EnumerateMaterializedCollectionPaths(template.Parsed, binding.Parameters))
         {
             UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
 
@@ -238,24 +237,30 @@ internal abstract partial class UIRuntimeBase
     /// <summary>
     /// Enumerates every (path, dynamicParameters) instance a collection template resolves to, recursing at each Dynamic parameter segment.
     /// </summary>
-    private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(IReadOnlyList<TemplateElement> elements)
-        => EnumerateMaterializedCollectionPaths(elements, 0, RecursivePath.Empty, []);
-
-    private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(IReadOnlyList<TemplateElement> elements, int elementIndex, RecursivePath currentPath, object?[] dynamicParameters)
+    private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(RecursivePathTemplate template, CompiledUIBindingParameter[] parameters)
     {
-        for (; elementIndex < elements.Count; elementIndex++)
-        {
-            TemplateElement element = elements[elementIndex];
+        EnsureParametersMatch(template, parameters);
 
-            if (element.Kind == TemplateElementKind.Property)
+        return EnumerateMaterializedCollectionPaths(template, parameters, 0, RecursivePath.Empty, []);
+    }
+
+    private IEnumerable<(RecursivePath Path, object?[] DynamicParameters)> EnumerateMaterializedCollectionPaths(RecursivePathTemplate template, CompiledUIBindingParameter[] parameters, int partIndex, RecursivePath currentPath, object?[] dynamicParameters)
+    {
+        for (; partIndex < template.Parts.Length; partIndex++)
+        {
+            RecursivePathTemplatePart part = template.Parts[partIndex];
+
+            if (!part.IsParameter)
             {
-                currentPath = currentPath.AppendProperty(element.PropertyName!);
+                currentPath = currentPath.Append(part.Segment);
                 continue;
             }
 
-            if (element.Kind == TemplateElementKind.Fixed)
+            CompiledUIBindingParameter parameter = parameters[part.ParameterIndex];
+
+            if (parameter.Kind != CompiledUIBindingParameterKind.Dynamic)
             {
-                currentPath = currentPath.Append(element.FixedSegment);
+                currentPath = currentPath.Append(PathSegment.ForParameter(parameter.Value));
                 continue;
             }
 
@@ -266,11 +271,11 @@ internal abstract partial class UIRuntimeBase
 
             foreach (var item in enumerable)
             {
-                var parameter = TryGetItemKey(item) ?? throw MissingItemKeyException();
+                var key = TryGetItemKey(item) ?? throw MissingItemKeyException();
                 RecursivePath itemPath = currentPath.AppendIndex(index);
-                var nextDynamicParameters = AppendDynamicParameter(dynamicParameters, parameter);
+                var nextDynamicParameters = AppendDynamicParameter(dynamicParameters, key);
 
-                foreach ((RecursivePath Path, object?[] DynamicParameters) result in EnumerateMaterializedCollectionPaths(elements, elementIndex + 1, itemPath, nextDynamicParameters))
+                foreach ((RecursivePath Path, object?[] DynamicParameters) result in EnumerateMaterializedCollectionPaths(template, parameters, partIndex + 1, itemPath, nextDynamicParameters))
                     yield return result;
 
                 index++;
@@ -282,80 +287,11 @@ internal abstract partial class UIRuntimeBase
         yield return (currentPath, dynamicParameters);
     }
 
-    private enum TemplateElementKind
+    /// <summary>A controller binding fills each of its template's slots with one parameter, in order.</summary>
+    private static void EnsureParametersMatch(RecursivePathTemplate template, CompiledUIBindingParameter[] parameters)
     {
-        Property,
-        Fixed,
-        Dynamic
-    }
-
-    private readonly record struct TemplateElement(TemplateElementKind Kind, string? PropertyName, PathSegment FixedSegment);
-
-    private static List<TemplateElement> ParseTemplateElements(string template, CompiledUIBindingParameter[] parameters)
-    {
-        ArgumentNullException.ThrowIfNull(template);
-        ArgumentNullException.ThrowIfNull(parameters);
-
-        List<TemplateElement> elements = [];
-
-        if (template.Length == 0 || template == ".")
-            return elements;
-
-        ReadOnlySpan<char> span = template.AsSpan();
-        var i = 0;
-        var parameterIndex = 0;
-        var expectSegment = true;
-
-        while (i < span.Length)
-        {
-            if (span[i] == '.')
-            {
-                if (expectSegment)
-                    throw new FormatException($"Invalid path template '{template}'.");
-
-                expectSegment = true;
-                i++;
-                continue;
-            }
-
-            if (span[i] == '[')
-            {
-                if (i + 1 >= span.Length || span[i + 1] != ']')
-                    throw new FormatException($"Invalid parameter segment in path template '{template}'.");
-
-                if (parameterIndex >= parameters.Length)
-                    throw new InvalidOperationException($"Path template '{template}' expects more binding parameters.");
-
-                CompiledUIBindingParameter parameter = parameters[parameterIndex++];
-
-                elements.Add(parameter.Kind == CompiledUIBindingParameterKind.Dynamic
-                    ? new TemplateElement(TemplateElementKind.Dynamic, null, default)
-                    : new TemplateElement(TemplateElementKind.Fixed, null, CreateFixedParameterSegment(parameter)));
-
-                i += 2;
-                expectSegment = false;
-                continue;
-            }
-
-            var start = i;
-
-            while (i < span.Length && span[i] != '.' && span[i] != '[')
-                i++;
-
-            if (i == start)
-                throw new FormatException($"Invalid property segment in path template '{template}'.");
-
-            elements.Add(new TemplateElement(TemplateElementKind.Property, span[start..i].ToString(), default));
-            expectSegment = false;
-        }
-
-        if (expectSegment)
-            throw new FormatException($"Invalid path template '{template}'.");
-
-        if (parameterIndex != parameters.Length)
-            throw new InvalidOperationException($"Path template '{template}' has {parameterIndex} parameters, but binding has {parameters.Length}.");
-
-        return elements;
+        if (template.ParameterCount != parameters.Length)
+            throw new InvalidOperationException($"Path template '{template}' has {template.ParameterCount} parameters, but binding has {parameters.Length}.");
     }
 
     private RecursivePath? TryGetInitialControllerPath(CompiledUIBinding binding)
@@ -376,45 +312,38 @@ internal abstract partial class UIRuntimeBase
     {
         CompiledUIBindingTemplate template = View.Templates.GetRequired(binding.TemplateId);
 
-        return MaterializeInitialPathPrefix(template.Template, binding.Parameters);
+        return MaterializeInitialPathPrefix(template.Parsed, binding.Parameters);
     }
 
     /// <summary>The template's segments up to its first dynamic parameter: the part a path has before any row is named.</summary>
-    private static RecursivePath MaterializeInitialPathPrefix(string template, CompiledUIBindingParameter[] parameters)
+    private static RecursivePath MaterializeInitialPathPrefix(RecursivePathTemplate template, CompiledUIBindingParameter[] parameters)
     {
-        List<TemplateElement> elements = ParseTemplateElements(template, parameters);
+        EnsureParametersMatch(template, parameters);
 
-        if (elements.Count == 0)
+        ReadOnlySpan<RecursivePathTemplatePart> parts = template.Parts;
+
+        if (parts.Length == 0)
             return RecursivePath.Empty;
 
-        List<PathSegment> segments = new(elements.Count);
+        List<PathSegment> segments = new(parts.Length);
 
-        for (var i = 0; i < elements.Count; i++)
+        foreach (RecursivePathTemplatePart part in parts)
         {
-            TemplateElement element = elements[i];
+            if (!part.IsParameter)
+            {
+                segments.Add(part.Segment);
+                continue;
+            }
 
-            if (element.Kind == TemplateElementKind.Dynamic)
+            CompiledUIBindingParameter parameter = parameters[part.ParameterIndex];
+
+            if (parameter.Kind == CompiledUIBindingParameterKind.Dynamic)
                 break;
 
-            segments.Add(element.Kind == TemplateElementKind.Property ? PathSegment.ForProperty(element.PropertyName!) : element.FixedSegment);
+            segments.Add(PathSegment.ForParameter(parameter.Value));
         }
 
         return new RecursivePath(segments);
-    }
-
-    private static PathSegment CreateFixedParameterSegment(CompiledUIBindingParameter parameter)
-    {
-        ArgumentNullException.ThrowIfNull(parameter);
-
-        if (parameter.Kind != CompiledUIBindingParameterKind.Fixed)
-            throw new ArgumentException("Binding parameter must be fixed.", nameof(parameter));
-
-        return parameter.Value switch
-        {
-            int index => PathSegment.AtIndex(index),
-            string key => PathSegment.WithKey(key),
-            _ => throw new InvalidOperationException("Fixed binding parameter must be int or string.")
-        };
     }
 
     private RecursivePath? TryGetInitialComponentItemsControllerPath(CompiledUIBindingSource source)

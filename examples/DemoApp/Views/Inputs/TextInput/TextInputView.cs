@@ -37,15 +37,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TextInputComponent()
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindValue($"{ValueGroup}.{nameof(TextValueGroupContext.Value)}")
             .BindIsReadOnly($"{ValueGroup}.{nameof(TextValueGroupContext.IsReadOnly)}")
             .BindSize($"{ValueGroup}.{nameof(TextValueGroupContext.Size)}")
@@ -60,39 +52,20 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
             .BindSuffixIcon($"{FieldGroup}.{nameof(TextInputFieldGroupContext.SuffixIcon)}")
             .BindPrefixText($"{FieldGroup}.{nameof(TextInputFieldGroupContext.PrefixText)}")
             .BindSuffixText($"{FieldGroup}.{nameof(TextInputFieldGroupContext.SuffixText)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindTextContent(ContentGroup)
+            .BindBadge(BadgeGroup)
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ValueGroup, "Value", nameof(TextInputController.CycleValueOption)),
-            DemoUI.CreateOptionSection(FieldGroup, "Field", nameof(TextInputController.CycleFieldOption)),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(TextInputController.CycleContentOption)),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge", nameof(TextInputController.CycleBadgeOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(TextInputController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field"),
+            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // Each field wears the look its place would: a settings form outlined, a field with its own buttons and an entry form filled, a dense
@@ -154,7 +127,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetIcon(DemoIcons.ExternalLink)
                     .SetValue("https://docs.orvane.example")
                 ),
-            note: "`Type` changes only the native input's behaviour — masking, keyboard, browser validation. The icon before a caption is the label's; the affixes are the field's. A help badge (`SetHelp`) is a stop of its own, named by its words: hover, press or tab to it."
+            note: "`Type` changes only the native input's behaviour — masking, keyboard, browser validation. The icon before a caption is the label's; the affixes are the field's. A help badge (`SetHelp`) is no stop of its own: its words describe the field, read with it when Tab reaches the box, and show on a hover or a press."
         );
     }
 
@@ -232,10 +205,10 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Copy the install command")
                     .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal("curl -fsSL https://docs.orvane.example/install.sh | sh"))
                 ),
-            note: "`AddLeadingAction` and `AddTrailingAction` stand the buttons in the order they were added; they follow the text in the tab order whichever end they stand at. "
+            note: "`AddLeadingAction` and `AddTrailingAction` stand the buttons in the order they were added; the keyboard meets them as they are drawn, the leading ones before the text and the trailing after it. "
                 + "The copy takes what the field holds when pressed, the button under the fields a fixed line; neither makes a round trip. "
                 + "The + is a flyout in the action's slot (`SetTrailingAction(FlyoutComponent)`): an entry inserts its key (`{plan}`) at the caret, or over the selection, on the page alone, and the field keeps its caret while the panel has the focus. "
-                + "The comment's Post, a button with words, is flagged `AddTrailingAction(post, inField: true)` and the field `SetActionsBelow(UIResponsiveTier.Md)`: below the medium width the clip and the emoji stand in a row under the field, at its two ends, under the field's own edges, while Post stays at the text's end."
+                + "The comment's Post, a button with words, is flagged `AddTrailingAction(post, inField: true)` and the field `SetActionsBelow(UIResponsiveTier.Md)`: below the medium width the clip and the emoji stand in a row of the field's own under the text, at its two ends, while Post stays at the text's end."
         );
     }
 

@@ -32,5 +32,5 @@ test("a caption's badge with words wears the keyboard's frame round it, and asks
     const badge = ".ui-text__badge[data-ui-tooltip-press][data-ui-tooltip]";
 
     assert.match(declarations(badge) ?? "", /cursor: help;/);
-    assert.match(css, /\.ui-text__badge\[data-ui-tooltip-press\]\[data-ui-tooltip\]:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*outline: 2px solid var\(--ui-color-primary-ink\);\s*outline-offset: 2px;/);
+    assert.match(css, /\.ui-text__badge\[data-ui-tooltip-press\]\[data-ui-tooltip\]:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*outline: 2px solid var\(--ui-mark-keyboard\);\s*outline-offset: 2px;/);
 });

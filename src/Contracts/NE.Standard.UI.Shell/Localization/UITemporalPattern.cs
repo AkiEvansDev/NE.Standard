@@ -27,23 +27,16 @@ public static class UITemporalPattern
     {
         ValidateTokens(pattern, name);
 
-        for (var index = 0; index < pattern.Length;)
+        foreach (UITemporalPatternPiece piece in Walk(pattern))
         {
-            var token = Match(pattern, index);
-
-            if (token is null)
-            {
-                index++;
+            if (piece.Token is not string token)
                 continue;
-            }
 
             if (token == "yy")
                 throw Refused(pattern, name, "a year is written in four digits (yyyy), the only form the picker reads every year in");
 
             if (isTime != IsTimeToken(token))
                 throw Refused(pattern, name, isTime ? $"a time pattern names no part of a date ('{token}')" : $"a date pattern names no part of a time ('{token}')");
-
-            index += token.Length;
         }
 
         if (!IsComplete(pattern, isTime))
@@ -59,25 +52,18 @@ public static class UITemporalPattern
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pattern, name);
 
-        for (var index = 0; index < pattern.Length;)
+        foreach (UITemporalPatternPiece piece in Walk(pattern))
         {
-            var token = Match(pattern, index);
-
-            if (token is not null)
-            {
-                index += token.Length;
+            if (piece.Token is not null)
                 continue;
-            }
 
-            var character = pattern[index];
+            var character = pattern[piece.Index];
 
             if (char.IsAsciiLetter(character))
                 throw Refused(pattern, name, $"'{character}' is no token of the shared subset ({string.Join(", ", Tokens)})");
 
             if (character is '\'' or '"' or '\\')
                 throw Refused(pattern, name, "the shared subset has no quoting; write a literal as it is, with no token's letter in it");
-
-            index++;
         }
     }
 
@@ -104,20 +90,14 @@ public static class UITemporalPattern
         var month = false;
         var year = false;
 
-        for (var index = 0; index < pattern.Length;)
+        foreach (UITemporalPatternPiece piece in Walk(pattern))
         {
-            var token = Match(pattern, index);
-
-            if (token is null)
-            {
-                index++;
+            if (piece.Token is not string token)
                 continue;
-            }
 
             day |= token is "d" or "dd";
             month |= token[0] == 'M';
             year |= token == "yyyy";
-            index += token.Length;
         }
 
         return day && month && year;
@@ -143,6 +123,14 @@ public static class UITemporalPattern
         }
 
         return null;
+    }
+
+    /// <summary>The pattern's pieces in order: each token as <see cref="Match"/> finds it, each other character alone.</summary>
+    public static UITemporalPatternWalk Walk(string pattern)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+
+        return new UITemporalPatternWalk(pattern);
     }
 
     private static bool IsTimeToken(string token)

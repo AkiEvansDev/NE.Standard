@@ -36,21 +36,11 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
     private static CollapsiblePanelComponent Bind(CollapsiblePanelComponent panel, UISide side)
         => panel
             .SetSide(side)
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindExpanded($"{PanelGroup}.{nameof(CollapsiblePanelGroupContext.Expanded)}")
             .BindPadding($"{PanelGroup}.{nameof(CollapsiblePanelGroupContext.Padding)}")
             .BindBackground($"{PanelGroup}.{nameof(CollapsiblePanelGroupContext.Background)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             // Set rather than bound: it is what the panel holds rather than something about the panel.
             .SetContent(new ParagraphComponent()
                 .SetTitle("Filters")
@@ -62,9 +52,9 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(PanelGroup, "Panel", nameof(CollapsiblePanelController.CyclePanelOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(CollapsiblePanelController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(PanelGroup, "Panel"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()

@@ -144,26 +144,6 @@ internal sealed partial class ExpanderController() : DemoStandardController
     [RecursiveMember]
     public partial ExpanderLoadGroupContext LoadGroup { get; set; } = new();
 
-    [UICommand]
-    public void CycleExpanderOption(string id)
-        => ExpanderGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleHeaderOption(string id)
-        => HeaderGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleHeaderTextOption(string id)
-        => HeaderTextGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleHeaderBadgeOption(string id)
-        => HeaderBadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
-
     /// <summary>
     /// On expand rather than on toggle, so closing the section sends nothing to read; the fetch guard is the controller's.
     /// </summary>

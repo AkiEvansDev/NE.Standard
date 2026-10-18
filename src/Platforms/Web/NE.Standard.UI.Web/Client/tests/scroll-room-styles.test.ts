@@ -1,6 +1,7 @@
 // The overlay bar's room is the padding's floor, never 12 past 12: a region's root keeps it unless its own scroller does (a list's, a
 // tree's host), it is a rail or a collapsed panel, or — in a region that scrolls alone — it fills the height; a blurred scroller's
-// layer reaches over it; a popup keeps it only while it overflows, under less motion too.
+// layer reaches over it; a scroller its own size bounds keeps it always, one that grows with its rows and a popup only while they
+// overflow, under less motion too.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -58,6 +59,48 @@ test("no region's root keeps the room where a list's or a tree's host keeps its 
     assert.ok(regionRoots.some(part => part.includes("> .ui-tree") && part.endsWith("> .ui-tree__host.ui-scroll-y--disabled")));
 });
 
+const bound = ":not([style*=\"--ui-height\"], [style*=\"--ui-max-height\"])";
+
+test("a list, a tree or a scroll container its own size bounds keeps the room always; one that grows with its rows only while it overflows", () => {
+    // Every scroller keeps it, the text area's field too — bounded by its rows.
+    const kept = rules.find(rule => rule.body.includes(keepsRoom) && rule.selector.includes(".ui-text-area__field") && rule.selector.startsWith("html[data-ui-overlay-scrollbars]"));
+
+    assert.ok(kept);
+    assert.ok(kept.selector.includes(":is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll):is(.ui-scroll-y--auto, .ui-scroll-y--always)"), kept.selector);
+
+    // One with no Height, MaxHeight or Fill gives it back while it fits and takes it from its own scroll timeline while it overflows.
+    const growing = rules.find(rule => rule.body.includes("animation: ui-scroll-room-overflowing") && rule.selector.includes(".ui-items-view"));
+
+    assert.ok(growing);
+    assert.equal(growing.selector, `html[data-ui-overlay-scrollbars] :is(.ui-items-view${bound} > :is(.ui-items-view__host, [data-ui-items-host]), .ui-tree${bound} > .ui-tree__host, .ui-scroll${bound}):is(.ui-scroll-y--auto, .ui-scroll-y--always)`);
+    assert.match(growing.body, /--ui-scroll-room-y: 0px;/);
+    assert.match(growing.body, /animation-timeline: scroll\(self block\);/);
+    assert.ok(!growing.selector.includes("ui-text-area"), "a text area's field keeps its room always");
+
+    // Only where the overlay bar is drawn and a scroll timeline runs: elsewhere a growing scroller keeps the room as a bounded one does.
+    const at = css.indexOf(growing.selector);
+    const gate = css.lastIndexOf("@media", at);
+
+    assert.match(css.slice(gate, at), /^@media \(hover: hover\) and \(forced-colors: none\) \{\s*@supports \(animation-timeline: scroll\(\)\) \{\s*$/);
+
+    // It comes after the hung room's rule, which it matches the weight of, so a growing list in a container's free air keeps none
+    // while it fits; while it overflows it keeps what the air lacks, as a bounded one does.
+    const hung = rules.find(rule => rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-items-view__host") && rule.body.includes("--ui-scroll-hung:"));
+
+    assert.ok(hung);
+    assert.ok(css.indexOf(hung.selector) < at);
+
+    const room = /@keyframes ui-scroll-room-overflowing\s*\{[^}]*\{([^}]*)\}/.exec(css);
+
+    assert.ok(room !== null);
+    assert.match(room[1], /--ui-scroll-room-y: calc\(var\(--ui-scrollbar-room\) - var\(--ui-scroll-hung\)\);/);
+});
+
+test("a list or a tree that grows with its rows at a region's root takes the region's room on its host", () => {
+    assert.ok(regionRoots.some(part => part.endsWith(`> .ui-items-view${bound} > :is(.ui-items-view__host, [data-ui-items-host])`)));
+    assert.ok(regionRoots.some(part => part.endsWith(`> .ui-tree${bound} > .ui-tree__host`)));
+});
+
 test("a side or a drawer that scrolls alone keeps no room in a root filling its height; the page's bar keeps it on the right side", () => {
     const sides = regionRoots.filter(part => part.includes("[data-ui-scroll-content] > :is([data-ui-region=\"left-side\"]") && part.includes("> [data-ui-id]"));
     const drawers = regionRoots.filter(part => part.includes("[data-ui-side-drawers") && /\[data-ui-region="(left|right)-side"\][^>]* > \[data-ui-id\]/.test(part));
@@ -93,7 +136,7 @@ test("a blurred button group that scrolls keeps its layer over what is in view: 
     assert.equal(rules.some(rule => rule.selector.startsWith(".ui-button-group[data-ui-surface-image]") && rule.selector.endsWith("::after")), false);
 });
 
-test("less motion spares only the strip's fade and a table's edge shades: no scroller keeps its room by a timeline, and a popup's is one value end to end", () => {
+test("less motion spares only the strip's fade and a table's edge shades: the room kept by a timeline is one value end to end", () => {
     const exempt = rules.filter(rule => rule.body.includes("animation-duration: auto !important;")).map(rule => rule.selector);
 
     assert.deepEqual(exempt, [".ui-button-group,\n  .ui-table > .ui-table__scroll::before,\n  .ui-table > .ui-table__scroll::after"]);

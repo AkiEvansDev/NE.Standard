@@ -136,14 +136,6 @@ internal sealed partial class TabsViewController : DemoStandardController
         => TabsViewGroup.Close(id);
 
     [UICommand]
-    public void CycleTabsViewGroupOption(string id)
-        => TabsViewGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleFirstTabGroupOption(string id)
-        => FirstTabGroup.CycleOption(id);
-
-    [UICommand]
     public void ToggleEmptyDocument()
         => EmptyGroup.Toggle();
 

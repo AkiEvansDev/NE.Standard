@@ -45,9 +45,7 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
             .BindTooltip($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Tooltip)}")
             .BindTooltipPlacement($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.TooltipPlacement)}")
             .BindBackground($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Background)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
 
     private static LanguageSwitcherComponent CreateField()
@@ -71,10 +69,10 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(SwitcherGroup, "Language switcher", nameof(LanguageSwitcherController.CycleSwitcherGroupOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(LanguageSwitcherController.CycleBorderGroupOption)),
-            DemoUI.CreateOptionSection(FieldGroup, "Field", nameof(LanguageSwitcherController.CycleFieldGroupOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(SwitcherGroup, "Language switcher"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field")
         );
 
     // The head across the page, as a head is; the sign-in card beside the form, the two about as tall.

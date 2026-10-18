@@ -16,8 +16,9 @@ public static class WebThemeCssBuilder
     private const string BrandInkOnTintShare = "56%";
     private const string StatusInkOnTintShare = "80%";
 
-    // ui-badge.less's tint, a raised card's share of the text (surface-raised, below) and the ratio words read at: what a raw
-    // colour's ink is bounded against.
+    // A colour's own tint (tokens.less's @ui-own-tint-share, a tinted badge's ground), a raised card's share of the text
+    // (surface-raised, below; mixins/lift.less steps a popup by it too) and the ratio words read at: what a raw colour's ink is
+    // bounded against. The stylesheet writes both shares again, held equal by ThemeShareSyncTests.
     private const double BadgeTintShare = 0.16;
     private const double RaisedShare = 0.08;
     private static readonly string RaisedCss = string.Create(CultureInfo.InvariantCulture, $"color-mix(in srgb, var(--ui-color-surface) {(1 - RaisedShare) * 100:0.##}%, var(--ui-color-on-surface) {RaisedShare * 100:0.##}%)");
@@ -45,7 +46,7 @@ public static class WebThemeCssBuilder
 
         StringBuilder builder = new();
 
-        AppendTheme(builder, ":root", palette: null, theme.Typography, theme.Shape, includeSemantic: true, dark: false);
+        AppendTheme(builder, ":root", palette: null, theme.Typography, theme.Shape, semantic: theme, dark: false);
 
         // Only on :root: the variable's fallback is 0, so whether it exists is the whole switch; a differing subtree sets it itself.
         if (theme.FocusRing)
@@ -58,10 +59,10 @@ public static class WebThemeCssBuilder
         _ = builder.Append(":root { --ui-color-series-count: ").Append(SeriesCount(theme).ToString(CultureInfo.InvariantCulture)).AppendLine("; }");
 
         // Re-emitted for every [data-ui-theme] element, not only :root: an overriding subtree must re-resolve them against its own palette.
-        AppendTheme(builder, $"[{WebAttributes.Theme}]", palette: null, typography: null, shape: null, includeSemantic: true, dark: false);
+        AppendTheme(builder, $"[{WebAttributes.Theme}]", palette: null, typography: null, shape: null, semantic: theme, dark: false);
 
-        AppendTheme(builder, $"[{WebAttributes.Theme}=\"light\"]", theme.Light, typography: null, shape: null, includeSemantic: false, dark: false);
-        AppendTheme(builder, $"[{WebAttributes.Theme}=\"dark\"]", theme.Dark, typography: null, shape: null, includeSemantic: false, dark: true);
+        AppendTheme(builder, $"[{WebAttributes.Theme}=\"light\"]", theme.Light, typography: null, shape: null, semantic: null, dark: false);
+        AppendTheme(builder, $"[{WebAttributes.Theme}=\"dark\"]", theme.Dark, typography: null, shape: null, semantic: null, dark: true);
 
         AppendMediaTheme(builder, "(prefers-color-scheme: light)", theme.Light, AppendLightTheme);
         AppendMediaTheme(builder, "(prefers-color-scheme: dark)", theme.Dark, AppendDarkTheme);
@@ -81,12 +82,12 @@ public static class WebThemeCssBuilder
     }
 
     private static void AppendLightTheme(StringBuilder builder, string selector, UIColorPalette palette)
-        => AppendTheme(builder, selector, palette, typography: null, shape: null, includeSemantic: false, dark: false);
+        => AppendTheme(builder, selector, palette, typography: null, shape: null, semantic: null, dark: false);
 
     private static void AppendDarkTheme(StringBuilder builder, string selector, UIColorPalette palette)
-        => AppendTheme(builder, selector, palette, typography: null, shape: null, includeSemantic: false, dark: true);
+        => AppendTheme(builder, selector, palette, typography: null, shape: null, semantic: null, dark: true);
 
-    private static void AppendTheme(StringBuilder builder, string selector, UIColorPalette? palette, UITypography? typography, UIShape? shape, bool includeSemantic, bool dark)
+    private static void AppendTheme(StringBuilder builder, string selector, UIColorPalette? palette, UITypography? typography, UIShape? shape, UITheme? semantic, bool dark)
     {
         _ = builder.Append(selector).AppendLine(" {");
 
@@ -99,8 +100,8 @@ public static class WebThemeCssBuilder
         if (shape is not null)
             AppendShapeVariables(builder, shape);
 
-        if (includeSemantic)
-            AppendSemanticVariables(builder);
+        if (semantic is not null)
+            AppendSemanticVariables(builder, semantic);
 
         _ = builder.AppendLine("}");
     }
@@ -173,14 +174,14 @@ public static class WebThemeCssBuilder
     /// </summary>
     private static void AppendModeVariables(StringBuilder builder, bool dark)
     {
-        Append(builder, "wash-hover", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 9%, transparent)" : "color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent)");
-        Append(builder, "wash-selected", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 14%, transparent)" : "color-mix(in srgb, var(--ui-color-primary) 16%, transparent)");
+        // The pointer's share by mode; a control with an opaque fill of its own (a surface button, a clickable surface) or its own hue
+        // (a Link button) mixes the share where the wash itself would lay a second colour over it.
+        Append(builder, "wash-hover-share", dark ? "9%" : "10%");
+        Append(builder, "wash-hover", "color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), transparent)");
+        Append(builder, "wash-selected", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 14%, transparent)" : "color-mix(in srgb, var(--ui-mark-selected-fill) 16%, transparent)");
         // Fainter than a selection: the entry a chosen descendant is folded under, which points at the selection rather than being it.
         // None on a dark page, where a neutral one would read as the pointer's: there the group's short mark says it alone (ui-menu.less).
-        Append(builder, "wash-descendant", dark ? "transparent" : "color-mix(in srgb, var(--ui-color-primary) 8%, transparent)");
-        // The brand's line on a chosen entry: its ink, which reads on the page whatever the primary. Not lifted on a dark page,
-        // where the ink lifted for a tint read as a white line (docs/DECISIONS.md); a mode variable so a theme can set either.
-        Append(builder, "mark-selected", "var(--ui-color-primary-ink)");
+        Append(builder, "wash-descendant", dark ? "transparent" : "color-mix(in srgb, var(--ui-mark-selected-fill) 8%, transparent)");
         Append(builder, "popup-base", dark ? "color-mix(in srgb, var(--ui-color-surface) 96%, var(--ui-color-on-surface) 4%)" : "var(--ui-color-surface)");
         Append(builder, "tint-ground", dark ? "var(--ui-surface-raised)" : "var(--ui-color-background)");
         Append(builder, "tint-share", dark ? "28%" : "20%");
@@ -265,17 +266,18 @@ public static class WebThemeCssBuilder
         Append(builder, "radius-notification", shape.NotificationRadius);
     }
 
-    private static void AppendSemanticVariables(StringBuilder builder)
+    private static void AppendSemanticVariables(StringBuilder builder, UITheme theme)
     {
+        AppendMarkVariables(builder, theme);
         // The one absolute level: what a panel lifted off the page is made of; UIColorPalette's mark reads 3:1 on it by the same share. The same step lifts a popup off a raised panel or a
         // dialog (`.ui-popup-ground-lifted` in mixins/lift.less); the two keep one number.
         Append(builder, "surface-raised", RaisedCss);
         // The wash a control with no fill shows when pressed; translucent since it may sit on the page or a surface. The pointer's
         // and the chosen one's differ by mode (AppendModeVariables).
-        Append(builder, "wash-active", "color-mix(in srgb, var(--ui-color-on-surface) 16%, transparent)");
+        Append(builder, "wash-active-share", "16%");
+        Append(builder, "wash-active", "color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-active-share), transparent)");
         // The other half of a selectable strip: the mark under a tab; stronger than a wash since a thin line needs more than 10% to read.
         Append(builder, "mark-hover", "color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent)");
-        Append(builder, "border-subtle", "color-mix(in srgb, var(--ui-color-border) 75%, transparent)");
         Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 75%, transparent)");
         // An empty field's placeholder, a step under the muted ink so it is not read as a value: 5.6:1 on the dark theme's field.
         Append(builder, "text-placeholder", "color-mix(in srgb, var(--ui-color-on-surface) 60%, transparent)");
@@ -293,6 +295,22 @@ public static class WebThemeCssBuilder
         // against the declared value.
         Append(builder, "border-width", "1px");
     }
+
+    /// <summary>
+    /// The colours of the three marks a theme sets the tone of (<see cref="UITheme.KeyboardMark"/>, <see cref="UITheme.FieldFocus"/>,
+    /// <see cref="UITheme.SelectionMark"/>): the brand's, or the mode's text colour. A line read as words are takes the brand's ink,
+    /// which reads on the page whatever the primary — not lifted on a dark page, where the ink lifted for a tint read as a white line
+    /// the brand did not mean; a fill-like one (a field's edge, a glow, a drop line) the primary itself.
+    /// </summary>
+    private static void AppendMarkVariables(StringBuilder builder, UITheme theme)
+    {
+        Append(builder, "mark-keyboard", MarkTone(theme.KeyboardMark, "var(--ui-color-primary-ink)"));
+        Append(builder, "mark-field", MarkTone(theme.FieldFocus, "var(--ui-color-primary)"));
+        Append(builder, "mark-selected", MarkTone(theme.SelectionMark, "var(--ui-color-primary-ink)"));
+        Append(builder, "mark-selected-fill", MarkTone(theme.SelectionMark, "var(--ui-color-primary)"));
+    }
+
+    private static string MarkTone(UIMarkTone tone, string brand) => tone == UIMarkTone.Neutral ? "var(--ui-color-on-surface)" : brand;
 
     private static void AppendInkOnTint(StringBuilder builder, string role, string share)
         => Append(builder, $"color-{role}-ink-on-tint", $"color-mix(in srgb, var(--ui-color-{role}-ink) {share}, var(--ui-color-on-surface))");

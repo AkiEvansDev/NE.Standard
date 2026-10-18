@@ -30,33 +30,23 @@ internal sealed class KeyValueActionView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new KeyValueActionComponent()
             .BindItems($"{ItemsGroup}.{nameof(KeyValueActionRowsGroupContext.Items)}")
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSurface($"{ListGroup}.{nameof(KeyValueActionListGroupContext.Surface)}")
             .BindShowRowSeparators($"{ListGroup}.{nameof(KeyValueActionListGroupContext.ShowRowSeparators)}")
             .BindStretchValue($"{ListGroup}.{nameof(KeyValueActionListGroupContext.StretchValue)}")
             .BindShowActions($"{ListGroup}.{nameof(KeyValueActionListGroupContext.ShowActions)}")
             .BindRowHoverable($"{ListGroup}.{nameof(KeyValueActionListGroupContext.RowHoverable)}")
             .BindOverflow($"{ListGroup}.{nameof(KeyValueActionListGroupContext.Overflow)}")
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 260);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(ListGroup, "List", nameof(KeyValueActionController.CycleListOption)),
-            DemoUI.CreateOptionSection(ItemsGroup, "Rows", nameof(KeyValueActionController.CycleItemsOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(KeyValueActionController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(ListGroup, "List"),
+            DemoUI.CreateOptionSection(ItemsGroup, "Rows"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()

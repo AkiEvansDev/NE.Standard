@@ -367,6 +367,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["share", value => toFiniteNumber(value, number => number >= 0 && number <= 1)?.toString()],
     ["positiveFlagAttribute", value => toPositiveCount(value) === undefined ? undefined : ""],
     familyClass("maxLinesClass", toClassFamily(["ui-text--max-lines"]), value => toPositiveCount(value) === undefined ? "" : "ui-text--max-lines"),
+    familyClass("textAreaGrowClass", toClassFamily(["ui-text-area--grow"]), value => toPositiveCount(value) === undefined ? "" : "ui-text-area--grow"),
     tokenClass("progressVariantClass", "ui-progress--", progressVariantTokens),
     ["progressValueText", value => toProgressValue(value)],
     ["textAreaResizeCss", value => toToken(value, textAreaResizeTokens)],

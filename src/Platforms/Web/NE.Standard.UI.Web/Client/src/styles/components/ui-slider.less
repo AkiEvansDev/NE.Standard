@@ -153,46 +153,19 @@
 
 // The bubble's own corner rotated, not a separate triangle; the edge follows data-ui-placement and the offset along it --ui-popup-arrow.
 .ui-slider__bubble::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: var(--ui-popup-arrow, 50%);
-    width: 0.45rem;
-    height: 0.45rem;
-    border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
-    border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
-    background: @ui-popup-ground;
-    transform: translate(-50%, -55%) rotate(45deg);
+    .ui-popup-arrow(top);
 }
 
     .ui-slider__bubble[data-ui-placement^="bottom"]::after {
-        top: auto;
-        bottom: 100%;
-        border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        border-left: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        border-right: none;
-        border-bottom: none;
-        transform: translate(-50%, 55%) rotate(45deg);
+        .ui-popup-arrow-edge(bottom);
     }
 
     .ui-slider__bubble[data-ui-placement^="left"]::after {
-        top: var(--ui-popup-arrow, 50%);
-        left: 100%;
-        border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        border-bottom: none;
-        border-left: none;
-        transform: translate(-55%, -50%) rotate(45deg);
+        .ui-popup-arrow-edge(left);
     }
 
     .ui-slider__bubble[data-ui-placement^="right"]::after {
-        top: var(--ui-popup-arrow, 50%);
-        left: 0;
-        border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        border-left: var(--ui-border-width, 1px) solid var(--ui-color-border);
-        border-top: none;
-        border-right: none;
-        transform: translate(-45%, -50%) rotate(45deg);
+        .ui-popup-arrow-edge(right);
     }
 
 // Held down covers the pointer, the keyboard's focus the arrow keys; a sibling selector, since the browser knows both states. A band's handles

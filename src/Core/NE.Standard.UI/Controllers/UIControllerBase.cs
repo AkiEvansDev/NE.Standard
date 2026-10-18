@@ -12,12 +12,14 @@ using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Filters;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Security;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Security;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Controllers;
+using NE.Standard.UI.Shell.Filters;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Sessions;
@@ -336,11 +338,15 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
 
     /// <summary>Whether a controller type declares the named command; the view compiler asks, so a missing one fails at compile.</summary>
     internal static bool DeclaresCommand(Type controllerType, string command)
-        => CommandCache.GetOrAdd(controllerType, BuildCommandCache).ContainsKey(command);
+        => CommandsOf(controllerType).ContainsKey(command);
+
+    /// <summary>The commands a controller type declares, read once per type.</summary>
+    private static FrozenDictionary<string, UICommandDescriptor> CommandsOf(Type controllerType)
+        => CommandCache.GetOrAdd(controllerType, BuildCommandCache);
 
     /// <summary>Whether the element pressed to run the command shows it is working (<see cref="UICommandAttribute.ShowsPending"/>); the view compiler asks.</summary>
     internal static bool ShowsPending(Type controllerType, string command)
-        => !CommandCache.GetOrAdd(controllerType, BuildCommandCache).TryGetValue(command, out UICommandDescriptor? descriptor) || descriptor.ShowsPending;
+        => !CommandsOf(controllerType).TryGetValue(command, out UICommandDescriptor? descriptor) || descriptor.ShowsPending;
 
     /// <inheritdoc />
     public IUICommandMetadata GetCommandMetadata(string command)
@@ -348,14 +354,17 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ThrowIfDisposed();
         EnsureContextAttached();
 
+        return GetRequiredDescriptor(command);
+    }
+
+    /// <summary>The descriptor of a command this controller declares; one it does not is refused.</summary>
+    private UICommandDescriptor GetRequiredDescriptor(string command)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
 
-        FrozenDictionary<string, UICommandDescriptor> commands = CommandCache.GetOrAdd(GetType(), BuildCommandCache);
-
-        if (!commands.TryGetValue(command, out UICommandDescriptor? descriptor))
-            throw new InvalidOperationException($"Command '{command}' was not found on controller '{GetType().Name}'.");
-
-        return descriptor;
+        return CommandsOf(GetType()).TryGetValue(command, out UICommandDescriptor? descriptor)
+            ? descriptor
+            : throw new InvalidOperationException($"Command '{command}' was not found on controller '{GetType().Name}'.");
     }
 
     /// <inheritdoc />
@@ -364,12 +373,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ThrowIfDisposed();
         EnsureContextAttached();
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(command);
-
-        FrozenDictionary<string, UICommandDescriptor> commands = CommandCache.GetOrAdd(GetType(), BuildCommandCache);
-
-        if (!commands.TryGetValue(command, out UICommandDescriptor? descriptor))
-            throw new InvalidOperationException($"Command '{command}' was not found on controller '{GetType().Name}'.");
+        UICommandDescriptor descriptor = GetRequiredDescriptor(command);
 
         IUICommandFilter[] globalFilters = Context.Services.GetRequiredService<UIApplication>().CommandFilters;
 
@@ -425,7 +429,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// Runs the command through its filter chain: ordered by <see cref="IUICommandFilter.Order"/>, ties broken global then
+    /// Runs the command through its filter chain: ordered by <see cref="IUIFilter{TContext}.Order"/>, ties broken global then
     /// controller then command.
     /// </summary>
     /// <remarks>The authorization filter is pinned outermost so no other filter can bypass it.</remarks>
@@ -436,26 +440,13 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
             CancellationToken = cancellationToken
         };
 
-        Func<Task> next = async () =>
+        Func<Task> chain = UIFilterChain.Fold(filters, context, async () =>
         {
             context.Result = await body(cancellationToken).ConfigureAwait(false);
             context.MarkInvoked();
-        };
+        });
 
-        for (var i = filters.Length - 1; i >= 0; i--)
-        {
-            IUICommandFilter filter = filters[i];
-            Func<Task> inner = next;
-
-            next = () => filter.InvokeAsync(context, inner);
-        }
-
-        AuthorizationCommandFilter authorization = new(this);
-        Func<Task> chain = next;
-
-        next = () => authorization.InvokeAsync(context, chain);
-
-        await next().ConfigureAwait(false);
+        await new AuthorizationCommandFilter(this).InvokeAsync(context, chain).ConfigureAwait(false);
 
         return context.Result
             ?? throw new InvalidOperationException($"A command filter short-circuited '{command.Name}' without leaving a result.");
@@ -563,25 +554,14 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     /// </summary>
     private static void EnsureAuthorizeNotOpened(MethodInfo method, string commandName)
     {
-        MethodInfo? authorizing = null;
+        if (!UIAuthorizeOpening.TryFind(method, OverriddenMethod, out MethodInfo? authorizing, out MethodInfo? level))
+            return;
 
-        for (MethodInfo? level = method; level is not null; level = OverriddenMethod(level))
-        {
-            if (authorizing is null && level.IsDefined(typeof(UIAuthorizeAttribute), inherit: false))
-                authorizing = level;
+        var message = ReferenceEquals(authorizing, level)
+            ? $"Command '{commandName}' on '{level.DeclaringType?.FullName}' carries both [UIAuthorize] and [UIAllowAnonymous]; the anonymous one wins and it would run for anyone. Keep one."
+            : $"Command '{commandName}' carries [UIAuthorize] on '{authorizing.DeclaringType?.FullName}.{authorizing.Name}', but [UIAllowAnonymous] on the declaration it overrides, '{level.DeclaringType?.FullName}.{level.Name}', wins and it would run for anyone. Remove one, or declare [UIAllowAnonymous] on the override that means it.";
 
-            if (!level.IsDefined(typeof(UIAllowAnonymousAttribute), inherit: false))
-                continue;
-
-            if (authorizing is null)
-                return;
-
-            var message = ReferenceEquals(authorizing, level)
-                ? $"Command '{commandName}' on '{level.DeclaringType?.FullName}' carries both [UIAuthorize] and [UIAllowAnonymous]; the anonymous one wins and it would run for anyone. Keep one."
-                : $"Command '{commandName}' carries [UIAuthorize] on '{authorizing.DeclaringType?.FullName}.{authorizing.Name}', but [UIAllowAnonymous] on the declaration it overrides, '{level.DeclaringType?.FullName}.{level.Name}', wins and it would run for anyone. Remove one, or declare [UIAllowAnonymous] on the override that means it.";
-
-            throw new InvalidOperationException(message);
-        }
+        throw new InvalidOperationException(message);
     }
 
     /// <summary>The declaration an override overrides, the next one up its chain; null for a method that overrides nothing.</summary>
@@ -604,7 +584,7 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     }
 
     /// <summary>
-    /// Collects the filters attached to the command, controller first then method, ordered by <see cref="IUICommandFilter.Order"/>.
+    /// Collects the filters attached to the command, controller first then method, ordered by <see cref="IUIFilter{TContext}.Order"/>.
     /// </summary>
     private static IUICommandFilter[] ReadCommandFilters(Type controllerType, MethodInfo method)
     {

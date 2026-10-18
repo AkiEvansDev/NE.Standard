@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Models;
 
@@ -40,14 +41,14 @@ public static class CompiledUIBindingParameterResolver
                 case CompiledUIBindingParameterKind.Dynamic:
                     var dynamicValue = dynamicParameters[dynamicIndex++];
 
-                    if (dynamicValue is not int and not string)
+                    if (!UIRowKeys.IsPathParameter(dynamicValue))
                         throw new InvalidOperationException($"Dynamic parameter #{i} must be int or string.");
 
                     result[resultIndex++] = dynamicValue;
                     break;
 
                 case CompiledUIBindingParameterKind.Scope:
-                    if (dynamicParameters[dynamicIndex++] is not int and not string)
+                    if (!UIRowKeys.IsPathParameter(dynamicParameters[dynamicIndex++]))
                         throw new InvalidOperationException($"Scope parameter #{i} must be int or string.");
 
                     break;
@@ -111,7 +112,7 @@ public static class CompiledUIBindingParameterResolver
             switch (parameter.Kind)
             {
                 case CompiledUIBindingParameterKind.Fixed:
-                    if (parameter.Value is not int and not string)
+                    if (!UIRowKeys.IsPathParameter(parameter.Value))
                         throw new InvalidOperationException($"{owner} fixed parameter #{i} must be int or string.");
                     break;
 

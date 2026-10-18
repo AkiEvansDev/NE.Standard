@@ -41,15 +41,7 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     /// <summary>The same rows on both panes: <c>IsRange</c> is authoring-only, so the period is a second instance.</summary>
     private static CalendarComponent Bind(CalendarComponent calendar)
         => calendar
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindValue($"{DaysGroup}.{nameof(CalendarDaysGroupContext.Value)}")
             .BindEndValue($"{DaysGroup}.{nameof(CalendarDaysGroupContext.EndValue)}")
             .BindMin($"{DaysGroup}.{nameof(CalendarDaysGroupContext.Min)}")
@@ -57,21 +49,14 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
             .BindMarkedDays($"{DaysGroup}.{nameof(CalendarDaysGroupContext.MarkedDays)}")
             .BindMarkedDaysOnly($"{DaysGroup}.{nameof(CalendarDaysGroupContext.MarkedDaysOnly)}")
             .BindIsReadOnly($"{DaysGroup}.{nameof(CalendarDaysGroupContext.IsReadOnly)}")
-            .BindIcon($"{ContentGroup}.{nameof(TextContentGroupContext.Icon)}")
-            .BindIconColor($"{ContentGroup}.{nameof(TextContentGroupContext.IconColor)}")
-            .BindIconSize($"{ContentGroup}.{nameof(TextContentGroupContext.IconSize)}")
-            .BindTitle($"{ContentGroup}.{nameof(TextContentGroupContext.Title)}")
-            .BindTitleType($"{ContentGroup}.{nameof(TextContentGroupContext.TitleType)}")
-            .BindTitleColor($"{ContentGroup}.{nameof(TextContentGroupContext.TitleColor)}")
-            .BindTooltip($"{ContentGroup}.{nameof(TextContentGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ContentGroup}.{nameof(TextContentGroupContext.TooltipPlacement)}")
+            .BindTextContent(ContentGroup)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(DaysGroup, "Days", nameof(CalendarController.CycleDaysOption), note: "Turning MarkedDaysOnly on, or moving a bound, moves the day and the period's end onto a day still on offer."),
-            DemoUI.CreateOptionSection(ContentGroup, "Content", nameof(CalendarController.CycleContentOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(DaysGroup, "Days", note: "Turning MarkedDaysOnly on, or moving a bound, moves the day and the period's end onto a day still on offer."),
+            DemoUI.CreateOptionSection(ContentGroup, "Content")
         );
 
     protected override IVisualComponent[] CreateExamples()

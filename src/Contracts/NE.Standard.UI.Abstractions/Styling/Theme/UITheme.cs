@@ -43,6 +43,18 @@ public sealed record UITheme
     /// </summary>
     public bool OverlayScrollbars { get; init; } = true;
 
+    /// <summary>The colour of the frame round what the keyboard stands on: a list's entry, a button, a tab; the brand's by default.</summary>
+    public UIMarkTone KeyboardMark { get; init; }
+
+    /// <summary>The colour of a focused or open field's edge, outlined, filled or underlined alike; the brand's by default.</summary>
+    public UIMarkTone FieldFocus { get; init; }
+
+    /// <summary>
+    /// The colour of the line that says chosen — a tab's, a menu's or a list's current entry, a chosen node — and of the line or
+    /// edge that says where a dragged thing would land; the brand's by default.
+    /// </summary>
+    public UIMarkTone SelectionMark { get; init; }
+
     /// <summary>
     /// Validates all theme token groups.
     /// </summary>

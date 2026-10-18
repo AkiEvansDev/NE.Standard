@@ -46,15 +46,47 @@
         line-height: 0;
     }
 
-// An unsized image icon, or a round one standing in for its picture, fills the block height like an avatar, not 1em like a glyph; Title layout is excluded, its icon being the title's.
-.ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]):not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
-    align-self: stretch;
+// An unsized image icon, or a round one standing in for its picture, is a tile like an avatar, not 1em like a glyph; Title layout is
+// excluded, its icon being the title's. Square and as tall as the title's line and one description line, centred on a block that
+// runs on: as tall as the whole block it was circular — its width narrowed the words, their wrapping set its height — and at a
+// narrow width the words spilled under the next block. `1lh` is the title's, whose role the root carries.
+@ui-text-picture-tile: ~".ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]):not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large)";
+
+.ui-text--icon-content > @{ui-text-picture-tile} {
+    align-self: center;
     width: auto;
-    height: auto;
+    height: 1lh;
+    line-height: inherit;
     aspect-ratio: 1;
     border-radius: var(--ui-radius-card);
     overflow: hidden;
 }
+
+// One description line's height as the description draws it: a line of its own type alone; under a title, tight against it — one
+// em and its 0.2em foot (.ui-text-description-line()), or, run on, its line less the half-leading taken back above it.
+.ui-text-picture-tile(@role) {
+    @line: var(~"--ui-text-@{role}-line-height");
+    @size: var(~"--ui-text-@{role}-font-size");
+
+    @{ui-text-with-description}:not(@{ui-text-with-title}).ui-text--icon-content.ui-text--description-@{role} > @{ui-text-picture-tile} {
+        height: @line;
+    }
+
+    @{ui-text-with-both}:not(.ui-text--wrap).ui-text--icon-content.ui-text--description-@{role} > @{ui-text-picture-tile} {
+        height: calc(1lh + 1.2 * @size);
+    }
+
+    @{ui-text-with-both}.ui-text--wrap.ui-text--icon-content.ui-text--description-@{role} > @{ui-text-picture-tile} {
+        height: calc(1lh + (@line + @size) / 2);
+    }
+}
+
+.ui-text-picture-tile(display);
+.ui-text-picture-tile(title);
+.ui-text-picture-tile(subtitle);
+.ui-text-picture-tile(body);
+.ui-text-picture-tile(caption);
+.ui-text-picture-tile(overline);
 
     // `cover`, not `contain` like a glyph-image: this is a framed, clipping photo, not a glyph's slot.
     .ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]):not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large)::before {
@@ -367,19 +399,14 @@
     margin-inline: 0.15em;
 }
 
-// The [caption]{text} fold: a word of the sentence, greyer and heavier with a chevron, and a button with no box of its own.
+// The [caption]{text} fold: a word of the sentence at its own weight, greyer, with a chevron, and a button with no box of its own.
+// Greyer by the faint share of its words, so it follows their ink on any ground.
 .ui-text__fold-toggle {
+    .ui-bare-button();
     appearance: none;
-    border: 0;
-    padding: 0;
-    margin: 0;
-    background: none;
-    font: inherit;
-    font-weight: var(--ui-text-title-font-weight);
-    color: color-mix(in srgb, currentColor 68%, transparent);
+    color: color-mix(in srgb, currentColor percentage(@ui-text-faint-share), transparent);
     // A target even where the text around it is not selectable, like the link.
     pointer-events: auto;
-    cursor: pointer;
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
@@ -389,12 +416,13 @@
         }
     }
 
+    // The words' own size, on their small letters' middle as an inline icon is, a narrow space off: a fixed 12px mark stood small and high.
     .ui-text__fold-toggle::after {
-        .ui-chevron(@ui-glyph-xs);
+        .ui-chevron(1em);
         .ui-chevron-right();
         display: inline-block;
-        margin-inline-start: 0.3em;
-        vertical-align: 0.05em;
+        margin-inline-start: 0.15em;
+        vertical-align: -0.15em;
     }
 
     .ui-text__fold-toggle[aria-expanded="true"]::after {

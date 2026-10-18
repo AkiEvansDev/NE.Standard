@@ -645,41 +645,13 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// arguments given.
     /// </summary>
     public TComponent OnDropLiteral(string kind, string command, params KeyValuePair<string, object?>[] arguments)
-    {
-        ArgumentNullException.ThrowIfNull(arguments);
-
-        KeyValuePair<string, UIActionArgument>[] mapped = new KeyValuePair<string, UIActionArgument>[arguments.Length];
-
-        for (var i = 0; i < arguments.Length; i++)
-            mapped[i] = new(arguments[i].Key, UIActionArgument.Literal(arguments[i].Value));
-
-        return OnDrop(kind, command, mapped);
-    }
+        => OnDrop(kind, command, UIActionArgument.Literals(arguments));
 
     /// <summary>
     /// Registers or replaces an event command with literal action arguments.
     /// </summary>
     public TComponent OnLiteral(string eventName, string command, params KeyValuePair<string, object?>[] arguments)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(command);
-        ArgumentNullException.ThrowIfNull(arguments);
-
-        Dictionary<string, UIActionArgument> mapped = new(StringComparer.Ordinal);
-
-        for (var i = 0; i < arguments.Length; i++)
-        {
-            KeyValuePair<string, object?> pair = arguments[i];
-
-            ArgumentException.ThrowIfNullOrWhiteSpace(pair.Key);
-
-            if (!mapped.TryAdd(pair.Key, UIActionArgument.Literal(pair.Value)))
-                throw new InvalidOperationException($"Event argument '{pair.Key}' is already registered.");
-        }
-
-        AddOrReplaceEvent(new UIEvent(eventName, new UIAction(command, mapped)));
-        return Self;
-    }
+        => On(eventName, command, UIActionArgument.Literals(arguments));
 
     /// <summary>
     /// Returns a string containing the component's type name, type key and id, for debugging.

@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
 
 namespace DemoApp.Controllers.Inputs.NumberInput;
@@ -183,36 +185,14 @@ internal sealed partial class NumberInputController() : DemoStandardController
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
 
-    [UICommand]
-    public void CycleValueOption(string id)
-    {
-        ValueGroup.CycleOption(id);
-        ValueGroup.Clamp(FormatGroup.AllowDecimals, FormatGroup.AllowNegative);
-    }
-
-    [UICommand]
-    public void CycleFieldOption(string id)
-        => FieldGroup.CycleOption(id);
-
     /// <summary>
-    /// The one section whose rows reach into another: the value follows the constraint that was just tightened.
+    /// The one page whose rows reach into another section: the value follows the constraint that was just tightened.
     /// </summary>
-    [UICommand]
-    public void CycleFormatOption(string id)
+    protected override Task OnOptionCycledAsync(string group, string id, CancellationToken cancellationToken)
     {
-        FormatGroup.CycleOption(id);
-        ValueGroup.Clamp(FormatGroup.AllowDecimals, FormatGroup.AllowNegative);
+        if (group is nameof(ValueGroup) or nameof(FormatGroup))
+            ValueGroup.Clamp(FormatGroup.AllowDecimals, FormatGroup.AllowNegative);
+
+        return Task.CompletedTask;
     }
-
-    [UICommand]
-    public void CycleContentOption(string id)
-        => ContentGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBadgeOption(string id)
-        => BadgeGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 }

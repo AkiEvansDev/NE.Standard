@@ -13,7 +13,8 @@ import { actionBarMenuOf, isTouchOpening, OpenClass as MenuOpenClass } from "./c
 import { canScroll, isClippedOut, viewBoxAround } from "./element-visibility.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isInert } from "./interactive-state.ts";
-import { OpenDialogSelector } from "./open-dialogs.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { isBehindModal, OpenDialogSelector } from "./open-dialogs.ts";
 import { ownControlOf } from "./own-control.ts";
 import { onlyPressWaves } from "./press-wave.ts";
 import { FocusableSelector, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
@@ -167,7 +168,7 @@ export class ActionBarEngine {
                 this.choose(host);
         }
 
-        if (this.chosen !== null && this.chosen.isConnected && !this.shown.has(this.chosen))
+        if (this.chosen !== null && ((this.chosen.isConnected && !this.shown.has(this.chosen)) || isBehindModal(this.chosen)))
             this.sync();
     }
 
@@ -258,7 +259,7 @@ export class ActionBarEngine {
         }
 
         // Tab from a list goes to the bar of the row its cursor lights, the row's own way to its actions.
-        if (domEvent.key === "Tab" && !domEvent.shiftKey && !domEvent.ctrlKey && !domEvent.altKey && !domEvent.metaKey && target.matches(SelectionRootSelector)) {
+        if (domEvent.key === "Tab" && isPlainKey(domEvent) && target.matches(SelectionRootSelector)) {
             const stop = this.chosen === null ? null : this.tabStopOf(this.chosen);
 
             if (stop !== null && target.contains(stop)) {
@@ -276,7 +277,7 @@ export class ActionBarEngine {
 
     /** Along the bar with the arrows, Home and End; Escape gives the keyboard back to where it came into the bar from. */
     private handleBarKey(domEvent: KeyboardEvent, bar: HTMLElement, button: HTMLElement): void {
-        if (domEvent.ctrlKey || domEvent.altKey || domEvent.metaKey)
+        if (!isPlainKey(domEvent, { shift: true }))
             return;
 
         if (domEvent.key === "Escape") {
@@ -398,8 +399,18 @@ export class ActionBarEngine {
         this.markOut();
     }
 
-    /** Shows the bars of the chosen host and of the one whose menu its "more" opened, and takes every other away. */
+    /**
+     * Shows the bars of the chosen host and of the one whose menu its "more" opened, and takes every other away. A host a modal dialog
+     * stands over is chosen no more, as after a press elsewhere: the reader went on to the dialog (a canvas's picker, opened as a wire
+     * pulled from the host's pin is let go), and a bar shown after it opened stood in the top layer over it.
+     */
     private sync(): void {
+        if (this.chosen !== null && isBehindModal(this.chosen)) {
+            this.chosen = null;
+            this.identity = null;
+            this.watchScope();
+        }
+
         for (const [host, shown] of this.shown) {
             if ((host !== this.chosen && host !== this.menuHost) || !host.isConnected)
                 this.hide(host, shown);

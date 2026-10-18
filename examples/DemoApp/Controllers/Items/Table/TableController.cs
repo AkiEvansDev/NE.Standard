@@ -61,7 +61,7 @@ internal sealed partial class DemoDeploymentRow : RecursiveObservable, IBindable
 /// <summary>
 /// The properties that answer for the whole table: its chrome, how it scrolls, and which rows are chosen.
 /// </summary>
-internal sealed partial class TableGroupContext : DemoGroupContext
+internal sealed partial class TableGroupContext : DraggableSelectionGroupContext
 {
     [RecursiveMember]
     public partial UISurfaceStyle? Surface { get; set; } = UISurfaceStyle.Background;
@@ -87,28 +87,8 @@ internal sealed partial class TableGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UIScrollMode? VerticalScroll { get; set; }
 
-    [RecursiveMember]
-    public partial UISelectionMode? SelectionMode { get; set; }
-
-    [RecursiveMember]
-    public partial string? SelectedKey { get; set; }
-
-    [RecursiveMember]
-    public partial IReadOnlyList<string>? SelectedKeys { get; set; }
-
-    [RecursiveMember]
-    public partial UISelectionStyle? SelectionStyle { get; set; }
-
-    [RecursiveMember]
-    public partial bool Draggable { get; set; }
-
-    [RecursiveMember]
-    public partial bool DragHandle { get; set; }
-
-    [RecursiveMember]
-    public partial UIDragHandlePlacement? DragHandlePlacement { get; set; }
-
     public TableGroupContext()
+        : base(["billing", "dns"], [["panel", "mail-relay"], ["scheduler"]])
     {
         AddOption(nameof(Surface), CycleSurface, () => Surface);
         AddOption(nameof(ShowHeader), ToggleShowHeader, () => ShowHeader);
@@ -118,13 +98,8 @@ internal sealed partial class TableGroupContext : DemoGroupContext
         AddOption(nameof(RowHoverable), ToggleRowHoverable, () => RowHoverable);
         AddOption(nameof(ResizableColumns), ToggleResizableColumns, () => ResizableColumns);
         AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
-        AddOption(nameof(SelectionMode), CycleSelectionMode, () => SelectionMode);
-        AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
-        AddOption(nameof(SelectedKeys), CycleSelectedKeys, () => SelectedKeys is null ? null : string.Join(", ", SelectedKeys));
-        AddOption(nameof(SelectionStyle), CycleSelectionStyle, () => SelectionStyle);
-        AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
-        AddOption(nameof(DragHandle), ToggleDragHandle, () => DragHandle);
-        AddOption(nameof(DragHandlePlacement), CycleDragHandlePlacement, () => DragHandlePlacement);
+        AddSelectionOptions();
+        AddDragOptions();
     }
 
     public void CycleSurface()
@@ -152,31 +127,6 @@ internal sealed partial class TableGroupContext : DemoGroupContext
     // Read against the preview's height cap: with Auto the rows scroll under the header, which stays put.
     public void CycleVerticalScroll()
         => SetLastChange(nameof(VerticalScroll), VerticalScroll = CycleEnum(VerticalScroll));
-
-    // The mode picks which of the two key rows the table reads; the other shows a value nothing looks at.
-    public void CycleSelectionMode()
-        => SetLastChange(nameof(SelectionMode), SelectionMode = CycleEnum(SelectionMode));
-
-    public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, null, "billing", "dns"));
-
-    public void CycleSelectedKeys()
-        => SetLastChange(nameof(SelectedKeys), SelectedKeys = CycleValue(SelectedKeys, null, ["panel", "mail-relay"], ["scheduler"]));
-
-    public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
-
-    // The drop asks; the rows group moves the row (TableController.MoveRow).
-    public void ToggleDraggable()
-        => SetLastChange(nameof(Draggable), Draggable = !Draggable);
-
-    // Read with Draggable: the grip's column is there only while both are on.
-    public void ToggleDragHandle()
-        => SetLastChange(nameof(DragHandle), DragHandle = !DragHandle);
-
-    // Where the grip stands, End unset; read with DragHandle on.
-    public void CycleDragHandlePlacement()
-        => SetLastChange(nameof(DragHandlePlacement), DragHandlePlacement = CycleEnum(DragHandlePlacement));
 }
 
 /// <summary>
@@ -203,19 +153,8 @@ internal sealed partial class TableRowsGroupContext : DemoGroupContext
         Items.Add(DemoDeploymentRow.Create(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added", 1, "New", UIBadgeType.Info, DemoIcons.Star));
     }
 
-    /// <summary>Moves the row a drop named to the place it asked for; the page moved it ahead, and this is the answer that keeps it.</summary>
     public void MoveRow(string id, int index)
-    {
-        for (var i = 0; i < Items.Count; i++)
-        {
-            if (Items[i].Id != id)
-                continue;
-
-            Items.Move(i, index);
-            LogEvent($"{id} -> place {index + 1}");
-            return;
-        }
-    }
+        => MoveByKey(Items, id, index);
 
     public void RemoveRow()
     {
@@ -313,18 +252,6 @@ internal sealed partial class TableController() : DemoStandardController
 
     [RecursiveMember]
     public partial TableRolloutGroupContext GripGroup { get; set; } = new();
-
-    [UICommand]
-    public void CycleTableOption(string id)
-        => TableGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleItemsOption(string id)
-        => ItemsGroup.CycleOption(id);
-
-    [UICommand]
-    public void CycleBorderOption(string id)
-        => BorderGroup.CycleOption(id);
 
     [UICommand]
     public void MoveRow(string id, int index)

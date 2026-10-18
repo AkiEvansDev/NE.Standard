@@ -41,15 +41,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
             .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(120))
             // Sideways on a phone, rather than the name and the region squeezed to nothing beside the two fixed columns.
             .SetHorizontalScroll(UIScrollMode.Auto)
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindStandard()
             .BindSurface($"{TableGroup}.{nameof(TableGroupContext.Surface)}")
             .BindShowHeader($"{TableGroup}.{nameof(TableGroupContext.ShowHeader)}")
             .BindStriped($"{TableGroup}.{nameof(TableGroupContext.Striped)}")
@@ -66,19 +58,17 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
             .BindDragHandle($"{TableGroup}.{nameof(TableGroupContext.DragHandle)}")
             .BindDragHandlePlacement($"{TableGroup}.{nameof(TableGroupContext.DragHandlePlacement)}")
             .OnRowMoveWithItemKey(nameof(TableController.MoveRow))
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}")
+            .BindBorder(BorderGroup)
             .SetMaxHeight(UILayoutLength.Absolute(240))
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 320);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
-            DemoUI.CreateOptionSection(MainGroup, "Standard", nameof(DemoStandardController.CycleMainOption)),
-            DemoUI.CreateOptionSection(TableGroup, "Table", nameof(TableController.CycleTableOption)),
-            DemoUI.CreateOptionSection(ItemsGroup, "Rows", nameof(TableController.CycleItemsOption)),
-            DemoUI.CreateOptionSection(BorderGroup, "Border", nameof(TableController.CycleBorderOption))
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(TableGroup, "Table"),
+            DemoUI.CreateOptionSection(ItemsGroup, "Rows"),
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()

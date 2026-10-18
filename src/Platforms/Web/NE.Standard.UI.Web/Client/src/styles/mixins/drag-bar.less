@@ -36,7 +36,7 @@
     // The keyboard predicate, not :focus: a press focuses the handle too, and the bar must rest once the pointer leaves.
     @thick: {
         --ui-drag-bar-line: 3px;
-        background: color-mix(in srgb, var(--ui-color-on-surface) 32%, transparent);
+        background: @ui-scroll-ink;
     };
 
     @media @{ui-can-hover} {
@@ -49,4 +49,20 @@
     &[data-ui-splitting]::before {
         @thick();
     }
+}
+
+// Six 2px squares in a stair at a box's lower right, 3px apart, the corner that resizes it: a node's on the Graph canvas, a text
+// area's resizer. Whole pixels: round dots at a 3.5px step fell on the pixels unevenly. One layer per square, not a grid cut by a
+// mask: a ::-webkit-resizer takes no mask. `@inset` the stair's distance from the corner; the stair is 8px square.
+.ui-resize-dots(@ink; @inset: 0px) {
+    @dot: linear-gradient(@ink, @ink);
+    @step: 3px;
+    @size: 2px;
+    background:
+        @dot right @inset bottom @inset / @size @size no-repeat,
+        @dot right calc(@inset + @step) bottom @inset / @size @size no-repeat,
+        @dot right calc(@inset + 2 * @step) bottom @inset / @size @size no-repeat,
+        @dot right @inset bottom calc(@inset + @step) / @size @size no-repeat,
+        @dot right calc(@inset + @step) bottom calc(@inset + @step) / @size @size no-repeat,
+        @dot right @inset bottom calc(@inset + 2 * @step) / @size @size no-repeat;
 }

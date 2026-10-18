@@ -60,7 +60,6 @@ internal sealed partial class UIViewCompilationContext
 
         (RecursivePathTemplate template, var parameters) = RecursivePathTemplate.FromPath(path);
 
-        var combinedTemplate = CombineTemplate(basePath.Template.Template, template.Template);
         CompiledUIBindingParameter[] combinedParameters = new CompiledUIBindingParameter[basePath.Parameters.Length + parameters.Length];
 
         if (basePath.Parameters.Length > 0)
@@ -69,26 +68,11 @@ internal sealed partial class UIViewCompilationContext
         for (var i = 0; i < parameters.Length; i++)
             combinedParameters[basePath.Parameters.Length + i] = CompiledUIBindingParameter.Fixed(parameters[i]);
 
-        return new CompiledPath(basePath.Source, RecursivePathTemplate.Parse(combinedTemplate), combinedParameters);
-    }
-
-    private static string CombineTemplate(string left, string right)
-    {
-        if (left.Length == 0)
-            return right;
-
-        if (right.Length == 0)
-            return left;
-
-        if (right[0] == '[')
-            return left + right;
-
-        return $"{left}.{right}";
+        return new CompiledPath(basePath.Source, basePath.Template.Append(template), combinedParameters);
     }
 
     private static CompiledPath AppendDynamicParameter(CompiledPath path, UIComponentId componentId)
     {
-        var template = AppendParameter(path.Template.Template);
         CompiledUIBindingParameter[] parameters = new CompiledUIBindingParameter[path.Parameters.Length + 1];
 
         if (path.Parameters.Length > 0)
@@ -96,11 +80,8 @@ internal sealed partial class UIViewCompilationContext
 
         parameters[^1] = CompiledUIBindingParameter.Dynamic(componentId);
 
-        return new CompiledPath(path.Source, RecursivePathTemplate.Parse(template), parameters);
+        return new CompiledPath(path.Source, path.Template.AppendParameter(), parameters);
     }
-
-    private static string AppendParameter(string template)
-        => template.Length == 0 ? "[]" : $"{template}[]";
 
     private static UIComponentId[] GetDynamicParameterComponentIds(CompiledUIBindingParameter[] parameters)
         => CompiledUIBindingParameterResolver.GetDynamicComponentIds(parameters);

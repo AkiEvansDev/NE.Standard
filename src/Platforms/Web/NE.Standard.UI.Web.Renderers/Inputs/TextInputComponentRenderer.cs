@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -29,10 +28,8 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
     // Every field registers these same lists, so they are built once rather than per field.
     private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Attribute("type", converter: WebDomConverters.TextInputTypeAttribute)];
-    private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
     private static readonly WebDomOperation[] AutocompleteOperations = [WebDomOperation.Attribute("autocomplete")];
     private static readonly WebDomOperation[] InputModeOperations = [WebDomOperation.Attribute("inputmode", converter: WebDomConverters.InputModeAttribute)];
-    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)];
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
 
     public override string ComponentTypeKey => TextInputComponent.ComponentTypeKey;
@@ -61,6 +58,9 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
+            // Before a caption inside too, as they stand.
+            FieldActionsRenderer.RenderLeadingGroups(context, row, $"{ClassName}__action", $"{ClassName}__below");
+
             RenderInputHeaderInside(context, root, row);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
@@ -76,11 +76,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                     => _ = target.Attribute("type", WebClassNames.TextInputType(value ?? UITextInputType.Text))
                 , TypeOperations);
 
-                _ = RenderProperty<int?>(context, input, TextInputComponent.MaxLengthProperty, static (target, value) =>
-                {
-                    if (value is int maxLength)
-                        _ = target.Attribute("maxlength", maxLength.ToString(CultureInfo.InvariantCulture));
-                }, MaxLengthOperations);
+                NativeInputRendererBase.RenderMaxLength(context, input);
 
                 // What the browser may fill in. A password manager reads the sign-in pair from these words and the form the
                 // field stands in: the page's, or its FormId's, so a sign-in pair shares one.
@@ -112,12 +108,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
                 RenderFlagAttribute(context, input, TextInputComponent.TrimInputProperty, WebAttributes.TrimInput);
 
-                // Read by DebouncedCommitEngine on every keystroke, so a bound value is in force at once.
-                _ = RenderProperty<int?>(context, input, TextInputComponent.DebounceMillisecondsProperty, static (target, value) =>
-                {
-                    if (value is int milliseconds and >= 0)
-                        _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-                }, DebounceOperations);
+                NativeInputRendererBase.RenderDebounce(context, input, TextInputComponent.DebounceMillisecondsProperty);
 
                 NativeInputRendererBase.RenderRunsOnEnter(context, input);
                 NativeInputRendererBase.RenderRunsOnEscape(context, input, TextInputComponent.CancelOnEscapeProperty);
@@ -148,7 +139,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
             });
 
             // After the clear, what the field can do with its value stands past what takes it away.
-            FieldActionsRenderer.RenderGroups(context, row, $"{ClassName}__action");
+            FieldActionsRenderer.RenderTrailingGroups(context, row, $"{ClassName}__action", $"{ClassName}__below");
         });
 
         RenderValidationMessage(context, root);
