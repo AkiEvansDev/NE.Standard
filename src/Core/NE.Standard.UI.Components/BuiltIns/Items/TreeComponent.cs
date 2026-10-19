@@ -239,7 +239,7 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// counts; a drop onto a folder puts it after the folder's last node.
     /// </remarks>
     public T OnNodeMoveWithItemKey(string command, string keyArgumentName = "id", string indexArgumentName = "index")
-        => OnNodeMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.ArgEventValue(indexArgumentName));
+        => OnNodeMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.Offered(UIAction.ArgEventValue(indexArgumentName)));
 
     /// <summary>
     /// Registers the command a node moved to another place raises, after its <c>DropTarget</c> was written; <c>UIAction.ArgEventValue</c>

@@ -19756,7 +19756,7 @@ var VZ = "Group", HZ = class {
 	readElsewhere(e) {
 		let t = T(e.reference.componentId), n = `${t}:${e.reference.propertyId}`, r = this.readElsewhereByEdit.get(n);
 		if (r !== void 0) return r;
-		let i = this.options.metadata.getBindingByComponentAndPropertyId(t, e.reference.propertyId), a = i === void 0 ? null : mA(i), o = a === null ? void 0 : this.findItemRootsAbove(e, a)[0];
+		let i = this.options.metadata.getBindingByComponentAndPropertyId(t, e.reference.propertyId), a = i === void 0 ? null : mA(i), o = a === null ? void 0 : this.findItemRootsAbove(e, a)[0] ?? this.findAddressedItemRoots(e.dynamicParameters).find((t) => e.components.some((e) => t.contains(e)));
 		if (a === null || o === void 0) return !1;
 		let s = this.readsPathElsewhere(o, t, e.reference.propertyId, a);
 		return this.readElsewhereByEdit.set(n, s), s;
@@ -19765,7 +19765,7 @@ var VZ = "Group", HZ = class {
 		for (let i of [e, ...e.querySelectorAll("*")]) for (let a of i.getAttributeNames()) {
 			if (!a.startsWith("data-ui-bind-")) continue;
 			let o = this.options.metadata.getBindingById(Number(i.getAttribute(a))), s = o === void 0 ? null : mA(o);
-			if (!(o === void 0 || s === null || T(o.componentId) === t && o.propertyId === n) && GZ(s.steps, r.steps) && this.findItemRoot(i, s.scopeComponentId) === e) return !0;
+			if (!(o === void 0 || s === null || T(o.componentId) === t && o.propertyId === n) && (s.scopeComponentId <= 0 || s.scopeComponentId === r.scopeComponentId) && GZ(s.steps, r.steps) && this.findItemRoot(i, 0) === e) return !0;
 		}
 		return !1;
 	}

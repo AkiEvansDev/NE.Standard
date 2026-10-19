@@ -181,7 +181,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// </summary>
     /// <remarks>The built-in entries never reach it.</remarks>
     public T OnTabMenuEntry(string command, string entryArgumentName = "entry", string tabArgumentName = "id")
-        => OnTabMenuEntry(command, UITabMenu.Entry(entryArgumentName), UITabMenu.Tab(tabArgumentName));
+        => OnTabMenuEntry(command, UIAction.Offered(UITabMenu.Entry(entryArgumentName)), UIAction.Offered(UITabMenu.Tab(tabArgumentName)));
 
     /// <summary>
     /// Registers a command invoked when an appended tab menu entry is clicked, with UI action arguments —

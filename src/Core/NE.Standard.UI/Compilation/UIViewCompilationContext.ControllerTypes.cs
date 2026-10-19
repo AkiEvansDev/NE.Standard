@@ -163,14 +163,16 @@ internal sealed partial class UIViewCompilationContext
     /// </summary>
     /// <remarks>
     /// Skips type-less walks, and a property a type derived from the one reached declares: an item template chosen per item type
-    /// binds what only its own variant has.
+    /// binds what only its own variant has. Unresolved — what a test page refuses — only where the walk is certain, as an argument's
+    /// path is refused (<see cref="MayGoUndrawn"/>): the type walked is the one every row reads, in a template every row is drawn
+    /// with; anywhere else it is advice.
     /// </remarks>
     private void WarnOnUnresolvableControllerPath(IVisualComponent component, string propertyName, CompiledPath path)
     {
         if (FindMissingControllerProperty(path) is (string missingProperty, Type owner))
         {
             _warnings.Add(new(
-                UICompileWarningKind.UnresolvedBinding,
+                BindingWarningKind(component, owner == _controllerType || owner.IsSealed || owner.IsValueType),
                 $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but " +
                 $"'{owner.Name}' has no public property '{missingProperty}'. The binding resolves to nothing and the " +
                 "component keeps the value it was authored with."
@@ -184,7 +186,7 @@ internal sealed partial class UIViewCompilationContext
             var why = typeof(RecursiveObservable).IsAssignableFrom(reader) ? "where it is no [RecursiveMember]" : "which is no RecursiveObservable";
 
             _warnings.Add(new(
-                UICompileWarningKind.UnresolvedBinding,
+                BindingWarningKind(component, exact: true),
                 $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but the server reads '{segment}' " +
                 $"through '{reader.Name}', {why}, so the binding resolves to nothing and the component keeps the value it was authored " +
                 "with. Make each step of the path a [RecursiveMember] of a RecursiveObservable."
@@ -196,12 +198,16 @@ internal sealed partial class UIViewCompilationContext
         if (FindMissingStaticItemProperty(path) is (string itemProperty, string host))
         {
             _warnings.Add(new(
-                UICompileWarningKind.UnresolvedBinding,
+                BindingWarningKind(component, exact: true),
                 $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but no item '{host}' holds has a " +
                 $"public property '{itemProperty}'. The binding resolves to nothing and the component keeps the value it was authored with."
             ));
         }
     }
+
+    /// <summary>A binding naming nothing is unresolved where the walk is certain, else advice, as an argument's path is refused or warned of.</summary>
+    private UICompileWarningKind BindingWarningKind(IVisualComponent component, bool exact)
+        => exact && !MayGoUndrawn(component) ? UICompileWarningKind.UnresolvedBinding : UICompileWarningKind.Advisory;
 
     /// <summary>
     /// The property a controller path names that the type it reaches lacks, with that type; null where the walk finds every segment

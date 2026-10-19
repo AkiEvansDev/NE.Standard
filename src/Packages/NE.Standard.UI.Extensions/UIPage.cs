@@ -582,10 +582,16 @@ public static class UIPage
     {
         ArgumentNullException.ThrowIfNull(actions);
 
+        // Beside a glyph the words keep the start, as the list's own state draws them; with none, they centre as the ways on under them
+        // do, one axis for the whole block (a short title left of a longer line stood off its own button).
         if (icon is not null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(icon);
             _ = words.SetIcon(icon);
+        }
+        else
+        {
+            _ = words.SetTextAlignment(UITextAlignment.Center);
         }
 
         StackPanelComponent block = new StackPanelComponent()

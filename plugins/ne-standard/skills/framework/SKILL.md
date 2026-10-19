@@ -88,7 +88,8 @@ holds no application state and decides nothing; state survives a reload exactly 
   event: `UIAction.Arg`, `ArgCurrentItem`, `ArgCurrentItemKey`, `ArgGroupKey`, `ArgRoot/ArgParent/ArgRelative`, `ArgEventValue`.
   In a row a control's own item is `ArgRelative`/`ArgCurrentItemKey`; `ArgParent` is the scope around the row (a menu inside a
   row reaches the row with it). The compile refuses an argument no press could read (a path the types lack, an item's key outside
-  a row) and a value-type parameter nothing supplies; an argument the command has no parameter for is a warning.
+  a row) and a value-type parameter nothing supplies; a path only where certain (a template every row is drawn with), else it
+  warns (a variant, a header, a submenu); an argument the command has no parameter for is a warning.
   A background command must not read-modify-write state another command writes.
 - Hooks: `OnInitializeAsync`, `OnNavigatedAsync(UINavigationRequest)`, `OnAttachedAsync`, `OnDetachedAsync`,
   `OnVisibilityChangedAsync`, `OnLanguageChangedAsync`, `OnThemeChangedAsync`, `OnNotificationPermissionChangedAsync`,

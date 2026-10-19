@@ -478,8 +478,11 @@ type RowsPage = {
     edit(key: string, value: string): Promise<void>;
     /** The words a row shows of its name beside the field, where the page draws them. */
     shown(key: string): string | undefined;
-    /** A command's Clear() and its Adds, as the server sends them: a reset and an insert of the rows again. */
-    refill(names: Readonly<Record<string, string>>): void;
+    /**
+     * A command's Clear() and its Adds, as the server sends them: a reset and the rows again in one insert, an insert per row, or the
+     * inserts in a change set after the reset's.
+     */
+    refill(names: Readonly<Record<string, string>>, shape?: RefillShape): void;
 };
 
 /**
@@ -489,7 +492,11 @@ type RowsPage = {
  */
 type RowAnswer = "take" | "refuse" | "restore" | "echo";
 
-function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take", showsName = false): RowsPage {
+type RefillShape = "one insert" | "an insert per row" | "a set after the reset";
+
+// `scoped`: the bindings name the row's item by a scope parameter, as a tree node's do (`Items[].Title` under the node), which the
+// row's own scope does not answer to, so the row is found by its keys.
+function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take", showsName = false, scoped = false): RowsPage {
     const RowName: Reference = { componentId: 21, propertyId: "row.name" };
     const scopes = new Map<FakeElement, { scopeComponentId: number; item: Record<string, unknown> }>();
     const held = new Map<string, Record<string, unknown>>();
@@ -508,7 +515,8 @@ function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take
     const drawRow = (key: string, name: string): FakeElement => {
         const field = new FakeInput("text");
         const component = FakeElement.of("", { "data-ui-id": "21", "data-ui-pc": "1" }).append(field);
-        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key }).append(component, FakeElement.of("", {}, "button"));
+        // The row stands under its key, as a tree's row does, so an edit whose scope it does not answer to finds it by the address.
+        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key, "data-ui-pc": "1" }).append(component, FakeElement.of("", {}, "button"));
 
         field.value = name;
         field.setAttribute("data-ui-bind-value", "41");
@@ -534,9 +542,11 @@ function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take
 
     fakeDocument.body.replaceChildren(root);
 
-    const binding = { ...RowName, mode: "TwoWay", itemTemplate: "Name", itemTemplateParameters: [] };
+    const itemTemplate = scoped ? "Rows[].Name" : "Name";
+    const itemTemplateParameters = scoped ? [{ kind: "Dynamic", componentId: 21 }] : [];
+    const binding = { ...RowName, mode: "TwoWay", itemTemplate, itemTemplateParameters };
     // The name shown beside the field: another property of the row's component reading the same path, one way.
-    const shownBinding = { componentId: 21, propertyId: "row.title", mode: "OneWay", itemTemplate: "Name", itemTemplateParameters: [] };
+    const shownBinding = { componentId: 21, propertyId: "row.title", mode: "OneWay", itemTemplate, itemTemplateParameters };
     const metadata = {
         metadata: { interactions: [], itemsFilterSort: [] },
         getBindingById: (id: number) => id === 41 ? binding : id === 42 ? shownBinding : undefined,
@@ -671,15 +681,18 @@ function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take
             await new Promise(resolve => setImmediate(resolve));
         },
         shown: key => host.querySelector(`[data-ui-key="${key}"] [data-ui-bind-title]`)?.textContent,
-        refill: names => {
-            const items = Object.entries(names).map(([key, name]) => ({ key, item: { Id: key, Name: name } }));
+        refill: (names, shape = "one insert") => {
+            const items = Object.entries(names).map(([key, name], index) => ({ index, key, item: { Id: key, Name: name } }));
+            const change = (action: string, rows: readonly unknown[]): unknown => ({ kind: "CollectionChange", action, component: { id: 20, dynamicParameters: [] }, items: rows });
+            const inserts = shape === "one insert" ? [change("Insert", items)] : items.map(item => change("Insert", [item]));
 
-            processor.applyChangeSet(real<ServerChangeSet>({
-                updates: [
-                    { kind: "CollectionChange", action: "Reset", component: { id: 20, dynamicParameters: [] }, items: [] },
-                    { kind: "CollectionChange", action: "Insert", component: { id: 20, dynamicParameters: [] }, items }
-                ]
-            }));
+            if (shape === "a set after the reset") {
+                processor.applyChangeSet(real<ServerChangeSet>({ updates: [change("Reset", [])] }));
+                processor.applyChangeSet(real<ServerChangeSet>({ updates: inserts }));
+            }
+            else {
+                processor.applyChangeSet(real<ServerChangeSet>({ updates: [change("Reset", []), ...inserts] }));
+            }
         }
     };
 }
@@ -735,25 +748,32 @@ test("a row's value the answer sends back unchanged, which reads as no change, s
 });
 
 test("a row's field whose path another of the row's bindings shows leaves the item to that binding's push", async () => {
-    const page = createRowsPage("plain", "take", true);
+    for (const scoped of [false, true]) {
+        const page = createRowsPage("plain", "take", true, scoped);
 
-    await page.edit("a", "Zoe");
+        await page.edit("a", "Zoe");
 
-    // The shown name follows the push, which brings the item with it; until then the item says what the row shows.
-    assert.deepEqual(page.names(), { a: "Anna", b: "Boris" });
-    assert.equal(page.shown("a"), "Anna");
+        // The shown name follows the push, which brings the item with it; until then the item says what the row shows.
+        assert.deepEqual(page.names(), { a: "Anna", b: "Boris" }, `scoped: ${scoped}`);
+        assert.equal(page.shown("a"), "Anna");
+    }
 });
 
 test("a command clearing and refilling the rows, which withdrew the shown name's push, draws the edited row again with its new words", async () => {
-    const page = createRowsPage("plain", "take", true);
+    for (const scoped of [false, true]) {
+        for (const shape of ["one insert", "an insert per row", "a set after the reset"] as const) {
+            const page = createRowsPage("plain", "take", true, scoped);
+            const label = `scoped: ${scoped}, ${shape}`;
 
-    await page.edit("a", "Zoe");
-    page.refill({ a: "Zoe", b: "Boris" });
+            await page.edit("a", "Zoe");
+            page.refill({ a: "Zoe", b: "Boris" }, shape);
 
-    // The same item read as unchanged kept the row and the old words in it (#251).
-    assert.equal(page.shown("a"), "Zoe");
-    assert.equal(page.field("a").value, "Zoe");
-    assert.equal(page.shown("b"), "Boris");
+            // The same item read as unchanged kept the row and the old words in it (#251); a tree node's bindings, named by scope, too.
+            assert.equal(page.shown("a"), "Zoe", label);
+            assert.equal(page.field("a").value, "Zoe", label);
+            assert.equal(page.shown("b"), "Boris", label);
+        }
+    }
 });
 
 test("a row the reader is still in takes the edit at once, and the sort moving it waits until the reader leaves the row", async () => {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
@@ -231,7 +232,7 @@ internal sealed partial class UIViewCompilationContext
     /// <summary>
     /// Refuses an argument no press could read: an item's key where the component stands in no row, the current item where it has
     /// neither a row nor a context (it would be the controller), or a path the types it walks lack or the server cannot read off them
-    /// — each failed only in the log.
+    /// — each failed only in the log. A path is refused only where the walk is certain (<see cref="RefuseOrWarnArgumentPath"/>).
     /// </summary>
     private void EnsureArgumentResolves(IVisualComponent component, string name, UIActionArgumentKind kind, UIBindingPath binding, CompiledPath path)
     {
@@ -250,14 +251,54 @@ internal sealed partial class UIViewCompilationContext
                 ? " Inside an item template a control's own row is Relative (UIAction.ArgRelative, ArgCurrentItemKey); Parent is the scope around the row."
                 : string.Empty;
 
-            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but '{owner.Name}' has no public property '{property}', so every press would fail.{hint}");
+            // A row's declared type that is not sealed may hold a derived item that has the property, from an assembly the walk never read.
+            RefuseOrWarnArgumentPath(component, owner == _controllerType || owner.IsSealed || owner.IsValueType, $"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but '{owner.Name}' has no public property '{property}', so every press would fail.{hint}");
+            return;
         }
 
         if (FindUnreadControllerSegment(path) is (string segment, Type reader))
-            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but the server reads '{segment}' through '{reader.Name}', where it is no [RecursiveMember] of a RecursiveObservable, so every press would fail.");
+        {
+            RefuseOrWarnArgumentPath(component, exact: true, $"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but the server reads '{segment}' through '{reader.Name}', where it is no [RecursiveMember] of a RecursiveObservable, so every press would fail.");
+            return;
+        }
 
         if (FindMissingStaticItemProperty(path) is (string itemProperty, string host))
-            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but no item '{host}' holds has a public property '{itemProperty}', so every press would fail.");
+            RefuseOrWarnArgumentPath(component, exact: true, $"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but no item '{host}' holds has a public property '{itemProperty}', so every press would fail.");
+    }
+
+    /// <summary>
+    /// Refuses a path the walk found missing only where it is certain: the type it walked is the one every press reads
+    /// (<paramref name="exact"/>), and the component stands in no template a row may go undrawn with
+    /// (<see cref="MayGoUndrawn"/>); anywhere else it is advice, since a false refusal stops a valid application at its start.
+    /// </summary>
+    private void RefuseOrWarnArgumentPath(IVisualComponent component, bool exact, string message)
+    {
+        if (exact && !MayGoUndrawn(component))
+            throw new InvalidOperationException(message);
+
+        _warnings.Add(new(UICompileWarningKind.Advisory, $"{message} It may be meant: no row may ever be drawn there, or it holds an item of a type the walk does not know."));
+    }
+
+    /// <summary>
+    /// Whether the component stands in a template a row may never be drawn with: one of a host that picks its template per row (a key
+    /// property; a composite's typed parts, a tree's node kinds), or a group's header. A list's own template, a table's columns are
+    /// drawn for every row.
+    /// </summary>
+    private bool MayGoUndrawn(IVisualComponent component)
+    {
+        for (var id = component.Id; id is not null; id = _parentByComponentId.GetValueOrDefault(id))
+        {
+            if (!_slotByRootComponentId.TryGetValue(id, out UIComponentSlot? slot) || !IsItemsTemplateSlot(slot.Kind))
+                continue;
+
+            if (slot.Kind == UIComponentSlotKind.GroupTemplate || slot.KeyProperty is not null)
+                return true;
+
+            if (_components[GetAuthoringId(slot.OwnerComponentId)] is ITemplatedComponent { TemplateKeyProperty: not null })
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>Whether the command's press shows it is working; a built-in command, or one with no controller to read, does.</summary>

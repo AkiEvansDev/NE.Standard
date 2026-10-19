@@ -194,7 +194,11 @@ export class ItemsRuleWatcher {
 
         const binding = this.options.metadata.getBindingByComponentAndPropertyId(componentId, edit.reference.propertyId);
         const path = binding === undefined ? null : readItemValuePath(binding);
-        const row = path === null ? undefined : this.findItemRootsAbove(edit, path)[0];
+        // Found as the edit itself will find it: by the scope its binding names, else by its keys — a tree node's binding names the
+        // node, which the row's own scope does not answer to — and the one holding the edited field, not another list's of that key.
+        const row = path === null
+            ? undefined
+            : this.findItemRootsAbove(edit, path)[0] ?? this.findAddressedItemRoots(edit.dynamicParameters).find(candidate => edit.components.some(component => candidate.contains(component)));
 
         if (path === null || row === undefined)
             return false;
@@ -219,8 +223,10 @@ export class ItemsRuleWatcher {
                 if (other === undefined || otherPath === null || (getIdValue(other.componentId) === componentId && other.propertyId === propertyId))
                     continue;
 
-                // A list inside the row reads its own rows' items, never this one's.
-                if (overlaps(otherPath.steps, path.steps) && this.findItemRoot(element, otherPath.scopeComponentId) === row)
+                // The row's own item: named by the edit's scope, or the innermost one, with no row of a list inside it between.
+                const ownItem = otherPath.scopeComponentId <= 0 || otherPath.scopeComponentId === path.scopeComponentId;
+
+                if (ownItem && overlaps(otherPath.steps, path.steps) && this.findItemRoot(element, 0) === row)
                     return true;
             }
         }

@@ -221,7 +221,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// The index is where <c>RecursiveCollection.Move</c> puts it; in a windowed host, its place in the source's whole query.
     /// </remarks>
     public T OnRowMoveWithItemKey(string command, string keyArgumentName = "id", string indexArgumentName = "index")
-        => OnRowMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.ArgEventValue(indexArgumentName));
+        => OnRowMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.Offered(UIAction.ArgEventValue(indexArgumentName)));
 
     /// <summary>
     /// Registers the command a row dropped at another place raises; <c>UIAction.ArgEventValue</c> reads the index it takes.
