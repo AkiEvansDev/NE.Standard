@@ -90,8 +90,23 @@ export class InteractionEngine {
     public applyEvent(context: InteractionEventContext): void {
         const interactions = this.index.getEventInteractions(context.componentId, context.name);
 
-        for (const interaction of interactions)
-            this.applyInteraction(interaction, context.dynamicParameters, true);
+        for (const interaction of interactions) {
+            if (isRowsOwn(interaction, context.dynamicParameters))
+                this.applyInteraction(interaction, context.dynamicParameters, true);
+        }
+    }
+
+    /**
+     * Whether the event, raised in this row, is a row's own interaction's — one menu entry's press given an effect of its own — which
+     * the page runs in place of the command the event carries for every other row.
+     */
+    public takesRowEvent(name: string, componentId: number, dynamicParameters: readonly unknown[]): boolean {
+        for (const interaction of this.index.getEventInteractions(componentId, name)) {
+            if (hasRowKey(interaction) && isRowsOwn(interaction, dynamicParameters))
+                return true;
+        }
+
+        return false;
     }
 
     /** Runs the rules reading the field the reader changed, with the value it now holds; a bound field is sent on by the value engine. */
@@ -259,6 +274,27 @@ export class InteractionEngine {
         if (this.evaluator.matches(interaction, sourceValue))
             this.options.effects.apply({ effect: withScopeParameters(effect, dynamicParameters, this.options.dom), dom: this.options.dom, row: dynamicParameters });
     }
+}
+
+function hasRowKey(interaction: WebRenderInteractionMetadata): boolean {
+    const rowKey = interaction.sourceEvent?.rowKey;
+
+    return rowKey !== null && rowKey !== undefined;
+}
+
+/**
+ * Whether an event raised with these keys fires the interaction: any row's for one that names none, else only the row it names — the
+ * innermost key, the row the event's component is drawn for; a key sent as a number and read off the DOM as digits is one row.
+ */
+function isRowsOwn(interaction: WebRenderInteractionMetadata, dynamicParameters: readonly unknown[]): boolean {
+    const rowKey = interaction.sourceEvent?.rowKey;
+
+    if (rowKey === null || rowKey === undefined)
+        return true;
+
+    const key = dynamicParameters.length === 0 ? undefined : dynamicParameters[dynamicParameters.length - 1];
+
+    return key !== null && key !== undefined && String(key) === rowKey;
 }
 
 /** What a copy writes: the source's value, or the target's authored one (`falseValue`) while the source holds nothing or blank text. */

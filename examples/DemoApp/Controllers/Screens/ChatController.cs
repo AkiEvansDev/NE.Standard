@@ -56,6 +56,9 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
     public const string Mine = "mine";
     public const string Theirs = "theirs";
 
+    /// <summary>The menu entry the page answers itself, copying the words with no round trip.</summary>
+    public const string CopyAction = "copy";
+
     [RecursiveMember(false)]
     public string Id { get; } = id;
 
@@ -130,7 +133,7 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
             new() { Id = "rule", Kind = UIMenuItemKind.Separator },
             new() { Id = "reply", Title = "demo.screens.chat.action.reply", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), Shortcut = "R" },
             // C alone: Ctrl+C stays the browser's copy of the words the reader selected in a message.
-            new() { Id = "copy", Title = "demo.screens.chat.action.copy", Icon = DemoIcons.Outline(DemoIcons.Copy), Shortcut = "C" }
+            new() { Id = CopyAction, Title = "demo.screens.chat.action.copy", Icon = DemoIcons.Outline(DemoIcons.Copy), Shortcut = "C" }
         ];
 }
 
@@ -178,11 +181,8 @@ internal sealed class DemoConversationSource : UIItemSourceBase<DemoChatMessage>
     {
         _history.Add(message);
 
-        // Only into the window the viewer is holding: a new message must not jump them to the end.
-        if (!HasMoreAfter)
-            Append(message);
-        else if (TotalCount is int total)
-            TotalCount = total + 1;
+        // Only into the window the viewer is holding: a new message must not jump them to the end, and is only counted past it.
+        _ = Insert(message, _history.Count - 1);
     }
 
     /// <summary>A message of the window the reader holds; one outside it has no row to act on.</summary>
@@ -198,28 +198,23 @@ internal sealed class DemoConversationSource : UIItemSourceBase<DemoChatMessage>
             return -1;
 
         _history.RemoveAt(index);
-        _ = Remove(id);
+
+        // By its place too: one deleted above the window the reader holds moves the window's start back.
+        _ = Remove(id, index);
 
         return index;
     }
 
-    /// <summary>A message deleted a moment ago goes back where it stood: into the history, and into the window if the reader holds that stretch.</summary>
+    /// <summary>
+    /// A message deleted a moment ago goes back where it stood: into the history, and into the window if the reader holds that stretch;
+    /// above it, it moves the window's start on, and past its end, while more follows, it is not the reader's to see yet.
+    /// </summary>
     public void Restore(DemoChatMessage message, int index)
     {
         index = Math.Clamp(index, 0, _history.Count);
         _history.Insert(index, message);
 
-        if (TotalCount is int total)
-            TotalCount = total + 1;
-
-        if (Offset is not int offset)
-            return;
-
-        // Before the window it moves the window's start on by one; past its end, while more follows, it is not the reader's to see yet.
-        if (index < offset)
-            Offset = offset + 1;
-        else if (index < offset + Items.Count || (index == offset + Items.Count && !HasMoreAfter))
-            Items.Insert(index - offset, message);
+        _ = Insert(message, index);
     }
 
     protected override async Task<UIItemWindow<DemoChatMessage>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
@@ -282,7 +277,8 @@ internal sealed partial class ChatController : UIControllerBase
 
     private static readonly string[] FolderNames = ["Work", "Family", "Travel", "Reading", "Receipts"];
 
-    private static readonly Dictionary<string, string> QuickReplyWords = new(StringComparer.Ordinal)
+    /// <summary>The bolt's words by entry, which each entry inserts at the composer's caret on the page.</summary>
+    public static readonly IReadOnlyDictionary<string, string> QuickReplyWords = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["on-it"] = "On it, looking now.",
         ["runbook"] = "Runbook: https://docs.orvane.example/runbooks/failover",
@@ -849,12 +845,7 @@ internal sealed partial class ChatController : UIControllerBase
             Chats.Move(index, 0);
     }
 
-    /// <summary>Answers with a quick reply's words at the composer's caret; the draft itself is the page's until Send.</summary>
-    [UICommand]
-    public static UICommandResult InsertQuickReply(string id)
-        => QuickReplyWords.TryGetValue(id, out var words) ? UICommandResult.Ok([InsertTextEffect.Literal(ComposerId, words)]) : UICommandResult.Ok();
-
-    /// <summary>The bolt's entries, keyed as <see cref="InsertQuickReply"/> reads them.</summary>
+    /// <summary>The bolt's entries, keyed as <see cref="QuickReplyWords"/> holds their words.</summary>
     public static MenuItem[] QuickReplies()
         =>
         [
@@ -879,7 +870,7 @@ internal sealed partial class ChatController : UIControllerBase
         switch (id)
         {
             case "day":
-                return OpenDayPicker();
+                return UICommandResult.Ok([new OpenDialogEffect(DayKey)]);
             case "newest":
                 await Conversation.ShowAsync(_open.History, cancellationToken).ConfigureAwait(false);
                 return UICommandResult.Ok([new ScrollEffect(ConversationId, ScrollPosition.End) { Behavior = ScrollToBehavior.Auto }]);
@@ -923,17 +914,13 @@ internal sealed partial class ChatController : UIControllerBase
         WallpaperBlurLength = (double)WallpaperBlur;
     }
 
-    [UICommand]
-    public static UICommandResult OpenDayPicker()
-        => UICommandResult.Ok([new OpenDialogEffect(DayKey)]);
-
     /// <summary>A press on a day header: the calendar opens on that day.</summary>
     [UICommand]
     public UICommandResult ShowDay(string day)
     {
         JumpDay = DateOnly.TryParseExact(day, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly parsed) ? parsed : null;
 
-        return OpenDayPicker();
+        return UICommandResult.Ok([new OpenDialogEffect(DayKey)]);
     }
 
     /// <summary>
@@ -973,10 +960,9 @@ internal sealed partial class ChatController : UIControllerBase
                 break;
             case "delete":
                 return Delete(message);
+            // The quote is composed from the message here: no effect builds text from a component's words on the page.
             case "reply":
                 return UICommandResult.Ok([InsertTextEffect.Literal(ComposerId, $"> {message.Text}\n")]);
-            case "copy":
-                return UICommandResult.Ok([CopyToClipboardEffect.Literal(message.Text), new ShowNotificationEffect("Copied.", UIColorStyle.Info)]);
             default:
                 break;
         }

@@ -15,6 +15,9 @@ public sealed class WebRenderInteractionMetadata
 
     public CompiledUIEventAddress? SourceEvent { get; set; }
 
+    /// <summary>The key of the row whose event alone fires it — a menu entry's press, in place of its command — or null for any.</summary>
+    public string? RowKey { get; init; }
+
     public WebRenderPropertyMetadata? Target { get; set; }
 
     public ClientEffect? Effect { get; init; }

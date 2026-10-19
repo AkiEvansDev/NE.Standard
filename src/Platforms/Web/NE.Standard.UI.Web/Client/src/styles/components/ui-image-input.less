@@ -71,11 +71,13 @@
         height: 100%;
     }
 
-    .ui-image-input__picture:not([src]) {
+    .ui-image-input__picture:not([src]),
+    .ui-image-input[data-ui-image-failed] .ui-image-input__picture {
         display: none;
     }
 
-// The stand-in: the shape's own drawn glyph until an icon is named on the root, which the icon then replaces.
+// The stand-in: the shape's own drawn glyph until an icon is named on the root, which the icon then replaces; shown with no picture,
+// and over one the browser could not draw (image-input-engine.ts), as a failed picture anywhere shows its fallback glyph.
 .ui-image-input__placeholder {
     display: none;
     width: 2rem;
@@ -83,7 +85,8 @@
     font-size: 2rem;
 }
 
-    .ui-image-input:not(@{ui-image-shown}) > .ui-image-input__surface > .ui-image-input__placeholder {
+    .ui-image-input:not(@{ui-image-shown}) > .ui-image-input__surface > .ui-image-input__placeholder,
+    .ui-image-input[data-ui-image-failed] > .ui-image-input__surface > .ui-image-input__placeholder {
         display: block;
     }
 

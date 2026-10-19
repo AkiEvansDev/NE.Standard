@@ -44,7 +44,11 @@ internal abstract partial class UIRuntimeBase
         await using ConfiguredAsyncDisposable hold = HoldAsCommand().ConfigureAwait(false);
         ThrowIfAskedToGo();
 
-        return await ProcessEventInFlightAsync(invoker, request, cancellationToken).ConfigureAwait(false);
+        UICommandExecutionResult result = await ProcessEventInFlightAsync(invoker, request, cancellationToken).ConfigureAwait(false);
+
+        FollowShownByCommand(invoker, result.Command.Effects);
+
+        return result;
     }
 
     /// <summary>
@@ -197,7 +201,7 @@ internal abstract partial class UIRuntimeBase
                 await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    EnsureEventTargetOpenNoLock(compiledEvent, request.DynamicParameters);
+                    EnsureEventTargetOpenNoLock(compiledEvent, request.DynamicParameters, invoker.Instance.Id);
 
                     step = "BuildCommandArguments";
                     arguments = BuildCommandArguments(compiledEvent, request.DynamicParameters);
@@ -650,9 +654,14 @@ internal abstract partial class UIRuntimeBase
     /// hears nothing: its connection may hold another runtime of the route now, whose page this result would write over.
     /// </remarks>
     protected Task PushCommandResultAsync(UIHandle invoker, UICommandExecutionResult result, CancellationToken cancellationToken)
-        => Array.IndexOf(Volatile.Read(ref _attachedInstanceIdsSnapshot), invoker.Instance.Id) < 0
-            ? Task.CompletedTask
-            : Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
+    {
+        if (Array.IndexOf(Volatile.Read(ref _attachedInstanceIdsSnapshot), invoker.Instance.Id) < 0)
+            return Task.CompletedTask;
+
+        FollowShownByCommand(invoker, result.Command.Effects);
+
+        return Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
+    }
 
     private void TryLogDetachedCommandFailure(string operation, Exception exception)
         => TryLog((operation, exception), static (logger, state) => Log.DetachedCommandFailed(logger, state.exception, state.operation));

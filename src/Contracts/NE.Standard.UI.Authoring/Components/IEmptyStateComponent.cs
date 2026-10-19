@@ -4,8 +4,9 @@ using NE.Standard.UI.Primitives.Annotations;
 namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
-/// A collection host that draws its empty template while it holds nothing (an items view, a table, a tree); off, an empty host draws
-/// no empty state at all, as a short list under a row should not say "nothing" under every row.
+/// A collection host that draws its empty template while it holds nothing (an items view, a table, a tree, a tabs view, a menu, a radio
+/// group, a key-value list); off, an empty host draws no empty state at all, as a short list under a row should not say "nothing"
+/// under every row.
 /// </summary>
 public interface IEmptyStateComponent : IVisualComponent
 {

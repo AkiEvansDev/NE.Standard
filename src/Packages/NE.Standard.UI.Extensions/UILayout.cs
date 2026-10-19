@@ -1,8 +1,11 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
@@ -26,16 +29,60 @@ public static class UILayout
             .AddChildren(children);
     }
 
-    /// <summary>Things along a row, wrapping onto the next when the row is narrower than they are.</summary>
+    /// <summary>
+    /// Things along a row, wrapping onto the next when the row is narrower than they are. Beside a field with a caption over its box,
+    /// a thing with none (a button, a field without a title) stands level with the box, as in a form row.
+    /// </summary>
     public static StackPanelComponent Row(double spacing = 8, params IVisualComponent[] children)
     {
         ArgumentNullException.ThrowIfNull(children);
 
-        return new StackPanelComponent()
+        StackPanelComponent row = new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
             .SetSpacing(spacing)
-            .SetWrap(true)
-            .AddChildren(children);
+            .SetWrap(true);
+
+        // A row does not stack at a breakpoint, so at every width.
+        if (UIFieldBoxes.Of(children) is not UIFieldBoxAlignment boxes)
+            return row.AddChildren(children);
+
+        foreach (IVisualComponent child in children)
+            _ = row.AddChild(UIFieldBoxes.HasCaptionRow(child) ? child : LevelWithBoxes(child, boxes));
+
+        return row;
+    }
+
+    /// <summary>
+    /// A thing with no caption level with captioned fields' boxes in a row: a column of its own through itself, anything else in a cell
+    /// shown as the thing is, so a thing hidden at a width leaves no gap.
+    /// </summary>
+    private static StackPanelComponent LevelWithBoxes(IVisualComponent child, UIFieldBoxAlignment boxes)
+    {
+        if (UIFieldBoxes.AlignsItself(child, out StackPanelComponent? column))
+            return column.SetAlignWithFieldBoxes(boxes);
+
+        StackPanelComponent cell = new StackPanelComponent()
+            .SetOrientation(UIOrientation.Vertical)
+            .SetVerticalAlignment(UIAlignment.Start)
+            .SetAlignWithFieldBoxes(boxes)
+            .AddChild(child);
+
+        return FollowVisibility(cell, child);
+    }
+
+    /// <summary>
+    /// Shows <paramref name="cell"/> as <paramref name="child"/> is shown — its written Visibility and a bound one — so a cell around a
+    /// thing hidden at a width (<c>Back().ShownBelow(Md)</c>) goes with it, and its margin or spacing too.
+    /// </summary>
+    internal static StackPanelComponent FollowVisibility(StackPanelComponent cell, IVisualComponent child)
+    {
+        if (child.Visibility is { } visibility)
+            _ = cell.SetVisibility(visibility);
+
+        if (PresetBindings.TryFind(child, IVisualComponent.VisibilityProperty, out UIBinding binding))
+            _ = cell.BindVisibility(binding.Source.ToString(), binding.Scope);
+
+        return cell;
     }
 
     /// <summary>
@@ -74,7 +121,7 @@ public static class UILayout
 
             // Only from the breakpoint the cells stand side by side at: stacked, the line would stand the control off the field above.
             if (fieldBoxes?.Invoke(children[i]) is UIFieldBoxAlignment boxes and not UIFieldBoxAlignment.None)
-                _ = cell.SetAlignWithFieldBoxes(wide ? UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, xl: boxes) : UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, md: boxes));
+                UIFieldBoxes.Align(cell, children[i], wide ? UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, xl: boxes) : UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, md: boxes));
 
             _ = columns.AddChild(cell);
         }
@@ -135,25 +182,55 @@ public static class UILayout
 
     /// <summary>
     /// Something at the start of a row and things at its far end — a title and its buttons, a line and its action, a search and its
-    /// Add: the end as wide as it is, never half the row, the start the rest, both on the row's middle, 12 px apart. On a phone
-    /// buttons with words stand under the start at the far end, as a page header's do; icons and the rest keep the row.
+    /// Add: the end as wide as it is, never half the row, the start the rest, both on the row's middle, 12 px apart; beside a start
+    /// with a caption over its box (a titled field) the end stands level with the box, as a form row stands a control with no caption.
+    /// On a phone buttons with words stand under the start at the far end, as a page header's do; icons and the rest keep the row.
+    /// An icon or quiet words at either end stand their glyph on the row's edge.
     /// </summary>
     public static ContainerComponent Ends(IVisualComponent start, params IVisualComponent[] end)
+        => Ends(start, null, end, titleLine: false);
+
+    /// <summary>
+    /// As the public overload with a <paramref name="line"/> under the start (a heading's note): under the far end too on a phone, as a
+    /// page header's line runs, beside it from the medium breakpoint, so the far end stands on the start's own line. A
+    /// <paramref name="titleLine"/> start is a title that wraps: its first line stands on the far end's middle, as a page header's name
+    /// does on a phone, rather than the far end on the middle of its lines.
+    /// </summary>
+    internal static ContainerComponent Ends(IVisualComponent start, ParagraphComponent? line, IVisualComponent[] end, bool titleLine)
     {
         ArgumentNullException.ThrowIfNull(start);
         ArgumentNullException.ThrowIfNull(end);
 
-        StackPanelComponent first = new StackPanelComponent()
-            .SetOrientation(UIOrientation.Vertical)
-            .SetVerticalAlignment(UIAlignment.Center)
-            .AddChild(start);
-
-        if (end.Length == 0)
-            return new ContainerComponent().AddChild(first.SetPlacement(1, 1, 24, 1));
+        // The line's own row, as close under the start as a text's two lines.
+        _ = line?.SetMargin(UIThickness.All(0, 4, 0, 0));
 
         // Words take a phone's row from the start, as the header's did ("Serv / ers"): judged by what the end holds, since nothing
         // measures whether the two fit.
         var under = Array.Exists(end, static item => item is IButtonComponent button && UIPage.ShowsWords(button));
+
+        // A title's first line on the far end's middle only where a far end stands beside it at every width: with nothing there, or with
+        // words that go under it on a phone, the title stays where it is and the row's middle holds them from md.
+        var firstLineOnEnd = titleLine && end.Length > 0 && !under;
+
+        // Both held by the top beside a captioned start: centred, a start growing its validation line would drop the end off its box.
+        UIFieldBoxAlignment? boxes = UIFieldBoxes.Of([start]);
+        UIAlignment across = boxes is null && !firstLineOnEnd ? UIAlignment.Center : UIAlignment.Start;
+
+        StackPanelComponent first = new StackPanelComponent()
+            .SetOrientation(UIOrientation.Vertical)
+            .SetGlyphEdge(UIAlignment.Start)
+            .SetVerticalAlignment(across)
+            .AddChild(start);
+
+        if (firstLineOnEnd)
+            _ = first.SetFirstLineOnControl(UIButtonSize.Medium);
+
+        if (end.Length == 0)
+        {
+            ContainerComponent alone = new ContainerComponent().AddChild(first.SetPlacement(1, 1, 24, 1));
+
+            return line is null ? alone : alone.AddChild(line.SetPlacement(1, 2, 24, 1));
+        }
 
         StackPanelComponent far = new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
@@ -161,23 +238,28 @@ public static class UILayout
             .SetSpacing(8)
             .SetWrap(under)
             .SetHorizontalAlignment(UIAlignment.End)
-            .SetVerticalAlignment(UIAlignment.Center)
+            .SetVerticalAlignment(across)
             .AddChildren(end);
 
-        ContainerComponent row = new ContainerComponent().SetColumn(24, UIGridUnit.Auto());
+        // Under the start on a phone the end stands on no box: the line only from the breakpoint it stands beside the start at.
+        if (boxes is UIFieldBoxAlignment level)
+            _ = far.SetAlignWithFieldBoxes(under ? UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, md: level) : level);
+
+        // In reading order: the start, its line, then the far end.
+        ContainerComponent row = new ContainerComponent()
+            .SetColumn(24, UIGridUnit.Auto())
+            .AddChild(under ? first.SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 23, 1)) : first.SetPlacement(1, 1, 23, 1));
+
+        if (line is not null)
+            _ = row.AddChild(line.SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(1, 2, 23, 1)));
 
         if (!under)
-        {
-            return row
-                .AddChild(first.SetPlacement(1, 1, 23, 1))
-                .AddChild(far.SetMargin(UIThickness.All(EndsAir, 0, 0, 0)).SetPlacement(24, 1, 1, 1));
-        }
+            return row.AddChild(far.SetMargin(UIThickness.All(EndsAir, 0, 0, 0)).SetPlacement(24, 1, 1, 1));
 
         return row
-            .AddChild(first.SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 23, 1)))
             .AddChild(far
                 .SetMargin(UIResponsive<UIThickness>.Create(UIThickness.All(0, 8, 0, 0), md: UIThickness.All(EndsAir, 0, 0, 0)))
-                .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(24, 1, 1, 1))
+                .SetPlacement(1, line is null ? 2 : 3, 24, 1, md: UIGridPlacement.At(24, 1, 1, 1))
             );
     }
 
@@ -190,7 +272,7 @@ public static class UILayout
     /// breakpoint one at a time, the detail in the list's place once it is in front, with a Back of its own
     /// (<c>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</c>). The controller holds a <see cref="UIPanesState"/> at
     /// <paramref name="statePath"/> and moves it by its <c>Show</c> calls; a <paramref name="placeholder"/> stands in the detail's
-    /// place while nothing is chosen (<see cref="UIPage.Empty"/>) — without one, start the state with something chosen. The splitter
+    /// place while nothing is chosen (<see cref="UIPage.Empty(string, UIPhrase, UIPhrase, IVisualComponent[])"/>) — without one, start the state with something chosen. The splitter
     /// writes the state's <see cref="UIPanesState.Share"/>. Give it the region's height where the panes scroll inside themselves.
     /// </summary>
     public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string statePath, IVisualComponent? placeholder = null, bool splitter = false)
@@ -207,9 +289,9 @@ public static class UILayout
         // The list's scroller stands its bar in the air after it: all of it without a splitter, the bar's room before a splitter's track,
         // whose grip the bar must not cover, and as much after it, so the line stands mid-air. Rejected: 4 px after the track (the line
         // stood against the detail's edge).
-        var listEnd = splitter ? ScrollbarRoom : 0;
+        var listEnd = splitter ? ContainerComponent.ScrollbarRoom : 0;
         UIThickness listAir = UIThickness.All(0, 0, listEnd, 0);
-        UIThickness detailAir = UIThickness.All(splitter ? ScrollbarRoom : PanesAir, 0, 0, 0);
+        UIThickness detailAir = UIThickness.All(splitter ? ContainerComponent.ScrollbarRoom : PanesAir, 0, 0, 0);
 
         ContainerComponent panes = new ContainerComponent()
             .SetColumn(1, splitter ? UIGridUnit.Absolute(PanesListWidth, min: 200, max: 480) : UIGridUnit.Absolute(PanesListWidth))
@@ -237,9 +319,6 @@ public static class UILayout
 
     private const double PanesListWidth = 280;
     private const double PanesAir = 16;
-
-    // The overlay bar's room, core/scrollbar.less's --ui-scrollbar-room.
-    private const double ScrollbarRoom = 12;
 
     /// <summary>A pane's cell: the region's height, beside the other one from the medium breakpoint, shown as the controller says.</summary>
     /// <remarks>
@@ -275,6 +354,18 @@ public static class UILayout
     /// <summary>The placeholder's visibility in <see cref="Panes"/>: beside the list from the medium breakpoint while nothing is chosen.</summary>
     public static UIResponsive<UIVisibility> PanesPlaceholderVisibility(bool chosen)
         => chosen ? UIVisibility.Collapsed : UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
+
+    /// <summary>
+    /// A band over the list of <see cref="Panes"/> — the list's header in the page's header region — as wide as the list from the medium
+    /// breakpoint, its own side padding outside it, so its words stand over the list's and its far end over the list's end; the whole
+    /// width below. Without a splitter: a list the viewer widens is wider than a band can know.
+    /// </summary>
+    public static ContainerComponent InPanesList(this ContainerComponent band)
+    {
+        ArgumentNullException.ThrowIfNull(band);
+
+        return UIPage.Within(band, PanesListWidth, UIResponsiveTier.Md);
+    }
 
     // A cell, not a placement on the child (which may be any component). The presets set their own air by margins, leaving the
     // container's Spacing off: a cell's margin is above it while the cells stand one under another, before it once side by side.

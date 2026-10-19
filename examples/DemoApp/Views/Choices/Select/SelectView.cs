@@ -152,7 +152,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                     .SetType(UIButtonType.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("Open the roster card")
-                    .OnClick(nameof(SelectController.OpenRoster))
+                    .InteractOn(EventNames.Click, new OpenDialogEffect(SelectController.RosterKey))
                 ),
             note: "`UIForm.Row(select, select, number, switch)`: each select's floor is 12rem or its cell, whichever is less, so neither covers its neighbour's help badge. The card opens the same rows in an 820px dialog, two of them."
         );

@@ -11,6 +11,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
 {
     private const string FormId = "sign-up";
     private const string CompanySwitchId = "sign-up-company";
+    private const string PasswordId = "sign-up-password";
 
     public static string ViewKey => "demo.screens.sign-up";
 
@@ -41,6 +42,16 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                     .Required("An address is how you get in.", UIValidationTrigger.Submit)
                     .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur),
                 UIForm.Field(CreatePasswordField(), "Eight characters or more. A phrase beats a word."),
+                // Judged against the field above as either changes, in the browser; the server takes the password alone.
+                new TextInputComponent()
+                    .SetTitle("Password again")
+                    .SetType(UITextInputType.Password)
+                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAutocomplete(UIAutocomplete.NewPassword)
+                    .SetFormId(FormId)
+                    .BindValue(nameof(SignUpController.PasswordAgain))
+                    .Required("Type the password once more.", UIValidationTrigger.Submit)
+                    .ValidateAgainst(PasswordId, UIComparisonOperator.Equal, "The two passwords differ."),
                 // A sentence a toggle's one-line description would cut on a phone goes under it, starting where its title does.
                 UIForm.Field(new SwitchComponent(CompanySwitchId)
                     .SetTitle("I'm signing up for a company")
@@ -86,15 +97,14 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                 UIButtons.Pair(
                     UIButtons.Link("I already have an account"),
                     UIButtons.Primary("Create account")
-                        .OnSubmit(FormId, nameof(SignUpController.CreateAccountAsync))
-                        .ShowLoadingDuring(EventNames.Click)
+                        .OnSubmitShowingLoading(FormId, nameof(SignUpController.CreateAccountAsync))
                 )
             ), DemoIcons.Outline(DemoIcons.Shield))
             .BindVisibility(nameof(SignUpController.FormVisibility));
 
     /// <summary>Two rules on one field, the graver heard first; the info one only says its piece.</summary>
     private static TextInputComponent CreatePasswordField()
-        => new TextInputComponent()
+        => new TextInputComponent(PasswordId)
             .SetTitle("Password")
             .SetType(UITextInputType.Password)
             .SetAppearance(UIInputAppearance.Tonal)
@@ -107,11 +117,12 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
 
     /// <summary>What replaces the form: the confirmation, and the two ways on from it.</summary>
     private static SurfaceComponent CreateDone()
-        => UIPage.Outcome(
+        => UIPage.BoundOutcome(
             DemoIcons.Outline(DemoIcons.BadgeCheck),
             UIMessageSeverity.Success,
-            "Check your inbox",
-            new ParagraphComponent().BindDescription(nameof(SignUpController.DoneLine)),
+            nameof(SignUpController.DoneTitle),
+            // Words the reader typed (a company's name, an address) are data: the bound twin draws them as written.
+            nameof(SignUpController.DoneLine),
             UIButtons.Ghost("Start over").OnClick(nameof(SignUpController.StartOver)),
             // A button that goes somewhere goes through a command: a navigation is an effect a command answers with, not one an
             // interaction may run.

@@ -71,6 +71,12 @@ public readonly record struct UIActionArgument
     public UIBindingPath? Binding { get; }
 
     /// <summary>
+    /// Gets whether the framework offers the argument beside the author's own (a drop, an edited row's key): a command with no
+    /// parameter for it leaves it untaken, and the compile does not warn of it.
+    /// </summary>
+    public bool Offered { get; init; }
+
+    /// <summary>
     /// Creates a literal action argument from a value.
     /// </summary>
     public static UIActionArgument Literal(object? value)

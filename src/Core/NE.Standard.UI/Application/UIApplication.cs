@@ -120,6 +120,9 @@ public sealed class UIApplication
     /// <summary>The same resolver, unset rather than thrown, for code that hands it onward without needing it yet.</summary>
     internal IUIContentAddressResolver? ContentOrNull { get; }
 
+    /// <summary>Whether an author's mistake a runtime finds is told to the page's console as well as the log: the platform's Development.</summary>
+    internal bool ReportsToPage { get; init; }
+
     /// <summary>
     /// Gets view filters that run for every route, already ordered.
     /// </summary>

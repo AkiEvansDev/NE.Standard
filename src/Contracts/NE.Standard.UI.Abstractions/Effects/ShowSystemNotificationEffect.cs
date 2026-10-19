@@ -27,11 +27,15 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     {
     }
 
-    /// <summary>Creates a notification with a title and a body, each a phrase or the author's text.</summary>
+    /// <summary>Creates a notification with a title and a body, each a phrase or the author's text; the title may not be empty.</summary>
     [JsonConstructor]
     public ShowSystemNotificationEffect(UIPhrase title, UIPhrase? body = null)
     {
         ArgumentNullException.ThrowIfNull(title);
+
+        // The system shows the title alone where it folds a notification: an empty one says nothing of what came.
+        if (!UIPhrase.HasWords(title))
+            throw new ArgumentException("A notification needs a title.", nameof(title));
 
         Title = title;
         Body = body;
@@ -72,7 +76,11 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     /// <see cref="Action"/> instead, which belongs to the page it leaves.
     /// </remarks>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Address { get; init; }
+    public string? Address
+    {
+        get;
+        init => field = value is null ? null : UISiteAddress.Normalize(value, nameof(Address));
+    }
 
     /// <summary>
     /// Gets the words of the fallback toast's button that leads to <see cref="Address"/>, or <see langword="null"/> for the framework's

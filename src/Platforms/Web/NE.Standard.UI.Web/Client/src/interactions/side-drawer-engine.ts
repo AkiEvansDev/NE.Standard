@@ -16,7 +16,8 @@ import { isBehindModal } from "./open-dialogs.ts";
 import { hasOpenPopups } from "./popup-dismissal.ts";
 import { motion } from "../rendering/motion.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
-import { DrawerBreakpointQueries, isBottomBarSide, sideIsDrawer } from "../rendering/side-drawer-width.ts";
+import { onTierChange } from "../rendering/responsive-tier.ts";
+import { DrawerBreakpointTiers, isBottomBarSide, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { PressedKind } from "./toggle-button-engine.ts";
 import { focusAsLastInput, isPointerLast, moveFocusInto, restoreFocusTo, trapTab } from "./popup-focus.ts";
@@ -57,10 +58,7 @@ export class SideDrawerEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
         // Across a breakpoint a side may stand in its column again: a drawer left open would hold the page under its backdrop.
-        if (typeof matchMedia === "function") {
-            for (const query of DrawerBreakpointQueries)
-                matchMedia(query).addEventListener("change", () => this.refit());
-        }
+        onTierChange(() => this.refit(), DrawerBreakpointTiers);
 
         for (const shell of document.querySelectorAll<HTMLElement>(RootSelector))
             markPins(shell);
@@ -126,8 +124,8 @@ export class SideDrawerEngine {
             return;
         }
 
-        // A popup open in the drawer or over it takes the first Escape, as a dialog leaves it to one.
-        if (domEvent.key !== "Escape" || escapeIsClaimed(domEvent) || hasOpenPopups())
+        // A popup open in the drawer or over it, or an action bar there, takes the first Escape, as a dialog leaves it to one.
+        if (domEvent.key !== "Escape" || escapeIsClaimed(domEvent) || hasOpenPopups(domEvent.target))
             return;
 
         let closed = false;

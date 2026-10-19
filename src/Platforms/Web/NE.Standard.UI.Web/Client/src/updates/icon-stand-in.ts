@@ -1,8 +1,9 @@
-// A round picture (`ui-icon--circle`, `ui-image--circle`) with no picture shows a glyph on a neutral circle in the picture's place: its
-// author's (`data-ui-fallback-icon`), else the person's. An icon with no value stands in from the first paint, and its host shows the
-// icon part for it (the operation's name); a picture icon's address is asked for once per page, and one that fails stands in too until
-// the icon is given another value, or is drawn again a while later — an upload not processed yet, a moment offline — when it is asked
-// for again. A picture's box is `image-fallback-engine.ts`'s, which draws the same glyph.
+// A picture with no picture shows a glyph in the picture's place: its author's (`data-ui-fallback-icon`), else the person's on a round
+// one (`ui-icon--circle`, `ui-image--circle`), on a neutral circle, and a picture's on any other, on the wash. A round icon with no value
+// stands in from the first paint, and its host shows the icon part for it (the operation's name) — a square one with no value is no
+// icon at all; a picture icon's address is asked for once per page, and one that fails stands in too until the icon is given another
+// value, or is drawn again a while later — an upload not processed yet, a moment offline — when it is asked for again. A picture's box
+// is `image-fallback-engine.ts`'s, which draws the same glyph.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { FallbackIconAttribute, IconFailedAttribute } from "../addressing/dom-attributes.ts";
@@ -11,16 +12,19 @@ import { applyIconValue, IconUrlProperty, isIconClassName, toIconClassName } fro
 /** The operation's kind, as `IconValueRenderer.StandInOperationKind` spells it on the server. */
 export const IconStandInOperationKind = "icon-stand-in";
 
-/** A round picture icon, the one form that stands in. */
-export const RoundIconSelector = ".ui-icon.ui-icon--circle";
-
-/** `UIGlyphs.Person`: the glyph a stand-in draws where its author named none. */
+/** `UIGlyphs.Person`: the glyph a round stand-in draws where its author named none. */
 const PersonGlyph = "ne-person";
+/** `UIGlyphs.Image`: the glyph any other stand-in draws where its author named none. */
+const PictureGlyph = "ne-image";
+const IconClass = "ui-icon";
 const CircleClass = "ui-icon--circle";
 const PictureClass = "ui-icon--image";
 /** `IconValueRenderer.StandInClassName`. */
 const StandInClass = "ui-icon-stand-in";
 const StandInSelector = `:scope > .${StandInClass}`;
+
+/** The icons that may stand in: a round one, and a picture of any shape — not a stand-in's own glyph, whose fallback may be a picture. */
+export const StandInIconSelector = `.${IconClass}.${CircleClass}:not(.${StandInClass}), .${IconClass}.${PictureClass}:not(.${StandInClass})`;
 /** `IconValueRenderer.MissingReason`: no value at all, which the host's mark answers for; a picture that failed already draws. */
 const Missing = "missing";
 const Failed = "failed";
@@ -49,7 +53,7 @@ export function writeIconStandIn(icon: Element): IconStandInMark {
     else if (before !== reason)
         icon.setAttribute(IconFailedAttribute, reason);
 
-    writeStandInGlyph(icon, reason !== null);
+    writeStandInGlyph(icon, reason !== null, icon.classList.contains(CircleClass));
 
     if (reason === Missing)
         return "show";
@@ -57,13 +61,12 @@ export function writeIconStandIn(icon: Element): IconStandInMark {
     return before === Missing ? "release" : "keep";
 }
 
-/** Why the icon stands in, or null for one that draws its own value or is not round. */
+/** Why the icon stands in, or null for one that draws its own value — a glyph, a picture that loaded — or a square one with none. */
 function standInReason(icon: Element): string | null {
-    if (!icon.classList.contains(CircleClass))
-        return null;
+    const round = icon.classList.contains(CircleClass);
 
     if (!icon.className.split(" ").some(isIconClassName))
-        return Missing;
+        return round ? Missing : null;
 
     const address = icon.classList.contains(PictureClass) ? pictureAddress(icon) : null;
 
@@ -121,8 +124,8 @@ function settle(address: string, loaded: boolean): void {
         writeIconStandIn(icon);
 }
 
-/** Puts the stand-in glyph in `host` — its author's fallback, else the person's — or takes it away. */
-export function writeStandInGlyph(host: Element, shown: boolean): void {
+/** Puts the stand-in glyph in `host` — its author's fallback, else the person's on a `round` one and a picture's on any other — or takes it away. */
+export function writeStandInGlyph(host: Element, shown: boolean, round: boolean): void {
     let glyph = host.querySelector(StandInSelector);
 
     if (!shown) {
@@ -131,7 +134,7 @@ export function writeStandInGlyph(host: Element, shown: boolean): void {
     }
 
     const fallback = host.getAttribute(FallbackIconAttribute);
-    const value = fallback !== null && toIconClassName(fallback).length > 0 ? fallback : PersonGlyph;
+    const value = fallback !== null && toIconClassName(fallback).length > 0 ? fallback : round ? PersonGlyph : PictureGlyph;
 
     if (glyph === null) {
         glyph = document.createElement("span");

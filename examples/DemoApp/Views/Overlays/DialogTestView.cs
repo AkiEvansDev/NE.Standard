@@ -9,7 +9,8 @@ namespace DemoApp.Views.Overlays;
 /// a sheet of details, and a wait.
 /// </summary>
 /// <remarks>
-/// A dialog is declared by the view, rendered closed by the shell, and opened by key from a command. The page is words, not samples:
+/// A dialog is declared by the view, rendered closed by the shell, and opened by key — from a command that fills it first, or from a
+/// press alone (the filters). The page is words, not samples:
 /// every title, note, button and line is a key, in each of the demo's languages; the deploys it lists are its data.
 /// </remarks>
 internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
@@ -30,10 +31,10 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
     protected override IReadOnlyList<UIDialog> CreateDialogs()
         => [
             // The preset's question: a press beside it is no answer, Escape is Cancel, and both Cancel and Escape keep the release.
-            UIDialogs.Confirm(
+            UIDialogs.BoundConfirm(
                 DialogTestController.ConfirmKey,
                 Words + "confirm.heading",
-                new ParagraphComponent().BindDescription($"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}"),
+                $"{ConfirmGroup}.{nameof(ConfirmGroupContext.Question)}",
                 Words + "delete",
                 nameof(DialogTestController.DeleteRelease),
                 cancelCommand: nameof(DialogTestController.KeepRelease)
@@ -44,7 +45,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.EditKey,
-                Label = Words + "edit.label",
+                TitleId = UIDialogs.TitleId(DialogTestController.EditKey),
                 Width = UILayoutLength.Absolute(640),
                 Content = UIDialogs.Content(DialogTestController.EditKey, Words + "edit.heading", UILayout.Stack(12,
                     new TextInputComponent()
@@ -175,7 +176,14 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 .AddChild(new ParagraphComponent()
                     .BindDescription(nameof(FiltersGroupContext.Summary), UIBindingScope.Relative)
                 )
-                .AddChild(CreateButton(Words + "filters", nameof(DialogTestController.OpenFilters), UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Filter)))
+                // Opened by the press alone: the sheet shows the filters as they stand, so no command fills it first.
+                .AddChild(new ButtonComponent()
+                    .SetType(UIButtonType.Ghost)
+                    .SetHorizontalAlignment(UIAlignment.Start)
+                    .SetTitle(Words + "filters")
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Filter))
+                    .InteractOn(EventNames.Click, new OpenDialogEffect(DialogTestController.FiltersKey))
+                )
             ),
             note: Words + "filters.note",
             words: true

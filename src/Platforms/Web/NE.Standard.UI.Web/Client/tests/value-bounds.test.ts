@@ -36,7 +36,7 @@ const refusalHandlers: ((update: ServerValidationUIUpdate) => void)[] = [];
 
 const engine = new ValidationEngine({
     root: real<ParentNode>(fakeDocument.body),
-    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined }),
+    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
     dom: stub({
         resolveNearestComponent: (start: FakeElement) => {
             const element = start.closest("[data-ui-id]");

@@ -186,6 +186,9 @@ internal abstract partial class UIRuntimeBase
         // Always sent, not only the first time: a row drawn again later in the round withdraws what was queued under it.
         _ = _wholeLists.Add(component);
 
+        // Every row is drawn anew, as authored: what a show opened in one is closed again.
+        _shownByCommand.ForgetRows(View.Graph, binding.Address.Component.Id, dynamicParameters, rowKey: null);
+
         AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
         {
             Action = CollectionUpdateAction.Reset,

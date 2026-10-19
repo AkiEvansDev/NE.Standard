@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
@@ -7,6 +8,7 @@ using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -17,7 +19,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
-public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent
+public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
     // UIStrings.SearchField: the Shell's key, written out, as the components reference no Shell.
@@ -247,11 +249,17 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// <paramref name="placeholder"/> or the framework's word "Search". A filter beside a list or a search command reads it; how
     /// soon it commits is <c>SetDebounceMilliseconds</c>'.
     /// </summary>
-    public T SetSearch(string? placeholder = null)
-        => SetType(UITextInputType.Search)
+    public T SetSearch(UIPhrase? placeholder = null)
+    {
+        // Null is the framework's word; a blank one given would leave the box saying nothing.
+        if (placeholder is not null && !UIPhrase.HasWords(placeholder))
+            throw new ArgumentException("A placeholder given needs words; leave it out for the framework's.", nameof(placeholder));
+
+        return SetType(UITextInputType.Search)
             .SetPrefixIcon(UIGlyphs.Search)
             .SetShowClearButton()
             .SetPlaceholder(placeholder ?? SearchKey);
+    }
 
     /// <summary>
     /// Runs <paramref name="command"/> on Enter, after the value has reached the server; the field keeps the focus for the next entry.

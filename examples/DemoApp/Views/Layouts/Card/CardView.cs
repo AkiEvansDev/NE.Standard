@@ -3,7 +3,6 @@ using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Items.Table;
 using DemoApp.Controllers.Layouts.Card;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Components.BuiltIns.Regions;
 
 namespace DemoApp.Views.Layouts.Card;
 
@@ -282,7 +281,6 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Where the press lands",
             UILayout.Stack(16)
                 .AddChild(new CardComponent()
-                    .SetClickable(true)
                     .SetSurface(UISurfaceStyle.Raised)
                     .OnClick(nameof(CardController.RecordCardClick))
                     .SetContextMenu(new MenuComponent()
@@ -309,7 +307,6 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(380))
                 )
                 .AddChild(new CardComponent()
-                    .SetClickable(true)
                     .SetSurface(UISurfaceStyle.Raised)
                     .BindEnabled(nameof(CardPressGroupContext.Open), UIBindingScope.Relative)
                     .OnClick(nameof(CardController.PressLocked))

@@ -32,7 +32,7 @@ const engine = createEngine();
 function createEngine(): InstanceType<typeof ValidationEngine> {
     return new ValidationEngine({
         root: real<ParentNode>(fakeDocument.body),
-        metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === ComponentId ? [Rule] : [], getValidationTarget: () => undefined }),
+        metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === ComponentId ? [Rule] : [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
         dom: real({
             findAllComponents: () => fakeDocument.body.querySelectorAll(`[data-ui-id='${ComponentId}']`),
             resolveNearestComponent: (start: FakeElement) => {

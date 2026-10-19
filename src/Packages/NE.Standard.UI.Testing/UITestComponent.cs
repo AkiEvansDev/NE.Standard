@@ -76,6 +76,13 @@ public sealed class UITestComponent
             ? _page.At(slot.RootComponentId, _rowKeys)
             : throw new InvalidOperationException($"'{Id}' has no context menu.");
 
+    /// <summary>Gets the menu a split button drops, whose rows are its entries.</summary>
+    /// <exception cref="InvalidOperationException">It drops none.</exception>
+    public UITestComponent Menu
+        => _page.View.Graph.TryGetSlot(_node.ComponentId, UIComponentSlotKind.Region, out UIComponentSlot? slot, RegionNames.Menu)
+            ? _page.At(slot.RootComponentId, _rowKeys)
+            : throw new InvalidOperationException($"'{Id}' drops no menu.");
+
     /// <summary>Gets a property's value as the page holds it; a responsive value as it was sent.</summary>
     public object? Get(UIProperty property)
         => _page.Read(_node.ComponentId, _rowKeys, property);

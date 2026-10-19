@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -68,44 +67,6 @@ public static class WebMoments
             return arguments;
 
         return PaintArguments(arguments, UICultures.Resolve(language), options);
-    }
-
-    /// <summary>
-    /// The moments a phrase's arguments hold, nested phrases' included, in the order they stand, as the page's <c>data-ui-moments</c>
-    /// carries them: the boot script finds each one's first paint in the element and writes it in the reader's zone before the body
-    /// paints. Null where the phrase holds none.
-    /// </summary>
-    public static string? MomentsAttribute(UIPhrase phrase)
-    {
-        ArgumentNullException.ThrowIfNull(phrase);
-
-        if (phrase.IsText || phrase.Arguments is not { } arguments || !HoldsMoment(arguments))
-            return null;
-
-        StringBuilder text = new("[");
-
-        AppendMoments(text, arguments);
-        return text.Append(']').ToString();
-    }
-
-    private static void AppendMoments(StringBuilder text, IReadOnlyDictionary<string, object?> arguments)
-    {
-        foreach (KeyValuePair<string, object?> argument in arguments)
-        {
-            if (UIMoment.TryRead(argument.Value, out UIMoment moment))
-            {
-                // The instant and the format's name are the wire's own, neither holding anything a JSON string escapes.
-                _ = text.Append(text.Length > 1 ? ",{\"moment\":\"" : "{\"moment\":\"")
-                    .Append(UIMomentJsonConverter.InstantText(moment.Instant))
-                    .Append("\",\"format\":\"")
-                    .Append(UIMomentJsonConverter.FormatName(moment.Format))
-                    .Append("\"}");
-            }
-            else if (argument.Value is UIPhrase { IsText: false, Arguments: { } nested })
-            {
-                AppendMoments(text, nested);
-            }
-        }
     }
 
     private static bool HoldsMoment(IReadOnlyDictionary<string, object?> arguments)

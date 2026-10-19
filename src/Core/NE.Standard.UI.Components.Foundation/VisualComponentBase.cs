@@ -414,7 +414,7 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// <summary>
     /// Adds an interaction triggered just before the command this component runs on <paramref name="eventName"/> leaves the page.
     /// </summary>
-    /// <remarks>The view does not compile unless the source runs a command on that event; it is not raised for one refused before it leaves (see <see cref="ShowLoadingDuring"/>).</remarks>
+    /// <remarks>The view does not compile unless the source runs a command on that event; it is not raised for one refused before it leaves (see <see cref="ShowLoadingDuring(string)"/>).</remarks>
     public TComponent InteractBefore(string eventName, UIProperty target, object? value)
         => InteractBefore(Id, eventName, target, value);
 
@@ -423,6 +423,20 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent InteractBefore(string sourceComponentId, string eventName, UIProperty target, object? value)
         => InteractOn(sourceComponentId, LifecycleEventName(EventNames.BeforePrefix, eventName), target, value);
+
+    /// <summary>
+    /// Runs a client effect just before the command this component runs on <paramref name="eventName"/> leaves the page — a field
+    /// focused or a dialog closed by the press that saves.
+    /// </summary>
+    /// <remarks>An effect beside a command goes here or in <see cref="InteractAfter(string, ClientEffect)"/>: an <c>InteractOn</c> of an event its source runs a command on never fires, and does not compile.</remarks>
+    public TComponent InteractBefore(string eventName, ClientEffect effect)
+        => InteractBefore(Id, eventName, effect);
+
+    /// <summary>
+    /// Runs a client effect just before the command another component runs on <paramref name="eventName"/> leaves the page.
+    /// </summary>
+    public TComponent InteractBefore(string sourceComponentId, string eventName, ClientEffect effect)
+        => InteractOn(sourceComponentId, LifecycleEventName(EventNames.BeforePrefix, eventName), effect);
 
     /// <summary>The name an event's command is raised under for interactions alone, before it leaves or after its answer.</summary>
     private static string LifecycleEventName(string prefix, string eventName)
@@ -450,6 +464,20 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         => InteractOn(sourceComponentId, LifecycleEventName(EventNames.AfterPrefix, eventName), target, value);
 
     /// <summary>
+    /// Runs a client effect once the command this component runs on <paramref name="eventName"/> has been answered and the answer
+    /// applied, or the connection dropped under it.
+    /// </summary>
+    public TComponent InteractAfter(string eventName, ClientEffect effect)
+        => InteractAfter(Id, eventName, effect);
+
+    /// <summary>
+    /// Runs a client effect once the command another component runs on <paramref name="eventName"/> has been answered and the answer
+    /// applied, or the connection dropped under it.
+    /// </summary>
+    public TComponent InteractAfter(string sourceComponentId, string eventName, ClientEffect effect)
+        => InteractOn(sourceComponentId, LifecycleEventName(EventNames.AfterPrefix, eventName), effect);
+
+    /// <summary>
     /// Adds an interaction triggered before this component's click event command.
     /// </summary>
     public TComponent InteractBeforeClick(UIProperty target, object? value)
@@ -474,6 +502,30 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         => InteractAfter(sourceComponentId, EventNames.Click, target, value);
 
     /// <summary>
+    /// Runs a client effect before this component's click event command.
+    /// </summary>
+    public TComponent InteractBeforeClick(ClientEffect effect)
+        => InteractBefore(EventNames.Click, effect);
+
+    /// <summary>
+    /// Runs a client effect before another component's click event command.
+    /// </summary>
+    public TComponent InteractBeforeClick(string sourceComponentId, ClientEffect effect)
+        => InteractBefore(sourceComponentId, EventNames.Click, effect);
+
+    /// <summary>
+    /// Runs a client effect after this component's click event command.
+    /// </summary>
+    public TComponent InteractAfterClick(ClientEffect effect)
+        => InteractAfter(EventNames.Click, effect);
+
+    /// <summary>
+    /// Runs a client effect after another component's click event command.
+    /// </summary>
+    public TComponent InteractAfterClick(string sourceComponentId, ClientEffect effect)
+        => InteractAfter(sourceComponentId, EventNames.Click, effect);
+
+    /// <summary>
     /// Shows this component loading for exactly the round trip of the command it runs on <paramref name="eventName"/>: from just
     /// before the command leaves until its answer has been applied or the connection dropped under it, with nothing to bind or clear.
     /// </summary>
@@ -485,11 +537,22 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// runs, a form failing its rules, a value the controller refused.
     /// </remarks>
     public TComponent ShowLoadingDuring(string eventName)
-        => InteractBefore(eventName, IVisualComponent.LoadingProperty, true)
-            .InteractAfter(eventName, IVisualComponent.LoadingProperty, false);
+        => ShowLoadingDuring(Id, eventName);
+
+    /// <summary>
+    /// Shows this component loading for exactly the round trip of the command another component runs on <paramref name="eventName"/>
+    /// — a form's panel busy while its submit button's command runs.
+    /// </summary>
+    /// <remarks>The view does not compile unless <paramref name="sourceComponentId"/> runs a command on that event.</remarks>
+    public TComponent ShowLoadingDuring(string sourceComponentId, string eventName)
+        => InteractBefore(sourceComponentId, eventName, IVisualComponent.LoadingProperty, true)
+            .InteractAfter(sourceComponentId, eventName, IVisualComponent.LoadingProperty, false);
 
     IVisualComponent IVisualComponent.On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => On(eventName, command, arguments);
+
+    IVisualComponent IVisualComponent.InteractOnRow(string eventName, string rowKey, ClientEffect effect)
+        => InteractOnRow(eventName, rowKey, effect);
 
     /// <summary>
     /// Adds an interaction triggered when the pointer enters this component.
@@ -551,6 +614,20 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         ArgumentNullException.ThrowIfNull(effect);
 
         _interactions.Add(new UIInteraction(sourceComponentId, sourceEvent, effect));
+        return Self;
+    }
+
+    /// <summary>
+    /// Runs a client effect when this component's event fires in the row whose key is <paramref name="rowKey"/> — one entry's press, on a
+    /// menu's entry template — in place of the command the event runs for the other rows, with no round trip.
+    /// </summary>
+    /// <remarks>The component stands in a row (an item template), or the view does not compile; the effect is one an interaction may run.</remarks>
+    public TComponent InteractOnRow(string eventName, string rowKey, ClientEffect effect)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
+        ArgumentNullException.ThrowIfNull(effect);
+
+        _interactions.Add(new UIInteraction(Id, eventName, rowKey, effect));
         return Self;
     }
 
@@ -641,7 +718,7 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
         ArgumentNullException.ThrowIfNull(arguments);
 
-        return On(EventNames.DropPrefix + kind, command, [UIAction.ArgEventValue("drop"), .. arguments]);
+        return On(EventNames.DropPrefix + kind, command, [UIAction.Offered(UIAction.ArgEventValue("drop")), .. arguments]);
     }
 
     /// <summary>

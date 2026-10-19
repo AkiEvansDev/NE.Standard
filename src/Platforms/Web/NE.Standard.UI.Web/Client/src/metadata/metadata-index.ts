@@ -18,6 +18,8 @@ export type WebUIMetadata = {
     readonly itemValues: readonly WebRenderItemValuesMetadata[];
     // The translatable values the page was rendered with rather than bound to, which a language switch writes again.
     readonly words?: readonly WebRenderWordMetadata[];
+    // In development, what the view's compile warned of — a binding naming nothing — for the page's console.
+    readonly compileWarnings?: readonly string[] | null;
 };
 
 /** A static translatable value by where it landed: its component, property and row keys, and its key — a string or a phrase. */
@@ -168,6 +170,8 @@ export type WebRenderEventMetadata = {
 type WebRenderEventAddress = {
     readonly componentId: IdValue;
     readonly eventName: string;
+    // A row's own interaction: the key of the row whose event alone fires it — a menu entry's press, in place of its command.
+    readonly rowKey?: string | null;
 };
 
 export type WebRenderInteractionMetadata = {
@@ -220,6 +224,8 @@ export type WebRenderValidationMetadata = {
     readonly trigger: WebValidationTrigger;
     readonly operator: WebInteractionOperator;
     readonly value?: unknown;
+    // The field compared with in place of `value`, read as its value holder: the judged field's row's, else the one in no row.
+    readonly valueSource?: { readonly componentId: IdValue } | null;
     readonly severity: WebValidationSeverity;
     // The author's text (`{text}`) or a phrase (`{key, args}`), resolved in the page's language when the rule fails.
     readonly message: AuthorText | Phrase;
@@ -418,7 +424,8 @@ export type ClientEffectKindName =
     | "PushAddress"
     | "RequestNotificationPermission"
     | "ShowSystemNotification"
-    | "ShowImage";
+    | "ShowImage"
+    | "DevelopmentReport";
 
 // Open, not a closed set: a package may name its own kind; the union above is the built-in vocabulary.
 export type ClientEffectKindValue = ClientEffectKindName | (string & {});
@@ -453,7 +460,8 @@ export const ClientEffectKinds = {
     PushAddress: "PushAddress",
     RequestNotificationPermission: "RequestNotificationPermission",
     ShowSystemNotification: "ShowSystemNotification",
-    ShowImage: "ShowImage"
+    ShowImage: "ShowImage",
+    DevelopmentReport: "DevelopmentReport"
 } as const satisfies Record<ClientEffectKindName, ClientEffectKindName>;
 
 export type ScrollToBehaviorName = "Auto" | "Smooth";
@@ -633,6 +641,11 @@ export type ShowImageClientEffect = TargetedClientEffect & {
     readonly rows?: boolean;
 };
 
+/** An author's mistake the runtime found, in Development: written to the console, never shown. */
+export type DevelopmentReportClientEffect = ClientEffect & {
+    readonly message?: string;
+};
+
 export type AnnouncePolitenessName = "Polite" | "Assertive";
 
 /** Words a screen reader speaks and the page shows nothing of. */
@@ -697,6 +710,9 @@ export type WebUIChangeSetRequest = {
     readonly updates: readonly WebUIValueChangeRequest[];
 };
 
+// One answer for a component with no rules: the lookups run on every keystroke and every pushed value.
+const NoValidations: readonly WebRenderValidationMetadata[] = Object.freeze([]);
+
 export class MetadataIndex {
     private readonly propertyDefinitionsById = new Map<string, WebRenderPropertyDefinitionMetadata>();
     private readonly bindingsById = new Map<number, WebRenderBindingMetadata>();
@@ -709,6 +725,7 @@ export class MetadataIndex {
     private readonly itemsFilterSortByComponentId = new Map<number, WebRenderItemsFilterSortMetadata>();
     private readonly itemValuesByAddress = new Map<string, WebRenderItemValuesMetadata>();
     private readonly validationsByComponentId = new Map<number, WebRenderValidationMetadata[]>();
+    private readonly validationsAgainstComponentId = new Map<number, WebRenderValidationMetadata[]>();
     private readonly validationTargetsByComponentId = new Map<number, WebRenderValidationMessageTargetMetadata>();
     private readonly exposedProperties = new Map<string, WebRenderPropertyReferenceMetadata>();
 
@@ -823,7 +840,12 @@ export class MetadataIndex {
     }
 
     public getValidationsForComponent(componentId: number): readonly WebRenderValidationMetadata[] {
-        return this.validationsByComponentId.get(componentId) ?? [];
+        return this.validationsByComponentId.get(componentId) ?? NoValidations;
+    }
+
+    /** The rules of other fields that compare with this component's value, each naming the field it judges. */
+    public getValidationsAgainst(componentId: number): readonly WebRenderValidationMetadata[] {
+        return this.validationsAgainstComponentId.get(componentId) ?? NoValidations;
     }
 
     /** A property the component's renderer let a package's client set, by the component and the property's name. */
@@ -910,15 +932,23 @@ export class MetadataIndex {
         if (componentId <= 0)
             return;
 
-        let rules = this.validationsByComponentId.get(componentId);
+        addGrouped(this.validationsByComponentId, componentId, validation);
 
-        if (rules === undefined) {
-            rules = [];
-            this.validationsByComponentId.set(componentId, rules);
-        }
+        const sourceId = getIdValue(validation.valueSource?.componentId);
 
-        rules.push(validation);
+        if (sourceId > 0)
+            addGrouped(this.validationsAgainstComponentId, sourceId, validation);
     }
+}
+
+/** Adds a rule to the list its key holds, starting the list where there is none. */
+function addGrouped(groups: Map<number, WebRenderValidationMetadata[]>, key: number, validation: WebRenderValidationMetadata): void {
+    const group = groups.get(key);
+
+    if (group === undefined)
+        groups.set(key, [validation]);
+    else
+        group.push(validation);
 }
 
 function resolveEnumName<TName extends string>(value: TName | number | null | undefined, names: readonly TName[]): TName | "Unknown" {

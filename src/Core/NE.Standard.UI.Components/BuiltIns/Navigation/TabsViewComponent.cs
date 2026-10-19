@@ -22,7 +22,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// application's own — unless the tab template carries a context menu of its own, which then replaces it.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent
+[UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent, IEmptyStateComponent, IPressablePartsComponent
     where T : TabsViewComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions;
@@ -131,6 +132,13 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     public bool HasRegions => true;
 
     /// <summary>
+    /// Configures the built-in default empty template — what stands in the pages' place while no tab is open — throwing if a different
+    /// template has been set.
+    /// </summary>
+    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
+        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
+
+    /// <summary>
     /// Sets the built-in entries the tab menu offers, refusing Close and Delete together: they are the two forms of one entry.
     /// </summary>
     public T SetTabMenuEntries(UITabMenuEntries entries)
@@ -184,6 +192,13 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         => OnItemTemplate(template => _ = template.On(EventNames.TabMenuEntry, command, arguments));
 
     /// <summary>
+    /// Registers a command invoked when an appended tab menu entry is clicked, with literal argument values — neither key, for an entry
+    /// the command needs no name of.
+    /// </summary>
+    public T OnTabMenuEntryLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnTabMenuEntry(command, UIActionArgument.Literals(arguments));
+
+    /// <summary>
     /// Sets the page rendered for every tab, leaving the built-in caption in place.
     /// </summary>
     public T SetPageTemplate(IVisualComponent page)
@@ -207,6 +222,12 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         => OnItemTemplate(template => _ = template.OnRemove(command, arguments));
 
     /// <summary>
+    /// Registers a command invoked when a tab's close is pressed, with literal argument values.
+    /// </summary>
+    public T OnItemRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnItemTemplate(template => _ = template.OnRemoveLiteral(command, arguments));
+
+    /// <summary>
     /// Registers a command invoked when a caption is renamed in place, passing the tab's key.
     /// </summary>
     /// <remarks>Optional: a two-way caption already writes the new text back; this is for refusing or normalizing it.</remarks>
@@ -218,6 +239,12 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// </summary>
     public T OnItemRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnItemTemplate(template => _ = template.OnRename(command, arguments));
+
+    /// <summary>
+    /// Registers a command invoked when a caption is renamed in place, with literal argument values.
+    /// </summary>
+    public T OnItemRenameLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnItemTemplate(template => _ = template.OnRenameLiteral(command, arguments));
 }
 
 /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Abstractions.Items;
@@ -9,7 +10,8 @@ namespace NE.Standard.UI.Abstractions.Items;
 /// One column of a table: its template key, header caption, track and cell alignment. A record class, not a struct,
 /// so a package's column may subclass it.
 /// </summary>
-public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITextAlignment? Alignment = null) : IContentItem
+/// <remarks>The caption is a phrase: a string is the author's text, a key with arguments a phrase; an empty text names no column.</remarks>
+public record UITableColumn(string Key, UIPhrase? Caption, UIGridUnit Width, UITextAlignment? Alignment = null) : IContentItem
 {
     /// <summary>The prefix a column's template variant is keyed under.</summary>
     public const string TemplatePrefix = "column";
@@ -52,10 +54,14 @@ public record UITableColumn(string Key, string? Caption, UIGridUnit Width, UITex
 
     /// <summary>
     /// Whether the caption is content — a name such as <c>AP</c> or <c>SPD</c>, shown as written wherever the column is named (the
-    /// header, a chooser's entry, a filter's caption) and never looked up as a key.
+    /// header, a chooser's entry, a filter's caption) and never looked up as a key. A phrase's key is looked up whatever this says.
     /// </summary>
     /// <remarks><c>AsContent(TableComponent.ColumnsProperty)</c> on the table says it of every column at once.</remarks>
     public bool IsContent { get; init; }
+
+    /// <summary>Whether the column has words to be named by: a phrase, or an author's text that is not blank.</summary>
+    public bool HasCaption
+        => UIPhrase.HasWords(Caption);
 
     public void Validate()
     {

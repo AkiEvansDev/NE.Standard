@@ -15,7 +15,8 @@ namespace NE.Standard.UI.Shell.Localization;
 /// no escape. A number is written as its shortest invariant text (a culture's digits are the caller's: pass a string), a
 /// <see langword="bool"/> as <c>true</c>/<c>false</c>, <see langword="null"/> as nothing (a NaN or an infinity too, which the page reads
 /// as null), a nested <see cref="UIPhrase"/> translated first, a moment (<see cref="UIMoment.TryRead"/>) as <see cref="UIMoment.ToString"/>
-/// — the page writes it in the reader's zone, the web render's first paint in the application's patterns. Where the words are read as
+/// — the page writes it in the reader's zone, the web render's first paint in the application's patterns — and a file size as
+/// <see cref="UIFileSize.ToString"/>, the page's English, which the page writes again in the reader's language. Where the words are read as
 /// inline markup, an argument written as text is data (<see cref="EscapeMarkup"/>). Twin of the client's <c>format</c>, both pinned by
 /// <c>eng/Tests/Shared/words-format-corpus.json</c>.
 /// </remarks>
@@ -91,6 +92,7 @@ public static class UIWords
         {
             UIPhrase nested => translateNested is null ? Format(nested.Key, nested.Arguments) : translateNested(nested),
             _ when UIMoment.TryRead(value, out UIMoment moment) => moment.ToString(),
+            UIFileSize size => size.ToString(),
             // The rest as the page writes it: a NaN or an infinity as the null the page holds it as.
             _ => UIScriptText.Of(value)
         };
@@ -141,11 +143,11 @@ public static class UIWords
     }
 
     /// <summary>
-    /// Whether an argument reaches the page as text: anything but nothing, a flag, a phrase, a number or a moment — what
+    /// Whether an argument reaches the page as text: anything but nothing, a flag, a phrase, a number, a moment or a file size — what
     /// <see cref="UIPhraseJsonConverter"/> writes as a string, which the client escapes under markup.
     /// </summary>
     private static bool IsText(object? value)
-        => value is not (null or bool or UIPhrase) && !UIScriptNumber.TryRead(value, out _) && !UIMoment.TryRead(value, out _);
+        => value is not (null or bool or UIPhrase or UIFileSize) && !UIScriptNumber.TryRead(value, out _) && !UIMoment.TryRead(value, out _);
 
     /// <summary>
     /// Arguments named by position — <c>{0}</c>, <c>{1}</c>, … — for a template written with numbered slots.

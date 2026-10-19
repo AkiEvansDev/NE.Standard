@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.BuiltIns;
@@ -15,6 +16,7 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -29,6 +31,9 @@ internal abstract partial class UIRuntimeBase
 
     private UIComponentGateIndex Gates => field ??= UIComponentGateIndex.For(View);
 
+    // The components authored hidden a command's show opened, per page it reached; recorded where an answer or a push is sent.
+    private readonly UIShownByCommand _shownByCommand = new();
+
     /// <summary>
     /// Refuses a command raised on a component the server knows is disabled, loading or hidden — by a static value or the
     /// controller, itself or an ancestor; a host's row event answers to the row it names as well. A row's move, removal or rename
@@ -39,7 +44,7 @@ internal abstract partial class UIRuntimeBase
     /// (<c>OnDrop</c>) is the command's to judge, as <c>UIDrop</c> says. A row is named by its key, a text: anything else where a
     /// row's key stands is a forged address, which would reach a row by its place past every gate read by key.
     /// </remarks>
-    private void EnsureEventTargetOpenNoLock(CompiledUIEvent compiledEvent, object?[] dynamicParameters)
+    private void EnsureEventTargetOpenNoLock(CompiledUIEvent compiledEvent, object?[] dynamicParameters, string instanceId)
     {
         UIComponentGateIndex gates = Gates;
 
@@ -61,7 +66,7 @@ internal abstract partial class UIRuntimeBase
                 componentId = rootId;
         }
 
-        if (gates.TryGet(componentId, out UIComponentGates? target) && IsClosedNoLock(target!.Chain, dynamicParameters))
+        if (gates.TryGet(componentId, out UIComponentGates? target) && ClosingGateNoLock(target!.Chain, dynamicParameters, instanceId) is not null)
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a component that is disabled, loading or hidden.");
 
         if (!gates.TryGetRowRoot(compiledEvent.Address.ComponentId, out UIRowAbilities? row) || !IsRowsOwnEvent(compiledEvent.Address.EventName))
@@ -172,7 +177,7 @@ internal abstract partial class UIRuntimeBase
     /// read-only, a value outside its bounds, a day not on offer or a text past its length; for a choice of rows, a newly chosen
     /// row that may not be chosen or is disabled; or a row's rename or tree move its abilities refuse.
     /// </summary>
-    private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read)
+    private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, string instanceId, ref ClientValueRead? read)
     {
         UIComponentGateIndex gates = Gates;
         UIProperty property = update.Address.Property;
@@ -191,7 +196,7 @@ internal abstract partial class UIRuntimeBase
 
         if (gates.TryGet(componentId, out UIComponentGates? target))
         {
-            if (ClosingGateNoLock(target!.Chain, dynamicParameters) is { } closing)
+            if (ClosingGateNoLock(target!.Chain, dynamicParameters, instanceId) is { } closing)
             {
                 // Said in the log, unlike a disabled or loading one's: a page writes to a hidden field only by the author's design (a
                 // picker opened from elsewhere) or by a forged call, and the field going back to its value says nothing to either.
@@ -505,6 +510,29 @@ internal abstract partial class UIRuntimeBase
 
         return null;
     }
+
+    /// <summary>
+    /// The first of the gates that closes the component for the page <paramref name="instanceId"/>: a static Hidden a show it received
+    /// opened passes, as the page shows that component (<see cref="UIShownByCommand"/>).
+    /// </summary>
+    private UIComponentGate? ClosingGateNoLock(UIComponentGate[] gates, object?[] dynamicParameters, string instanceId)
+    {
+        for (var i = 0; i < gates.Length; i++)
+        {
+            if (IsClosedNoLock(gates[i], dynamicParameters) && !_shownByCommand.Lifts(instanceId, gates[i], dynamicParameters))
+                return gates[i];
+        }
+
+        return null;
+    }
+
+    /// <summary>The components authored hidden that <paramref name="effects"/> sent to <paramref name="page"/> show or hide again there.</summary>
+    private void FollowShownByCommand(UIHandle page, IReadOnlyList<ClientEffect> effects)
+        => _shownByCommand.Follow(page.Instance.Id, effects, Gates);
+
+    /// <inheritdoc />
+    void IUIRuntimeConnectionUpdater.FollowSent(UIHandle page, IReadOnlyList<ClientEffect> effects)
+        => FollowShownByCommand(page, effects);
 
     /// <summary>
     /// Whether one gate closes the component for the row keys given: a static closing value, or the controller's value now. A value

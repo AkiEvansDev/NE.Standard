@@ -609,7 +609,9 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         _ = icon.Class($"{TextClassPrefix}__icon");
         _ = icon.Class("ui-icon");
 
-        IconValueRenderer.RenderIconAppearance(context, icon, ITextBaseComponent.IconSizeProperty, ITextBaseComponent.IconColorProperty);
+        // The glyph's size on the root as well as on the glyph: a glyph edge hangs an icon-only button by its own glyph (ui-button.less).
+        IconValueRenderer.RenderGlyphSize(context, root, icon, ITextBaseComponent.IconSizeProperty);
+        ThemeColorRenderer.RenderThemeColor(context, icon, ITextBaseComponent.IconColorProperty);
         IconValueRenderer.RenderIconShape(context, root, icon, partsShown is null ? IconShapeSite : FollowedIconShapeSites.GetOrAdd(partsShown, static then => new WebIconShapeSite(ITextBaseComponent.IconProperty, ITextBaseComponent.IconShapeProperty, ITextBaseComponent.IconFallbackProperty, WebAttributes.TextIcon, then)));
 
         _ = RenderProperty<string?>(context, icon, ITextBaseComponent.IconProperty, (target, value) =>
@@ -661,7 +663,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(container);
         ArgumentNullException.ThrowIfNull(description);
 
-        _ = description.Class($"{TextClassPrefix}__description");
+        _ = description.Class(WebClassNames.TextDescription);
 
         TextAppearanceRenderer.RenderDescriptionAppearance(context, description, container, ITextComponent.DescriptionTypeProperty);
 
@@ -692,7 +694,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 if (plain == true)
                     _ = target.Text(value);
                 else
-                    InlineMarkupRenderer.Render(target, value, autolinks);
+                    InlineMarkupRenderer.Render(target, value, autolinks, context.IsInsideLink);
             }
         }, Followed(DescriptionOperations, partsShown));
     }

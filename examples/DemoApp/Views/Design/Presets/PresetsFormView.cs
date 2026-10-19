@@ -17,5 +17,9 @@ internal sealed class PresetsFormView : PresetsViewBase, IUIViewDefinition
         _ = container
             .AddChild(CreateHeading("ShownWhen, HiddenWhen, EnabledWhen — a rule run in the browser"))
             .AddChildren(DemoUI.CreateColumns([CreateShownGroup()], [CreateEnabledGroup()]));
+
+        _ = container
+            .AddChild(CreateHeading("ShownBelow, ShownFrom — a part shown at some widths"))
+            .AddChild(CreateResponsiveGroup());
     }
 }

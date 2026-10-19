@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Contents;
@@ -23,12 +24,20 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
     private StackPanelComponent? _actions;
 
     /// <summary>
-    /// Initializes the status with its mark in <paramref name="tone"/>'s colour, its title and, where given, the line under it.
+    /// Initializes the status with its mark in <paramref name="tone"/>'s colour, its title and, where given, the line under it; a string
+    /// is the author's text, a key with arguments a phrase.
     /// </summary>
-    protected StatusComponent(string icon, UIColorStyle tone, string title, string? description = null) : base()
+    protected StatusComponent(string icon, UIColorStyle tone, UIPhrase title, UIPhrase? description = null) : base()
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(icon);
-        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentNullException.ThrowIfNull(title);
+
+        // A status with no title says nothing of what happened.
+        if (!UIPhrase.HasWords(title))
+            throw new ArgumentException("A status needs a title.", nameof(title));
+
+        if (description is not null && !UIPhrase.HasWords(description))
+            throw new ArgumentException("A line given needs words; leave it out for none.", nameof(description));
 
         Mark = new IconComponent()
             .SetIcon(icon)
@@ -93,7 +102,7 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
 /// <summary>
 /// A page's state standing in for its content — not found, refused, failed.
 /// </summary>
-public sealed class StatusComponent(string icon, UIColorStyle tone, string title, string? description = null) : StatusComponent<StatusComponent>(icon, tone, title, description), IUIComponentDefinition
+public sealed class StatusComponent(string icon, UIColorStyle tone, UIPhrase title, UIPhrase? description = null) : StatusComponent<StatusComponent>(icon, tone, title, description), IUIComponentDefinition
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.status";

@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Components.BuiltIns.Templates;
 
 namespace DemoApp.Views.Screens;
 
@@ -31,6 +30,10 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     /// <summary>The wallpaper dialog's sliders, which the messages' ground copies while they are dragged.</summary>
     private const string WallpaperDimId = "chat-wallpaper-dim";
     private const string WallpaperBlurId = "chat-wallpaper-blur";
+
+    /// <summary>A message's words on each side, which the menu's Copy reads on the page.</summary>
+    private const string TheirTextId = "chat-their-text";
+    private const string MyTextId = "chat-my-text";
 
     private static readonly string[] Emoji = ["😀", "😂", "😍", "🤔", "😢", "👍", "👀", "🙏", "🎉", "🔥", "🚀", "✅"];
 
@@ -182,7 +185,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateChatRow()
         => UILayout.Ends(
-                UIText.Person(nameof(DemoChatItem.Avatar), nameof(DemoChatItem.Title), nameof(DemoChatItem.Description), UIBindingScope.Relative),
+                UIText.BoundPerson(nameof(DemoChatItem.Avatar), nameof(DemoChatItem.Title), nameof(DemoChatItem.Description), UIBindingScope.Relative),
                 UILayout.Stack(4,
                     new TimestampComponent()
                         .SetFormat(UITimestampFormat.Relative)
@@ -231,7 +234,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                 nameof(ChatController.OpenStatus),
                 // On a phone the menu holds it: the name needs the room.
                 UIButtons.Icon(DemoIcons.Outline(DemoIcons.Calendar), "Go to a day")
-                    .OnClick(nameof(ChatController.OpenDayPicker))
+                    .InteractOn(EventNames.Click, new OpenDialogEffect(ChatController.DayKey))
                     .ShownFrom(UIResponsiveTier.Md),
                 UIIconButtons.More(ChatController.ConversationMenu()).OnItemClickWithItemKey(nameof(ChatController.ConversationActionAsync))
             )
@@ -290,8 +293,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .SetWindowSize(30)
             .SetTemplateKeyProperty(nameof(DemoChatMessage.Side))
             .SetFallbackTemplateKey(DemoChatMessage.Theirs)
-            .AddTemplateVariant(DemoChatMessage.Theirs, CreateBubble(UISurfaceStyle.Background, UIAlignment.Start))
-            .AddTemplateVariant(DemoChatMessage.Mine, CreateBubble(UISurfaceStyle.Tinted, UIAlignment.End))
+            .AddTemplateVariant(DemoChatMessage.Theirs, CreateBubble(UISurfaceStyle.Background, UIAlignment.Start, TheirTextId))
+            .AddTemplateVariant(DemoChatMessage.Mine, CreateBubble(UISurfaceStyle.Tinted, UIAlignment.End, MyTextId))
             .SetGroupTemplate(CreateDayHeader())
             .VerticalScrollOnly()
             .AnchorToEnd()
@@ -308,9 +311,10 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
 
     /// <summary>
     /// A message on its side of the conversation, its author over it in a group and its time under it; its own menu behind a right
-    /// click or a long press, and the menu's frequent entries in a bar above it once it is chosen.
+    /// click or a long press, and the menu's frequent entries in a bar above it once it is chosen. Copy runs on the page, every other
+    /// entry is the controller's.
     /// </summary>
-    private static SurfaceComponent CreateBubble(UISurfaceStyle surface, UIAlignment side)
+    private static SurfaceComponent CreateBubble(UISurfaceStyle surface, UIAlignment side, string textId)
         => new SurfaceComponent()
             .SetSurface(surface)
             .SetPadding(UIThickness.All(12, 6, 12, 4))
@@ -319,12 +323,15 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .SetContextMenu(new MenuComponent()
                 .BindItems(nameof(DemoChatMessage.Actions), UIBindingScope.Relative)
                 .OnItemClick(nameof(ChatController.MessageAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(DemoChatMessage.Id)))
+                // The words the bubble shows are the copy: its description line, not the author over it.
+                .OnItemClick(DemoChatMessage.CopyAction, CopyToClipboardEffect.ValueOf(textId))
+                .OnItemClick(DemoChatMessage.CopyAction, new ShowNotificationEffect("Copied.", UIColorStyle.Info))
             )
             .SetActionBar(side == UIAlignment.End ? UIActionBarAlignment.End : UIActionBarAlignment.Start)
             .SetContent(UILayout.Stack(2,
                     // A paragraph's body, so a long message wraps rather than ending in an ellipsis; its words are the reader's to copy,
                     // though a row's are not by default (a long press on a phone stays the menu's).
-                    new ParagraphComponent()
+                    new ParagraphComponent(textId)
                         .SetTextSelectable(true)
                         .BindTitle(nameof(DemoChatMessage.Author), UIBindingScope.Relative)
                         .SetTitleType(UITextAppearance.Caption)
@@ -383,7 +390,6 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             .SetSpacing(4)
             .SetMargin(UIThickness.All(0, 4, 0, 2))
             .SetTemplate(new DefaultFileTemplate()
-                .SetClickable(true)
                 .OnClick(nameof(ChatController.OpenFile), UIAction.ArgRelative("name", nameof(FileItem.FileName)))
             );
 
@@ -394,7 +400,6 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     /// <remarks>Neutral, a hairline and no fill over the conversation's ground: a heading of the list, not a message, so no brand colour.</remarks>
     private static SurfaceComponent CreateDayHeader()
         => new SurfaceComponent()
-            .SetClickable(true)
             .SetBackground(UIThemeColor.Transparent)
             .SetBorderRadius(UICornerRadius.Uniform(999))
             .SetPadding(UIThickness.All(10, 2, 10, 2))
@@ -441,7 +446,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .AddLeadingAction(CreateEmojiPanel(), inField: true)
                         // On a phone at the end of the row under the text, under Send, where the thumb is; beside the text at its start.
                         .AddLeadingAction(CreateQuickReplies(), belowAt: UIAlignment.End)
-                        .AddTrailingAction(UIIconButtons.Send().OnSubmit(ComposerFormId, nameof(ChatController.SendAsync)), inField: true)
+                        .AddTrailingAction(UIIconButtons.Send().OnSubmitShowingLoading(ComposerFormId, nameof(ChatController.SendAsync)), inField: true)
                         // On a phone the words take the row between the emoji and Send: the other tools in a row under it.
                         .SetActionsBelow(UIResponsiveTier.Md)
                 )
@@ -473,16 +478,22 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
             );
 
     /// <summary>
-    /// The composer's quick replies: a reply is the controller's words, so its command answers with the text to insert rather than
-    /// rewriting the draft.
+    /// The composer's quick replies: each entry inserts its words at the caret on the page, with no round trip and the draft untouched
+    /// otherwise.
     /// </summary>
     private static SplitButtonComponent CreateQuickReplies()
-        => new SplitButtonComponent()
+    {
+        SplitButtonComponent replies = new SplitButtonComponent()
             .SetMode(UISplitButtonMode.Menu)
             .SetType(UIButtonType.Ghost)
             .SetIcon(DemoIcons.Outline(DemoIcons.Bolt))
             .SetTooltip("Quick replies")
             .SetPopupPlacement(UIPopupPlacement.TopStart)
-            .SetItems(ChatController.QuickReplies())
-            .OnItemClickWithItemKey(nameof(ChatController.InsertQuickReply));
+            .SetItems(ChatController.QuickReplies());
+
+        foreach (KeyValuePair<string, string> reply in ChatController.QuickReplyWords)
+            _ = replies.OnItemClick(reply.Key, InsertTextEffect.Literal(ChatController.ComposerId, reply.Value));
+
+        return replies;
+    }
 }

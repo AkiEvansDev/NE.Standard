@@ -44,7 +44,7 @@ const rules = new Map<number, readonly WebRenderValidationMetadata[]>([
 
 const engine = new ValidationEngine({
     root: real<ParentNode>(fakeDocument.body),
-    metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => rules.get(id) ?? [], getValidationTarget: () => undefined }),
+    metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => rules.get(id) ?? [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
     dom: real({
         findAllComponents: () => [],
         resolveNearestComponent: (start: FakeElement) => {

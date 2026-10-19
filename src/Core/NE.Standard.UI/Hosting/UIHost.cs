@@ -224,12 +224,12 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         // Never null here: only a resolution that asks for a presented session answers none.
         => ResolveViewCoreAsync(request, sessionInit, phase, presentedOnly: false, cancellationToken)!;
 
-    /// <summary>
-    /// The view a live connection attaches to, or null where the session it presented is not one the store holds — none, an unknown
-    /// one, one gone idle — so that a new session would have to be issued: a connection cannot hand a client its secret, and a session
-    /// nobody can present again is only memory held for nothing.
-    /// </summary>
-    internal Task<UIViewResolution?> ResolvePresentedViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    /// <remarks>
+    /// None presented, an unknown one, one gone idle: a connection cannot hand a client its secret, and a session nobody can present
+    /// again is only memory held for nothing.
+    /// </remarks>
+    public Task<UIViewResolution?> ResolvePresentedViewAsync(UINavigationRequest request, UserSessionInitData sessionInit, CancellationToken cancellationToken = default)
         => ResolveViewCoreAsync(request, sessionInit, UIViewRequestPhase.Attach, presentedOnly: true, cancellationToken);
 
     private async Task<UIViewResolution?> ResolveViewCoreAsync(UINavigationRequest request, UserSessionInitData sessionInit, UIViewRequestPhase phase, bool presentedOnly, CancellationToken cancellationToken)
@@ -1159,15 +1159,12 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         updater.UpdateConnection(handle, ResolveClientServices());
     }
 
-    /// <summary>
-    /// Tells a kept runtime a page render is about to paint what moved in its session since it last heard, as a command runs, so the
-    /// paint is already in it; one that heard it all is left alone.
-    /// </summary>
+    /// <inheritdoc />
     /// <remarks>
-    /// The render's own connection is the hook's handle, as it is for a render that builds a runtime: no tab, so what the hook
-    /// sends goes nowhere, while what it writes is what the render reads.
+    /// Heard as a command runs. The render's own connection is the hook's handle, as it is for a render that builds a runtime: no tab,
+    /// so what the hook sends goes nowhere, while what it writes is what the render reads.
     /// </remarks>
-    internal static Task HearBeforeRenderAsync(IUIRuntime runtime, UIViewResolution resolution, CancellationToken cancellationToken = default)
+    public Task HearBeforeRenderAsync(IUIRuntime runtime, UIViewResolution resolution, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(resolution);
@@ -1277,8 +1274,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         return CreateRuntimeKey(_application.Persistence, route, handle.Session.SessionId, navigation, handle.Instance.WindowId);
     }
 
-    /// <summary>Whether an attach from <paramref name="clientWindowId"/> resolved to the very runtime <paramref name="handle"/> is attached to.</summary>
-    internal bool NamesRuntimeOf(UIHandle handle, UIViewResolution resolution, string clientWindowId)
+    /// <inheritdoc />
+    public bool NamesRuntimeOf(UIHandle handle, UIViewResolution resolution, string clientWindowId)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(resolution);
@@ -1568,11 +1565,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         return GetRequiredRuntimeEntry(handle).Runtime.FlushAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Makes what a connection's page reports of itself — on screen or not, its notification permission — its handle's, and its
-    /// runtime's, whose controller hears what changed as posted work.
-    /// </summary>
-    internal void ReportClientState(UIHandle handle, UIClientState state)
+    /// <inheritdoc />
+    /// <remarks>The controller hears it as posted work.</remarks>
+    public void ReportClientState(UIHandle handle, UIClientState state)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(state);
@@ -1587,15 +1582,12 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         _ = handle.RefreshClientState(state);
     }
 
-    /// <summary>
-    /// Makes a session the page itself stored (its language or theme switcher, its colours) this connection's, tells its controller
-    /// what moved as a command runs, and reaches the session's other pages (<see cref="ReachSessionAsync"/>).
-    /// </summary>
+    /// <inheritdoc />
     /// <remarks>
-    /// The hub's half of what <see cref="UIContext.UpdateSessionAsync"/> does inside a command, where the page, having asked,
-    /// switches itself: no effect is sent back to it.
+    /// The platform's half of what <see cref="UIContext.UpdateSessionAsync"/> does inside a command, the controller told as a command
+    /// runs: the page, having asked, switches itself.
     /// </remarks>
-    internal async Task ApplySessionChangeAsync(UIHandle handle, UserSessionState session, CancellationToken cancellationToken = default)
+    public async Task ApplySessionChangeAsync(UIHandle handle, UserSessionState session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(session);
@@ -1619,6 +1611,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         await ReachSessionAsync(session, handle, own, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public Task ReachSessionAsync(UserSessionState session, CancellationToken cancellationToken = default)
+        => ReachSessionAsync(session, origin: null, originRuntime: null, cancellationToken);
+
     /// <summary>
     /// Brings every page open under a session's runtimes, but <paramref name="origin"/>, to the session as stored — its handle
     /// refreshed and the effects that switch it sent — and tells each of those runtimes' controllers, but
@@ -1628,7 +1624,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
     /// A runtime no page shows is told at its next attach, where its session is weighed against the one it last heard; a page with
     /// no controller is not reached and follows at its next render. A send that fails leaves the rest to go.
     /// </remarks>
-    internal async Task ReachSessionAsync(UserSessionState session, UIHandle? origin, IUIRuntime? originRuntime, CancellationToken cancellationToken = default)
+    private async Task ReachSessionAsync(UserSessionState session, UIHandle? origin, IUIRuntime? originRuntime, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);
 
@@ -1664,7 +1660,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
                     Changes = ServerChangeSet.Empty
                 };
 
-                await SendToViewerAsync(updates, viewer, result, Log.SessionReachFailed, cancellationToken).ConfigureAwait(false);
+                await SendToViewerAsync(updates, connections, viewer, result, Log.SessionReachFailed, cancellationToken).ConfigureAwait(false);
             }
 
             if (reached is not null && !ReferenceEquals(runtime, originRuntime))
@@ -1676,11 +1672,14 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
     /// Pushes a result to one page, logging rather than throwing a send that fails: the page is told again, or goes, when it next
     /// reaches the server, and one page's lost connection must not stop the rest being told.
     /// </summary>
-    private async Task SendToViewerAsync(IUIUpdateSink updates, UIHandle viewer, UICommandExecutionResult result, Action<ILogger, Exception, string> failed, CancellationToken cancellationToken)
+    /// <remarks>Followed by the page's runtime once it reached the page, as the runtime's own sends are (a show it carried).</remarks>
+    private async Task SendToViewerAsync(IUIUpdateSink updates, IUIRuntimeConnectionUpdater runtime, UIHandle viewer, UICommandExecutionResult result, Action<ILogger, Exception, string> failed, CancellationToken cancellationToken)
     {
         try
         {
             await updates.SendCommandResultAsync(viewer, result, cancellationToken).ConfigureAwait(false);
+
+            runtime.FollowSent(viewer, result.Command.Effects);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -1785,8 +1784,8 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         return RuntimeStore.RemoveSession(oldKey.SessionId, keep: null);
     }
 
-    /// <summary>Takes the key a sign-in issued while a page render ran the controller's code, for that render's response to hand out.</summary>
-    internal UISessionSecret? TakeRenderKey(UIHandle handle)
+    /// <inheritdoc />
+    public UISessionSecret? TakeRenderKey(UIHandle handle)
     {
         ArgumentNullException.ThrowIfNull(handle);
 
@@ -1881,7 +1880,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
                 Changes = new ServerChangeSet { Updates = [new ServerPageUIUpdate { HoldsUnsavedWork = false }] }
             };
 
-            await SendToViewerAsync(updates, viewer, result, Log.SessionEndNoticeFailed, CancellationToken.None).ConfigureAwait(false);
+            await SendToViewerAsync(updates, connections, viewer, result, Log.SessionEndNoticeFailed, CancellationToken.None).ConfigureAwait(false);
         }
     }
 

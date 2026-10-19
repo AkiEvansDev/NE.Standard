@@ -21,6 +21,9 @@ internal sealed class UICommandDescriptor : IUICommandMetadata
 
     public IReadOnlyList<string> Parameters => Invoker.ParameterNames;
 
+    /// <summary>The parameters a press must supply, which the view compiler checks each event against.</summary>
+    public IReadOnlyList<string> RequiredParameters => Invoker.RequiredParameterNames;
+
     private OrderedRun? _ordered;
 
     /// <summary>The global filters and the command's own in one run, ordered once per global set; ties keep global then command.</summary>

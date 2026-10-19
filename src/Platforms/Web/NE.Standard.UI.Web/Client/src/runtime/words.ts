@@ -1,8 +1,10 @@
 // How a value becomes the page's words: a phrase looked up and filled, a plain string on a translatable property or an author's
-// `{text}` looked up only where it could be a key, a moment written as a timestamp writes its own, anything else as it is. The
-// client's half of the server's UIWords and ITranslator.Translate, both pinned by eng/Tests/Shared/words-format-corpus.json.
+// `{text}` looked up only where it could be a key, a moment written as a timestamp writes its own, a file size as a file tile writes
+// its own, anything else as it is. The client's half of the server's UIWords and ITranslator.Translate, both pinned by
+// eng/Tests/Shared/words-format-corpus.json.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
+import { serverFileSizePaint } from "../rendering/file-size.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { selectPlural } from "./plural-rules.ts";
 import { readInstant } from "../rendering/timestamp-format.ts";
@@ -29,16 +31,30 @@ export type Moment = {
 };
 
 /** A moment's instant in milliseconds and how it is shown, written as words. */
-export type MomentWriter = (instant: number, format: TimestampFormat) => string;
+type MomentWriter = (instant: number, format: TimestampFormat) => string;
 
-/** The table a value is translated by: its language, the prefixes a plain string needs, and a lookup of one key. */
-export type WordLookup = {
+/** A file's size standing in words — a phrase's argument — as the server's UIFileSize travels: `{fileSize}`, its bytes. */
+export type FileSize = {
+    readonly fileSize: number;
+};
+
+/** A file's size in bytes, written as words. */
+type FileSizeWriter = (bytes: number) => string;
+
+/** How the values the page writes itself are written in words; one left out reads as no page wrote it, as the server writes it. */
+export type ValueWriters = {
+    /** Writes a moment in the reader's zone; without it a moment reads as `writeCanonicalMoment` writes it. */
+    readonly writeMoment?: MomentWriter;
+    /** Writes a file size in the reader's language; without it a size reads as `serverFileSizePaint` writes it. */
+    readonly writeFileSize?: FileSizeWriter;
+};
+
+/** The table a value is translated by: its language, the prefixes a plain string needs, a lookup of one key, and its value writers. */
+export type WordLookup = ValueWriters & {
     readonly language: string;
     readonly prefixes: readonly string[];
     /** The words of a key, or undefined where the table has none — the table may ask the server about it then. */
     lookup(key: string): string | undefined;
-    /** Writes a moment in the reader's zone; without it a moment reads as no page wrote it (`writeCanonicalMoment`). */
-    readonly writeMoment?: MomentWriter;
 };
 
 /** The argument whose number chooses a key's plural form. */
@@ -90,20 +106,43 @@ export function isMoment(value: unknown): value is Moment {
         && (record.format === undefined || (typeof record.format === "string" && MomentFormats.has(record.format)));
 }
 
+/** Whether a value is a file size: an object of a whole number of bytes from zero up, and nothing else. */
+export function isFileSize(value: unknown): value is FileSize {
+    if (value === null || typeof value !== "object" || Array.isArray(value))
+        return false;
+
+    const record = value as Record<string, unknown>;
+
+    return Object.keys(record).length === 1 && typeof record.fileSize === "number" && Number.isSafeInteger(record.fileSize) && record.fileSize >= 0;
+}
+
 /** Whether a moment stands anywhere in a value: a phrase's argument, a nested phrase's, a mark's, a row's. */
 export function holdsMoment(value: unknown): boolean {
+    return holdsValue(value, isMoment);
+}
+
+function holdsValue(value: unknown, matches: (value: unknown) => boolean): boolean {
     if (value === null || typeof value !== "object")
         return false;
 
-    if (isMoment(value))
+    if (matches(value))
         return true;
 
     for (const inner of Array.isArray(value) ? value : Object.values(value)) {
-        if (holdsMoment(inner))
+        if (holdsValue(inner, matches))
             return true;
     }
 
     return false;
+}
+
+/** Whether a value the page writes itself — a moment, a file size — stands anywhere in a value, as `holdsMoment` reads one. */
+export function holdsPageWritten(value: unknown): boolean {
+    return holdsValue(value, isPageWritten);
+}
+
+function isPageWritten(value: unknown): boolean {
+    return isMoment(value) || isFileSize(value);
 }
 
 /**
@@ -161,16 +200,16 @@ export function translateKey(table: WordLookup, key: string, args?: Readonly<Rec
         ? table.lookup(`${key}.${selectPlural(table.language, count)}`) ?? table.lookup(`${key}.other`) ?? table.lookup(key) ?? key
         : table.lookup(key) ?? key;
 
-    return formatWords(template, args, nested => isAuthorText(nested) ? translatePlain(table, nested.text) : translateKey(table, nested.key, nested.args, markup), table.writeMoment, markup);
+    return formatWords(template, args, nested => isAuthorText(nested) ? translatePlain(table, nested.text) : translateKey(table, nested.key, nested.args, markup), table, markup);
 }
 
 /**
- * Fills a template's `{name}` slots, a nested phrase or author's text through `translateNested`, a moment through `writeMoment` (else as
- * no page wrote it); an unknown slot stays, and there is no escape. With `markup`, for words read as inline markup, a string argument —
- * an author's text as its words — is data, its markup escaped so a name typed as `[a](b)` shows as typed; the template's own text,
- * numbers and moments stay. `UIWords.EscapeMarkup`'s twin.
+ * Fills a template's `{name}` slots, a nested phrase or author's text through `translateNested`, a moment or a file size through
+ * `writers` (else as no page wrote it); an unknown slot stays, and there is no escape. With `markup`, for words read as inline markup, a
+ * string argument — an author's text as its words — is data, its markup escaped so a name typed as `[a](b)` shows as typed; the
+ * template's own text, numbers, moments and sizes stay. `UIWords.EscapeMarkup`'s twin.
  */
-export function formatWords(template: string, args: Readonly<Record<string, unknown>> | null | undefined, translateNested?: (nested: Phrase | AuthorText) => string, writeMoment: MomentWriter = writeCanonicalMoment, markup = false): string {
+export function formatWords(template: string, args: Readonly<Record<string, unknown>> | null | undefined, translateNested?: (nested: Phrase | AuthorText) => string, writers: ValueWriters = {}, markup = false): string {
     if (args === null || args === undefined || !template.includes("{"))
         return template;
 
@@ -185,7 +224,7 @@ export function formatWords(template: string, args: Readonly<Record<string, unkn
                 const name = template.slice(at + 1, close);
 
                 if (Object.hasOwn(args, name)) {
-                    result += formatArgument(args[name], translateNested, writeMoment, markup);
+                    result += formatArgument(args[name], translateNested, writers, markup);
                     at = close + 1;
                     continue;
                 }
@@ -213,7 +252,7 @@ function isNameCharacter(code: number): boolean {
     return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95;
 }
 
-function formatArgument(value: unknown, translateNested: ((nested: Phrase | AuthorText) => string) | undefined, writeMoment: MomentWriter, markup: boolean): string {
+function formatArgument(value: unknown, translateNested: ((nested: Phrase | AuthorText) => string) | undefined, writers: ValueWriters, markup: boolean): string {
     if (value === null || value === undefined)
         return "";
 
@@ -224,7 +263,7 @@ function formatArgument(value: unknown, translateNested: ((nested: Phrase | Auth
         return value ? "true" : "false";
 
     if (isPhrase(value))
-        return translateNested === undefined ? formatWords(value.key, value.args, undefined, writeMoment, markup) : translateNested(value);
+        return translateNested === undefined ? formatWords(value.key, value.args, undefined, writers, markup) : translateNested(value);
 
     if (isAuthorText(value)) {
         const words = translateNested === undefined ? value.text : translateNested(value);
@@ -233,7 +272,10 @@ function formatArgument(value: unknown, translateNested: ((nested: Phrase | Auth
     }
 
     if (isMoment(value))
-        return writeMoment(readInstant(value.moment) ?? 0, value.format ?? "date-time");
+        return (writers.writeMoment ?? writeCanonicalMoment)(readInstant(value.moment) ?? 0, value.format ?? "date-time");
+
+    if (isFileSize(value))
+        return (writers.writeFileSize ?? serverFileSizePaint)(value.fileSize);
 
     return String(value);
 }

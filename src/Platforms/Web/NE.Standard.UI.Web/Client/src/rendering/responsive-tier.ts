@@ -4,20 +4,50 @@ export const responsiveTiers = ["base", "sm", "md", "xl", "xxl"] as const;
 
 export type ResponsiveTier = (typeof responsiveTiers)[number];
 
+/** A tier that starts at a breakpoint: every one but the base. */
+export type BreakpointTier = Exclude<ResponsiveTier, "base">;
+
+/** The tiers that start at a breakpoint, narrowest first. */
+export const breakpointTiers: readonly BreakpointTier[] = responsiveTiers.filter((tier): tier is BreakpointTier => tier !== "base");
+
 /** Where each tier starts, in CSS pixels — the same numbers as `@ui-breakpoint-*` in `core/tokens.less`, which `BreakpointSyncTests` holds equal. */
-const responsiveBreakpoints: Readonly<Record<Exclude<ResponsiveTier, "base">, number>> = { sm: 640, md: 768, xl: 1280, xxl: 1536 };
+const responsiveBreakpoints: Readonly<Record<BreakpointTier, number>> = { sm: 640, md: 768, xl: 1280, xxl: 1536 };
 
 /** The media query that matches from a tier's breakpoint up, as the stylesheet's own `min-width` queries are written. */
-export function responsiveTierQuery(tier: Exclude<ResponsiveTier, "base">): string {
+export function responsiveTierQuery(tier: BreakpointTier): string {
     return `(min-width: ${responsiveBreakpoints[tier]}px)`;
 }
 
 /** The sheet breakpoint as a media query, matching at it and above: below it a list popup is a sheet from the bottom. */
 export const SheetBreakpointQuery = responsiveTierQuery("sm");
 
+// One watch of each breakpoint, made at its first listener and kept for the page's life: every listener of a tier hangs on it.
+const tierWatches = new Map<BreakpointTier, MediaQueryList>();
+
+/**
+ * Calls `handler` each time the window crosses the breakpoint of one of `tiers` (every tier unless named), either way: the page's one
+ * watch of the tiers, for what re-forms, refits or closes as the width changes tier.
+ */
+export function onTierChange(handler: () => void, tiers: readonly BreakpointTier[] = breakpointTiers): void {
+    if (typeof matchMedia !== "function")
+        return;
+
+    for (const tier of tiers) {
+        let watch = tierWatches.get(tier);
+
+        if (watch === undefined) {
+            watch = matchMedia(responsiveTierQuery(tier));
+            tierWatches.set(tier, watch);
+        }
+
+        // A listener of its own each: one handler that throws leaves the next its turn, the browser reporting it.
+        watch.addEventListener("change", () => handler());
+    }
+}
+
 /** The tier the viewport is in now, judged the way the stylesheet's own `min-width` queries judge it. */
 export function currentResponsiveTier(matches: (query: string) => boolean = query => matchMedia(query).matches): ResponsiveTier {
-    for (const tier of ["xxl", "xl", "md", "sm"] as const) {
+    for (const tier of [...breakpointTiers].reverse()) {
         if (matches(responsiveTierQuery(tier)))
             return tier;
     }

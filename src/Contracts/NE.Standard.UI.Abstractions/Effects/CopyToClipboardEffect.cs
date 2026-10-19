@@ -5,7 +5,7 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 namespace NE.Standard.UI.Abstractions.Effects;
 
 /// <summary>
-/// Puts text on the viewer's clipboard: either a literal, or the current value of a component.
+/// Puts text on the viewer's clipboard: either a literal, or what a component holds — a field's value, else the words it shows.
 /// </summary>
 public sealed class CopyToClipboardEffect : ClientEffect
 {
@@ -25,13 +25,14 @@ public sealed class CopyToClipboardEffect : ClientEffect
     }
 
     /// <summary>
-    /// Copies the value the component identified by <paramref name="targetComponentId"/> holds when the effect runs.
+    /// Copies what the component identified by <paramref name="targetComponentId"/> holds when the effect runs: a field's value, else the
+    /// words it shows — a message's text in its row, copied by the row's own button with no round trip.
     /// </summary>
     public static CopyToClipboardEffect ValueOf(string targetComponentId, params object?[]? dynamicParameters)
         => ValueOf(new UIComponentReference(targetComponentId, dynamicParameters));
 
     /// <summary>
-    /// Copies the value the given component holds when the effect runs.
+    /// Copies what the given component holds when the effect runs: a field's value, else the words it shows.
     /// </summary>
     public static CopyToClipboardEffect ValueOf(UIComponentReference target)
     {
@@ -52,7 +53,7 @@ public sealed class CopyToClipboardEffect : ClientEffect
     public string? Text { get; }
 
     /// <summary>
-    /// Gets the component whose value is copied; null when <see cref="Text"/> is given.
+    /// Gets the component whose value or shown words are copied; null when <see cref="Text"/> is given.
     /// </summary>
     public UIComponentReference? Target { get; }
 

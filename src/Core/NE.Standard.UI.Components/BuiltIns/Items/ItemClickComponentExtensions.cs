@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Constants;
@@ -41,6 +42,25 @@ public static class ItemClickComponentExtensions
         ArgumentNullException.ThrowIfNull(arguments);
 
         component.OnClickableItemTemplates(template => _ = template.On(EventNames.Click, command, arguments));
+        return component;
+    }
+
+    /// <summary>
+    /// Runs a client effect when the item whose key is <paramref name="key"/> is clicked — a menu's Copy, a context menu's or an action
+    /// bar's entry, a split button's — with no round trip; the other items keep the command <c>OnItemClick</c> gave them.
+    /// </summary>
+    /// <remarks>
+    /// The key is the item's, so a bound list's entries take it as a declared one's do; an effect aimed at the row the menu stands in
+    /// (a message's text) finds it there. Only an effect an interaction may run is taken. Given twice for one key, both run.
+    /// </remarks>
+    public static T OnItemClick<T>(this T component, string key, ClientEffect effect)
+        where T : IItemClickComponent
+    {
+        ArgumentNullException.ThrowIfNull(component);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        ArgumentNullException.ThrowIfNull(effect);
+
+        component.OnClickableItemTemplates(template => _ = template.InteractOnRow(EventNames.Click, key, effect));
         return component;
     }
 

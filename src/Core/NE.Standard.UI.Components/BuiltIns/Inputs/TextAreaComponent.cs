@@ -17,7 +17,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
-public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, string?>, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent
+public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, string?>, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent
     where T : TextAreaComponent<T>, IUIComponentDefinition
 {
     private const int DefaultRows = 3;

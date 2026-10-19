@@ -5,10 +5,8 @@
 // `.ts` on the value imports: `node --test` loads this module as it is (the image input's test).
 import { FileTileClass, FileTileGlyphClass, FileTileIconAttribute, FileTileNameAttribute, FileTileNameClass, FileTileSizeAttribute, FileTileSizeClass, FileTileTypeAttribute } from "../addressing/dom-attributes.ts";
 import { fileGlyph } from "./file-glyphs.ts";
+import { tileSizeText } from "./file-size.ts";
 import { applyIconValue, toIconClassName } from "./icon-value.ts";
-
-/** Past the byte, the steps a size is written in, each 1024 of the one before, as a file manager counts. */
-const SizeUnits = ["kilobyte", "megabyte", "gigabyte"] as const;
 
 /** What a tile shows of its file: a chosen `File` has these, and so has one the server read back. */
 export type FileFace = {
@@ -63,34 +61,8 @@ function writeParts(tile: HTMLElement, glyph: HTMLElement, size: HTMLElement, la
     if (!glyph.classList.contains(toIconClassName(value)) || icon !== null)
         applyIconValue(glyph, value);
 
-    const bytes = Number(tile.getAttribute(FileTileSizeAttribute) ?? Number.NaN);
-    const text = Number.isFinite(bytes) && bytes >= 0 ? formatFileSize(bytes, language) : "";
+    const text = tileSizeText(tile.getAttribute(FileTileSizeAttribute), language);
 
     if (size.textContent !== text)
         size.textContent = text;
-}
-
-/** A size in bytes as a reader reads one — "1 MB", "1,5 МБ" — in the page's language, by the browser's own unit words. */
-export function formatFileSize(bytes: number, language: string): string {
-    let value = bytes;
-    let unit = "byte";
-
-    for (const next of SizeUnits) {
-        if (value < 1024)
-            break;
-
-        value /= 1024;
-        unit = next;
-    }
-
-    // "512 bytes", not the short form's "512 byte".
-    const options: Intl.NumberFormatOptions = { style: "unit", unit, unitDisplay: unit === "byte" ? "long" : "short", maximumFractionDigits: 1 };
-
-    try {
-        return new Intl.NumberFormat(language.length > 0 ? language : undefined, options).format(value);
-    }
-    catch {
-        // A language tag the browser does not know: its own language's words, rather than none at all.
-        return new Intl.NumberFormat(undefined, options).format(value);
-    }
 }

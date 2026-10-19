@@ -87,7 +87,8 @@ installFakeDom({
 const { clientStrings } = await import("../src/runtime/client-strings.ts");
 const { ImageInputEngine } = await import("../src/interactions/image-input-engine.ts");
 const { FileInputEngine } = await import("../src/interactions/file-input-engine.ts");
-const { formatFileSize } = await import("../src/rendering/file-tile.ts");
+const { formatFileSize } = await import("../src/rendering/file-size.ts");
+const { formatWords } = await import("../src/runtime/words.ts");
 const { uploadsInFlight } = await import("../src/interactions/uploads-in-flight.ts");
 
 /** A mark the engines put on a field, as the validation engine would show it. */
@@ -248,6 +249,32 @@ test("the controller answering the pick with no picture drops the file's name; w
     assert.equal(text.textContent, "again.png");
 });
 
+test("a stored picture the browser cannot draw shows the placeholder, and another source tries again", () => {
+    const { input, picture } = inlinePicture({ "data-ui-image-source": "/_ne/content/gone" });
+
+    observe(input);
+    picture.dispatchEvent(new FakeEvent("error"));
+
+    assert.equal(input.hasAttribute("data-ui-image-failed"), true);
+
+    input.setAttribute("data-ui-image-source", "/_ne/content/kept");
+    observe(input);
+
+    assert.equal(input.hasAttribute("data-ui-image-failed"), false);
+    assert.equal(picture.getAttribute("src"), "/_ne/content/kept");
+});
+
+test("a stored picture that failed before the engine saw it shows the placeholder too", () => {
+    const { input, picture } = inlinePicture({ "data-ui-image-source": "/_ne/content/gone" });
+
+    // As the first paint left it: its address written, settled, nothing drawn — its error raised before any listener heard it.
+    picture.setAttribute("src", "/_ne/content/gone");
+    Object.assign(picture, { complete: true, naturalWidth: 0 });
+    observe(input);
+
+    assert.equal(input.hasAttribute("data-ui-image-failed"), true);
+});
+
 test("a picture over the limit is refused on the validation line with the limit in words, and the next pick takes the line off", async () => {
     const { input, native } = inlinePicture({ "data-ui-file-max-size": String(Megabyte) });
 
@@ -255,7 +282,7 @@ test("a picture over the limit is refused on the validation line with the limit 
     await settle();
 
     assert.equal(uploads.length, 0);
-    assert.deepEqual(marks.map(mark => [mark.field, mark.severity, mark.words]), [[input, "error", { key: "ui.file.oversized", args: { limit: "1 MB" } }]]);
+    assert.deepEqual(marks.map(mark => [mark.field, mark.severity, mark.words]), [[input, "error", { key: "ui.file.oversized", args: { limit: { fileSize: Megabyte } } }]]);
 
     pick(native, fileOf("small.png", 10));
     await settle();
@@ -270,15 +297,22 @@ test("a shelf names the pictures it left out, takes the rest, and says the limit
     pick(native, fileOf("cat.png", 10), fileOf("huge.png", 2 * Megabyte), fileOf("wide.png", 5 * Megabyte));
     await settle();
 
+    const words = { key: "ui.file.leftout", args: { limit: { fileSize: Megabyte + Megabyte / 2 }, names: "huge.png, wide.png" } };
+
     assert.equal(tiles.children.length, 1);
-    assert.deepEqual(marks.at(-1)?.words, { key: "ui.file.leftout", args: { limit: "1.5 MB", names: "huge.png, wide.png" } });
+    assert.deepEqual(marks.at(-1)?.words, words);
 
     clientStrings.setLanguage("ru");
     clientStrings.notifyChanged();
+
+    // The limit is a size the words write, so the line said again in Russian writes it in Russian's units.
+    const russian = formatWords("{limit}", words.args, undefined, clientStrings);
+
     clientStrings.setLanguage("en");
 
     assert.equal(marks.at(-1)?.field, input);
-    assert.deepEqual(marks.at(-1)?.words, { key: "ui.file.leftout", args: { limit: "1,5 МБ", names: "huge.png, wide.png" } });
+    assert.deepEqual(marks.at(-1)?.words, words);
+    assert.equal(russian, "1,5 МБ");
 });
 
 test("a shelf taking any file shows a picture as its thumbnail and any other file as a file tile: its kind's glyph over its name and size", async () => {
@@ -525,7 +559,7 @@ test("a multi-file input names the files it left out for their size", async () =
     await settle();
 
     assert.equal(uploads.length, 1);
-    assert.deepEqual(marks.at(-1)?.words, { key: "ui.file.leftout", args: { limit: "1 MB", names: "scan.pdf" } });
+    assert.deepEqual(marks.at(-1)?.words, { key: "ui.file.leftout", args: { limit: { fileSize: Megabyte }, names: "scan.pdf" } });
 });
 
 test("a picture's preview and a shelf's squares let their object URLs go once their input is gone from the page", async () => {
@@ -889,7 +923,7 @@ test("a shelf pick that leaves a file out for its size and has another fail says
     uploads[1].fail();
     await settle();
 
-    const leftOut = clientStrings.translate("ui.file.leftout", { limit: "1 MB", names: "huge.png" });
+    const leftOut = clientStrings.translate("ui.file.leftout", { limit: { fileSize: Megabyte }, names: "huge.png" });
     const failed = clientStrings.translate("ui.file.notuploaded", { names: "dog.png" });
 
     assert.equal(tiles.children.length, 1);

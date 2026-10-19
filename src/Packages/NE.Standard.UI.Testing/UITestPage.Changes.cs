@@ -13,8 +13,11 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Hosting;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Testing;
@@ -357,8 +360,9 @@ public sealed partial class UITestPage
     }
 
     /// <summary>
-    /// Runs the effects the page was sent, as the client does: dialogs open and close, an address effect rewrites the address, a
-    /// discard lets a form's held edits go.
+    /// Runs the effects the page was sent, as the client does: dialogs open and close — the viewer's close raising the dialog's close
+    /// once the act is done — an address effect rewrites the address, a discard lets a form's held edits go, a show or hide writes its
+    /// target's visibility, and a language or theme the session does not hold yet is told to the session.
     /// </summary>
     private void ApplyEffectsNoLock(IReadOnlyList<ClientEffect> effects)
     {
@@ -369,10 +373,13 @@ public sealed partial class UITestPage
             switch (effect)
             {
                 case OpenDialogEffect open:
-                    _ = _openDialogs.Add(open.DialogKey);
+                    _ = _openDialogs.Add(DeclaredDialog(open.DialogKey).Key);
+                    break;
+                case CloseDialogEffect { RaisesClose: true } close:
+                    CloseAsTheViewerNoLock(DeclaredDialog(close.DialogKey));
                     break;
                 case CloseDialogEffect close:
-                    _ = _openDialogs.Remove(close.DialogKey);
+                    _ = _openDialogs.Remove(DeclaredDialog(close.DialogKey).Key);
                     break;
                 case ReplaceAddressEffect replace:
                     _navigation = new UINavigationRequest { Route = _navigation.Route, Parameters = replace.Parameters };
@@ -383,10 +390,86 @@ public sealed partial class UITestPage
                 case DiscardFormEffect discard:
                     DiscardFormNoLock(discard.FormId);
                     break;
+                case CompiledTargetedClientEffect targeted when VisibilityOf(effect.Kind) is UIVisibility visibility:
+                    // Every tier at once, as the page writes it, and no rule hears it: the page sets the attributes, not the property's state.
+                    _values[new UIPropertyAddress(targeted.Target, IVisualComponent.VisibilityProperty)] = visibility;
+                    break;
+                case SetLanguageEffect or SetThemeEffect or SetThemeColorsEffect when !SessionHoldsNoLock(effect):
+                    _reactions.Add(new UITestReaction(DialogClosed: null, Setting: effect));
+                    break;
                 default:
                     break;
             }
         }
+    }
+
+    /// <summary>A dialog the page's view declares; one it does not is refused, as the runtime drops it and the page finds nothing.</summary>
+    private CompiledDialog DeclaredDialog(string dialogKey)
+        => View.FindDialog(dialogKey) ?? throw new InvalidOperationException($"An effect names dialog '{dialogKey}', which the page's view does not declare.");
+
+    /// <summary>
+    /// The viewer's own close of an open dialog, as the page runs it: the edit of a form under its key goes first, then its close is
+    /// raised on its content once the act is done.
+    /// </summary>
+    private void CloseAsTheViewerNoLock(CompiledDialog dialog)
+    {
+        if (!_openDialogs.Contains(dialog.Key))
+            return;
+
+        DiscardDialogFormNoLock(dialog);
+        _ = _openDialogs.Remove(dialog.Key);
+        _reactions.Add(new UITestReaction(DialogClosed: dialog.RootComponentId, Setting: null));
+    }
+
+    /// <summary>Lets the edit of a form under the dialog's key go where a field of it stands in the dialog, as the page's dismiss does.</summary>
+    private void DiscardDialogFormNoLock(CompiledDialog dialog)
+    {
+        foreach (UIComponentNode node in View.Graph.All)
+        {
+            if (IsInFormNoLock(new UIComponentAddress(node.ComponentId, []), dialog.Key) && StandsUnder(node.ComponentId, dialog.RootComponentId))
+            {
+                DiscardFormNoLock(dialog.Key);
+                return;
+            }
+        }
+    }
+
+    private bool StandsUnder(UIComponentId componentId, UIComponentId root)
+    {
+        for (UIComponentId? at = componentId; at is UIComponentId id; at = View.Graph.GetRequired(id).ParentId)
+        {
+            if (id.Equals(root))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The visibility a show, hide or collapse writes; none for any other kind.</summary>
+    private static UIVisibility? VisibilityOf(string kind)
+        => kind switch
+        {
+            ClientEffectKinds.Show => UIVisibility.Visible,
+            ClientEffectKinds.Hide => UIVisibility.Hidden,
+            ClientEffectKinds.Collapse => UIVisibility.Collapsed,
+            _ => null
+        };
+
+    /// <summary>
+    /// Whether the page's session holds the setting already: the server's push of a switch made elsewhere, which the page does not tell
+    /// the session again, as the platform marks it stored.
+    /// </summary>
+    private bool SessionHoldsNoLock(ClientEffect effect)
+    {
+        IUserSessionContext session = _resolution.Handle.Session;
+
+        return effect switch
+        {
+            SetLanguageEffect language => string.Equals(language.Language, session.Language, StringComparison.Ordinal),
+            SetThemeEffect theme => theme.Stored || theme.Mode == session.ThemeMode,
+            SetThemeColorsEffect colors => Equals(colors.Colors, session.ThemeColors),
+            _ => true
+        };
     }
 
     /// <summary>

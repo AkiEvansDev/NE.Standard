@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 
@@ -21,17 +22,36 @@ public readonly record struct UIValidationRule
     }
 
     /// <summary>
-    /// Creates a validation rule that reports a key with its arguments, and the severity, when the comparison fails.
+    /// Creates a validation rule that reports a key with its arguments — or the author's text, which may not be empty — and the severity,
+    /// when the comparison fails.
     /// </summary>
     public UIValidationRule(UIValidationTrigger trigger, UIComparisonOperator @operator, object? value, UIValidationSeverity severity, UIPhrase message)
     {
         ArgumentNullException.ThrowIfNull(message);
+
+        // A refusal with no words would mark the field and say nothing of why.
+        if (!UIPhrase.HasWords(message))
+            throw new ArgumentException("A validation rule needs a message.", nameof(message));
 
         Trigger = trigger;
         Operator = @operator;
         Value = value;
         Severity = severity;
         Message = message;
+    }
+
+    /// <summary>
+    /// Creates a rule comparing the value with another field's value — "Password again" equal to "New password" — reporting the message
+    /// and severity when the comparison fails.
+    /// </summary>
+    /// <remarks>A presence or a pattern names no other field: <c>Required</c>, <c>Regex</c> and <c>RegexEach</c> are refused.</remarks>
+    public UIValidationRule(UIValidationTrigger trigger, UIComparisonOperator @operator, UIPropertyReference valueSource, UIValidationSeverity severity, UIPhrase message)
+        : this(trigger, @operator, null, severity, message)
+    {
+        if (@operator is UIComparisonOperator.Required or UIComparisonOperator.Regex or UIComparisonOperator.RegexEach)
+            throw new ArgumentException($"A rule against another field compares two values; '{@operator}' takes no field.", nameof(@operator));
+
+        ValueSource = valueSource;
     }
 
     /// <summary>
@@ -48,6 +68,11 @@ public readonly record struct UIValidationRule
     /// Gets the comparison value used by the rule.
     /// </summary>
     public object? Value { get; }
+
+    /// <summary>
+    /// Gets the field whose value the rule compares with in place of <see cref="Value"/>, or null for a fixed value.
+    /// </summary>
+    public UIPropertyReference? ValueSource { get; }
 
     /// <summary>
     /// Gets the validation severity.

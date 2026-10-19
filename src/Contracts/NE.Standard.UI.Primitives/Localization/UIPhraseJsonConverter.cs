@@ -11,9 +11,10 @@ namespace NE.Standard.UI.Primitives.Localization;
 /// <c>{"text":…}</c>, and reads it back — a plain string too, read as an author's text, which is what it converts to.
 /// </summary>
 /// <remarks>
-/// An argument travels as a string, a number, a <see langword="bool"/>, <see langword="null"/>, a nested phrase or a moment
-/// (<see cref="UIMoment"/>, in its own shape, which the page writes in the reader's zone); anything else as its invariant text, which is
-/// what the server formats it as, so the page shows the same.
+/// An argument travels as a string, a number, a <see langword="bool"/>, <see langword="null"/>, a nested phrase, a moment
+/// (<see cref="UIMoment"/>, in its own shape, which the page writes in the reader's zone) or a file size (<see cref="UIFileSize"/>, in
+/// its own shape, which the page writes in the reader's language); anything else as its invariant text, which is what the server
+/// formats it as, so the page shows the same.
 /// </remarks>
 public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
 {
@@ -73,9 +74,18 @@ public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
             JsonValueKind.Number => value.TryGetInt64(out var whole) ? (object)whole : value.GetDouble(),
             JsonValueKind.True => true,
             JsonValueKind.False => false,
-            JsonValueKind.Object => UIMomentJsonConverter.IsMoment(value) ? UIMomentJsonConverter.ReadMoment(value) : ReadPhrase(value),
+            JsonValueKind.Object => ReadObjectArgument(value),
             _ => null
         };
+
+    /// <summary>An object argument by the member it names: a moment, a file size, else a phrase.</summary>
+    private static object ReadObjectArgument(JsonElement value)
+    {
+        if (UIMomentJsonConverter.IsMoment(value))
+            return UIMomentJsonConverter.ReadMoment(value);
+
+        return UIFileSizeJsonConverter.IsFileSize(value) ? UIFileSizeJsonConverter.ReadFileSize(value) : ReadPhrase(value);
+    }
 
     /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, UIPhrase value, JsonSerializerOptions options)
@@ -138,6 +148,9 @@ public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
                 break;
             case var _ when UIMoment.TryRead(value, out UIMoment moment):
                 JsonSerializer.Serialize(writer, moment, options);
+                break;
+            case UIFileSize size:
+                JsonSerializer.Serialize(writer, size, options);
                 break;
             default:
                 writer.WriteStringValue(Convert.ToString(value, CultureInfo.InvariantCulture));

@@ -105,21 +105,27 @@ test("a row's own collection is held by the rows it stands in, apart from every 
     assert.equal(held.get(Menu), undefined);
 });
 
-test("a patch to an entry's part writes its held item, in its own menu's list at its rows alone", () => {
+test("a patch to an entry's part writes its held item, in its own menu's list at its rows alone, or in the list shared outside the rows", () => {
     const held = new HeldCollections();
     const other = 31;
 
     held.holdRow(Menu, ["m1"], [{ key: "pin", item: { Title: "Pin" } }]);
     held.holdRow(Menu, ["m2"], [{ key: "pin", item: { Title: "Pin" } }]);
     held.holdRow(other, ["m1"], [{ key: "pin", item: { Title: "Pin" } }]);
+    held.hold(Menu, [{ key: "pin", item: { Title: "Pin" } }]);
 
-    const written = held.writeRowItem(["m1"], "pin", componentId => componentId === Menu, item => ({ ...item as object, Title: "Unpin" }));
+    const written = held.writeItem(Menu, ["m1"], "pin", item => ({ ...item as object, Title: "Unpin" }));
 
     assert.equal(written, true);
     assert.deepEqual(held.getRow(Menu, ["m1"])?.[0].item, { Title: "Unpin" });
     assert.deepEqual(held.getRow(Menu, ["m2"])?.[0].item, { Title: "Pin" });
     assert.deepEqual(held.getRow(other, ["m1"])?.[0].item, { Title: "Pin" });
-    assert.equal(held.writeRowItem(["m1"], "gone", () => true, item => item), false);
+    assert.deepEqual(held.get(Menu)?.[0].item, { Title: "Pin" });
+    assert.equal(held.writeItem(Menu, ["m1"], "gone", item => item), false);
+
+    assert.equal(held.writeItem(Menu, [], "pin", item => ({ ...item as object, Title: "Unpin" })), true);
+    assert.deepEqual(held.get(Menu)?.[0].item, { Title: "Unpin" });
+    assert.equal(held.writeItem(other, [], "pin", item => item), false);
 });
 
 test("the rows' own collections go with the rows they stand in, and every row's below them", () => {

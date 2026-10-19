@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -30,6 +31,18 @@ public interface IUIClientEndpoint
     /// when unambiguous without it.
     /// </remarks>
     IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution);
+
+    /// <summary>
+    /// Tells a kept runtime a page render is about to paint what moved in its session since it last heard, so the paint is already in
+    /// it; one that heard it all is left alone.
+    /// </summary>
+    Task HearBeforeRenderAsync(IUIRuntime runtime, UIViewResolution resolution, CancellationToken cancellationToken = default);
+
+    /// <summary>Takes the key a sign-in issued while a page render ran the controller's code, for that render's response to hand out.</summary>
+    UISessionSecret? TakeRenderKey(UIHandle handle);
+
+    /// <summary>Whether an attach from <paramref name="clientWindowId"/> resolved to the very runtime <paramref name="handle"/> is attached to.</summary>
+    bool NamesRuntimeOf(UIHandle handle, UIViewResolution resolution, string clientWindowId);
 
     /// <summary>
     /// Detaches a runtime connection by transport instance id.
@@ -71,4 +84,22 @@ public interface IUIClientEndpoint
     /// Flushes pending server-originated changes for a runtime.
     /// </summary>
     Task<ServerChangeSet> FlushAsync(UIHandle handle, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Makes what a page reports of itself — on screen or not, its notification permission — its handle's and its runtime's, whose
+    /// controller hears what changed.
+    /// </summary>
+    void ReportClientState(UIHandle handle, UIClientState state);
+
+    /// <summary>
+    /// Makes a session the page itself stored — its language, theme or colours switch — its connection's, tells its controller what moved,
+    /// and brings the session's other pages to it; no effect is sent back to the page, which switched itself.
+    /// </summary>
+    Task ApplySessionChangeAsync(UIHandle handle, UserSessionState session, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Brings every page open under a session to it as stored, each runtime's controller told what moved — for a session a page with
+    /// no runtime of its own stored, which <see cref="ApplySessionChangeAsync"/> has no handle for.
+    /// </summary>
+    Task ReachSessionAsync(UserSessionState session, CancellationToken cancellationToken = default);
 }

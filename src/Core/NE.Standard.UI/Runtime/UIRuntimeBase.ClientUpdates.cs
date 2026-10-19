@@ -118,7 +118,7 @@ internal abstract partial class UIRuntimeBase
                 ClientValueRead? read = null;
 
                 // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
-                if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read))
+                if (IsWriteRefusedNoLock(valueUpdate, resolution, invoker.Instance.Id, ref read))
                 {
                     (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
 

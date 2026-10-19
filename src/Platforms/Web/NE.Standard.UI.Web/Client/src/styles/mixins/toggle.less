@@ -18,7 +18,7 @@
 .ui-toggle-root() {
     display: inline-grid;
     grid-template-columns: auto minmax(0, 1fr);
-    align-self: var(--ui-align-v, center);
+    align-self: var(--ui-align-v, var(--ui-center, center));
     .ui-responsive-property(height, --ui-height, fit-content);
     .ui-toggle-row();
     font: inherit;

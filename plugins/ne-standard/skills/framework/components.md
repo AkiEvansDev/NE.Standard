@@ -8,10 +8,13 @@ with the item models and the enums on their own pages beside it.
 ## Layouts
 
 - `ContainerComponent` - the 24-column grid: `SetColumn`/`SetRow`/`AddRow`, a child's `SetPlacement`, `SetScrollbarAir`.
-- `StackPanelComponent` - children along one axis with `Spacing`.
+- `StackPanelComponent` - children along one axis with `Spacing`; `GlyphEdge` (an end icon or quiet words on the edge),
+  `AlignWithFieldBoxes` (level with captioned fields' boxes), `FirstLineOnControl` (its first child's first line on a button's middle),
+  `FirstChildAsCaption` (its first child in a field's caption row: a label over a control).
 - `WrapPanelComponent` - children flowing onto further lines; `ItemMinWidth` keeps them in even columns.
 - `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another.
-- `SurfaceComponent` - one framed region (fill, edge, radius, a click with `SetClickable`, `OnClickShowImage`).
+- `SurfaceComponent` - one framed region (fill, edge, radius; `OnClick`/`OnClickWithItemKey` makes it pressable, `OnClickShowImage`,
+  `SetUrl` makes it a link; `SetClickable(false)` turns a click off).
 - `CardComponent` - a surface with a header and footer band; `CardHeaderRegion` draws its header.
 - `ExpanderComponent` - a header that folds its content; `ExpanderHeaderRegion` draws the header.
 - `AccordionComponent` - expanders of which one is open at a time.
@@ -24,24 +27,32 @@ with the item models and the enums on their own pages beside it.
 
 - `TextComponent` - an icon, a title, a description and a badge, one line each unless told to wrap; `TitleType` is its role.
 - `ParagraphComponent` - text meant to be read, wrapping, `MaxLines`.
-- `IconComponent`, `ImageComponent`, `BadgeComponent`, `SeparatorComponent`.
+- `IconComponent`, `ImageComponent`, `BadgeComponent`, `SeparatorComponent`. A picture with no picture - no address, an empty one,
+  one that fails - draws a glyph (`UIGlyphs.Person` in a circle, `UIGlyphs.Image` otherwise); `FallbackIcon`/`IconFallback`
+  replaces it, and an image tries `FallbackSource` first.
 - `LinkComponent` - an address the platform opens (only safe schemes survive).
 - `StatusComponent` - a page's state in place of its content (not found, refused, failed); `UIPage.Status` builds it.
 - `TimestampComponent` - a moment in the reader's zone and language, a day, a time or how long ago, kept current by the page.
-- `FileTileComponent` - a file as a tile: glyph, name, size.
+- `FileTileComponent` - a file as a tile: glyph, name, size; `OnClickWithItemKey(command)` for a row's tile. The same size in any
+  other text is a `UIFileSize` phrase argument.
 - `KeyValueActionComponent` - key/value rows with an optional trailing action (`KeyValueActionItem`); `UIDetails` builds lists.
 
 ## Actions
 
-- `ButtonComponent` - `OnClick`, `OnClickShowingLoading`, `OnSubmit(formId, command)`, `SetType(UIButtonType.*)`, `SetShortcut`.
-- `ActionComponent` - a full-width row that runs a command, with a chevron and a value; the row a list jumps to.
+- `ButtonComponent` - `OnClick`, `OnClickWithItemKey`, `OnClickShowingLoading`, `OnSubmit(formId, command)`,
+  `OnSubmitShowingLoading(formId, command)`, `SetType(UIButtonType.*)`, `SetShortcut`, `SetUrl` (the button's look on a link).
+- `ActionComponent` - a full-width row that runs a command, with a chevron and a value; the row a list jumps to (`SetUrl`: a link).
 - `SplitButtonComponent` - a main press and a menu at its end.
-- `CommandBarComponent` - a toolbar of button items that folds what does not fit.
+- `CommandBarComponent` - a toolbar of button items that folds what does not fit; a standard one is
+  `UIStandardAction.Delete.ToButtonItem(id, type, iconOnly)`, as `ToMenuItem(id)` is a menu's.
 - `ThemeSwitcherComponent`, `LanguageSwitcherComponent` - the reader's theme and language, as a button or a field.
 
 ## Inputs
 
-All share `Value` (two-way), `Title` (the caption above), `SetHelp`, the validation rules and the `Tonal`/`Filled`/`Ghost` look.
+All share `Value` (two-way), `Title` (the caption above), `SetHelp`, the validation rules and `OnChange`/`OnBlur` (with bound
+arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a box
+(`IFieldInputComponent`: text, number, select, date and time, file, colour, image) takes `Appearance`
+(`UIInputAppearance.Filled`/`Outline`/`Underline`/`Ghost`/`Tonal`); a checkbox, a switch, a radio group, a slider and a calendar have none.
 
 - `TextInputComponent`, `TextAreaComponent`, `NumberInputComponent`, `SliderComponent` (one value or a range).
 - `CheckboxComponent`, `SwitchComponent`, `RadioGroupComponent`.
@@ -58,7 +69,7 @@ All share `Value` (two-way), `Title` (the caption above), `SetHelp`, the validat
   laid out any way; `SetTemplate`, `AnchorToEnd`, `SetLoadingLook`.
 - `TableComponent` - rows under a header, a template per column, filters and sorts by rule, selection.
 - `TreeComponent` with `TreeNodeComponent` - thin rows with a glyph and a title over `TreeNode` items; inline rename
-  (`RenameNodeEffect`), moves.
+  (`RenameNodeEffect`), moves; for a small set or folders loaded as they open (`HasChildren` + `OnNodeUnfold`), never virtualized.
 - `PagerComponent` - the pages of a paged list (`SetPaging(true)` on its list).
 
 Built-in item models: `TextItem`, `TextBaseItem`, `ButtonItem`, `MenuItem`, `TabItem`, `BreadcrumbItem`, `BadgeItem`,

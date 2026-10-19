@@ -19,7 +19,7 @@ const { ValidationEngine } = await import("../src/interactions/validation-engine
 
 const engine = new ValidationEngine({
     root: real<ParentNode>(fakeDocument.body),
-    metadata: real<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined }),
+    metadata: real<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
     dom: real({
         resolveNearestComponent: (start: FakeElement) => {
             const element = start.closest("[data-ui-id]");

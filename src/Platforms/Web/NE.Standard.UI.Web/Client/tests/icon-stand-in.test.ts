@@ -1,6 +1,7 @@
 // A round picture icon with no picture — none given, or one that fails to load — shows its fallback glyph (the person's unless its
-// author named another) on a neutral circle, and its host shows the icon for it; a later good value brings the picture back, and a
-// mark the host wore for a value is never taken by the stand-in.
+// author named another) on a neutral circle, and its host shows the icon for it; a square picture icon that fails shows its fallback
+// glyph too (a picture's unless its author named another); a later good value brings the picture back, and a mark the host wore for a
+// value is never taken by the stand-in.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -38,7 +39,16 @@ const Shown = "data-ui-text-icon";
 
 /** A text's root and its round icon part, as the server draws them with no value yet. */
 function roundIcon(fallback?: string): { readonly host: FakeElement; readonly icon: FakeElement } {
-    const icon = FakeElement.of("ui-text__icon ui-icon ui-icon--circle", fallback === undefined ? {} : { "data-ui-fallback-icon": fallback }, "span");
+    return textIcon("ui-text__icon ui-icon ui-icon--circle", fallback);
+}
+
+/** A text's root and its icon part in the default shape, as the server draws them with no value yet. */
+function squareIcon(fallback?: string): { readonly host: FakeElement; readonly icon: FakeElement } {
+    return textIcon("ui-text__icon ui-icon", fallback);
+}
+
+function textIcon(className: string, fallback: string | undefined): { readonly host: FakeElement; readonly icon: FakeElement } {
+    const icon = FakeElement.of(className, fallback === undefined ? {} : { "data-ui-fallback-icon": fallback }, "span");
     const host = FakeElement.of("ui-text").append(icon);
 
     return { host, icon };
@@ -158,7 +168,37 @@ test("a value given after the stand-in takes the host's mark back to the value's
     assert.equal(host.hasAttribute(Shown), false, "a square icon with no value shows nothing");
 });
 
-test("an icon that is not round never stands in, nor touches a mark the first paint wrote", () => {
+test("a square picture that fails stands in with a picture's glyph, its host's mark kept, and a later good one brings it back", () => {
+    const registry = new DomOperationRegistry();
+    const { host, icon } = squareIcon();
+
+    patchIcon(registry, host, icon, "/stickers/broken.png");
+    assert.equal(icon.hasAttribute("data-ui-icon-failed"), false, "the picture is drawn while it is on its way");
+    assert.equal(probes.at(-1)?.src, "/stickers/broken.png");
+
+    probes.at(-1)?.answer(false);
+    assert.equal(icon.getAttribute("data-ui-icon-failed"), "failed");
+    assert.ok(glyphOf(icon)?.classList.contains("ui-icon-glyph--ne-image"), "the picture's glyph, which MapUIGlyph redraws by its class");
+    assert.equal(host.hasAttribute(Shown), true, "a failed picture is still the icon's value");
+
+    patchIcon(registry, host, icon, "/stickers/good.png");
+    probes.at(-1)?.answer(true);
+    assert.equal(icon.hasAttribute("data-ui-icon-failed"), false);
+    assert.equal(glyphOf(icon), null);
+});
+
+test("a square picture that fails stands in with its author's fallback glyph", () => {
+    const registry = new DomOperationRegistry();
+    const { host, icon } = squareIcon("ms-hide-image");
+
+    patchIcon(registry, host, icon, "/stickers/gone.png");
+    probes.at(-1)?.answer(false);
+
+    assert.ok(glyphOf(icon)?.classList.contains("ui-icon-glyph--ms-hide-image"));
+    assert.equal(glyphOf(icon)?.classList.contains("ui-icon-glyph--ne-image"), false);
+});
+
+test("a square icon that is no picture never stands in, nor touches a mark the first paint wrote", () => {
     const registry = new DomOperationRegistry();
     const icon = FakeElement.of("ui-text__icon ui-icon", {}, "span");
     const host = FakeElement.of("ui-text", { [Shown]: "" }).append(icon);

@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { PlainTextAttribute, TooltipAttribute } from "../addressing/dom-attributes.ts";
+import { PlainTextAttribute, TooltipAttribute, TooltipPlainAttribute } from "../addressing/dom-attributes.ts";
 import type { ConverterRegistry } from "../extensions/converters.ts";
 import { getDomOperationKind } from "../metadata/metadata-index.ts";
 import type { WebDomOperation } from "../metadata/metadata-index.ts";
@@ -10,7 +10,8 @@ import type { Phrase } from "../runtime/words.ts";
 
 /**
  * Whether an operation's words land where inline markup is read on `target`: a Markup operation's, but on an element marked to take
- * them as text; the tooltip's attribute; or a converter reading them as markup to name something. `WebComponentRendererBase.ReadsMarkup`'s
+ * them as text; the tooltip's attribute, but on an element marked to show it as written; or a converter reading them as markup to
+ * name something. `WebComponentRendererBase.ReadsMarkup`'s
  * twin, which decides for the whole property since one value paints it, and refuses a list that mixes the two.
  */
 export function readsMarkup(operation: WebDomOperation, target: Element): boolean {
@@ -19,7 +20,10 @@ export function readsMarkup(operation: WebDomOperation, target: Element): boolea
     if (kind === "Markup")
         return !target.hasAttribute(PlainTextAttribute);
 
-    return (kind === "Attribute" && operation.name === TooltipAttribute) || operation.converter === InlineMarkupPlainTextConverter;
+    if (kind === "Attribute" && operation.name === TooltipAttribute)
+        return !target.hasAttribute(TooltipPlainAttribute);
+
+    return operation.converter === InlineMarkupPlainTextConverter;
 }
 
 /**

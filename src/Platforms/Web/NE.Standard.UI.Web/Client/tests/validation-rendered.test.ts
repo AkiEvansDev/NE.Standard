@@ -50,7 +50,7 @@ const before = observers.length;
 
 new ValidationEngine({
     root: real<ParentNode>(fakeDocument.body),
-    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined }),
+    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
     dom: stub({ findAllComponents: () => [] }),
     propertyPatchEngine: stub<PropertyPatchEngine>({ addValueChangeHandler: () => undefined }),
     valueReaders: stub({})

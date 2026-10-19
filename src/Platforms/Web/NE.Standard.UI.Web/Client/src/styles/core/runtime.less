@@ -163,6 +163,30 @@
     transition: @ui-root-transition;
 }
 
+// A centred item is centred safely (`safe center`): one taller or wider than its room keeps its start in view and overflows at its end
+// alone, where a plain centre cut it at both (an empty state in a short pane). The plain centre first, for an engine without `safe`;
+// a custom property takes any value, so the safe one waits on @supports rather than following it. Rejected: centring by hand in
+// each preset (UIPage.Empty's rows), which every other centre missed.
+:root {
+    --ui-center: center;
+}
+
+@supports (align-self: safe center) {
+    :root {
+        --ui-center: safe center;
+    }
+}
+
+// An authored centre (HorizontalAlignment, VerticalAlignment Center, written inline as `center`) is that centre in every rule that
+// reads the alignment, whichever property it lands in; important, since an inline value outranks any rule that is not.
+[data-ui-id][style*="--ui-align-h: center"] {
+    --ui-align-h: var(--ui-center) !important;
+}
+
+[data-ui-id][style*="--ui-align-v: center"] {
+    --ui-align-v: var(--ui-center) !important;
+}
+
 :where([data-ui-id]) {
     color: inherit;
 }

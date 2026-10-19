@@ -1,6 +1,7 @@
 // A clickable surface or card is a press target for the keyboard as for the pointer: a Tab stop while it takes presses (a row's one
 // control excepted, whose list is the stop), Enter and Space raising its click. To a screen reader it is a button only while it holds no control of its own — a button's contents are
 // read as its one name, and a control inside one is lost to the reader; a surface holding controls is a group the reader walks into.
+// One that links to an address is an anchor, the browser's own: a stop and a link by itself, followed on Enter, never on Space.
 // Under the pointer it washes and presses only where no control of its own takes the pointer: `data-ui-inner-pointer` says so.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
@@ -56,7 +57,7 @@ export class SurfacePressEngine {
     }
 
     private sync(surface: Element): void {
-        if (!surface.classList.contains(ClickableClass)) {
+        if (!surface.classList.contains(ClickableClass) || isLink(surface)) {
             if (this.pressable.delete(surface)) {
                 surface.removeAttribute("tabindex");
                 surface.removeAttribute("role");
@@ -105,7 +106,12 @@ function pressedSurface(domEvent: Event): HTMLElement | null {
     const target = domEvent.target;
 
     // A row's one surface is no stop but takes the focus a press gives it, and the keys after it, as a button there does.
-    return target instanceof HTMLElement && target.classList.contains(ClickableClass) && target.hasAttribute("tabindex") ? target : null;
+    return target instanceof HTMLElement && target.classList.contains(ClickableClass) && target.hasAttribute("tabindex") && !isLink(target) ? target : null;
+}
+
+/** Whether the surface links to an address: an anchor, whose keys and role are the browser's. */
+function isLink(surface: Element): boolean {
+    return surface.matches("a");
 }
 
 /**

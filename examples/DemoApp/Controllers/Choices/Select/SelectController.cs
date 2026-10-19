@@ -44,10 +44,6 @@ internal sealed partial class SelectController() : DemoStandardController
     public partial BorderGroupContext BorderGroup { get; set; } = new();
 
     [UICommand]
-    public static UICommandResult OpenRoster()
-        => UICommandResult.Ok([new OpenDialogEffect(RosterKey)]);
-
-    [UICommand]
     public static UICommandResult CloseRoster()
         => UICommandResult.Ok([new CloseDialogEffect(RosterKey)]);
 }

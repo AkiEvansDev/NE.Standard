@@ -8,6 +8,7 @@ import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom
 installFakeDom({ window: { addEventListener: () => undefined, setTimeout, clearTimeout } });
 
 const { NotificationEngine } = await import("../src/interactions/notification-engine.ts");
+const { hasOpenPopups } = await import("../src/interactions/popup-dismissal.ts");
 
 function page(): { readonly opener: FakeElement; readonly engine: InstanceType<typeof NotificationEngine> } {
     const opener = FakeElement.of("", {}, "button");
@@ -67,4 +68,13 @@ test("Escape on a toast holding the keyboard closes it as its close does, and is
     assert.equal(escape.defaultPrevented, true);
     assert.equal(fakeDocument.activeElement, opener);
     assert.equal(real<FakeElement>(toast).isConnected, false);
+});
+
+test("a toast holding the keyboard is what a dialog or a drawer leaves Escape to; a key elsewhere is theirs", () => {
+    const { opener, engine } = page();
+    const toast = engine.show({ message: "Saved", sticky: true });
+    const close = focusClose(toast, opener);
+
+    assert.equal(hasOpenPopups(real(close)), true);
+    assert.equal(hasOpenPopups(real(opener)), false);
 });

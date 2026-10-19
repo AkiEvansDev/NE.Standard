@@ -3,9 +3,10 @@
 
 import { BottomBarAttribute, cssAttributeValue, pinnedAttribute, RegionAttribute, SideDrawersAttribute } from "../addressing/dom-attributes.ts";
 import { responsiveTierQuery } from "./responsive-tier.ts";
+import type { BreakpointTier } from "./responsive-tier.ts";
 
-/** The queries across which a side may turn from a drawer into its column and back: listened to by what closes or refits there. */
-export const DrawerBreakpointQueries: readonly string[] = [responsiveTierQuery("md"), responsiveTierQuery("xl"), responsiveTierQuery("xxl")];
+/** The tiers across whose breakpoints a side may turn from a drawer into its column and back: watched by what closes or refits there. */
+export const DrawerBreakpointTiers: readonly BreakpointTier[] = ["md", "xl", "xxl"];
 
 // The width from which a root's sides stand in their columns, as the query matching there; `always` has none.
 const ColumnsFrom: Readonly<Record<string, string>> = { md: responsiveTierQuery("md"), xl: responsiveTierQuery("xl"), xxl: responsiveTierQuery("xxl") };

@@ -95,29 +95,42 @@ public sealed class WebRenderContext
     /// </summary>
     public bool IsPopupMenu { get; init; }
 
+    /// <summary>
+    /// Whether this subtree is drawn inside an anchor — a component whose root is a link, or its descendants — where no anchor of its
+    /// own may stand: a description's link is its words there.
+    /// </summary>
+    public bool IsInsideLink { get; init; }
+
     public WebRenderContext ForHtml(IHtmlElementBuilder html)
-        => Copy(Node, Parameters, html, IsPresentationCopy, IsTemplate, IsPopupMenu);
+        => Copy(Node, Parameters, html, IsPresentationCopy, IsTemplate, IsPopupMenu, IsInsideLink);
 
     public WebRenderContext ForNode(UIComponentNode node, IHtmlElementBuilder html)
-        => Copy(node, Parameters, html, IsPresentationCopy, IsTemplate, IsPopupMenu);
+        => Copy(node, Parameters, html, IsPresentationCopy, IsTemplate, IsPopupMenu, IsInsideLink);
 
     /// <summary>Renders into <paramref name="html"/> as a picture of a component — see <see cref="IsPresentationCopy"/>.</summary>
     public WebRenderContext AsPresentationCopy(IHtmlElementBuilder html)
-        => Copy(Node, Parameters, html, isPresentationCopy: true, IsTemplate, IsPopupMenu);
+        => Copy(Node, Parameters, html, isPresentationCopy: true, IsTemplate, IsPopupMenu, IsInsideLink);
 
     /// <summary>Renders into <paramref name="html"/> as a template the client clones — see <see cref="IsTemplate"/>.</summary>
     public WebRenderContext AsTemplate(IHtmlElementBuilder html)
-        => Copy(Node, Parameters, html, IsPresentationCopy, isTemplate: true, IsPopupMenu);
+        => Copy(Node, Parameters, html, IsPresentationCopy, isTemplate: true, IsPopupMenu, IsInsideLink);
 
-    /// <summary>Renders into <paramref name="html"/> as a popup menu's content — see <see cref="IsPopupMenu"/>.</summary>
+    /// <summary>
+    /// Renders into <paramref name="html"/> as a popup menu's content — see <see cref="IsPopupMenu"/>; a popup is no part of the link
+    /// around its owner, so its entries keep their own.
+    /// </summary>
     public WebRenderContext AsPopupMenu(IHtmlElementBuilder html)
-        => Copy(Node, Parameters, html, IsPresentationCopy, IsTemplate, isPopupMenu: true);
+        => Copy(Node, Parameters, html, IsPresentationCopy, IsTemplate, isPopupMenu: true, isInsideLink: false);
+
+    /// <summary>Renders the component and what it holds as standing inside an anchor — see <see cref="IsInsideLink"/>.</summary>
+    public WebRenderContext AsInsideLink()
+        => Copy(Node, Parameters, Html, IsPresentationCopy, IsTemplate, IsPopupMenu, isInsideLink: true);
 
     public WebRenderContext WithParameters(IReadOnlyList<UIDynamicParameterScope> parameters)
-        => Copy(Node, parameters, Html, IsPresentationCopy, IsTemplate, IsPopupMenu);
+        => Copy(Node, parameters, Html, IsPresentationCopy, IsTemplate, IsPopupMenu, IsInsideLink);
 
     // The one place every member is carried over, so a member added later cannot be dropped by one of the copies.
-    private WebRenderContext Copy(UIComponentNode node, IReadOnlyList<UIDynamicParameterScope> parameters, IHtmlElementBuilder html, bool isPresentationCopy, bool isTemplate, bool isPopupMenu)
+    private WebRenderContext Copy(UIComponentNode node, IReadOnlyList<UIDynamicParameterScope> parameters, IHtmlElementBuilder html, bool isPresentationCopy, bool isTemplate, bool isPopupMenu, bool isInsideLink)
         => new()
         {
             ViewResolution = ViewResolution,
@@ -132,7 +145,8 @@ public sealed class WebRenderContext
             Values = Values,
             IsPresentationCopy = isPresentationCopy,
             IsTemplate = isTemplate,
-            IsPopupMenu = isPopupMenu
+            IsPopupMenu = isPopupMenu,
+            IsInsideLink = isInsideLink
         };
 
     public void Validate()

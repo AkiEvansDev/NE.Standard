@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { paintsMoment, readHydration } from "../src/runtime/web-hydration.ts";
+import { paintsPageWritten, readHydration } from "../src/runtime/web-hydration.ts";
 
 function pageWith(json: string | null): ParentNode {
     const script = json === null
@@ -56,11 +56,18 @@ test("a row the server drew from a controller's list holds its moment in the cha
     const drawn = readHydration(pageWith(JSON.stringify({ pageId: "abc", changes: { updates: [{ kind: "CollectionChange", action: "Insert", items: [{ index: 0, key: "1", item: row }] }] } })));
     const plain = readHydration(pageWith(JSON.stringify({ pageId: "abc", changes: { updates: [{ kind: "CollectionChange", action: "Insert", items: [{ index: 0, key: "1", item: { id: "1", when: "Sent" } }] }] } })));
 
-    assert.equal(paintsMoment(drawn), true);
-    assert.equal(paintsMoment(plain), false);
-    assert.equal(paintsMoment(null), false);
+    assert.equal(paintsPageWritten(drawn), true);
+    assert.equal(paintsPageWritten(plain), false);
+    assert.equal(paintsPageWritten(null), false);
 });
 
 test("a title with a moment is one to write again too", () => {
-    assert.equal(paintsMoment(readHydration(pageWith(JSON.stringify({ pageId: "abc", title: { key: "page.at", arguments: { at: { moment: "2026-09-30T12:33:00.000Z" } } } })))), true);
+    assert.equal(paintsPageWritten(readHydration(pageWith(JSON.stringify({ pageId: "abc", title: { key: "page.at", arguments: { at: { moment: "2026-09-30T12:33:00.000Z" } } } })))), true);
+});
+
+test("a row's file size the server painted in English is one the page writes again in the reader's language", () => {
+    const row = { id: "1", size: { key: "ui.file.size", args: { size: { fileSize: 1536 } } } };
+    const drawn = readHydration(pageWith(JSON.stringify({ pageId: "abc", changes: { updates: [{ kind: "CollectionChange", action: "Insert", items: [{ index: 0, key: "1", item: row }] }] } })));
+
+    assert.equal(paintsPageWritten(drawn), true);
 });

@@ -172,6 +172,14 @@ export class ItemsTemplateRenderer {
         return root;
     }
 
+    /**
+     * Writes into a part the server painted and the page drew later — a waiting menu moved in (`row-menus.ts`) — the values pushed since
+     * to its bindings outside any item, which found no element meanwhile; its items' own values come with their lists.
+     */
+    public writePushedValues(part: Element): void {
+        this.populateBoundElements(part, [], true);
+    }
+
     /** Names what a row built from its template is given before its bindings (the update processor's held collections). */
     public setRowFiller(fill: (row: Element) => void): void {
         this.fillRow = fill;
@@ -259,7 +267,7 @@ export class ItemsTemplateRenderer {
     }
 
     // Hot path, once per rendered row: a walker and the live attribute map, rather than two copied arrays.
-    private populateBoundElements(root: Element, stack: readonly ItemStackEntry[]): void {
+    private populateBoundElements(root: Element, stack: readonly ItemStackEntry[], pushedOnly = false): void {
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
 
         for (let element: Node | null = root; element !== null; element = walker.nextNode()) {
@@ -272,17 +280,23 @@ export class ItemsTemplateRenderer {
                 const attribute = attributes[index];
 
                 if (attribute.name.startsWith(BindingAttributePrefix))
-                    this.populateBoundAttribute(element, attribute.value, stack);
+                    this.populateBoundAttribute(element, attribute.value, stack, pushedOnly);
             }
         }
     }
 
-    /** A cloned element's binding, unless it belongs to a row the server drew inside the template, whose values are written already. */
-    private populateBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[]): void {
+    /**
+     * A cloned element's binding, unless it belongs to a row the server drew inside the template, whose values are written already;
+     * with `pushedOnly`, only one outside any item whose value was pushed since the server painted it.
+     */
+    private populateBoundAttribute(element: Element, bindingIdText: string, stack: readonly ItemStackEntry[], pushedOnly: boolean): void {
         const bindingId = Number(bindingIdText);
         const binding = Number.isInteger(bindingId) && bindingId > 0 ? this.metadata.getBindingById(bindingId) : undefined;
 
-        if (binding !== undefined && !readsDrawnRow(element, binding.itemTemplateParameters, stack))
+        if (binding === undefined || (pushedOnly && (isItemScoped(binding) || !this.state.has(binding, []))))
+            return;
+
+        if (!readsDrawnRow(element, binding.itemTemplateParameters, stack))
             this.applyBoundAttribute(element, binding, stack);
     }
 
@@ -294,7 +308,7 @@ export class ItemsTemplateRenderer {
             return;
 
         // No item template means the binding is not item-scoped, so its value is the last one the server pushed.
-        const resolution = binding.itemTemplate === null || binding.itemTemplate === undefined
+        const resolution = !isItemScoped(binding)
             ? (this.state.has(binding, []) ? { ok: true as const, value: this.state.get(binding, []) } : { ok: false as const })
             : tryResolveItemTemplateValue(stack, binding.itemTemplate, binding.itemTemplateParameters);
 
@@ -365,6 +379,11 @@ export class ItemsTemplateRenderer {
 
         return selector;
     }
+}
+
+/** Whether a binding reads an item's path, rather than the controller's value pushed to every copy. */
+function isItemScoped(binding: WebRenderBindingMetadata): boolean {
+    return binding.itemTemplate !== null && binding.itemTemplate !== undefined;
 }
 
 /** Whether every item scope a binding's parameters name is on the stack, so its value can be read again. */

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -10,6 +11,9 @@ namespace NE.Standard.UI.Compiled.Views;
 /// </summary>
 public sealed class CompiledView
 {
+    // The dialogs' titles, gathered at the first ask (NamesDialog).
+    private HashSet<UIComponentId>? _dialogTitles;
+
     /// <summary>
     /// Gets the view title.
     /// </summary>
@@ -85,8 +89,8 @@ public sealed class CompiledView
     /// </summary>
     public UIItemProjectionIndex ItemProjections { get; init; } = UIItemProjectionIndex.Empty;
 
-    /// <summary>What compiled but is not what the author meant, for the host to log.</summary>
-    public IReadOnlyList<string> Warnings { get; init; } = [];
+    /// <summary>What compiled but is not what the author meant, for the host to log, each of its kind.</summary>
+    public IReadOnlyList<UICompileWarning> Warnings { get; init; } = [];
 
     /// <summary>
     /// One short hash over what a page's client holds of this compile (components, bindings, events and interactions by id),
@@ -104,5 +108,35 @@ public sealed class CompiledView
         }
 
         return null;
+    }
+
+    /// <summary>The view's dialog under <paramref name="key"/>, or <see langword="null"/> where the view declares none.</summary>
+    public CompiledDialog? FindDialog(string key)
+        => CompiledDialog.Find(Dialogs, key);
+
+    /// <summary>Whether the component is a dialog's title, which the dialog's panel names in <c>aria-labelledby</c>.</summary>
+    /// <remarks>Asked for every component a page renders, so the titles are gathered once per compile, not scanned per component.</remarks>
+    public bool NamesDialog(UIComponentId componentId)
+    {
+        if (Dialogs.Length == 0)
+            return false;
+
+        // A race builds the same set twice, and either is right.
+        _dialogTitles ??= GatherDialogTitles();
+
+        return _dialogTitles.Contains(componentId);
+    }
+
+    private HashSet<UIComponentId> GatherDialogTitles()
+    {
+        HashSet<UIComponentId> titles = [];
+
+        foreach (CompiledDialog dialog in Dialogs)
+        {
+            if (dialog.TitleComponentId is UIComponentId title)
+                _ = titles.Add(title);
+        }
+
+        return titles;
     }
 }

@@ -24,6 +24,10 @@ internal sealed partial class SignUpController : UIControllerBase
     [RecursiveMember]
     public partial string? Password { get; set; }
 
+    /// <summary>The password typed again: bound only to be cleared with the form, since the browser judges the match and the account takes the password alone.</summary>
+    [RecursiveMember]
+    public partial string? PasswordAgain { get; set; }
+
     [RecursiveMember]
     public partial bool? ForCompany { get; set; }
 
@@ -41,6 +45,9 @@ internal sealed partial class SignUpController : UIControllerBase
 
     [RecursiveMember]
     public partial UIVisibility DoneVisibility { get; set; } = UIVisibility.Collapsed;
+
+    [RecursiveMember]
+    public partial string DoneTitle { get; set; } = "Check your inbox";
 
     [RecursiveMember]
     public partial string DoneLine { get; set; } = string.Empty;
@@ -89,6 +96,7 @@ internal sealed partial class SignUpController : UIControllerBase
         Email = null;
         EmailNotice = null;
         Password = null;
+        PasswordAgain = null;
         ForCompany = false;
         CompanyName = null;
         Country = null;

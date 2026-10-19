@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -24,7 +25,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
-public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent, IKeyValueActionComponent
+[UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent, IKeyValueActionComponent, IEmptyStateComponent
     where T : KeyValueActionComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -114,6 +116,19 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         => Self.ConfigureTemplate(ActionTemplate as DefaultActionTemplate, configure, "template");
 
     /// <summary>
+    /// Configures the built-in default empty template — a list that may hold no rows — putting it in where the list has none, and
+    /// throwing if a different template has been set.
+    /// </summary>
+    /// <remarks>Opt-in, not set by the constructor: a detail list in a card has nothing to say while it is empty.</remarks>
+    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
+    {
+        if (!HasEmptyTemplate)
+            _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+
+        return Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
+    }
+
+    /// <summary>
     /// Sets the key template.
     /// </summary>
     public T SetKeyTemplate(ITextComponent template)
@@ -187,13 +202,13 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         if (editCommand is null)
             _ = row.InteractOn(pencil.Id, EventNames.Click, DefaultRowTemplate.EditingProperty, true);
         else
-            _ = pencil.OnClick(editCommand, UIAction.ArgCurrentItemKey(EditArgumentName));
+            _ = pencil.OnClick(editCommand, UIAction.Offered(UIAction.ArgCurrentItemKey(EditArgumentName)));
 
         ButtonComponent save = new ButtonComponent()
             .SetType(UIButtonType.Primary)
             .SetSize(UIButtonSize.Small)
             .SetTitle(UIStandardAction.Save.Word)
-            .OnClick(saveCommand, UIAction.ArgCurrentItemKey(EditArgumentName));
+            .OnClick(saveCommand, UIAction.Offered(UIAction.ArgCurrentItemKey(EditArgumentName)));
 
         ButtonComponent cancel = new ButtonComponent()
             .SetType(UIButtonType.Ghost)
@@ -248,6 +263,16 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     {
         HasActionClick = true;
         return OnTemplate<IButtonComponent>(TemplateNames.Action, action => _ = action.OnClick(command, arguments));
+    }
+
+    /// <summary>
+    /// Runs a client effect when the action of the row whose key is <paramref name="key"/> is clicked, with no round trip; the other
+    /// rows keep the command <c>OnActionClick</c> gave them.
+    /// </summary>
+    public T OnActionClick(string key, ClientEffect effect)
+    {
+        HasActionClick = true;
+        return OnTemplate<IButtonComponent>(TemplateNames.Action, action => _ = action.InteractOnRow(EventNames.Click, key, effect));
     }
 
     /// <summary>

@@ -155,9 +155,12 @@ export class UpdateProcessor {
         });
     }
 
-    /** Whether a collection is shared by every row's copy of a host (no row, a template's component), held for rows built later. */
+    /**
+     * Whether a collection is shared by every row's copy of a host (no row, a template's component), held for rows built later, or is
+     * a list in a menu waiting outside the rows to be drawn (a link's, `row-menus.ts`), held for the menu drawn later.
+     */
     private holdsCollection(componentId: number, dynamicParameters: readonly unknown[]): boolean {
-        return dynamicParameters.length === 0 && this.itemsTemplates.isTemplateComponent(componentId);
+        return dynamicParameters.length === 0 && (this.itemsTemplates.isTemplateComponent(componentId) || this.rowMenus.holds(componentId));
     }
 
     /** Whether a collection is a row's own for its menu waiting to be drawn (`row-menus.ts`), held for the menu drawn later. */
@@ -173,11 +176,13 @@ export class UpdateProcessor {
     /**
      * A row's menu just drawn into it (`row-menus.ts`): indexed, a server-drawn one's rows given the items the render published, and
      * each of its lists drawn now from what is held for it — the row's own collection, else the one every row shares — so the menu
-     * opens, or its bar shows, with its entries.
+     * opens, or its bar shows, with its entries. A menu moved in as the server painted it takes the values pushed since to its
+     * bindings outside any item, which found no element meanwhile.
      */
     public fillDrawnPart(part: Element): void {
         this.dom.invalidate(part);
         this.registerRenderedRows(part);
+        this.itemsRenderer.writePushedValues(part);
 
         const done = new Set<Element>();
 
@@ -201,14 +206,16 @@ export class UpdateProcessor {
     }
 
     /**
-     * A patch to a part of a row's menu entry (a pin's words): the entry's held item takes the value as it was sent, whether the menu
-     * is drawn or not, so a menu drawn later — or drawn again with its row — shows it, in the reader's language then.
+     * A patch to a part of a waiting menu's entry (a pin's words, a check): the entry's held item takes the value as it was sent,
+     * whether the menu is drawn or not, so a menu drawn later — or drawn again with its row — shows it, in the reader's language then.
+     * The entry is named by its key after its row's (a row's menu), or by its key alone (a link's menu outside the rows); a list not
+     * held yet starts from the rows the render drew in it.
      */
     private writeHeldItemValue(change: PropertyValueChange): void {
         const componentId = getIdValue(change.reference.componentId);
         const parameters = change.dynamicParameters;
 
-        if (parameters.length < 2 || !this.rowMenus.holds(componentId))
+        if (parameters.length < 1 || !this.rowMenus.holds(componentId))
             return;
 
         const binding = this.metadata.getBindingByComponentAndPropertyId(componentId, change.reference.propertyId);
@@ -219,10 +226,40 @@ export class UpdateProcessor {
             return;
 
         const value = this.state.get(change.reference, parameters);
-        const written = this.held.writeRowItem(parameters.slice(0, -1), String(parameters[parameters.length - 1] ?? ""), held => this.rowMenus.inOneMenu(held, componentId), item => writeItemValuePath(item, path.steps, value));
+        const row = parameters.slice(0, -1);
+        const key = String(parameters[parameters.length - 1] ?? "");
+        let written = false;
+
+        for (const list of this.rowMenus.menuComponentsOf(componentId)) {
+            if (this.heldList(list, row) === undefined && this.metadata.getItemValues(list, row).some(drawn => drawn.key === key))
+                this.holdFromRender(list, row);
+
+            written = this.held.writeItem(list, row, key, item => writeItemValuePath(item, path.steps, value)) || written;
+        }
 
         if (written)
             this.rowMenus.heldChanged();
+    }
+
+    /**
+     * A waiting menu's list starts from the rows the render drew in it — the one a menu outside the rows holds (a link's), or a row's
+     * own — before a change or a patch applies to it: started empty, the menu drawn later would show that change alone.
+     */
+    private holdFromRender(componentId: number, dynamicParameters: readonly unknown[]): void {
+        if (!this.rowMenus.holds(componentId) || this.heldList(componentId, dynamicParameters) !== undefined)
+            return;
+
+        const drawn = this.metadata.getItemValues(componentId, dynamicParameters);
+
+        if (dynamicParameters.length === 0)
+            this.held.hold(componentId, drawn);
+        else
+            this.held.holdRow(componentId, dynamicParameters, drawn);
+    }
+
+    /** The collection held for a component: shared where no row is named, else that row's own. */
+    private heldList(componentId: number, dynamicParameters: readonly unknown[]): readonly HeldRow[] | undefined {
+        return dynamicParameters.length === 0 ? this.held.get(componentId) : this.held.getRow(componentId, dynamicParameters);
     }
 
     private touch(elements: Iterable<Element>): void {
@@ -695,10 +732,13 @@ export class UpdateProcessor {
         const holds = this.holdsCollection(componentId, dynamicParameters);
         const holdsRow = this.holdsRowCollection(componentId, dynamicParameters);
 
-        if (holds)
+        if (holds) {
+            this.holdFromRender(componentId, dynamicParameters);
             this.held.apply(update);
+        }
 
         if (holdsRow) {
+            this.holdFromRender(componentId, dynamicParameters);
             this.held.applyRow(update);
             this.rowMenus.heldChanged();
         }

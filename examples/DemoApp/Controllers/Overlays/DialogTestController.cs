@@ -310,10 +310,6 @@ internal sealed partial class DialogTestController() : DemoController
     }
 
     [UICommand]
-    public static UICommandResult OpenFilters()
-        => UICommandResult.Ok([new OpenDialogEffect(FiltersKey)]);
-
-    [UICommand]
     public void ApplyFilters()
         => FiltersGroup.Refresh();
 

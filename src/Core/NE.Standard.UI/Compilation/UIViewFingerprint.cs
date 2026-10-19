@@ -36,7 +36,7 @@ internal static class UIViewFingerprint
         foreach (CompiledUIInteraction interaction in interactions)
         {
             Append(text, "i", interaction.SourceKind, interaction.ActionKind, interaction.Source?.Component.Id.Value, interaction.Source?.Property.Name,
-                interaction.SourceEvent?.ComponentId.Value, interaction.SourceEvent?.EventName, interaction.Target?.Component.Id.Value, interaction.Target?.Property.Name);
+                interaction.SourceEvent?.ComponentId.Value, interaction.SourceEvent?.EventName, interaction.Target?.Component.Id.Value, interaction.Target?.Property.Name, interaction.RowKey);
         }
 
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()));

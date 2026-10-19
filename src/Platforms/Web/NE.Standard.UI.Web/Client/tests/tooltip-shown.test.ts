@@ -7,7 +7,7 @@ import test from "node:test";
 import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 // The tree watcher the engine starts while words are on screen, called by hand: the page changed.
-let treeChanged: (() => void) | null = null;
+let treeChanged: ((records: readonly { readonly type: string; readonly addedNodes: readonly unknown[]; readonly removedNodes: readonly unknown[] }[]) => void) | null = null;
 
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, clearTimeout, innerWidth: 1024, innerHeight: 768 },
@@ -20,7 +20,7 @@ installFakeDom({
         }
     },
     MutationObserver: class {
-        public constructor(callback: () => void) {
+        public constructor(callback: (records: readonly { readonly type: string; readonly addedNodes: readonly unknown[]; readonly removedNodes: readonly unknown[] }[]) => void) {
             treeChanged = callback;
         }
 
@@ -85,7 +85,7 @@ test("words on screen go once the page has redrawn their anchor away", () => {
 
     fakeDocument.body.children.splice(fakeDocument.body.children.indexOf(save), 1);
     save.parent = null;
-    treeChanged?.();
+    treeChanged?.([{ type: "childList", addedNodes: [], removedNodes: [] }]);
 
     assert.equal(shows(save), false);
 });

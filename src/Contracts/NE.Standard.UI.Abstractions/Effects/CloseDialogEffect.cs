@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
 
@@ -34,5 +36,15 @@ public sealed class CloseDialogEffect : ClientEffect
     /// A close of the viewer's own is a gesture complete on the page, as Escape is, so an interaction may raise it; one the server asks
     /// for goes from a command.
     /// </summary>
+    [JsonIgnore]
     public override bool CanRunInInteraction => RaisesClose;
+
+    /// <inheritdoc />
+    public override ClientEffect Resolve(IUIReferenceResolver resolver)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+
+        resolver.EnsureDialogDeclared(DialogKey);
+        return this;
+    }
 }

@@ -18,7 +18,8 @@ public sealed class WebRenderMetadata
     // repeat must cost a lookup, not an allocation.
     private readonly HashSet<UIBindingId> _bindingKeys = [];
     private readonly HashSet<(UIEventId Event, UIComponentId Component, string EventName)> _eventKeys = [];
-    private readonly HashSet<(UIComponentId Component, string PropertyId, UIValidationTrigger Trigger, UIComparisonOperator Operator, UIValidationSeverity Severity)> _validationKeys = [];
+    // By the compiled rule itself: two rules of one field alike in trigger, operator and severity (two patterns) are two rules.
+    private readonly HashSet<CompiledUIValidationRule> _validationRules = [];
     private readonly HashSet<string> _usedPropertyDefinitionIds = [];
     private readonly HashSet<UIComponentId> _itemsTemplateComponents = [];
     private readonly HashSet<UIComponentId> _itemsFilterSortComponents = [];
@@ -75,6 +76,9 @@ public sealed class WebRenderMetadata
 
     /// <summary>The translatable values the page was rendered with rather than bound to, which a language switch writes again.</summary>
     public IReadOnlyList<WebRenderWordMetadata> Words => _words;
+
+    /// <summary>What the view's compile warned of, for the page's console in development; empty elsewhere.</summary>
+    public IReadOnlyList<string> CompileWarnings { get; set; } = [];
 
     public IReadOnlyList<UIBindingId> InitBindingIds
         => _bindings
@@ -477,7 +481,7 @@ public sealed class WebRenderMetadata
 
             ArgumentNullException.ThrowIfNull(rule);
 
-            if (!TryCreatePropertyMetadata(rule.Target, out WebRenderPropertyMetadata? target))
+            if (!TryCreatePropertyMetadata(rule.Target, out WebRenderPropertyMetadata? target) || !_validationRules.Add(rule))
                 continue;
 
             WebRenderValidationMetadata metadata = new()
@@ -486,14 +490,12 @@ public sealed class WebRenderMetadata
                 Trigger = rule.Trigger,
                 Operator = rule.Operator,
                 Value = rule.Value,
+                ValueSource = rule.ValueSource?.Component.Id,
                 Severity = rule.Severity,
                 Message = rule.Message
             };
 
             metadata.Validate();
-
-            if (!_validationKeys.Add((metadata.Target.ComponentId, metadata.Target.PropertyId, metadata.Trigger, metadata.Operator, metadata.Severity)))
-                continue;
 
             _validations.Add(metadata);
         }
@@ -568,7 +570,8 @@ public sealed class WebRenderMetadata
             Operator = interaction.Operator,
             Value = interaction.Value,
             TrueValue = interaction.TrueValue,
-            FalseValue = interaction.FalseValue
+            FalseValue = interaction.FalseValue,
+            RowKey = interaction.RowKey
         };
 
         _interactionMetadata.Add(interaction, metadata);

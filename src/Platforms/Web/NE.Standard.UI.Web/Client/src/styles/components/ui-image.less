@@ -1,8 +1,8 @@
 @import "../mixins/responsive.less";
 @import "../mixins/stand-in.less";
 
-// The box takes the size, the shape and the corners; the picture fills it. A box, not the `<img>` itself, so a round one with no
-// picture can hold its fallback glyph over the picture's place.
+// The box takes the size, the shape and the corners; the picture fills it. A box, not the `<img>` itself, so one with no picture can
+// hold its fallback glyph over the picture's place.
 .ui-image {
     display: block;
     // As wide as its picture until a width is given, as the picture alone was: a block would take its track's whole width.
@@ -73,19 +73,24 @@
     }
 
 // A picture whose source is missing or failed, with no stand-in of its author's (or one that failed too): the framework's own
-// (image-fallback-engine.ts) on the wash, shrunk into a box smaller than it and never grown — never the browser's broken mark. After
-// the fits, which it outranks.
-.ui-image[data-ui-image-failed] > .ui-image__picture {
-    object-fit: scale-down;
-    object-position: center;
-    background-color: var(--ui-wash-hover);
-}
-
-// A round one: a clear square on the neutral circle a badge stands on, its fallback glyph laid over it (`.ui-icon-stand-in`).
-.ui-image--circle[data-ui-image-failed] {
+// (image-fallback-engine.ts), a clear square on the wash with its fallback glyph laid over it (`.ui-icon-stand-in`) — never the
+// browser's broken mark. After the fits, which it outranks.
+.ui-image[data-ui-image-failed] {
     position: relative;
 }
 
-    .ui-image--circle[data-ui-image-failed] > .ui-image__picture {
-        background-color: @ui-stand-in-ground;
+    .ui-image[data-ui-image-failed] > .ui-image__picture {
+        object-fit: scale-down;
+        object-position: center;
+        background-color: var(--ui-wash-hover);
     }
+
+    // Half the box's shorter side, at most 48 px: a photo's tile shows the glyph with room around it, not a glyph as large as the tile.
+    .ui-image[data-ui-image-failed]:not(.ui-image--circle) > .ui-icon-stand-in::before {
+        font-size: min(50cqmin, 48px);
+    }
+
+// A round one on the neutral circle a badge stands on, its glyph as large as the circle allows, as a round icon's.
+.ui-image--circle[data-ui-image-failed] > .ui-image__picture {
+    background-color: @ui-stand-in-ground;
+}

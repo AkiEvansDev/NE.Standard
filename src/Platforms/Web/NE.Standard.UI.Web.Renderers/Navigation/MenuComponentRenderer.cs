@@ -94,6 +94,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         // width keeps both for it; the rail's styles leave them unread (ui-menu.less, ui-collapsible.less).
         CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: everList, pinSide: everList ? DrawerPinSide(context) : null);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
+        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-menu--no-empty", WebValueCondition.IsFalse);
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty, SurfaceOperations);
         RenderPopupSurface(context);
 

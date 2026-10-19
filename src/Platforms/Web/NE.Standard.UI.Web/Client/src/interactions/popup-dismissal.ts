@@ -6,7 +6,10 @@ import { escapeClaimant } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 
-/** Why a popup closed unasked: a press outside, Escape, the window's blur, the keyboard leaving it, or its owner unable to keep it. */
+/**
+ * Why a popup closed unasked: a press outside, Escape, the window's blur, the keyboard leaving it, or its owner unable to keep it —
+ * gone, out of sight, refusing, or the window crossed the phone's width it opened at (owned-popup.ts).
+ */
 export type PopupDismissReason = "outside" | "escape" | "blur" | "focus" | "owner";
 
 export type PopupDismissalOptions = {
@@ -72,8 +75,20 @@ function installEscape(): void {
     }, true);
 }
 
-/** Whether any popup the reader can reach is open right now — what a dialog asks before taking Escape for itself. */
-export function hasOpenPopups(): boolean {
+// The floating layers no dismissal holds that answer Escape themselves — the action bar over a chosen row — each saying whether a key
+// landing on a target is its own.
+const escapeLayers: ((target: EventTarget | null) => boolean)[] = [];
+
+/** Counts a floating layer an engine keeps (the action bar) among what a dialog or a drawer leaves Escape to, while it says a key is its own. */
+export function registerEscapeLayer(takesEscape: (target: EventTarget | null) => boolean): void {
+    escapeLayers.push(takesEscape);
+}
+
+/**
+ * Whether any popup the reader can reach is open right now, or a floating layer takes an Escape landing on `target` — what a dialog or
+ * a drawer asks before taking Escape for itself.
+ */
+export function hasOpenPopups(target: EventTarget | null = null): boolean {
     for (const instance of instances) {
         for (const popup of instance.openPopups()) {
             if (popup.isConnected && !instance.isBehind(popup))
@@ -81,7 +96,7 @@ export function hasOpenPopups(): boolean {
         }
     }
 
-    return false;
+    return escapeLayers.some(takesEscape => takesEscape(target));
 }
 
 /** Hears a click the refusals stopped before any popup's listener could: a press on a disabled control is still a press outside. */

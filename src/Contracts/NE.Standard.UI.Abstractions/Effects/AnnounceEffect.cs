@@ -39,12 +39,16 @@ public sealed class AnnounceEffect : ClientEffect
     }
 
     /// <summary>
-    /// Creates an effect that says a key with its arguments.
+    /// Creates an effect that says a key with its arguments, or the author's text, which may not be empty.
     /// </summary>
     [JsonConstructor]
     public AnnounceEffect(UIPhrase message, AnnouncePoliteness politeness = AnnouncePoliteness.Polite)
     {
         ArgumentNullException.ThrowIfNull(message);
+
+        // An empty announcement interrupts a screen reader to say nothing.
+        if (!UIPhrase.HasWords(message))
+            throw new ArgumentException("An announcement needs words.", nameof(message));
 
         Message = message;
         Politeness = politeness;

@@ -19,7 +19,7 @@ public interface IParagraphModel : ITextWrapModel
     [UIComponentProperty(Contract = typeof(IParagraphComponent), DefaultValue = false)]
     bool? ShowQuoteLine { get; }
 
-    /// <summary>The quote line's colour; unset, a faint line in the text's own colour.</summary>
+    /// <summary>The quote line's colour; unset, the theme's border colour, as a Markdown blockquote's and a neutral quote's stroke.</summary>
     [UIComponentProperty(Contract = typeof(IParagraphComponent), DefaultValue = null)]
     UIThemeColor? QuoteLineColor { get; }
 }

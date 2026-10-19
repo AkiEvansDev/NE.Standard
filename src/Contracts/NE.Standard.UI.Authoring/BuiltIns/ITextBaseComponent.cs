@@ -1,6 +1,7 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
@@ -103,4 +104,17 @@ public interface ITextBaseComponent : ITextBaseModel, IVisualComponent
     /// Gets the registered property key for <see cref="IBadgeModel.BadgeTooltipPlacement"/>.
     /// </summary>
     static UIProperty BadgeTooltipPlacementProperty { get; } = new(nameof(BadgeTooltipPlacement));
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="TooltipPlain"/>.
+    /// </summary>
+    static UIProperty TooltipPlainProperty { get; } = new(nameof(TooltipPlain));
+
+    /// <summary>
+    /// Gets whether the tooltip is shown as written, its asterisks, brackets and braces as characters, rather than read as inline
+    /// markup: words the controller holds bound to it — a person's name, a note's status; unset, it is markup.
+    /// </summary>
+    /// <remarks>Render-time only: the first paint and every value pushed later are shown the same way.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
+    bool? TooltipPlain { get; }
 }

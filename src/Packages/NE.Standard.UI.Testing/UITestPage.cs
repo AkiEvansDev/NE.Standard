@@ -4,10 +4,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Shell.Commands;
@@ -26,7 +28,9 @@ namespace NE.Standard.UI.Testing;
 /// Modelled: values and collections from the change sets — a refill keeping the rows it resends unchanged — a binding read off its
 /// row's item, visibility and enabled state with their ancestors', the field rules (change, blur, submit), a value past its bounds
 /// refused on the page, a bound message and the server's refusal, a form's held values and its discard, the client interactions a
-/// view declares, dialogs, the address an effect writes, and a submit refused while its form has an error. Not modelled: layout,
+/// view declares, dialogs — the viewer's close (an ×, Escape, a press beside it) raising <c>OnClose</c> — a show or hide effect's
+/// visibility, a language or theme the page switched to told to its session, the address an effect writes, and a submit refused
+/// while its form has an error. Not modelled: layout,
 /// a responsive value at any width but the widest, a plain host's own filter and sort rules (rows stand as the server sent them),
 /// item windows read on scroll, popups other than dialogs (a context menu and a flyout stand open), the validation message sent
 /// into another component, trimming and debouncing a field does in the browser, and fields in rows on a submit.
@@ -49,6 +53,8 @@ public sealed partial class UITestPage
     private readonly List<ClientEffect> _effects = [];
     private readonly List<UITestDownload> _downloads = [];
     private readonly HashSet<string> _openDialogs = new(StringComparer.Ordinal);
+    // What effects left for after the act, run once the lock is let go (RunReactionsAsync).
+    private readonly List<UITestReaction> _reactions = [];
     private bool _resync;
 
     internal UITestPage(UITestApp app, string instanceId, UITestSession session)
@@ -120,6 +126,9 @@ public sealed partial class UITestPage
         }
     }
 
+    /// <summary>Gets what the page's view compile warned of, each of its kind: a binding naming nothing, or advice.</summary>
+    public IReadOnlyList<UICompileWarning> CompileWarnings => View.Warnings;
+
     /// <summary>Gets whether the page holds work its reader has not saved, as the controller last said.</summary>
     public bool HoldsUnsavedWork { get; private set; }
 
@@ -147,6 +156,35 @@ public sealed partial class UITestPage
 
         lock (_sync)
             return _openDialogs.Contains(key);
+    }
+
+    /// <summary>
+    /// Closes the dialog <paramref name="key"/> as its viewer does — Escape, or a press beside it — letting the edit of a form under its
+    /// key go and raising its <c>OnClose</c>, whose command's answer this is.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The dialog is not open, or takes neither Escape nor a press beside it.</exception>
+    public Task<UITestCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        UIComponentId root;
+
+        lock (_sync)
+        {
+            CompiledDialog dialog = View.FindDialog(key) ?? throw new InvalidOperationException($"The page at '{Route}' declares no dialog '{key}'.");
+
+            if (!_openDialogs.Contains(key))
+                throw new InvalidOperationException($"Dialog '{key}' is not open: a reader cannot dismiss it.");
+
+            if (!dialog.CloseOnEscape && !dialog.CloseOnBackdrop)
+                throw new InvalidOperationException($"Dialog '{key}' takes neither Escape nor a press beside it: only its own buttons close it.");
+
+            DiscardDialogFormNoLock(dialog);
+            _ = _openDialogs.Remove(key);
+            root = dialog.RootComponentId;
+        }
+
+        return DispatchCoreAsync(root, [], EventNames.Close, [], cancellationToken);
     }
 
     /// <summary>Gets the page's controller as <typeparamref name="TController"/>.</summary>
@@ -208,6 +246,7 @@ public sealed partial class UITestPage
             await Runtime.UIChangeDelivery.SendAsync(_app.Client, runtime, _resolution.Handle, runtime.AttachedInstanceIds, changes, cancellationToken).ConfigureAwait(false);
 
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Presses the action a notification offered — its Undo — through the command path, once, as a press on the toast does.</summary>
@@ -251,6 +290,7 @@ public sealed partial class UITestPage
             await runtime.WhenPostedRanAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
 
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Opens <paramref name="address"/> in another page of this page's session, as following a link to it would.</summary>

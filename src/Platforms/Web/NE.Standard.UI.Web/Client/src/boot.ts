@@ -1,12 +1,14 @@
 // Classic head script, built as one with what it imports: as the parser produces the body, applies the stored boot patches (a tree's
 // fold walked by its rows' parents), writes every moment the server painted in UTC — a timestamp, a moment in words — in the reader's
-// zone, marks a theme field's current choice, gives a menu whose display differs by breakpoint the width's shape, and holds every
-// region with a part a package's engine draws, before the first paint.
+// zone and every file size it painted in English in the reader's language, writes a file tile's size, marks a theme field's current
+// choice, gives a menu whose display differs by breakpoint the width's shape, and holds every region with a part a package's engine
+// draws, before the first paint.
 
-import { MenuRailTiersAttribute, MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
+import { FileTileClass, FileTileSizeAttribute, FileTileSizeClass, MenuRailTiersAttribute, PageWrittenAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
+import { formatFileSize, serverFileSizePaint, tileSizeText } from "./rendering/file-size.ts";
+import { PageWrittenMarkSelector, paintedOfMark, readPageTemporal, readPageWrittenAttribute, serverMomentPaint } from "./rendering/first-paint-words.ts";
+import type { PaintedValue } from "./rendering/first-paint-words.ts";
 import { fitMenuShape } from "./rendering/menu-shape.ts";
-import { momentsOfMark, readMomentsAttribute, readPageTemporal, serverMomentPaint } from "./rendering/moment-first-paint.ts";
-import type { PaintedMoment } from "./rendering/moment-first-paint.ts";
 import type { TemporalLanguage } from "./rendering/temporal-format.ts";
 import { AwaitsDrawSelector, holdRegionOf } from "./rendering/region-hold.ts";
 import { declaredTheme, markThemeChoice, ThemeFieldPartSelector } from "./rendering/theme-choice.ts";
@@ -35,13 +37,13 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
         readonly pending: Set<Element>;
     };
 
-    // Where a moment stands: the element's text, any place (`data-ui-moments` names none), or an attribute by its own name.
+    // Where a painted value stands: the element's text, any place (`data-ui-page-written` names none), or an attribute by its own name.
     const TextPlace = "#text";
     const AnyPlace = "*";
 
     const jobs: BootJob[] = [];
-    // What is left to write of each element's moments, per place.
-    const unwritten = new WeakMap<Element, Map<string, PaintedMoment[]>>();
+    // What is left to write of each element's painted values, per place.
+    const unwritten = new WeakMap<Element, Map<string, PaintedValue[]>>();
     // Each tree's fold walk, from its name's patch, which every row of it is handed to in turn.
     const treeWalks = new WeakMap<Element, (row: Element) => boolean>();
     const patchesByName = readPatches();
@@ -80,18 +82,19 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
         return true;
     }));
 
-    // A page with no patterns paints its moments as the server wrote them, and the runtime writes them once it starts.
-    if (temporal !== null) {
-        const words = { temporal, language: document.documentElement.lang };
-        const now = Date.now();
+    // A page with no patterns paints its moments as the server wrote them, and the runtime writes them once it starts; its file sizes
+    // need only its language.
+    const language = document.documentElement.lang;
+    const words: TimestampWords | null = temporal === null ? null : { temporal, language };
+    const now = Date.now();
 
+    if (temporal !== null && words !== null)
         jobs.push(job(`.${TimestampClass}`, element => writeTimestamp(element, temporal, words, now)));
-        jobs.push(job(`[${WordsAttribute}*='"moment"']`, element => writeMomentWords(element, temporal, words, now)));
-        jobs.push(job(`[${MomentsAttribute}]`, element => writeMoments(element, AnyPlace, () => readMomentsAttribute(element.getAttribute(MomentsAttribute)), temporal, words, now)));
-    }
 
-    if (jobs.length === 0)
-        return;
+    jobs.push(job(PageWrittenMarkSelector, element => writePageWrittenWords(element)));
+    jobs.push(job(`[${PageWrittenAttribute}]`, element => writeValues(element, AnyPlace, () => readPageWrittenAttribute(element.getAttribute(PageWrittenAttribute)))));
+    // The server leaves a tile's size empty, as no one render carries a reader's language: written here, the tile paints with it.
+    jobs.push(job(`.${FileTileClass}`, element => writeTileSize(element)));
 
     function job(selector: string, apply: (element: Element) => boolean): BootJob {
         return { selector, apply, done: new WeakSet<Element>(), pending: new Set<Element>() };
@@ -202,8 +205,8 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
         return true;
     }
 
-    /** Writes each moment in an element's words — its own text's, an attribute's — where the server's paint of it stands. */
-    function writeMomentWords(element: Element, temporal: TemporalLanguage, words: TimestampWords, now: number): boolean {
+    /** Writes each value the page writes itself in an element's words — its own text's, an attribute's — where the server's paint of it stands. */
+    function writePageWrittenWords(element: Element): boolean {
         let marks: Record<string, unknown>;
 
         try {
@@ -216,20 +219,20 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
         let complete = true;
 
         for (const [target, mark] of Object.entries(marks))
-            complete = writeMoments(element, target === WordsTextTarget ? TextPlace : target, () => momentsOfMark(mark), temporal, words, now) && complete;
+            complete = writeValues(element, target === WordsTextTarget ? TextPlace : target, () => paintedOfMark(mark)) && complete;
 
         return complete;
     }
 
     /**
-     * Writes an element's moments in order where the server's paint of each stands — in its text, in an attribute, or either — and
-     * answers whether all are written: one whose paint has not arrived yet waits, with those after it, for the parser's next batch.
+     * Writes an element's painted values in order where the server's paint of each stands — in its text, in an attribute, or either —
+     * and answers whether all are written: one whose paint has not arrived yet waits, with those after it, for the parser's next batch.
      */
-    function writeMoments(element: Element, place: string, read: () => PaintedMoment[], temporal: TemporalLanguage, words: TimestampWords, now: number): boolean {
+    function writeValues(element: Element, place: string, read: () => PaintedValue[]): boolean {
         let places = unwritten.get(element);
 
         if (places === undefined) {
-            places = new Map<string, PaintedMoment[]>();
+            places = new Map<string, PaintedValue[]>();
             unwritten.set(element, places);
         }
 
@@ -241,15 +244,26 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
         }
 
         while (left.length > 0) {
-            const moment = left[0];
+            const writing = writingOf(left[0]);
 
-            if (!replacePaint(element, place, serverMomentPaint(moment, temporal), formatTimestamp(moment.instant, moment.format, words, now)))
+            if (writing !== null && !replacePaint(element, place, writing.painted, writing.written))
                 return false;
 
             left.shift();
         }
 
         return true;
+    }
+
+    /** A painted value's server text and the page's words for it; null for a moment on a page with no patterns, which the runtime writes. */
+    function writingOf(value: PaintedValue): { readonly painted: string; readonly written: string } | null {
+        if ("bytes" in value)
+            return { painted: serverFileSizePaint(value.bytes), written: formatFileSize(value.bytes, language) };
+
+        if (temporal === null || words === null)
+            return null;
+
+        return { painted: serverMomentPaint(value, temporal), written: formatTimestamp(value.instant, value.format, words, now) };
     }
 
     /**
@@ -283,6 +297,21 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
         }
 
         return false;
+    }
+
+    /** Writes a file tile's size in the page's language, as `file-tile-engine.ts` will, once its size part has arrived. */
+    function writeTileSize(tile: Element): boolean {
+        const size = tile.querySelector(`:scope > .${FileTileSizeClass}`);
+
+        if (size === null)
+            return false;
+
+        const text = tileSizeText(tile.getAttribute(FileTileSizeAttribute), language);
+
+        if (size.textContent !== text)
+            size.textContent = text;
+
+        return true;
     }
 
     function visit(root: Element): void {

@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ClientWords, marksMoment } from "../src/runtime/client-strings.ts";
+import { ClientWords, marksPageWritten } from "../src/runtime/client-strings.ts";
 import type { WordsTable } from "../src/runtime/client-strings.ts";
 import { InvariantTemporalCulture } from "../src/rendering/temporal-format.ts";
 import type { TemporalLanguage } from "../src/rendering/temporal-format.ts";
@@ -114,12 +114,12 @@ test("the moments' pass writes again only the marks holding a moment", () => {
     const root = new MarkedRoot([sent, title]);
 
     strings.useTable(tableOf("en", { "home.sent": "Sent {at}", "home.title": "Home" }));
-    strings.rewriteMarks(root as unknown as ParentNode, true);
+    strings.rewriteMarks(root as unknown as ParentNode, holdsMoment);
 
     assert.equal(sent.textContent, `Sent ${formatTimestamp(Instant, "date", { temporal: null, language: "en" }, Instant)}`);
     assert.equal(title.textContent, "", "a mark without a moment is left for a switch");
-    assert.equal(marksMoment(root as unknown as ParentNode), true);
-    assert.equal(marksMoment(new MarkedRoot([title]) as unknown as ParentNode), false);
+    assert.equal(marksPageWritten(root as unknown as ParentNode), true);
+    assert.equal(marksPageWritten(new MarkedRoot([title]) as unknown as ParentNode), false);
 });
 
 class MarkedElement {
@@ -139,7 +139,7 @@ class MarkedElement {
     }
 }
 
-/** Answers `[data-ui-words]` and `[data-ui-words*='…']`, as the moments' pass asks; no templates. */
+/** Answers `[data-ui-words]` and a list of `[data-ui-words*='…']`, as the written values' pass asks; no templates. */
 class MarkedRoot {
     private readonly elements: readonly MarkedElement[];
 
@@ -151,9 +151,9 @@ class MarkedRoot {
         if (selector === "template")
             return [];
 
-        const contains = /\*='([^']*)'\]$/.exec(selector)?.[1];
+        const contains = [...selector.matchAll(/\*='([^']*)'\]/g)].map(match => match[1]);
 
-        return this.elements.filter(element => contains === undefined || (element.getAttribute("data-ui-words") ?? "").includes(contains));
+        return this.elements.filter(element => contains.length === 0 || contains.some(text => (element.getAttribute("data-ui-words") ?? "").includes(text)));
     }
 
     public querySelector(selector: string): unknown {

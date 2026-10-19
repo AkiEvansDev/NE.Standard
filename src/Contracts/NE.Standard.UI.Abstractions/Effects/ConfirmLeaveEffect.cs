@@ -14,7 +14,7 @@ public sealed class ConfirmLeaveEffect : ClientEffect
     public ConfirmLeaveEffect(string target)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
-        Target = target;
+        Target = UISiteAddress.Normalize(target);
     }
 
     /// <inheritdoc />

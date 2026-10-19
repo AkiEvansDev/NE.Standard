@@ -20,7 +20,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// Closed, it is a select's field and shows the chosen option; the term is kept between openings and selected as the list opens, so
 /// typing replaces it and the list always answers what the field says. After a pick the list closes and the keyboard is back on the field.
 /// </remarks>
-public abstract partial class SearchComponent<T, TItem>(string? id = null) : SelectComponent<T, TItem>(id), IDebounceInputComponent
+public abstract partial class SearchComponent<T, TItem>(string? id = null) : SelectComponent<T, TItem>(id), IDebounceInputComponent, ICaretFieldComponent
     where T : SearchComponent<T, TItem>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {

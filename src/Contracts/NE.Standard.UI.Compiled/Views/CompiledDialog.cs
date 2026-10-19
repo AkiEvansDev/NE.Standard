@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
@@ -90,7 +92,26 @@ public sealed class CompiledDialog
     public bool CloseOnEscape { get; init; } = true;
 
     /// <summary>
-    /// Gets the dialog's accessible name, a translation key or plain text.
+    /// Gets the dialog's accessible name, a translation key or plain text, for a dialog with no <see cref="TitleComponentId"/>.
     /// </summary>
     public string? Label { get; init; }
+
+    /// <summary>
+    /// Gets the component inside the dialog whose words name it (<c>aria-labelledby</c>), when one does.
+    /// </summary>
+    public UIComponentId? TitleComponentId { get; init; }
+
+    /// <summary>The dialog under <paramref name="key"/> among <paramref name="dialogs"/>, or <see langword="null"/> where none is.</summary>
+    public static CompiledDialog? Find(IReadOnlyList<CompiledDialog> dialogs, string key)
+    {
+        ArgumentNullException.ThrowIfNull(dialogs);
+
+        foreach (CompiledDialog dialog in dialogs)
+        {
+            if (string.Equals(dialog.Key, key, StringComparison.Ordinal))
+                return dialog;
+        }
+
+        return null;
+    }
 }

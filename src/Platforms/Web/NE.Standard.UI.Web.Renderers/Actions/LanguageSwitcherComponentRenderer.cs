@@ -127,7 +127,7 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
                 _ = icon.Class("ui-language-switcher__icon");
                 _ = icon.Class("ui-icon");
 
-                SwitcherChromeRenderer.RenderGlyph(context, icon, LanguageSwitcherComponent.IconProperty);
+                SwitcherChromeRenderer.RenderGlyph(context, root, icon, LanguageSwitcherComponent.IconProperty);
             });
 
             RenderLabel(trigger, languages, PageOnlyLanguages(context, languages, current), current, display);
@@ -190,7 +190,7 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
                 _ = icon.Class("ui-language-switcher__icon");
                 _ = icon.Class("ui-icon");
 
-                SwitcherChromeRenderer.RenderGlyph(context, icon, LanguageSwitcherComponent.IconProperty);
+                SwitcherChromeRenderer.RenderGlyph(context, root, icon, LanguageSwitcherComponent.IconProperty);
             });
 
             RenderLabel(trigger, languages, PageOnlyLanguages(context, languages, current), current, UILanguageDisplay.Name);

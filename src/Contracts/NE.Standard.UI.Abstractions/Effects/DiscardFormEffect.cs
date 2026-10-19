@@ -20,6 +20,12 @@ public sealed class DiscardFormEffect : ClientEffect
     public override string Kind => ClientEffectKinds.DiscardForm;
 
     /// <summary>
+    /// The page holds the server's latest value of every held field and puts it back itself, so a Cancel or a Discard runs it with no
+    /// round trip.
+    /// </summary>
+    public override bool CanRunInInteraction => true;
+
+    /// <summary>
     /// Gets the form id the fields share.
     /// </summary>
     public string FormId { get; }

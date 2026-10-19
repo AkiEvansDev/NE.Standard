@@ -25,32 +25,32 @@ public abstract partial class UIItemSourceBase : RecursiveObservable
     /// Gets where the realized window starts, or <see langword="null"/> for a cursor-counting source.
     /// </summary>
     [RecursiveMember]
-    public partial int? Offset { get; protected set; }
+    public partial int? Offset { get; private protected set; }
 
     /// <summary>
     /// Gets how many items the source holds under the last query, or <see langword="null"/> when unknown.
     /// </summary>
     [RecursiveMember]
-    public partial int? TotalCount { get; protected set; }
+    public partial int? TotalCount { get; private protected set; }
 
     /// <summary>
     /// Gets whether the source has items before the realized window.
     /// </summary>
     [RecursiveMember]
-    public partial bool HasMoreBefore { get; protected set; }
+    public partial bool HasMoreBefore { get; private protected set; }
 
     /// <summary>
     /// Gets the group of the item just before the realized window, or <see langword="null"/> when there is none or the source does
     /// not say; a grouped host heads the window's first row against it.
     /// </summary>
     [RecursiveMember]
-    public partial string? GroupBefore { get; protected set; }
+    public partial string? GroupBefore { get; private protected set; }
 
     /// <summary>
     /// Gets whether the source has items after the realized window.
     /// </summary>
     [RecursiveMember]
-    public partial bool HasMoreAfter { get; protected set; }
+    public partial bool HasMoreAfter { get; private protected set; }
 
     /// <summary>
     /// Gets what the source computed over the last query's items, by property, or <see langword="null"/> for none; a window
@@ -113,13 +113,17 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     // window and its offset.
     private readonly SemaphoreSlim _loading = new(1, 1);
 
-    // Short and synchronous, unlike the load gate, which is held across the author's read: a read's result is applied, and an
-    // Append/Prepend/Remove/Invalidate from a command, a post or a broadcast writes the window, one at a time. Not the command's
-    // turn: a scroll would wait out a long command, and a command that loads a window itself would wait for its own turn.
+    // Short and synchronous, unlike the load gate, which is held across the author's read: a read's result is applied, and a
+    // helper's write (Append, Prepend, Insert, Replace, Move, Remove, Invalidate) from a command, a post or a broadcast writes the
+    // window, one at a time. Not the command's turn: a scroll would wait out a long command, and a command that loads a window itself
+    // would wait for its own turn.
     private readonly Lock _window = new();
 
     /// <summary>Gets the realized window — the items the client currently holds, in the order they are shown.</summary>
-    /// <remarks>Mutate only through the <c>Append</c>/<c>Prepend</c>/<c>Remove</c> helpers, not by writing here directly.</remarks>
+    /// <remarks>
+    /// Mutate only through the helpers (<c>Append</c>, <c>Prepend</c>, <c>Insert</c>, <c>Replace</c>, <c>Move</c>, <c>Remove</c>,
+    /// <c>Invalidate</c>), not by writing here directly: they write it under the window's lock and keep its counts and edges true.
+    /// </remarks>
     [RecursiveMember(false)]
     public RecursiveCollection<TItem> Items { get; } = [];
 
@@ -230,7 +234,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
 
         for (var i = 0; i < window.Items.Count; i++)
         {
-            if (!Items.TryGetRecursiveValue(PathSegment.WithKey(window.Items[i].Id), out _))
+            if (!Items.TryGet(window.Items[i].Id, out _))
                 fresh.Add(window.Items[i]);
         }
 
@@ -346,7 +350,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
 
     // The window's own index by key and its index of items, not a scan: a write, a removal and an arrival each look a row up.
     private int IndexOf(string key)
-        => Items.TryGetRecursiveValue(PathSegment.WithKey(key), out var found) && found is TItem item ? Items.IndexOf(item) : -1;
+        => Items.TryGet(key, out TItem? item) ? Items.IndexOf(item) : -1;
 
     /// <summary>
     /// Adds an item at the end of the window — a message that just arrived, for a viewer already at the end.
@@ -405,6 +409,103 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
                 TotalCount = total + 1;
 
             TrimWindow(fromTheEnd: true);
+        }
+    }
+
+    /// <summary>
+    /// Adds a new item the source took in at <paramref name="sourceIndex"/>, returning whether the window holds it: one inside the
+    /// window, or at its end where the window ends the source, joins it there; one before it moves the window's start on by one; one
+    /// after it is only counted.
+    /// </summary>
+    /// <remarks>
+    /// An item the window already holds under that key is replaced where it stands, counted already. One at the window's start joins
+    /// the window, as <see cref="Prepend"/>'s does. A cursor-counting source, whose window has no offset to place it against, only
+    /// counts it.
+    /// </remarks>
+    protected bool Insert(TItem item, int sourceIndex)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentOutOfRangeException.ThrowIfNegative(sourceIndex);
+
+        lock (_window)
+        {
+            if (TryReplace(item))
+                return true;
+
+            if (TotalCount is int total)
+                TotalCount = total + 1;
+
+            if (Offset is not int offset)
+                return false;
+
+            var count = Items.Count;
+
+            // Before the window: everything it holds stands one place later now, and the item before it is still the one it was.
+            if (sourceIndex < offset)
+            {
+                Offset = offset + 1;
+                HasMoreBefore = true;
+                return false;
+            }
+
+            // Past the window's end while more follows it: not the reader's to see until they scroll there.
+            if (sourceIndex > offset + count || (sourceIndex == offset + count && HasMoreAfter))
+            {
+                HasMoreAfter = true;
+                return false;
+            }
+
+            Items.Insert(sourceIndex - offset, item);
+
+            // At the source's end the reader holds that end, as for an append; anywhere else the far end gives way, as for a prepend.
+            TrimWindow(fromTheEnd: sourceIndex - offset < count);
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Puts a new shape of an item the window holds in its place, sent as a change of that one row; false, and nothing changed, for a
+    /// key the window does not hold.
+    /// </summary>
+    /// <remarks>The page draws the row anew, as for any replaced item: an edit, a pin, a reaction lands where the reader has it.</remarks>
+    protected bool Replace(TItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        lock (_window)
+            return TryReplace(item);
+    }
+
+    /// <summary>
+    /// Moves an item within the source from <paramref name="oldSourceIndex"/> to <paramref name="newSourceIndex"/> (where it stands once
+    /// moved), returning whether the window holds it after: a row moved inside the window moves there, one leaving the window goes, one
+    /// coming into it arrives, and one passing the window's start moves the start along.
+    /// </summary>
+    /// <remarks>
+    /// The item, not only its key: one coming into the window from outside it is drawn from it, and it takes the place of the one the
+    /// window held under its key. A cursor-counting source, whose window has no offset to place it against, drops a held row.
+    /// </remarks>
+    protected bool Move(TItem item, int oldSourceIndex, int newSourceIndex)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentOutOfRangeException.ThrowIfNegative(oldSourceIndex);
+        ArgumentOutOfRangeException.ThrowIfNegative(newSourceIndex);
+
+        lock (_window)
+        {
+            var index = IndexOf(item.Id);
+
+            // Inside the window both ways: one move, so the page keeps the row rather than drawing it anew.
+            if (index >= 0 && Offset is int offset && newSourceIndex >= offset && newSourceIndex < offset + Items.Count)
+            {
+                Items.Move(index, newSourceIndex - offset);
+                _ = TryReplace(item);
+                return true;
+            }
+
+            // Anything else is the item leaving its old place and taking its new one, each with its own bookkeeping.
+            _ = Remove(item.Id, oldSourceIndex);
+            return Insert(item, newSourceIndex);
         }
     }
 
@@ -478,7 +579,8 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
     }
 
     /// <summary>
-    /// Drops the realized window so the client re-requests it from where it is standing.
+    /// Drops the realized window, so the client reads it again from the host's own edge — the end of an end-anchored host, the start
+    /// of any other. The reader's place is not kept: a row that changed where the reader has it is <see cref="Replace"/>'s.
     /// </summary>
     protected void Invalidate()
     {

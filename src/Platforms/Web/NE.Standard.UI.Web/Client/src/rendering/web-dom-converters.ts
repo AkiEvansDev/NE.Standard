@@ -268,6 +268,8 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     // One blank where there is none, so `:placeholder-shown` still says the field is empty (TextInputComponentRenderer).
     ["placeholderText", value => typeof value === "string" && value.length > 0 ? value : " "],
     tokenClass("iconSizeClass", "ui-icon-size--", iconSizeTokens),
+    // The same size as the attribute a component root carries for its own glyph (data-ui-icon-size), which a glyph edge reads.
+    ["iconSizeAttribute", value => toToken(value, iconSizeTokens)],
     familyClass("iconShapeClass", toClassFamily(["ui-icon--circle"]), value => toToken(value, iconShapeTokens) === "circle" ? "ui-icon--circle" : ""),
     tokenClass("textTypeClass", "ui-text-type--", textTypeTokens),
     familyClass("textAppearanceClass", toTokenClassFamily("ui-text-type--", textTypeTokens), value => toTextAppearanceClass(value, "ui-text-type--")),

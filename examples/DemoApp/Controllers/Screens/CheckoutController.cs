@@ -105,7 +105,7 @@ internal sealed partial class CheckoutController : UIControllerBase
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Lines { get; } =
     [
-        UIDetails.Row("plan", string.Empty, string.Empty),
+        UIDetails.Row("plan", "Plan", string.Empty),
         UIDetails.Row("server", "Each server", string.Empty),
         UIDetails.Row("region", "Region", string.Empty)
     ];
@@ -130,6 +130,9 @@ internal sealed partial class CheckoutController : UIControllerBase
 
     [RecursiveMember]
     public partial UIVisibility PlacedVisibility { get; set; } = UIVisibility.Collapsed;
+
+    [RecursiveMember]
+    public partial string PlacedTitle { get; set; } = "Thank you";
 
     [RecursiveMember]
     public partial string PlacedLine { get; set; } = string.Empty;

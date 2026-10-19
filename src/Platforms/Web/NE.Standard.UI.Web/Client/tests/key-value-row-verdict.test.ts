@@ -64,7 +64,7 @@ function createRow(value: string, rule: WebRenderValidationMetadata): Row {
 
     const validation = new ValidationEngine({
         root: real<ParentNode>(fakeDocument.body),
-        metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === 4 ? [rule] : [], getValidationTarget: () => undefined }),
+        metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === 4 ? [rule] : [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
         dom: real({
             resolveNearestComponent: (start: FakeElement) => {
                 const element = start.closest("[data-ui-id]");

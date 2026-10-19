@@ -41,14 +41,53 @@
     .ui-responsive-property(min-height, --ui-min-height, ~"calc(@{caption} + @{box})");
 }
 
-    // Centred across the band: a column along its main axis, a row's children across it, an authored VerticalAlignment still theirs.
-    .ui-stack-panel--field-aligned.ui-orientation--vertical {
-        justify-content: center;
-    }
-
+    // A row's children centred across the band, an authored VerticalAlignment still theirs.
     .ui-stack-panel--field-aligned.ui-orientation--horizontal > [data-ui-id] {
         align-self: var(--ui-align-v, center);
     }
+
+    // A column's first child centred on the band and the rest after it, as a field's message hangs under its box: a control and its
+    // note (UIForm.Field) keep the control level with the boxes, where centring the two together stood it half the note high. A grid
+    // whose first row is at least the box; HorizontalAlignment is then the row's own axis.
+    .ui-stack-panel--field-aligned.ui-orientation--vertical {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(.ui-responsive-chain(--ui-field-aligned-box; 0px)[@value], auto);
+        align-content: start;
+    }
+
+        .ui-stack-panel.ui-stack-panel--field-aligned.ui-orientation--vertical > [data-ui-id] {
+            align-self: start;
+            justify-self: var(--ui-align-h, normal);
+        }
+
+        .ui-stack-panel.ui-stack-panel--field-aligned.ui-orientation--vertical > [data-ui-id]:first-child {
+            align-self: center;
+        }
+
+// A first child in a field's caption row (StackPanel.FirstChildAsCaption; UIPage.Labelled): at least a caption's line tall, so with the
+// input root's gap after it (the panel's spacing) what follows starts where a captioned field's box does, whatever line the theme gives
+// the caption or the label. The least height's default, so an authored MinHeight wins. Rejected: the label's own line and a wider gap
+// (14 and 6 matched 16 and 4 under the default type only).
+.ui-stack-panel--caption-first > [data-ui-id]:first-child {
+    .ui-responsive-property(min-height, --ui-min-height, var(--ui-text-caption-line-height));
+}
+
+// A first line on a button's middle (StackPanel.FirstLineOnControl; a page header's name on a phone): the first child set down by
+// half the button's height less its own line, `1lh` the role its root carries, so a name that wraps keeps its first line level with
+// the buttons beside it whatever line the theme gives the role. The margin's default, so an authored Margin on the child wins.
+// Rejected: the inset as a number in the preset (a theme's line moved it).
+.ui-stack-panel--line-on-small > [data-ui-id]:first-child {
+    .ui-responsive-property(margin, --ui-margin, ~"calc((@{ui-button-height-sm} - 1lh) / 2) 0 0");
+}
+
+.ui-stack-panel--line-on-medium > [data-ui-id]:first-child {
+    .ui-responsive-property(margin, --ui-margin, ~"calc((@{ui-control-height} - 1lh) / 2) 0 0");
+}
+
+.ui-stack-panel--line-on-large > [data-ui-id]:first-child {
+    .ui-responsive-property(margin, --ui-margin, ~"calc((@{ui-button-height-lg} - 1lh) / 2) 0 0");
+}
 
 .ui-stack-panel.ui-orientation--horizontal {
     flex-direction: row;

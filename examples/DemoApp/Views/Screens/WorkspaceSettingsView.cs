@@ -61,7 +61,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 ])
                 .BindValue(nameof(WorkspaceSettingsController.TimeZone))
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
-            UIText.Note(string.Empty).BindDescription(nameof(WorkspaceSettingsController.ProfileNote))
+            UIText.Note().BindDescription(nameof(WorkspaceSettingsController.ProfileNote))
         ), DemoIcons.Outline(DemoIcons.UserRound));
 
     /// <summary>
@@ -103,7 +103,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                     .OnChange(nameof(WorkspaceSettingsController.SaveNotifications))
             )
             .ShownWhen(QuietHoursId),
-            UIText.Note(string.Empty).BindDescription(nameof(WorkspaceSettingsController.NotificationsNote))
+            UIText.Note().BindDescription(nameof(WorkspaceSettingsController.NotificationsNote))
         ), DemoIcons.Outline(DemoIcons.Bell));
 
     private static SwitchComponent CreateSwitch(string title, string description, string path, string? id = null)

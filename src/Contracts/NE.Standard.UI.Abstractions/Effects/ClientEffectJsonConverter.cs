@@ -41,7 +41,8 @@ public sealed class ClientEffectJsonConverter : UIRuntimeTypeJsonConverter<Clien
         [ClientEffectKinds.PushAddress] = typeof(PushAddressEffect),
         [ClientEffectKinds.RequestNotificationPermission] = typeof(RequestNotificationPermissionEffect),
         [ClientEffectKinds.ShowSystemNotification] = typeof(ShowSystemNotificationEffect),
-        [ClientEffectKinds.ShowImage] = typeof(CompiledShowImageEffect)
+        [ClientEffectKinds.ShowImage] = typeof(CompiledShowImageEffect),
+        [ClientEffectKinds.DevelopmentReport] = typeof(DevelopmentReportEffect)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <inheritdoc />

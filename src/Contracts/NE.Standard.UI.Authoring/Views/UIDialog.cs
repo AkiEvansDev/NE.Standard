@@ -11,7 +11,8 @@ namespace NE.Standard.UI.Authoring.Views;
 /// <summary>
 /// Defines a dialog declared by an authored UI view.
 /// </summary>
-public sealed class UIDialog
+/// <remarks>A record, so a preset's dialog takes what it does not set itself: <c>UIDialogs.Create(…) with { Placement = … }</c>.</remarks>
+public sealed record UIDialog
 {
     /// <summary>
     /// Gets the dialog's stable key — the same key <see cref="OpenDialogEffect"/>,
@@ -96,9 +97,17 @@ public sealed class UIDialog
     public bool CloseOnEscape { get; init; } = true;
 
     /// <summary>
-    /// Gets the name a screen reader announces for the dialog, translated for the page's language; unset, the dialog is unnamed.
+    /// Gets the name a screen reader announces for a dialog that shows no title of its own, translated for the page's language;
+    /// <see cref="TitleId"/> wins over it.
     /// </summary>
     public string? Label { get; init; }
+
+    /// <summary>
+    /// Gets the id of the component in <see cref="Content"/> whose words name the dialog (<c>aria-labelledby</c>), so a bound title
+    /// names it as it changes; the <c>UIDialogs</c> presets name theirs by their title (<c>UIDialogs.TitleId</c>).
+    /// </summary>
+    /// <remarks>The view does not compile where the id names nothing inside the content, or a component standing in a template.</remarks>
+    public string? TitleId { get; init; }
 
     /// <summary>
     /// Registers a command invoked when the viewer dismisses the dialog (Escape or a backdrop click); a server-requested close
@@ -110,4 +119,10 @@ public sealed class UIDialog
         _ = Content.On(EventNames.Close, command, arguments);
         return this;
     }
+
+    /// <summary>
+    /// Registers a command invoked when the viewer dismisses the dialog, with literal argument values.
+    /// </summary>
+    public UIDialog OnCloseLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnClose(command, UIActionArgument.Literals(arguments));
 }

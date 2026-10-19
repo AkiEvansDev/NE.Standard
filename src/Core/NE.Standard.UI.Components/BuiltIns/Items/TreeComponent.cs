@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -26,7 +27,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyDefault(nameof(IRowHoverableComponent.RowHoverable), nameof(DefaultRowHoverable))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
-public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDragSourceComponent, IEmptyStateComponent
+public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDragSourceComponent, IEmptyStateComponent, IPressablePartsComponent
     where T : TreeComponent<T>, IUIComponentDefinition
 {
     private const double DefaultIndent = 16;
@@ -153,6 +154,13 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnRowClick(command, arguments);
 
     /// <summary>
+    /// Runs a client effect when the node whose key is <paramref name="key"/> is pressed, with no round trip; the other nodes keep the
+    /// command <c>OnNodeClick</c> gave them.
+    /// </summary>
+    public T OnNodeClick(string key, ClientEffect effect)
+        => OnRowClick(key, effect);
+
+    /// <summary>
     /// Registers the command a press on a node runs, with an argument derived from the specified <paramref name="argumentKind"/>.
     /// </summary>
     public T OnNodeClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
@@ -177,6 +185,12 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnRowOpen(command, arguments);
 
     /// <summary>
+    /// Registers the command a double click or Enter on a node runs, with literal argument values.
+    /// </summary>
+    public T OnNodeOpenLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRowOpenLiteral(command, arguments);
+
+    /// <summary>
     /// Registers the command run when an unfold-capable node with no children yet is unfolded, with the node's key as an
     /// argument; the controller adds children or clears <c>HasChildren</c>.
     /// </summary>
@@ -190,6 +204,13 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnRowTemplate(row => _ = row.On(EventNames.Unfold, command, arguments));
 
     /// <summary>
+    /// Registers the command run when a node that says it has children is unfolded before any are in the list, with literal argument
+    /// values.
+    /// </summary>
+    public T OnNodeUnfoldLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Unfold, command, arguments));
+
+    /// <summary>
     /// Registers the command run after a rename wrote the node's <c>RenamedTitle</c> back, with the node's key as an argument.
     /// </summary>
     /// <remarks>Optional: the two-way title already carries the new text; this is for refusing or normalizing it.</remarks>
@@ -201,6 +222,12 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// </summary>
     public T OnNodeRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRowTemplate(row => _ = row.On(EventNames.Rename, command, arguments));
+
+    /// <summary>
+    /// Registers the command run after a rename wrote the node's <c>RenamedTitle</c> back, with literal argument values.
+    /// </summary>
+    public T OnNodeRenameLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Rename, command, arguments));
 
     /// <summary>
     /// Registers the command a node moved to another place raises — dropped onto a folder or between two nodes, or moved by Alt with an
@@ -222,6 +249,12 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
         => OnRowTemplate(row => _ = row.On(EventNames.Move, command, arguments));
 
     /// <summary>
+    /// Registers the command a node moved to another place raises, with literal argument values.
+    /// </summary>
+    public T OnNodeMoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Move, command, arguments));
+
+    /// <summary>
     /// Registers the command the Delete key runs on the node the keyboard is on, with the node's key as an argument; a node
     /// whose <c>CanRemove</c> is false raises nothing.
     /// </summary>
@@ -233,6 +266,12 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// </summary>
     public T OnNodeRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRowRemove(command, arguments);
+
+    /// <summary>
+    /// Registers the command the Delete key runs on the node the keyboard is on, with literal argument values.
+    /// </summary>
+    public T OnNodeRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRowRemoveLiteral(command, arguments);
 }
 
 /// <summary>

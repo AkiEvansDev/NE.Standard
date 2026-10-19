@@ -62,7 +62,7 @@ public sealed class UIContext
     public ILogger Logger { get; }
 
     /// <summary>
-    /// Gets the application service provider.
+    /// Gets the runtime's own service scope: a scoped service is this page's, gone with its runtime.
     /// </summary>
     public IServiceProvider Services { get; }
 

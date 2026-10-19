@@ -11,7 +11,8 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// </summary>
 /// <remarks>
 /// <see cref="CurrentItemKey(string, object?[])"/> reads the row the press came from, so it runs only in an interaction
-/// (<c>InteractOn("click", …)</c> on a row's part); returned from a command there is no row, and the page inserts nothing.
+/// (<c>InteractOn("click", …)</c> on a row's part); a command's answer comes from no press, so the runtime drops one returned there.
+/// Either is held to a field the reader types into (a text input, a text area, a number input, a search's field, a code editor).
 /// </remarks>
 public sealed class InsertTextEffect : TargetedClientEffect
 {

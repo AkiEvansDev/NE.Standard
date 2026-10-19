@@ -12,6 +12,7 @@ using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
@@ -107,10 +108,11 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// <remarks>
     /// Defaults to <see cref="UIGridUnit.Auto"/> width and a positional key; a <paramref name="pinned"/> column stays fixed while the
     /// table scrolls, and pinned columns must lead; <paramref name="icon"/> stands before the caption, a <paramref name="hidden"/>
-    /// column starts hidden, and a <paramref name="content"/> caption is shown as written. Virtual, as <see cref="AddTextColumn"/> is: a
-    /// package's grid builds its own column through the same verb.
+    /// column starts hidden, and a <paramref name="content"/> caption is shown as written. The caption is a phrase: a string is the
+    /// author's text, a key with arguments a phrase. Virtual, as <see cref="AddTextColumn"/> is: a package's grid builds its own column
+    /// through the same verb.
     /// </remarks>
-    public virtual T AddColumn(string caption, IVisualComponent template, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false, string? icon = null, bool hidden = false, bool content = false)
+    public virtual T AddColumn(UIPhrase caption, IVisualComponent template, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false, string? icon = null, bool hidden = false, bool content = false)
         => AddColumn(new UITableColumn(key ?? NextColumnKey(), caption, width ?? UIGridUnit.Auto(), alignment) { Pinned = pinned, Icon = icon, Hidden = hidden, IsContent = content }, template);
 
     /// <summary>The key a column gets when the author names none: its one-based position.</summary>
@@ -193,7 +195,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// <summary>
     /// Adds a column showing the row's text at <paramref name="propertyPath"/> — a string property, in the row's own words.
     /// </summary>
-    public virtual T AddTextColumn(string caption, string propertyPath, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false, string? icon = null, bool hidden = false, bool content = false)
+    public virtual T AddTextColumn(UIPhrase caption, string propertyPath, UIGridUnit? width = null, UITextAlignment? alignment = null, string? key = null, bool pinned = false, string? icon = null, bool hidden = false, bool content = false)
         => AddColumn(caption, CreateTextCell(propertyPath, alignment), width, alignment, key, pinned, icon, hidden, content);
 
     /// <summary>The cell a text column renders: the built-in text template, its title the row's property.</summary>
@@ -226,6 +228,12 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// </summary>
     public T OnRowMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRowTemplate(row => _ = row.On(EventNames.Move, command, arguments));
+
+    /// <summary>
+    /// Registers the command a row dropped at another place raises, with literal argument values.
+    /// </summary>
+    public T OnRowMoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Move, command, arguments));
 
     /// <summary>
     /// Keeps only the rows in view in the document, for a collection the client holds whole.

@@ -6,7 +6,7 @@ import {
     TableHeaderClass, TableHiddenAttribute, TableHideBelowAttribute, TableLastAttribute, TableReorderingAttribute, TableResizerClass, TableRowClass,
     TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute, TableStartsHiddenAttribute, writeAttribute
 } from "../addressing/dom-attributes.ts";
-import { currentResponsiveTier, responsiveTierQuery, responsiveTiers } from "../rendering/responsive-tier.ts";
+import { currentResponsiveTier, onTierChange, responsiveTiers } from "../rendering/responsive-tier.ts";
 import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
 import { OnceWarner } from "../runtime/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
@@ -173,12 +173,7 @@ export class TableColumnsEngine {
         });
 
         // A column hidden below a tier comes and goes with the viewport; the stylesheet's own queries judge the same edges.
-        if (typeof matchMedia === "function") {
-            for (const tier of responsiveTiers) {
-                if (tier !== "base")
-                    matchMedia(responsiveTierQuery(tier)).addEventListener("change", () => this.layoutAll());
-            }
-        }
+        onTierChange(() => this.layoutAll());
 
         this.restoreEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 

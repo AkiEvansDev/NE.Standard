@@ -19,6 +19,13 @@
     .ui-placement-host();
 }
 
+// A surface or a card that links to an address is an anchor (Url): its words keep the ink around them, never a link's blue underline.
+// At no weight, so an ink an author or a style gives it still wins.
+:where(a.ui-surface, a.ui-card) {
+    color: inherit;
+    text-decoration: none;
+}
+
 // A stroke on one side alone (a quote's, a callout's) keeps that side's corners square and rounds the far ones as a list entry does;
 // an authored radius wins. Physical sides, as the thickness is.
 

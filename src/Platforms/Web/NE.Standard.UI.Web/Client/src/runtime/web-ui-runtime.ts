@@ -1,7 +1,7 @@
 import { AddressResolver } from "../addressing/address-resolver";
 import { DomRegistry, readComponentId } from "../addressing/dom-registry";
-import { ClientWords, clientStrings, forEachSubtree, marksMoment } from "./client-strings";
-import { holdsMoment } from "./words";
+import { ClientWords, clientStrings, forEachSubtree, marksPageWritten } from "./client-strings";
+import { holdsMoment, holdsPageWritten } from "./words";
 import { EventRegistration } from "../events/event-descriptor";
 import { EventPipeline } from "../events/event-pipeline";
 import { InteractionEngine } from "../interactions/interaction-engine";
@@ -71,6 +71,7 @@ import { endsWithDynamicParameters } from "../addressing/dynamic-parameters";
 import { startTooltips, Tooltips, tooltips } from "../interactions/tooltip-engine";
 import { InlineRenames, openInlineRename } from "../interactions/inline-rename";
 import { createPopups, Popups } from "../interactions/popup-service";
+import { setPopupComponents } from "../interactions/owned-popup";
 import { pluginFocus } from "../interactions/popup-focus";
 import { pluginTypeAhead } from "../interactions/popup-list";
 import { rovingFocus } from "../interactions/roving-focus";
@@ -95,7 +96,7 @@ import {
 } from "../metadata/metadata-index";
 import { applyThemeColors } from "../rendering/theme-colors";
 import { readWebUIMetadata } from "../metadata/metadata-reader";
-import { paintsMoment, readHydration } from "./web-hydration";
+import { paintsPageWritten, readHydration } from "./web-hydration";
 import { attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
 import { readTimeZone } from "../transport/reader-time-zone";
 import { ClientStateReporter } from "./client-state";
@@ -294,6 +295,8 @@ export class WebUIRuntime {
     private renderSequence = this.hydration?.sequence ?? null;
     // Writes again the page's words that hold a moment, which the page writes in the reader's zone.
     private readonly rewriteMoments: () => void;
+    // Writes again the page's words that hold a value the page writes itself — a moment, a file size — as the server painted them.
+    private readonly rewritePageWritten: () => void;
     private readonly dom: DomRegistry;
     private readonly transport: SignalRTransport;
     private readonly dispatcher: CommandDispatcher;
@@ -392,7 +395,13 @@ export class WebUIRuntime {
         const propertyPatchEngine = new PropertyPatchEngine(addressResolver, operations, this.extensions, propertyState);
         this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine, { root: this.root, valueReaders: this.extensions.valueReaders, metadata: this.metadata });
         // Built before the interaction engine, whose own effects go through the same registry a command's do.
-        this.dialogs = new DialogEngine({ root: this.root, dom: this.dom });
+        // The viewer's close of a dialog discards its form through the effect a preset's × sends, registered below.
+        this.dialogs = new DialogEngine({
+            root: this.root,
+            dom: this.dom,
+            discardForm: formId => this.effects.apply({ effect: { kind: ClientEffectKinds.DiscardForm, formId }, dom: this.dom })
+        });
+        setPopupComponents(this.dom);
         this.notifications = new NotificationEngine({ root: this.root, dom: this.dom });
         // Back or Forward to an entry of this route is told to the controller, or goes to its runtime in place where it names another;
         // to another route, it is a page load.
@@ -484,8 +493,9 @@ export class WebUIRuntime {
         clientStrings.onChange(() => this.rewriteWords(propertyPatchEngine, itemsRenderer));
 
         // A relative moment in words is kept current as a relative timestamp is.
-        this.rewriteMoments = () => this.rewriteWords(propertyPatchEngine, itemsRenderer, true);
+        this.rewriteMoments = () => this.rewriteWords(propertyPatchEngine, itemsRenderer, holdsMoment);
         clientStrings.onMomentTick(this.rewriteMoments);
+        this.rewritePageWritten = () => this.rewriteWords(propertyPatchEngine, itemsRenderer, holdsPageWritten);
 
         // Everything that can put a host out of step with its own rules goes through this one watcher.
         this.ruleWatcher = new ItemsRuleWatcher({
@@ -1011,9 +1021,9 @@ export class WebUIRuntime {
 
     /**
      * Writes the page's words again in the table's language — marks, rendered values, sent values, built rows — then the title and
-     * lang; with `momentsOnly`, only the words holding a moment.
+     * lang; with `only`, only the words holding what it reads — a moment, or any value the page writes itself.
      */
-    private rewriteWords(propertyPatchEngine: PropertyPatchEngine, itemsRenderer: ItemsTemplateRenderer, momentsOnly = false): void {
+    private rewriteWords(propertyPatchEngine: PropertyPatchEngine, itemsRenderer: ItemsTemplateRenderer, only?: (value: unknown) => boolean): void {
         const started = performance.now();
 
         // A package may have put parts on the page meanwhile (a grid's open detail) that the index has not seen.
@@ -1025,10 +1035,8 @@ export class WebUIRuntime {
             forEachSubtree(this.root, subtree => applyPageCultures(subtree, clientStrings.number, clientStrings.temporal));
         }
 
-        const only = momentsOnly ? holdsMoment : undefined;
-
         // Later over earlier: a row's own words last.
-        clientStrings.rewriteMarks(this.root, momentsOnly);
+        clientStrings.rewriteMarks(this.root, only);
         this.rewriteStaticWords(propertyPatchEngine, only);
         propertyPatchEngine.rewriteWords(only);
         itemsRenderer.rewriteRowWords(this.root, only);
@@ -1045,7 +1053,7 @@ export class WebUIRuntime {
         if (clientStrings.language.length > 0 && document.documentElement.lang !== clientStrings.language)
             document.documentElement.lang = clientStrings.language;
 
-        logElapsed(momentsOnly ? "page's moments written again" : "page's words written again", started, { language: clientStrings.language });
+        logElapsed(only === undefined ? "page's words written again" : "page's written values written again", started, { language: clientStrings.language });
     }
 
     /** The values the page was rendered with — only those `only` names, where given — on every instance and inside the templates rows are built from. */
@@ -1189,6 +1197,10 @@ export class WebUIRuntime {
     public async startAsync(): Promise<void> {
         exposeGlobalApi(this, this.options.handlerGlobalKey);
 
+        // Development only: the server's log has them too, but the author is looking here.
+        for (const warning of this.metadata.metadata.compileWarnings ?? [])
+            logWarn(`the view compiled with a warning: ${warning}`);
+
         // Before DOMContentLoaded, when a browser reads the page's forms: the markup is parsed by the time a module runs.
         ensureFormOwners(this.root);
 
@@ -1247,19 +1259,20 @@ export class WebUIRuntime {
         await this.applyChanges(changes);
         this.updateProcessor.initializeItemsHosts();
 
-        // The server could paint a moment in words only in UTC; the page writes it in the reader's zone, as it does a timestamp.
-        if (this.holdsPaintedMoment())
-            this.rewriteMoments();
+        // The server could paint a moment in words only in UTC and a file size only in English; the page writes them in the reader's
+        // zone and language, as it does a timestamp and a file tile.
+        if (this.holdsPaintedPageWritten())
+            this.rewritePageWritten();
 
         logElapsed("runtime hydrated from the page", started, { pageId: this.hydration.pageId, updates: changes?.updates?.length ?? 0 });
     }
 
-    /** Whether the render painted a moment in words: in a mark, a rendered value, a row the server drew or the title. */
-    private holdsPaintedMoment(): boolean {
-        return marksMoment(this.root)
-            || paintsMoment(this.hydration)
-            || this.metadata.getWords().some(word => holdsMoment(word.key))
-            || holdsMoment(this.metadata.metadata.itemValues);
+    /** Whether the render painted a value the page writes itself in words: in a mark, a rendered value, a row the server drew or the title. */
+    private holdsPaintedPageWritten(): boolean {
+        return marksPageWritten(this.root)
+            || paintsPageWritten(this.hydration)
+            || this.metadata.getWords().some(word => holdsPageWritten(word.key))
+            || holdsPageWritten(this.metadata.metadata.itemValues);
     }
 
     private startEnginesAwaitingHydration(): void {

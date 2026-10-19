@@ -4,6 +4,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
@@ -33,39 +34,66 @@ public enum UIMessageSeverity
 /// later or whose bound words change is read out.
 /// </summary>
 /// <remarks>
-/// The × hides the message on the page alone, with no round trip, so a reload shows it again; a message the server should stop
-/// showing binds its Visibility instead.
+/// The × hides the message on the page at once, with no round trip, so a reload shows it again; a message the server should stop
+/// showing for good gives the × a <c>dismissCommand</c>, which runs as the message goes, and binds its Visibility.
 /// </remarks>
 public static class UIMessage
 {
     /// <summary>A message worth knowing.</summary>
-    public static SurfaceComponent Info(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false)
-        => Create(UIMessageSeverity.Info, title, body, action, dismissible);
+    public static SurfaceComponent Info(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false, string? dismissCommand = null)
+        => Create(UIMessageSeverity.Info, title, body, action, dismissible, dismissCommand: dismissCommand);
 
     /// <summary>A message saying something is done or all right.</summary>
-    public static SurfaceComponent Success(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false)
-        => Create(UIMessageSeverity.Success, title, body, action, dismissible);
+    public static SurfaceComponent Success(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false, string? dismissCommand = null)
+        => Create(UIMessageSeverity.Success, title, body, action, dismissible, dismissCommand: dismissCommand);
 
     /// <summary>A message asking for care.</summary>
-    public static SurfaceComponent Warning(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false)
-        => Create(UIMessageSeverity.Warning, title, body, action, dismissible);
+    public static SurfaceComponent Warning(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false, string? dismissCommand = null)
+        => Create(UIMessageSeverity.Warning, title, body, action, dismissible, dismissCommand: dismissCommand);
 
     /// <summary>A message saying something went wrong or cannot be undone.</summary>
-    public static SurfaceComponent Danger(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false)
-        => Create(UIMessageSeverity.Danger, title, body, action, dismissible);
+    public static SurfaceComponent Danger(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false, string? dismissCommand = null)
+        => Create(UIMessageSeverity.Danger, title, body, action, dismissible, dismissCommand: dismissCommand);
+
+    /// <summary>
+    /// A message whose words the controller holds at <paramref name="titlePath"/> and <paramref name="bodyPath"/>, either or both — a
+    /// promo code's verdict, a sync's state — bound as the controller's words, drawn plain (a path to a key still translates), and
+    /// read out as they change; otherwise <see cref="Create(UIMessageSeverity, UIPhrase?, UIPhrase?, ButtonComponent?, bool, string?, string?)"/>.
+    /// </summary>
+    public static SurfaceComponent BoundCreate(UIMessageSeverity severity, string? titlePath, string? bodyPath, UIBindingScope scope = UIBindingScope.Root, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
+    {
+        if (titlePath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
+
+        if (bodyPath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(bodyPath);
+
+        TextComponent? title = titlePath is null ? null : new TextComponent().BindTitle(titlePath, scope).AsContent(TextComponent.TitleProperty);
+
+        // Bound words are data, never markup: a name with an asterisk in it is shown as typed.
+        ParagraphComponent? body = bodyPath is null ? null : new ParagraphComponent().BindDescription(bodyPath, scope).AsContent(ParagraphComponent.DescriptionProperty).SetDescriptionPlain(true);
+
+        return Create(severity, title, body, action, dismissible, icon, dismissCommand);
+    }
 
     /// <summary>
     /// A message with a title, a body or both, an optional action (a button carrying its command) and an optional ×;
-    /// <paramref name="icon"/> stands in for the severity's own mark.
+    /// <paramref name="icon"/> stands in for the severity's own mark. A <paramref name="dismissCommand"/> gives it the × even where
+    /// <paramref name="dismissible"/> is false, and runs as the × hides it.
     /// </summary>
-    public static SurfaceComponent Create(UIMessageSeverity severity, UIPhrase? title, UIPhrase? body, ButtonComponent? action = null, bool dismissible = false, string? icon = null)
-        => Create(severity, title is null ? null : new TextComponent().SetTitle(title), body is null ? null : new ParagraphComponent().SetDescription(body), action, dismissible, icon);
+    public static SurfaceComponent Create(UIMessageSeverity severity, UIPhrase? title, UIPhrase? body, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
+    {
+        PresetWords.RequireIfGiven(title);
+        PresetWords.RequireIfGiven(body);
+
+        return Create(severity, title is null ? null : new TextComponent().SetTitle(title), body is null ? null : new ParagraphComponent().SetDescription(body), action, dismissible, icon, dismissCommand);
+    }
 
     /// <summary>
-    /// A message whose title or body is a component of the author's — bound to what the controller says, for a message whose words
-    /// change — given the message's text roles here.
+    /// The same with a title or a body of the author's own beyond words alone — a body with a link or an emphasis — given the message's
+    /// text roles here; words the controller holds are <see cref="BoundCreate"/>.
     /// </summary>
-    public static SurfaceComponent Create(UIMessageSeverity severity, TextComponent? title, ParagraphComponent? body, ButtonComponent? action = null, bool dismissible = false, string? icon = null)
+    public static SurfaceComponent Create(UIMessageSeverity severity, TextComponent? title, ParagraphComponent? body, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
     {
         if (title is null && body is null)
             throw new ArgumentException("A message says something: give it a title, a body or both.", nameof(body));
@@ -73,10 +101,20 @@ public static class UIMessage
         if (icon is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(icon);
 
+        if (dismissCommand is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(dismissCommand);
+            dismissible = true;
+        }
+
         UIThemeColor color = UIThemeColor.FromStyle(ColorOf(severity));
         var trailing = (action is null ? 0 : 1) + (dismissible ? 1 : 0);
-        // The first line is the title's where there is one, else the body's, which is shorter.
-        var firstLine = title is null ? BodyLine : TitleLine;
+        StackPanelComponent words = Words(title, body);
+
+        // The × stands on the first line's middle, the title's or else the body's: the stylesheet sets that line on a small button's
+        // middle whatever line the theme gives it, rather than a margin worked out here from the lines' default heights.
+        if (dismissible)
+            _ = words.SetFirstLineOnControl(UIButtonSize.Small);
 
         // The mark, the words and the trailing auto columns on one row. The mark stands on the words' middle; the action at the
         // message's end on the words' last line, as a toast's does, the × at the top: under the words on a phone, where beside them it
@@ -93,7 +131,7 @@ public static class UIMessage
                 .SetMargin(UIThickness.All(0, 0, 12, 0))
                 .SetPlacement(1, 1, 1, 1)
             )
-            .AddChild(Words(title, body).SetPlacement(2, 1, 23 - trailing, 1));
+            .AddChild(words.SetPlacement(2, 1, 23 - trailing, 1));
 
         if (action is not null)
         {
@@ -112,30 +150,37 @@ public static class UIMessage
             .SetSurface(UISurfaceStyle.Tinted)
             .SetBackground(color)
             .SetLiveRegion(severity is UIMessageSeverity.Warning or UIMessageSeverity.Danger ? UILiveRegion.Alert : UILiveRegion.Status)
-            .SetPadding(UIThickness.All(16, 12, dismissible ? 8 : 16, 12))
+            .SetPadding(UIThickness.All(16, 12, 16, 12))
             .SetContent(layout);
 
         if (!dismissible)
             return message;
 
         // The framework's word for its name, spelt as the key: the presets reach no shell.
-        ButtonComponent dismiss = UIButtons.Icon(UIGlyphs.Close, "ui.message.dismiss")
-            .SetSize(UIButtonSize.Small)
-            .SetVerticalAlignment(UIAlignment.Start)
-            .SetMargin(UIThickness.All(8, (firstLine - DismissSize) / 2, 0, 0))
-            .SetPlacement(24, 1, 1, 1);
+        ButtonComponent dismiss = UIButtons.Icon(UIGlyphs.Close, new UIPhrase("ui.message.dismiss")).SetSize(UIButtonSize.Small);
 
-        _ = layout.SetColumn(24, UIGridUnit.Auto()).AddChild(dismiss);
+        // A message is a band: its × stands its glyph on the content's edge, the mark's 16 px on the other side, its box hanging past.
+        _ = layout
+            .SetColumn(24, UIGridUnit.Auto())
+            .AddChild(new StackPanelComponent()
+                .SetOrientation(UIOrientation.Horizontal)
+                .SetGlyphEdge(UIAlignment.End)
+                .SetVerticalAlignment(UIAlignment.Start)
+                .SetMargin(UIThickness.All(8, 0, 0, 0))
+                .AddChild(dismiss)
+                .SetPlacement(24, 1, 1, 1)
+            );
 
-        // On the page alone: the message is gone until the page is drawn again, with nothing asked of the server.
-        return message.InteractOn(dismiss.Id, EventNames.Click, IVisualComponent.VisibilityProperty, UIVisibility.Collapsed);
+        // On the page at once: without a command the message is gone until the page is drawn again, with nothing asked of the server.
+        if (dismissCommand is null)
+            return message.InteractOn(dismiss.Id, EventNames.Click, IVisualComponent.VisibilityProperty, UIVisibility.Collapsed);
+
+        // The command goes beside the hide, never instead of it: the message leaves as the command leaves, not a round trip later. A
+        // click running a command raises only its before and after, so the hide is the before.
+        _ = dismiss.OnClick(dismissCommand);
+
+        return message.InteractBefore(dismiss.Id, EventNames.Click, IVisualComponent.VisibilityProperty, UIVisibility.Collapsed);
     }
-
-    // The × stands on the first line's middle: a small button, the subtitle's and the body's lines. A small button is taller than a
-    // line, so the × is drawn up into the padding rather than make the message taller.
-    private const double DismissSize = 28;
-    private const double TitleLine = 24;
-    private const double BodyLine = 20;
 
     /// <summary>The title over the body, each in its role and the page's own ink, both wrapping.</summary>
     private static StackPanelComponent Words(TextComponent? title, ParagraphComponent? body)

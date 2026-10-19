@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Controllers;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 
@@ -28,7 +31,7 @@ internal sealed partial class UIViewCompilationContext
             {
                 UIEvent sourceEvent = component.Events[j];
                 EnsureServerEventAllowed(sourceEvent.Name);
-                EnsureCommandExists(component, sourceEvent);
+                EnsureCommandFits(component, sourceEvent);
 
                 events.Add(new CompiledUIEvent
                 {
@@ -107,22 +110,49 @@ internal sealed partial class UIViewCompilationContext
         || eventName.StartsWith(EventNames.AfterPrefix, StringComparison.Ordinal);
 
     /// <summary>
-    /// Refuses an event whose command the controller does not declare — otherwise a renamed command compiles, ships, and fails only
-    /// when someone presses that button.
+    /// Refuses an event whose command the controller does not declare, or which leaves a parameter the command cannot run without
+    /// unsupplied — otherwise it compiles, ships, and fails only when someone presses that button.
     /// </summary>
-    private void EnsureCommandExists(IVisualComponent component, UIEvent sourceEvent)
+    private void EnsureCommandFits(IVisualComponent component, UIEvent sourceEvent)
     {
         if (_controllerType is null || !typeof(UIControllerBase).IsAssignableFrom(_controllerType))
             return;
 
         // The framework's own command runs in the runtime, not on the controller.
-        if (UIBuiltInCommands.IsBuiltIn(sourceEvent.Action.Command) || UIControllerBase.DeclaresCommand(_controllerType, sourceEvent.Action.Command))
+        if (UIBuiltInCommands.IsBuiltIn(sourceEvent.Action.Command))
             return;
 
-        throw new InvalidOperationException(
-            $"Component '{component.Id}' runs command '{sourceEvent.Action.Command}' on '{sourceEvent.Name}', but controller " +
-            $"'{_controllerType.Name}' has no [UICommand] method of that name."
-        );
+        if (UIControllerBase.FindCommand(_controllerType, sourceEvent.Action.Command) is not UICommandDescriptor command)
+        {
+            throw new InvalidOperationException(
+                $"Component '{component.Id}' runs command '{sourceEvent.Action.Command}' on '{sourceEvent.Name}', but controller " +
+                $"'{_controllerType.Name}' has no [UICommand] method of that name."
+            );
+        }
+
+        EnsureArgumentsFit(component, sourceEvent, command);
+    }
+
+    /// <summary>
+    /// Refuses an event that supplies nothing for a value-type parameter of its command, which every press would fail on; warns of an
+    /// argument the command has no parameter for, which it never sees (a command filter may still read it, so it is no refusal) —
+    /// unless the framework offers it beside the author's own (<see cref="UIActionArgument.Offered"/>).
+    /// </summary>
+    private void EnsureArgumentsFit(IVisualComponent component, UIEvent sourceEvent, UICommandDescriptor command)
+    {
+        IReadOnlyDictionary<string, UIActionArgument> arguments = sourceEvent.Action.Arguments;
+
+        foreach (var parameter in command.RequiredParameters)
+        {
+            if (!arguments.ContainsKey(parameter))
+                throw new InvalidOperationException($"Component '{component.Id}' runs command '{command.Name}' on '{sourceEvent.Name}' with no argument '{parameter}', a value the command cannot run without; pass it, or give the parameter a default or a nullable type.");
+        }
+
+        foreach (KeyValuePair<string, UIActionArgument> argument in arguments)
+        {
+            if (!argument.Value.Offered && !command.Parameters.Contains(argument.Key, StringComparer.Ordinal))
+                _warnings.Add(new(UICompileWarningKind.Advisory, $"Component '{component.Id}' passes argument '{argument.Key}' to command '{command.Name}' on '{sourceEvent.Name}', which has no parameter of that name; the command never sees it."));
+        }
     }
 
     private CompiledUIActionArgument[] BuildActionArguments(IVisualComponent component, UIAction action, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
@@ -166,32 +196,24 @@ internal sealed partial class UIViewCompilationContext
                 Kind = CompiledUIActionArgumentKind.EventKey,
                 Value = CountItemScopes(component, componentContexts)
             },
-            UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
-            UIActionArgumentKind.CurrentItemKey => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.CurrentItemKey, templatesByKey, componentContexts, rootPath),
-            UIActionArgumentKind.GroupKey => BuildBindingActionArgument(component, name, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.GroupKey, templatesByKey, componentContexts, rootPath),
-            UIActionArgumentKind.Binding => BuildBindingActionArgument(component, name, argument.Binding ?? throw new InvalidOperationException($"Action argument '{name}' has no binding."), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, argument.Kind, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.CurrentItemKey => BuildBindingActionArgument(component, name, argument.Kind, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.CurrentItemKey, templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.GroupKey => BuildBindingActionArgument(component, name, argument.Kind, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.GroupKey, templatesByKey, componentContexts, rootPath),
+            UIActionArgumentKind.Binding => BuildBindingActionArgument(component, name, argument.Kind, argument.Binding ?? throw new InvalidOperationException($"Action argument '{name}' has no binding."), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             _ => throw new UnreachableException()
         };
     }
 
     /// <summary>How many item scopes the component stands in, itself included: the keys its address needs, as the runtime counts them.</summary>
     private int CountItemScopes(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts)
-    {
-        var count = 0;
+        => ItemScopesOf(component.Id, componentContexts).Count;
 
-        for (var id = component.Id; id is not null; id = _parentByComponentId.GetValueOrDefault(id))
-        {
-            if (componentContexts.TryGetValue(id, out ResolvedComponentContext context) && context.DefinesParameter)
-                count++;
-        }
-
-        return count;
-    }
-
-    private CompiledUIActionArgument BuildBindingActionArgument(IVisualComponent component, string name, UIBindingPath binding, CompiledUIActionArgumentKind kind, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
+    private CompiledUIActionArgument BuildBindingActionArgument(IVisualComponent component, string name, UIActionArgumentKind authored, UIBindingPath binding, CompiledUIActionArgumentKind kind, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledPath rootPath)
     {
         // An argument is read once as the command runs, where a fixed index or key resolves; only a binding kept live is refused it.
         CompiledPath fullPath = BuildBindingPath(component, binding, componentContexts, rootPath);
+
+        EnsureArgumentResolves(component, name, authored, binding, fullPath);
 
         CompiledUIBindingTemplate template = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
 
@@ -204,6 +226,38 @@ internal sealed partial class UIViewCompilationContext
             Parameters = fullPath.Parameters,
             DynamicParameterComponentIds = GetDynamicParameterComponentIds(fullPath.Parameters)
         };
+    }
+
+    /// <summary>
+    /// Refuses an argument no press could read: an item's key where the component stands in no row, the current item where it has
+    /// neither a row nor a context (it would be the controller), or a path the types it walks lack or the server cannot read off them
+    /// — each failed only in the log.
+    /// </summary>
+    private void EnsureArgumentResolves(IVisualComponent component, string name, UIActionArgumentKind kind, UIBindingPath binding, CompiledPath path)
+    {
+        if (kind is UIActionArgumentKind.CurrentItemKey or UIActionArgumentKind.GroupKey && path.Parameters.Length == 0)
+            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' as {kind}, but stands in no row: an item's key is read off the row a control in an item template is drawn for.");
+
+        if (kind == UIActionArgumentKind.CurrentItem && path.Source.Kind == CompiledUIBindingSourceKind.Controller && path.Template.Parts.Length == 0)
+            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' as {kind}, but stands in no row and binds no context, so the item would be the controller itself.");
+
+        if (kind != UIActionArgumentKind.Binding)
+            return;
+
+        if (FindMissingControllerProperty(path) is (string property, Type owner))
+        {
+            var hint = binding.Scope == UIBindingScope.Parent
+                ? " Inside an item template a control's own row is Relative (UIAction.ArgRelative, ArgCurrentItemKey); Parent is the scope around the row."
+                : string.Empty;
+
+            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but '{owner.Name}' has no public property '{property}', so every press would fail.{hint}");
+        }
+
+        if (FindUnreadControllerSegment(path) is (string segment, Type reader))
+            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but the server reads '{segment}' through '{reader.Name}', where it is no [RecursiveMember] of a RecursiveObservable, so every press would fail.");
+
+        if (FindMissingStaticItemProperty(path) is (string itemProperty, string host))
+            throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' from '{path.Template.Template}', but no item '{host}' holds has a public property '{itemProperty}', so every press would fail.");
     }
 
     /// <summary>Whether the command's press shows it is working; a built-in command, or one with no controller to read, does.</summary>

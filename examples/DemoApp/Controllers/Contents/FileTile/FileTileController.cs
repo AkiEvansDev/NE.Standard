@@ -19,6 +19,10 @@ internal sealed partial class FileTileGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial long? FileSize { get; set; } = 14_336;
 
+    /// <summary>The same size in words under the tile, as a file's dialog heads it: written by the page as the tile writes its own.</summary>
+    [RecursiveMember]
+    public partial UIPhrase? SizeWords { get; set; } = new UIFileSize(14_336).Phrase();
+
     [RecursiveMember]
     public partial string? ContentType { get; set; }
 
@@ -42,7 +46,10 @@ internal sealed partial class FileTileGroupContext : DemoGroupContext
         => SetLastChange(nameof(FileName), FileName = CycleValue(FileName, "incident-report.md", "invoice-2026-09.pdf", LongName, "provision", null));
 
     public void CycleFileSize()
-        => SetLastChange(nameof(FileSize), FileSize = CycleValue(FileSize, 14_336, 1_572_864, 2_147_483_648, null));
+    {
+        SetLastChange(nameof(FileSize), FileSize = CycleValue(FileSize, 14_336, 1_572_864, 2_147_483_648, null));
+        SizeWords = FileSize is long bytes ? new UIFileSize(bytes).Phrase() : null;
+    }
 
     public void CycleContentType()
         => SetLastChange(nameof(ContentType), ContentType = CycleValue(ContentType, null, "application/pdf", "image/png"));

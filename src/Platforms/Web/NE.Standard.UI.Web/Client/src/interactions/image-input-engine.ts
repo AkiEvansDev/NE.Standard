@@ -6,7 +6,7 @@
 // (`Crop`) is fitted to it in the crop dialog first, and the square the frame holds is what is shown and sent.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
-import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageCropAttribute, ImageCropSizeAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
+import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageCropAttribute, ImageCropSizeAttribute, ImageFailedAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import { fileTileParts } from "../rendering/file-tile.ts";
 import type { FileFace } from "../rendering/file-tile.ts";
@@ -138,6 +138,8 @@ export class ImageInputEngine {
 
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleRemoveClick(domEvent), true);
+        // On the capture: a picture's error does not bubble.
+        this.root.addEventListener("error", domEvent => markFailedPicture(domEvent.target), true);
         this.root.addEventListener("change", domEvent => void this.handleNativeChangeAsync(domEvent), true);
         // Asked from a control elsewhere, the chooser is refused as the surface's own press is: while read-only, or its picture loads.
         this.root.addEventListener(OpenPickerEventName, domEvent => answerOpenPicker(domEvent, {
@@ -206,10 +208,18 @@ export class ImageInputEngine {
 
         this.dropPreview(root, keepName);
 
+        // A source tried afresh is judged when it loads or fails; none at all is the placeholder's.
+        if (picture.getAttribute("src") !== (source.length === 0 ? null : source))
+            root.removeAttribute(ImageFailedAttribute);
+
         if (source.length === 0)
             picture.removeAttribute("src");
         else if (picture.getAttribute("src") !== source)
             picture.setAttribute("src", source);
+
+        // One that failed before the error listener existed — the page's first paint — has settled with nothing drawn.
+        if (picture.hasAttribute("src") && picture.complete && picture.naturalWidth === 0)
+            root.setAttribute(ImageFailedAttribute, "");
 
         // The controller's own word for the picture outranks whatever its address ends in.
         if (!keepName)
@@ -472,6 +482,7 @@ export class ImageInputEngine {
         this.holding.add(root);
         root.dataset.previewFor = root.getAttribute(ImageSourceAttribute) ?? "";
         root.setAttribute(PreviewAttribute, "");
+        root.removeAttribute(ImageFailedAttribute);
         picture.setAttribute("src", preview.url);
 
         writeText(root, file.name);
@@ -654,6 +665,15 @@ export class ImageInputEngine {
 
 function isShelf(root: HTMLElement): boolean {
     return root.classList.contains(MultipleClass);
+}
+
+/**
+ * A picture the browser cannot draw — a stored one gone, a chosen one it cannot decode — shows the field's placeholder in its place
+ * (its icon, else the shape's glyph), as a failed picture anywhere shows its fallback glyph; never the browser's broken mark.
+ */
+function markFailedPicture(target: EventTarget | null): void {
+    if (target instanceof Element && target.classList.contains(PictureClass))
+        target.closest(`.${RootClass}`)?.setAttribute(ImageFailedAttribute, "");
 }
 
 /** Says on the root whether a square stands on its shelf: the shelf's words and an empty shelf's hiding read it. */

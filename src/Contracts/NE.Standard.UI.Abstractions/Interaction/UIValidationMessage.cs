@@ -17,10 +17,14 @@ public readonly record struct UIValidationMessage
     {
     }
 
-    /// <summary>A message of the given severity, from a key with its arguments.</summary>
+    /// <summary>A message of the given severity, from a key with its arguments or the author's text, which may not be empty.</summary>
     public UIValidationMessage(UIValidationSeverity severity, UIPhrase message)
     {
         ArgumentNullException.ThrowIfNull(message);
+
+        // A message with no words would mark the field and say nothing of why.
+        if (!UIPhrase.HasWords(message))
+            throw new ArgumentException("A validation message needs words.", nameof(message));
 
         Severity = severity;
         Message = message;

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 
@@ -102,5 +105,61 @@ public static class WebWords
         marks[attribute ?? TextTarget] = mark;
 
         _ = element.Attribute(WebAttributes.Words, JsonSerializer.Serialize(marks, WebWireJson.Options));
+    }
+
+    /// <summary>
+    /// The values a painted phrase holds that the page writes itself — moments and file sizes, nested phrases' included, in the order
+    /// they stand — as the page's <see cref="WebAttributes.PageWritten"/> carries them: the boot script finds each one's first paint in
+    /// the element and writes it in the reader's zone and language before the body paints. Null where the phrase holds none.
+    /// </summary>
+    /// <remarks>A words mark carries its own arguments; this is for a phrase painted by a property, whose arguments the page holds only once it has started.</remarks>
+    public static string? PageWritten(UIPhrase phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+
+        if (phrase.IsText || phrase.Arguments is not { } arguments || !HoldsPageWritten(arguments))
+            return null;
+
+        StringBuilder text = new("[");
+
+        AppendPageWritten(text, arguments);
+        return text.Append(']').ToString();
+    }
+
+    private static bool HoldsPageWritten(IReadOnlyDictionary<string, object?> arguments)
+    {
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            if (argument.Value is UIFileSize || UIMoment.TryRead(argument.Value, out _) || (argument.Value is UIPhrase { Arguments: { } nested } && HoldsPageWritten(nested)))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void AppendPageWritten(StringBuilder text, IReadOnlyDictionary<string, object?> arguments)
+    {
+        foreach (KeyValuePair<string, object?> argument in arguments)
+        {
+            // The instant, the format's name and the bytes are the wire's own, none holding anything a JSON string escapes.
+            if (UIMoment.TryRead(argument.Value, out UIMoment moment))
+            {
+                _ = text.Append(text.Length > 1 ? ",{\"moment\":\"" : "{\"moment\":\"")
+                    .Append(UIMomentJsonConverter.InstantText(moment.Instant))
+                    .Append("\",\"format\":\"")
+                    .Append(UIMomentJsonConverter.FormatName(moment.Format))
+                    .Append("\"}");
+            }
+            else if (argument.Value is UIFileSize size)
+            {
+                _ = text.Append(text.Length > 1 ? ",{\"fileSize\":" : "{\"fileSize\":")
+                    .Append(size.Bytes.ToString(CultureInfo.InvariantCulture))
+                    .Append('}');
+            }
+            else if (argument.Value is UIPhrase { IsText: false, Arguments: { } nested })
+            {
+                AppendPageWritten(text, nested);
+            }
+        }
     }
 }

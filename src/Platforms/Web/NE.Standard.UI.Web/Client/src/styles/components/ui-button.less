@@ -92,21 +92,81 @@
             font-size: @ui-glyph-xl;
         }
 
-    // An icon-only quiet button first or last on a panel's glyph edge hangs its box past the edge by its glyph's inset, so its glyph
-    // stands on the content's edge at any size, the wash running into the padding; a flyout's anchor hangs past its flyout (no :has).
-    // Neither shrunk nor capped at its cell, so an auto column does not take the hang out of the button's own width. A band whose
-    // edge is not the content's puts it off by `--ui-glyph-hang-start` or `-end` at 0 (core/side-drawers.less).
-    // The inset by size, read by the edge's rules once rather than each size drawing its own copy of them.
+    // A quiet button first or last on a glyph edge hangs its box past the edge by what stands between its box and what it shows, so
+    // its glyph or its words stand on the content's edge at any size, the wash running into the padding; a flyout's anchor hangs past
+    // its flyout (no :has). Neither shrunk nor capped at its cell, so an auto column does not take the hang out of the button's own
+    // width. A band whose edge is not the content's puts it off by `--ui-glyph-hang-start` or `-end` at 0 (core/side-drawers.less).
+    // The inset by kind and size, read by the edge's rules once rather than each drawing its own copy of them: an icon's glyph centred
+    // in its square — the box by the button's size, the glyph by its size's step or the IconSize its root carries (data-ui-icon-size) —
+    // a label's words after the press's padding (the parts' own in a split button, whose end is its toggle).
     @{ui-glyph-hung} {
-        --ui-glyph-inset: calc((@ui-control-height - @ui-glyph-md-lg) / 2);
+        --ui-glyph-box: @ui-control-height;
+        --ui-glyph-size: @ui-glyph-md-lg;
+        --ui-glyph-inset: calc((var(--ui-glyph-box) - var(--ui-glyph-size)) / 2);
     }
 
     @{ui-glyph-hung}.ui-button--small {
-        --ui-glyph-inset: calc((@ui-button-height-sm - @ui-glyph-md) / 2);
+        --ui-glyph-box: @ui-button-height-sm;
+        --ui-glyph-size: @ui-glyph-md;
     }
 
     @{ui-glyph-hung}.ui-button--large {
-        --ui-glyph-inset: calc((@ui-button-height-lg - @ui-glyph-xl) / 2);
+        --ui-glyph-box: @ui-button-height-lg;
+        --ui-glyph-size: @ui-glyph-xl;
+    }
+
+    // The theme switcher's glyph is 18 px at every size (ui-theme-switcher.less).
+    @{ui-glyph-hung}.ui-theme-switcher {
+        --ui-glyph-size: @ui-glyph-md-lg;
+    }
+
+    @{ui-glyph-hung}[data-ui-icon-size="small"] {
+        --ui-glyph-size: @ui-glyph-sm;
+    }
+
+    @{ui-glyph-hung}[data-ui-icon-size="medium"] {
+        --ui-glyph-size: @ui-glyph-lg;
+    }
+
+    @{ui-glyph-hung}[data-ui-icon-size="large"] {
+        --ui-glyph-size: @ui-glyph-xl;
+    }
+
+    @{ui-glyph-hung}[data-ui-text-title] {
+        --ui-glyph-inset: @ui-space-4;
+    }
+
+    @{ui-glyph-hung}.ui-button--small[data-ui-text-title] {
+        --ui-glyph-inset: @ui-space-2;
+    }
+
+    @{ui-glyph-hung}.ui-button--large[data-ui-text-title] {
+        --ui-glyph-inset: @ui-space-5;
+    }
+
+    @{ui-glyph-hung}.ui-split-button[data-ui-text-title] {
+        --ui-glyph-inset-end: @ui-space-2;
+    }
+
+    @{ui-glyph-hung}.ui-split-button[data-ui-split-mode="menu"][data-ui-text-title] {
+        --ui-glyph-inset-end: @ui-space-3;
+    }
+
+    @{ui-glyph-hung}.ui-split-button--no-chevron[data-ui-split-mode="menu"][data-ui-text-title] {
+        --ui-glyph-inset-end: var(--ui-glyph-inset);
+    }
+
+    // The language switcher's glyph and words after its press's padding (ui-language-switcher.less).
+    @{ui-glyph-hung}.ui-language-switcher {
+        --ui-glyph-inset: @ui-space-3;
+    }
+
+    @{ui-glyph-hung}.ui-language-switcher.ui-button--small {
+        --ui-glyph-inset: @ui-space-2;
+    }
+
+    @{ui-glyph-hung}.ui-language-switcher.ui-button--large {
+        --ui-glyph-inset: @ui-space-5;
     }
 
     .ui-glyph-ends({
@@ -119,16 +179,17 @@
 
         @{ui-glyph-end}:is(@{ui-glyph-hung}),
         @{ui-glyph-end}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung} {
-            margin-inline-end: calc(-1 * var(--ui-glyph-inset) * var(--ui-glyph-hang-end, 1));
+            margin-inline-end: calc(-1 * var(--ui-glyph-inset-end, var(--ui-glyph-inset)) * var(--ui-glyph-hang-end, 1));
             flex-shrink: 0;
-            .ui-responsive-property(max-width, --ui-max-width, calc(100% + var(--ui-glyph-inset)));
+            .ui-responsive-property(max-width, --ui-max-width, calc(100% + var(--ui-glyph-inset-end, var(--ui-glyph-inset))));
         }
     });
 
-    // A panel clipping what it holds (Overflow Hidden) lets the hung box and its keyboard frame out: a large button's 12 px and the
-    // frame's reach past it.
+    // A panel clipping what it holds (Overflow Hidden) lets the hung box and its keyboard frame out: a large label's padding, the most
+    // anything hangs, and the frame's reach past it. One length worked out here, the rem at its 16 px: Chrome takes no math function
+    // in overflow-clip-margin, and a calc() there clipped at 0.
     .ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end)[data-ui-id] {
-        overflow-clip-margin: (12px + @ui-keyboard-frame-reach);
+        overflow-clip-margin: (unit(@ui-space-5) * 16px + @ui-keyboard-frame-reach);
     }
 
     // Alignment lives on the button, not only its content: .ui-button's own text-align: center otherwise makes Justify look centred.

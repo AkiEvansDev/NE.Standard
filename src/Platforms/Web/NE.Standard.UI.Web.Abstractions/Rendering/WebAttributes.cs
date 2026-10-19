@@ -1,3 +1,6 @@
+using System.Globalization;
+using NE.Standard.UI.Abstractions.Identity;
+
 namespace NE.Standard.UI.Web.Abstractions.Rendering;
 
 /// <summary>
@@ -146,10 +149,11 @@ public static class WebAttributes
     public const string Strings = "data-ui-strings";
 
     /// <summary>
-    /// On an element whose text or attribute a phrase holding moments was painted into: the moments, as JSON, whose first paint the
-    /// boot script writes in the reader's zone before the body paints (<see cref="WebMoments.MomentsAttribute"/>).
+    /// On an element whose text or attribute a phrase holding values the page writes itself was painted into — moments, file sizes —
+    /// those values, as JSON, whose first paint the boot script writes in the reader's zone and language before the body paints
+    /// (<see cref="WebWords.PageWritten"/>).
     /// </summary>
-    public const string Moments = "data-ui-moments";
+    public const string PageWritten = "data-ui-page-written";
 
     /// <summary>The head's script element that carries the page's language's names and patterns for dates and times.</summary>
     public const string Temporal = "data-ui-temporal";
@@ -402,6 +406,10 @@ public static class WebAttributes
     /// <summary>The id a side's region carries where it is a drawer, which the buttons opening it name in <c>aria-controls</c>.</summary>
     public static string DrawerId(string side)
         => "ui-" + side;
+
+    /// <summary>The id a dialog's title carries, which the dialog's panel names in <c>aria-labelledby</c>.</summary>
+    public static string DialogTitleId(UIComponentId titleComponentId)
+        => string.Create(CultureInfo.InvariantCulture, $"ui-{titleComponentId.Value}-dialog-title");
 
     /// <summary>On each band of the page — header, sides, content, footer — naming it; a side's drawer is found by it.</summary>
     public const string Region = "data-ui-region";
@@ -753,6 +761,12 @@ public static class WebAttributes
     public const string Tooltip = "data-ui-tooltip";
 
     public const string TooltipPlacement = "data-ui-tooltip-placement";
+
+    /// <summary>
+    /// On an element whose tooltip is shown as written (<c>ITextBaseComponent.TooltipPlain</c>): its words, written and pushed, are text,
+    /// never read as inline markup.
+    /// </summary>
+    public const string TooltipPlain = "data-ui-tooltip-plain";
 
     /// <summary>On a control whose tooltip is all it has to say (a caption's badge): a press shows the tooltip, and the next press hides it.</summary>
     public const string TooltipPress = "data-ui-tooltip-press";

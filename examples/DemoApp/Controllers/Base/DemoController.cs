@@ -94,15 +94,8 @@ internal partial class DemoGroupContext : RecursiveObservable
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        for (var i = 0; i < items.Count; i++)
-        {
-            if (items[i].Id != id)
-                continue;
-
-            items.Move(i, index);
+        if (items.Move(id, index))
             LogEvent($"{id} -> place {index + 1}");
-            return;
-        }
     }
 
     protected static T CycleEnum<T>(T current) where T : struct, Enum

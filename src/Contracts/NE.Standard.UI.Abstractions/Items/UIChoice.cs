@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Abstractions.Items;
 
@@ -9,9 +10,9 @@ namespace NE.Standard.UI.Abstractions.Items;
 public sealed record UIChoice
 {
     /// <summary>
-    /// Creates a choice from its wire value and the caption shown for it.
+    /// Creates a choice from its wire value and the caption shown for it; a string is the author's text, a key with arguments a phrase.
     /// </summary>
-    public UIChoice(string value, string caption)
+    public UIChoice(string value, UIPhrase caption)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         ArgumentNullException.ThrowIfNull(caption);
@@ -28,5 +29,5 @@ public sealed record UIChoice
     /// <summary>
     /// Gets the caption the page shows for the value.
     /// </summary>
-    public string Caption { get; }
+    public UIPhrase Caption { get; }
 }

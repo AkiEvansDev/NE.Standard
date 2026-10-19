@@ -65,6 +65,7 @@ public sealed class KeyValueActionComponentRenderer : ItemsCollectionRendererBas
         RenderFlagClass(context, root, KeyValueActionComponent.ShowRowSeparatorsProperty, "ui-key-value-action--no-separators", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, KeyValueActionComponent.StretchValueProperty, "ui-key-value-action--no-stretch", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, KeyValueActionComponent.ShowActionsProperty, "ui-key-value-action--no-actions", WebValueCondition.IsFalse);
+        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-key-value-action--no-empty", WebValueCondition.IsFalse);
 
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty);
 

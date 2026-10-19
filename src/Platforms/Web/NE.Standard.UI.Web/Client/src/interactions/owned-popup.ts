@@ -1,20 +1,25 @@
 // A popup a component owns — a select's list, a picker, a flyout, a context menu, a package's popup — opened and closed one way. It
-// closes when dismissed, when the keyboard leaves it, and when its owner leaves the page or turns disabled, loading or (an input's)
-// read-only, so an open list never takes a choice its field no longer accepts; a list or a menu closes on Tab too, the browser's Tab
-// going on from its opener. Below the small breakpoint a list stands as a sheet from the bottom rather than beside its anchor
-// (`sheetOnPhone`, popup-sheet.ts). Anything more an engine does is its own `show`/`hide`.
+// closes when dismissed, when the keyboard leaves it, and when its owner leaves the page, goes out of sight (hidden, or scrolled wholly
+// out of its box) or turns disabled, loading or (an input's) read-only, so an open list never takes a choice its field no longer
+// accepts; a list or a menu closes on Tab too, the browser's Tab going on from its opener. Below the small breakpoint a list stands as a
+// sheet from the bottom rather than beside its anchor (`sheetOnPhone`, popup-sheet.ts); a popup keeps the form it opened in, and the
+// window crossing that breakpoint either way closes a list and a menu standing at a point. Anything more an engine does is its own
+// `show`/`hide`.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, `import type` on the rest.
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
 import type { PopupDismissReason } from "./popup-dismissal.ts";
-import { isSheet, placeAnchoredPopup, placesAsSheet, releaseAnchoredPopup } from "./anchored-popup.ts";
+import type { ComponentIndex } from "./popup-focus.ts";
+import { isSheet, placeAnchoredPopup, placesAsSheet, releaseAnchoredPopup, resolveStandIn } from "./anchored-popup.ts";
+import { addedAmong, isClippedOut, isInSight, observeLine, SightAttributes } from "./element-visibility.ts";
 import { isFocusable, isInert, isReadOnly } from "./interactive-state.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 import { orderForEscape, PopupDismissal } from "./popup-dismissal.ts";
 import { PointerFocusAttribute, PopupHoverAttribute } from "../addressing/dom-attributes.ts";
-import { focusableUntilLeft, focusAsLastInput, focusHolderAround, isPointerLast, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
-import { presentSheet, releaseSheet, revealAround } from "./popup-sheet.ts";
+import { focusableUntilLeft, focusAsLastInput, focusHolderAround, isPointerLast, liveFocusReturn, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
+import { presentSheet, releaseSheet, revealAround, unmarkSheet } from "./popup-sheet.ts";
+import { onTierChange } from "../rendering/responsive-tier.ts";
 
 /** One popup being opened: whose it is, what it is, and how it stands. */
 export type OwnedPopupOpening = {
@@ -66,11 +71,28 @@ export type OwnedPopupsOptions = {
 type OpenPopup = {
     readonly opening: OwnedPopupOpening;
     readonly returnFocus: HTMLElement | null;
+    /** Whether it opened below the small breakpoint, which the window crossing ends. */
+    readonly phone: boolean;
+    /** Whether it opened as a sheet: the form it keeps until it closes. */
+    readonly sheet: boolean;
 };
 
-/** Whether an owner can keep its popup: in the page, answering the reader, and — where it is an input — not read-only. */
-export function canKeepPopup(owner: HTMLElement, closesWhenReadOnly: boolean): boolean {
-    return owner.isConnected && !isInert(owner) && !(closesWhenReadOnly && isReadOnly(owner));
+/**
+ * Whether an owner can keep its popup: in the page and in sight, answering the reader, and — where it is an input — not read-only. A
+ * popup that is its own owner (a package's, anchored on a drawing) is out of sight until it shows: its state alone decides.
+ */
+export function canKeepPopup(opening: Pick<OwnedPopupOpening, "owner" | "popup">, closesWhenReadOnly: boolean): boolean {
+    const { owner } = opening;
+
+    return owner.isConnected && (owner === opening.popup || isInSight(owner)) && !isInert(owner) && !(closesWhenReadOnly && isReadOnly(owner));
+}
+
+// The page's components by id, through which the keyboard a stranded popup held finds its owner drawn anew (`setPopupComponents`).
+let popupComponents: ComponentIndex | null = null;
+
+/** Names the page's components by id (the runtime's `DomRegistry`), through which the keyboard a popup held finds its owner drawn anew. */
+export function setPopupComponents(components: ComponentIndex | null): void {
+    popupComponents = components;
 }
 
 export class OwnedPopups {
@@ -177,7 +199,7 @@ export class OwnedPopups {
             const keptInside = (holder !== null && opening.popup.contains(holder)) || opening.popup.contains(document.activeElement);
 
             // An owner that can no longer keep its popup is the watch's to close, which gives the keyboard to its root.
-            if (left && !keptInside && canKeepPopup(opening.owner, this.closesWhenReadOnly) && !isBehindModal(opening.owner) && this.options.canDismiss?.(opening, "focus") !== false)
+            if (left && !keptInside && canKeepPopup(opening, this.closesWhenReadOnly) && !isBehindModal(opening.owner) && this.options.canDismiss?.(opening, "focus") !== false)
                 this.close(opening.owner, "focus");
         }
     }
@@ -201,6 +223,21 @@ export class OwnedPopups {
         return this.entries.get(owner)?.opening.popup ?? null;
     }
 
+    /** The owners whose popups are open. */
+    public owners(): IterableIterator<HTMLElement> {
+        return this.entries.keys();
+    }
+
+    /** The open popup holding `element`, with its owner, or null. */
+    public holding(element: Element): { readonly owner: HTMLElement; readonly popup: HTMLElement } | null {
+        for (const { opening } of this.entries.values()) {
+            if (opening.popup.contains(element))
+                return { owner: opening.owner, popup: opening.popup };
+        }
+
+        return null;
+    }
+
     /** Opens an owner's popup and answers whether it is open; an owner that could not keep it gets none. */
     public open(opening: OwnedPopupOpening): boolean {
         // One already open is only placed again: a class changing on it must not pull the focus back in.
@@ -212,19 +249,21 @@ export class OwnedPopups {
         // Another popup of the same owner — a context menu of another name — takes the first one's place.
         this.close(opening.owner);
 
-        if (!canKeepPopup(opening.owner, this.closesWhenReadOnly))
+        if (!canKeepPopup(opening, this.closesWhenReadOnly))
             return false;
 
         if (this.options.single ?? true)
             this.closeAll();
 
         const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const phone = placesAsSheet();
+        const entry: OpenPopup = { opening, returnFocus: previous, phone, sheet: phone && named(this.options.sheetOnPhone, opening) };
 
-        this.entries.set(opening.owner, { opening, returnFocus: previous });
+        this.entries.set(opening.owner, entry);
         this.options.show(opening);
-        this.place(opening);
+        this.place(entry);
         describe(opening, true);
-        watch(this);
+        watch(this, opening.owner);
         trackPointerIn(opening);
 
         if (opening.focus !== undefined && opening.focus !== false)
@@ -242,12 +281,21 @@ export class OwnedPopups {
             this.close(owner);
     }
 
-    /** Beside its anchor, or — a list on a phone — as a sheet, which stays one until it closes. */
-    private place(opening: OwnedPopupOpening): void {
-        if (isSheet(opening.popup) || (named(this.options.sheetOnPhone, opening) && placesAsSheet())) {
+    /**
+     * Beside its anchor, or — a list on a phone — as a sheet: the form it opened in, kept however often it is placed again. Decided
+     * anew, a list beside its anchor turned into a sheet that was still placed as an anchored popup.
+     */
+    private place(entry: OpenPopup): void {
+        const { opening } = entry;
+
+        if (entry.sheet) {
             presentSheet(opening.popup, { anchor: opening.anchor, close: () => this.close(opening.owner, "escape"), trapsTab: !named(this.options.closesOnTab, opening) });
             return;
         }
+
+        // The last opening's sheet, still sliding out, takes its look off at once: this opening stands beside its anchor.
+        if (isSheet(opening.popup))
+            unmarkSheet(opening.popup);
 
         if (opening.anchor !== undefined && opening.placement !== undefined)
             placeAnchoredPopup(opening.anchor, opening.popup, opening.placement);
@@ -258,7 +306,7 @@ export class OwnedPopups {
         const entry = this.entries.get(owner);
 
         if (entry !== undefined)
-            this.place(entry.opening);
+            this.place(entry);
     }
 
     /** Closes an owner's popup, or the newest when no owner is named; a `reason` is the dismissal's, left out for the engine's own close. */
@@ -283,7 +331,7 @@ export class OwnedPopups {
         this.options.hide(opening, reason);
         describe(opening, false);
 
-        if (isSheet(opening.popup))
+        if (entry.sheet)
             releaseSheet(opening.popup);
         else
             releaseAnchoredPopup(opening.popup);
@@ -292,10 +340,14 @@ export class OwnedPopups {
             unwatch(this);
     }
 
-    /** Closes every popup whose owner can no longer keep it; the owners' watch runs it on every change. */
-    public closeStranded(): void {
+    /**
+     * Closes every popup whose owner can no longer keep it; the owners' watch runs it on every change and at every tier crossed. With
+     * `judged`, after a change of the tree alone, only those owners — moved in it — are judged whole, the rest asked only whether they
+     * left the page: nothing else about them changed.
+     */
+    public closeStranded(judged?: ReadonlySet<HTMLElement>): void {
         for (const [owner, { opening }] of [...this.entries]) {
-            if (canKeepPopup(owner, this.closesWhenReadOnly))
+            if (judged !== undefined && !judged.has(owner) ? owner.isConnected : canKeepPopup(opening, this.closesWhenReadOnly))
                 continue;
 
             const active = document.activeElement;
@@ -303,9 +355,39 @@ export class OwnedPopups {
 
             this.close(owner, "owner");
 
-            // The keyboard it held, or one the owner's inert parts dropped, goes to the owner's root, focusable while it refuses.
-            if (held && owner.isConnected && !hasLiveFocus())
-                focusRoot(owner);
+            if (held && !hasLiveFocus())
+                returnStrandedFocus(owner);
+        }
+    }
+
+    /**
+     * Closes every popup the small breakpoint, crossed since it opened, leaves in a form it no longer fits: a list that is or would now
+     * be a sheet, and a menu standing at a point, which the new width may leave outside the window.
+     */
+    public closeReformed(): void {
+        const phone = placesAsSheet();
+
+        for (const [owner, entry] of [...this.entries]) {
+            if (entry.phone !== phone && (entry.opening.anchor === undefined || named(this.options.sheetOnPhone, entry.opening)))
+                this.close(owner, "owner");
+        }
+    }
+
+    /**
+     * Closes every popup whose anchor or owner the scrolls of `scrolled` took wholly out of sight — a menu at a point by its owner — as a
+     * tooltip goes, rather than stand on at the window's edge. A sheet stands against no anchor; one behind a modal dialog is left alone.
+     */
+    public closeOutOfSight(scrolled: readonly (EventTarget | null)[]): void {
+        for (const [owner, { opening, sheet }] of [...this.entries]) {
+            const anchor = opening.anchor === undefined ? owner : resolveStandIn(opening.anchor);
+
+            // Its own list scrolling moves nothing it stands against, nor does a box holding neither.
+            if (sheet || !scrolled.some(box => !(box instanceof Node) || (!opening.popup.contains(box) && (box.contains(anchor) || box.contains(owner)))))
+                continue;
+
+            // A part put out of sight that a stand-in stands for (a bar's command in its "…" list) is judged by the stand-in alone.
+            if ((scrolledOut(anchor) || (anchor === opening.anchor && scrolledOut(owner))) && !isBehindModal(owner))
+                this.close(owner, "owner");
         }
     }
 }
@@ -352,10 +434,27 @@ function hasLiveFocus(): boolean {
     return active instanceof Element && active !== document.body && isFocusable(active);
 }
 
-/** Focuses a component's root, made focusable for it where its markup is not, until the focus leaves it. */
-function focusRoot(owner: HTMLElement): void {
-    focusableUntilLeft(owner);
-    focusAsLastInput(owner);
+/**
+ * Gives the keyboard a stranded popup held — or one its owner's inert parts dropped — to the owner's root, made focusable for it while
+ * it refuses; an owner the page drew anew or put out of sight hands it to what stands there now (its component drawn anew, the nearest
+ * focusable around it), never the body.
+ */
+function returnStrandedFocus(owner: HTMLElement): void {
+    if (owner.isConnected && isInSight(owner)) {
+        focusableUntilLeft(owner);
+        focusAsLastInput(owner);
+        return;
+    }
+
+    const back = liveFocusReturn(owner, popupComponents);
+
+    if (back !== null)
+        focusAsLastInput(back);
+}
+
+/** Whether a part with a box of its own stands wholly out of sight; one boxing nothing itself (`display: contents`) is not judged. */
+function scrolledOut(element: Element): boolean {
+    return element.getClientRects().length > 0 && isClippedOut(element);
 }
 
 /** A node and every node above it, as an event's path lists them. */
@@ -447,23 +546,109 @@ function markPointerIn(): void {
     hoverMarked = [...marked];
 }
 
-// The owners are watched only while a popup is open: a class, `inert` or `disabled` arriving anywhere above one, or the owner
-// taken out of the page, is re-checked once per batch against the few popups that are open.
+// The owners are watched only while a popup is open: `inert`, `disabled` or what puts an element out of sight (`SightAttributes`)
+// arriving on an open owner or anything above it, or the owner taken out of the page or moved, is re-checked once per batch against
+// the few popups that are open. Only the owners' lines are watched for attributes (`observeLine`), not the page's.
 const watching = new Set<OwnedPopups>();
+const OwnerStateFilter: string[] = ["inert", "disabled", "aria-disabled", ...SightAttributes];
 let observer: MutationObserver | null = null;
+let listening = false;
+// The scrolls of the frame now under way, judged together once: a scroll fires every frame, and each judgement walks the boxes up.
+let scrolledThisFrame: (EventTarget | null)[] | null = null;
 
-function watch(popups: OwnedPopups): void {
+/** The open popup of any engine holding `element` — a list hung at the body's end from a strip in a dialog — with its owner, or null. */
+export function popupHolding(element: Element | null): { readonly owner: HTMLElement; readonly popup: HTMLElement } | null {
+    if (element === null)
+        return null;
+
+    for (const each of watching) {
+        const found = each.holding(element);
+
+        if (found !== null)
+            return found;
+    }
+
+    return null;
+}
+
+function watch(popups: OwnedPopups, owner: HTMLElement): void {
     watching.add(popups);
+    listenForSight();
 
-    if (observer !== null || typeof MutationObserver !== "function")
+    if (typeof MutationObserver !== "function")
         return;
 
-    observer = new MutationObserver(() => {
-        for (const each of [...watching])
+    if (observer === null) {
+        observer = new MutationObserver(records => answerChanges(records));
+        observer.observe(document, { subtree: true, childList: true });
+    }
+
+    observeLine(observer, owner, OwnerStateFilter);
+}
+
+/**
+ * Judges the open popups against a batch of changes: an attribute changed on an owner's line judges them all; a change of the tree
+ * alone, only the owners it moved, whose new line is watched as well — the old one stays watched until no popup is open — and the
+ * rest only whether they left the page. Never disconnected here: what closing writes is heard in the next batch, not dropped.
+ */
+function answerChanges(records: readonly MutationRecord[]): void {
+    const attributes = records.some(record => record.type === "attributes");
+    const moved = addedAmong(records, [...watching].flatMap(each => [...each.owners()]));
+
+    for (const each of [...watching])
+        each.closeStranded(attributes ? undefined : moved);
+
+    for (const owner of moved) {
+        if (observer !== null && owner.isConnected)
+            observeLine(observer, owner, OwnerStateFilter);
+    }
+}
+
+/**
+ * From the first opening on, for the page's life: a tier crossed re-checks the owners — a tier's Visibility hides one with no change in
+ * the tree — and closes what the small breakpoint re-forms; a scroll closes what it took out of sight. With none open, none is asked.
+ */
+function listenForSight(): void {
+    if (listening)
+        return;
+
+    listening = true;
+
+    onTierChange(() => {
+        for (const each of [...watching]) {
+            each.closeReformed();
             each.closeStranded();
+        }
     });
 
-    observer.observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "inert", "disabled", "aria-disabled"] });
+    // Capturing: an anchor can sit inside any scrolling box, and scroll does not bubble.
+    document.addEventListener("scroll", domEvent => {
+        if (watching.size === 0)
+            return;
+
+        if (scrolledThisFrame !== null) {
+            scrolledThisFrame.push(domEvent.target);
+            return;
+        }
+
+        scrolledThisFrame = [domEvent.target];
+        nextFrame(() => {
+            const scrolled = scrolledThisFrame ?? [];
+
+            scrolledThisFrame = null;
+
+            for (const each of [...watching])
+                each.closeOutOfSight(scrolled);
+        });
+    }, { capture: true, passive: true });
+}
+
+/** Runs `then` before the next frame is drawn, or at the next task where nothing draws frames. */
+function nextFrame(then: () => void): void {
+    if (typeof requestAnimationFrame === "function")
+        requestAnimationFrame(then);
+    else
+        setTimeout(then, 0);
 }
 
 function unwatch(popups: OwnedPopups): void {

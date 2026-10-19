@@ -8,9 +8,9 @@ using System.Text;
 namespace NE.Standard.UI.Application;
 
 /// <summary>
-/// Where the framework writes for one application when the application names no folder of its own.
+/// Where the framework, a platform's caches included, writes for one application when the application names no folder of its own.
 /// </summary>
-internal static class UIApplicationStorage
+public static class UIApplicationStorage
 {
     private const int MaxSegmentLength = 80;
 

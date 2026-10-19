@@ -21,6 +21,15 @@ type Registry = InstanceType<typeof DomRegistry>;
 
 // A list inside an item template, whose collection every row's copy shares.
 const TemplateList = 20;
+// A list in a link's context menu, waiting outside the rows to be drawn, and the rows the render painted in it.
+const WaitingMenuList = 30;
+const PaintedMenuRows = [{ key: "a", item: { Id: "a" } }, { key: "b", item: { Id: "b" } }];
+// The entry's part in that menu whose patches address an entry, and the rows a server-drawn row's own copy of the menu painted.
+const EntryPart = 31;
+const RowPaintedRows = [{ key: "a", item: { Id: "a" } }];
+// The items the page drew rows from, in order, and the handlers told of a value pushed.
+const drawnItems: unknown[] = [];
+const valueHandlers: ((change: unknown) => void)[] = [];
 
 /** What a scene records: the passes that brought a host in step, by component, and what else happened, in order. */
 type Scene = {
@@ -86,23 +95,39 @@ function scene(...lists: FakeElement[]): Scene {
         getAncestorStack: () => [],
         getItemScope: () => undefined,
         getItemValue: () => undefined,
+        registerItemScope: () => undefined,
+        writePushedValues: () => undefined,
         // Drawn as the server would: the key on the row, the row's own text component standing in it.
-        renderItem: (_componentId: number, _item: unknown, key: string) => row(key)
+        renderItem: (_componentId: number, item: unknown, key: string) => {
+            drawnItems.push(item);
+            return row(key);
+        }
     };
     const patches = {
-        addValueChangeHandler: () => () => undefined,
+        addValueChangeHandler: (handler: (change: unknown) => void) => {
+            valueHandlers.push(handler);
+            return () => undefined;
+        },
         // The patch engine's own lookup: the components the value lands on, through the same index.
         applyPropertyValue: (_binding: unknown, parameters: readonly unknown[]) => log.push(`patch ${dom.findAllComponents(8, parameters).length}`)
     };
     const metadata = {
         metadata: { items: [] },
-        getItemValues: () => [],
+        getItemValues: (componentId: number, dynamicParameters: readonly unknown[] = []) => componentId !== WaitingMenuList ? [] : dynamicParameters.length === 0 ? PaintedMenuRows : dynamicParameters[0] === "r1" ? RowPaintedRows : [],
+        // An entry's check, read off its item.
+        getBindingByComponentAndPropertyId: () => ({ componentId: EntryPart, propertyId: "checked", itemTemplate: "Checked", itemTemplateParameters: [] }),
         getItemsTemplateMetadata: () => undefined,
         getItemsFilterSortMetadata: () => undefined,
         getBindingByComponentAndPropertyName: () => ({ componentId: 8, propertyId: "text.title" })
     };
-    const state = { forgetRows: () => undefined, forgetHost: () => undefined };
-    const rowMenus = { holds: () => false, standsInRowsOf: () => false, heldChanged: () => undefined };
+    const state = { forgetRows: () => undefined, forgetHost: () => undefined, get: () => true };
+    const rowMenus = {
+        holds: (componentId: number) => componentId === WaitingMenuList || componentId === EntryPart,
+        menuComponentsOf: (componentId: number) => (componentId === WaitingMenuList || componentId === EntryPart ? [WaitingMenuList, EntryPart] : []),
+        inOneMenu: () => true,
+        standsInRowsOf: () => false,
+        heldChanged: () => undefined
+    };
     const processor = new UpdateProcessor(real(metadata), real(patches), real(state), real(renderer), real(templates), dom, real(virtualization), real({}), real(rowMenus));
 
     return { processor, dom, log, invalidated, fillRow: row => fillRow(row) };
@@ -206,4 +231,59 @@ test("a row built later takes its list's empty state off with the placeholder, s
     await Promise.resolve();
 
     assert.equal(host.hasAttribute("data-ui-items-empty"), false);
+});
+
+test("a waiting link menu's list takes a change from the rows the render painted in it, and is drawn from them with it", () => {
+    const target = scene();
+
+    apply(target, change(WaitingMenuList, "Insert", "c"));
+
+    const menu = list(WaitingMenuList, ["a", "b"]);
+
+    fakeDocument.body.append(menu);
+    target.processor.fillDrawnPart(real(menu));
+
+    assert.deepEqual(keysOf(menu), ["a", "b", "c"]);
+});
+
+/** A value pushed to a part of a menu's entry, as the last scene's processor hears it first: its held items' write. */
+function pushedToHeldItem(change: unknown): void {
+    valueHandlers.at(-2)?.(change);
+}
+
+/** The held entries of the waiting menu's list as they stand, by key. */
+function heldEntries(target: Scene): Record<string, unknown> {
+    const entries: Record<string, unknown> = {};
+
+    target.processor.forEachHeldRow((componentId, held) => {
+        if (componentId === WaitingMenuList)
+            entries[held.key] = held.item;
+    });
+
+    return entries;
+}
+
+test("a check pushed to an entry of a waiting link menu, named by its key alone, is held from the painted rows and drawn with the menu", () => {
+    const target = scene();
+
+    pushedToHeldItem({ reference: { componentId: EntryPart, propertyId: "checked" }, dynamicParameters: ["a"], components: [] });
+
+    assert.deepEqual(heldEntries(target), { a: { Id: "a", checked: true }, b: { Id: "b" } });
+
+    const menu = list(WaitingMenuList, ["a", "b"]);
+
+    drawnItems.length = 0;
+    fakeDocument.body.append(menu);
+    target.processor.fillDrawnPart(real(menu));
+
+    assert.deepEqual(keysOf(menu), ["a", "b"]);
+    assert.deepEqual(drawnItems[0], { Id: "a", checked: true });
+});
+
+test("a check pushed to an entry of a server-drawn row's waiting menu is held in that row's list, started from its painted rows", () => {
+    const target = scene();
+
+    pushedToHeldItem({ reference: { componentId: EntryPart, propertyId: "checked" }, dynamicParameters: ["r1", "a"], components: [] });
+
+    assert.deepEqual(heldEntries(target), { a: { Id: "a", checked: true } });
 });

@@ -1,5 +1,7 @@
-// ShowEmptyTemplate off, read back from the compiled stylesheet: an items view, a tree and a table marked by the server draw no empty
-// state in their own host — and only there, so a list nested in a row keeps its own. A host showing its empty state gives it its box.
+// ShowEmptyTemplate off, read back from the compiled stylesheet: every host marked by the server (an items view, a tree, a table, a
+// tabs view, a menu, a radio group, a key-value list) draws no empty state in its own host — and only there, so a list nested in a
+// row keeps its own.
+// A host showing its empty state gives it its box.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -22,7 +24,11 @@ test("each host marked by ShowEmptyTemplate off hides its own empty state, throu
     for (const selector of [
         ".ui-items-view--no-empty > [data-ui-items-host] > [data-ui-empty-placeholder]",
         ".ui-tree--no-empty > .ui-tree__host > [data-ui-empty-placeholder]",
-        ".ui-table--no-empty > .ui-table__scroll > .ui-table__host > [data-ui-empty-placeholder]"
+        ".ui-table--no-empty > .ui-table__scroll > .ui-table__host > [data-ui-empty-placeholder]",
+        ".ui-tabs-view--no-empty > .ui-tabs-view__host > [data-ui-empty-placeholder]",
+        ".ui-menu--no-empty > .ui-menu__host > [data-ui-empty-placeholder]",
+        ".ui-radio-group--no-empty > .ui-radio-group__host > [data-ui-empty-placeholder]",
+        ".ui-key-value-action--no-empty > .ui-key-value-action__host > [data-ui-empty-placeholder]"
     ])
         assert.match(declarations(selector) ?? "", /display: none;/, selector);
 });

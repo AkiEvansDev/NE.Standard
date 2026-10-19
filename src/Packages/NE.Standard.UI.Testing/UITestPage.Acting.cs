@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Effects;
@@ -18,8 +20,10 @@ using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Text;
+using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Localization;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -27,6 +31,9 @@ namespace NE.Standard.UI.Testing;
 
 /// <summary>A value the page owes the server: one an interaction wrote to a property bound to write back.</summary>
 internal sealed record UITestWrite(UIPropertyAddress Address, object? Value);
+
+/// <summary>What an effect leaves the page to do once the act that brought it is done: a dialog's close to raise, a setting to tell the session.</summary>
+internal sealed record UITestReaction(UIComponentId? DialogClosed, ClientEffect? Setting);
 
 /// <summary>The server's refusal of a field's value, shown until a value it takes replaces it or the controller gives that property again.</summary>
 internal sealed record UITestRefusal(UIPhrase Message, UIValidationSeverity Severity, UIProperty Property);
@@ -92,6 +99,7 @@ public sealed partial class UITestPage
             writes.Insert(0, new UITestWrite(address, value));
 
         await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
 
         bool refused;
 
@@ -221,7 +229,11 @@ public sealed partial class UITestPage
     /// <summary>Raises an event as a reader's gesture does: refused on a component a reader could not reach.</summary>
     internal Task<UITestCommandResult> DispatchAsync(UIComponentId componentId, object?[] rowKeys, string eventName, object?[] eventKeys, CancellationToken cancellationToken)
     {
-        _ = EnsureActionable(componentId, rowKeys, $"raise '{eventName}' on");
+        UIComponentNode node = EnsureActionable(componentId, rowKeys, $"raise '{eventName}' on");
+
+        // A surface or a tile that is not clickable lets its click go by, as the page's suppress mark does.
+        if (eventName == EventNames.Click && Read(componentId, rowKeys, IClickableComponent.ClickableProperty) is false)
+            throw new InvalidOperationException($"'{node.AuthoringId}' is not clickable: a reader cannot press it.");
 
         return DispatchCoreAsync(componentId, rowKeys, eventName, eventKeys, cancellationToken);
     }
@@ -234,7 +246,8 @@ public sealed partial class UITestPage
     {
         UIComponentAddress source = new(componentId, rowKeys);
 
-        if (!View.Events.TryGet(new CompiledUIEventAddress(componentId, eventName), out CompiledUIEvent? compiled))
+        // A row's own effect — one menu entry's — runs in place of the command the event carries for every other row.
+        if (!View.Events.TryGet(new CompiledUIEventAddress(componentId, eventName), out CompiledUIEvent? compiled) || TakesRowEvent(source, eventName))
         {
             List<UITestWrite> writes = [];
             int mark;
@@ -246,6 +259,7 @@ public sealed partial class UITestPage
             }
 
             await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+            await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
 
             return UITestCommandResult.RanOnPage(EffectsSince(mark));
         }
@@ -374,8 +388,56 @@ public sealed partial class UITestPage
 
         await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
 
         return UITestCommandResult.Answered(result.Command.Success, result.Command.Error, EffectsSince(mark));
+    }
+
+    /// <summary>
+    /// Runs what effects left for after the act, once the lock is let go: a dialog the viewer closed raises its close on its content —
+    /// its <c>OnClose</c> — and a language or theme the page switched to is stored in the session and reaches its pages, as the page's
+    /// report to the hub does.
+    /// </summary>
+    private async Task RunReactionsAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            UITestReaction reaction;
+
+            lock (_sync)
+            {
+                if (_reactions.Count == 0)
+                    return;
+
+                reaction = _reactions[0];
+                _reactions.RemoveAt(0);
+            }
+
+            if (reaction.DialogClosed is UIComponentId root)
+                _ = await DispatchCoreAsync(root, [], EventNames.Close, [], cancellationToken).ConfigureAwait(false);
+            else if (reaction.Setting is ClientEffect setting)
+                await ReportSettingAsync(setting, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Stores a language, theme or colours the page switched to in its session, and reaches the session's pages with it.</summary>
+    private async Task ReportSettingAsync(ClientEffect setting, CancellationToken cancellationToken)
+    {
+        IUserSessionStore store = _app.Services.GetRequiredService<IUserSessionStore>();
+        var sessionId = _resolution.Handle.Session.SessionId;
+
+        UserSessionState? written = setting switch
+        {
+            SetLanguageEffect language => await store.SetLanguageAsync(sessionId, language.Language, cancellationToken).ConfigureAwait(false),
+            SetThemeEffect theme => await store.SetThemeModeAsync(sessionId, theme.Mode, cancellationToken).ConfigureAwait(false),
+            SetThemeColorsEffect colors => await store.SetThemeColorsAsync(sessionId, colors.Colors, cancellationToken).ConfigureAwait(false),
+            _ => null
+        };
+
+        if (written is not null)
+            await _app.Host.ApplySessionChangeAsync(_resolution.Handle, written, cancellationToken).ConfigureAwait(false);
+
+        await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Sends values to the server in one change set and applies the answer — a refusal among them.</summary>
@@ -422,6 +484,9 @@ public sealed partial class UITestPage
         else
             EvaluateRulesNoLock(address.Component, UIValidationTrigger.Change, address.Property);
 
+        if (address.Property == IInputComponent.ValueProperty)
+            EvaluateRulesAgainstNoLock(address.Component);
+
         if (depth > MaxInteractionDepth)
             return;
 
@@ -432,8 +497,31 @@ public sealed partial class UITestPage
     private void RunEventInteractionsNoLock(UIComponentAddress source, string eventName, List<UITestWrite> writes)
     {
         foreach (CompiledUIInteraction interaction in View.Interactions.GetBySource(new CompiledUIEventAddress(source.Id, eventName)))
-            ApplyInteractionNoLock(interaction, source.DynamicParameters, local: true, sourceValue: true, depth: 0, writes);
+        {
+            if (IsRowsOwn(interaction, source.DynamicParameters))
+                ApplyInteractionNoLock(interaction, source.DynamicParameters, local: true, sourceValue: true, depth: 0, writes);
+        }
     }
+
+    /// <summary>Whether the event, raised in this row, is a row's own interaction's, which the page runs in place of the event's command.</summary>
+    private bool TakesRowEvent(UIComponentAddress source, string eventName)
+    {
+        foreach (CompiledUIInteraction interaction in View.Interactions.GetBySource(new CompiledUIEventAddress(source.Id, eventName)))
+        {
+            if (interaction.RowKey is not null && IsRowsOwn(interaction, source.DynamicParameters))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether an event raised with these keys fires the interaction: any row's for one that names none, else the row it names — the
+    /// innermost key, as the page reads it (<c>interaction-engine.ts</c>).
+    /// </summary>
+    private static bool IsRowsOwn(CompiledUIInteraction interaction, object?[] rowKeys)
+        => interaction.RowKey is null
+            || (rowKeys.Length > 0 && rowKeys[^1] is { } key && string.Equals(Convert.ToString(key, CultureInfo.InvariantCulture), interaction.RowKey, StringComparison.Ordinal));
 
     /// <summary>An interaction as the client runs it: its effect while the condition holds, else the value it writes to its target.</summary>
     private void ApplyInteractionNoLock(CompiledUIInteraction interaction, object?[] rowKeys, bool local, object? sourceValue, int depth, List<UITestWrite> writes)
@@ -479,28 +567,68 @@ public sealed partial class UITestPage
 
         foreach (CompiledUIValidationRule rule in rules)
         {
-            if (rule.Trigger != trigger || (property is UIProperty only && rule.Target.Property != only))
-                continue;
-
-            var value = ReadNoLock(component.Id, component.DynamicParameters, rule.Target.Property);
-
-            if (PassesRule(value, rule))
-                _ = field.Failing.Remove(rule);
-            else
-                _ = field.Failing.Add(rule);
+            if (rule.Trigger == trigger && (property is not UIProperty only || rule.Target.Property == only))
+                JudgeNoLock(component, rule, field);
         }
+    }
+
+    /// <summary>
+    /// Judges one rule against the value a field holds, compared with the rule's value or with the value of the field it names — in
+    /// the field's row, else standing in no row — as the page reads it.
+    /// </summary>
+    private void JudgeNoLock(UIComponentAddress component, CompiledUIValidationRule rule, UITestField field)
+    {
+        var value = ReadNoLock(component.Id, component.DynamicParameters, rule.Target.Property);
+        var comparand = rule.ValueSource is UIPropertyAddress source
+            ? ReadNoLock(source.Component.Id, component.DynamicParameters[..Math.Min(component.DynamicParameters.Length, View.Graph.GetItemScopes(source.Component.Id).Count)], source.Property)
+            : rule.Value;
+
+        if (PassesRule(value, rule.Operator, comparand))
+            _ = field.Failing.Remove(rule);
+        else
+            _ = field.Failing.Add(rule);
     }
 
     /// <summary>
     /// Whether a value passes a rule as the page's validation judges it (<c>validation-engine.ts</c>): every rule but
     /// <see cref="UIComparisonOperator.Required"/> passes on an empty value, so an empty field says only that it is required.
     /// </summary>
-    private static bool PassesRule(object? value, CompiledUIValidationRule rule)
-        => (rule.Operator != UIComparisonOperator.Required && IsEmptyValue(value)) || UIComparisonEvaluator.Evaluate(value, rule.Operator, rule.Value);
+    private static bool PassesRule(object? value, UIComparisonOperator @operator, object? comparand)
+        => (@operator != UIComparisonOperator.Required && IsEmptyValue(value)) || UIComparisonEvaluator.Evaluate(value, @operator, comparand);
 
     /// <summary>Nothing given: what <see cref="UIComparisonOperator.Required"/> refuses, but a toggle's <see langword="false"/>, which is a value.</summary>
     private static bool IsEmptyValue(object? value)
         => value is not false && !UIComparisonEvaluator.Evaluate(value, UIComparisonOperator.Required, null);
+
+    /// <summary>
+    /// Judges again the rules that compare with this field's value — "Password again" as "New password" changes — in the field's own
+    /// row, or in each row the page holds a field of where it stands outside them. Every write here is a settled value (typed and left,
+    /// given, an interaction's), so a Change and a Blur rule are judged, as the page judges them on a commit; a submit's rules wait.
+    /// </summary>
+    private void EvaluateRulesAgainstNoLock(UIComponentAddress source)
+    {
+        foreach (CompiledUIValidationRule rule in View.Validations.All)
+        {
+            if (rule.Trigger == UIValidationTrigger.Submit || rule.ValueSource is not UIPropertyAddress named || named.Component.Id != source.Id)
+                continue;
+
+            UIComponentId target = rule.Target.Component.Id;
+
+            if (View.Graph.GetItemScopes(target).Count == source.DynamicParameters.Length)
+            {
+                UIComponentAddress field = new(target, source.DynamicParameters);
+
+                JudgeNoLock(field, rule, FieldNoLock(field));
+                continue;
+            }
+
+            foreach ((UIComponentAddress field, UITestField state) in _fields)
+            {
+                if (field.Id == target && field.DynamicParameters.Length > source.DynamicParameters.Length && field.DynamicParameters.AsSpan(0, source.DynamicParameters.Length).SequenceEqual(source.DynamicParameters, EqualityComparer<object?>.Default))
+                    JudgeNoLock(field, rule, state);
+            }
+        }
+    }
 
     /// <summary>
     /// The strongest message a field shows: the page's refusal of a value past its bounds, the server's refusal, the controller's bound

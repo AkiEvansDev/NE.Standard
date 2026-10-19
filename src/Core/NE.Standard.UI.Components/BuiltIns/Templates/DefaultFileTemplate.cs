@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Templates;
 /// The built-in template drawing an <see cref="IFileModel"/> as a file's tile: its name, size, type, glyph and whether it is still
 /// being written, each bound to the item.
 /// </summary>
-/// <remarks>A press is the page's to add: <c>SetClickable(true)</c> and <c>OnClick</c> with the item's id as an argument.</remarks>
+/// <remarks>A press is the page's to add: <c>OnClickWithItemKey(command)</c>, which makes the tile pressable.</remarks>
 public abstract class DefaultFileTemplate<TTemplate> : FileTileComponent<TTemplate>
     where TTemplate : DefaultFileTemplate<TTemplate>, IUIComponentDefinition
 {

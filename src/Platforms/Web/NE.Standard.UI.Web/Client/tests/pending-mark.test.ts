@@ -75,6 +75,7 @@ function createPage(options: PageOptions = {}): Page {
         interactionEngine: real<InteractionEngine>({
             hasEvent: () => false,
             hasEventForComponent: () => false,
+            takesRowEvent: () => false,
             applyEvent: (context: { readonly name: string }) => {
                 if (options.showsLoadingBefore !== true)
                     return;

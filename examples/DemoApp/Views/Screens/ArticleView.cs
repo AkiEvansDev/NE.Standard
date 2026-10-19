@@ -86,7 +86,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
     private static SurfaceComponent CreateVote()
         => UIPage.Band(
             UILayout.Ends(
-                UIText.Body(string.Empty).BindTitle(nameof(ArticleController.VoteLine)),
+                UIText.Body().BindTitle(nameof(ArticleController.VoteLine)),
                 UIButtons.Outline("Yes").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "yes")),
                 UIButtons.Ghost("Not really").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "no"))
             )

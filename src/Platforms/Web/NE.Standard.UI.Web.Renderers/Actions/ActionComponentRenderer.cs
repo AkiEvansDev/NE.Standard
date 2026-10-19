@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -29,6 +30,10 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
 
     protected override string ClassName => "ui-action";
 
+    /// <summary>The row's look on an anchor where it links to an address (<see cref="ILinkableComponent.Url"/>), as a button's is.</summary>
+    protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
+        => DrawsLink(context) ? ("a", ClassName) : base.ResolveRoot(context);
+
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -36,7 +41,13 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
 
         _ = root.Class(WebClassNames.Button);
 
-        RenderButtonChrome(context, root);
+        var link = DrawsLink(context);
+
+        RenderButtonChrome(context, root, isButtonElement: !link);
+
+        if (link)
+            RenderLinkAddress(context, root, ILinkableComponent.UrlProperty);
+
         RenderButtonLabel(context, root);
 
         _ = root.Element("span", trailing =>

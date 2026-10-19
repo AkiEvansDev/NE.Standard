@@ -390,6 +390,8 @@ internal abstract partial class UIRuntimeBase
             try
             {
                 await updates.SendCommandResultAsync(page, sent, cancellationToken).ConfigureAwait(false);
+
+                FollowShownByCommand(page, sent.Command.Effects);
             }
             catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {

@@ -28,7 +28,7 @@ type Page = {
  * A component with a command on one event and the interactions bracketing it: a button submitting the form `signup`, which passes its
  * rules or fails them, or a field submitting nothing.
  */
-function createPage(eventName: string, form: "passes" | "fails" | "none"): Page {
+function createPage(eventName: string, form: "passes" | "fails" | "none", rowsOwn = false): Page {
     const steps: string[] = [];
     const listeners = new Map<string, (domEvent: Event) => void>();
     const formPasses = form !== "fails";
@@ -66,10 +66,11 @@ function createPage(eventName: string, form: "passes" | "fails" | "none"): Page 
         interactionEngine: real<InteractionEngine>({
             hasEvent: (name: string) => lifecycle.has(name),
             hasEventForComponent: (name: string, componentId: number) => lifecycle.has(name) && componentId === 1,
+            takesRowEvent: () => rowsOwn,
             applyEvent: (context: { readonly name: string }) => {
                 steps.push(context.name);
 
-                if (context.name.startsWith("after-"))
+                if (context.name.startsWith("after-") || (rowsOwn && context.name === eventName))
                     settle();
             }
         }),
@@ -139,4 +140,12 @@ test("an event that is no click brackets its own command the same way", async ()
     await page.press();
 
     assert.deepEqual(page.steps, ["before-search", "command", "after-search"]);
+});
+
+test("a row's own effect runs in place of the command, nothing sent and no before or after", async () => {
+    const page = createPage("click", "none", true);
+
+    await page.press();
+
+    assert.deepEqual(page.steps, ["click"]);
 });

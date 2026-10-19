@@ -5,10 +5,10 @@ namespace NE.Standard.UI.Files;
 
 /// <summary>
 /// What an upload, or a value staged for the page, is counted as against its session's allowance: its bytes, a fixed minimum for the
-/// entry that keeps it, and an upload's name as held in memory.
+/// entry that keeps it, and an upload's name as held in memory — the count a platform reserves with before it takes the bytes.
 /// </summary>
 /// <remarks>Bytes alone left an empty file or value free, though each one still costs an entry in memory, and a file on disk.</remarks>
-internal static class UIAllowanceCharge
+public static class UIAllowanceCharge
 {
     /// <summary>What every upload or staged value is counted as beyond its bytes, whatever its size.</summary>
     public const long EntryBytes = 1024;

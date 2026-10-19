@@ -19,10 +19,14 @@ public sealed class UINotificationAction
     /// Creates an action running <paramref name="command"/>, handing <paramref name="argument"/> (the key the command acts on, such
     /// as the deleted item's id) to its one parameter.
     /// </summary>
+    /// <exception cref="ArgumentException">The label is blank: a button naming nothing.</exception>
     public UINotificationAction(UIPhrase label, string command, object? argument = null)
     {
         ArgumentNullException.ThrowIfNull(label);
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
+
+        if (!UIPhrase.HasWords(label))
+            throw new ArgumentException("A notification's action needs words.", nameof(label));
 
         Label = label;
         Command = command;

@@ -57,7 +57,7 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     /// do (a list under its search field), and the bar stands in the air. Unset, a scroller keeps its room inside.
     /// </summary>
     /// <remarks>
-    /// The air is taken up to the bar's room (<c>--ui-scrollbar-room</c>, 12 px); what it lacks stays inside. Taken by the outermost
+    /// The air is taken up to the bar's room (<see cref="ContainerComponent.ScrollbarRoom"/>); what it lacks stays inside. Taken by the outermost
     /// scroller reached through containers and stacks with no padding, border or fill of their own — a padded, framed or filled box
     /// between, or a scroller framed or filled itself, keeps the room inside — whose own end margin gives way to it; a screen where
     /// nothing hovers keeps no room.
@@ -112,6 +112,12 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
 /// </summary>
 public sealed class ContainerComponent(string? id = null) : ContainerComponent<ContainerComponent>(id), IUIComponentDefinition
 {
+    /// <summary>
+    /// The room a scroller keeps for its overlay bar, in pixels (the stylesheet's default <c>--ui-scrollbar-room</c>): the most of
+    /// <see cref="ContainerComponent{T}.ScrollbarAir"/> a scroller takes, and the air to leave beside a list for its bar to stand in.
+    /// </summary>
+    public const double ScrollbarRoom = 12;
+
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.container";
 }

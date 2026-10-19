@@ -16,13 +16,17 @@ namespace NE.Standard.UI.Sessions;
 /// Resolves the session the client presented from <see cref="IUserSessionStore"/>, issuing a new one when it
 /// presented none, an unknown one, or one that has gone idle.
 /// </summary>
-/// <remarks>The session id always comes from the store, never from anything the client supplies.</remarks>
-internal sealed class StoredUserSessionResolver : IUserSessionResolver
+/// <remarks>
+/// The resolver <c>UIStartupBase</c> registers unless the platform registered its own first. The session id always comes from the store,
+/// never from anything the client supplies.
+/// </remarks>
+public sealed class StoredUserSessionResolver : IUserSessionResolver
 {
     private readonly IUserSessionStore _store;
     private readonly UIApplication _application;
     private readonly IUserClaimsMapper _claims;
 
+    /// <summary>Creates the resolver over the session store, the application's options and its claims mapper.</summary>
     public StoredUserSessionResolver(IUserSessionStore store, UIApplication application, IUserClaimsMapper claims)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -113,11 +117,15 @@ internal sealed class StoredUserSessionResolver : IUserSessionResolver
     /// <summary>Overlays the host's principal onto the session when the application has made claims the authority.</summary>
     /// <remarks>
     /// Authoritative in both directions: an authenticated principal refreshes roles on every request and its absence signs
-    /// the user out; does nothing under <see cref="UIIdentitySource.Session"/>. Shared with the web's side endpoints, which apply
+    /// the user out; does nothing under <see cref="UIIdentitySource.Session"/>. For a platform's side endpoints too, which apply
     /// it to the session they read without saving it.
     /// </remarks>
-    internal static UserSessionState ApplyClaims(UserSessionState session, ClaimsPrincipal? principal, UISecurityOptions security, IUserClaimsMapper claims)
+    public static UserSessionState ApplyClaims(UserSessionState session, ClaimsPrincipal? principal, UISecurityOptions security, IUserClaimsMapper claims)
     {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(security);
+        ArgumentNullException.ThrowIfNull(claims);
+
         if (security.IdentitySource != UIIdentitySource.Claims)
             return session;
 

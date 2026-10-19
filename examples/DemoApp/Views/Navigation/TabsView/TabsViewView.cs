@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Navigation.TabsView;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Components.BuiltIns.Templates;
 
 namespace DemoApp.Views.Navigation.TabsView;
 
@@ -153,7 +152,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
             new SurfaceComponent()
                 .SetContent(new TabsViewComponent()
                     .BindItems(nameof(EmptyStripGroupContext.Documents), UIBindingScope.Relative)
-                    .SetEmptyTemplate(new DefaultEmptyTemplate()
+                    .ConfigureDefaultEmptyTemplate(template => _ = template
                         .SetIcon(DemoIcons.Outline(DemoIcons.File))
                         .SetTitle("No documents open")
                         .SetDescription("Open one from the tree.")

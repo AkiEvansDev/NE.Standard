@@ -30,7 +30,7 @@ internal sealed class AccountView : DemoScreenView, IUIViewDefinition
 
     private static CardComponent CreateReports()
         => UICard.Create("Reports", "Every account may view; only reports.export may export; only an admin opens the console.", UILayout.Stack(12,
-            UIText.Note(string.Empty).BindDescription(nameof(AccountController.ReportLine)),
+            UIText.Note().BindDescription(nameof(AccountController.ReportLine)),
             UILayout.Row(8,
                 UIButtons.Primary("View the revenue report").OnClick(nameof(AccountController.ViewReport)),
                 UIButtons.Ghost("Export it", DemoIcons.Outline(DemoIcons.Download)).OnClick(nameof(AccountController.ExportReport)),
@@ -40,7 +40,7 @@ internal sealed class AccountView : DemoScreenView, IUIViewDefinition
 
     private static CardComponent CreateAudit()
         => UICard.Create("Audit trail", "Written by [AuditCommand] on this controller: who ran what, how it ended, how long it took. The filter writes after the command has answered, so a press shows up on the next read; a refused press never reaches it.", UILayout.Stack(12,
-            UIText.Paragraph(string.Empty).BindDescription(nameof(AccountController.AuditLines)),
+            UIText.Paragraph().BindDescription(nameof(AccountController.AuditLines)),
             UIButtons.Toolbar(UIButtons.Ghost("Refresh", DemoIcons.Outline(DemoIcons.Refresh)).OnClick(nameof(AccountController.RefreshAudit)))
         ), DemoIcons.Outline(DemoIcons.History));
 

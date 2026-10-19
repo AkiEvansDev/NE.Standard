@@ -43,6 +43,9 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 
         RenderFlagClass(context, root, StackPanelComponent.WrapProperty, "ui-stack-panel--wrap");
 
+        // A first child standing in a field's caption row (ui-stack-panel.less): a label over a control, level with the boxes beside it.
+        RenderFlagClass(context, root, StackPanelComponent.FirstChildAsCaptionProperty, "ui-stack-panel--caption-first");
+
         // The edge an icon button at its end hangs past (ui-button.less).
         var glyphEdge = ReadRenderValue<UIAlignment?>(context, StackPanelComponent.GlyphEdgeProperty, null) switch
         {
@@ -54,6 +57,10 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
         if (glyphEdge is not null)
             _ = root.Class(glyphEdge);
 
+        // The button size whose middle the first child's first line stands on (ui-stack-panel.less).
+        if (ReadRenderValue<UIButtonSize?>(context, StackPanelComponent.FirstLineOnControlProperty, null) is UIButtonSize lineOn)
+            _ = root.Class(FirstLineOnControlClassName(lineOn));
+
         // Each tier's caption line (0 or 1) and the box it centres on, read by ui-stack-panel.less on the class that fences them.
         if (ReadRenderValue<UIResponsive<UIFieldBoxAlignment>?>(context, StackPanelComponent.AlignWithFieldBoxesProperty, null) is UIResponsive<UIFieldBoxAlignment> boxes)
         {
@@ -64,4 +71,12 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 
         RenderChildren(context, root);
     }
+
+    private static string FirstLineOnControlClassName(UIButtonSize size)
+        => size switch
+        {
+            UIButtonSize.Small => "ui-stack-panel--line-on-small",
+            UIButtonSize.Large => "ui-stack-panel--line-on-large",
+            _ => "ui-stack-panel--line-on-medium"
+        };
 }

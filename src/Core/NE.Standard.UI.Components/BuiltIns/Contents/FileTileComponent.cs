@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -14,7 +15,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// attachments, a downloads list, an upload's result.
 /// </summary>
 /// <remarks>The size is written by the page in the reader's language, as the shelf writes it: "1.5 MB", "1,5 МБ".</remarks>
-public abstract partial class FileTileComponent<T> : VisualComponentBase<T>
+[UIComponentPropertyBlock(typeof(IClickableComponent))]
+public abstract partial class FileTileComponent<T> : VisualComponentBase<T>, IClickableComponent
     where T : FileTileComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -42,13 +44,6 @@ public abstract partial class FileTileComponent<T> : VisualComponentBase<T>
     public string? Icon { get; set; }
 
     /// <summary>
-    /// Whether the whole tile is pressable — the affordance and the click both, as a clickable surface's. Left false, a command
-    /// registered through <see cref="OnClick(string)"/> does not fire.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? Clickable { get; set; }
-
-    /// <summary>
     /// Initializes the tile at the start of its cell, at its own size.
     /// </summary>
     protected FileTileComponent(string? id = null) : base(id)
@@ -58,7 +53,8 @@ public abstract partial class FileTileComponent<T> : VisualComponentBase<T>
     }
 
     /// <summary>
-    /// Registers a command to invoke when the tile is pressed — to open or download the file.
+    /// Registers a command to invoke when the tile is pressed — to open or download the file; the tile is pressable unless its author
+    /// set or bound <c>Clickable</c>.
     /// </summary>
     public T OnClick(string command)
         => On(EventNames.Click, command);
@@ -74,6 +70,12 @@ public abstract partial class FileTileComponent<T> : VisualComponentBase<T>
     /// </summary>
     public T OnClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
         => OnLiteral(EventNames.Click, command, arguments);
+
+    /// <summary>
+    /// Runs the command on press with the key of the item the tile is drawn for — a message's attachment, a downloads list's row.
+    /// </summary>
+    public T OnClickWithItemKey(string command, string argumentName = "id")
+        => OnClick(command, UIAction.ArgCurrentItemKey(argumentName));
 }
 
 /// <summary>

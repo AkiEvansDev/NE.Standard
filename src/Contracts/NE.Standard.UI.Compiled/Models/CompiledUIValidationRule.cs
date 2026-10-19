@@ -30,6 +30,11 @@ public sealed class CompiledUIValidationRule
     public object? Value { get; init; }
 
     /// <summary>
+    /// Gets the field whose value the rule compares with in place of <see cref="Value"/> — the same row's, or one standing in no row.
+    /// </summary>
+    public UIPropertyAddress? ValueSource { get; init; }
+
+    /// <summary>
     /// Gets the validation severity.
     /// </summary>
     public required UIValidationSeverity Severity { get; init; }

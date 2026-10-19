@@ -4,7 +4,8 @@
 // `node --test` loads this module as it is: `.ts` on the value imports.
 import { cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, ListTriggerClass, PopupRoleSelector, TooltipAttribute, TooltipMarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute, TooltipSeverityAttribute, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
 import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
-import { readComponentId } from "../addressing/dom-registry.ts";
+import { findOwningComponentAddress, readComponentId } from "../addressing/dom-registry.ts";
+import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { resolveValueHolder } from "../extensions/value-readers.ts";
 import { getIdValue, getInteractionOperator, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
@@ -37,6 +38,8 @@ const MirrorClass = "ui-validation-mark";
 const PresentationProperty = "--ui-validation-presentation";
 const SeverityColorProperty = "--ui-validation-color";
 const ValidationPropertyName = "Validation";
+/** The property a field's rules judge, and a rule against another field reads (`IInputComponent.Value`). */
+const ValuePropertyName = "Value";
 /** The properties a field's value stands in, and its bounds' (`IInputComponent.Value`, a period's end, `IBoundedInputComponent`). */
 const ValuePropertyNames: ReadonlySet<string> = new Set(["Value", "EndValue"]);
 const BoundPropertyNames: ReadonlySet<string> = new Set(["Min", "Max"]);
@@ -276,6 +279,12 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
         this.applyGivenValue(change);
         this.applyChangeTrigger(change);
+
+        // A field another's rule compares with, given a value — a settled one, as a commit is: that field is judged again.
+        if (change.propertyName === ValuePropertyName) {
+            for (const element of change.components)
+                this.rejudgeAgainst(readComponentId(element), element, true);
+        }
     }
 
     /**
@@ -326,15 +335,61 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
     private applyChangeTrigger(change: PropertyValueChange): void {
         const componentId = getIdValue(change.reference.componentId);
-        const rules = this.options.metadata.getValidationsForComponent(componentId).filter(rule =>
-            getValidationTrigger(rule.trigger) === "Change" && rule.target.propertyId === change.reference.propertyId
-        );
+        const own = this.options.metadata.getValidationsForComponent(componentId);
+
+        // A pushed value of a component with no rule allocates nothing.
+        if (own.length === 0)
+            return;
+
+        const rules = own.filter(rule => getValidationTrigger(rule.trigger) === "Change" && rule.target.propertyId === change.reference.propertyId);
 
         if (rules.length === 0)
             return;
 
         for (const element of this.options.dom.findAllComponents(componentId, change.dynamicParameters))
             this.evaluateAndApply(componentId, element, rules, change.value);
+    }
+
+    /**
+     * Judges again the rules that compare with this field's value — "Password again" as "New password" changes: the judged field of
+     * the same row, or of every row where this one stands in none. A keystroke judges a Change rule; a settled value (a commit, a
+     * leave, a value given) a Blur rule too, as the judged field's own rules hear them; a submit's rules wait for the submit. A field
+     * not yet visited keeps its verdict to itself, as its own rules' is.
+     */
+    private rejudgeAgainst(componentId: number, element: Element, settled: boolean): void {
+        const rules = this.options.metadata.getValidationsAgainst(componentId);
+
+        for (const rule of rules) {
+            const trigger = getValidationTrigger(rule.trigger);
+
+            if (trigger === "Submit" || (trigger === "Blur" && !settled))
+                continue;
+
+            const judgedId = getIdValue(rule.target.componentId);
+
+            for (const judged of this.options.dom.findEveryComponent(judgedId)) {
+                if (this.findValueSource(componentId, judged) === element)
+                    this.evaluateAndApply(judgedId, judged, [rule], this.readRuleValue(judged));
+            }
+        }
+    }
+
+    /**
+     * The field a rule of `judged` compares with: the one in the judged field's own row, else in a row around it, else in none — the
+     * compiler lets a rule name one of those alone. A judged field with no element (a package's editor) reads the one in no row.
+     */
+    private findValueSource(sourceId: number, judged: Element | null): Element | null {
+        const rows = judged === null ? [] : findOwningComponentAddress(judged)?.dynamicParameters ?? [];
+
+        for (let depth = rows.length; depth >= 0; depth--) {
+            const scope = rows.slice(0, depth);
+            const source = this.options.dom.findComponent(sourceId, scope);
+
+            if (source !== null && matchesDynamicParameters(source, scope))
+                return source;
+        }
+
+        return null;
     }
 
     private applyServerRefusal(update: ServerValidationUIUpdate): void {
@@ -442,19 +497,42 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
      */
     public entryRefusal(field: Element, current: unknown, next: unknown): FieldMarkWords | null {
         for (const rule of this.options.metadata.getValidationsForComponent(readComponentId(field))) {
-            if (toSeverityName(rule.severity) === "Error" && passesRule(current, rule) && !passesRule(next, rule))
+            if (toSeverityName(rule.severity) !== "Error")
+                continue;
+
+            const comparand = this.comparand(rule, field);
+
+            if (passesRule(current, rule, comparand) && !passesRule(next, rule, comparand))
                 return rule.message;
         }
 
         return null;
     }
 
-    /** The strongest of a component's rules — every trigger's — the value fails, or null; a stored value's problem is judged whole. */
+    /**
+     * What a rule compares with: its own value, or the value another field holds (`findValueSource`), read as its binding sends it;
+     * null where the page shows no such field.
+     */
+    private comparand(rule: WebRenderValidationMetadata, element: Element | null): unknown {
+        const sourceId = getIdValue(rule.valueSource?.componentId);
+
+        if (sourceId <= 0)
+            return rule.value;
+
+        const source = this.findValueSource(sourceId, element);
+
+        return source === null ? null : this.readRuleValue(source);
+    }
+
+    /**
+     * The strongest of a component's rules — every trigger's — the value fails, or null; a stored value's problem is judged whole. A
+     * rule against another field reads the one standing in no row: a package's editor has no row of the page's.
+     */
     public judge(componentId: number, value: unknown): FieldVerdict | null {
         let strongest: WebRenderValidationMetadata | null = null;
 
         for (const rule of this.options.metadata.getValidationsForComponent(componentId)) {
-            if (!passesRule(value, rule) && (strongest === null || SeverityRank[toSeverityName(rule.severity)] < SeverityRank[toSeverityName(strongest.severity)]))
+            if (!passesRule(value, rule, this.comparand(rule, null)) && (strongest === null || SeverityRank[toSeverityName(rule.severity)] < SeverityRank[toSeverityName(strongest.severity)]))
                 strongest = rule;
         }
 
@@ -591,8 +669,16 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         if (resolved === null)
             return;
 
-        const rules = this.options.metadata.getValidationsForComponent(resolved.componentId)
-            .filter(rule => getValidationTrigger(rule.trigger) === trigger);
+        // A keystroke is no settled value: a Blur rule against this field waits for its commit or its leave.
+        this.rejudgeAgainst(resolved.componentId, resolved.element, domEvent.type !== "input");
+
+        const own = this.options.metadata.getValidationsForComponent(resolved.componentId);
+
+        // Most fields have no rule: a keystroke in one allocates nothing.
+        if (own.length === 0)
+            return;
+
+        const rules = own.filter(rule => getValidationTrigger(rule.trigger) === trigger);
 
         if (rules.length === 0)
             return;
@@ -709,7 +795,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         }
 
         for (const rule of rules) {
-            if (passesRule(value, rule))
+            if (passesRule(value, rule, this.comparand(rule, element)))
                 failing.delete(rule);
             else
                 failing.add(rule);
@@ -723,14 +809,15 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 }
 
 /**
- * Whether a value passes a rule as validation judges it: every rule but `Required` passes on an empty value, so a field left empty —
- * tabbed through, never typed in — says only that it is required. An interaction's rules read the shared evaluator as it is.
+ * Whether a value passes a rule as validation judges it, against what the rule compares with: every rule but `Required` passes on an
+ * empty value, so a field left empty — tabbed through, never typed in — says only that it is required. An interaction's rules read
+ * the shared evaluator as it is.
  */
-function passesRule(value: unknown, rule: Pick<WebRenderValidationMetadata, "operator" | "value">): boolean {
+function passesRule(value: unknown, rule: Pick<WebRenderValidationMetadata, "operator">, comparand: unknown): boolean {
     if (getInteractionOperator(rule.operator) !== "Required" && isEmptyValue(value))
         return true;
 
-    return evaluateOperator(value, rule.operator, rule.value);
+    return evaluateOperator(value, rule.operator, comparand);
 }
 
 /** Nothing given: what `Required` refuses, but a toggle's `false`, which is a value a rule may judge. */

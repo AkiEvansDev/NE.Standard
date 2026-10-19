@@ -336,9 +336,13 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
         ResetNotifier();
     }
 
-    /// <summary>Whether a controller type declares the named command; the view compiler asks, so a missing one fails at compile.</summary>
+    /// <summary>Whether a controller type declares the named command, its commands read (and a malformed one refused) once per type.</summary>
     internal static bool DeclaresCommand(Type controllerType, string command)
         => CommandsOf(controllerType).ContainsKey(command);
+
+    /// <summary>The command a controller type declares under the name, or null; the view compiler checks an event's arguments against it.</summary>
+    internal static UICommandDescriptor? FindCommand(Type controllerType, string command)
+        => CommandsOf(controllerType).GetValueOrDefault(command);
 
     /// <summary>The commands a controller type declares, read once per type.</summary>
     private static FrozenDictionary<string, UICommandDescriptor> CommandsOf(Type controllerType)

@@ -1,7 +1,9 @@
+using System;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
+using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
@@ -42,6 +44,19 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
         _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
     }
+
+    /// <summary>
+    /// Configures the built-in default empty template — what the list says while it shows no option — throwing if a different template
+    /// has been set.
+    /// </summary>
+    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
+        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
+
+    /// <summary>
+    /// Configures the built-in default group template, throwing if a different template has been set.
+    /// </summary>
+    public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
+        => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
 
     /// <summary>
     /// Shows the button that clears the selection.

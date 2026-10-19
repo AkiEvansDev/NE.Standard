@@ -11,7 +11,8 @@ public enum UIBindingScope
     Relative = 0,
 
     /// <summary>
-    /// Resolves the binding path relative to the parent component's context.
+    /// Resolves the binding path in the scope around the component's own: up past the nearest component that defines a context (a
+    /// row's template, a menu's entry), one step out — so a control straight in a row reaches the list's scope, not the row.
     /// </summary>
     Parent = 1,
 

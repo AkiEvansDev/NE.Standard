@@ -18,9 +18,10 @@ namespace NE.Standard.UI.Primitives.Localization;
 /// argument is a literal.
 /// </para>
 /// <para>
-/// An argument is a string, a number, a <see langword="bool"/>, a nested <see cref="UIPhrase"/> (translated first) or a moment — a
+/// An argument is a string, a number, a <see langword="bool"/>, a nested <see cref="UIPhrase"/> (translated first), a moment — a
 /// <see cref="DateTimeOffset"/>, a UTC or local <see cref="DateTime"/> or a <see cref="UIMoment"/>, written by the page in the reader's
-/// zone as a timestamp is (a <see cref="DateTime"/> of unspecified kind is refused); a numeric <c>count</c> picks the key's plural form.
+/// zone as a timestamp is (a <see cref="DateTime"/> of unspecified kind is refused) — or a <see cref="UIFileSize"/>, written by the page
+/// in the reader's language as a file tile is; a numeric <c>count</c> picks the key's plural form.
 /// Equal by key, arguments and kind, so a value set again unchanged is no change.
 /// </para>
 /// </remarks>
@@ -125,6 +126,13 @@ public sealed record UIPhrase
     /// </summary>
     public static object? AsValue(object? value)
         => value is UIPhrase { IsText: true } text ? text.Key : value;
+
+    /// <summary>
+    /// Whether <paramref name="words"/> say something: a key always does, an author's text unless it is blank; none never. The one
+    /// rule every place that requires words, or shows them only where there are some, delegates to.
+    /// </summary>
+    public static bool HasWords([NotNullWhen(true)] UIPhrase? words)
+        => words is not null && (!words.IsText || !string.IsNullOrWhiteSpace(words.Key));
 
     /// <inheritdoc />
     public bool Equals(UIPhrase? other)

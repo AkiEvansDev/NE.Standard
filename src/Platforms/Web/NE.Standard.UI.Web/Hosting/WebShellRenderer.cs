@@ -238,7 +238,8 @@ public static class WebShellRenderer
                     _ = root.Attribute(WebAttributes.DrawerModeless, modeless);
             }
 
-            // The view's facts the stylesheet reads off the root, written once: neither moves after the first paint.
+            // The view's facts the stylesheet reads off the root: the bottom bar never moves after the first paint; the content-fills
+            // mark follows the content root's Height on the page (content-fills.ts).
             if (context.BottomBar)
                 _ = root.Attribute(LeftBarAttribute);
 
@@ -483,13 +484,14 @@ public static class WebShellRenderer
                         propertyId = interaction.Source.PropertyId,
                         dynamicParameterComponentIds = interaction.Source.DynamicParameterComponentIds.Select(static id => id.Value)
                     },
+                // A row's own interaction names its row with the event, and only then: every other event interaction stays its size.
                 sourceEvent = interaction.SourceEvent is null
                     ? null
-                    : new
-                    {
-                        componentId = interaction.SourceEvent.Value.ComponentId.Value,
-                        eventName = interaction.SourceEvent.Value.EventName
-                    },
+                    : Written(
+                        ("componentId", interaction.SourceEvent.Value.ComponentId.Value),
+                        ("eventName", interaction.SourceEvent.Value.EventName),
+                        ("rowKey", interaction.RowKey)
+                    ),
                 target = interaction.Target is null
                     ? null
                     : new
@@ -515,6 +517,7 @@ public static class WebShellRenderer
                 trigger = validation.Trigger.ToString(),
                 @operator = validation.Operator.ToString(),
                 value = validation.Value,
+                valueSource = validation.ValueSource is { } source ? new { componentId = source.Value } : null,
                 severity = validation.Severity.ToString(),
                 message = validation.Message
             }),
@@ -545,6 +548,7 @@ public static class WebShellRenderer
                 ("dynamicParameters", word.DynamicParameters.Count == 0 ? null : word.DynamicParameters),
                 ("key", word.Key)
             )),
+            compileWarnings = metadata.CompileWarnings.Count == 0 ? null : metadata.CompileWarnings,
             itemsFilterSort = metadata.ItemsFilterSort.Select(static itemsFilterSort => new
             {
                 componentId = itemsFilterSort.ComponentId.Value,

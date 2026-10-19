@@ -129,7 +129,7 @@ internal sealed partial class UIViewCompilationContext
 
         return interaction.SourceKind switch
         {
-            UIInteractionSourceKind.Property => BuildPropertyInteraction(interaction, target, falseValue),
+            UIInteractionSourceKind.Property => BuildPropertyInteraction(targetComponent, interaction, target, falseValue),
             UIInteractionSourceKind.Event => BuildEventInteraction(targetComponent, interaction, target),
             _ => throw new InvalidOperationException($"Unsupported interaction source kind '{interaction.SourceKind}'.")
         };
@@ -180,10 +180,12 @@ internal sealed partial class UIViewCompilationContext
     private static bool IsWholeNumber(Type type)
         => Type.GetTypeCode(type) is >= TypeCode.SByte and <= TypeCode.UInt64;
 
-    private CompiledUIInteraction BuildPropertyInteraction(UIInteraction interaction, UIPropertyAddress? target, object? falseValue)
+    private CompiledUIInteraction BuildPropertyInteraction(IVisualComponent targetComponent, UIInteraction interaction, UIPropertyAddress? target, object? falseValue)
     {
         if (interaction.SourceProperty is null)
             throw new InvalidOperationException("Property interaction source property is required.");
+
+        EnsureSourceHolds(targetComponent, interaction.ComponentId, interaction.SourceProperty.Value);
 
         return new CompiledUIInteraction
         {
@@ -202,12 +204,29 @@ internal sealed partial class UIViewCompilationContext
         };
     }
 
+    /// <summary>
+    /// Refuses a rule reading a property its source does not have: the page never hears that property change, so the rule never runs
+    /// and its target keeps its authored value — a toggle button read for <c>Value</c>, whose state is <c>Pressed</c>.
+    /// </summary>
+    private void EnsureSourceHolds(IVisualComponent targetComponent, string sourceComponentId, UIProperty sourceProperty)
+    {
+        IVisualComponent source = GetComponent(sourceComponentId);
+
+        if (!TryGetPropertyDefinition(source.TypeKey, sourceProperty, out _))
+            throw new InvalidOperationException($"Component '{targetComponent.Id}' reacts to '{sourceProperty.Name}' of '{source.Id}', which its type '{source.TypeKey}' does not have, so the rule would never run; name a property it declares.");
+    }
+
     private CompiledUIInteraction BuildEventInteraction(IVisualComponent targetComponent, UIInteraction interaction, UIPropertyAddress? target)
     {
         if (interaction.SourceEvent is null)
             throw new InvalidOperationException("Event interaction source event is required.");
 
         EnsureLifecycleSourceRunsCommand(targetComponent, interaction.ComponentId, interaction.SourceEvent);
+
+        if (interaction.RowKey is null)
+            EnsureNoCommandBeside(targetComponent, interaction.ComponentId, interaction.SourceEvent);
+        else
+            EnsureStandsInARow(targetComponent, interaction.ComponentId, interaction.RowKey);
 
         return new CompiledUIInteraction
         {
@@ -222,7 +241,8 @@ internal sealed partial class UIViewCompilationContext
             Operator = interaction.Operator,
             Value = interaction.Value,
             TrueValue = interaction.TrueValue,
-            FalseValue = interaction.FalseValue
+            FalseValue = interaction.FalseValue,
+            RowKey = interaction.RowKey
         };
     }
 
@@ -282,6 +302,38 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
+    /// Refuses an interaction on an event its source also runs a command on: the page sends the command and raises only its before
+    /// and after, so the interaction compiles, renders and never fires.
+    /// </summary>
+    private void EnsureNoCommandBeside(IVisualComponent targetComponent, string sourceComponentId, string sourceEvent)
+    {
+        if (IsLocalLifecycleEvent(sourceEvent))
+            return;
+
+        IVisualComponent source = GetComponent(sourceComponentId);
+
+        if (FindEventName(source, sourceEvent, StringComparison.Ordinal) is null)
+            return;
+
+        throw new InvalidOperationException($"Component '{targetComponent.Id}' reacts to '{sourceEvent}' of '{source.Id}', but '{source.Id}' runs a command on '{sourceEvent}', and the page runs that command instead of the interaction. Write it InteractBefore or InteractAfter(\"{sourceEvent}\", …) to run it just before the command leaves or once it is answered.");
+    }
+
+    /// <summary>
+    /// Refuses a row's own interaction (<c>OnItemClick(key, effect)</c>) on a component that stands in no row: no press of it carries a
+    /// row's key, so it would never fire. One that does takes that key's press from the command beside it.
+    /// </summary>
+    private void EnsureStandsInARow(IVisualComponent targetComponent, string sourceComponentId, string rowKey)
+    {
+        for (var id = sourceComponentId; id is not null; id = _parentByComponentId.GetValueOrDefault(id))
+        {
+            if (_slotByRootComponentId.TryGetValue(id, out UIComponentSlot? slot) && IsItemsTemplateSlot(slot.Kind))
+                return;
+        }
+
+        throw new InvalidOperationException($"Component '{targetComponent.Id}' runs an effect for the row '{rowKey}' of '{sourceComponentId}', which stands in no row, so no press of it names one; give it to an item template, as OnItemClick(key, effect) does.");
+    }
+
+    /// <summary>
     /// Resolves an interaction's effect, turning its authored component id into a compiled address.
     /// </summary>
     private ClientEffect? ResolveInteractionEffect(UIInteraction interaction)
@@ -291,9 +343,33 @@ internal sealed partial class UIViewCompilationContext
 
         // Only effects that can run without a round trip are allowed here; see ClientEffect.CanRunInInteraction.
         if (!effect.CanRunInInteraction)
-            throw new InvalidOperationException($"Client effect kind '{effect.Kind}' cannot be run by an interaction.");
+            throw new InvalidOperationException($"Client effect kind '{effect.Kind}' cannot be run by an interaction{RefusedEffectHint(effect)}.");
 
-        return effect.Resolve(this);
+        ClientEffect resolved = effect.Resolve(this);
+
+        EnsureEffectTarget(effect);
+
+        return resolved;
+    }
+
+    /// <summary>What to write instead of an effect an interaction may not run.</summary>
+    private static string RefusedEffectHint(ClientEffect effect)
+        => effect switch
+        {
+            ShowEffect or HideEffect or CollapseEffect => "; an interaction writes the target's Visibility itself (InteractOn(…, IVisualComponent.VisibilityProperty, …))",
+            ShowNotificationEffect => "; a toast with an action is offered by a command's answer, one without runs here",
+            _ => "; return it from a command"
+        };
+
+    /// <summary>Refuses an effect aimed at a component of a kind it cannot act on (<see cref="UIEffectTargets"/>).</summary>
+    private void EnsureEffectTarget(ClientEffect effect)
+    {
+        if (effect is not TargetedClientEffect targeted)
+            return;
+
+        IVisualComponent target = GetComponent(targeted.Target.Id);
+
+        UIEffectTargets.EnsureFits(effect, target.Id, target.TypeKey);
     }
 
     /// <summary>
@@ -321,7 +397,7 @@ internal sealed partial class UIViewCompilationContext
         return [.. targets];
     }
 
-    private CompiledUIValidationRule[] BuildValidations()
+    private CompiledUIValidationRule[] BuildValidations(Dictionary<string, ResolvedComponentContext> componentContexts)
     {
         List<CompiledUIValidationRule> validations = [];
 
@@ -342,6 +418,7 @@ internal sealed partial class UIViewCompilationContext
                     Trigger = validation.Trigger,
                     Operator = validation.Operator,
                     Value = validation.Value,
+                    ValueSource = ResolveValidationSource(component, validation, componentContexts),
                     Severity = validation.Severity,
                     Message = validation.Message
                 });
@@ -349,5 +426,56 @@ internal sealed partial class UIViewCompilationContext
         }
 
         return [.. validations];
+    }
+
+    /// <summary>
+    /// The field a rule compares with, refused where the page could not find one for each instance of the field: no input, the field
+    /// itself, a property other than its value, or a field in another row than the field's own (one in no row is every row's).
+    /// </summary>
+    private UIPropertyAddress? ResolveValidationSource(IVisualComponent component, UIValidationRule validation, Dictionary<string, ResolvedComponentContext> componentContexts)
+    {
+        if (validation.ValueSource is not UIPropertyReference reference)
+            return null;
+
+        IVisualComponent source = GetComponent(reference.Component.Id);
+
+        if (source is not IInputComponent || ReferenceEquals(source, component) || !reference.Property.Equals(IInputComponent.ValueProperty))
+            throw new InvalidOperationException($"Component '{component.Id}' validates against '{reference.Component.Id}.{reference.Property.Name}'; a rule compares with another input's Value.");
+
+        if (!EndsWith(ItemScopesOf(component.Id, componentContexts), ItemScopesOf(source.Id, componentContexts)))
+            throw new InvalidOperationException($"Component '{component.Id}' validates against '{source.Id}', which stands in another row; the field compared with stands in the same row, or in none.");
+
+        return new UIPropertyAddress(GetComponentId(source.Id), reference.Property);
+    }
+
+    /// <summary>The rows a component stands in, innermost first: the components up its parents that define an item's context.</summary>
+    private List<string> ItemScopesOf(string componentId, Dictionary<string, ResolvedComponentContext> componentContexts)
+    {
+        List<string> scopes = [];
+
+        for (var id = componentId; id is not null; id = _parentByComponentId.GetValueOrDefault(id))
+        {
+            if (componentContexts.TryGetValue(id, out ResolvedComponentContext context) && context.DefinesParameter)
+                scopes.Add(id);
+        }
+
+        return scopes;
+    }
+
+    /// <summary>Whether <paramref name="outer"/> is the outermost part of <paramref name="scopes"/>, both innermost first.</summary>
+    private static bool EndsWith(List<string> scopes, List<string> outer)
+    {
+        var offset = scopes.Count - outer.Count;
+
+        if (offset < 0)
+            return false;
+
+        for (var i = 0; i < outer.Count; i++)
+        {
+            if (!string.Equals(scopes[offset + i], outer[i], StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
     }
 }

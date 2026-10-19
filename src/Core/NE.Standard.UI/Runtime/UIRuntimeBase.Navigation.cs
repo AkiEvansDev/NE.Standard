@@ -30,6 +30,8 @@ internal abstract partial class UIRuntimeBase
             UICommandResult result = await RunNavigatedAsync(navigation, cancellation).ConfigureAwait(false);
             ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellation).ConfigureAwait(false);
 
+            FollowShownByCommand(invoker, result.Effects);
+
             // Answered, never pushed: the page applies it as the answer to its own going back.
             return new UICommandExecutionResult
             {

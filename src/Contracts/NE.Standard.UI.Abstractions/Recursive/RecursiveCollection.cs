@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Primitives.Annotations;
@@ -178,7 +179,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
     private static string GetItemId(T item)
     {
         if (item is not IBindableItem bindableItem)
-            throw new InvalidOperationException($"Item type '{typeof(T).Name}' does not support key lookup.");
+            throw NoKeyLookupException();
 
         // Names the type so a missing id points back to the model, not just to wherever inside Add it surfaced.
         return string.IsNullOrWhiteSpace(bindableItem.Id)
@@ -188,6 +189,9 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
                 "'UIValueItem<T>' or 'UIOptionValue<T>' when the value itself is the identity.")
             : bindableItem.Id;
     }
+
+    private static InvalidOperationException NoKeyLookupException()
+        => new($"Item type '{typeof(T).Name}' does not support key lookup.");
 
     private string[] GetItemIdsNoLock(int index, int count)
     {
@@ -436,6 +440,24 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
     int IRecursiveCollection.IndexOf(object item)
         => item is T typed ? IndexOf(typed) : -1;
 
+    /// <summary>
+    /// Gets the item held under <paramref name="key"/>, from the collection's own index by key.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The item type has no key: it is not an <see cref="IBindableItem"/>.</exception>
+    public bool TryGet(string key, [NotNullWhen(true)] out T? item)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        Dictionary<string, T> itemsById = KeyIndex;
+
+        lock (_sync)
+            return itemsById.TryGetValue(key, out item);
+    }
+
+    /// <summary>The index by key; refused for an item type that has none, where a key would silently find nothing.</summary>
+    private Dictionary<string, T> KeyIndex
+        => _itemsById ?? throw NoKeyLookupException();
+
     /// <inheritdoc />
     public void Insert(int index, T item)
         => InsertCore(index, item);
@@ -456,6 +478,31 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
         }
 
         NotifyRemoved(item, change);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Removes the item held under <paramref name="key"/>, found by the collection's own index by key, returning whether it was there.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The item type has no key: it is not an <see cref="IBindableItem"/>.</exception>
+    public bool Remove(string key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        Dictionary<string, T> itemsById = KeyIndex;
+        T? removedItem;
+        RecursiveChange change;
+
+        lock (_sync)
+        {
+            if (!itemsById.TryGetValue(key, out removedItem))
+                return false;
+
+            change = RemoveAtNoLock(_indicesByItem[removedItem]);
+        }
+
+        NotifyRemoved(removedItem, change);
 
         return true;
     }
@@ -641,30 +688,63 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
         ArgumentOutOfRangeException.ThrowIfNegative(oldIndex);
         ArgumentOutOfRangeException.ThrowIfNegative(newIndex);
 
-        T movedItem;
-        RecursiveChange change;
+        RecursiveChange? change;
 
         lock (_sync)
         {
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(oldIndex, _items.Count);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(newIndex, _items.Count);
 
-            if (oldIndex == newIndex)
-                return;
-
-            movedItem = _items[oldIndex];
-            var itemIds = GetItemIdsNoLock(oldIndex, count: 1);
-
-            _items.RemoveAt(oldIndex);
-            _items.Insert(newIndex, movedItem);
-
-            // Only the items between the two places moved; past the farther one each stands where it stood.
-            ReindexRangeNoLock(Math.Min(oldIndex, newIndex), Math.Max(oldIndex, newIndex));
-
-            change = RecursiveChange.Move(RecursivePath.Empty, oldIndex, newIndex, count: 1, itemIds);
+            change = MoveNoLock(oldIndex, newIndex);
         }
 
-        Notify(change);
+        if (change is not null)
+            Notify(change);
+    }
+
+    /// <summary>
+    /// Moves the item held under <paramref name="key"/> to <paramref name="index"/>, clamped to the collection, and emits a collection
+    /// move change; returns whether the collection held it.
+    /// </summary>
+    /// <remarks>Clamped rather than refused: a drop names the place the reader let go, which a removal meanwhile may have put past the end.</remarks>
+    /// <exception cref="InvalidOperationException">The item type has no key: it is not an <see cref="IBindableItem"/>.</exception>
+    public bool Move(string key, int index)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        Dictionary<string, T> itemsById = KeyIndex;
+        RecursiveChange? change;
+
+        lock (_sync)
+        {
+            if (!itemsById.TryGetValue(key, out T? item))
+                return false;
+
+            change = MoveNoLock(_indicesByItem[item], Math.Clamp(index, 0, _items.Count - 1));
+        }
+
+        if (change is not null)
+            Notify(change);
+
+        return true;
+    }
+
+    /// <summary>Moves the item at <paramref name="oldIndex"/> to <paramref name="newIndex"/>; null where it already stands there.</summary>
+    private RecursiveChange? MoveNoLock(int oldIndex, int newIndex)
+    {
+        if (oldIndex == newIndex)
+            return null;
+
+        T movedItem = _items[oldIndex];
+        var itemIds = GetItemIdsNoLock(oldIndex, count: 1);
+
+        _items.RemoveAt(oldIndex);
+        _items.Insert(newIndex, movedItem);
+
+        // Only the items between the two places moved; past the farther one each stands where it stood.
+        ReindexRangeNoLock(Math.Min(oldIndex, newIndex), Math.Max(oldIndex, newIndex));
+
+        return RecursiveChange.Move(RecursivePath.Empty, oldIndex, newIndex, count: 1, itemIds);
     }
 
     /// <inheritdoc />

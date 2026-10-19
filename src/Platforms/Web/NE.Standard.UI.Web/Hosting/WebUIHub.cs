@@ -14,7 +14,6 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
-using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Sessions;
@@ -22,7 +21,6 @@ using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
-using NE.Standard.UI.Shell.Navigation;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Client;
@@ -398,9 +396,7 @@ internal sealed partial class WebUIHub : Hub
 
         // No session the store holds (none presented, an unknown one, one gone idle, a store emptied by a restart): one issued here
         // could never reach the browser, whose cookie only a page load writes — so the page reloads, and its render issues one.
-        UIViewResolution? view = _host is UIHost host
-            ? await host.ResolvePresentedViewAsync(navigation, session, Context.ConnectionAborted).ConfigureAwait(false)
-            : await _host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Attach, Context.ConnectionAborted).ConfigureAwait(false);
+        UIViewResolution? view = await _host.ResolvePresentedViewAsync(navigation, session, Context.ConnectionAborted).ConfigureAwait(false);
 
         if (view is null)
             return ReloadResult;
@@ -415,9 +411,9 @@ internal sealed partial class WebUIHub : Hub
 
         // A page going to another runtime of its route leaves the one it holds, as a closing connection does; an address that
         // resolved to another route — a redirect, a refusal — is loaded instead. Naming the runtime it holds, it attaches again.
-        if (request.SwitchRuntime && TryGetHandle(out UIHandle? held) && !NamesRuntimeOf(held, view, request.ClientWindowId))
+        if (request.SwitchRuntime && TryGetHandle(out UIHandle? held) && !_host.NamesRuntimeOf(held, view, request.ClientWindowId))
         {
-            if (_host is not UIHost || !IsRouteOf(held, view, request.ClientWindowId))
+            if (!IsRouteOf(held, view, request.ClientWindowId))
             {
                 Log.SwitchRefused(_logger, Context.ConnectionId, route);
 
@@ -499,12 +495,7 @@ internal sealed partial class WebUIHub : Hub
 
     /// <summary>Whether this connection may attach: one holding no handle may, one holding a handle only to that handle's runtime from its tab.</summary>
     private bool MayAttach(UIViewResolution view, string clientWindowId)
-        => !TryGetHandle(out UIHandle? held) || NamesRuntimeOf(held, view, clientWindowId);
-
-    private bool NamesRuntimeOf(UIHandle held, UIViewResolution view, string clientWindowId)
-        => _host is UIHost host
-            ? host.NamesRuntimeOf(held, view, clientWindowId)
-            : string.Equals(held.Instance.WindowId, clientWindowId, StringComparison.Ordinal);
+        => !TryGetHandle(out UIHandle? held) || _host.NamesRuntimeOf(held, view, clientWindowId);
 
     /// <summary>Whether the view resolved for an attach from the held page's tab is of the held page's route, with a controller.</summary>
     private static bool IsRouteOf(UIHandle held, UIViewResolution view, string clientWindowId)
@@ -598,8 +589,8 @@ internal sealed partial class WebUIHub : Hub
         UIClientState state = request.ToClientState();
 
         // A page with no controller holds no handle, and nothing reads what it reports.
-        if (_host is UIHost host && TryGetHandle(out UIHandle? handle))
-            host.ReportClientState(handle, state);
+        if (TryGetHandle(out UIHandle? handle))
+            _host.ReportClientState(handle, state);
 
         return Task.CompletedTask;
     }
@@ -657,13 +648,10 @@ internal sealed partial class WebUIHub : Hub
     /// </summary>
     private async Task ApplyStoredSessionAsync(UserSessionState written)
     {
-        if (_host is not UIHost host)
-            return;
-
         if (TryGetHandle(out UIHandle? handle))
-            await host.ApplySessionChangeAsync(handle, written, Context.ConnectionAborted).ConfigureAwait(false);
+            await _host.ApplySessionChangeAsync(handle, written, Context.ConnectionAborted).ConfigureAwait(false);
         else
-            await host.ReachSessionAsync(written, origin: null, originRuntime: null, Context.ConnectionAborted).ConfigureAwait(false);
+            await _host.ReachSessionAsync(written, Context.ConnectionAborted).ConfigureAwait(false);
     }
 
     /// <summary>

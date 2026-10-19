@@ -120,6 +120,26 @@ test("a disabled or loading surface is no stop and takes no key, and says it is 
     assert.equal(clicks.get(disabled), 0);
 });
 
+test("one that links to an address is the browser's anchor: no role or stop of the engine's, and no key pressed for it", () => {
+    const link = FakeElement.of("ui-card ui-surface--clickable", { "data-ui-id": "7", href: "/servers/7" }, "a").append(FakeElement.of("ui-text"));
+    const inert = FakeElement.of("ui-surface ui-surface--clickable ui-disabled", { "data-ui-id": "8", tabindex: "0" }, "a");
+    const clicks = start(link, inert);
+    const enter = new FakeKeyboardEvent("Enter", inert);
+    const space = new FakeKeyboardEvent(" ", link);
+
+    inert.dispatchEvent(enter);
+    link.dispatchEvent(space);
+    link.dispatchEvent(keyUp(" ", link));
+
+    assert.equal(link.hasAttribute("role"), false);
+    assert.equal(link.hasAttribute("tabindex"), false);
+    assert.equal(inert.getAttribute("tabindex"), "0", "a disabled link keeps the stop its render gave it, for its tooltip");
+    assert.equal(enter.defaultPrevented, false);
+    assert.equal(space.defaultPrevented, false);
+    assert.equal(clicks.get(inert), 0);
+    assert.equal(clicks.get(link), 0);
+});
+
 test("a picture of a surface, with no id, is left alone", () => {
     const copy = FakeElement.of("ui-surface ui-surface--clickable");
 

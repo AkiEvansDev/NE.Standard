@@ -63,13 +63,19 @@ public static class UIMenuItems
     /// <summary>An entry that opens a submenu of more actions, <paramref name="items"/>.</summary>
     public static MenuItem More(IEnumerable<MenuItem> items, string id = "more")
     {
-        MenuItem more = Create(UIStandardAction.More, id);
+        ArgumentNullException.ThrowIfNull(items);
+
+        MenuItem more = More(id);
 
         foreach (MenuItem item in items)
             more.Items.Add(item);
 
         return more;
     }
+
+    /// <summary>The entry that opens a submenu, its entries added later — a controller filling <c>Items</c> as it shapes a row's menu.</summary>
+    public static MenuItem More(string id = "more")
+        => Create(UIStandardAction.More, id);
 
     /// <summary>Load it afresh.</summary>
     public static MenuItem Refresh(string id = "refresh")

@@ -32,7 +32,7 @@ const invariant = new Map<FakeElement, string>();
 
 const engine = new ValidationEngine({
     root: real<ParentNode>(fakeDocument.body),
-    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => rules, getValidationTarget: () => undefined }),
+    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => rules, getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
     dom: stub({
         resolveNearestComponent: (target: FakeElement) => {
             const element = target.closest(`[data-ui-id='${ComponentId}']`);

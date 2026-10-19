@@ -27,8 +27,8 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
     public bool? Wrap { get; set; }
 
     /// <summary>
-    /// Gets or sets the content's edge, start or end, on which the panel's first or last icon-only ghost or link button stands its
-    /// glyph rather than its box.
+    /// Gets or sets the content's edge, start or end, on which the panel's first or last quiet button stands what it shows at rest
+    /// rather than its box: a ghost's or link's icon glyph or words, the theme switcher's glyph, the language switcher's press.
     /// </summary>
     /// <remarks>Render-time only. The button's wash spills past the edge by the glyph's inset, so the host wants that much padding there.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
@@ -48,6 +48,22 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public UIResponsive<UIFieldBoxAlignment>? AlignWithFieldBoxes { get; set; }
+
+    /// <summary>
+    /// Stands the panel's first child's first line on the middle of a button of this size beside it — a name that wraps, its first line
+    /// level with the buttons at its row's end — whatever the theme's line.
+    /// </summary>
+    /// <remarks>Render-time only. Drawn as the first child's top margin, half the button's height less its own line's.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
+    public UIButtonSize? FirstLineOnControl { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the panel's first child stands in a field's caption row — at least a caption's line tall — so a label over a
+    /// control stands the control level with captioned fields' boxes beside it, whatever line the theme gives either role.
+    /// </summary>
+    /// <remarks>Render-time only. Drawn as the first child's least height, which an authored <c>MinHeight</c> replaces.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
+    public bool? FirstChildAsCaption { get; set; }
 }
 
 /// <summary>

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
@@ -203,6 +204,12 @@ public interface IVisualComponent : IBindableComponent
     /// Registers a command for one of the component's events, with UI action arguments.
     /// </summary>
     IVisualComponent On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments);
+
+    /// <summary>
+    /// Runs a client effect on one of the component's events raised in the row whose key is <paramref name="rowKey"/> — one menu entry's
+    /// press, on the entries' template — in place of the command the event runs for every other row.
+    /// </summary>
+    IVisualComponent InteractOnRow(string eventName, string rowKey, ClientEffect effect);
 
     /// <summary>Gets the component shown when this one is right-clicked, normally a <c>MenuComponent</c>.</summary>
     /// <remarks>

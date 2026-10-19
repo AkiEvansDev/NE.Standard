@@ -140,6 +140,9 @@ internal abstract partial class UIRuntimeBase
 
         _attachedHandles[instance.Id] = handle;
 
+        // Attached anew, a page draws what a show opened as authored: hidden, as the server holds it again.
+        _shownByCommand.Forget(instance.Id);
+
         if (added)
             _attachedInstanceIdsSnapshot = [.. _attachedHandles.Keys];
 
@@ -185,6 +188,7 @@ internal abstract partial class UIRuntimeBase
         {
             _ = _watermarks.Remove(instanceId);
             _ = _awaitingSnapshot.Remove(instanceId);
+            _shownByCommand.Forget(instanceId);
 
             if (!_attachedHandles.Remove(instanceId, out removed))
                 return;

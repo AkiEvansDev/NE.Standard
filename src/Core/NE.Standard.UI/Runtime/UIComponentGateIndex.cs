@@ -43,9 +43,13 @@ internal enum UIComponentGateKind
 /// </summary>
 /// <remarks>
 /// <see cref="FixedPath"/> is the bound path where the binding takes no row keys, the same for every read;
-/// <see cref="DynamicCount"/> is how many of the target's row keys, outermost first, the binding reads.
+/// <see cref="DynamicCount"/> is how many of the target's row keys, outermost first, the binding reads. <see cref="Owner"/> is the
+/// component whose static value it is, which a command's show lifts for its runtime.
 /// </remarks>
-internal sealed record UIComponentGate(UIComponentGateKind Kind, CompiledUIBinding? Binding, RecursivePath? FixedPath, int DynamicCount);
+internal sealed record UIComponentGate(UIComponentGateKind Kind, CompiledUIBinding? Binding, RecursivePath? FixedPath, int DynamicCount)
+{
+    public UIComponentId Owner { get; init; }
+}
 
 /// <summary>
 /// A component's gates: its own and its ancestors' that close it whole, and its own for a write or the value written.
@@ -130,8 +134,10 @@ internal readonly record struct UIRowGates(UIComponentId? TemplateRootId, UIRowA
 /// </summary>
 /// <remarks>
 /// Only what the server can know goes in: a static value, or a binding to the controller. An interaction's state
-/// (<c>EnabledWhen</c>, <c>ShownWhen</c>) lives on the client alone. A component nothing closes has no entry, so a view that
-/// closes nothing and draws no rows costs one count read per command or value.
+/// (<c>EnabledWhen</c>, <c>ShownWhen</c>, a panel revealed on hover) lives on the client alone, so a property an interaction writes is
+/// no static gate: its authored value is only where the page starts. A command's show the runtime sends, and lifts the static
+/// visibility for itself. A component nothing closes has no entry, so a view that closes nothing and draws no rows
+/// costs one count read per command or value.
 /// </remarks>
 internal sealed class UIComponentGateIndex
 {
@@ -227,10 +233,17 @@ internal sealed class UIComponentGateIndex
             return null;
 
         if (!value.IsBind)
-            return Closes(kind, value.Value) ? new UIComponentGate(kind, Binding: null, FixedPath: null, DynamicCount: 0) : null;
+            return Closes(kind, value.Value) && !IsInteractionTarget(view, componentId, property) ? new UIComponentGate(kind, Binding: null, FixedPath: null, DynamicCount: 0) { Owner = componentId } : null;
 
         return CreateBoundGate(view, componentId, property, kind);
     }
+
+    /// <summary>
+    /// Whether an interaction writes the property: the page may open what the author closed (a panel shown on hover, a field enabled by a
+    /// switch), which the server never hears, so the authored value holds nothing it could refuse by.
+    /// </summary>
+    private static bool IsInteractionTarget(CompiledView view, UIComponentId componentId, UIProperty property)
+        => view.Interactions.GetByTarget(new UIPropertyAddress(componentId, property)).Count > 0;
 
     /// <summary>The gate a property bound to the controller makes; none for a binding to anything else, which the server cannot read.</summary>
     private static UIComponentGate? CreateBoundGate(CompiledView view, UIComponentId componentId, UIProperty property, UIComponentGateKind kind)
@@ -323,7 +336,7 @@ internal sealed class UIComponentGateIndex
 
         if (!value.IsBind)
         {
-            if ((value.Value ?? unset) is not { } read)
+            if ((value.Value ?? unset) is not { } read || IsInteractionTarget(view, componentId, property))
                 return null;
 
             if (valueType is null)

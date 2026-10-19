@@ -26,12 +26,17 @@ public sealed class ShowNotificationEffect : ClientEffect
     }
 
     /// <summary>
-    /// Creates an effect that shows a notification with a key and its arguments, and severity.
+    /// Creates an effect that shows a notification with a key and its arguments — or the author's text, which may not be empty — and
+    /// severity.
     /// </summary>
     [JsonConstructor]
     public ShowNotificationEffect(UIPhrase message, UIColorStyle severity = UIColorStyle.Info)
     {
         ArgumentNullException.ThrowIfNull(message);
+
+        // A toast with no words says nothing of what happened.
+        if (!UIPhrase.HasWords(message))
+            throw new ArgumentException("A notification needs words.", nameof(message));
 
         Message = message;
         Severity = severity;
@@ -39,6 +44,13 @@ public sealed class ShowNotificationEffect : ClientEffect
 
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.ShowNotification;
+
+    /// <summary>
+    /// A toast with no action is drawn by the page alone — a "Copied." beside a copy — so an interaction may raise it; an action's
+    /// command is offered by the runtime as the effect is sent, which only a command's answer does.
+    /// </summary>
+    [JsonIgnore]
+    public override bool CanRunInInteraction => Action is null;
 
     /// <summary>
     /// Gets the notification's words: the author's text (<see cref="UIPhrase.IsText"/>) or a phrase.

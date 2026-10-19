@@ -47,7 +47,7 @@ public static class InputComponentExtensions
     {
         ArgumentNullException.ThrowIfNull(help);
 
-        if (help.IsText && string.IsNullOrWhiteSpace(help.Key))
+        if (!UIPhrase.HasWords(help))
             throw new ArgumentException("A help needs words.", nameof(help));
     }
 
@@ -77,6 +77,13 @@ public static class InputComponentExtensions
         => component.On(EventNames.Change, command, arguments);
 
     /// <summary>
+    /// Registers a change event command with literal argument values.
+    /// </summary>
+    public static T OnChangeLiteral<T>(this T component, string command, params KeyValuePair<string, object?>[] arguments)
+        where T : VisualComponentBase<T>, IInputComponent, IUIComponentDefinition
+        => component.OnLiteral(EventNames.Change, command, arguments);
+
+    /// <summary>
     /// Registers a blur event command.
     /// </summary>
     public static T OnBlur<T>(this T component, string command) where T : VisualComponentBase<T>, IInputComponent, IUIComponentDefinition
@@ -88,6 +95,13 @@ public static class InputComponentExtensions
     public static T OnBlur<T>(this T component, string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         where T : VisualComponentBase<T>, IInputComponent, IUIComponentDefinition
         => component.On(EventNames.Blur, command, arguments);
+
+    /// <summary>
+    /// Registers a blur event command with literal argument values.
+    /// </summary>
+    public static T OnBlurLiteral<T>(this T component, string command, params KeyValuePair<string, object?>[] arguments)
+        where T : VisualComponentBase<T>, IInputComponent, IUIComponentDefinition
+        => component.OnLiteral(EventNames.Blur, command, arguments);
 
     /// <summary>
     /// Adds a required-value validation rule; its message is the author's text or a key.
@@ -163,6 +177,30 @@ public static class InputComponentExtensions
     {
         ArgumentNullException.ThrowIfNull(message);
         component.AddValidation(new UIValidationRule(trigger, @operator, value, severity, message));
+        return component;
+    }
+
+    /// <summary>
+    /// Adds a rule comparing the value with another field's — "Password again" <c>Equal</c> to "New password" — judged in the browser as
+    /// either changes; its message is the author's text or a key.
+    /// </summary>
+    public static T ValidateAgainst<T>(this T component, string componentId, UIComparisonOperator @operator, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        return component.ValidateAgainst(componentId, @operator, UIPhrase.Text(message), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds a rule comparing the value with another field's, whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T ValidateAgainst<T>(this T component, string componentId, UIComparisonOperator @operator, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(componentId);
+        ArgumentNullException.ThrowIfNull(message);
+
+        component.AddValidation(new UIValidationRule(trigger, @operator, new UIPropertyReference(componentId, IInputComponent.ValueProperty), severity, message));
         return component;
     }
 }

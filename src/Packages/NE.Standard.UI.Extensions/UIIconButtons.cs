@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
@@ -69,13 +70,18 @@ public static class UIIconButtons
     /// (<see cref="UIMenuItems"/>) where they fit; give it <c>.OnItemClickWithItemKey(command)</c> for the entry's id.
     /// </summary>
     public static SplitButtonComponent More(IEnumerable<MenuItem> items)
+        => More().SetItems(items);
+
+    /// <summary>
+    /// The ⋮ with no entries of its own, for entries the controller holds: <c>UIIconButtons.More().BindItems(path)</c> — a row's own actions.
+    /// </summary>
+    public static SplitButtonComponent More()
         => new SplitButtonComponent()
             .SetMode(UISplitButtonMode.Menu)
             .SetShowChevron(false)
             .SetType(UIButtonType.Ghost)
             .SetIcon(UIStandardAction.More.Glyph)
-            .SetTooltip(UIStandardAction.More.Word)
-            .SetItems(items);
+            .SetTooltip(new UIPhrase(UIStandardAction.More.Word));
 
     /// <summary>Load it afresh.</summary>
     public static ButtonComponent Refresh()
@@ -147,8 +153,9 @@ public static class UIIconButtons
 
     private static ButtonComponent Create(UIStandardAction action)
     {
-        ButtonComponent button = UIButtons.Icon(action.Glyph, action.Word);
+        ButtonComponent button = UIButtons.Icon(action.Glyph, new UIPhrase(action.Word));
 
-        return action.IsDanger ? button.SetIconColor(UIThemeColor.Danger) : button;
+        // Icon's button is a bare one, so a danger is its glyph's ink.
+        return action.ButtonInk(UIButtonType.Ghost) is UIThemeColor ink ? button.SetIconColor(ink) : button;
     }
 }

@@ -27,8 +27,6 @@ internal static class SwitcherChromeRenderer
     /// <summary>The field shape's root.</summary>
     public const string FieldClassName = "ui-switcher-field";
 
-    private static readonly WebDomOperation[] IconSizeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)];
-
     // The caption's words, and the box's name with them: the box is the field's control, as a select's trigger is.
     private static readonly WebDomOperation[] FieldTitleOperations = [WebDomOperation.Text(), WebDomOperation.Attribute("aria-label", $".{WebClassNames.SelectTrigger}")];
 
@@ -137,14 +135,13 @@ internal static class SwitcherChromeRenderer
         BorderStyleRenderer.RenderBorderStyle(context, root);
     }
 
-    /// <summary>A glyph drawn from <paramref name="property"/> at the switcher's icon size.</summary>
-    public static void RenderGlyph(WebRenderContext context, IHtmlElementBuilder icon, UIProperty property)
+    /// <summary>
+    /// A glyph drawn from <paramref name="property"/> at the switcher's icon size, which <paramref name="marksRoot"/> writes on the
+    /// switcher's root too, as a text's root carries its glyph's size: a glyph edge hangs the theme switcher by its glyph.
+    /// </summary>
+    public static void RenderGlyph(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder icon, UIProperty property, bool marksRoot = true)
     {
-        _ = WebComponentRendererBase.RenderProperty<UIIconSize?>(context, icon, ISwitcherComponent.IconSizeProperty, static (target, value) =>
-        {
-            if (value is UIIconSize iconSize)
-                _ = target.Class(WebClassNames.IconSize(iconSize));
-        }, IconSizeOperations);
+        IconValueRenderer.RenderGlyphSize(context, root, icon, ISwitcherComponent.IconSizeProperty, marksRoot);
 
         // The marker as well as the class: `.ui-icon::before` stays hidden until `data-ui-icon` says a glyph is there.
         _ = WebComponentRendererBase.RenderProperty<string?>(context, icon, property, static (target, value) =>

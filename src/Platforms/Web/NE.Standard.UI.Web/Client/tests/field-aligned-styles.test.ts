@@ -49,9 +49,19 @@ test("the band under the line is as tall as a field's box of the size written, t
     assert.match(css, /\.ui-input--large > :is\([^)]*\) \{\s*min-height: 3rem;/);
 });
 
-test("the content is centred on the band: a column along its axis, a row's children across it unless they say otherwise", () => {
-    assert.match(declarations(".ui-stack-panel--field-aligned.ui-orientation--vertical").join(""), /justify-content: center;/);
+test("a row's children are centred across the band unless they say otherwise", () => {
     assert.match(declarations(".ui-stack-panel--field-aligned.ui-orientation--horizontal > [data-ui-id]").join(""), /align-self: var\(--ui-align-v, center\);/);
+});
+
+test("a column stands its first child alone on the band and the rest under it, as a field's message hangs under its box", () => {
+    const column = declarations(".ui-stack-panel--field-aligned.ui-orientation--vertical").join("");
+
+    assert.match(column, /display: grid;/);
+    assert.match(column, new RegExp(`grid-template-rows: minmax\\(${literal(Box)}, auto\\);`));
+    assert.doesNotMatch(column, /justify-content: center/, "centred together, a control and its note stood the control half the note high");
+    assert.match(declarations(".ui-stack-panel.ui-stack-panel--field-aligned.ui-orientation--vertical > [data-ui-id]:first-child").join(""), /align-self: center;/);
+    // Across the column HorizontalAlignment is still the child's, on the grid's own axis.
+    assert.match(declarations(".ui-stack-panel.ui-stack-panel--field-aligned.ui-orientation--vertical > [data-ui-id]").join(""), /justify-self: var\(--ui-align-h, normal\);/);
 });
 
 test("each tier is fenced below its breakpoint, so a row's cells stacked on a phone stand at the top", () => {

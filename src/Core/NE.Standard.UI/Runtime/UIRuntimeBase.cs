@@ -33,6 +33,9 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
 
         [LoggerMessage(EventId = 4, Message = "A value for '{Property}' of {TypeKey} '{ComponentId}' was refused: it, or a container around it, is hidden at every width, and a hidden component takes no value from the page.")]
         public static partial void HiddenWriteRefused(ILogger logger, LogLevel level, string property, string typeKey, string componentId);
+
+        [LoggerMessage(EventId = 5, Level = LogLevel.Error, Message = "A '{Kind}' effect was dropped, since the page could not carry it out: {Reason}")]
+        public static partial void RuntimeEffectDropped(ILogger logger, Exception exception, string kind, string reason);
     }
 
     /// <summary>

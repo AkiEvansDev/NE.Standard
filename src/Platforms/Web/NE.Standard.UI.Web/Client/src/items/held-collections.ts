@@ -88,26 +88,19 @@ export class HeldCollections {
     }
 
     /**
-     * Writes a held row's item anew — `key`'s, in the rows' own collections standing in `dynamicParameters` of the components
-     * `belongs` names — as a patch to the row's part writes the item a drawn row holds.
+     * Writes `key`'s held item anew in a component's collection — shared where `dynamicParameters` names no row, else that row's own
+     * — as a patch to the part writes the item a drawn row holds; false where none holds it.
      */
-    public writeRowItem(dynamicParameters: readonly unknown[], key: string, belongs: (componentId: number) => boolean, write: (item: unknown) => unknown): boolean {
-        let written = false;
+    public writeItem(componentId: number, dynamicParameters: readonly unknown[], key: string, write: (item: unknown) => unknown): boolean {
+        const rows = dynamicParameters.length === 0 ? this.collections.get(componentId) : this.rowCollections.get(rowCollectionKey(componentId, dynamicParameters))?.rows;
+        const at = rows === undefined ? -1 : rows.findIndex(row => row.key === key);
 
-        for (const held of this.rowCollections.values()) {
-            if (!belongs(held.componentId) || held.dynamicParameters.length !== dynamicParameters.length || !startsWith(held.dynamicParameters, dynamicParameters))
-                continue;
+        if (rows === undefined || at < 0)
+            return false;
 
-            const at = held.rows.findIndex(row => row.key === key);
+        rows[at] = { key, item: write(rows[at].item) };
 
-            if (at < 0)
-                continue;
-
-            held.rows[at] = { key, item: write(held.rows[at].item) };
-            written = true;
-        }
-
-        return written;
+        return true;
     }
 
     /** Every held row, shared or a row's own, with the component holding it. */

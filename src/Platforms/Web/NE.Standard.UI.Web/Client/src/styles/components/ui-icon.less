@@ -84,8 +84,9 @@
     background-color: color-mix(in srgb, currentColor @ui-own-tint-share, transparent);
 }
 
-// A round picture icon with no picture (icon-stand-in.ts): the neutral circle where the picture would stand, its fallback glyph laid
-// over it. Shown whether or not a value drew, after the picture's own form, which it replaces.
+// A picture icon with no picture (icon-stand-in.ts): the ground where the picture would stand — the wash in the picture's corners, as a
+// picture box's, or a round one's neutral circle — its fallback glyph laid over it. Shown whether or not a value drew, after the
+// picture's own form, which it replaces.
 .ui-icon[data-ui-icon-failed] {
     position: relative;
 }
@@ -93,12 +94,16 @@
     .ui-icon[data-ui-icon-failed]::before {
         content: "";
         display: block;
+        background: var(--ui-wash-hover);
+    }
+
+    .ui-icon--circle[data-ui-icon-failed]::before {
         border-radius: 50%;
         background: @ui-stand-in-ground;
     }
 
-// The glyph over a round picture's place, a picture icon's or a picture box's: as large as the circle it stands on allows, by the
-// circle's own size, since a tile's or a box's is no em of the words around it.
+// The glyph over a picture's place, a picture icon's or a picture box's: as large as the ground it stands on allows, by the ground's
+// own size, since a tile's or a box's is no em of the words around it.
 .ui-icon.ui-icon-stand-in {
     position: absolute;
     inset: 0;

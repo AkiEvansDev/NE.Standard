@@ -7,6 +7,7 @@ using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 
@@ -46,10 +47,18 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
     public bool? ShowOverflow { get; set; }
 
     /// <summary>
-    /// Adds a tab with a plain caption.
+    /// Adds a tab with a plain caption; a string is the author's text, a key with arguments a phrase.
     /// </summary>
-    public T AddTab(string key, string title, IVisualComponent page)
-        => AddTab(key, new TabCaptionComponent().SetTitle(title), page);
+    public T AddTab(string key, UIPhrase title, IVisualComponent page)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+
+        // A tab no one can read the name of is no tab: the caption's words are its one handle.
+        if (!UIPhrase.HasWords(title))
+            throw new ArgumentException("A tab needs a caption.", nameof(title));
+
+        return AddTab(key, new TabCaptionComponent().SetTitle(title), page);
+    }
 
     /// <summary>
     /// Adds a tab whose caption is configured by the caller.

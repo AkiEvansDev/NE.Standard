@@ -30,7 +30,17 @@ public interface ITabItemComponent : IVisualComponent
     ITabItemComponent OnRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments);
 
     /// <summary>
+    /// Adds a handler that invokes the specified command with literal argument values when this tab's close is pressed.
+    /// </summary>
+    ITabItemComponent OnRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments);
+
+    /// <summary>
     /// Adds a handler that invokes the specified command when this tab's caption is renamed in place.
     /// </summary>
     ITabItemComponent OnRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments);
+
+    /// <summary>
+    /// Adds a handler that invokes the specified command with literal argument values when this tab's caption is renamed in place.
+    /// </summary>
+    ITabItemComponent OnRenameLiteral(string command, params KeyValuePair<string, object?>[] arguments);
 }

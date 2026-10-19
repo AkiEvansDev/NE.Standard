@@ -35,6 +35,11 @@
         flex-basis: 100%;
     }
 
+// ShowEmptyTemplate off: a group with no option says nothing; hidden, so a bound flag turned on shows it again.
+.ui-radio-group--no-empty > .ui-radio-group__host > [data-ui-empty-placeholder] {
+    display: none;
+}
+
 // An option is the same shape a checkbox is and carries the same text body: its template is a whole TextComponent.
 .ui-radio-group__item {
     display: inline-flex;

@@ -184,8 +184,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
             UIButtons.Pair(
                 UIButtons.Ghost("Back to plans"),
                 UIButtons.Primary("Subscribe")
-                    .OnSubmit(FormId, nameof(CheckoutController.PlaceOrderAsync))
-                    .ShowLoadingDuring(EventNames.Click)
+                    .OnSubmitShowingLoading(FormId, nameof(CheckoutController.PlaceOrderAsync))
             )
         );
 
@@ -204,9 +203,9 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                 .BindValidation(nameof(CheckoutController.PromoNotice))
                 .OnChange(nameof(CheckoutController.PromoChanged)),
             // The server's verdict on the code, kept in the summary until the code changes; shown later, each is read out.
-            UIMessage.Create(UIMessageSeverity.Success, null, new ParagraphComponent().BindDescription(nameof(CheckoutController.PromoVerdict)))
+            UIMessage.BoundCreate(UIMessageSeverity.Success, null, nameof(CheckoutController.PromoVerdict))
                 .BindVisibility(nameof(CheckoutController.PromoAppliedVisibility)),
-            UIMessage.Create(UIMessageSeverity.Danger, null, new ParagraphComponent().BindDescription(nameof(CheckoutController.PromoVerdict)))
+            UIMessage.BoundCreate(UIMessageSeverity.Danger, null, nameof(CheckoutController.PromoVerdict))
                 .BindVisibility(nameof(CheckoutController.PromoRefusedVisibility)),
             new SeparatorComponent(),
             UIDetails.Amount("Subtotal", nameof(CheckoutController.SubtotalLine)),
@@ -218,11 +217,11 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
 
     /// <summary>What replaces the form once the order is placed.</summary>
     private static SurfaceComponent CreatePlaced()
-        => UIPage.Outcome(
+        => UIPage.BoundOutcome(
             DemoIcons.Outline(DemoIcons.BadgeCheck),
             UIMessageSeverity.Success,
-            "Thank you",
-            new ParagraphComponent().BindDescription(nameof(CheckoutController.PlacedLine)),
+            nameof(CheckoutController.PlacedTitle),
+            nameof(CheckoutController.PlacedLine),
             UIButtons.Ghost("Back to the catalogue")
         );
 }

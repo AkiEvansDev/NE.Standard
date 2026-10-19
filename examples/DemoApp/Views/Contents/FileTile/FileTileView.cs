@@ -1,7 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Contents.FileTile;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Components.BuiltIns.Templates;
 
 namespace DemoApp.Views.Contents.FileTile;
 
@@ -26,16 +25,24 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
     protected override string HeaderDescription => "demo.contents.file-tile.description";
     protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
+    // The size in words under the tile, as a file's dialog heads it: a UIFileSize, which the page writes as the tile writes its own.
     protected override ContainerComponent CreatePreview()
-        => DemoUI.CreatePreview(frame => frame.AddChild(new FileTileComponent()
-            .BindStandard()
-            .BindFileName($"{FileGroup}.{nameof(FileTileGroupContext.FileName)}")
-            .BindFileSize($"{FileGroup}.{nameof(FileTileGroupContext.FileSize)}")
-            .BindContentType($"{FileGroup}.{nameof(FileTileGroupContext.ContentType)}")
-            .BindIcon($"{FileGroup}.{nameof(FileTileGroupContext.Icon)}")
-            .BindClickable($"{FileGroup}.{nameof(FileTileGroupContext.Clickable)}")
-            .SetPlacement(1, 1, 24, 1)
-        ));
+        => DemoUI.CreatePreview(frame => frame
+            .AddChild(new FileTileComponent()
+                .BindStandard()
+                .BindFileName($"{FileGroup}.{nameof(FileTileGroupContext.FileName)}")
+                .BindFileSize($"{FileGroup}.{nameof(FileTileGroupContext.FileSize)}")
+                .BindContentType($"{FileGroup}.{nameof(FileTileGroupContext.ContentType)}")
+                .BindIcon($"{FileGroup}.{nameof(FileTileGroupContext.Icon)}")
+                .BindClickable($"{FileGroup}.{nameof(FileTileGroupContext.Clickable)}")
+                .SetPlacement(1, 1, 24, 1)
+            )
+            .AddChild(new TextComponent()
+                .BindTitle($"{FileGroup}.{nameof(FileTileGroupContext.SizeWords)}")
+                .SetTitleType(UITextAppearance.Caption)
+                .SetPlacement(1, 2, 24, 1)
+            )
+        );
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
@@ -68,25 +75,22 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
                         .AddChild(new FileTileComponent()
                             .SetFileName("incident-report.md")
                             .SetFileSize(14_336)
-                            .SetClickable(true)
                             .OnClick(nameof(FileTileController.OpenAttachment), UIAction.Arg("name", "incident-report.md"))
                         )
                         .AddChild(new FileTileComponent()
                             .SetFileName("db-eu-west-2-disk.png")
                             .SetFileSize(286_720)
                             .SetContentType("image/png")
-                            .SetClickable(true)
                             .OnClick(nameof(FileTileController.OpenAttachment), UIAction.Arg("name", "db-eu-west-2-disk.png"))
                         )
                         .AddChild(new FileTileComponent()
                             .SetFileName("free-disk.sh")
                             .SetFileSize(2_150)
-                            .SetClickable(true)
                             .OnClick(nameof(FileTileController.OpenAttachment), UIAction.Arg("name", "free-disk.sh"))
                         )
                     )
                 ),
-            note: "Clickable makes the whole tile pressable, a Tab stop Enter and Space press, and OnClick says what a press does. The name's extension picks the glyph, the whole name is the tile's tooltip, and the size is written in the reader's language.",
+            note: "OnClick makes the whole tile pressable, a Tab stop Enter and Space press, and says what a press does. The name's extension picks the glyph, the whole name is the tile's tooltip, and the size is written in the reader's language.",
             context: AttachmentsGroup
         );
     }
@@ -100,26 +104,22 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
                 .AddChild(new FileTileComponent()
                     .SetFileName("invoices-2026-09.zip")
                     .SetFileSize(4_404_019)
-                    .SetClickable(true)
                     .OnClick(nameof(FileTileController.Download), UIAction.Arg("name", "invoices-2026-09.zip"))
                 )
                 .AddChild(new FileTileComponent()
                     .SetFileName("subscriptions-2026-09.csv")
                     .SetFileSize(186_368)
-                    .SetClickable(true)
                     .OnClick(nameof(FileTileController.Download), UIAction.Arg("name", "subscriptions-2026-09.csv"))
                 )
                 .AddChild(new FileTileComponent()
                     .SetFileName("audit-log-2026-09.json")
                     .SetFileSize(1_153_434)
-                    .SetClickable(true)
                     .OnClick(nameof(FileTileController.Download), UIAction.Arg("name", "audit-log-2026-09.json"))
                 )
                 .AddChild(new FileTileComponent()
                     .SetFileName("SUB-000003")
                     .SetContentType("application/pdf")
                     .SetFileSize(61_440)
-                    .SetClickable(true)
                     .OnClick(nameof(FileTileController.Download), UIAction.Arg("name", "SUB-000003"))
                 ), DemoIcons.Outline(DemoIcons.Download)
             ),

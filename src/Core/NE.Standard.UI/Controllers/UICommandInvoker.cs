@@ -14,7 +14,11 @@ namespace NE.Standard.UI.Controllers;
 
 internal sealed class UICommandInvoker
 {
-    private readonly record struct CommandParameter(string Name, Type Type, bool HasDefaultValue, object? DefaultValue);
+    private readonly record struct CommandParameter(string Name, Type Type, bool HasDefaultValue, object? DefaultValue)
+    {
+        /// <summary>Whether a press that supplies nothing for it can still run: a default, or a type that takes null.</summary>
+        public bool IsOptional => HasDefaultValue || !Type.IsValueType || Nullable.GetUnderlyingType(Type) is not null;
+    }
 
     private readonly Func<object, object?[], CancellationToken, Task<UICommandResult>> _invoke;
     private readonly CommandParameter[] _parameters;
@@ -26,10 +30,14 @@ internal sealed class UICommandInvoker
         _parameters = parameters;
         _commandName = commandName;
         ParameterNames = Array.ConvertAll(parameters, static parameter => parameter.Name);
+        RequiredParameterNames = Array.ConvertAll(Array.FindAll(parameters, static parameter => !parameter.IsOptional), static parameter => parameter.Name);
     }
 
     /// <summary>The names of the arguments the command takes, in order, its cancellation token aside.</summary>
     public string[] ParameterNames { get; }
+
+    /// <summary>The names of the arguments a press must supply: a value type with no default, which takes no null.</summary>
+    public string[] RequiredParameterNames { get; }
 
     public static UICommandInvoker Create(Type controllerType, MethodInfo method, string commandName)
     {
@@ -192,7 +200,7 @@ internal sealed class UICommandInvoker
                 continue;
             }
 
-            if (!parameter.Type.IsValueType || Nullable.GetUnderlyingType(parameter.Type) is not null)
+            if (parameter.IsOptional)
             {
                 result[i] = null;
                 continue;

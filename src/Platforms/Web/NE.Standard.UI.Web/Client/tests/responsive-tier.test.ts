@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { currentResponsiveTier, resolveResponsiveTier, resolveTier, responsiveTierQuery, responsiveVariable, toResponsiveTier } from "../src/rendering/responsive-tier.ts";
+import { breakpointTiers, currentResponsiveTier, onTierChange, resolveResponsiveTier, resolveTier, responsiveTierQuery, responsiveVariable, toResponsiveTier } from "../src/rendering/responsive-tier.ts";
 
 test("a bare value answers for the base tier alone", () => {
     assert.equal(toResponsiveTier(2, "base"), 2);
@@ -55,4 +55,40 @@ test("the cascade reads any source, and an empty answer is no answer", () => {
 test("a tier's query is the stylesheet's min-width at its breakpoint", () => {
     assert.equal(responsiveTierQuery("md"), "(min-width: 768px)");
     assert.equal(responsiveTierQuery("xxl"), "(min-width: 1536px)");
+});
+
+test("the tiers that start at a breakpoint are every one but the base, narrowest first", () => {
+    assert.deepEqual(breakpointTiers, ["sm", "md", "xl", "xxl"]);
+});
+
+test("a tier change is heard through one watch per breakpoint, every tier unless named, either way it is crossed", () => {
+    const watches = new Map<string, (() => void)[]>();
+    const asked: string[] = [];
+    const heard: string[] = [];
+
+    Object.assign(globalThis, {
+        matchMedia: (query: string) => {
+            asked.push(query);
+
+            return { matches: false, addEventListener: (_: string, listener: () => void) => watches.set(query, [...watches.get(query) ?? [], listener]) };
+        }
+    });
+
+    try {
+        onTierChange(() => heard.push("any"));
+        onTierChange(() => heard.push("drawer"), ["md", "xl"]);
+
+        assert.deepEqual(asked, ["(min-width: 640px)", "(min-width: 768px)", "(min-width: 1280px)", "(min-width: 1536px)"]);
+
+        for (const listener of watches.get("(min-width: 768px)") ?? [])
+            listener();
+
+        for (const listener of watches.get("(min-width: 640px)") ?? [])
+            listener();
+
+        assert.deepEqual(heard, ["any", "drawer", "any"]);
+    }
+    finally {
+        Reflect.deleteProperty(globalThis, "matchMedia");
+    }
 });

@@ -55,10 +55,11 @@ public interface IInputComponent : IVisualComponent
     bool? IsReadOnly { get; }
 
     /// <summary>
-    /// Gets the id of the form this input belongs to, used to scope Submit-trigger validation.
+    /// Gets or sets the id of the form this input belongs to, used to scope Submit-trigger validation.
     /// </summary>
+    /// <remarks>Settable through the contract, so a preset can join the fields it holds to its form (<c>UIDialogs.Form</c>).</remarks>
     [UIComponentProperty(DefaultValue = null)]
-    string? FormId { get; }
+    string? FormId { get; set; }
 
     /// <summary>A message the controller puts on the field, beside whatever the client rules say; the strongest one shows.</summary>
     [UIComponentProperty(DefaultValue = null)]

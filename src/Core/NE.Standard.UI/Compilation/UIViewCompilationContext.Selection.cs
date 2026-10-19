@@ -1,4 +1,5 @@
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Compilation;
@@ -18,10 +19,10 @@ internal sealed partial class UIViewCompilationContext
             UISelectionMode mode = selectable.SelectionMode ?? UISelectionMode.None;
 
             if (mode != UISelectionMode.One && FindBinding(selectable, ISelectableItemsComponent.SelectedKeyProperty) is not null)
-                _warnings.Add($"Component '{selectable.Id}' binds '{nameof(ISelectableItemsComponent.SelectedKey)}' but its selection mode is {mode}, which never reads it.");
+                _warnings.Add(new(UICompileWarningKind.Advisory, $"Component '{selectable.Id}' binds '{nameof(ISelectableItemsComponent.SelectedKey)}' but its selection mode is {mode}, which never reads it."));
 
             if (mode != UISelectionMode.Many && FindBinding(selectable, ISelectableItemsComponent.SelectedKeysProperty) is not null)
-                _warnings.Add($"Component '{selectable.Id}' binds '{nameof(ISelectableItemsComponent.SelectedKeys)}' but its selection mode is {mode}, which never reads it.");
+                _warnings.Add(new(UICompileWarningKind.Advisory, $"Component '{selectable.Id}' binds '{nameof(ISelectableItemsComponent.SelectedKeys)}' but its selection mode is {mode}, which never reads it."));
         }
     }
 }

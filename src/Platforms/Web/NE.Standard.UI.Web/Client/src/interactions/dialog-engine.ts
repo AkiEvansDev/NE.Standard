@@ -1,9 +1,10 @@
 // `.ts` on the value imports: `node --test` loads this module as it is (the lightbox's test).
-import { ComponentSelector, cssAttributeValue, DialogSurfaceClass } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, cssAttributeValue, DialogSurfaceClass, FormIdAttribute } from "../addressing/dom-attributes.ts";
 import { logWarn } from "../runtime/logger.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
+import { popupHolding } from "./owned-popup.ts";
 import { hasOpenPopups } from "./popup-dismissal.ts";
 import { firstFocusable, isTouchLast, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, trapTab } from "./popup-focus.ts";
 import { followSwipeDown } from "./sheet-swipe.ts";
@@ -14,11 +15,14 @@ export type DialogEngineOptions = {
     readonly root?: ParentNode;
     /** The page's components by id (the runtime's `DomRegistry`), through which an opener the page redrew away is found again. */
     readonly dom?: ComponentIndex;
+    /** Discards a form as `DiscardFormEffect` does (the runtime runs that effect); left out, the viewer's close discards nothing. */
+    readonly discardForm?: (formId: string) => void;
 };
 
 export class DialogEngine {
     private readonly root: ParentNode;
     private readonly components: ComponentIndex | null;
+    private readonly discardForm: ((formId: string) => void) | null;
     private readonly returnFocusByKey = new Map<string, HTMLElement>();
     // The swipe each open bottom sheet follows, detached as it closes.
     private readonly swipes = new Map<string, () => void>();
@@ -26,6 +30,7 @@ export class DialogEngine {
     public constructor(options: DialogEngineOptions = {}) {
         this.root = options.root ?? document;
         this.components = options.dom ?? null;
+        this.discardForm = options.discardForm ?? null;
 
         this.root.addEventListener("mousedown", domEvent => keepFocusOffBackdrop(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
@@ -43,6 +48,7 @@ export class DialogEngine {
         if (!dialog.hasAttribute("hidden"))
             return true;
 
+        standOnTop(dialog);
         dialog.removeAttribute("hidden");
 
         // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind. Its body
@@ -86,9 +92,14 @@ export class DialogEngine {
         this.swipes.delete(key);
 
         // Before the dialog hides, while the focus is still inside it; the opener may have been re-rendered away or hidden meanwhile.
-        // Only then asked, since finding a live return may make a component's root focusable for it.
-        if (dialog.contains(document.activeElement))
-            restoreFocusTo(liveFocusReturn(returnFocus, this.components), dialog);
+        // Only then asked, since finding a live return may make a component's root focusable for it. A list hung at the body's end from
+        // something in the dialog (a strip's "…") holds the dialog's keyboard too: hidden with its owner, it would drop it to the body.
+        const active = document.activeElement;
+        const held = popupHolding(active);
+        const closing = dialog.contains(active) ? dialog : held !== null && dialog.contains(held.owner) ? held.popup : null;
+
+        if (closing !== null)
+            restoreFocusTo(liveFocusReturn(returnFocus, this.components), closing);
         dialog.setAttribute("hidden", "");
 
         return true;
@@ -140,9 +151,14 @@ export class DialogEngine {
         if (topmost === null || isBehindModal(topmost))
             return;
 
-        // A popup open inside, or an editor that claims Escape (it hears the key after this capture listener), takes the first one.
-        if (domEvent.key === "Escape" && topmost.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups() && !escapeIsClaimed(domEvent)) {
-            const key = topmost.getAttribute(DialogAttribute);
+        // A popup open inside, an action bar there, or an editor that claims Escape (it hears the key after this capture listener) takes
+        // the first one. A non-modal dialog leaves the page beside it its keys, as a modeless side does: only an Escape from inside is its,
+        // and one landing in a dialog under it (the modal it was opened from) is that dialog's.
+        const holder = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`[${DialogAttribute}]:not([hidden])`) : null;
+        const escaped = topmost.hasAttribute(ModalAttribute) || holder === topmost ? topmost : holder;
+
+        if (domEvent.key === "Escape" && escaped !== null && escaped.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups(domEvent.target) && !escapeIsClaimed(domEvent)) {
+            const key = escaped.getAttribute(DialogAttribute);
 
             if (key !== null) {
                 domEvent.preventDefault();
@@ -156,10 +172,17 @@ export class DialogEngine {
             trapTab(topmost, domEvent);
     }
 
-    /** Closes the dialog as the viewer does — Escape, the backdrop, an × of its own — raising its close for the server to hear. */
+    /**
+     * Closes the dialog as the viewer does — Escape, the backdrop, a swipe, an × of its own — raising its close for the server to hear.
+     * The edit in it goes first: a form under the dialog's key (`UIDialogs.Form`) is discarded, so opened again it shows what the
+     * controller holds, not the cancelled draft; the preset's × runs the same effect first, which a second discard leaves as it is.
+     */
     public dismiss(key: string): boolean {
         const dialog = this.find(key);
         const wasOpen = dialog !== null && !dialog.hasAttribute("hidden");
+
+        if (wasOpen && dialog.querySelector(`[${FormIdAttribute}="${cssAttributeValue(key)}"]`) !== null)
+            this.discardForm?.(key);
 
         if (!this.close(key) || !wasOpen || dialog === null)
             return false;
@@ -185,6 +208,23 @@ function keepFocusOffBackdrop(domEvent: Event): void {
 
     if (backdrop !== null && backdrop.closest(`[${DialogAttribute}]:not([hidden])`) !== null)
         domEvent.preventDefault();
+}
+
+/**
+ * Puts a dialog about to open after the open dialogs beside it: the open one last in the document stands on top (open-dialogs.ts), so
+ * a dialog opened from one declared after it would stand under it, its focus trapped back into the one it was opened from. Moved while
+ * hidden, it drops no focus; the lightbox goes to the body's end at every opening the same way.
+ */
+function standOnTop(dialog: HTMLElement): void {
+    let last: Element | null = null;
+
+    for (const sibling of dialog.parentElement?.children ?? []) {
+        if (sibling !== dialog && sibling.matches(`[${DialogAttribute}]:not([hidden])`))
+            last = sibling;
+    }
+
+    if (last !== null && (dialog.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0)
+        last.after(dialog);
 }
 
 /** A bottom sheet the viewer may put away — by its backdrop or Escape — which its handle and a swipe down put away too. */

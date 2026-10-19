@@ -77,15 +77,18 @@ internal sealed class UIUnkeyedWords
         }
     }
 
-    /// <summary>Each column's caption the column does not say is content; the table marked <c>AsContent</c> on its columns says it of all.</summary>
+    /// <summary>
+    /// Each column's caption that is an author's text the column does not say is content; the table marked <c>AsContent</c> on its columns
+    /// says it of all, and a phrase is keyed already.
+    /// </summary>
     private void InspectCaptions(CompiledView view, Type viewType, UIComponentId componentId, string property, IReadOnlyList<UITableColumn> columns)
     {
         for (var i = 0; i < columns.Count; i++)
         {
             UITableColumn column = columns[i];
 
-            if (!column.IsContent && !string.IsNullOrEmpty(column.Caption))
-                Check(column.Caption, view, viewType, componentId, $"{property} '{column.Key}'");
+            if (!column.IsContent && column.Caption is { IsText: true, Key: { Length: > 0 } text })
+                Check(text, view, viewType, componentId, $"{property} '{column.Key}'");
         }
     }
 

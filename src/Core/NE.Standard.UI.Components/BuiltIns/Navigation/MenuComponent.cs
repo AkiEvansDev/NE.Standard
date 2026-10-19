@@ -11,6 +11,7 @@ using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -30,7 +31,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyDefault(nameof(ISurfaceStyleComponent.Surface), nameof(DefaultSurface))]
-public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, IOrientationComponent, ISpacingComponent, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent
+[UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, IOrientationComponent, ISpacingComponent, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent, IEmptyStateComponent
     where T : MenuComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
@@ -151,7 +153,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// A group stays, open, while one of its sub-entries matches, and a caption while an entry under it does. A search that leaves
     /// nothing shows the menu's empty template, as a select's does — the default one's "Nothing to show." unless the author set one.
     /// </remarks>
-    public T SetSearch(string? placeholder = null)
+    public T SetSearch(UIPhrase? placeholder = null)
     {
         _ = SetToggleContent(new TextInputComponent()
             .SetSearch(placeholder)
@@ -160,11 +162,31 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
             .SetSize(UIInputSize.Small)
         );
 
-        if (!HasEmptyTemplate)
-            _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+        EnsureDefaultEmptyTemplate();
 
         ShowSearch = true;
         return Self;
+    }
+
+    /// <summary>
+    /// Puts the built-in empty template in where the menu has none. Never in the constructor: a context menu, a split button's list or
+    /// an entry's sub-entries that hold nothing would each say "Nothing to show."
+    /// </summary>
+    private void EnsureDefaultEmptyTemplate()
+    {
+        if (!HasEmptyTemplate)
+            _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+    }
+
+    /// <summary>
+    /// Configures the built-in default empty template — a menu that may hold no entries, its line in a panel — putting it in where the
+    /// menu has none, and throwing if a different template has been set.
+    /// </summary>
+    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
+    {
+        EnsureDefaultEmptyTemplate();
+
+        return Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
     }
 
     /// <summary>

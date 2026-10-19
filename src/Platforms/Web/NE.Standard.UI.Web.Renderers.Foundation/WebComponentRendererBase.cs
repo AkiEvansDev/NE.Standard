@@ -127,15 +127,20 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ArgumentNullException.ThrowIfNull(context);
 
         (var elementName, var className) = ResolveRoot(context);
+        var rootIsLink = string.Equals(elementName, "a", StringComparison.Ordinal);
+
+        // What an anchor holds is inside a link, its own words included: a description's link is drawn as its words there, since the
+        // parser closes an anchor it meets inside an anchor and copies the outer one.
+        WebRenderContext inside = rootIsLink && !context.IsInsideLink ? context.AsInsideLink() : context;
 
         _ = context.Html.Element(elementName, root =>
         {
             _ = root.Class(className);
-            ApplyDefaultAttributes(context, root);
+            ApplyDefaultAttributes(inside, root);
 
-            RenderComponent(context, root);
-            RenderContextMenu(context, root);
-            ApplyMetadata(context);
+            RenderComponent(inside, root);
+            RenderContextMenu(inside, root, rootIsLink);
+            ApplyMetadata(inside);
         });
     }
 
@@ -257,15 +262,18 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         // still needs this to stay addressable by DomRegistry.findComponent.
         if (node.ContextParameterCount > 0)
             _ = html.Attribute(WebAttributes.Pc, node.ContextParameterCount.ToString(CultureInfo.InvariantCulture));
+
+        if (!context.IsTemplate && context.ViewResolution.View.NamesDialog(node.ComponentId))
+            _ = html.Attribute("id", WebAttributes.DialogTitleId(node.ComponentId));
     }
 
     /// <summary>Renders the right-click menu inside its owner rather than portaled, so <c>closest()</c> paths keep working.</summary>
-    private static void RenderContextMenu(WebRenderContext context, IHtmlElementBuilder root)
+    private static void RenderContextMenu(WebRenderContext context, IHtmlElementBuilder root, bool rootIsLink)
     {
         if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.ContextMenu, out UIComponentSlot? slot))
             return;
 
-        RenderContextMenuHost(context, root, slot, null);
+        RenderContextMenuHost(context, root, slot, null, rootIsLink);
         RenderActionBar(context, root);
     }
 
@@ -302,17 +310,20 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ArgumentException.ThrowIfNullOrWhiteSpace(regionName);
 
         if (context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out UIComponentSlot? slot, regionName))
-            RenderContextMenuHost(context, root, slot, name);
+            RenderContextMenuHost(context, root, slot, name, false);
     }
 
-    private static void RenderContextMenuHost(WebRenderContext context, IHtmlElementBuilder root, UIComponentSlot slot, string? name)
+    private static void RenderContextMenuHost(WebRenderContext context, IHtmlElementBuilder root, UIComponentSlot slot, string? name, bool rootIsLink)
     {
         _ = root.Attribute(WebAttributes.ContextMenuOwner);
 
         // A row's own menu is drawn when it is wanted — opened, pressed by its chord, shown as the row's action bar — not into every
         // row: it was two thirds of a feed's row. It waits in an inert template: a row template's is taken out once and cloned for any
         // row the client builds, a row drawn here moves its own in. A named menu (a strip's, a canvas's) is one per component already.
-        if (name is null && !context.IsPresentationCopy && context.Node.ContextParameterCount > 0)
+        // A link's waits there too wherever it stands, and so does one standing inside a link: its entries are anchors, and an anchor the
+        // parser meets inside an anchor closes the outer one and copies it — two elements of one component, the menu's presses on the
+        // card's link.
+        if (name is null && !context.IsPresentationCopy && (context.Node.ContextParameterCount > 0 || rootIsLink || context.IsInsideLink))
         {
             _ = root.Attribute(WebAttributes.ContextMenuLater);
             _ = root.Element("template", template =>
@@ -538,7 +549,16 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
 
-        _ = RenderProperty<string?>(context, target, property, static (element, value) =>
+        // A component's own tooltip may be words a person typed, shown as written: marked on the element, which the page reads at every
+        // show and push, and its phrase's arguments left unescaped.
+        var plain = property.Equals(ITooltipComponent.TooltipProperty)
+            && ResolveRenderValue(context, ITextBaseComponent.TooltipPlainProperty, out bool? tooltipPlain, out _) == WebRenderValueKind.Static
+            && tooltipPlain == true;
+
+        if (plain)
+            _ = target.Attribute(WebAttributes.TooltipPlain);
+
+        _ = RenderProperty<string?>(context, target, property, !plain, static (element, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = element.Attribute(WebAttributes.Tooltip, value);
@@ -671,6 +691,22 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             _ = element.Attribute(WebAttributes.Href, value).Attribute("tabindex", "0");
     }
 
+    /// <summary>
+    /// Whether a component that may be a link (<see cref="ILinkableComponent"/>) is drawn as one: its address set, or bound — an anchor
+    /// whatever the binding gives, so a row redrawn with another item keeps its element; a picture of the component is none.
+    /// </summary>
+    public static bool DrawsLink(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (context.IsPresentationCopy)
+            return false;
+
+        _ = ResolveRenderValue(context, ILinkableComponent.UrlProperty, out string? url, out CompiledUIBinding? binding);
+
+        return binding is not null || !string.IsNullOrWhiteSpace(url);
+    }
+
     /// <summary>A control that opens a popup: the kind it opens, and closed until its engine says otherwise.</summary>
     protected static void RenderPopupTrigger(IHtmlElementBuilder trigger, string popupKind)
     {
@@ -789,7 +825,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             case WebRenderValueKind.Static:
                 renderStatic(target, value);
-                RenderPaintedMoments(target, word);
+                RenderPaintedValues(target, word);
                 RenderIntoMark(context, target, address, RecordWord(context, propertyId, word));
                 break;
 
@@ -798,7 +834,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 if (context.IsPresentationCopy)
                 {
                     renderStatic(target, value);
-                    RenderPaintedMoments(target, word);
+                    RenderPaintedValues(target, word);
                     break;
                 }
 
@@ -809,7 +845,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                 if (context.Values is not null)
                 {
                     renderStatic(target, value);
-                    RenderPaintedMoments(target, word);
+                    RenderPaintedValues(target, word);
                 }
 
                 break;
@@ -824,13 +860,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     }
 
     /// <summary>
-    /// Names the moments a painted phrase held on the element it was painted into, so the boot script writes them in the reader's zone
-    /// before the body paints: the phrase's own arguments are the client's only once the page has started.
+    /// Names the values a painted phrase held that the page writes itself — moments, file sizes — on the element it was painted into,
+    /// so the boot script writes them in the reader's zone and language before the body paints: the phrase's own arguments are the
+    /// client's only once the page has started.
     /// </summary>
-    private static void RenderPaintedMoments(IHtmlElementBuilder target, RenderedWord word)
+    private static void RenderPaintedValues(IHtmlElementBuilder target, RenderedWord word)
     {
-        if (word.Painted is { } phrase && WebMoments.MomentsAttribute(phrase) is { } moments)
-            _ = target.Attribute(WebAttributes.Moments, moments);
+        if (word.Painted is { } phrase && WebWords.PageWritten(phrase) is { } written)
+            _ = target.Attribute(WebAttributes.PageWritten, written);
     }
 
     /// <summary>

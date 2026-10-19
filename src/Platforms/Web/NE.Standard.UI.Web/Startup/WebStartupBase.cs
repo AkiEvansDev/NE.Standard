@@ -8,8 +8,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NE.Standard.UI.Application;
-using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Files;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Startup;
 using NE.Standard.UI.Web.Abstractions.Assets;
@@ -93,10 +93,12 @@ public abstract class WebStartupBase<TStartup>
         services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();
         services.TryAddSingleton<IUIContentAddressResolver>(new UIContentAddress(WebContentEndpoint.Prefix));
 
-        // What depends on development is on there and off in production: missing words are reported where someone reads the log.
+        // What depends on development is on there and off in production: missing words are reported where someone reads the log, and
+        // an author's mistake found as a page runs is told to that page's console too.
         services.TryAddSingleton(static provider => new UIPlatformDefaults
         {
-            ReportMissingWords = provider.GetService<IHostEnvironment>()?.IsDevelopment() == true
+            ReportMissingWords = provider.GetService<IHostEnvironment>()?.IsDevelopment() == true,
+            ReportsToPage = provider.GetService<IHostEnvironment>()?.IsDevelopment() == true
         });
     }
 }

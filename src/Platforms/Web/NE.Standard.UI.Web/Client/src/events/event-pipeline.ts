@@ -228,7 +228,9 @@ export class EventPipeline {
 
         this.applyDomPolicy(registration, context);
 
-        const request = this.requestFactory.create(registration, context);
+        // A row's own effect — one menu entry's press — runs in place of the command the event carries for the other rows.
+        const rowsOwn = this.options.interactionEngine.takesRowEvent(eventName, context.componentId, context.dynamicParameters);
+        const request = rowsOwn ? null : this.requestFactory.create(registration, context);
 
         if (request === null) {
             this.options.interactionEngine.applyEvent({

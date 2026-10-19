@@ -60,7 +60,7 @@ test("a colour's own tint is one share — a tinted badge, an icon's circle, a m
     assert.ok(rule(".ui-multi-select__chip:not(.ui-badge)").includes(`background: color-mix(in srgb, var(--ui-color-primary) ${share}, transparent);`));
 
     assert.ok(rule(".ui-badge-style--surface:not(.ui-badge--colored).ui-badge-fill--tinted").includes(`background: ${token("ui-neutral-tint")};`));
-    assert.ok(rule(".ui-icon[data-ui-icon-failed]::before").includes(`background: ${token("ui-neutral-tint")};`));
+    assert.ok(rule(".ui-icon--circle[data-ui-icon-failed]::before").includes(`background: ${token("ui-neutral-tint")};`));
 });
 
 test("a progress bar's and ring's tracks are one ink", () => {

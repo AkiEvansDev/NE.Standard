@@ -46,13 +46,11 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
 
     private static SurfaceComponent Bind(UIMessageSeverity severity)
     {
-        TextComponent title = new TextComponent().BindTitle($"{MessageGroup}.{nameof(MessageGroupContext.Title)}");
-        ParagraphComponent body = new ParagraphComponent().BindDescription($"{MessageGroup}.{nameof(MessageGroupContext.Body)}");
         ButtonComponent action = UIButtons.Outline("Upgrade")
             .OnClick(nameof(MessageController.Upgrade))
             .BindVisibility($"{MessageGroup}.{nameof(MessageGroupContext.ActionVisibility)}");
 
-        return UIMessage.Create(severity, title, body, action, dismissible: true)
+        return UIMessage.BoundCreate(severity, $"{MessageGroup}.{nameof(MessageGroupContext.Title)}", $"{MessageGroup}.{nameof(MessageGroupContext.Body)}", action: action, dismissible: true)
             .BindStandard()
             .SetPlacement(1, 1, 24, 1);
     }
@@ -115,7 +113,7 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     private static ContainerComponent CreateLiveGroup()
     {
         return DemoUI.CreateExample("Words the server rewrites",
-            UIMessage.Create(UIMessageSeverity.Info, null, new ParagraphComponent().BindDescription(nameof(SyncGroupContext.SyncLine), UIBindingScope.Relative)),
+            UIMessage.BoundCreate(UIMessageSeverity.Info, null, nameof(SyncGroupContext.SyncLine), UIBindingScope.Relative),
             note: "Sync now: the line changes in place and, being a status, is read out when the reader is free.",
             context: SyncGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>

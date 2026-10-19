@@ -1,7 +1,9 @@
+using System;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Templates;
+using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
@@ -15,7 +17,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(ISizedInputComponent))]
 [UIComponentPropertyBlock(typeof(IOrientationComponent))]
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
-public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent, IOrientationComponent, ISpacingComponent
+[UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
+public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent, IOrientationComponent, ISpacingComponent, IEmptyStateComponent
     where T : RadioGroupComponent<T>, IUIComponentDefinition
 {
     private readonly DefaultTextTemplate _optionTemplate = new DefaultTextTemplate(binds: true)
@@ -32,6 +35,19 @@ public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
         _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
     }
+
+    /// <summary>
+    /// Configures the built-in default empty template — what the group says while it shows no option — throwing if a different template
+    /// has been set.
+    /// </summary>
+    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
+        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
+
+    /// <summary>
+    /// Configures the built-in default group template, throwing if a different template has been set.
+    /// </summary>
+    public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
+        => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
 
     /// <summary>
     /// Sets where an option's icon sits against its text: on the title's line (the default) or centred across title and description.

@@ -14,7 +14,7 @@ using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Compilation;
 
-internal sealed class UIViewCompilationResult(CompiledRegion[] regions, CompiledDialog[] dialogs, UIComponentNode[] nodes, UIComponentState[] states, CompiledUIBindingSource[] bindingSources, CompiledUIBindingTemplate[] bindingTemplates, CompiledUIContext[] contexts, CompiledUIBinding[] bindings, CompiledUIInteraction[] interactions, Dictionary<UIPropertyAddress, object?> firstPaint, CompiledUIEvent[] events, CompiledUIValidationRule[] validations, KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets, string[] warnings)
+internal sealed class UIViewCompilationResult(CompiledRegion[] regions, CompiledDialog[] dialogs, UIComponentNode[] nodes, UIComponentState[] states, CompiledUIBindingSource[] bindingSources, CompiledUIBindingTemplate[] bindingTemplates, CompiledUIContext[] contexts, CompiledUIBinding[] bindings, CompiledUIInteraction[] interactions, Dictionary<UIPropertyAddress, object?> firstPaint, CompiledUIEvent[] events, CompiledUIValidationRule[] validations, KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets, UICompileWarning[] warnings)
 {
     public CompiledRegion[] Regions { get; } = regions;
     public CompiledDialog[] Dialogs { get; } = dialogs;
@@ -29,13 +29,13 @@ internal sealed class UIViewCompilationResult(CompiledRegion[] regions, Compiled
     public CompiledUIEvent[] Events { get; } = events;
     public CompiledUIValidationRule[] Validations { get; } = validations;
     public KeyValuePair<UIComponentId, UIPropertyAddress>[] ValidationMessageTargets { get; } = validationMessageTargets;
-    public string[] Warnings { get; } = warnings;
+    public UICompileWarning[] Warnings { get; } = warnings;
 }
 
 internal sealed partial class UIViewCompilationContext(Type? controllerType = null) : IUIReferenceResolver
 {
     // What compiled but is not what the author meant; the host logs these, it does not stop for them.
-    private readonly List<string> _warnings = [];
+    private readonly List<UICompileWarning> _warnings = [];
 
     private readonly record struct BindingTemplateKey(UIBindingSourceId SourceId, string Template);
 
@@ -133,8 +133,30 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             Modal = dialog.Modal,
             CloseOnBackdrop = dialog.CloseOnBackdrop,
             CloseOnEscape = dialog.CloseOnEscape,
-            Label = dialog.Label
+            Label = dialog.Label,
+            TitleComponentId = dialog.TitleId is null ? null : ResolveDialogTitle(dialog, dialog.TitleId)
         });
+    }
+
+    /// <summary>
+    /// The component naming a dialog: one inside its content and in no template, since the panel names it by the one element it draws
+    /// (<c>aria-labelledby</c>).
+    /// </summary>
+    private UIComponentId ResolveDialogTitle(UIDialog dialog, string titleId)
+    {
+        if (!_componentIdsByAuthoringId.TryGetValue(titleId, out UIComponentId componentId))
+            throw new InvalidOperationException($"Dialog '{dialog.Key}' is named by '{titleId}', which the view does not hold; give TitleId a component inside the dialog's content.");
+
+        for (var current = titleId; current is not null; current = _parentByComponentId[current])
+        {
+            if (_slotByRootComponentId.TryGetValue(current, out UIComponentSlot? slot) && slot.Kind is not (UIComponentSlotKind.Child or UIComponentSlotKind.Region))
+                throw new InvalidOperationException($"Dialog '{dialog.Key}' is named by '{titleId}', which stands in a template and is drawn once a row or not at all; name it by a component drawn once.");
+
+            if (string.Equals(current, dialog.Content.Id, StringComparison.Ordinal))
+                return componentId;
+        }
+
+        throw new InvalidOperationException($"Dialog '{dialog.Key}' is named by '{titleId}', which stands outside the dialog; give TitleId a component inside the dialog's content.");
     }
 
     public UIViewCompilationResult BuildResult()
@@ -152,15 +174,20 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         Dictionary<string, ResolvedComponentContext> componentContexts = BuildComponentContexts(sourcesByKey, templatesByKey, contextsByTemplateId, rootContext, rootPath);
 
         UIComponentNode[] nodes = BuildNodes(componentContexts);
+
+        // Once every region and dialog is registered: a click interaction inside a link may be written anywhere in the view.
+        ValidateLinks();
+
         UIComponentState[] states = BuildStates(templatesByKey, bindings, componentContexts, rootPath);
 
         ValidateItemCollections(componentContexts, rootPath);
         ValidateSelectionBindings();
         ValidateShortcuts();
+        EnsureFormsAreSubmitted();
 
         CompiledUIInteraction[] interactions = BuildInteractions();
         CompiledUIEvent[] events = BuildEvents(templatesByKey, componentContexts, rootPath);
-        CompiledUIValidationRule[] validations = BuildValidations();
+        CompiledUIValidationRule[] validations = BuildValidations(componentContexts);
         KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets = BuildValidationMessageTargets();
 
         return new UIViewCompilationResult(
@@ -186,4 +213,11 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
 
     object IUIReferenceResolver.ResolveItemsView(UIItemsView itemsView)
         => UIItemsViewResolver.Resolve(itemsView, this);
+
+    /// <summary>Refuses an interaction's dialog key the view does not declare: the press would open or close nothing.</summary>
+    void IUIReferenceResolver.EnsureDialogDeclared(string dialogKey)
+    {
+        if (CompiledDialog.Find(_dialogs, dialogKey) is null)
+            throw new InvalidOperationException($"An interaction names dialog '{dialogKey}', which the view does not declare; declare it in CreateDialogs or name one that is.");
+    }
 }

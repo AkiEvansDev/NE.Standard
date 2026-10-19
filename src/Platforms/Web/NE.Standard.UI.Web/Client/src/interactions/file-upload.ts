@@ -4,11 +4,10 @@
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { FileMaxSizeAttribute } from "../addressing/dom-attributes.ts";
 import { acceptsFile } from "./file-drop.ts";
-import { formatFileSize } from "../rendering/file-tile.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { logElapsed, logWarn } from "../runtime/logger.ts";
 import { pageSessionKey } from "../runtime/session-key.ts";
-import type { Phrase } from "../runtime/words.ts";
+import type { FileSize, Phrase } from "../runtime/words.ts";
 import type { UploadsInFlight } from "./uploads-in-flight.ts";
 import type { FieldMarkWords, FieldValidation } from "./validation-engine.ts";
 
@@ -20,7 +19,7 @@ const UploadedPath = "/_ne/files/upload/";
 type Refusal = {
     readonly validation: FieldValidation;
     /** The pick's files left out for their size; null where none was. */
-    readonly size: (() => Phrase) | null;
+    readonly size: Phrase | null;
     /** The files a failed upload left out, which the next failure adds to. */
     readonly failed: readonly string[];
 };
@@ -61,13 +60,14 @@ export function takeWithinSizeLimit(root: HTMLElement, files: readonly File[], s
 
     const names = several ? refused.map(file => file.name).join(", ") : null;
 
-    refuse(root, { validation, size: () => sizeWords(limit, names), failed: [] });
+    refuse(root, { validation, size: sizeWords(limit, names), failed: [] });
 
     return accepted;
 }
 
 function sizeWords(limit: number, names: string | null): Phrase {
-    const size = formatFileSize(limit, clientStrings.language);
+    // A size the words write in the page's language, then and after a switch, as a file tile writes one.
+    const size: FileSize = { fileSize: limit };
 
     return names === null ? { key: "ui.file.oversized", args: { limit: size } } : { key: "ui.file.leftout", args: { limit: size, names } };
 }
@@ -90,7 +90,7 @@ function sayRefusal(root: HTMLElement, refusal: Refusal): void {
 
 /** The size line, the failure line, or both, one after the other (the message keeps a line break, ui-validation.less). */
 function refusalWords(refusal: Refusal): FieldMarkWords {
-    const size = refusal.size?.() ?? null;
+    const size = refusal.size;
     const failed: Phrase | null = refusal.failed.length === 0 ? null : { key: "ui.file.notuploaded", args: { names: refusal.failed.join(", ") } };
 
     if (size === null || failed === null)

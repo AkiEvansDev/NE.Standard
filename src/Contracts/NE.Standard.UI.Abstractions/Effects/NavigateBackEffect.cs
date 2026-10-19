@@ -24,7 +24,7 @@ public sealed class NavigateBackEffect : ClientEffect
     public NavigateBackEffect(string fallback = "/")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fallback);
-        Fallback = fallback;
+        Fallback = UISiteAddress.Normalize(fallback);
     }
 
     /// <inheritdoc />

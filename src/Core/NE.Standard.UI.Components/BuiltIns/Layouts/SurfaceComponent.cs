@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -11,19 +12,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
 /// <summary>
 /// A bordered surface holding one content region: a fill, an edge, a radius and — where it is asked for — a
-/// click. <see cref="CardComponent{T}"/> is this plus a header and a footer.
+/// click or an address it links to. <see cref="CardComponent{T}"/> is this plus a header and a footer.
 /// </summary>
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
-public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedRegionComponentBase<T>(id), ISurfaceStyleComponent
+[UIComponentPropertyBlock(typeof(IClickableComponent))]
+[UIComponentPropertyBlock(typeof(ILinkableComponent))]
+public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedRegionComponentBase<T>(id), ISurfaceStyleComponent, IClickableComponent, ILinkableComponent
     where T : SurfaceComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Whether the whole surface is actionable — the affordance and the click both. Left false, a command
-    /// registered through <see cref="OnClick(string)"/> does not fire; controls inside are unaffected.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? Clickable { get; set; }
-
     /// <summary>Whether a clickable surface answers hover quietly — half the wash, no lift — for a strip the pointer crosses on its way elsewhere.</summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? QuietHover { get; set; }
@@ -37,7 +33,7 @@ public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedR
     public UILiveRegion? LiveRegion { get; set; }
 
     /// <summary>
-    /// Registers a command to invoke when the surface is clicked.
+    /// Registers a command to invoke when the surface is clicked; the surface is clickable unless its author set or bound <c>Clickable</c>.
     /// </summary>
     public T OnClick(string command)
         => On(EventNames.Click, command);
@@ -55,18 +51,21 @@ public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedR
         => OnLiteral(EventNames.Click, command, arguments);
 
     /// <summary>
-    /// Makes the surface pressable and shows the picture it holds full size on a press, on the page alone (<see cref="ShowImageEffect"/>);
+    /// Runs the command on click with the key of the item the surface is drawn for — a row's card.
+    /// </summary>
+    public T OnClickWithItemKey(string command, string argumentName = "id")
+        => OnClick(command, UIAction.ArgCurrentItemKey(argumentName));
+
+    /// <summary>
+    /// Shows the picture the surface holds full size on a press, on the page alone (<see cref="ShowImageEffect"/>);
     /// <paramref name="amongRows"/> shows it among the pictures of the surface's other drawn rows — a message's photos.
     /// </summary>
     public T OnClickShowImage(bool amongRows = false)
-    {
-        Clickable = true;
-        return InteractOn(EventNames.Click, amongRows ? ShowImageEffect.AmongRows(Id) : ShowImageEffect.Of(Id));
-    }
+        => InteractOn(EventNames.Click, amongRows ? ShowImageEffect.AmongRows(Id) : ShowImageEffect.Of(Id));
 }
 
 /// <summary>
-/// A bordered surface holding one content region, optionally clickable as a whole.
+/// A bordered surface holding one content region, optionally clickable as a whole or a link.
 /// </summary>
 public sealed class SurfaceComponent(string? id = null) : SurfaceComponent<SurfaceComponent>(id), IUIComponentDefinition
 {

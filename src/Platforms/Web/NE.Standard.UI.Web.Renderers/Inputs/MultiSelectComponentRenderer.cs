@@ -229,11 +229,11 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
                 badge = items[i] as IBadgeModel;
 
                 // A blank title from data falls to the key, and a blank key stands as it is: data must not fail the page.
-                UIPhrase title = badges && badge?.BadgeText is UIPhrase badgeWords && Says(badgeWords) ? badgeWords
-                    : items[i] is ITextBaseModel { Title: { } words } && Says(words) ? words
+                UIPhrase title = badges && badge?.BadgeText is UIPhrase badgeWords && UIPhrase.HasWords(badgeWords) ? badgeWords
+                    : items[i] is ITextBaseModel { Title: { } words } && UIPhrase.HasWords(words) ? words
                     : UIPhrase.Text(key);
 
-                content = items[i] is IContentItem { IsContent: true } || (title.IsText && string.IsNullOrWhiteSpace(title.Key));
+                content = items[i] is IContentItem { IsContent: true } || !UIPhrase.HasWords(title);
                 return title;
             }
         }
@@ -242,9 +242,6 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
         badge = null;
         return null;
     }
-
-    private static bool Says(UIPhrase words)
-        => !words.IsText || !string.IsNullOrWhiteSpace(words.Key);
 
     /// <summary>
     /// One chosen option in the field: its words, translated as its row's are, and the button that takes it out, named for the

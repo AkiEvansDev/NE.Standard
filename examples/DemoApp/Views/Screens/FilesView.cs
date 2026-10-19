@@ -1,6 +1,5 @@
 using DemoApp.Controllers.Screens;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Components.BuiltIns.Templates;
 
 namespace DemoApp.Views.Screens;
 
@@ -93,7 +92,7 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
                         .SetRows(18)
                         .SetHeight(PaneHeight)
                     )
-                    .SetEmptyTemplate(new DefaultEmptyTemplate()
+                    .ConfigureDefaultEmptyTemplate(template => _ = template
                         .SetIcon(DemoIcons.Outline(DemoIcons.File))
                         .SetTitle("No file is open")
                         .SetDescription("Press one in the tree, or make a new one.")

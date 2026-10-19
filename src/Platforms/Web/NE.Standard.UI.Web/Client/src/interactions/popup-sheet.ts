@@ -13,7 +13,6 @@ import { clientStrings } from "../runtime/client-strings.ts";
 import type { ClientStringKey } from "../runtime/client-strings.ts";
 import { applyIconValue } from "../rendering/icon-value.ts";
 import { finishTransitions } from "../rendering/motion.ts";
-import { SheetBreakpointQuery } from "../rendering/responsive-tier.ts";
 
 /** On a sheet a nested list stands over, which steps aside as the nested one slides in. */
 const SheetCoveredAttribute = "data-ui-sheet-covered";
@@ -31,7 +30,7 @@ const BackGlyph = "ne-arrow-back";
 export type SheetOpening = {
     /** What the popup opened from; inside another sheet, the popup is that sheet's nested list. */
     readonly anchor?: Element;
-    /** Closes the popup through its owner, for a swipe, the back row, or the screen growing past a phone's. */
+    /** Closes the popup through its owner, for a swipe or the back row. */
     readonly close: () => void;
     /** Keeps Tab inside it: a panel's. A list that closes on Tab lets the Tab close it. */
     readonly trapsTab: boolean;
@@ -42,7 +41,6 @@ type OpenSheet = {
     readonly parent: OpenSheet | null;
     readonly opening: SheetOpening;
     readonly detachSwipe: () => void;
-    readonly back: HTMLElement | null;
     /** What this sheet hid from a screen reader, to give back as it closes. */
     hidden: HTMLElement[];
 };
@@ -78,8 +76,6 @@ export function presentSheet(popup: HTMLElement, opening: SheetOpening): void {
         finishTransitions(popup);
     }
 
-    let back: HTMLElement | null = null;
-
     // The last opening's row, still sliding out as this one came.
     popup.querySelector(`:scope > .${BackClass}`)?.remove();
 
@@ -87,8 +83,7 @@ export function presentSheet(popup: HTMLElement, opening: SheetOpening): void {
         // As tall as the sheet it covers, taller only where its own entries need it.
         popup.style.minHeight = `${parent.popup.getBoundingClientRect().height}px`;
         parent.popup.setAttribute(SheetCoveredAttribute, "");
-        back = createBackRow(opening);
-        popup.prepend(back);
+        popup.prepend(createBackRow(opening));
     }
 
     showScrim();
@@ -98,7 +93,6 @@ export function presentSheet(popup: HTMLElement, opening: SheetOpening): void {
         popup,
         parent,
         opening,
-        back,
         hidden: [],
         detachSwipe: followSwipeDown(popup, popup, () => closeOutward(popup))
     };
@@ -169,7 +163,7 @@ function closeOutward(popup: HTMLElement): void {
         sheet.opening.close();
 }
 
-/** One listener each over every sheet: the press under the veil, Tab kept inside a panel's, the screen grown past a phone's closing them all. */
+/** One listener each over every sheet: the press under the veil, Tab kept inside a panel's. A tier crossed closes them (owned-popup.ts). */
 function listen(): void {
     if (listening)
         return;
@@ -189,11 +183,6 @@ function listen(): void {
         if (domEvent.key === "Tab" && !domEvent.defaultPrevented && top !== undefined && top.opening.trapsTab && domEvent.target instanceof Node && top.popup.contains(domEvent.target))
             trapTab(top.popup, domEvent);
     }, true);
-
-    matchMedia(SheetBreakpointQuery).addEventListener("change", () => {
-        for (const sheet of sheets.filter(each => each.parent === null))
-            sheet.opening.close();
-    });
 }
 
 /** The press under a leaving veil is over: the veil goes with its click, or a little after its release where none follows. */
@@ -302,15 +291,21 @@ export function releaseSheet(popup: HTMLElement): void {
 
     // The attribute stays through the slide out, which its closed rule draws; one opened again meanwhile is the new opening's.
     lowerIntoPlace(popup, () => {
-        if (sheetOf(popup) !== null)
-            return;
-
-        popup.removeAttribute(SheetAttribute);
-        popup.removeAttribute(SheetCoveredAttribute);
-        popup.style.removeProperty("min-height");
-        popup.style.removeProperty("--ui-sheet-drag");
-        sheet.back?.remove();
+        if (sheetOf(popup) === null)
+            unmarkSheet(popup);
     });
+}
+
+/**
+ * Takes a sheet's look off a popup: what a closed sheet keeps through its slide out, taken at once where it opens again beside its
+ * anchor before the slide is over.
+ */
+export function unmarkSheet(popup: HTMLElement): void {
+    popup.removeAttribute(SheetAttribute);
+    popup.removeAttribute(SheetCoveredAttribute);
+    popup.style.removeProperty("min-height");
+    popup.style.removeProperty("--ui-sheet-drag");
+    popup.querySelector(`:scope > .${BackClass}`)?.remove();
 }
 
 /**

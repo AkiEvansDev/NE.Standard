@@ -1,4 +1,5 @@
 // `.ts` on the value imports and the metadata's types type-only, so `npm test` can load this module directly.
+import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
 import type { ClientEffect } from "../metadata/metadata-index.ts";
 import { isLocalRoute } from "../rendering/url-safety.ts";
 import { logWarn } from "../runtime/logger.ts";
@@ -144,6 +145,13 @@ export class LeaveGuard {
     }
 
     private handlePress(domEvent: Event): void {
+        // A press in a link's own menu or action bar is no press of the link: the browser follows none either, an entry with no address
+        // of its own handing its click to the anchor around it.
+        if (pressesInsideLinksPart(domEvent as unknown as Press)) {
+            domEvent.preventDefault();
+            return;
+        }
+
         if (this.released)
             return;
 
@@ -217,7 +225,7 @@ export function leaveTarget(press: Press, pageHref: string): string | null {
     const pressed = press.target;
     const link = typeof pressed?.closest === "function" ? pressed.closest("a[href]") : null;
 
-    if (link === null || link.hasAttribute("download"))
+    if (link === null || link.hasAttribute("download") || pressesInsideLinksPart(press))
         return null;
 
     const opens = link.getAttribute("target");
@@ -247,4 +255,20 @@ export function leaveTarget(press: Press, pageHref: string): string | null {
     const address = `${url.pathname}${url.search}${url.hash}`;
 
     return isLocalRoute(address) ? address : null;
+}
+
+/**
+ * Whether a press landed inside an event boundary a link holds — the card's own context menu, its action bar — which is that part's
+ * press, never the link's. A link inside such a part (a menu entry with an address of its own) is the press's own link.
+ */
+function pressesInsideLinksPart(press: Press): boolean {
+    const pressed = press.target;
+
+    if (typeof pressed?.closest !== "function")
+        return false;
+
+    const link = pressed.closest("a[href]");
+    const boundary = pressed.closest(`[${EventBoundaryAttribute}]`);
+
+    return link !== null && boundary !== null && boundary !== link && link.contains(boundary);
 }

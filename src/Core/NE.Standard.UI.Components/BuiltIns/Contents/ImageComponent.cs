@@ -29,8 +29,9 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     public string? FallbackSource { get; set; }
 
     /// <summary>
-    /// Gets or sets the glyph a round picture (<see cref="Shape"/> Circle) shows on a neutral circle while it has no picture — no
-    /// <see cref="Source"/>, or one that fails, and <see cref="FallbackSource"/> too; unset, <c>UIGlyphs.Person</c>.
+    /// Gets or sets the glyph the picture shows over its box while it has none — no <see cref="Source"/>, or one that fails, and
+    /// <see cref="FallbackSource"/> too; unset, <c>UIGlyphs.Person</c> on a round one (<see cref="Shape"/> Circle) and
+    /// <c>UIGlyphs.Image</c> on any other.
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? FallbackIcon { get; set; }

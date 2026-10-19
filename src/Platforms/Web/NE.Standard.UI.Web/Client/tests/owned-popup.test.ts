@@ -12,6 +12,8 @@ class FakeElement {
     public readonly classes: Set<string>;
     public readonly attributes = new Map<string, string>();
     public connected = true;
+    /** Drawn: false for one put out of sight, as `display: none` on it does to all it holds. */
+    public shown = true;
     private readonly listeners = new Map<string, (domEvent: { readonly target: FakeElement }) => void>();
 
     public constructor(parent: FakeElement | null, options: FakeOptions = {}) {
@@ -107,7 +109,11 @@ class FakeElement {
     }
 
     public getClientRects(): unknown[] {
-        return this.isConnected ? [{}] : [];
+        return this.isConnected && this.checkVisibility() ? [{}] : [];
+    }
+
+    public checkVisibility(): boolean {
+        return this.shown && (this.parent === null || this.parent.checkVisibility());
     }
 
     private matchesOne(selector: string): boolean {
@@ -116,6 +122,13 @@ class FakeElement {
 
         if (selector.startsWith("."))
             return this.classes.has(selector.slice(1));
+
+        // The focusable kinds by their tag, which no stand-in here is; a tab stop by its index alone.
+        if (/^[a-z]/.test(selector))
+            return false;
+
+        if (selector === "[tabindex]:not([tabindex=\"-1\"])")
+            return this.attributes.has("tabindex") && this.attributes.get("tabindex") !== "-1";
 
         const attribute = /^\[([\w-]+)(?:='([^']*)')?\]$/.exec(selector);
 
@@ -163,7 +176,9 @@ Object.assign(globalThis, {
     HTMLInputElement: NoNativeField,
     HTMLTextAreaElement: NoNativeField,
     Node: FakeElement,
-    KeyboardEvent: FakeKey
+    KeyboardEvent: FakeKey,
+    // Every stand-in is a box of its own: none is `display: contents`.
+    getComputedStyle: () => ({ display: "block" })
 });
 
 const { canKeepPopup, OwnedPopups } = await import("../src/interactions/owned-popup.ts");
@@ -273,7 +288,7 @@ test("an owner that could not keep a popup is refused one", () => {
     assert.deepEqual(at.log, []);
 });
 
-test("a popup closes once its owner turns read-only, disabled or leaves the page", () => {
+test("a popup closes once its owner turns read-only, disabled, leaves the page or goes out of sight", () => {
     const cases: ((at: Scene) => void)[] = [
         at => at.owner.classes.add("ui-readonly"),
         at => at.owner.classes.add("ui-disabled"),
@@ -281,6 +296,10 @@ test("a popup closes once its owner turns read-only, disabled or leaves the page
         at => at.owner.setAttribute("aria-disabled", "true"),
         at => {
             at.owner.connected = false;
+        },
+        // A dialog closed round it, a fold, a tier's Visibility: the page holds it, nothing draws it.
+        at => {
+            at.page.shown = false;
         }
     ];
 
@@ -357,12 +376,25 @@ test("a popup that keeps open against outside interaction keeps open when the fo
 
 test("whether an owner can keep its popup", () => {
     const at = scene();
+    const opening = { owner: html(at.owner), popup: html(at.popup) };
 
-    assert.equal(canKeepPopup(html(at.owner), true), true);
+    assert.equal(canKeepPopup(opening, true), true);
 
     at.page.classes.add("ui-loading");
 
-    assert.equal(canKeepPopup(html(at.owner), false), false);
+    assert.equal(canKeepPopup(opening, false), false);
+});
+
+test("a popup that is its own owner, out of sight until it shows, is judged by its state alone", () => {
+    const at = scene();
+
+    at.popup.shown = false;
+
+    assert.equal(canKeepPopup({ owner: html(at.popup), popup: html(at.popup) }, true), true);
+
+    at.owner.shown = false;
+
+    assert.equal(canKeepPopup({ owner: html(at.owner), popup: html(at.popup) }, true), false);
 });
 
 test("a popup whose owner turned disabled gives the keyboard it held to the owner's root, since the owner's parts are inert", () => {

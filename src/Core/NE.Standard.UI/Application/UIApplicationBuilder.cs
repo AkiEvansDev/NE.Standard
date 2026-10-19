@@ -4,7 +4,10 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Authoring.Views;
+using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Localization;
 using NE.Standard.UI.Navigation;
@@ -485,12 +488,13 @@ public sealed class UIApplicationBuilder
 
         // Under key prefixes the report also names a view's static text that starts with none, which every language shows as written.
         UIUnkeyedWords? unkeyed = missingWords is null || localization.KeyPrefixes.Count == 0 ? null : new UIUnkeyedWords([.. localization.KeyPrefixes], missingWords);
-        UIRouteRegistry routeRegistry = Routes.Build(services, _security, unkeyed is null ? null : unkeyed.Inspect);
+        ITranslator translator = BuildTranslator(services, localization, missingWords);
+        UIRouteRegistry routeRegistry = Routes.Build(services, _security, InspectCompiled(unkeyed, translator));
 
         return new UIApplication(
             routeRegistry,
             ClonePersistenceOptions(_persistence),
-            BuildTranslator(services, localization, missingWords),
+            translator,
             _theme.Build(),
             CloneErrorHandlingOptions(_errorHandling),
             CloneSecurityOptions(_security),
@@ -502,7 +506,34 @@ public sealed class UIApplicationBuilder
             services.GetService<IUIContentAddressResolver>(),
             [.. _viewFilters.OrderBy(static filter => filter.Order)],
             [.. _commandFilters.OrderBy(static filter => filter.Order)]
-        );
+        )
+        {
+            ReportsToPage = services.GetService<UIPlatformDefaults>()?.ReportsToPage == true
+        };
+    }
+
+    /// <summary>
+    /// What looks at each view as it compiles: a language switch to a language the application does not translate into is refused, and
+    /// under key prefixes the unkeyed words are reported.
+    /// </summary>
+    private static Action<CompiledView, Type> InspectCompiled(UIUnkeyedWords? unkeyed, ITranslator translator)
+        => (view, viewType) =>
+        {
+            EnsureLanguagesTranslated(view, viewType, translator);
+            unkeyed?.Inspect(view, viewType);
+        };
+
+    /// <summary>
+    /// Refuses an interaction switching to a language the translator does not list: the page's report of it would be refused, and the
+    /// press would only warn in the browser's console.
+    /// </summary>
+    private static void EnsureLanguagesTranslated(CompiledView view, Type viewType, ITranslator translator)
+    {
+        foreach (CompiledUIInteraction interaction in view.Interactions.All)
+        {
+            if (interaction.Effect is SetLanguageEffect language && !translator.HasLanguage(language.Language))
+                throw new InvalidOperationException($"View '{viewType.Name}' switches to language '{language.Language}' in an interaction, but the application translates into {string.Join(", ", translator.Languages)}; name one of those, or add the language's words.");
+        }
     }
 
     /// <inheritdoc cref="CloneSecurityOptions" />

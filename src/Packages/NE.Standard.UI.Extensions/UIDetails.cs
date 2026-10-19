@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Models;
+using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
@@ -14,21 +18,38 @@ namespace NE.Standard.UI.Extensions;
 /// </summary>
 public static class UIDetails
 {
-    /// <summary>The rows, with no action column and no edge of their own, for a card or a surface to hold.</summary>
-    /// <remarks>A row is keyed by its name; a list that repeats one is refused rather than left with duplicate rows.</remarks>
-    public static KeyValueActionComponent List(params (string Key, string Value)[] rows)
+    /// <summary>
+    /// The rows, with no action column and no edge of their own, for a card or a surface to hold; rows that change are the
+    /// controller's, bound with <c>.BindItems(path)</c> and built with <see cref="Row"/>.
+    /// </summary>
+    /// <remarks>
+    /// A row is keyed by its name, the whole phrase: one key with two arguments ("VAT, 21 %" and "VAT, 9 %") is two names, the same
+    /// name twice is refused rather than left with duplicate rows.
+    /// </remarks>
+    public static KeyValueActionComponent List(params (UIPhrase Key, UIPhrase Value)[] rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
 
         KeyValueActionItem[] items = new KeyValueActionItem[rows.Length];
-        HashSet<string> keys = new(StringComparer.Ordinal);
+        HashSet<UIPhrase> names = [];
+        HashSet<string> ids = new(StringComparer.Ordinal);
 
         for (var i = 0; i < rows.Length; i++)
         {
-            if (!keys.Add(rows[i].Key))
-                throw new ArgumentException($"The key '{rows[i].Key}' names two rows; a details list keys its rows by name.", nameof(rows));
+            UIPhrase name = rows[i].Key;
 
-            items[i] = Row(rows[i].Key, rows[i].Key, rows[i].Value);
+            PresetWords.Require(name, nameof(rows));
+
+            if (!names.Add(name))
+                throw new ArgumentException($"'{name.Key}' names two rows; a details list keeps one row to a name.", nameof(rows));
+
+            // The name's key where it is the row's alone; one key naming two rows by their arguments takes its place beside it.
+            var id = name.Key;
+
+            for (var place = i; !ids.Add(id); place++)
+                id = string.Create(CultureInfo.InvariantCulture, $"{name.Key}#{place}");
+
+            items[i] = Row(id, name, rows[i].Value);
         }
 
         return new KeyValueActionComponent()
@@ -38,9 +59,10 @@ public static class UIDetails
     }
 
     /// <summary>One row: the name in the muted ink, the value in the text's own.</summary>
-    public static KeyValueActionItem Row(string id, string key, string value)
+    public static KeyValueActionItem Row(string id, UIPhrase key, UIPhrase? value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        PresetWords.Require(key);
 
         return new KeyValueActionItem
         {
@@ -54,20 +76,42 @@ public static class UIDetails
     /// One of the sums over a total — "Subtotal", "VAT, 21%" — the name muted at the start and the amount the controller holds at
     /// <paramref name="valuePath"/> at the far end, as wide as it is; one line at every width, as a receipt's.
     /// </summary>
-    public static ContainerComponent Amount(string label, string valuePath)
-        => Sum(label, valuePath, strong: false);
+    public static ContainerComponent Amount(UIPhrase label, string valuePath, UIBindingScope scope = UIBindingScope.Root)
+    {
+        PresetWords.Require(label);
+
+        return Sum(UIText.Body(label).Muted(), valuePath, scope, strong: false);
+    }
+
+    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/> — a rate that changes — as content.</summary>
+    public static ContainerComponent BoundAmount(string labelPath, string valuePath, UIBindingScope scope = UIBindingScope.Root)
+        => Sum(BoundLabel(labelPath, scope).AsBody().Muted(), valuePath, scope, strong: false);
 
     /// <summary>The line the sums come to — "Total a month" — the name and the amount both in the subtitle role.</summary>
-    public static ContainerComponent Total(string label, string valuePath)
-        => Sum(label, valuePath, strong: true);
-
-    private static ContainerComponent Sum(string label, string valuePath, bool strong)
+    public static ContainerComponent Total(UIPhrase label, string valuePath, UIBindingScope scope = UIBindingScope.Root)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(label);
+        PresetWords.Require(label);
+
+        return Sum(UIText.Subtitle(label), valuePath, scope, strong: true);
+    }
+
+    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/>, as content.</summary>
+    public static ContainerComponent BoundTotal(string labelPath, string valuePath, UIBindingScope scope = UIBindingScope.Root)
+        => Sum(BoundLabel(labelPath, scope).AsSubtitle(), valuePath, scope, strong: true);
+
+    private static TextComponent BoundLabel(string labelPath, UIBindingScope scope)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(labelPath);
+
+        return new TextComponent().BindTitle(labelPath, scope).AsContent(ITextBaseComponent.TitleProperty);
+    }
+
+    private static ContainerComponent Sum(TextComponent name, string valuePath, UIBindingScope scope, bool strong)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(valuePath);
 
-        TextComponent name = strong ? UIText.Subtitle(label) : UIText.Body(label).Muted();
-        TextComponent amount = new TextComponent().BindTitle(valuePath);
+        // The amount is the controller's figure, shown as it comes rather than looked up as a phrase.
+        TextComponent amount = new TextComponent().BindTitle(valuePath, scope).AsContent(ITextBaseComponent.TitleProperty);
 
         // Placed rather than equal columns, which stand one under another on a phone: a sum and its name are one line at every width.
         return new ContainerComponent()

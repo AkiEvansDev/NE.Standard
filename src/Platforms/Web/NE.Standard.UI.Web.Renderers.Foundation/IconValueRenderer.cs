@@ -21,15 +21,25 @@ public static class IconValueRenderer
     ];
 
     /// <summary>
-    /// The operation that redraws a round picture icon's stand-in after its value, shape or fallback changed (<c>icon-stand-in.ts</c>),
-    /// named by the host's mark that shows the icon.
+    /// The operation that redraws a picture icon's stand-in after its value, shape or fallback changed (<c>icon-stand-in.ts</c>), named
+    /// by the host's mark that shows the icon.
     /// </summary>
     public const string StandInOperationKind = "icon-stand-in";
 
-    /// <summary>The glyph a round picture shows while it has none, laid over the picture's place (<see cref="RenderStandInGlyph"/>).</summary>
+    /// <summary>The glyph a picture shows while it has none, laid over the picture's place (<see cref="RenderStandInGlyph"/>).</summary>
     public const string StandInClassName = "ui-icon-stand-in";
 
     private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)];
+
+    // On a component root, the size its own glyph is drawn at where an author set one: only the stylesheet reads it (a glyph edge).
+    private const string GlyphSizeAttribute = "data-ui-icon-size";
+
+    // A component's own glyph: its class on the glyph, and the same size on the component's root for what reads it there.
+    private static readonly WebDomOperation[] GlyphSizeOperations =
+    [
+        WebDomOperation.Class(converter: WebDomConverters.IconSizeClass),
+        WebDomOperation.Attribute(GlyphSizeAttribute, "root", WebDomConverters.IconSizeAttribute)
+    ];
 
     /// <summary>Writes the size class and colour a glyph wears.</summary>
     public static void RenderIconAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty sizeProperty, UIProperty colorProperty)
@@ -40,6 +50,30 @@ public static class IconValueRenderer
         _ = WebComponentRendererBase.RenderProperty<UIIconSize?>(context, target, sizeProperty, static (t, value) => WriteSize(t, value), SizeOperations);
 
         ThemeColorRenderer.RenderThemeColor(context, target, colorProperty);
+    }
+
+    /// <summary>
+    /// Writes the size a component's own glyph is drawn at: its class on <paramref name="glyph"/> and, where an author set one and
+    /// <paramref name="marksRoot"/>, the size on the component's root (<c>data-ui-icon-size</c>) — a glyph edge hangs an icon-only
+    /// button by its glyph (<c>ui-button.less</c>), and the root cannot read a size its glyph's class sets. A component with two glyphs
+    /// of one size marks its root from the first.
+    /// </summary>
+    public static void RenderGlyphSize(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder glyph, UIProperty sizeProperty, bool marksRoot = true)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(glyph);
+
+        _ = WebComponentRendererBase.RenderProperty<UIIconSize?>(context, glyph, sizeProperty, static (target, value) => WriteSize(target, value), GlyphSizeOperations);
+
+        // Read again, not in the glyph's callback: one reaching the root would be a closure allocated per component.
+        if (!marksRoot)
+            return;
+
+        _ = WebComponentRendererBase.ResolveRenderValue(context, sizeProperty, out UIIconSize? size, out _);
+
+        if (size is UIIconSize authored)
+            _ = root.Attribute(GlyphSizeAttribute, WebCssValues.IconSize(authored));
     }
 
     /// <summary>The same from values no property carries — an item's badge drawn from its own.</summary>
@@ -60,7 +94,7 @@ public static class IconValueRenderer
     /// <summary>
     /// Writes the shape a picture icon is drawn in (<see cref="UIIconShape"/>; the stylesheet leaves a glyph as it is) and its fallback;
     /// a round one whose value draws nothing shows the fallback glyph on a neutral circle, and its host the mark that shows the icon. A
-    /// picture that fails to load is the client's to answer (<c>icon-stand-in.ts</c>).
+    /// picture of any shape that fails to load is the client's to answer (<c>icon-stand-in.ts</c>).
     /// </summary>
     public static void RenderIconShape(WebRenderContext context, IHtmlElementBuilder host, IHtmlElementBuilder icon, WebIconShapeSite site)
     {
@@ -94,15 +128,18 @@ public static class IconValueRenderer
         _ = WebComponentRendererBase.ResolveRenderValue(context, site.FallbackProperty, out string? fallback, out _);
         _ = host.Attribute(site.ShownAttribute);
         _ = icon.Attribute(WebAttributes.IconFailed, MissingReason);
-        RenderStandInGlyph(icon, fallback);
+        RenderStandInGlyph(icon, fallback, round: true);
     }
 
     /// <summary>Why a round icon shows its stand-in when it has no value at all, which the client tells from a picture that failed.</summary>
     public const string MissingReason = "missing";
 
-    /// <summary>Renders the glyph a round picture shows while it has none: <paramref name="fallback"/> where it names one, else the person.</summary>
-    public static void RenderStandInGlyph(IHtmlElementBuilder parent, string? fallback)
-        => RenderIcon(parent, Draws(fallback) ? fallback : UIGlyphs.Person, StandInClassName);
+    /// <summary>
+    /// Renders the glyph a picture shows while it has none: <paramref name="fallback"/> where it names one, else the person on a
+    /// <paramref name="round"/> one and a picture's glyph on any other.
+    /// </summary>
+    public static void RenderStandInGlyph(IHtmlElementBuilder parent, string? fallback, bool round)
+        => RenderIcon(parent, Draws(fallback) ? fallback : round ? UIGlyphs.Person : UIGlyphs.Image, StandInClassName);
 
     /// <summary>
     /// Renders a standalone icon element — a package's chrome mark or the framework's <c>ne-</c> glyph beside a word. Decorative:

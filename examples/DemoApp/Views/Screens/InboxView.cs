@@ -144,9 +144,9 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
 
     private static StackPanelComponent CreateMessage()
         => UILayout.Stack(16,
-                UIText.Note(string.Empty).BindDescription(nameof(InboxController.FromLine)),
-                UIText.Paragraph(string.Empty).BindDescription(nameof(InboxController.Body)),
-                UIText.Paragraph(string.Empty)
+                UIText.Note().BindDescription(nameof(InboxController.FromLine)),
+                UIText.Paragraph().BindDescription(nameof(InboxController.Body)),
+                UIText.Paragraph()
                     .BindDescription(nameof(InboxController.Quote))
                     .SetShowQuoteLine(true)
                     .SetDescriptionColor(UIThemeColor.Muted)

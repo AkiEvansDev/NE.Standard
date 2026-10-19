@@ -22,7 +22,7 @@ internal sealed class SignInView : DemoScreenView, IUIViewDefinition
 
     private static CardComponent CreateCard()
         => UICard.Create("Sign in", null, UILayout.Stack(16,
-            UIText.Note(string.Empty).BindDescription(nameof(SignInController.ReasonLine)),
+            UIText.Note().BindDescription(nameof(SignInController.ReasonLine)),
             // Tonal: two fields on a neat centred card, which frames them; the line is for long forms that stack.
             new TextInputComponent()
                 .SetTitle("User name")
@@ -46,6 +46,6 @@ internal sealed class SignInView : DemoScreenView, IUIViewDefinition
             ),
             UIButtons.Primary("Sign in")
                 .SetHorizontalAlignment(UIAlignment.Stretch)
-                .OnSubmit(FormId, nameof(SignInController.SignInAsync))
+                .OnSubmitShowingLoading(FormId, nameof(SignInController.SignInAsync))
         ), DemoIcons.Outline(DemoIcons.Lock));
 }

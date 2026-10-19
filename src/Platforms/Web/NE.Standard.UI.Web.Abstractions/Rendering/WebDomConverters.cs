@@ -94,6 +94,9 @@ public static class WebDomConverters
     public const string ThemeGroundCss = "themeGroundCss";
     public const string SelectionModeAttribute = "selectionModeAttribute";
 
+    /// <summary>An icon size as the attribute its host carries (<c>WebCssValues.IconSize</c>): <c>small</c>, <c>medium</c>, <c>large</c>.</summary>
+    public const string IconSizeAttribute = "iconSizeAttribute";
+
     /// <summary>The parts of a <c>UISelectionStyle</c>, one custom property each.</summary>
     public const string SelectionBackgroundCss = "selectionBackgroundCss";
     public const string SelectionForegroundCss = "selectionForegroundCss";

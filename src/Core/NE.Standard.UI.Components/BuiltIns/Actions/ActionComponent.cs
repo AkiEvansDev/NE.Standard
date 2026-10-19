@@ -1,5 +1,8 @@
+using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Actions;
@@ -43,10 +46,18 @@ public abstract partial class ActionComponent<T> : ButtonComponent<T>
     }
 
     /// <summary>
-    /// Sets the row's title, description and leading icon in one call.
+    /// Sets the row's title, description and leading icon in one call; a string is the author's text, a key with arguments a phrase.
     /// </summary>
-    public T SetAction(string title, string? description = null, string? icon = null)
+    public T SetAction(UIPhrase title, UIPhrase? description = null, string? icon = null)
     {
+        ArgumentNullException.ThrowIfNull(title);
+
+        if (!UIPhrase.HasWords(title))
+            throw new ArgumentException("An action needs words.", nameof(title));
+
+        if (description is not null && !UIPhrase.HasWords(description))
+            throw new ArgumentException("A description given needs words; leave it out for none.", nameof(description));
+
         _ = SetTitle(title);
 
         if (description is not null)
@@ -60,9 +71,11 @@ public abstract partial class ActionComponent<T> : ButtonComponent<T>
 }
 
 /// <summary>
-/// A full-width row that invokes a command: content on the left, a trailing chevron on the right.
+/// A full-width row that invokes a command: content on the left, a trailing chevron on the right — or, given a <c>Url</c>, the row's
+/// look on a link to that address.
 /// </summary>
-public sealed class ActionComponent(string? id = null) : ActionComponent<ActionComponent>(id), IUIComponentDefinition
+[UIComponentPropertyBlock(typeof(ILinkableComponent))]
+public sealed partial class ActionComponent(string? id = null) : ActionComponent<ActionComponent>(id), IUIComponentDefinition, ILinkableComponent
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.action";

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Files;
@@ -46,6 +48,12 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
     internal UIHost Host => _built.Host;
 
     internal UITestClient Client { get; }
+
+    /// <summary>
+    /// Gets or sets whether a page whose view binds what names nothing opens; by default <see cref="OpenAsync(string, Action{UITestSession}?, CancellationToken)"/>
+    /// refuses it, naming each such warning, since such a binding otherwise shows only as a blank control. Advisory warnings never refuse.
+    /// </summary>
+    public bool AllowsCompileWarnings { get; set; }
 
     /// <summary>
     /// Boots <typeparamref name="TStartup"/> as its host would; <paramref name="configureServices"/> runs after the startup's own
@@ -135,6 +143,8 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
             cancellationToken
         ).ConfigureAwait(false);
 
+        EnsureCompiledClean(view);
+
         UITestPage page = new(this, instanceId, session);
 
         // Before the attach: a controller's OnAttachedAsync may already push to the page.
@@ -164,6 +174,22 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
         }
 
         return page;
+    }
+
+    /// <summary>
+    /// Refuses a page whose view binds what names nothing, unless <see cref="AllowsCompileWarnings"/>: the server only logs it, so a test
+    /// is where an application hears of it. Advice (an argument no parameter takes, a <c>Root</c> binding a row's item shadows) is
+    /// only logged, as the server logs it.
+    /// </summary>
+    private void EnsureCompiledClean(UIViewResolution view)
+    {
+        if (AllowsCompileWarnings)
+            return;
+
+        UICompileWarning[] unresolved = [.. view.View.Warnings.Where(static warning => warning.Kind == UICompileWarningKind.UnresolvedBinding)];
+
+        if (unresolved.Length > 0)
+            throw new InvalidOperationException($"The view of '{view.Route.Route}' binds what names nothing ({unresolved.Length}): {string.Join(" ", unresolved.Select(static warning => warning.Message))} Fix them, or set UITestApp.AllowsCompileWarnings.");
     }
 
     /// <summary>Stops the host and every runtime it holds.</summary>

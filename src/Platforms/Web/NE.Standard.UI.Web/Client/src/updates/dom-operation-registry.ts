@@ -85,7 +85,7 @@ export class DomOperationRegistry {
                 return;
             }
 
-            applyInlineMarkup(context.target, isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue), { autolinks: context.target.hasAttribute(AutolinksAttribute) });
+            applyInlineMarkup(context.target, isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue), { autolinks: context.target.hasAttribute(AutolinksAttribute), insideLink: context.target.closest("a") !== null });
             forgetWords(context.target, null);
         });
 

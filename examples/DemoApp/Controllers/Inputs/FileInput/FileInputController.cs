@@ -145,7 +145,7 @@ internal sealed partial class FileInputController() : DemoStandardController
                 .GetSelectionAsync(Context.Handle, selectionId, cancellationToken)
                 .ConfigureAwait(false);
 
-            UploadGroup.Report(selection.Files.Length == 0 ? "(empty selection)" : string.Join(", ", selection.Files.Select(file => $"{file.FileName} · {file.Size} B")));
+            UploadGroup.Report(selection.Files.Length == 0 ? "(empty selection)" : string.Join(", ", selection.Files.Select(file => $"{file.FileName} · {new UIFileSize(file.Size)}")));
         }
         catch (InvalidOperationException error)
         {

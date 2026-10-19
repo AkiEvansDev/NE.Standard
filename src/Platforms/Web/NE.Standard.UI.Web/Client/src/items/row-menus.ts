@@ -81,6 +81,24 @@ export class RowMenus {
         return menu !== undefined && menu === this.menuOf.get(otherComponentId);
     }
 
+    /** The components of the waiting menu a component stands in, itself among them; none for one in no waiting menu. */
+    public menuComponentsOf(componentId: number): number[] {
+        this.scan();
+
+        const menu = this.menuOf.get(componentId);
+        const components: number[] = [];
+
+        if (menu === undefined)
+            return components;
+
+        for (const [component, owner] of this.menuOf) {
+            if (owner === menu)
+                components.push(component);
+        }
+
+        return components;
+    }
+
     /** Whether a waiting menu's component stands in the rows of `hostComponentId`, so goes with them. */
     public standsInRowsOf(componentId: number, hostComponentId: number): boolean {
         this.scan();

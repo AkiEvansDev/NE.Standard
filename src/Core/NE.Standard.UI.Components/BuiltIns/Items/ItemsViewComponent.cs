@@ -76,6 +76,12 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
         => OnItemTemplate(template => _ = template.On(EventNames.Open, command, arguments));
 
     /// <summary>
+    /// Registers a command invoked when an item is opened, with literal argument values.
+    /// </summary>
+    public T OnItemOpenLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnItemOpen(command, UIActionArgument.Literals(arguments));
+
+    /// <summary>
     /// Registers the command a row dropped at another place among the rows raises — by a drag with <c>Draggable</c> on, or Alt+Up and
     /// Alt+Down — with the item's key and the index it now takes in the collection. The row stands there at once; the controller's
     /// Move of it keeps it there or puts it where the controller did, and an answer without one puts it back.
@@ -93,6 +99,12 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
         => OnItemTemplate(template => _ = template.On(EventNames.Move, command, arguments));
 
     /// <summary>
+    /// Registers the command a row dropped at another place raises, with literal argument values.
+    /// </summary>
+    public T OnItemMoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnItemMove(command, UIActionArgument.Literals(arguments));
+
+    /// <summary>
     /// Registers a command invoked when the Delete key is pressed on an item that may be removed, with the item's key.
     /// </summary>
     public T OnItemRemoveWithItemKey(string command, string argumentName = "id")
@@ -103,6 +115,12 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </summary>
     public T OnItemRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnItemTemplate(template => _ = template.On(EventNames.Remove, command, arguments));
+
+    /// <summary>
+    /// Registers a command invoked when the Delete key is pressed on an item that may be removed, with literal argument values.
+    /// </summary>
+    public T OnItemRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnItemRemove(command, UIActionArgument.Literals(arguments));
 
     /// <summary>
     /// Gets or sets what a windowed view shows while it reads rows it does not have yet: grey bars in the rows' shape, the default,

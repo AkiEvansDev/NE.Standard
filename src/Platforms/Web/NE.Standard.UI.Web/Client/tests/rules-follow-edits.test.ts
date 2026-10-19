@@ -4,11 +4,14 @@
 // either answers nothing or refuses the value by pushing the old one back. A toggle with no binding is read by its Pressed. A row's
 // own field edited lands in the row's item once the server's answer is applied and took it, as a push would: the list's rules read it,
 // and a virtualized host's values, which a row drawn again is drawn from, hold it; a value refused stays out. While the reader is still
-// in the row, the rules wait for them to leave it before they move it.
+// in the row, the rules wait for them to leave it before they move it. A field whose path another of the row's bindings shows (a tree
+// node's title beside the name a rename wrote) leaves the item to that binding's push: a command clearing and refilling the list, which
+// withdraws the push, draws the row again with the new words rather than keeping the old ones.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeInput, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import type { ServerChangeSet } from "../src/metadata/metadata-index.ts";
 
 // The tasks the page put off, run when a test says.
 const timers: (() => void)[] = [];
@@ -35,6 +38,8 @@ const { PropertyStateStore } = await import("../src/state/property-state-store.t
 const { PropertyPatchEngine } = await import("../src/updates/property-patch-engine.ts");
 const { ReactiveSourceRegistry } = await import("../src/updates/reactive-source-registry.ts");
 const { ValueBindingEngine } = await import("../src/updates/value-binding-engine.ts");
+const { DomRegistry } = await import("../src/addressing/dom-registry.ts");
+const { UpdateProcessor } = await import("../src/updates/update-processor.ts");
 
 type Reference = { readonly componentId: number; readonly propertyId: string };
 
@@ -471,6 +476,10 @@ type RowsPage = {
     readonly syncs: () => number;
     field(key: string): FakeInput;
     edit(key: string, value: string): Promise<void>;
+    /** The words a row shows of its name beside the field, where the page draws them. */
+    shown(key: string): string | undefined;
+    /** A command's Clear() and its Adds, as the server sends them: a reset and an insert of the rows again. */
+    refill(names: Readonly<Record<string, string>>): void;
 };
 
 /**
@@ -480,7 +489,7 @@ type RowsPage = {
  */
 type RowAnswer = "take" | "refuse" | "restore" | "echo";
 
-function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take"): RowsPage {
+function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take", showsName = false): RowsPage {
     const RowName: Reference = { componentId: 21, propertyId: "row.name" };
     const scopes = new Map<FakeElement, { scopeComponentId: number; item: Record<string, unknown> }>();
     const held = new Map<string, Record<string, unknown>>();
@@ -494,19 +503,31 @@ function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take
     const outside = FakeElement.of("ui-button", {}, "button");
     let syncs = 0;
 
-    for (const [key, name] of kept) {
+    // A row as the page draws it from its item: the name field, the name shown beside it where the page shows one, and a second
+    // control, which the reader may move to without leaving the row.
+    const drawRow = (key: string, name: string): FakeElement => {
         const field = new FakeInput("text");
+        const component = FakeElement.of("", { "data-ui-id": "21", "data-ui-pc": "1" }).append(field);
+        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key }).append(component, FakeElement.of("", {}, "button"));
 
         field.value = name;
         field.setAttribute("data-ui-bind-value", "41");
 
-        // A second control in the row, which the reader may move to without leaving it.
-        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key }).append(FakeElement.of("", { "data-ui-id": "21", "data-ui-pc": "1" }).append(field), FakeElement.of("", {}, "button"));
-        const item = { Id: key, Name: name };
+        if (showsName) {
+            const words = FakeElement.of("ui-text", { "data-ui-bind-title": "42" });
 
-        scopes.set(row, { scopeComponentId: 0, item });
-        held.set(key, { ...item });
-        host.append(row);
+            words.textContent = name;
+            component.append(words);
+        }
+
+        scopes.set(row, { scopeComponentId: 0, item: { Id: key, Name: name } });
+
+        return row;
+    };
+
+    for (const [key, name] of kept) {
+        host.append(drawRow(key, name));
+        held.set(key, { Id: key, Name: name });
     }
 
     const root = FakeElement.of("page").append(view, outside);
@@ -514,9 +535,11 @@ function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take
     fakeDocument.body.replaceChildren(root);
 
     const binding = { ...RowName, mode: "TwoWay", itemTemplate: "Name", itemTemplateParameters: [] };
+    // The name shown beside the field: another property of the row's component reading the same path, one way.
+    const shownBinding = { componentId: 21, propertyId: "row.title", mode: "OneWay", itemTemplate: "Name", itemTemplateParameters: [] };
     const metadata = {
         metadata: { interactions: [], itemsFilterSort: [] },
-        getBindingById: (id: number) => id === 41 ? binding : undefined,
+        getBindingById: (id: number) => id === 41 ? binding : id === 42 ? shownBinding : undefined,
         getBindingByComponentAndPropertyId: () => binding,
         getPropertyDefinition: () => ({ propertyId: RowName.propertyId, propertyName: "Value" }),
         getItemsFilterSortMetadata: () => undefined
@@ -613,6 +636,25 @@ function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take
 
     const field = (key: string): FakeInput => real<FakeInput>(host.querySelector(`[data-ui-key="${key}"] input`));
 
+    // The list's change sets, applied as the page applies them: the rows are the plain host's, drawn from their items by `drawRow`.
+    const processor = new UpdateProcessor(
+        real({ metadata: { items: [] }, getItemValues: () => [], getItemsTemplateMetadata: () => undefined, getItemsFilterSortMetadata: () => undefined }),
+        real(patches),
+        real({ forgetRows: () => undefined, forgetHost: () => undefined }),
+        real({
+            setRowFiller: () => undefined,
+            getAncestorStack: () => [],
+            getItemScope: (element: FakeElement) => scopes.get(element),
+            getItemValue: (element: FakeElement) => scopes.get(element)?.item,
+            renderItem: (_componentId: number, item: { readonly Name: string }, key: string) => drawRow(key, item.Name)
+        }),
+        real({ isTemplateComponent: () => false, getEmptyTemplate: () => undefined, getGroupTemplate: () => undefined, getTemplate: () => undefined }),
+        new DomRegistry(real<ParentNode>(root)),
+        real({ sync: () => undefined, remove: () => undefined }),
+        real({}),
+        real({ holds: () => false, standsInRowsOf: () => false, heldChanged: () => undefined })
+    );
+
     return {
         host,
         outside,
@@ -627,6 +669,17 @@ function createRowsPage(mode: "plain" | "virtualized", answer: RowAnswer = "take
             field(key).dispatchEvent(new FakeEvent("change"));
             // The value engine sends on a promise: its answer lands a turn later.
             await new Promise(resolve => setImmediate(resolve));
+        },
+        shown: key => host.querySelector(`[data-ui-key="${key}"] [data-ui-bind-title]`)?.textContent,
+        refill: names => {
+            const items = Object.entries(names).map(([key, name]) => ({ key, item: { Id: key, Name: name } }));
+
+            processor.applyChangeSet(real<ServerChangeSet>({
+                updates: [
+                    { kind: "CollectionChange", action: "Reset", component: { id: 20, dynamicParameters: [] }, items: [] },
+                    { kind: "CollectionChange", action: "Insert", component: { id: 20, dynamicParameters: [] }, items }
+                ]
+            }));
         }
     };
 }
@@ -679,6 +732,28 @@ test("a row's value the answer sends back unchanged, which reads as no change, s
 
     assert.deepEqual(page.names(), { a: "Zoe", b: "Boris" });
     assert.deepEqual(page.order(), ["b", "a"]);
+});
+
+test("a row's field whose path another of the row's bindings shows leaves the item to that binding's push", async () => {
+    const page = createRowsPage("plain", "take", true);
+
+    await page.edit("a", "Zoe");
+
+    // The shown name follows the push, which brings the item with it; until then the item says what the row shows.
+    assert.deepEqual(page.names(), { a: "Anna", b: "Boris" });
+    assert.equal(page.shown("a"), "Anna");
+});
+
+test("a command clearing and refilling the rows, which withdrew the shown name's push, draws the edited row again with its new words", async () => {
+    const page = createRowsPage("plain", "take", true);
+
+    await page.edit("a", "Zoe");
+    page.refill({ a: "Zoe", b: "Boris" });
+
+    // The same item read as unchanged kept the row and the old words in it (#251).
+    assert.equal(page.shown("a"), "Zoe");
+    assert.equal(page.field("a").value, "Zoe");
+    assert.equal(page.shown("b"), "Boris");
 });
 
 test("a row the reader is still in takes the edit at once, and the sort moving it waits until the reader leaves the row", async () => {

@@ -142,7 +142,7 @@ internal sealed partial class UIViewCompilationContext
             IVisualComponent content = RequireContent();
             UIEvent shortcutEvent = new(ShortcutEventName(shortcut), action);
 
-            EnsureCommandExists(content, shortcutEvent);
+            EnsureCommandFits(content, shortcutEvent);
 
             events.Add(new CompiledUIEvent
             {

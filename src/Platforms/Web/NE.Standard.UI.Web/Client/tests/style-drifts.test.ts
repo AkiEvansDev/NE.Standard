@@ -115,7 +115,7 @@ test("every input's root is the one shell: a column centred across a row, as tal
         assert.match(shell, /display: (inline-)?flex;/, root);
         assert.match(shell, /flex-direction: column;/, root);
         assert.match(shell, /gap: 0\.25rem;/, root);
-        assert.match(shell, /align-self: var\(--ui-align-v, center\);/, root);
+        assert.match(shell, /align-self: var\(--ui-align-v, var\(--ui-center, center\)\);/, root);
         if (root === ".ui-calendar")
             assert.doesNotMatch(shell, /max-width/);
         else

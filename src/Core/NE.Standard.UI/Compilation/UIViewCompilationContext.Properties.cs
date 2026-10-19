@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Binding;
@@ -141,6 +143,71 @@ internal sealed partial class UIViewCompilationContext
 
         if (itemsHost.Paging != true && FindBinding(host, IItemsHostComponent.PagingProperty) is null)
             throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', whose window is not a page: its scroll reads the next window. Say SetPaging(true) on it, or bind Paging.");
+    }
+
+    /// <summary>
+    /// Refuses a form nothing submits: a field bound <c>OnSubmit</c> holds its edits until its form's submit, which would never come, and
+    /// a text area's Enter presses its form's button, which would not be there — a Save written <c>OnClick</c> rather than
+    /// <c>OnSubmit(formId, …)</c>. A form id a component binds is the page's to make, and leaves the view unchecked.
+    /// </summary>
+    private void EnsureFormsAreSubmitted()
+    {
+        HashSet<string> submitted = new(StringComparer.Ordinal);
+        HashSet<string> pressed = new(StringComparer.Ordinal);
+
+        foreach (IVisualComponent component in _componentOrder)
+        {
+            if (TryGetPropertyDefinition(component.TypeKey, ButtonComponent.SubmitFormIdProperty, out UIPropertyDefinition? submit))
+            {
+                if (FindBinding(component, submit.Property) is not null)
+                    return;
+
+                if (submit.Getter(component) is string { Length: > 0 } formId)
+                {
+                    _ = submitted.Add(formId);
+                    _ = pressed.Add(formId);
+                }
+            }
+
+            if (component is IFormSubmittingComponent submitting && submitting.FormId is { Length: > 0 } own && SubmitsOnAnEvent(component, submitting))
+                _ = submitted.Add(own);
+        }
+
+        foreach (IVisualComponent component in _componentOrder)
+        {
+            if (component is not IInputComponent { FormId: { Length: > 0 } formId } || FindBinding(component, IInputComponent.FormIdProperty) is not null)
+                continue;
+
+            if (SubmitsOnEnter(component) && !pressed.Contains(formId))
+                throw new InvalidOperationException($"Component '{component.Id}' submits form '{formId}' on Enter, but no button submits that form, so Enter would press nothing; give the form's button OnSubmit(\"{formId}\", command).");
+
+            if (HoldsForSubmit(component) && !submitted.Contains(formId))
+                throw new InvalidOperationException($"Component '{component.Id}' holds its edits for form '{formId}' (an OnSubmit binding), but nothing submits that form, so they would never be sent; give the form's button OnSubmit(\"{formId}\", command).");
+        }
+    }
+
+    /// <summary>Whether one of the component's own events submits its form (<see cref="IFormSubmittingComponent"/>): a code field's save.</summary>
+    private static bool SubmitsOnAnEvent(IVisualComponent component, IFormSubmittingComponent submitting)
+    {
+        foreach (UIEvent registered in component.Events)
+        {
+            if (submitting.SubmitsForm(registered.Name))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a property of the component is bound <c>OnSubmit</c>, held on the page until its form is submitted.</summary>
+    private static bool HoldsForSubmit(IVisualComponent component)
+    {
+        foreach (UIBinding binding in component.Bindings)
+        {
+            if (binding.Mode == UIBindingMode.OnSubmit)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>Whether a component says <c>SubmitOnEnter</c>, set or bound.</summary>

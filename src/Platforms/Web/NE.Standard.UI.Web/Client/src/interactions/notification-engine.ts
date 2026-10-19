@@ -12,6 +12,7 @@ import { putUpAnnouncer } from "./live-announcer.ts";
 import type { LiveAnnouncer, Politeness } from "./live-announcer.ts";
 import { bottomBarTop } from "./anchored-popup.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
+import { registerEscapeLayer } from "./popup-dismissal.ts";
 import { liveFocusReturn, restoreFocusTo } from "./popup-focus.ts";
 import type { ComponentIndex } from "./popup-focus.ts";
 
@@ -86,6 +87,8 @@ export class NotificationEngine {
         // Up before the first toast: the host is the live region, and one inserted along with its words is not reliably read.
         this.ensureHost();
         this.announcer = putUpAnnouncer(this.root instanceof Document ? this.root.body : this.root);
+        // A toast holding the keyboard is nearer than a dialog or a drawer: they leave it the Escape that closes it, theirs the next one.
+        registerEscapeLayer(target => target instanceof Element && target.closest(`.${NotificationClass}`) !== null);
     }
 
     /** Speaks words to a screen reader and shows nothing (AnnounceEffect), through the hidden live regions beside the host. */

@@ -5,7 +5,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 let phone = true;
 
@@ -100,6 +100,25 @@ test("a sheet takes the keyboard and hides the page beside it from a screen read
     handle.close();
 
     assert.equal(page.hasAttribute("aria-hidden"), false);
+});
+
+test("Escape closes a sheet as it closes a list beside its anchor, and gives the keyboard back to what opened it", async () => {
+    const { anchor, popup, entry } = scene();
+    const reasons: string[] = [];
+
+    anchor.focus();
+    popups.open(real(anchor), real(popup), options(reasons));
+    await Promise.resolve();
+    entry.focus();
+
+    const key = new FakeKeyboardEvent("Escape", entry);
+
+    fakeDocument.documentElement.dispatchEvent(key);
+
+    assert.equal(key.defaultPrevented, true);
+    assert.deepEqual(reasons, ["escape"]);
+    assert.equal(popup.popoverOpen, false);
+    assert.equal(fakeDocument.activeElement, anchor);
 });
 
 test("a list opened from a sheet's entry is a nested sheet, a row naming the entry on top, which leads back to the sheet", async () => {

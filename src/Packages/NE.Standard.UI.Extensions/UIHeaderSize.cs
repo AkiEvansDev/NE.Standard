@@ -1,6 +1,9 @@
+using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Localization;
+
 namespace NE.Standard.UI.Extensions;
 
-/// <summary>How large a header band stands (<see cref="UIPage.Header(UIHeaderSize, NE.Standard.UI.Authoring.Components.IVisualComponent?, string, string?, NE.Standard.UI.Authoring.Components.IVisualComponent[])"/>).</summary>
+/// <summary>How large a header band stands (<see cref="UIPage.Header(UIHeaderSize, IVisualComponent?, UIPhrase, UIPhrase, IVisualComponent[])"/>).</summary>
 public enum UIHeaderSize
 {
     /// <summary>A page's title band: the name in the display role from the medium width, on the content's edge.</summary>

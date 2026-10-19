@@ -56,6 +56,11 @@ The session is the application's own: `session.SignIn(userId, roles, permissions
 so the resolver, authorization and filters read them as they read a real session. `WithNotificationPermission(...)` is
 what its pages' browser reports. `page.OpenAsync(address)` opens another page in the same session.
 
+A page whose view binds what names nothing — a property the controller lacks, a step the server cannot read — is refused
+when it opens, naming each binding: the server only logs it, and the page would show a blank control. Advice the compile
+gives (an argument the command has no parameter for, a `Root` binding a row's item shadows) is logged, not refused.
+`page.CompileWarnings` lists both, each with its `Kind`; `app.AllowsCompileWarnings = true` opens such a page anyway.
+
 ## Finding a component
 
 - `page.Component("chat-conversation")` — by the id the view gave it.
@@ -65,7 +70,8 @@ what its pages' browser reports. `page.OpenAsync(address)` opens another page in
   written or in the page's language.
 
 A list's rows are `component.Rows` and `component.Row(key)`; a row's components are found the same way inside it
-(`row.Component(id)`, `row.ComponentBoundTo("Text")`), and `row.ContextMenu` is what a right click on it shows.
+(`row.Component(id)`, `row.ComponentBoundTo("Text")`), and `row.ContextMenu` is what a right click on it shows. A split
+button's entries are the rows of `component.Menu`.
 
 ## Reading it
 
@@ -76,8 +82,12 @@ past its bounds, the controller's bound message and the server's refusal, as the
 the row's item; a reset and its inserts keep what the page held under the rows they resend unchanged.
 The client interactions a view declares run too: a part shown while a switch is on appears when the switch is written.
 
-`page.Effects` and `page.EffectsOf<ShowNotificationEffect>()` are every effect the page received; dialogs open and close
-with theirs, the dialog service's too (`page.IsDialogOpen(key)`). `page.Downloads` holds the files sent to it. `page.Controller<T>()` is the
+`page.Effects` and `page.EffectsOf<ShowNotificationEffect>()` are every effect the page received, run as the browser runs
+them: dialogs open and close with theirs, the dialog service's too (`page.IsDialogOpen(key)`); the viewer's own close
+(`CloseDialogEffect` with `RaisesClose`) lets the edit of a form under the dialog's key go and raises its `OnClose`; a show,
+hide or collapse writes its target's visibility; an address effect rewrites `page.Address`; a discard lets a form's held
+edits go; a language or a theme the page switches to reaches its session and controller. An effect naming a dialog the view
+does not declare throws, as the server drops it. `page.Downloads` holds the files sent to it. `page.Controller<T>()` is the
 controller, for what the screen does not show.
 
 ## Acting on it
@@ -91,10 +101,14 @@ filters and authorization all run:
   a value no reader could give — a slider past its bounds, a negative where none is taken — throws. It answers a
   `UITestCommandResult`: refused for a value the page or the server refused, else what the change command did.
 - `ClickAsync()` presses: a button submitting a form is refused while a field of the form is in error, as the browser
-  refuses it, and the result says so (`Sent` false).
+  refuses it, and the result says so (`Sent` false); a surface or a file tile whose `Clickable` is false throws, as the
+  browser lets its click go by.
 - `DispatchAsync(eventName, eventKeys)` raises any event a component declares; one that submits its field's form (a
   code field's save, `IFormSubmittingComponent`) sends the form's held values first.
-- `row.ClickAsync()` and `row.ChooseAsync()` press or choose a row.
+- `row.ClickAsync()` and `row.ChooseAsync()` press or choose a row; an entry with an effect of its own
+  (`OnItemClick(key, effect)`) runs it on the page and sends nothing.
+- `page.DismissDialogAsync(key)` closes a dialog as Escape or a press beside it does: its form's edit goes and its
+  `OnClose` runs; one that takes neither throws.
 - `page.PressNotificationActionAsync(toast)` presses a notification's action — its Undo.
 - `page.HideAsync()` / `ShowAsync()` take the page off screen and back (`HasVisibleViewers`), and
   `ReportNotificationPermissionAsync(...)` reports the browser's answer to the prompt.

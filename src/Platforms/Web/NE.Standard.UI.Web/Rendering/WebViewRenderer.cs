@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Frozen;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Hosting;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -54,8 +55,9 @@ internal sealed class WebViewRenderer : IWebViewRenderer
     private readonly UITheme _theme;
     private readonly UITemporalOptions _temporal;
 
-    // In development a page is told what each host's rows carry, so a read of a path the server did not ship warns.
-    private readonly bool _describesItemPaths;
+    // In development a page is told what each host's rows carry, so a read of a path the server did not ship warns, and what its view's
+    // compile warned of, which its console then says where the author is looking.
+    private readonly bool _development;
 
     public WebViewRenderer(IWebRendererRegistry renderers, UIApplication application, IHostEnvironment? environment = null)
     {
@@ -66,7 +68,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         _translator = application.Translator;
         _theme = application.Theme;
         _temporal = application.Temporal;
-        _describesItemPaths = environment?.IsDevelopment() == true;
+        _development = environment?.IsDevelopment() == true;
     }
 
     public WebRenderResult Render(UIViewResolution resolution, IWebRenderValues? values = null)
@@ -81,8 +83,11 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         RenderRegions(resolution, html, metadata, values);
         RenderDialogs(resolution, html, metadata, values);
 
-        if (_describesItemPaths)
+        if (_development)
+        {
             metadata.DescribeItemPaths(resolution.View.ItemProjections);
+            metadata.CompileWarnings = [.. resolution.View.Warnings.Select(static warning => warning.Message)];
+        }
 
         WebRenderResult result = new()
         {
@@ -394,7 +399,10 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         .Attribute("role", "dialog")
                         .Attribute("tabindex", "-1");
 
-                    if (!string.IsNullOrWhiteSpace(dialog.Label))
+                    // Named by its title where it shows one, so a bound title names it as it changes; its label otherwise.
+                    if (dialog.TitleComponentId is UIComponentId title)
+                        _ = surface.Attribute("aria-labelledby", WebAttributes.DialogTitleId(title));
+                    else if (!string.IsNullOrWhiteSpace(dialog.Label))
                         WebWords.WriteText(_translator, viewResolution.Session.Language, surface, "aria-label", dialog.Label);
 
                     // Render-time only: a dialog is not a component, so a live patch has nothing to address.

@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
@@ -14,11 +15,13 @@ public static class UICard
 {
     /// <summary>
     /// A card with its name, an optional line and an optional mark in the default header, one component as its content, and
-    /// <paramref name="trailing"/> (an icon button, a switcher) at the header's far end.
+    /// <paramref name="trailing"/> (an icon button, a switcher) at the header's far end, its glyph on the card's edge. A null
+    /// <paramref name="title"/> leaves the name to the header: <c>.ConfigureDefaultHeader(header => header.BindTitle(path))</c>.
     /// </summary>
-    public static CardComponent Create(string title, string? description, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+    public static CardComponent Create(UIPhrase? title, UIPhrase? description, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        PresetWords.RequireIfGiven(title);
+        PresetWords.RequireIfGiven(description);
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(trailing);
 
@@ -28,7 +31,8 @@ public static class UICard
         CardComponent card = new CardComponent()
             .ConfigureDefaultHeader(header =>
             {
-                _ = header.SetTitle(title);
+                if (title is not null)
+                    _ = header.SetTitle(title);
 
                 if (description is not null)
                     _ = header.SetDescription(description);
@@ -51,7 +55,7 @@ public static class UICard
     }
 
     /// <summary>
-    /// One card alone on an otherwise empty page — a sign-in, what a submit came to (<see cref="UIPage.Outcome(string?, UIMessageSeverity, string, string?, IVisualComponent[])"/>),
+    /// One card alone on an otherwise empty page — a sign-in, what a submit came to (<see cref="UIPage.Outcome(string?, UIMessageSeverity, UIPhrase, UIPhrase, IVisualComponent[])"/>),
     /// or a stack of a form and what replaces it: a form's column (<see cref="UIColumnWidth.Form"/>, the whole width on a phone) in the
     /// middle, 24 px under the top on a phone and 96 px from the medium breakpoint, where a card at a wide screen's top edge reads as
     /// pushed up.

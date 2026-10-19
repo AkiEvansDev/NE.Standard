@@ -107,7 +107,7 @@ function createPage(buttons: readonly FakeElement[], uploadingForm: string, opti
                 }, 5));
             }
         }),
-        interactionEngine: real<InteractionEngine>({ hasEvent: () => false, hasEventForComponent: () => false, applyEvent: () => undefined }),
+        interactionEngine: real<InteractionEngine>({ hasEvent: () => false, hasEventForComponent: () => false, takesRowEvent: () => false, applyEvent: () => undefined }),
         eventCatalog: real<EventCatalog>({ get: () => undefined, register: () => undefined }),
         effects: real<EffectRegistry>({ applyAll: () => undefined }),
         uploads: options.uploads ?? {

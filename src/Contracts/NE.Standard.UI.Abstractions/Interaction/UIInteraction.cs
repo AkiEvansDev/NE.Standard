@@ -106,6 +106,17 @@ public readonly record struct UIInteraction
     }
 
     /// <summary>
+    /// Creates an interaction that runs a client effect when a source event fires in the row whose key is <paramref name="rowKey"/> —
+    /// one menu entry's press, where the source is the entries' template; a press of any other row goes its usual way.
+    /// </summary>
+    public UIInteraction(string componentId, string sourceEvent, string rowKey, ClientEffect effect)
+        : this(componentId, sourceEvent, effect)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rowKey);
+        RowKey = rowKey;
+    }
+
+    /// <summary>
     /// Creates an interaction that copies a source property's value into the target property, live while the reader moves the source.
     /// </summary>
     public static UIInteraction CopyValue(string componentId, UIProperty source, UIProperty target)
@@ -155,6 +166,12 @@ public readonly record struct UIInteraction
     /// Gets the source event name for event-driven interactions.
     /// </summary>
     public string? SourceEvent { get; }
+
+    /// <summary>
+    /// Gets the key of the row whose event alone fires the interaction — a menu entry's — in place of the command that row's press would
+    /// run; null for any row, or a source that stands in none.
+    /// </summary>
+    public string? RowKey { get; }
 
     /// <summary>
     /// Gets the target property updated by a property-assigning or value-copying interaction.

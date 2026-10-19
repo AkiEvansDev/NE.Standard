@@ -33,6 +33,13 @@ public interface IUIReferenceResolver
         => itemsView;
 
     /// <summary>
+    /// Refuses a dialog key the view does not declare: an opening or a close that would find nothing on the page.
+    /// </summary>
+    void EnsureDialogDeclared(string dialogKey)
+    {
+    }
+
+    /// <summary>
     /// Offers the page one run of a controller's command with <paramref name="argument"/> for its one parameter (a notification's
     /// action), answering the id the page runs it by; refuses a command the controller does not declare.
     /// </summary>

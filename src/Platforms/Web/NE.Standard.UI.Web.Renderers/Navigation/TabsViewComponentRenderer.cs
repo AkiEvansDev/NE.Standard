@@ -42,6 +42,7 @@ public sealed class TabsViewComponentRenderer : ItemsCollectionRendererBase
         RenderFlagAttribute(context, root, TabsViewComponent.DraggableProperty, WebAttributes.TabsDraggable);
         RenderFlagAttribute(context, root, TabsViewComponent.RemovableProperty, WebAttributes.TabsUnremovable, WebValueCondition.IsFalse);
         RenderFlagClass(context, root, TabsViewComponent.ShowOverflowProperty, "ui-tabs-view--no-overflow", WebValueCondition.IsFalse);
+        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-tabs-view--no-empty", WebValueCondition.IsFalse);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName);

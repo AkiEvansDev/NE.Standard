@@ -42,8 +42,8 @@ public abstract partial class IconComponent<T> : VisualComponentBase<T>, IToolti
     public UIIconShape? Shape { get; set; }
 
     /// <summary>
-    /// Gets or sets the glyph a round picture (<see cref="Shape"/> Circle) shows on a neutral circle while it has no picture, none
-    /// given or one that fails; unset, <c>UIGlyphs.Person</c>.
+    /// Gets or sets the glyph a picture shows while it has no picture — a round one (<see cref="Shape"/> Circle) none given or one that
+    /// fails, any other one that fails; unset, <c>UIGlyphs.Person</c> on a round one and <c>UIGlyphs.Image</c> on any other.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? FallbackIcon { get; set; }

@@ -17,7 +17,7 @@ internal sealed class AdminView : DemoScreenView, IUIViewDefinition
 
     private static CardComponent CreateKey()
         => UICard.Create("Signing key", null, UILayout.Stack(12,
-            UIText.Note(string.Empty).BindDescription(nameof(AdminController.KeyLine)),
+            UIText.Note().BindDescription(nameof(AdminController.KeyLine)),
             UILayout.Row(8,
                 UIButtons.Primary("Rotate the key", DemoIcons.Outline(DemoIcons.Refresh))
                     .OnClickShowingLoading(nameof(AdminController.RotateKeyAsync)),
@@ -28,6 +28,6 @@ internal sealed class AdminView : DemoScreenView, IUIViewDefinition
 
     private static CardComponent CreateAudit()
         => UICard.Create("Audit trail", "The same trail the account page shows; the console's own presses join it.", UILayout.Stack(12,
-            UIText.Paragraph(string.Empty).BindDescription(nameof(AdminController.AuditLines))
+            UIText.Paragraph().BindDescription(nameof(AdminController.AuditLines))
         ), DemoIcons.Outline(DemoIcons.History));
 }

@@ -35,6 +35,19 @@ test("a placeholder is filled by name and an unknown one is left standing", () =
     assert.equal(strings.format("ui.file.count", { count: 3 }), "3 files ({other})");
 });
 
+test("words a package's model carries resolve as the server wrote them: a key filled from its arguments, a text under the prefixes", () => {
+    const strings = new ClientWords();
+
+    strings.useTable(tableOf("en", { "app.rows": "{count} rows", "app.paid": "Paid", Open: "Opened" }, { prefixes: ["app."] }));
+
+    assert.equal(strings.resolve({ key: "app.rows", args: { count: 3 } }), "3 rows");
+    assert.equal(strings.resolve("app.paid"), "Paid");
+    assert.equal(strings.resolve({ text: "app.paid" }), "Paid");
+    // Not under a prefix: an author's text is shown as written, a key looked up whatever the prefixes.
+    assert.equal(strings.resolve("Open"), "Open");
+    assert.equal(strings.resolve({ key: "Open" }), "Opened");
+});
+
 test("words a package formats for markup take their string arguments escaped, an author's text too, and its own markup and numbers as written", () => {
     const strings = new ClientWords();
 

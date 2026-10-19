@@ -39,6 +39,9 @@ public static class ClientEffectKinds
     public const string RequestNotificationPermission = "RequestNotificationPermission";
     public const string ShowSystemNotification = "ShowSystemNotification";
     public const string ShowImage = "ShowImage";
+
+    /// <summary>An author's mistake written to the page's console (<see cref="DevelopmentReportEffect"/>).</summary>
+    public const string DevelopmentReport = "DevelopmentReport";
 }
 
 /// <summary>

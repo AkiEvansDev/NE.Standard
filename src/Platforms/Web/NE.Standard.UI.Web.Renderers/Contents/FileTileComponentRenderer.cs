@@ -12,8 +12,8 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 
 /// <summary>
 /// The tile an image input's shelf draws for a file that is no picture (<c>file-tile.ts</c>): the glyph, the name and the size, the
-/// file's facts on the root, from which <c>file-tile-engine.ts</c> writes the size in the reader's language and the glyph again as they
-/// change; pressable as a surface is.
+/// file's facts on the root, from which the boot script writes the size in the reader's language before the first paint and
+/// <c>file-tile-engine.ts</c> the size and the glyph again as they change; pressable as a surface is.
 /// </summary>
 public sealed class FileTileComponentRenderer : WebComponentRendererBase
 {
@@ -54,7 +54,8 @@ public sealed class FileTileComponentRenderer : WebComponentRendererBase
             _ = part.Class(WebClassNames.FileTileName);
         });
 
-        // Empty until the page writes it: a size reads in the reader's language ("1,5 МБ"), which one render shared by every reader cannot carry.
+        // Empty for the boot script to write before the first paint: a size reads in the reader's language ("1,5 МБ"), which one render
+        // shared by every reader cannot carry.
         _ = root.Element("span", part => part.Class(WebClassNames.FileTileSize));
 
         // The tree is written out only once the whole component is built, so writing the name after its element returned is safe.

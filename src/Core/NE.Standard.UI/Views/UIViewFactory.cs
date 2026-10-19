@@ -14,7 +14,8 @@ internal sealed partial class UIViewFactory
     private readonly Func<IServiceProvider, IUIView> _factory;
     private readonly Type? _controllerType;
 
-    // Told of the view once it is compiled, at startup or on first use: where the unkeyed-words report reads it.
+    // Told of the view once it is compiled, at startup or on first use: where the application checks an interaction's language is one
+    // it translates into, and the unkeyed-words report reads it.
     private readonly Action<CompiledView, Type>? _compiled;
 
     public UIViewFactory(IServiceProvider services, Type viewType, Func<IServiceProvider, IUIView> factory, Type? controllerType = null, Action<CompiledView, Type>? compiled = null)
@@ -45,8 +46,8 @@ internal sealed partial class UIViewFactory
 
             Log.Compiled(logger, _viewType.Name, elapsed.TotalMilliseconds, view.Graph.All.Count, view.Bindings.All.Count);
 
-            foreach (var warning in view.Warnings)
-                Log.CompilationWarning(logger, warning);
+            foreach (UICompileWarning warning in view.Warnings)
+                Log.CompilationWarning(logger, warning.Message);
         }
 
         _compiled?.Invoke(view, _viewType);

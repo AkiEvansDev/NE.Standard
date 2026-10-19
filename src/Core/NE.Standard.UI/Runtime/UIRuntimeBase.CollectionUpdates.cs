@@ -347,6 +347,8 @@ internal abstract partial class UIRuntimeBase
             if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
+            ForgetShownInLeavingRowsNoLock(binding.Address.Component.Id, dynamicParameters, change, action);
+
             UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
 
             // Already in the list this host was sent whole this round (a row inserted and then filled): sent again, it would draw twice.
@@ -368,6 +370,25 @@ internal abstract partial class UIRuntimeBase
                 Moves = BuildCollectionMoveChanges(collectionPath, change, action),
                 Trimmed = action == CollectionUpdateAction.Remove && change.Trimmed
             });
+        }
+    }
+
+    /// <summary>
+    /// Forgets what a command's show opened in the rows that leave the host: a removed or replaced one by its old key, every one on a
+    /// reset. A row back under the same key is drawn as authored, hidden.
+    /// </summary>
+    private void ForgetShownInLeavingRowsNoLock(UIComponentId hostId, object?[] hostKeys, RecursiveChange change, CollectionUpdateAction action)
+    {
+        if (action == CollectionUpdateAction.Reset)
+        {
+            _shownByCommand.ForgetRows(View.Graph, hostId, hostKeys, rowKey: null);
+            return;
+        }
+
+        if (action is CollectionUpdateAction.Remove or CollectionUpdateAction.Replace)
+        {
+            foreach (var key in change.OldItemIds)
+                _shownByCommand.ForgetRows(View.Graph, hostId, hostKeys, key);
         }
     }
 

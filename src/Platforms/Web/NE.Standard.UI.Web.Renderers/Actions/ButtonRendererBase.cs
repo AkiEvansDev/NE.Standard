@@ -30,11 +30,15 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 
     /// <summary>Writes the shared chrome; the <c>ui-button</c> class itself is the caller's to add.</summary>
     protected void RenderButtonChrome(WebRenderContext context, IHtmlElementBuilder root)
+        => RenderButtonChrome(context, root, IsButtonElement);
+
+    /// <summary>The same on a root whose element this render decides: a real <c>button</c> where <paramref name="isButtonElement"/>, else an anchor.</summary>
+    protected void RenderButtonChrome(WebRenderContext context, IHtmlElementBuilder root, bool isButtonElement)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        if (IsButtonElement)
+        if (isButtonElement)
             _ = root.Attribute("type", "button");
 
         // On the button, not on its label; an icon-only button's name follows it too (RenderButtonLabel marks the named element).
@@ -48,6 +52,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         RenderShortcut(context, root);
 
         // The form the button submits (OnSubmit): the framework's, and a real button joins the browser's own by `form`, as its fields do.
+        // By the renderer's element, not this render's: a property's operations are one per type, and a link submits nothing (refused).
         NativeInputRendererBase.RenderFormId(context, root, ButtonComponent.SubmitFormIdProperty, WebAttributes.SubmitFormId, joinsForm: IsButtonElement);
 
         RenderDrawerOpener(context, root);

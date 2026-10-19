@@ -12,11 +12,18 @@ public sealed class NavigateEffect : ClientEffect
     /// <summary>
     /// Creates an effect that navigates using the given navigation request.
     /// </summary>
+    /// <remarks>
+    /// A bare route — <c>"settings"</c> — gains its leading slash, as the route registry reads the one it was registered under. A query
+    /// or a fragment alone is refused: <see cref="ReplaceAddressEffect"/> writes the page's query, <see cref="ScrollToEffect"/> shows a part.
+    /// </remarks>
     [JsonConstructor]
     public NavigateEffect(UINavigationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        Request = request;
+
+        var route = UISiteAddress.Normalize(request.Route, nameof(request));
+
+        Request = ReferenceEquals(route, request.Route) ? request : new UINavigationRequest { Route = route, Parameters = request.Parameters };
     }
 
     /// <summary>

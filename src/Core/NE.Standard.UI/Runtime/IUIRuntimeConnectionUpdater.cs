@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Runtime;
@@ -40,6 +41,12 @@ internal interface IUIRuntimeConnectionUpdater
     void PostSessionChanged(UIHandle handle);
 
     void DetachConnection(string instanceId);
+
+    /// <summary>
+    /// Follows what the host sent one of the runtime's pages itself, as the runtime's own sends are followed: a show it carried opens a
+    /// component authored hidden for that page.
+    /// </summary>
+    void FollowSent(UIHandle page, IReadOnlyList<ClientEffect> effects);
 
     /// <summary>
     /// Makes what a connection's page reports its handle's, counts it on screen or not, and posts the controller what changed: its

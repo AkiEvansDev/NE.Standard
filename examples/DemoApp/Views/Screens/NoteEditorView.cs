@@ -45,7 +45,7 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
                 .SetRows(6)
                 .SetDebounceMilliseconds(300)
                 .BindValue(nameof(NoteEditorController.Body)),
-            UIText.Note(string.Empty).BindDescription(nameof(NoteEditorController.Status)),
+            UIText.Note().BindDescription(nameof(NoteEditorController.Status)),
             UIButtons.Pair(
                 UIButtons.Ghost("Revert").OnClick(nameof(NoteEditorController.Revert)),
                 // Ctrl+S from anywhere on the page, the fields included: the browser's own save of the page never opens.

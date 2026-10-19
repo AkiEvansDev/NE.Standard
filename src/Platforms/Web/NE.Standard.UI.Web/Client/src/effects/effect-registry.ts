@@ -48,9 +48,11 @@ import { logError, logWarn } from "../runtime/logger";
 import { pageSessionKey } from "../runtime/session-key";
 import type { NotificationClick } from "../runtime/worker-messages";
 import { isAuthorText, isPhrase } from "../runtime/words.ts";
+import { writeDevelopmentReport } from "./development-report.ts";
 import { applyInsertText } from "./insert-text.ts";
 import { buildNavigationUrl } from "./navigation-url";
 import { resolveScroller } from "./scroller.ts";
+import { shownText } from "./shown-text.ts";
 
 export type EffectContext = {
     readonly effect: ClientEffect;
@@ -473,6 +475,9 @@ export class EffectRegistry {
 
             this.notifications.announce(effect.message, getAnnouncePoliteness(effect.politeness) === "Assertive" ? "assertive" : "polite");
         });
+
+        // Development only: what the server dropped or refused for the author's mistake.
+        this.register("DevelopmentReport", context => writeDevelopmentReport(context.effect));
     }
 
     /** Leaves for a local address through the leave guard where one is wired, else at once. */
@@ -682,13 +687,18 @@ function resolveClipboardText(context: EffectContext, valueReaders: ValueReaderR
     if (element === null)
         return null;
 
-    if (valueReaders === undefined) {
-        logWarn("copy to clipboard effect names a component but no value reader is wired up.", context.effect);
-        return null;
+    // A component that holds no value — a text, a message's paragraph in a row — gives the words it shows, as a selection would.
+    if (resolveValueHolder(element) === null) {
+        const shown = shownText(element);
+
+        if (shown.length === 0)
+            logWarn("copy to clipboard effect target holds no value and shows no words.", context.effect);
+
+        return shown.length === 0 ? null : shown;
     }
 
-    if (resolveValueHolder(element) === null) {
-        logWarn("copy to clipboard effect target holds no value.", context.effect);
+    if (valueReaders === undefined) {
+        logWarn("copy to clipboard effect names a component but no value reader is wired up.", context.effect);
         return null;
     }
 

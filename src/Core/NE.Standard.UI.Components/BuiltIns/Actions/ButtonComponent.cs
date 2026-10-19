@@ -163,6 +163,27 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
         => OnLiteral(EventNames.Click, command, arguments);
 
     /// <summary>
+    /// Runs the command on click with the key of the item the button is drawn for — a row's own button.
+    /// </summary>
+    public T OnClickWithItemKey(string command, string argumentName = "id")
+        => OnClick(command, UIAction.ArgCurrentItemKey(argumentName));
+
+    /// <summary>
+    /// Submits the form <paramref name="formId"/> on click, as <see cref="OnSubmit(string, string)"/>, and shows the button loading for
+    /// exactly the command's round trip; a form failing its rules shows nothing.
+    /// </summary>
+    public T OnSubmitShowingLoading(string formId, string command)
+        => OnSubmit(formId, command).ShowLoadingDuring(EventNames.Click);
+
+    /// <inheritdoc cref="OnSubmitShowingLoading(string, string)"/>
+    public T OnSubmitShowingLoading(string formId, string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => OnSubmit(formId, command, arguments).ShowLoadingDuring(EventNames.Click);
+
+    /// <inheritdoc cref="OnSubmitShowingLoading(string, string)"/>
+    public T OnSubmitShowingLoadingLiteral(string formId, string command, params KeyValuePair<string, object?>[] arguments)
+        => OnSubmitLiteral(formId, command, arguments).ShowLoadingDuring(EventNames.Click);
+
+    /// <summary>
     /// Registers a click command that first runs Submit-trigger validation for every input sharing
     /// <paramref name="formId"/>, dispatching the command only if all of them pass.
     /// </summary>
@@ -191,9 +212,11 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
 }
 
 /// <summary>
-/// A clickable bordered region that invokes UI commands and hosts text/icon content.
+/// A clickable bordered region that invokes UI commands and hosts text/icon content, or — given a <c>Url</c> — the button's look on a
+/// link to that address.
 /// </summary>
-public sealed class ButtonComponent(string? id = null) : ButtonComponent<ButtonComponent>(id), IUIComponentDefinition
+[UIComponentPropertyBlock(typeof(ILinkableComponent))]
+public sealed partial class ButtonComponent(string? id = null) : ButtonComponent<ButtonComponent>(id), IUIComponentDefinition, ILinkableComponent
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.button";

@@ -392,14 +392,17 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         {
             _ = caption.Class(CaptionClassName);
 
-            if (string.IsNullOrEmpty(column.Caption))
+            if (!column.HasCaption || column.Caption is not { } words)
                 return;
 
-            // Content is written as it stands and left unmarked, so a language switch has nothing to look up there.
-            if (IsContentCaption(context, column))
-                _ = caption.Text(column.Caption);
+            // A phrase's key is looked up wherever it stands. An author's text that is content is written as it stands and left
+            // unmarked, so a language switch has nothing to look up there.
+            if (!words.IsText)
+                WebWords.Write(context, caption, null, words.Key, words.Arguments);
+            else if (IsContentCaption(context, column))
+                _ = caption.Text(words.Key);
             else
-                WebWords.WriteText(context, caption, null, column.Caption);
+                WebWords.WriteText(context, caption, null, words.Key);
         });
     }
 

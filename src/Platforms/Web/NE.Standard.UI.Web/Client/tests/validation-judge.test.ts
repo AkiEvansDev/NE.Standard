@@ -26,7 +26,7 @@ const Noted = real<WebRenderValidationMetadata>({ target: { propertyId: "quantit
 
 const engine = new ValidationEngine({
     root: real<ParentNode>(fakeDocument.body),
-    metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === ComponentId ? [Noted, Modest, Positive] : [], getValidationTarget: () => undefined }),
+    metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === ComponentId ? [Noted, Modest, Positive] : [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
     dom: real({
         findAllComponents: () => fakeDocument.body.querySelectorAll(`[data-ui-id='${ComponentId}']`),
         resolveNearestComponent: (start: FakeElement) => {

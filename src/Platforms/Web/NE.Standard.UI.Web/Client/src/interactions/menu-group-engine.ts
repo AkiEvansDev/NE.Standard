@@ -8,8 +8,8 @@ import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
 import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FoldingAttribute, MarkedMenuEntrySelector, MenuControlEntrySelector, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuPopupSelector, MenuRailClass, MenuRailTiersAttribute, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, NestedMenuClass as NestedClass, pinnedAttribute, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
 import { fitMenuShape } from "../rendering/menu-shape.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
-import { responsiveTierQuery } from "../rendering/responsive-tier.ts";
-import { DrawerBreakpointQueries, sideIsDrawer } from "../rendering/side-drawer-width.ts";
+import { onTierChange } from "../rendering/responsive-tier.ts";
+import { DrawerBreakpointTiers, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { markMenuCurrent } from "../updates/menu-current.ts";
 import { markMenuIcons } from "../updates/menu-icons.ts";
@@ -31,8 +31,6 @@ const RightSide = "right-side";
 const RootSelector = "[data-ui-root]";
 // The menus whose shape can change with the width: a drawer's rail, and a menu whose display differs by breakpoint (menu-shape.ts).
 const FittedMenuSelector = `[${RailDrawerAttribute}] .${RootClass}, .${RootClass}[${MenuRailTiersAttribute}]`;
-// Every breakpoint a menu's display may change at.
-const TierQueries = [responsiveTierQuery("sm"), responsiveTierQuery("md"), responsiveTierQuery("xl"), responsiveTierQuery("xxl")];
 
 const OpenGroupSlot = "menu-open-group";
 
@@ -115,13 +113,8 @@ export class MenuGroupEngine {
         // Across a drawer breakpoint a bottom bar turns into its column and back: a flyout placed toward the old side would hang over
         // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts). Across any breakpoint a menu may turn
         // from a rail into a list and back: a drawer's rail, a menu whose display differs by tier.
-        if (typeof matchMedia === "function") {
-            for (const query of DrawerBreakpointQueries)
-                matchMedia(query).addEventListener("change", () => this.closeBarFlyout());
-
-            for (const query of TierQueries)
-                matchMedia(query).addEventListener("change", () => this.refitShapes());
-        }
+        onTierChange(() => this.closeBarFlyout(), DrawerBreakpointTiers);
+        onTierChange(() => this.refitShapes());
 
         // A pin (side-drawer-engine.ts) stands a side's menu in its column and back as a breakpoint does; a bottom bar takes none.
         observeComponents(this.root, RootSelector, { attributeFilter: [pinnedAttribute(LeftSide), pinnedAttribute(RightSide)] }, () => this.refitShapes());

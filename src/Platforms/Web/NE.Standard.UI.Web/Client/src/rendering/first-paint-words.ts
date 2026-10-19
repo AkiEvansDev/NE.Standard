@@ -1,9 +1,10 @@
-// A moment as the server painted it — the instant in UTC, in the page's patterns — and where a page finds it before the body's first
-// paint: the boot script's half of a timestamp and of a moment in words, the engines carrying on from there.
+// A value the page writes itself — a moment, a file size — as the server painted it in words — a moment in UTC in the page's patterns, a
+// size in English — and where a page finds it before the body's first paint: the boot script's half of a timestamp and of such a value
+// in words, the engines carrying on from there.
 
 // `.ts` on the value imports: `node --test` runs this module and resolves files literally.
-import { PageTemporalAttribute } from "../addressing/dom-attributes.ts";
-import { isMoment, isPhrase } from "../runtime/words.ts";
+import { PageTemporalAttribute, WordsAttribute } from "../addressing/dom-attributes.ts";
+import { isFileSize, isMoment, isPhrase } from "../runtime/words.ts";
 import type { Moment } from "../runtime/words.ts";
 import { dateTimePattern, formatTemporal, localDate } from "./temporal-format.ts";
 import type { TemporalLanguage } from "./temporal-format.ts";
@@ -12,11 +13,22 @@ import type { TimestampFormat } from "./timestamp-format.ts";
 
 const TemporalSelector = `script[type='application/json'][${PageTemporalAttribute}]`;
 
+/** An element whose words mark may hold a value the page writes itself — a moment, a file size: the mark's JSON names one. */
+export const PageWrittenMarkSelector = `[${WordsAttribute}*='"moment"'], [${WordsAttribute}*='"fileSize"']`;
+
 /** A moment the server painted: its instant in milliseconds and how it is shown. */
 export type PaintedMoment = {
     readonly instant: number;
     readonly format: TimestampFormat;
 };
+
+/** A file size the server painted: its bytes. */
+type PaintedFileSize = {
+    readonly bytes: number;
+};
+
+/** A value the server painted in words that the page writes itself. */
+export type PaintedValue = PaintedMoment | PaintedFileSize;
 
 /** The page's names and patterns for dates and times from the head's block; null where the page carries none or it cannot be read. */
 export function readPageTemporal(root: ParentNode): TemporalLanguage | null {
@@ -50,52 +62,58 @@ export function serverMomentPaint(moment: PaintedMoment, temporal: TemporalLangu
     return `${formatTemporal(wall, moment.format === "time" ? temporal.shortTime : dateTimePattern(temporal, false), temporal)} UTC`;
 }
 
-/** The moments a words mark's arguments hold — `[key, args]` — nested phrases' included, in the order they stand. */
-export function momentsOfMark(mark: unknown): PaintedMoment[] {
-    const moments: PaintedMoment[] = [];
+/** The values the page writes itself that a words mark's arguments hold — `[key, args]` — nested phrases' included, in the order they stand. */
+export function paintedOfMark(mark: unknown): PaintedValue[] {
+    const painted: PaintedValue[] = [];
 
     if (Array.isArray(mark))
-        collectMoments(mark[1], moments);
+        collectPainted(mark[1], painted);
 
-    return moments;
+    return painted;
 }
 
-function collectMoments(args: unknown, moments: PaintedMoment[]): void {
+function collectPainted(args: unknown, painted: PaintedValue[]): void {
     if (args === null || typeof args !== "object" || Array.isArray(args))
         return;
 
     for (const value of Object.values(args as Record<string, unknown>)) {
-        if (isMoment(value))
-            pushMoment(value, moments);
-        else if (isPhrase(value))
-            collectMoments(value.args, moments);
+        if (isPhrase(value))
+            collectPainted(value.args, painted);
+        else
+            pushPainted(value, painted);
     }
 }
 
-/** The moments an element's `data-ui-moments` names (`WebMoments.MomentsAttribute`); none where it cannot be read. */
-export function readMomentsAttribute(text: string | null): PaintedMoment[] {
-    const moments: PaintedMoment[] = [];
+/** The values an element's `data-ui-page-written` names (`WebWords.PageWritten`); none where it cannot be read. */
+export function readPageWrittenAttribute(text: string | null): PaintedValue[] {
+    const painted: PaintedValue[] = [];
 
     try {
         const list: unknown = JSON.parse(text ?? "[]");
 
         if (Array.isArray(list)) {
-            for (const value of list) {
-                if (isMoment(value))
-                    pushMoment(value, moments);
-            }
+            for (const value of list)
+                pushPainted(value, painted);
         }
     }
     catch {
-        // An unreadable list names nothing: the runtime writes the moments once it starts.
+        // An unreadable list names nothing: the runtime writes the values once it starts.
     }
 
-    return moments;
+    return painted;
 }
 
-function pushMoment(value: Moment, moments: PaintedMoment[]): void {
+/** Adds a moment or a file size; anything else is no value the page writes. */
+function pushPainted(value: unknown, painted: PaintedValue[]): void {
+    if (isFileSize(value))
+        painted.push({ bytes: value.fileSize });
+    else if (isMoment(value))
+        pushMoment(value, painted);
+}
+
+function pushMoment(value: Moment, painted: PaintedValue[]): void {
     const instant = readInstant(value.moment);
 
     if (instant !== null)
-        moments.push({ instant, format: value.format ?? "date-time" });
+        painted.push({ instant, format: value.format ?? "date-time" });
 }

@@ -17,7 +17,7 @@ public static class UserSessionStoreExtensions
     /// was where it already had the theme — or <see langword="null"/> when it no longer exists.
     /// </summary>
     /// <remarks>
-    /// The page's own switch: the caller makes the answer the connection's session (<c>UIHost.ApplySessionChangeAsync</c>), as the
+    /// The page's own switch: the caller makes the answer the connection's session (<c>IUIClientEndpoint.ApplySessionChangeAsync</c>), as the
     /// language's. Through <see cref="IUserSessionStore.TryUpdateAsync"/>: a read and a save of its own would write back a session
     /// signed out or changed meanwhile.
     /// </remarks>
@@ -40,7 +40,7 @@ public static class UserSessionStoreExtensions
     /// theme's is — or <see langword="null"/> when it no longer exists.
     /// </summary>
     /// <remarks>
-    /// The page's own switch: the caller makes the answer the connection's session (<c>UIHost.ApplySessionChangeAsync</c>). Through
+    /// The page's own switch: the caller makes the answer the connection's session (<c>IUIClientEndpoint.ApplySessionChangeAsync</c>). Through
     /// <see cref="IUserSessionStore.TryUpdateAsync"/>, as every change is.
     /// </remarks>
     public static async ValueTask<UserSessionState?> SetLanguageAsync(this IUserSessionStore store, string sessionId, string language, CancellationToken cancellationToken = default)

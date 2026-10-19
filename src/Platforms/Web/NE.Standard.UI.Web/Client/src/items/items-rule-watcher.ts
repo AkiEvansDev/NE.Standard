@@ -1,6 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, GroupHeaderAttribute, HostModeAttribute, ItemsHostAttribute, ItemsQueryAttribute, ItemsQueryValueKind,
+    BindingAttributePrefix, ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, GroupHeaderAttribute, HostModeAttribute, ItemsHostAttribute, ItemsQueryAttribute, ItemsQueryValueKind,
     ValueKindAttribute, WindowGroupBeforeAttribute, cssAttributeValue
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
@@ -13,7 +13,7 @@ import { areValuesEqual } from "../state/value-equality.ts";
 import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
 import type { ReactiveSourceRegistry } from "../updates/reactive-source-registry.ts";
 import { readItemValuePath } from "./binding-template-evaluator.ts";
-import type { ItemValuePath } from "./binding-template-evaluator.ts";
+import type { ItemValuePath, ItemValueStep } from "./binding-template-evaluator.ts";
 import { readItemsQuery } from "./items-filter-sort.ts";
 import { syncItemsHost } from "./items-host-sync.ts";
 import { resolveHostMode } from "./items-host-mode.ts";
@@ -52,6 +52,9 @@ export class ItemsRuleWatcher {
 
     // Whether a host's own templates draw a patched component, by host, scope and component: templates never change.
     private readonly drawnByHost = new Map<string, boolean>();
+
+    // Whether another binding of the edited row reads an edit's path, by the edited component and property: templates never change.
+    private readonly readElsewhereByEdit = new Map<string, boolean>();
 
     public constructor(options: ItemsRuleWatcherOptions) {
         this.options = options;
@@ -156,7 +159,8 @@ export class ItemsRuleWatcher {
      * The edits awaiting the answer just applied, followed: the writer is never sent its value back (docs/VALUES.md §3), so the row's
      * item takes it here as it would a push — a row drawn again shows it, and the rules read it. One the answer refused (a Validation
      * with a message) or answered with a value of the server's own (a gate's refusal) is left to the answer, which already carried what
-     * the row holds. Null: the answer was not applied (the page had left its runtime), and its edits go with it.
+     * the row holds; one whose path another binding of the row reads is left to that binding's push (`readElsewhere`). Null: the answer
+     * was not applied (the page had left its runtime), and its edits go with it.
      */
     public followAnswered(answer: ServerChangeSet | undefined | null): void {
         if (this.answering.length === 0)
@@ -170,9 +174,58 @@ export class ItemsRuleWatcher {
         const updates = answer?.updates ?? [];
 
         for (const edit of edits) {
-            if (!updates.some(update => answersEdit(update, edit)))
+            if (!updates.some(update => answersEdit(update, edit)) && !this.readElsewhere(edit))
                 this.handleItemValueChange(edit);
         }
+    }
+
+    /**
+     * Whether another binding of the edited row reads the edit's path, a part of it or one around it — a tree node's title beside the
+     * name a rename wrote: its push brings the value, and the item with it. Taken early, the item would hold what the row does not show
+     * yet, and a refill that withdrew the push (a Clear() and its Adds) would keep the row with its old words.
+     */
+    private readElsewhere(edit: PropertyValueChange): boolean {
+        const componentId = getIdValue(edit.reference.componentId);
+        const cacheKey = `${componentId}:${edit.reference.propertyId}`;
+        const known = this.readElsewhereByEdit.get(cacheKey);
+
+        if (known !== undefined)
+            return known;
+
+        const binding = this.options.metadata.getBindingByComponentAndPropertyId(componentId, edit.reference.propertyId);
+        const path = binding === undefined ? null : readItemValuePath(binding);
+        const row = path === null ? undefined : this.findItemRootsAbove(edit, path)[0];
+
+        if (path === null || row === undefined)
+            return false;
+
+        const read = this.readsPathElsewhere(row, componentId, edit.reference.propertyId, path);
+
+        this.readElsewhereByEdit.set(cacheKey, read);
+
+        return read;
+    }
+
+    /** Whether a binding in the row, of another component or property than the edited one and rooted at the row, reads into `path`. */
+    private readsPathElsewhere(row: Element, componentId: number, propertyId: string, path: ItemValuePath): boolean {
+        for (const element of [row, ...row.querySelectorAll("*")]) {
+            for (const name of element.getAttributeNames()) {
+                if (!name.startsWith(BindingAttributePrefix))
+                    continue;
+
+                const other = this.options.metadata.getBindingById(Number(element.getAttribute(name)));
+                const otherPath = other === undefined ? null : readItemValuePath(other);
+
+                if (other === undefined || otherPath === null || (getIdValue(other.componentId) === componentId && other.propertyId === propertyId))
+                    continue;
+
+                // A list inside the row reads its own rows' items, never this one's.
+                if (overlaps(otherPath.steps, path.steps) && this.findItemRoot(element, otherPath.scopeComponentId) === row)
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private handleItemValueChange(change: PropertyValueChange): void {
@@ -437,6 +490,21 @@ function answersEdit(update: ServerUIUpdate, edit: PropertyValueChange): boolean
         && getPropertyKeyName(address?.property) === edit.propertyName
         && keys.length <= edit.dynamicParameters.length
         && keys.every((key, index) => String(key ?? "") === String(edit.dynamicParameters[index] ?? ""));
+}
+
+/** Whether two walks into an item meet: one is the other, or begins it — the whole item meets every part of it. */
+function overlaps(first: readonly ItemValueStep[], second: readonly ItemValueStep[]): boolean {
+    const length = Math.min(first.length, second.length);
+
+    for (let index = 0; index < length; index++) {
+        const a = first[index];
+        const b = second[index];
+
+        if (a.kind === "property" ? b.kind !== "property" || a.name !== b.name : b.kind !== "element" || !areValuesEqual(a.key, b.key))
+            return false;
+    }
+
+    return true;
 }
 
 /** Whether a patch's address is the host's own rows: the host's keys, outermost first, and then one row's key. */

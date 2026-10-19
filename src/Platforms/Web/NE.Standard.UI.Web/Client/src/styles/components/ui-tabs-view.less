@@ -39,6 +39,11 @@
     min-height: 0;
 }
 
+// ShowEmptyTemplate off: a tabs view with no tab open says nothing; hidden, so a bound flag turned on shows it again.
+.ui-tabs-view--no-empty > .ui-tabs-view__host > [data-ui-empty-placeholder] {
+    display: none;
+}
+
 // Both __item and .ui-tab-item stay contents, or either would trap the caption and page out of the host's flex line.
 .ui-tabs-view__item,
 .ui-tab-item {

@@ -111,6 +111,11 @@
     min-width: 0;
 }
 
+// ShowEmptyTemplate off: an empty list says nothing; hidden, so a bound flag turned on shows it again.
+.ui-key-value-action--no-empty > .ui-key-value-action__host > [data-ui-empty-placeholder] {
+    display: none;
+}
+
 // With StretchValue off, the value takes only what it needs and the action closes up behind it.
 .ui-key-value-action--no-stretch .ui-key-value-action__host {
     grid-template-columns: var(--ui-key-value-key-track) minmax(0, max-content) auto;

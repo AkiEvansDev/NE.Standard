@@ -37,7 +37,7 @@ public readonly record struct UIBindingPath
         => new(path, UIBindingScope.Relative);
 
     /// <summary>
-    /// Creates a binding path resolved relative to the parent binding context.
+    /// Creates a binding path resolved in the scope around the component's own (<see cref="UIBindingScope.Parent"/>).
     /// </summary>
     public static UIBindingPath Parent(RecursivePath path)
         => new(path, UIBindingScope.Parent);

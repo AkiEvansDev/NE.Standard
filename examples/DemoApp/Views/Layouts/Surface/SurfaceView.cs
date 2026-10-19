@@ -54,7 +54,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
 
     // Paired by height: the band beside the empty state, the strip of readings beside the tiles.
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup(), CreatePinnedGroup()], [CreateEmptyStateGroup(), CreateChoiceGroup(), CreateRowsGroup()]);
+        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup(), CreatePinnedGroup(), CreateLinkGroup()], [CreateEmptyStateGroup(), CreateChoiceGroup(), CreateRowsGroup()]);
 
     /// <summary>
     /// A band that holds controls and belongs to the page (a card would promise bands it cannot fill), inside a panel of its own.
@@ -240,6 +240,30 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
                 .SetBorderThickness(UIThickness.Uniform(0))
                 .SetPadding(UIThickness.All(12, 8, 12, 8))
                 .SetContent(UIText.Quote("Pinned message", "The release window moves to Thursday; staging freezes on Wednesday at noon."))
+        );
+    }
+
+    /// <summary>
+    /// <c>Url</c>: a card that is a link — its root an anchor, so it opens in a new tab, copies as an address and is followed in place with
+    /// no round trip; it holds words only, and its button beside it is a link too.
+    /// </summary>
+    private static ContainerComponent CreateLinkGroup()
+    {
+        return DemoUI.CreateExample("A card that opens a page",
+            UILayout.Stack(8)
+                .AddChild(new CardComponent()
+                    .SetUrl("/layouts/card")
+                    .SetContent(new ParagraphComponent()
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
+                        .SetTitle("Card")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("A surface with a header and a footer band.")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
+                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetTitle("Expander").SetUrl("/layouts/expander")),
+            note: "SetUrl draws the root as an anchor; a command on its click or a control inside it is refused when the view compiles."
         );
     }
 

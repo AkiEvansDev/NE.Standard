@@ -90,6 +90,8 @@ export const CellKeyEventName = "ui-cell-key";
 /** The words of a component's tooltip, where it shows them, and a mark inside a control the tooltip belongs to instead. */
 export const TooltipAttribute = "data-ui-tooltip";
 export const TooltipPlacementAttribute = "data-ui-tooltip-placement";
+/** On an element whose tooltip is shown as written (`TooltipPlain`): its words, written and pushed, are text, never inline markup. */
+export const TooltipPlainAttribute = "data-ui-tooltip-plain";
 export const TooltipMarkAttribute = "data-ui-tooltip-mark";
 /** On a validation mark speaking through the tooltip, its severity (`error`, `warning`, `info`), which the tooltip wears while it speaks. */
 export const TooltipSeverityAttribute = "data-ui-tooltip-severity";
@@ -165,8 +167,11 @@ export const NumberFormatAttribute = "data-ui-number-format";
 export const TemporalCultureAttribute = "data-ui-temporal-culture";
 /** On the head's JSON script: the page's language's names and patterns for dates and times, the words table's `temporal` (`WebAttributes.Temporal`). */
 export const PageTemporalAttribute = "data-ui-temporal";
-/** On an element a phrase holding moments was painted into: the moments, whose first paint the boot script writes again (`WebAttributes.Moments`). */
-export const MomentsAttribute = "data-ui-moments";
+/**
+ * On an element a phrase holding values the page writes itself was painted into — moments, file sizes — those values, whose first paint
+ * the boot script writes again (`WebAttributes.PageWritten`).
+ */
+export const PageWrittenAttribute = "data-ui-page-written";
 /** On an element a package's engine draws, and on the region the boot script holds for it until the engines start (`WebAttributes.AwaitsDraw`). */
 export const AwaitsDrawAttribute = "data-ui-awaits-draw";
 /** A timestamp's root, whose `datetime` is its instant, and the part holding its text (`TimestampComponentRenderer`). */
@@ -550,6 +555,8 @@ export const SelectClass = "ui-select";
 /** On a text body's component root while its title, its description, its icon, its badge's icon or its badge's text shows. */
 export const TextTitleAttribute = "data-ui-text-title";
 export const TextDescriptionAttribute = "data-ui-text-description";
+/** A text's description line, as WebClassNames writes it: what a copy of a text that shows one takes. */
+export const TextDescriptionClass = "ui-text__description";
 /** On an element whose words are shown as written (`DescriptionPlain`): a pushed value is written as text, never read as inline markup. */
 export const PlainTextAttribute = "data-ui-plain-text";
 /** On an element whose inline markup reads a bare http(s) address as a link (`DescriptionAutolinks`): a pushed value is read so too. */

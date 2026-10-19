@@ -1,10 +1,11 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
-import { TooltipAttribute, WordsAttribute, WordsTextTarget, writeAttribute } from "../addressing/dom-attributes.ts";
+import { TooltipAttribute, TooltipPlainAttribute, WordsAttribute, WordsTextTarget, writeAttribute } from "../addressing/dom-attributes.ts";
 import { logDebug, logWarn } from "./logger.ts";
-import { hasKeyPrefix, holdsMoment, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
-import type { WordLookup } from "./words.ts";
+import { hasKeyPrefix, isAuthorText, isPhrase, resolveText, translateKey } from "./words.ts";
+import type { AuthorText, Phrase, WordLookup } from "./words.ts";
 import type { TemporalLanguage } from "../rendering/temporal-format.ts";
-import { readPageTemporal } from "../rendering/moment-first-paint.ts";
+import { formatFileSize } from "../rendering/file-size.ts";
+import { PageWrittenMarkSelector, readPageTemporal } from "../rendering/first-paint-words.ts";
 import { formatTimestamp, isRelativeFormat } from "../rendering/timestamp-format.ts";
 import { needRelativeTicks } from "./relative-clock.ts";
 import type { TimestampFormat } from "../rendering/timestamp-format.ts";
@@ -105,9 +106,6 @@ const MaxAskedKeys = 256;
 const MaxAskedKeyLength = 512;
 
 const StringsSelector = "script[type='application/json'][data-ui-strings]";
-
-/** An element whose words mark may hold a moment: the mark's JSON names one. */
-const MomentMarkSelector = `[${WordsAttribute}*='"moment"']`;
 
 /** The page's words: the boot subset, then the language's table, under the page's overrides; one per document, which shows one language. */
 export class ClientWords implements WordLookup {
@@ -399,8 +397,14 @@ export class ClientWords implements WordLookup {
         return true;
     };
 
+    /** A file's size in the table's language, as a file tile writes one. */
+    public readonly writeFileSize = (bytes: number): string => formatFileSize(bytes, this.currentLanguage);
+
+    /** Words the server wrote, in the table's language: a phrase translated, an author's text looked up as a plain value; a package's `strings.resolve`. */
+    public resolve(value: string | AuthorText | Phrase): string;
     /** What a value shows on a property: a phrase translated, a plain string looked up where `translatable`, else itself. */
-    public resolve(value: unknown, translatable: boolean): unknown {
+    public resolve(value: unknown, translatable: boolean): unknown;
+    public resolve(value: unknown, translatable = true): unknown {
         return resolveText(value, translatable, this);
     }
 
@@ -411,7 +415,7 @@ export class ClientWords implements WordLookup {
 
     /** Writes a word on an attribute or the text, marked with its key so a language switch rewrites it; `WebWords.Write`'s twin. */
     public write(element: Element, attribute: string | null, key: string, args?: Readonly<Record<string, unknown>> | null): void {
-        writeWords(element, attribute, this.translate(key, args, readsMarkup(attribute)));
+        writeWords(element, attribute, this.translate(key, args, readsMarkup(element, attribute)));
         this.mark(element, attribute, args === null || args === undefined || Object.keys(args).length === 0 ? [key] : [key, args]);
     }
 
@@ -444,18 +448,18 @@ export class ClientWords implements WordLookup {
     }
 
     /**
-     * Writes every marked word under `root` again in the table's language — inside the templates rows are built from too; with
-     * `momentsOnly`, only those holding a moment.
+     * Writes every marked word under `root` again in the table's language — inside the templates rows are built from too; with `only`,
+     * only the marks it holds to, among those that may hold a value the page writes itself (`holdsMoment`, `holdsPageWritten`).
      */
-    public rewriteMarks(root: ParentNode, momentsOnly = false): void {
+    public rewriteMarks(root: ParentNode, only?: (mark: unknown) => boolean): void {
         forEachSubtree(root, subtree => {
-            for (const element of subtree.querySelectorAll(momentsOnly ? MomentMarkSelector : `[${WordsAttribute}]`)) {
+            for (const element of subtree.querySelectorAll(only === undefined ? `[${WordsAttribute}]` : PageWrittenMarkSelector)) {
                 for (const [target, mark] of Object.entries(readMarks(element))) {
-                    if (momentsOnly && !holdsMoment(mark))
+                    if (only !== undefined && !only(mark))
                         continue;
 
                     const attribute = target === WordsTextTarget ? null : target;
-                    const words = this.wordsOfMark(mark, readsMarkup(attribute));
+                    const words = this.wordsOfMark(mark, readsMarkup(element, attribute));
 
                     if (words !== null)
                         writeWords(element, attribute, words);
@@ -555,12 +559,12 @@ export class ClientWords implements WordLookup {
     }
 }
 
-/** Whether a words mark under `root` — or inside a template under it — may hold a moment. */
-export function marksMoment(root: ParentNode): boolean {
+/** Whether a words mark under `root` — or inside a template under it — may hold a value the page writes itself: a moment, a file size. */
+export function marksPageWritten(root: ParentNode): boolean {
     let marked = false;
 
     forEachSubtree(root, subtree => {
-        marked ||= subtree.querySelector(MomentMarkSelector) !== null;
+        marked ||= subtree.querySelector(PageWrittenMarkSelector) !== null;
     });
 
     return marked;
@@ -630,9 +634,9 @@ function readMarks(element: Element): Record<string, unknown> {
     }
 }
 
-/** Whether words written on `attribute` are read as inline markup: the tooltip's are, any other place's are text. */
-function readsMarkup(attribute: string | null): boolean {
-    return attribute === TooltipAttribute;
+/** Whether words written on `attribute` are read as inline markup: the tooltip's are, unless it is shown as written; any other place's are text. */
+function readsMarkup(element: Element, attribute: string | null): boolean {
+    return attribute === TooltipAttribute && !element.hasAttribute(TooltipPlainAttribute);
 }
 
 /** Writes words where they go, only where they differ: a write of the same words is still a mutation to every observer. */

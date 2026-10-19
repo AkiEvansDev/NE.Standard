@@ -1,7 +1,6 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Layouts.Expander;
 using DemoApp.Views.Base;
-using NE.Standard.UI.Components.BuiltIns.Regions;
 
 namespace DemoApp.Views.Layouts.Expander;
 

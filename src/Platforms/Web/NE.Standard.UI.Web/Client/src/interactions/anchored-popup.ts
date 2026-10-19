@@ -384,7 +384,7 @@ function uncap(popup: HTMLElement): void {
  * The stand-in named for a part around the anchor that is out of sight, else the anchor itself — also for an anchor inside a popup
  * shown over that part (a submenu's item), which is in sight.
  */
-function resolveStandIn(anchor: Element): Element {
+export function resolveStandIn(anchor: Element): Element {
     for (let current: Element | null = anchor; current !== null; current = current.parentElement) {
         if (current.hasAttribute(StoodInAttribute))
             return anchor;

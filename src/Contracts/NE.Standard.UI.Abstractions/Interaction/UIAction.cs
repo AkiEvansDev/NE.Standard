@@ -102,6 +102,12 @@ public sealed class UIAction
     }
 
     /// <summary>
+    /// Marks an argument the framework offers beside the author's own: a command with no parameter for it is not warned of.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> Offered(KeyValuePair<string, UIActionArgument> argument)
+        => new(argument.Key, argument.Value with { Offered = true });
+
+    /// <summary>
     /// Creates an action argument entry resolved from what the event carries after the keys that address its component — a dropped
     /// row's new index, beside <see cref="ArgCurrentItemKey"/> for the row itself.
     /// </summary>
@@ -118,13 +124,14 @@ public sealed class UIAction
         => ArgBinding(name, path, UIBindingScope.Root);
 
     /// <summary>
-    /// Creates an action argument entry resolved from a binding path relative to the parent context.
+    /// Creates an action argument entry resolved from a binding path in the scope around the component's own: the row a menu inside a
+    /// row is drawn for, but the controller (or an outer row) for a control straight in a row — whose own row is <see cref="ArgRelative"/>.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> ArgParent(string name, string path)
         => ArgBinding(name, path, UIBindingScope.Parent);
 
     /// <summary>
-    /// Creates an action argument entry resolved from a binding path relative to the current context.
+    /// Creates an action argument entry resolved from a binding path relative to the current context — inside an item template, the row.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> ArgRelative(string name, string path)
         => ArgBinding(name, path, UIBindingScope.Relative);

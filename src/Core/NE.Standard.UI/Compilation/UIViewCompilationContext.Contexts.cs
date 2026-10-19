@@ -163,6 +163,10 @@ internal sealed partial class UIViewCompilationContext
 
         EnsureNoFixedControllerSegment(component, "binds its context to", fullPath);
 
+        // Checked as a property's binding is, before the explicit context replaces the base one a Root binding is weighed against.
+        WarnOnUnresolvableControllerPath(component, nameof(IVisualComponent.Context), fullPath);
+        WarnOnRootShadowedByRow(component, nameof(IVisualComponent.Context), binding, componentContexts);
+
         CompiledUIBindingTemplate compiledTemplate = GetOrAddTemplate(templatesByKey, fullPath.Source, fullPath.Template);
         CompiledUIContext context = GetOrAddContext(contextsByTemplateId, compiledTemplate);
 

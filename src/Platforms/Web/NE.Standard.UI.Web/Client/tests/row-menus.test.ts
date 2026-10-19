@@ -193,3 +193,20 @@ test("a menu in a list inside a row stands in the rows of both lists", () => {
     assert.equal(view.children[1].getAttribute("data-ui-context-menu-template"), "12");
     assert.equal(inner.content.children[0].querySelector("template"), null);
 });
+
+test("a link's menu outside every list waits in the link and is moved in when wanted, its components held for meanwhile", () => {
+    const card = FakeElement.of("ui-surface", { "data-ui-id": "12", "data-ui-context-menu-owner": "", "data-ui-context-menu-later": "" }, "a").append(new FakeElement("p"), menuTemplate());
+    const { menus, rendered, drawn } = menusOver(FakeElement.of("ui-page").append(card));
+
+    menus.scan();
+
+    assert.equal(card.children[1].tagName, "template");
+    assert.equal(menus.holds(13), true);
+
+    const menu = menus.draw(real<HTMLElement>(card));
+
+    assert.equal(card.children[1], real<FakeElement>(menu));
+    assert.equal(card.hasAttribute("data-ui-context-menu-later"), false);
+    assert.deepEqual(rendered, []);
+    assert.deepEqual(drawn, [real<FakeElement>(menu)]);
+});

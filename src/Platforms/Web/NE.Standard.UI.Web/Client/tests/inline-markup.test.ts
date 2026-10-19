@@ -76,6 +76,59 @@ test("inline markup: the element written into says while it holds a fold, as the
     assert.equal(description.hasAttribute("data-ui-folds"), false);
 });
 
+const insideLinkCases = (JSON.parse(readFileSync(corpusPath, "utf8")) as { readonly insideLink: readonly { readonly name: string; readonly input: string; readonly autolinks?: boolean; readonly text: string; readonly elements: readonly string[] }[] }).insideLink;
+
+assert.ok(insideLinkCases.length > 0, "The corpus names no text inside a link.");
+
+for (const insideLinkCase of insideLinkCases) {
+    test(`inline markup inside a link: ${insideLinkCase.name}`, async () => {
+        const { FakeElement, installFakeDom } = await import("./fake-dom.ts");
+
+        installFakeDom({});
+
+        const { applyInlineMarkup } = await import("../src/rendering/inline-markup.ts");
+        const description = new FakeElement("span");
+
+        applyInlineMarkup(description as unknown as Element, insideLinkCase.input, { autolinks: insideLinkCase.autolinks === true, insideLink: true });
+
+        assert.equal(description.querySelectorAll("a").length, 0, "an anchor holds no other");
+        assert.equal(description.textContent, insideLinkCase.text);
+
+        for (const element of insideLinkCase.elements)
+            assert.ok(description.querySelectorAll(element).length > 0, element);
+    });
+}
+
+test("inline markup: the markup operation writes a link as its words inside an anchor, and as a link elsewhere", async () => {
+    const { FakeElement, installFakeDom } = await import("./fake-dom.ts");
+
+    installFakeDom({});
+
+    const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
+    type DomOperationContext = import("../src/updates/dom-operation-registry.ts").DomOperationContext;
+    const registry = new DomOperationRegistry();
+    const inside = FakeElement.of("ui-text__description", {}, "span");
+    const outside = FakeElement.of("ui-text__description", {}, "span");
+
+    FakeElement.of("ui-card", { href: "/notes/1" }, "a").append(FakeElement.of("ui-text").append(inside));
+    FakeElement.of("ui-card").append(FakeElement.of("ui-text").append(outside));
+
+    for (const target of [inside, outside]) {
+        registry.apply({
+            resolved: { componentId: 1, propertyId: "Description", component: target },
+            operation: { kind: "Markup" },
+            target,
+            value: "see [docs](/docs)",
+            convertedValue: "see [docs](/docs)",
+            local: false
+        } as unknown as DomOperationContext);
+    }
+
+    assert.equal(inside.querySelectorAll("a").length, 0);
+    assert.equal(inside.textContent, "see docs");
+    assert.equal(outside.querySelectorAll("a").length, 1);
+});
+
 test("inline markup: plain text reads a fold unfolded", () => {
     assert.equal(inlineMarkupToPlainText("Frozen. [Why?]{The **branch** is re-cut, [and how]{by the pipeline}.}"), "Frozen. Why? The branch is re-cut, and how by the pipeline.");
 });

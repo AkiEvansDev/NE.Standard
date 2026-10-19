@@ -98,10 +98,22 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
         => On(EventNames.Remove, command, arguments);
 
     /// <summary>
+    /// Registers a command invoked when this tab's close is pressed, with literal argument values.
+    /// </summary>
+    public T OnRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnLiteral(EventNames.Remove, command, arguments);
+
+    /// <summary>
     /// Registers a command invoked when this tab's caption is renamed in place.
     /// </summary>
     public T OnRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => On(EventNames.Rename, command, arguments);
+
+    /// <summary>
+    /// Registers a command invoked when this tab's caption is renamed in place, with literal argument values.
+    /// </summary>
+    public T OnRenameLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnLiteral(EventNames.Rename, command, arguments);
 
     ITabItemComponent ITabItemComponent.SetPage(IVisualComponent page)
         => SetPage(page);
@@ -109,8 +121,14 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     ITabItemComponent ITabItemComponent.OnRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRemove(command, arguments);
 
+    ITabItemComponent ITabItemComponent.OnRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRemoveLiteral(command, arguments);
+
     ITabItemComponent ITabItemComponent.OnRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => OnRename(command, arguments);
+
+    ITabItemComponent ITabItemComponent.OnRenameLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnRenameLiteral(command, arguments);
 }
 
 /// <summary>

@@ -30,7 +30,7 @@ const valueChangeHandlers: ((change: PropertyValueChange) => void)[] = [];
 
 const engine = new ValidationEngine({
     root: real<ParentNode>(fakeDocument.body),
-    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined }),
+    metadata: stub<MetadataIndex>({ getValidationsForComponent: () => [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
     dom: stub({ findAllComponents: () => fakeDocument.body.querySelectorAll(`[data-ui-id='${ComponentId}']`) }),
     propertyPatchEngine: stub<PropertyPatchEngine>({ addValueChangeHandler: (handler: (change: PropertyValueChange) => void) => valueChangeHandlers.push(handler) }),
     valueReaders: stub({})

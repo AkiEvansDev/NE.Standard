@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Abstractions.Items;
@@ -36,6 +37,6 @@ public static class UIChoices
     }
 
     /// <summary>The two choices of a boolean, in the words given.</summary>
-    public static IReadOnlyList<UIChoice> Boolean(string trueCaption, string falseCaption)
+    public static IReadOnlyList<UIChoice> Boolean(UIPhrase trueCaption, UIPhrase falseCaption)
         => [new UIChoice("true", trueCaption), new UIChoice("false", falseCaption)];
 }

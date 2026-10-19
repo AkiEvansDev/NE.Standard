@@ -11,7 +11,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
-public abstract partial class NumberInputComponent<T>(string? id = null) : MinMaxInputComponentBase<T, decimal?>(id), IPlaceholderInputComponent, IAffixTextInputComponent
+public abstract partial class NumberInputComponent<T>(string? id = null) : MinMaxInputComponentBase<T, decimal?>(id), IPlaceholderInputComponent, IAffixTextInputComponent, ICaretFieldComponent
     where T : NumberInputComponent<T>, IUIComponentDefinition
 {
     /// <summary>

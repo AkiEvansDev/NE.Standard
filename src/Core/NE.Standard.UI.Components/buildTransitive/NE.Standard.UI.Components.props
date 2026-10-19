@@ -11,6 +11,8 @@
     <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Layouts" />
     <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Models" />
     <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Navigation" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Regions" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.BuiltIns.Templates" />
   </ItemGroup>
 
 </Project>

@@ -29,6 +29,7 @@ internal sealed partial class UIViewCompilationContext
         _parentByComponentId.Add(component.Id, parentId);
 
         UIPropertyRegister.EnsureRegistered(component.GetType());
+        UIEffectTargets.Learn(component);
         ValidateSplitButton(component);
         ValidateKeyValueEditing(component);
         ValidateActionBar(component);

@@ -192,6 +192,16 @@ public static class WebCssValues
         return builder?.ToString() ?? string.Empty;
     }
 
+    /// <summary>The attribute value a component root carries for its glyph's size (<c>data-ui-icon-size</c>).</summary>
+    public static string IconSize(UIIconSize value)
+        => value switch
+        {
+            UIIconSize.Small => "small",
+            UIIconSize.Medium => "medium",
+            UIIconSize.Large => "large",
+            _ => string.Empty
+        };
+
     /// <summary>The attribute value an items host carries for its selection mode — the client engine reads it.</summary>
     public static string SelectionMode(UISelectionMode value)
         => value switch

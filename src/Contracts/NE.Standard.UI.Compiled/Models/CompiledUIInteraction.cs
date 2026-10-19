@@ -64,6 +64,11 @@ public sealed class CompiledUIInteraction
     public object? FalseValue { get; init; }
 
     /// <summary>
+    /// Gets the key of the row whose event alone fires the interaction — a menu entry's press, in place of its command — or null for any.
+    /// </summary>
+    public string? RowKey { get; init; }
+
+    /// <summary>
     /// Validates source, target and action consistency for the interaction.
     /// </summary>
     public void Validate()
@@ -80,6 +85,9 @@ public sealed class CompiledUIInteraction
                 if (SourceEvent is not null)
                     throw new InvalidOperationException("Property interaction must not specify event source.");
 
+                if (RowKey is not null)
+                    throw new InvalidOperationException("Property interaction must not name a row.");
+
                 break;
 
             case UIInteractionSourceKind.Event:
@@ -93,6 +101,9 @@ public sealed class CompiledUIInteraction
 
                 if (Source is not null)
                     throw new InvalidOperationException("Event interaction must not specify property source.");
+
+                if (RowKey is not null && ActionKind != UIInteractionActionKind.Effect)
+                    throw new InvalidOperationException("A row's own interaction runs an effect.");
 
                 break;
 

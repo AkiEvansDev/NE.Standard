@@ -10,11 +10,12 @@ import { clientStrings } from "../runtime/client-strings.ts";
 import { ActionBarButtonClass, actionBarEntryOf, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } from "./anchored-popup.ts";
 import { actionBarMenuOf, isTouchOpening, OpenClass as MenuOpenClass } from "./context-menu-engine.ts";
-import { canScroll, isClippedOut, viewBoxAround } from "./element-visibility.ts";
+import { canScroll, isClippedOut, isInSight, viewBoxAround } from "./element-visibility.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isInert } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { isBehindModal, OpenDialogSelector } from "./open-dialogs.ts";
+import { registerEscapeLayer } from "./popup-dismissal.ts";
 import { ownControlOf } from "./own-control.ts";
 import { onlyPressWaves } from "./press-wave.ts";
 import { FocusableSelector, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
@@ -117,6 +118,8 @@ export class ActionBarEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent));
         // Capture phase: the scroll of any box around a host, which does not bubble.
         this.root.addEventListener("scroll", () => this.markOut(), true);
+        // A bar standing in a dialog or a drawer is nearer than they are: they leave it the Escape they would take, theirs the next one.
+        registerEscapeLayer(target => this.takesEscape(target, true));
     }
 
     /**
@@ -239,22 +242,16 @@ export class ActionBarEngine {
             return;
         }
 
-        // Escape no popup took is the bar's: it goes. One in an open dialog the host is not in — the framework's, or a package's own
-        // `<dialog>` — is the dialog's.
+        // Escape no popup took is the bar's: it goes.
         if (domEvent.key === "Escape") {
-            if (escapeIsClaimed(domEvent))
+            if (escapeIsClaimed(domEvent) || !this.takesEscape(target, false))
                 return;
 
-            const dialog = target.closest(OpenDialogSelector);
+            // Spent on a bar it took away, as each step of the Escape chain is: the field's own leave waits for the next.
+            if (this.chosen !== null)
+                domEvent.preventDefault();
 
-            if (dialog === null || (this.chosen !== null && dialog.contains(this.chosen))) {
-                // Spent on a bar it took away, as each step of the Escape chain is: the field's own leave waits for the next.
-                if (this.chosen !== null)
-                    domEvent.preventDefault();
-
-                this.choose(null);
-            }
-
+            this.choose(null);
             return;
         }
 
@@ -303,6 +300,26 @@ export class ActionBarEngine {
 
         domEvent.preventDefault();
         moveRovingFocus(buttons, next);
+    }
+
+    /**
+     * Whether an Escape landing on `target` is the bar's: not one in an open dialog the host is not in — the framework's, or a package's
+     * own `<dialog>` — which is the dialog's. With `shown`, only while a bar stands in sight over the chosen host, as a dialog or a
+     * drawer asks before leaving it the key.
+     */
+    private takesEscape(target: EventTarget | null, shown: boolean): boolean {
+        const dialog = target instanceof Element ? target.closest(OpenDialogSelector) : null;
+        const chosen = this.chosen;
+
+        if (dialog !== null && (chosen === null || !dialog.contains(chosen)))
+            return false;
+
+        if (!shown)
+            return true;
+
+        const bar = chosen === null ? undefined : this.shown.get(chosen)?.bar;
+
+        return chosen !== null && bar !== undefined && !bar.classList.contains(OutClass) && isInSight(chosen) && !isBehindModal(chosen);
     }
 
     /** Chooses a host, or none: its bar shows and every other goes. The one chosen already is left as it stands. */

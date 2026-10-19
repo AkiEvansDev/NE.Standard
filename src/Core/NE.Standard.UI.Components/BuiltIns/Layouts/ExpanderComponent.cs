@@ -15,7 +15,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// A collapsible bordered region with a header that toggles the visibility of its content.
 /// </summary>
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
-public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase<T>, ISurfaceStyleComponent
+public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase<T>, ISurfaceStyleComponent, IPressablePartsComponent
     where T : ExpanderComponent<T>, IUIComponentDefinition
 {
     /// <summary>

@@ -43,7 +43,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
             // The preview's own box, not a row; Width and Height stay the standard rows and work inside it.
             .SetMaxWidth(UILayoutLength.Absolute(320))
             .SetMaxHeight(UILayoutLength.Absolute(180))
-            // Not bindable: a source that does not resolve draws this instead of a broken picture.
+            // Not bindable: a source that does not resolve draws the author's own stand-in, tried before the framework's glyph.
             .SetFallbackSource(DemoImages.Logo)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -107,15 +107,19 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                 .AddChild(CreateTile(0))
                 .AddChild(CreateTile(1))
                 .AddChild(CreateTile(2))
-                .AddChild(CreateTile(3)),
-            note: "Two landscapes and two portraits in the same square: Cover fills each box and crops what is left over, where Contain would leave every tile bands of its own."
+                .AddChild(CreateTile(3))
+                .AddChild(CreateTile(DemoImages.Missing, "A picture that no longer loads")),
+            note: "Two landscapes and two portraits in the same square: Cover fills each box and crops what is left over, where Contain would leave every tile bands of its own. A picture that fails keeps its box and shows a picture's glyph on the wash; `SetFallbackIcon` names another glyph."
         );
     }
 
     private static ImageComponent CreateTile(int index)
+        => CreateTile(Gallery[index].Source, Gallery[index].Caption);
+
+    private static ImageComponent CreateTile(string source, UIPhrase? caption)
         => new ImageComponent()
-            .SetSource(Gallery[index].Source)
-            .SetAltText(Gallery[index].Caption)
+            .SetSource(source)
+            .SetAltText(caption)
             .SetFit(UIImageFit.Cover)
             .SetBorderRadius(UICornerRadius.Uniform(6))
             .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(76), md: UILayoutLength.Absolute(96)))
@@ -232,7 +236,6 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static SurfaceComponent CreateThumbnail(int index)
         => new SurfaceComponent()
-            .SetClickable(true)
             .SetPadding(UIThickness.Uniform(0))
             .SetBorderRadius(UICornerRadius.Uniform(6))
             .SetContent(new ImageComponent()

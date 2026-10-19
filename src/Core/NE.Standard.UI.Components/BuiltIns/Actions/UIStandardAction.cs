@@ -1,6 +1,7 @@
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Actions;
 
@@ -52,4 +53,37 @@ public readonly record struct UIStandardAction(string Word, string Glyph, bool I
 
         return new MenuItem { Id = id, Title = Word, Icon = Glyph, TitleColor = color, IconColor = color };
     }
+
+    /// <summary>
+    /// The action as a command bar's or a button group's item under <paramref name="id"/>: its glyph and its words — the button's, or
+    /// its tooltip where <paramref name="iconOnly"/> — in <paramref name="type"/>, its danger drawn as <see cref="ButtonType"/> and
+    /// <see cref="ButtonInk"/> say.
+    /// </summary>
+    public ButtonItem ToButtonItem(string id, UIButtonType type, bool iconOnly = false)
+    {
+        UIThemeColor? ink = ButtonInk(type);
+
+        return new ButtonItem
+        {
+            Id = id,
+            Type = ButtonType(type),
+            Title = iconOnly ? null : Word,
+            Tooltip = iconOnly ? Word : null,
+            Icon = Glyph,
+            TitleColor = ink,
+            IconColor = ink
+        };
+    }
+
+    /// <summary>The type a button of <paramref name="type"/> takes for the action: a danger turns a filled one's fill; any other stays.</summary>
+    public UIButtonType ButtonType(UIButtonType type)
+        => IsDanger && IsFilled(type) ? UIButtonType.Danger : type;
+
+    /// <summary>The ink the action's words and glyph take on a button of <paramref name="type"/>: a danger's on a bare one, else none.</summary>
+    public UIThemeColor? ButtonInk(UIButtonType type)
+        => IsDanger && !IsFilled(type) ? UIThemeColor.Danger : null;
+
+    // A filled button carries its meaning in its fill, a bare one in its ink: the one danger rule every button of an action follows.
+    private static bool IsFilled(UIButtonType type)
+        => type is UIButtonType.Primary or UIButtonType.Accent or UIButtonType.Danger;
 }

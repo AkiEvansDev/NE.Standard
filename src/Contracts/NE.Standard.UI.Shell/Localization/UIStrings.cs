@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using NE.Colors;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Shell.Localization;
 
@@ -119,6 +120,9 @@ public static partial class UIStrings
 
     /// <summary>The cross over a shelf's square that holds a file rather than a picture.</summary>
     public const string FileRemove = "ui.file.remove";
+
+    /// <summary>A file's size with nothing around it: <c>{size}</c>, a <see cref="UIFileSize"/> (<see cref="UIFileSize.Phrase"/>).</summary>
+    public const string FileSize = "ui.file.size";
     public const string ColorPicker = "ui.color.picker";
     public const string ColorPalette = "ui.color.palette";
     public const string ColorHex = "ui.color.hex";
@@ -324,6 +328,7 @@ public static partial class UIStrings
         [FileLeftOut] = "Left out as larger than {limit}: {names}.",
         [FileNotUploaded] = "Could not upload: {names}.",
         [FileRemove] = "Remove the file",
+        [FileSize] = "{size}",
         [ColorPicker] = "Picker",
         [ColorPalette] = "Palette",
         [ColorHex] = "Hex",

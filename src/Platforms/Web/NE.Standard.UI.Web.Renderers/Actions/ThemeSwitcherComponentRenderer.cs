@@ -73,8 +73,9 @@ public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
         if (ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _) != WebRenderValueKind.Binding && string.IsNullOrWhiteSpace(tooltip))
             WebWords.Write(context, root, WebAttributes.Tooltip, UIStrings.ThemeSwitch);
 
-        RenderGlyph(context, root, "light", ThemeSwitcherComponent.LightIconProperty);
-        RenderGlyph(context, root, "dark", ThemeSwitcherComponent.DarkIconProperty);
+        // One size for both glyphs, written on the root once.
+        RenderGlyph(context, root, "light", ThemeSwitcherComponent.LightIconProperty, marksRoot: true);
+        RenderGlyph(context, root, "dark", ThemeSwitcherComponent.DarkIconProperty, marksRoot: false);
     }
 
     /// <summary>Every theme's word stacked in the box, so it keeps one width as the theme changes; the page marks the current one.</summary>
@@ -114,13 +115,13 @@ public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
         }
     }
 
-    private static void RenderGlyph(WebRenderContext context, IHtmlElementBuilder root, string modifier, UIProperty property)
+    private static void RenderGlyph(WebRenderContext context, IHtmlElementBuilder root, string modifier, UIProperty property, bool marksRoot)
         => _ = root.Element("span", icon =>
         {
             _ = icon.Class("ui-theme-switcher__icon");
             _ = icon.Class($"ui-theme-switcher__icon--{modifier}");
             _ = icon.Class("ui-icon");
 
-            SwitcherChromeRenderer.RenderGlyph(context, icon, property);
+            SwitcherChromeRenderer.RenderGlyph(context, root, icon, property, marksRoot);
         });
 }

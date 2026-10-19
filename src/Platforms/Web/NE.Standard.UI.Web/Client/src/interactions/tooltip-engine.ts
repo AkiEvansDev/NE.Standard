@@ -1,15 +1,16 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
 import {
-    ActionBarClass, ContextMenuOwnerAttribute, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute as PressAttribute,
-    TooltipSeverityAttribute as SeverityAttribute
+    ActionBarClass, ContextMenuOwnerAttribute, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPlainAttribute as PlainAttribute,
+    TooltipPressAttribute as PressAttribute, TooltipSeverityAttribute as SeverityAttribute
 } from "../addressing/dom-attributes.ts";
 import { applyInlineMarkup, escapeInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
 import { carryPopupGround, isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
 import { takesTyping } from "./caret-fields.ts";
-import { isClippedOut, isLaidOut } from "./element-visibility.ts";
+import { addedAmong, isClippedOut, isInSight, isLaidOut, observeLine, SightAttributes } from "./element-visibility.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { LongPress } from "./long-press.ts";
+import { onTierChange } from "../rendering/responsive-tier.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
 
@@ -97,10 +98,12 @@ export function startTooltips(root: ParentNode = document): void {
     // On the window, ahead of every closer on the document: a tooltip on screen is the innermost thing Escape can take away.
     window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("blur", dismiss);
+    // A tier's Visibility hides a control with no change in the tree.
+    onTierChange(dropOrphan);
 }
 
 function onPointerOver(event: Event): void {
-    dropOrphan();
+    dropOrphan(false);
 
     // Inside the tooltip itself: the reader is heading for a link in it, so the scheduled close is called off.
     if (isInsideTooltip(event.target)) {
@@ -116,9 +119,12 @@ function onPointerOver(event: Event): void {
     schedule(target);
 }
 
-/** Closes a tooltip whose control the page redrew away, since no pointerout comes for a removed element. */
-function dropOrphan(): void {
-    if (anchor === null || anchor.isConnected)
+/**
+ * Closes a tooltip whose control the page redrew away or, unless `sight` is off, put out of sight, since no pointerout comes for
+ * either; off, only a removal is asked about, which reads no style.
+ */
+function dropOrphan(sight = true): void {
+    if (anchor === null || (anchor.isConnected && (!sight || isInSight(anchor))))
         return;
 
     dismiss();
@@ -313,11 +319,17 @@ function findOwnAnchor(target: Element): Element | null {
     return (spoken.getAttribute(TooltipAttribute) ?? "").trim().length > 0 ? spoken : null;
 }
 
-/** An anchor's words: its own tooltip and what a provider adds after it, else what a provider says for it. */
+/**
+ * An anchor's words: its own tooltip and what a provider adds after it, else what a provider says for it. Its own shown as written
+ * where it is marked so (`TooltipPlain`): a name a person typed, never read as markup.
+ */
 function anchorWords(target: Element): string {
     const own = (target.getAttribute(TooltipAttribute) ?? "").trim();
 
-    return own.length > 0 ? own + wordsAfter(target) : providedWords(target);
+    if (own.length === 0)
+        return providedWords(target);
+
+    return (target.hasAttribute(PlainAttribute) ? escapeInlineMarkup(own) : own) + wordsAfter(target);
 }
 
 function wordsAfter(target: Element): string {
@@ -420,16 +432,30 @@ function show(target: Element, words?: string): void {
     watchOrphan();
 }
 
-// The page redrawing the anchor away (a touch's tap that re-rendered it) sends no pointerout and, on a phone, no next pointerover: while
-// the words are on screen, a change in the tree takes them away once their anchor has left it. One check of a flag per change.
+// The page redrawing the anchor away (a touch's tap that re-rendered it) or putting it out of sight (a closed dialog, a fold) sends no
+// pointerout and, on a phone, no next pointerover: while the words are on screen, a change in the tree takes them away once their
+// anchor has left it, and a change of the anchor's or anything above it once it is out of sight — not the page's every class.
 let orphanWatch: MutationObserver | null = null;
+const SightFilter: string[] = [...SightAttributes];
 
 function watchOrphan(): void {
-    if (typeof MutationObserver === "undefined")
+    if (typeof MutationObserver === "undefined" || anchor === null)
         return;
 
-    orphanWatch ??= new MutationObserver(dropOrphan);
+    orphanWatch ??= new MutationObserver(records => answerTreeChange(records));
+    orphanWatch.disconnect();
     orphanWatch.observe(document.documentElement, { childList: true, subtree: true });
+    observeLine(orphanWatch, anchor, SightFilter);
+}
+
+/** A change of the anchor's line asks whether it is in sight; one of the tree alone, only whether it left — unless it moved the anchor. */
+function answerTreeChange(records: readonly MutationRecord[]): void {
+    const moved = anchor !== null && addedAmong(records, [anchor]).size > 0;
+
+    dropOrphan(moved || records.some(record => record.type === "attributes"));
+
+    if (moved && anchor !== null && orphanWatch !== null)
+        observeLine(orphanWatch, anchor, SightFilter);
 }
 
 // A control whose own list or panel is open says nothing, however the tooltip was asked for: it stood over the options just opened.

@@ -70,6 +70,8 @@ internal abstract partial class UIRuntimeBase
             UICommandResult result = await AnswerLeaveAsync(target, cancellation).ConfigureAwait(false);
             ServerChangeSet changes = await AnswerAsync(invoker.Instance.Id, cancellation).ConfigureAwait(false);
 
+            FollowShownByCommand(invoker, result.Effects);
+
             // Answered, never pushed: the page runs these effects as the leave's own, so a navigation among them is not asked about again.
             return new UICommandExecutionResult
             {

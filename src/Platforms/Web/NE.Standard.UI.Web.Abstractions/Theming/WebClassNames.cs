@@ -58,6 +58,9 @@ public static class WebClassNames
     /// <summary>A text input's root.</summary>
     public const string TextInput = "ui-text-input";
 
+    /// <summary>A text's description line, which a copy of the text takes as its words (<c>shown-text.ts</c>).</summary>
+    public const string TextDescription = "ui-text__description";
+
     /// <summary>On a field's root while its validation is an error.</summary>
     public const string Invalid = "ui-invalid";
 

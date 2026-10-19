@@ -9,8 +9,8 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 namespace NE.Standard.UI.Web.Renderers.Contents;
 
 /// <summary>
-/// A picture in a box of its own: the box takes the size, shape and corners, the picture fills it, and a round one with no picture shows
-/// its fallback glyph over the box (<c>image-fallback-engine.ts</c>), which an <c>&lt;img&gt;</c> alone could not hold.
+/// A picture in a box of its own: the box takes the size, shape and corners, the picture fills it, and one with no picture shows its
+/// fallback glyph over the box (<c>image-fallback-engine.ts</c>), which an <c>&lt;img&gt;</c> alone could not hold.
 /// </summary>
 public sealed class ImageComponentRenderer : WebComponentRendererBase
 {
@@ -83,23 +83,19 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
     }
 
     /// <summary>
-    /// A round picture with neither a source nor a fallback source shows its glyph from the first paint; one that fails later is the
-    /// client's to answer.
+    /// A picture with neither a source nor a fallback source shows its glyph from the first paint, the person's on a round one and a
+    /// picture's on any other; one that fails later is the client's to answer.
     /// </summary>
     private static void RenderStandIn(WebRenderContext context, IHtmlElementBuilder root, string? fallbackIcon)
     {
-        _ = ResolveRenderValue(context, ImageComponent.ShapeProperty, out UIImageShape? shape, out _);
-
-        if (shape != UIImageShape.Circle)
-            return;
-
         _ = ResolveRenderValue(context, ImageComponent.SourceProperty, out string? source, out _);
         _ = ResolveRenderValue(context, ImageComponent.FallbackSourceProperty, out string? fallbackSource, out _);
 
         if (WebUrlSafety.IsSafeImageSource(source) || WebUrlSafety.IsSafeImageSource(fallbackSource))
             return;
 
+        _ = ResolveRenderValue(context, ImageComponent.ShapeProperty, out UIImageShape? shape, out _);
         _ = root.Attribute(WebAttributes.ImageFailed);
-        IconValueRenderer.RenderStandInGlyph(root, fallbackIcon);
+        IconValueRenderer.RenderStandInGlyph(root, fallbackIcon, shape == UIImageShape.Circle);
     }
 }

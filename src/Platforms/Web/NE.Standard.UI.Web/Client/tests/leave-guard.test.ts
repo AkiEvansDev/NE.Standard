@@ -73,6 +73,22 @@ function link(href: string, attributes: Record<string, string> = {}): EventTarge
     return anchor as unknown as EventTarget;
 }
 
+/**
+ * A press on a part an event boundary sets apart inside a link — a card's own context menu, its action bar — or, with `ownHref`, on a
+ * link standing in that part (a menu entry with an address of its own).
+ */
+function insideLink(cardHref: string, ownHref: string | null = null): EventTarget {
+    const menu = {};
+    const anchor = (href: string, holds: unknown) => ({
+        getAttribute: (name: string): string | null => name === "href" ? href : null,
+        hasAttribute: (name: string): boolean => name === "href",
+        contains: (other: unknown): boolean => other === holds
+    });
+    const nearest = ownHref === null ? anchor(cardHref, menu) : anchor(ownHref, null);
+
+    return { closest: (selector: string): unknown => selector === "a[href]" ? nearest : selector === "[data-ui-event-boundary]" ? menu : null } as unknown as EventTarget;
+}
+
 function press(target: EventTarget, keys: Record<string, unknown> = {}): Record<string, unknown> {
     return { button: 0, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, defaultPrevented: false, target, ...keys };
 }
@@ -443,4 +459,25 @@ test("a leave is asked about while work is held or a value is on its way, never 
 
     guard.release();
     assert.equal(guard.asks, false);
+});
+
+test("a press in a link's own menu or action bar is no leave, and the browser follows the link around it no more; a link in that part is the press's own", async () => {
+    const context = guarded();
+    const { window, guard, asked, followed } = context;
+
+    context.follows = target => target.startsWith("/notes?id=");
+
+    assert.equal(leaveTarget(press(insideLink("/notes?id=7")) as never, Page), null);
+    assert.equal(leaveTarget(press(insideLink("/notes?id=7", "/inbox")) as never, Page), "/inbox");
+
+    assert.equal(window.raise("click", press(insideLink("/notes?id=7"))).defaultPrevented, true);
+
+    guard.set(true);
+
+    assert.equal(window.raise("click", press(insideLink("/notes?id=7"))).defaultPrevented, true);
+    await settle();
+
+    assert.deepEqual(asked, []);
+    assert.deepEqual(followed, []);
+    assert.deepEqual(window.assigned, []);
 });

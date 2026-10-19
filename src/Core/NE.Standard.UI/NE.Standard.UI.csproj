@@ -14,10 +14,6 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>NE.Test.Standard.UI</_Parameter1>
     </AssemblyAttribute>
-    <!-- One slice, released together: the web platform shares the application's temp folder derivation (UIApplicationStorage). -->
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>NE.Standard.UI.Web</_Parameter1>
-    </AssemblyAttribute>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>NE.Benchmarks.Standard.UI</_Parameter1>
     </AssemblyAttribute>

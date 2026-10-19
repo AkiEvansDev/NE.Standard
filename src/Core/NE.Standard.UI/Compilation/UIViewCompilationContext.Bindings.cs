@@ -59,7 +59,10 @@ internal sealed partial class UIViewCompilationContext
 
                 // An optional binding expects items without the path: a default template binds a whole model contract.
                 if (!sourceBinding.Value.Optional)
+                {
                     WarnOnUnresolvableControllerPath(component, definition.Property.Name, fullPath);
+                    WarnOnRootShadowedByRow(component, definition.Property.Name, sourceBinding.Value, componentContexts);
+                }
 
                 // An items collection is one binding, not two — compiling it again as a scalar property would
                 // send a value the client has no binding metadata for.
@@ -109,7 +112,7 @@ internal sealed partial class UIViewCompilationContext
                 continue;
             }
 
-            var value = definition.Getter(component) ?? definition.DefaultValue;
+            var value = definition.Getter(component) ?? ImpliedValue(component, definition.Property) ?? definition.DefaultValue;
 
             // Most of a component's properties stay at their default: those share one value per type rather than one each.
             if (!isContent && typeState.TryGetDefault(slot, value, out CompiledUIPropertyValue? shared))

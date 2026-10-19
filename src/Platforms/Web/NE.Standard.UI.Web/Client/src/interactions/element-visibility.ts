@@ -1,4 +1,38 @@
-import { ScrollYDisabledClass } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, ScrollYDisabledClass, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+
+/**
+ * The attributes whose change may put what stands inside out of sight — `hidden` (a closed dialog, a tab's page), a class (the
+ * client's `ui-hidden`), a fold, `Visibility` at every tier — for an observer watching that its element stays in sight.
+ */
+export const SightAttributes: readonly string[] = ["hidden", "class", CollapsedAttribute, ...VisibilityTierAttributes];
+
+/**
+ * Watches, with `observer`, the attributes `attributeFilter` names on an element and on everything above it — its line, which alone
+ * can put it out of sight — not the page's, whose classes change with every hover.
+ */
+export function observeLine(observer: MutationObserver, element: Element, attributeFilter: string[]): void {
+    for (let current: Element | null = element; current !== null; current = current.parentElement)
+        observer.observe(current, { attributes: true, attributeFilter });
+}
+
+/** Which of `elements` a batch of changes put in the tree anew — added, or inside what was added — a move taking them to another line. */
+export function addedAmong<T extends Element>(records: readonly MutationRecord[], elements: readonly T[]): Set<T> {
+    const added = new Set<T>();
+
+    for (const record of records) {
+        if (record.type !== "childList")
+            continue;
+
+        for (const node of record.addedNodes) {
+            for (const element of elements) {
+                if (node.contains(element))
+                    added.add(element);
+            }
+        }
+    }
+
+    return added;
+}
 
 /** A box the reader scrolls along the axis, which a script may scroll too; a box that clips alone (`overflow: clip`) has nothing to scroll. */
 export function canScroll(element: Element, vertical: boolean): boolean {
@@ -11,6 +45,22 @@ export function canScroll(element: Element, vertical: boolean): boolean {
 /** Whether the element itself takes part in layout, by its own computed display rather than its rects. */
 export function isLaidOut(element: Element): boolean {
     return getComputedStyle(element).display !== "none";
+}
+
+/**
+ * Whether the element is drawn: nothing around it `display: none` (a closed dialog, a fold, a tier's Visibility). One boxing nothing
+ * itself (`display: contents`), which `checkVisibility` calls unseen, is judged by the nearest box around it.
+ */
+export function isInSight(element: Element): boolean {
+    for (let current: Element | null = element; current !== null; current = current.parentElement) {
+        if (current.checkVisibility())
+            return true;
+
+        if (getComputedStyle(current).display !== "contents")
+            return false;
+    }
+
+    return false;
 }
 
 type Box = { left: number; top: number; right: number; bottom: number };

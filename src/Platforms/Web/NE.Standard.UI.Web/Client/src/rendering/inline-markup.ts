@@ -31,6 +31,9 @@ export type InlineMarkupOptions = {
     readonly staticFolds?: boolean;
     // A bare http:// or https:// address reads as a link (`DescriptionAutolinks`, the element's `data-ui-autolinks`).
     readonly autolinks?: boolean;
+    // The text stands inside an anchor (a linked card, a menu entry): a link is drawn as its words alone, as the server draws it there,
+    // since an anchor holds no other.
+    readonly insideLink?: boolean;
 };
 
 const Escape = "\\";
@@ -146,7 +149,7 @@ function renderSegment(segment: InlineSegment, options: InlineMarkupOptions): No
     if ((segment.styles & InlineStyles.Bold) !== 0)
         node = wrap("strong", node);
 
-    if (segment.url !== null) {
+    if (segment.url !== null && options.insideLink !== true) {
         const anchor = document.createElement("a");
 
         anchor.setAttribute("href", segment.url);

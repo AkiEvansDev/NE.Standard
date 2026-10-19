@@ -137,3 +137,18 @@ test("a scroll that takes the control out of its box closes its tooltip; a scrol
 
     assert.equal(shows(anchor), false);
 });
+
+test("a tooltip whose control goes out of sight while it stands — a dialog closed round it — goes at the next change it hears", () => {
+    const { body, anchor } = page(150);
+    const elsewhere = new FakeElement();
+
+    fakeDocument.body.append(elsewhere);
+    tooltips.show(real(anchor), "The name printed on the card");
+
+    assert.equal(shows(anchor), true);
+
+    body.laidOut = false;
+    scroll(elsewhere);
+
+    assert.equal(shows(anchor), false);
+});
