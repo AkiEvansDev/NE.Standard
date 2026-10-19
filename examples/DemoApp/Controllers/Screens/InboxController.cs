@@ -86,13 +86,7 @@ internal sealed partial class InboxController : UIControllerBase
 
     /// <summary>The list, the open message and the empty pane: beside each other on a wide screen, one at a time on a phone.</summary>
     [RecursiveMember]
-    public partial UIResponsive<UIVisibility> ListVisibility { get; set; } = UILayout.PanesListVisibility(false);
-
-    [RecursiveMember]
-    public partial UIResponsive<UIVisibility> EmptyVisibility { get; set; } = UILayout.PanesPlaceholderVisibility(false);
-
-    [RecursiveMember]
-    public partial UIResponsive<UIVisibility> ReadingVisibility { get; set; } = UILayout.PanesDetailVisibility(false, chosen: false);
+    public partial UIPanesState Panes { get; set; } = new();
 
     [RecursiveMember]
     public partial string Subject { get; set; } = string.Empty;
@@ -157,9 +151,7 @@ internal sealed partial class InboxController : UIControllerBase
                 Attachments.Add(new TextItem { Id = attachment, Icon = DemoIcons.Outline(DemoIcons.File), Title = attachment });
 
             AttachmentsVisibility = message.Attachments.Length == 0 ? UIVisibility.Collapsed : UIVisibility.Visible;
-            ListVisibility = UILayout.PanesListVisibility(true);
-            EmptyVisibility = UILayout.PanesPlaceholderVisibility(true);
-            ReadingVisibility = UILayout.PanesDetailVisibility(true);
+            Panes.ShowDetail();
             return true;
         }
 
@@ -225,9 +217,7 @@ internal sealed partial class InboxController : UIControllerBase
     {
         _open = null;
         SelectedKey = null;
-        ListVisibility = UILayout.PanesListVisibility(false);
-        ReadingVisibility = UILayout.PanesDetailVisibility(false, chosen: false);
-        EmptyVisibility = UILayout.PanesPlaceholderVisibility(false);
+        Panes.ShowNothing();
     }
 
     private static UICommandResult Notify(string message, UIColorStyle severity)

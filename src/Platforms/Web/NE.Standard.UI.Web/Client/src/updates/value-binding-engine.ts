@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { BindingAttributePrefix, ComponentSelector, FormIdAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import { BindingAttributePrefix, ComponentSelector, cssAttributeValue, FormIdAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
 import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
@@ -10,6 +10,7 @@ import { focusAsLastInput } from "../interactions/popup-focus.ts";
 import { getBindingMode } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, WebBindingMode, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import { logError, logWarn } from "../runtime/logger.ts";
+import { areValuesEqual } from "../state/value-equality.ts";
 import type { ValueChangeDispatcher } from "../transport/value-change-dispatcher.ts";
 
 const ClearAttribute = "data-ui-clear";
@@ -74,6 +75,16 @@ export type ValueBindingEngineOptions = {
     readonly refuses?: (element: Element) => boolean;
 };
 
+/** A form's buffered fields and the values they held when read. */
+export type FormValues = ReadonlyMap<Element, unknown>;
+
+/** A form as a submit read it at its press: the buffered values it sends, and its text fields' words, kept until `close`. */
+export type PressedForm = {
+    readonly values: FormValues;
+    /** Ends the press's hold on its text fields' words: the submit's answer has been applied, or it sends nothing. */
+    close(): void;
+};
+
 export class ValueBindingEngine {
     private readonly options: ValueBindingEngineOptions;
     private readonly root: ParentNode;
@@ -86,6 +97,10 @@ export class ValueBindingEngine {
     // written over the edit. The latest's answer lets go, since a value it replaced while waiting settles only after that answer is applied.
     private readonly unanswered = new Map<Element, number>();
     private sends = 0;
+
+    // The text fields of a submit still waiting or unanswered, by their words at its press and the press: a push is laid under what the
+    // reader typed since rather than over it (docs/VALUES.md §3).
+    private readonly pressedText = new Map<Element, { readonly text: string; readonly press: object }>();
 
     public constructor(options: ValueBindingEngineOptions) {
         this.options = options;
@@ -168,6 +183,51 @@ export class ValueBindingEngine {
         return this.bufferedElements.has(element) || this.unanswered.has(element);
     }
 
+    /**
+     * Whether a push of its bound value is kept out of the field: one it holds (`isHeld`), or a text field of a pressed submit the reader
+     * typed on since the press — the push laid under the words added at the end, or left out where the press's words were edited; either
+     * way the result is the reader's edit, sent as a TwoWay one is, held as an OnSubmit one is.
+     */
+    public holdsPush(element: Element, value: unknown): boolean {
+        const pressed = this.pressedText.get(element);
+
+        if (pressed === undefined || !isCaretField(element))
+            return this.isHeld(element);
+
+        const typed = this.options.valueReaders.readBound(element);
+
+        if (typed === pressed.text || typeof typed !== "string")
+            return this.isHeld(element);
+
+        if (typed.startsWith(pressed.text) && (typeof value === "string" || value === null || value === undefined)) {
+            const pushed = value ?? "";
+
+            writeKeepingCaretFromEnd(element, pushed + typed.slice(pressed.text.length));
+            this.pressedText.set(element, { text: pushed, press: pressed.press });
+            // As the reader's typing: a counter or a growing text area follows the words.
+            element.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+
+        this.commitTyped(element);
+
+        return true;
+    }
+
+    /** Sends the reader's words as a change sends them, past the commit gate, which may hold them as committed already. */
+    private commitTyped(element: Element): void {
+        const writable = resolveWritableBinding(element, this.options.metadata);
+
+        if (writable === null)
+            return;
+
+        if (writable.buffered) {
+            this.bufferValue(element);
+            return;
+        }
+
+        void this.syncValueAsync(element, writable.bindingId).catch(error => logError("value binding engine failed.", error));
+    }
+
     // A clear affordance is a click on a separate element, not a "change" on the field.
     private handleClear(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
@@ -246,15 +306,63 @@ export class ValueBindingEngine {
         }
     }
 
-    /** Writes back every buffered value of this form in one pass, before the submit command runs. */
-    public async submitFormAsync(formId: string): Promise<void> {
+    /**
+     * A form as it stands at a submit's press: its buffered values, which a submit that waits for its pickers' uploads sends, and its
+     * text fields' words, which a push until `close` is laid under rather than over (`holdsPush`).
+     */
+    public pressForm(formId: string): PressedForm {
+        const values = new Map<Element, unknown>();
+        const press = {};
+        const fields: Element[] = [];
+
+        for (const element of this.bufferedElements) {
+            if (element.isConnected && element.getAttribute(FormIdAttribute) === formId)
+                values.set(element, this.options.valueReaders.readBound(element));
+        }
+
+        for (const field of this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`)) {
+            const text = isCaretField(field) && field.hasAttribute(ValueBindingAttribute) ? this.options.valueReaders.readBound(field) : null;
+
+            if (typeof text === "string") {
+                this.pressedText.set(field, { text, press });
+                fields.push(field);
+            }
+        }
+
+        return {
+            values,
+            close: () => {
+                // A later press of the same form keeps its own words.
+                for (const field of fields) {
+                    if (this.pressedText.get(field)?.press === press)
+                        this.pressedText.delete(field);
+                }
+            }
+        };
+    }
+
+    /**
+     * Writes back every buffered value of this form in one pass, before the submit command runs. Given the values read at the press,
+     * those go rather than the fields' own, but for the ones `readsNow` names — a picker's, whose upload the submit waited for.
+     */
+    public async submitFormAsync(formId: string, pressed?: FormValues, readsNow?: (element: Element) => boolean): Promise<void> {
         const pending: Promise<void>[] = [];
 
         for (const element of [...this.bufferedElements]) {
             if (element.getAttribute(FormIdAttribute) !== formId)
                 continue;
 
-            this.bufferedElements.delete(element);
+            const current = pressed === undefined || readsNow?.(element) === true;
+
+            // First edited while the submit waited: the next submit's.
+            if (pressed !== undefined && !current && !pressed.has(element))
+                continue;
+
+            const value = pressed === undefined || current ? this.options.valueReaders.readBound(element) : pressed.get(element);
+
+            // An edit made while the submit waited stays the reader's, held for the next submit: the press's value goes.
+            if (current || !element.isConnected || areValuesEqual(value, this.options.valueReaders.readBound(element)))
+                this.bufferedElements.delete(element);
 
             if (!element.isConnected)
                 continue;
@@ -262,13 +370,13 @@ export class ValueBindingEngine {
             const writable = resolveWritableBinding(element, this.options.metadata);
 
             if (writable !== null)
-                pending.push(this.syncValueAsync(element, writable.bindingId));
+                pending.push(this.syncValueAsync(element, writable.bindingId, value));
         }
 
         await Promise.all(pending);
     }
 
-    private async syncValueAsync(element: Element, bindingIdText: string): Promise<void> {
+    private async syncValueAsync(element: Element, bindingIdText: string, value: unknown = this.options.valueReaders.readBound(element)): Promise<void> {
         const binding = this.options.metadata.getBindingById(Number(bindingIdText));
         const propertyName = binding === undefined
             ? undefined
@@ -285,7 +393,7 @@ export class ValueBindingEngine {
             return;
 
         // Published before it is awaited, so a command raised by the same edit can wait on it.
-        const sync = this.dispatchAndApplyAsync(element, propertyName, resolved, binding);
+        const sync = this.dispatchAndApplyAsync(element, propertyName, resolved, binding, value);
 
         this.pendingSyncByComponent.set(resolved.element, sync);
 
@@ -298,8 +406,7 @@ export class ValueBindingEngine {
         }
     }
 
-    private async dispatchAndApplyAsync(element: Element, propertyName: string, resolved: ComponentResolveResult, binding: WebRenderPropertyReferenceMetadata): Promise<void> {
-        const value = this.options.valueReaders.readBound(element);
+    private async dispatchAndApplyAsync(element: Element, propertyName: string, resolved: ComponentResolveResult, binding: WebRenderPropertyReferenceMetadata, value: unknown): Promise<void> {
         const send = this.holdUnanswered(element);
         const answer = (): void => this.releaseUnanswered(element, send);
 
@@ -357,6 +464,19 @@ export class ValueBindingEngine {
     /** Resolves once every value sent so far, any component's, has been handed to the hub — a large one after its staging. */
     public whenSent(): Promise<void> {
         return this.options.dispatcher.whenSent();
+    }
+}
+
+/** Writes a field's words, a caret the reader holds in it kept as far from the end as it was. */
+function writeKeepingCaretFromEnd(field: HTMLInputElement | HTMLTextAreaElement, text: string): void {
+    const fromEnd = document.activeElement === field && typeof field.selectionEnd === "number" ? field.value.length - field.selectionEnd : null;
+
+    field.value = text;
+
+    if (fromEnd !== null) {
+        const caret = Math.max(0, text.length - fromEnd);
+
+        field.setSelectionRange(caret, caret);
     }
 }
 

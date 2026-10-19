@@ -66,6 +66,7 @@ test("a search that leaves no entry shows the menu's empty line, and an entry ma
     type(at, "trash");
 
     assert.equal(placeholder(at)?.textContent, "Nothing to show.");
+    assert.equal(at.host.hasAttribute("data-ui-items-empty"), true);
     assert.equal(at.host.querySelectorAll("[data-ui-menu-unmatched]").length, 2);
 
     // Typed on, the line is not drawn twice.
@@ -76,6 +77,7 @@ test("a search that leaves no entry shows the menu's empty line, and an entry ma
     type(at, "arch");
 
     assert.equal(placeholder(at), null);
+    assert.equal(at.host.hasAttribute("data-ui-items-empty"), false);
 });
 
 test("an emptied search puts every entry back and takes the empty line out", () => {

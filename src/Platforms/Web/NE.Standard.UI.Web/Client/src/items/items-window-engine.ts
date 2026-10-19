@@ -105,7 +105,7 @@ export class ItemsWindowEngine {
             if (countItems(host) === 0) {
                 // A read asked before the connection dropped still waits to go: a second would clear `pending` under the other.
                 if (!this.getState(host).pending)
-                    void this.requestAsync(host, "Start", 0, null, false);
+                    void this.requestAsync(host, emptyAnchor(host), 0, null, false);
 
                 continue;
             }
@@ -203,7 +203,7 @@ export class ItemsWindowEngine {
     /**
      * Re-places the spacers after a change set moved a window, and follows a window that moved: of the hosts the set changed — its
      * `changed` elements in them, around them or the hosts themselves. Laying a host out measures it, which a set that left it alone
-     * would pay for nothing.
+     * would pay for nothing. A window the set emptied is asked for again.
      */
     public sync(changed: readonly Element[]): void {
         if (changed.length === 0)
@@ -216,7 +216,14 @@ export class ItemsWindowEngine {
             this.layout(host);
 
             // A window with a read in flight is where the viewer was; following it would undo their scroll, and the read realigns.
-            if (!this.getState(host).pending)
+            if (this.getState(host).pending)
+                continue;
+
+            // Emptied by a set no command answered (the source let its window go from a job's write): only a command's answer decides
+            // again after it, so nothing else would ask for the window the viewer stands at. The read's own answer lands while pending.
+            if (countItems(host) === 0 && changed.some(element => host.contains(element)))
+                void this.requestAsync(host, emptyAnchor(host), 0, null, false);
+            else
                 this.realign(host);
         }
     }
@@ -311,7 +318,7 @@ export class ItemsWindowEngine {
         const items = itemElements(host);
 
         if (items.length === 0) {
-            void this.requestAsync(host, "Start", 0, null, false);
+            void this.requestAsync(host, emptyAnchor(host), 0, null, false);
             return;
         }
 
@@ -388,8 +395,8 @@ export class ItemsWindowEngine {
         state.pending = true;
         state.readingBefore = anchor === "Before";
 
-        // Read from the start, the window holds other rows than the ones measured (a host emptied, rules changed).
-        if (anchor === "Start")
+        // Read from an edge, the window holds other rows than the ones measured (a host emptied, rules changed).
+        if (anchor === "Start" || anchor === "End")
             forgetSizes(state);
 
         // Which edge the rows come in at, where an indicator stands; busy, as a loading component says it is. On the component's root
@@ -436,14 +443,16 @@ export class ItemsWindowEngine {
             this.layout(host);
             state.readingBefore = false;
 
-            // The viewer kept scrolling during the read, so decide again from where they are now.
-            if (state.restless || (cursor && edgeMoved(host, anchor, key))) {
-                state.restless = false;
+            const restless = state.restless;
+
+            state.restless = false;
+
+            // The viewer kept scrolling during the read, so decide again from where they are now; not over a window the read left
+            // empty, an empty source, which deciding again would only read again.
+            if ((restless || (cursor && edgeMoved(host, anchor, key))) && countItems(host) > 0)
                 this.considerRequest(host);
-            }
-            else {
+            else
                 this.realign(host);
-            }
         }
     }
 
@@ -704,6 +713,11 @@ function itemElements(host: Element): Element[] {
 
 function countItems(host: Element): number {
     return itemElements(host).length;
+}
+
+/** Where an empty window is read from: a feed anchored to its end (a chat) shows its newest rows, any other list its first. */
+function emptyAnchor(host: Element): ItemAnchorName {
+    return isEndAnchored(host) ? "End" : "Start";
 }
 
 function keyOf(item: Element): string | null {

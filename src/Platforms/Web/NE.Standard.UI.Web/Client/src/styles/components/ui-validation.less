@@ -12,6 +12,8 @@
     // A message carries what it names, a file's or a link's unbroken name among them, which must not run the field wider: `anywhere`,
     // not `break-word`, so the name's length leaves the line's min-content width too.
     overflow-wrap: anywhere;
+    // A message of two lines — a pick's size refusal and its failed upload — keeps its break.
+    white-space: pre-line;
     // One unit with its field: the field's gap and the words, not a half-leading more.
     .ui-text-leading-trim-start();
 }

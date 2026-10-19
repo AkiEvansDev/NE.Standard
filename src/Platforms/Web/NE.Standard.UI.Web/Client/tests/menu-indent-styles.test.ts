@@ -59,6 +59,6 @@ test("with no icon in the group's list the section keeps the plain indent", () =
 
 test("a flyout stands beside its group, its own popup's padding, never set in", () => {
     assert.match(rules("[data-ui-menu-select] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet]))"), /padding-left: 0\.25rem;/);
-    assert.match(css, /:is\(\.ui-menu\[data-ui-collapsed\]:not\(\[data-ui-folding\]\), \.ui-menu--rail\) \.ui-menu__submenu\[data-ui-menu-flyout\]:where\(:not\(\[data-ui-sheet\]\)\) \{\s*padding-left: 0\.25rem;/);
+    assert.match(css, /:is\(\.ui-menu\[data-ui-collapsed\]:not\(\[data-ui-folding\], \.ui-menu--rail\), \.ui-menu--rail\) \.ui-menu__submenu\[data-ui-menu-flyout\]:where\(:not\(\[data-ui-sheet\]\)\) \{\s*padding-left: 0\.25rem;/);
     assert.doesNotMatch(css, /\[data-ui-menu-icons\][^{}]*\.ui-menu__submenu\[data-ui-menu-flyout\][^{}]*\{/);
 });

@@ -22,9 +22,11 @@ import type { CropFrame } from "./image-crop.ts";
 import { cropPictureAsync } from "./image-crop-dialog.ts";
 import type { CropImaging } from "./image-crop-dialog.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
-import { publishSelection, readSelectionAsync, takeWithinSizeLimit, uploadedFileUrl, uploadFilesAsync } from "./file-upload.ts";
+import { publishSelection, readSelectionAsync, refuseFailedUpload, takeWithinSizeLimit, uploadedFileUrl, uploadFilesAsync } from "./file-upload.ts";
 import type { StoredFile } from "./file-upload.ts";
 import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
+import { uploadsInFlight } from "./uploads-in-flight.ts";
+import type { UploadsInFlight } from "./uploads-in-flight.ts";
 import type { FieldValidation } from "./validation-engine.ts";
 
 const RootClass = "ui-image-input";
@@ -71,17 +73,21 @@ export type ImageInputEngineOptions = {
     readonly root?: ParentNode;
     /** Where a picture refused for its size is said; left out, the refusal goes to the console. */
     readonly validation?: FieldValidation;
-    /** Tells a single picture that the controller emptied its handle. */
+    /** Tells a single picture that the controller emptied its handle, and whether a shelf's list is still unanswered. */
     readonly propertyPatchEngine?: PropertyPatchEngine;
     /** Opens the crop dialog for a picture with a frame; left out, such a picture is taken as it is. */
     readonly dialogs?: DialogEngine;
     /** The browser's decoding and drawing of a picture to crop; a test stands in for it. */
     readonly cropImaging?: CropImaging;
+    /** Where an upload on its way holds its form's submit; the page's own unless a test stands in for it. */
+    readonly uploads?: UploadsInFlight;
 };
 
 export class ImageInputEngine {
     private readonly root: ParentNode;
     private readonly validation: FieldValidation | undefined;
+    private readonly uploads: UploadsInFlight;
+    private readonly propertyPatchEngine: PropertyPatchEngine | undefined;
     private readonly dialogs: DialogEngine | undefined;
     private readonly cropImaging: CropImaging | undefined;
 
@@ -111,6 +117,8 @@ export class ImageInputEngine {
     public constructor(options: ImageInputEngineOptions = {}) {
         this.root = options.root ?? document;
         this.validation = options.validation;
+        this.uploads = options.uploads ?? uploadsInFlight;
+        this.propertyPatchEngine = options.propertyPatchEngine;
         this.dialogs = options.dialogs;
         this.cropImaging = options.cropImaging;
 
@@ -223,13 +231,23 @@ export class ImageInputEngine {
         this.seenKeys.set(root, text);
 
         // The shelf's own list echoed: an older echo can arrive after a later square lands, so pruning by it would drop that square.
+        // Only while its lists are unanswered: once the field is let go, a list it sent named again is the controller's refusing a later one.
         const sent = this.published.get(root) ?? [];
+        const selections = root.querySelector(`.${SelectionsClass}`);
+
+        if (selections === null || this.propertyPatchEngine?.isHeldTarget(selections) !== true)
+            sent.length = 0;
+
         const echo = text === null ? -1 : sent.indexOf(text);
 
         if (echo >= 0) {
             sent.splice(0, echo + 1);
             return;
         }
+
+        // The controller's own list. The newest list sent is never echoed, the root holding it already, so one left here would take a
+        // later list of the controller's for an echo; a list still on its way that comes back after this is drawn as the controller's.
+        sent.length = 0;
 
         const handles = readHandles(text);
 
@@ -460,6 +478,9 @@ export class ImageInputEngine {
         nameSurface(root, true);
         surface.classList.add(LoadingClass);
 
+        // After the crop: its form's submit waits for the upload, never for the reader in the crop dialog.
+        const hold = this.uploads.hold(root);
+
         try {
             const uploaded = await uploadFilesAsync([file], () => undefined);
 
@@ -479,6 +500,8 @@ export class ImageInputEngine {
             }
         }
         finally {
+            hold();
+
             if (this.previews.get(root) === preview || !this.previews.has(root))
                 surface.classList.remove(LoadingClass);
         }
@@ -536,6 +559,8 @@ export class ImageInputEngine {
 
         const uploads = accepted.map(async file => {
             const tile = createTile(file);
+            // Each square its own: one that fails or is taken off lets its form's submit go with the rest.
+            const hold = this.uploads.hold(root, tile);
 
             tiles.push(tile);
             host.appendChild(tile.element);
@@ -552,8 +577,17 @@ export class ImageInputEngine {
                 this.publishShelf(root);
             }
             catch (error) {
-                this.dropTile(root, tile);
                 logWarn("picture upload failed.", error);
+
+                // Taken off the shelf while on its way: the reader no longer looks for it.
+                if (!tiles.includes(tile))
+                    return;
+
+                this.dropTile(root, tile);
+                refuseFailedUpload(root, file.name, this.validation);
+            }
+            finally {
+                hold();
             }
         });
 
@@ -568,6 +602,8 @@ export class ImageInputEngine {
 
         if (tiles !== undefined && index >= 0)
             tiles.splice(index, 1);
+
+        this.uploads.forget(root, tile);
 
         if (tile.url !== null)
             URL.revokeObjectURL(tile.url);
@@ -591,6 +627,10 @@ export class ImageInputEngine {
         sent.push(json);
         this.published.set(root, sent);
         selections.setAttribute(SelectedKeysAttribute, json);
+        // The root's copy too, seen already: a controller answering the list with the one it held before — a send in the same round trip
+        // clearing it — is then a change the observer hears, not an unchanged attribute the push leaves alone.
+        this.seenKeys.set(root, json);
+        root.setAttribute(SelectedKeysAttribute, json);
         selections.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
@@ -600,6 +640,8 @@ export class ImageInputEngine {
         if (preview === undefined)
             return;
 
+        // Its upload's handle is no longer written, so the form's submit has nothing to wait for.
+        this.uploads.forget(root);
         URL.revokeObjectURL(preview.url);
         this.previews.delete(root);
         delete root.dataset.previewFor;

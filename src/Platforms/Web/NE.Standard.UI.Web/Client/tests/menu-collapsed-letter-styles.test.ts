@@ -12,7 +12,7 @@ import less from "less";
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
-const entry = ".ui-menu[data-ui-collapsed]:not([data-ui-folding]) .ui-menu-item:not([data-ui-menu-flyout] *)";
+const entry = ".ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail) .ui-menu-item:not([data-ui-menu-flyout] *)";
 const title = "> .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title";
 
 /** The declarations of the rule whose selector is exactly `selector`. */

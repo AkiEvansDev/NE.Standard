@@ -10,6 +10,7 @@ import { InteractionIndex } from "../interactions/interaction-index";
 import { FlyoutInteractionEngine } from "../interactions/flyout-interaction-engine";
 import { FileInputEngine } from "../interactions/file-input-engine";
 import { FileUploads, createFileUploads } from "../interactions/file-upload";
+import { uploadsInFlight } from "../interactions/uploads-in-flight";
 import { ItemSelection, itemSelection } from "../interactions/row-selection";
 import { ImageInputEngine } from "../interactions/image-input-engine";
 import { KeyValueActionEngine } from "../interactions/key-value-action-engine";
@@ -560,7 +561,7 @@ export class WebUIRuntime {
             // Built below; asked only on a change, which comes after both are.
             refuses: element => validationEngine.refusesBounds(element)
         });
-        propertyPatchEngine.setHeldTargets(target => valueBinding?.isHeld(target) === true);
+        propertyPatchEngine.setHeldTargets(valueBinding);
         this.settleValues = async () => {
             commitWaiting();
             await valueChangeDispatcher.whenAnsweredAsync();
@@ -676,6 +677,7 @@ export class WebUIRuntime {
             events: options.events,
             validationEngine,
             valueBinding,
+            uploads: uploadsInFlight,
             isReattaching: () => this.transport.isReattaching
         });
 
@@ -783,7 +785,7 @@ export class WebUIRuntime {
             renames: { open: openInlineRename },
             tables: this.tables,
             rows: createItemRows(itemsTemplates, itemsRenderer, this.virtualization),
-            uploads: createFileUploads(validationEngine),
+            uploads: createFileUploads(validationEngine, uploadsInFlight),
             selection: itemSelection,
             popups: createPopups(this.dom),
             roving: rovingFocus,

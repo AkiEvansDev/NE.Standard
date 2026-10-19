@@ -450,7 +450,7 @@ test("no rule that sizes a menu entry sizes its rule or its caption: each is out
 });
 
 test("a flyout's caption is a popup list's, words and all: no folded menu's or rail's rule turns it into the rule", () => {
-    const folded = [":is(.ui-menu[data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) ", ".ui-menu[data-ui-collapsed]:not([data-ui-folding]) "];
+    const folded = [":is(.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail), .ui-menu--rail) ", ".ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail) "];
     const captionRules = rules.filter(rule => folded.some(prefix => rule.selector.startsWith(prefix)) && rule.selector.includes('[data-ui-menu-item-kind="header"]'));
 
     assert.ok(captionRules.length >= 2, "the folded caption's rules are not read");
@@ -464,7 +464,7 @@ test("a flyout's caption is a popup list's, words and all: no folded menu's or r
 
 test("a rule's content takes no line, a folded caption's words are out of sight, and no folded entry's line stands under either", () => {
     const content = (selector: string) => rules.find(rule => rule.selector === selector)?.declarations;
-    const foldedWords = ':is(.ui-menu[data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) .ui-menu-item[data-ui-menu-item-kind="header"]:not([data-ui-menu-flyout] *) > .ui-button__content';
+    const foldedWords = ':is(.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail), .ui-menu--rail) .ui-menu-item[data-ui-menu-item-kind="header"]:not([data-ui-menu-flyout] *) > .ui-button__content';
 
     assert.equal(content('.ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-button__content')?.get("display"), "none");
     // A rail's caption is the rule it stands for, as a collapsed menu's: its words stood as a line under the rule.

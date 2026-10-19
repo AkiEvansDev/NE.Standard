@@ -108,6 +108,17 @@
     padding: @ui-space-1 @ui-space-2;
 }
 
+// A host showing its empty state (`data-ui-items-empty`, the render's and ensureEmptyState's mark) is a one-cell grid, as a pane's
+// cell is: the placeholder takes the host's whole box inside its padding, so a template as tall as its room (UIPage.Empty) stands in
+// its middle and one of its own height (the default line) at its top. An auto row, not 1fr: a template taller than the box grows it,
+// the room under it kept; a host with no height of its own stays as tall as the placeholder. Across too, where rows keep the top.
+.ui-items-view > [data-ui-items-host][data-ui-items-empty] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: stretch;
+    align-items: stretch;
+}
+
 // ShowEmptyTemplate off: an empty host says nothing. Hidden rather than left out, so a bound flag turned on shows it again.
 .ui-items-view--no-empty > [data-ui-items-host] > [data-ui-empty-placeholder] {
     display: none;

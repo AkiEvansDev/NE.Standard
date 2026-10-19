@@ -368,10 +368,7 @@ internal sealed partial class ChatController : UIControllerBase
     /// pressed, the conversation until its back arrow is.
     /// </summary>
     [RecursiveMember]
-    public partial UIResponsive<UIVisibility> ListVisibility { get; set; } = UILayout.PanesListVisibility(false);
-
-    [RecursiveMember]
-    public partial UIResponsive<UIVisibility> PaneVisibility { get; set; } = UILayout.PanesDetailVisibility(false);
+    public partial UIPanesState Panes { get; set; } = new(chosen: true);
 
     [RecursiveMember]
     public partial DateOnly? JumpDay { get; set; }
@@ -674,8 +671,7 @@ internal sealed partial class ChatController : UIControllerBase
         Read(chat);
         RefreshPeople();
 
-        ListVisibility = UILayout.PanesListVisibility(true);
-        PaneVisibility = UILayout.PanesDetailVisibility(true);
+        Panes.ShowDetail();
 
         await Conversation.ShowAsync(chat.History, cancellationToken).ConfigureAwait(false);
     }
@@ -692,10 +688,7 @@ internal sealed partial class ChatController : UIControllerBase
     /// <summary>The conversation's back arrow, below the medium breakpoint: the list again.</summary>
     [UICommand]
     public void Back()
-    {
-        ListVisibility = UILayout.PanesListVisibility(false);
-        PaneVisibility = UILayout.PanesDetailVisibility(false);
-    }
+        => Panes.ShowList();
 
     /// <summary>The header over the conversation, and the days the calendar offers.</summary>
     private void Describe(DemoChatItem chat)

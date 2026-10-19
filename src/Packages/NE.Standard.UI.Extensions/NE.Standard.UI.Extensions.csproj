@@ -11,7 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- The presets are shorthands over the built-in components, so the built-ins are all this package needs. -->
+    <!-- The presets are shorthands over the built-in components, so the built-ins are all this package needs; the generator writes
+         the observable members of a preset's state (UIPanesState), and an application gets it from the engine. -->
+    <ProjectReference Include="..\..\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\..\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
   </ItemGroup>
 

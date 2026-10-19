@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Primitives.Text;
 /// <summary>
 /// The small inline markup a description or a tooltip may be written in: <c>**bold**</c>, <c>*italic*</c>,
 /// <c>__underline__</c>, <c>~~strikethrough~~</c>, <c>`code`</c>, <c>[label](url)</c>, <c>![glyph]</c> and the fold
-/// <c>[caption]{text}</c>.
+/// <c>[caption]{text}</c>; where the place opts in, a bare <c>http://</c> or <c>https://</c> address too.
 /// </summary>
 public static class UIInlineMarkup
 {
@@ -20,7 +20,7 @@ public static class UIInlineMarkup
     /// Every lookup starts right after an opening mark, which is never a backslash, so the escapes read from the start of the
     /// text are the escapes a scan from that position would read.
     /// </remarks>
-    private sealed class MarkupText(string text)
+    private sealed class MarkupText(string text, bool autolinks)
     {
         private bool[]? _escaped;
         private int[]? _closeBrackets;
@@ -33,6 +33,9 @@ public static class UIInlineMarkup
         private string? _linkUrl;
 
         public string Text { get; } = text;
+
+        /// <summary>Whether a bare <c>http://</c> or <c>https://</c> address reads as a link.</summary>
+        public bool Autolinks { get; } = autolinks;
 
         public char this[int index] => Text[index];
 
@@ -106,7 +109,8 @@ public static class UIInlineMarkup
         private static int Within(int position, int end)
             => position >= 0 && position < end ? position : -1;
 
-        private bool IsEscaped(int index)
+        /// <summary>Whether the character at <paramref name="index"/> is escaped by the backslash before it.</summary>
+        public bool IsEscaped(int index)
         {
             if (_escaped is null)
             {
@@ -215,6 +219,13 @@ public static class UIInlineMarkup
     /// no runs at all.
     /// </summary>
     public static IReadOnlyList<UIInlineSegment> Parse(string? text)
+        => Parse(text, autolinks: false);
+
+    /// <summary>
+    /// Splits text into runs, reading a bare <c>http://</c> or <c>https://</c> address as a link when <paramref name="autolinks"/>
+    /// is set.
+    /// </summary>
+    public static IReadOnlyList<UIInlineSegment> Parse(string? text, bool autolinks)
     {
         if (string.IsNullOrEmpty(text))
             return [];
@@ -222,7 +233,7 @@ public static class UIInlineMarkup
         List<UIInlineSegment> segments = [];
         StringBuilder buffer = new();
 
-        ParseRange(new MarkupText(text), 0, text.Length, UIInlineStyles.None, null, segments, buffer);
+        ParseRange(new MarkupText(text, autolinks), 0, text.Length, UIInlineStyles.None, null, segments, buffer);
         Flush(segments, buffer, UIInlineStyles.None, null);
 
         return segments;
@@ -232,8 +243,15 @@ public static class UIInlineMarkup
     /// Whether the text carries anything this parser would turn into markup.
     /// </summary>
     public static bool HasMarkup(string? text)
+        => HasMarkup(text, autolinks: false);
+
+    /// <summary>
+    /// Whether the text carries anything this parser would turn into markup, a bare address among it when <paramref name="autolinks"/>
+    /// is set.
+    /// </summary>
+    public static bool HasMarkup(string? text, bool autolinks)
     {
-        IReadOnlyList<UIInlineSegment> segments = Parse(text);
+        IReadOnlyList<UIInlineSegment> segments = Parse(text, autolinks);
 
         for (var i = 0; i < segments.Count; i++)
         {
@@ -249,15 +267,22 @@ public static class UIInlineMarkup
     /// A fold reads unfolded: its caption, then its text.
     /// </summary>
     public static string ToPlainText(string? text)
+        => ToPlainText(text, autolinks: false);
+
+    /// <summary>
+    /// Strips the markup as <see cref="ToPlainText(string?)"/> does, a bare address read as a link when <paramref name="autolinks"/>
+    /// is set kept as it is written.
+    /// </summary>
+    public static string ToPlainText(string? text, bool autolinks)
     {
         StringBuilder builder = new();
 
-        AppendPlainText(Parse(text), builder);
+        AppendPlainText(Parse(text, autolinks), builder, autolinks);
 
         return builder.ToString();
     }
 
-    private static void AppendPlainText(IReadOnlyList<UIInlineSegment> segments, StringBuilder builder)
+    private static void AppendPlainText(IReadOnlyList<UIInlineSegment> segments, StringBuilder builder, bool autolinks)
     {
         for (var i = 0; i < segments.Count; i++)
         {
@@ -270,7 +295,7 @@ public static class UIInlineMarkup
             }
 
             _ = builder.Append(segment.Fold).Append(' ');
-            AppendPlainText(Parse(segment.Text), builder);
+            AppendPlainText(Parse(segment.Text, autolinks), builder, autolinks);
         }
     }
 
@@ -339,6 +364,16 @@ public static class UIInlineMarkup
                 segments.Add(new UIInlineSegment(string.Empty, styles, url, icon));
 
                 index = iconEnd;
+                continue;
+            }
+
+            // Not inside a link: its label is words, and an address there would be a link in a link.
+            if (url is null && text.Autolinks && TryReadAutolink(text, index, end, out var address, out var addressEnd))
+            {
+                Flush(segments, buffer, styles, url);
+                segments.Add(new UIInlineSegment(address, styles, address));
+
+                index = addressEnd;
                 continue;
             }
 
@@ -488,6 +523,152 @@ public static class UIInlineMarkup
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Reads a bare address as GitHub's extended autolink: <c>http://</c> or <c>https://</c> after anything but a letter or digit, a
+    /// domain with a dot, then anything up to a space or <c>&lt;</c>, less its trailing punctuation and quotes and an unbalanced
+    /// <c>)</c> or <c>]</c>.
+    /// </summary>
+    /// <remarks>An escaped marker inside reads as the marker, so an address that went through <see cref="Escape"/> still links.</remarks>
+    private static bool TryReadAutolink(MarkupText text, int index, int end, [NotNullWhen(true)] out string? address, out int addressEnd)
+    {
+        address = null;
+        addressEnd = 0;
+
+        if (text[index] is not ('h' or 'H') || (index > 0 && !IsAutolinkBoundary(text[index - 1])))
+            return false;
+
+        ReadOnlySpan<char> rest = text.Text.AsSpan(index, end - index);
+        var domainStart = rest.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ? index + 8
+            : rest.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ? index + 7
+            : -1;
+
+        if (domainStart < 0)
+            return false;
+
+        var domainEnd = ReadDomainEnd(text, domainStart, end);
+
+        // The domain is checked before the path is read: a failed start then costs its domain alone, not the rest of its word.
+        if (!IsAutolinkDomain(text.Text.AsSpan(domainStart, TrimAutolinkEnd(text, domainStart, domainEnd, 0, 0) - domainStart)))
+            return false;
+
+        var linkEnd = domainEnd;
+        var unclosedParens = 0;
+        var unclosedBrackets = 0;
+
+        // A control character ends it as a space does, so the safety check after cannot refuse what was read.
+        while (linkEnd < end && !char.IsWhiteSpace(text[linkEnd]) && !char.IsControl(text[linkEnd]) && text[linkEnd] != '<')
+        {
+            if (text[linkEnd] == '(')
+                unclosedParens--;
+            else if (text[linkEnd] == ')')
+                unclosedParens++;
+            else if (text[linkEnd] == '[')
+                unclosedBrackets--;
+            else if (text[linkEnd] == ']')
+                unclosedBrackets++;
+
+            linkEnd++;
+        }
+
+        linkEnd = TrimAutolinkEnd(text, domainStart, linkEnd, unclosedParens, unclosedBrackets);
+
+        if (!IsAutolinkDomain(text.Text.AsSpan(domainStart, Math.Min(domainEnd, linkEnd) - domainStart)))
+            return false;
+
+        StringBuilder builder = new(linkEnd - index);
+
+        AppendLiteral(text.Text, index, linkEnd, builder);
+
+        var candidate = builder.ToString();
+
+        if (!IsSafeUrl(candidate))
+            return false;
+
+        address = candidate;
+        addressEnd = linkEnd;
+
+        return true;
+    }
+
+    /// <summary>Where an address may start: the text's start, or after anything but a letter or digit, a quote as a space.</summary>
+    private static bool IsAutolinkBoundary(char value)
+        => !char.IsLetterOrDigit(value);
+
+    /// <summary>Where a domain's characters end; an escaped underscore is one of them, so an escaped address keeps its domain.</summary>
+    private static int ReadDomainEnd(MarkupText text, int start, int end)
+    {
+        var index = start;
+
+        while (index < end)
+        {
+            if (IsDomainCharacter(text[index]))
+                index++;
+            else if (text[index] == EscapeCharacter && index + 1 < end && text[index + 1] == '_')
+                index += 2;
+            else
+                break;
+        }
+
+        return index;
+    }
+
+    private static bool IsDomainCharacter(char value)
+        => char.IsLetterOrDigit(value) || value is '-' or '_' or '.';
+
+    /// <summary>
+    /// Takes the trailing punctuation and closing quotes off an address, and a closing parenthesis or bracket while more close
+    /// than open; an escaped one goes with its backslash.
+    /// </summary>
+    private static int TrimAutolinkEnd(MarkupText text, int start, int end, int unclosedParens, int unclosedBrackets)
+    {
+        while (end > start)
+        {
+            var last = end - 1;
+            var value = text[last];
+
+            if (value == ')' && unclosedParens > 0)
+                unclosedParens--;
+            else if (value == ']' && unclosedBrackets > 0)
+                unclosedBrackets--;
+            else if (value is not ('?' or '!' or '.' or ',' or ':' or ';' or '*' or '_' or '~' or '\'' or '"' or '»' or '”' or '’'))
+                break;
+
+            end = text.IsEscaped(last) && IsMarkerCharacter(value) ? last - 1 : last;
+        }
+
+        return end;
+    }
+
+    /// <summary>
+    /// Two or more labels split by dots, none empty but for the root's after a closing dot, and no underscore in the last two, as
+    /// GitHub's rule for a domain says.
+    /// </summary>
+    private static bool IsAutolinkDomain(ReadOnlySpan<char> domain)
+    {
+        var labels = 0;
+        var underscoreLabel = -1;
+        var labelStart = 0;
+
+        for (var i = 0; i <= domain.Length; i++)
+        {
+            if (i < domain.Length && domain[i] != '.')
+            {
+                if (domain[i] == '_')
+                    underscoreLabel = labels;
+
+                continue;
+            }
+
+            if (i == labelStart)
+                return i == domain.Length && labels >= 2 && underscoreLabel < labels - 2;
+
+            labels++;
+            labelStart = i + 1;
+        }
+
+        return labels >= 2 && underscoreLabel < labels - 2;
     }
 
     private static bool TryReadLink(MarkupText text, int index, int end, out int labelStart, out int labelEnd, out string? url, out int linkEnd)

@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { CollectionSinkAttribute, ComponentKeyAttribute, ComponentSelector, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
+import { CollectionSinkAttribute, ComponentKeyAttribute, ComponentSelector, ItemsEmptyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
@@ -133,8 +133,9 @@ export class UpdateProcessor {
             if (componentId === null || this.held.get(componentId) === undefined)
                 continue;
 
-            // Emptied before the row's bindings are read, so a stale copy's rows are not read against a stack they are not on.
+            // Emptied, its empty state's mark too, before the row's bindings are read: a stale copy's rows are not read against a stack they are not on.
             host.replaceChildren();
+            host.removeAttribute(ItemsEmptyAttribute);
             this.held.markWaiting(host, componentId);
             waiting.push([host, componentId]);
         }

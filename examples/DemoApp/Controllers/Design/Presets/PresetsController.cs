@@ -66,14 +66,9 @@ internal sealed partial class PresetsController() : DemoController
     [RecursiveMember]
     public partial string OpenServerLine { get; set; } = string.Empty;
 
+    /// <summary>The panes sample's state: which side is in front, and whether a server is open.</summary>
     [RecursiveMember]
-    public partial UIResponsive<UIVisibility> ServersVisibility { get; set; } = UILayout.PanesListVisibility(false);
-
-    [RecursiveMember]
-    public partial UIResponsive<UIVisibility> ServerVisibility { get; set; } = UILayout.PanesDetailVisibility(false, chosen: false);
-
-    [RecursiveMember]
-    public partial UIResponsive<UIVisibility> NoServerVisibility { get; set; } = UILayout.PanesPlaceholderVisibility(false);
+    public partial UIPanesState ServerPanes { get; set; } = new();
 
     /// <summary>The sums under a summary, which the controller keeps.</summary>
     [RecursiveMember]
@@ -175,9 +170,7 @@ internal sealed partial class PresetsController() : DemoController
     {
         OpenServer = id;
         OpenServerLine = $"{id} answers in 42 ms; its last restart was 41 days ago.";
-        ServersVisibility = UILayout.PanesListVisibility(true);
-        ServerVisibility = UILayout.PanesDetailVisibility(true);
-        NoServerVisibility = UILayout.PanesPlaceholderVisibility(true);
+        ServerPanes.ShowDetail();
     }
 
     /// <summary>The panes sample's Back, on a phone: the list again, the server closed.</summary>
@@ -185,9 +178,7 @@ internal sealed partial class PresetsController() : DemoController
     public void BackToServers()
     {
         OpenServer = null;
-        ServersVisibility = UILayout.PanesListVisibility(false);
-        ServerVisibility = UILayout.PanesDetailVisibility(false, chosen: false);
-        NoServerVisibility = UILayout.PanesPlaceholderVisibility(false);
+        ServerPanes.ShowNothing();
     }
 
     /// <summary>The ×, Escape and the safe answer, heard through the dialog's <c>OnClose</c>.</summary>

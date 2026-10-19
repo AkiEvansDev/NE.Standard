@@ -1,5 +1,5 @@
 // ShowEmptyTemplate off, read back from the compiled stylesheet: an items view, a tree and a table marked by the server draw no empty
-// state in their own host — and only there, so a list nested in a row keeps its own.
+// state in their own host — and only there, so a list nested in a row keeps its own. A host showing its empty state gives it its box.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -25,4 +25,16 @@ test("each host marked by ShowEmptyTemplate off hides its own empty state, throu
         ".ui-table--no-empty > .ui-table__scroll > .ui-table__host > [data-ui-empty-placeholder]"
     ])
         assert.match(declarations(selector) ?? "", /display: none;/, selector);
+});
+
+test("a host marked as showing its empty state gives the placeholder its whole box, through one rule per host kind", () => {
+    const items = declarations(".ui-items-view > [data-ui-items-host][data-ui-items-empty]") ?? "";
+
+    assert.match(items, /display: grid;/);
+    assert.match(items, /grid-template-columns: minmax\(0, 1fr\);/);
+    // Across, where the host keeps its rows at the top, the placeholder still stretches.
+    assert.match(items, /align-items: stretch;/);
+    assert.match(declarations(".ui-tree__host[data-ui-items-empty]") ?? "", /display: grid;/);
+    // The table's rows are max-content at the start; its empty one is an auto row stretched to the host.
+    assert.match(declarations(".ui-table__host[data-ui-items-empty]") ?? "", /grid-auto-rows: auto;[\s\S]*align-content: stretch;/);
 });

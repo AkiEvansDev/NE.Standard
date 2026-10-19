@@ -380,7 +380,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         }
     }
 
-    /// <summary>Renders the empty-state content directly into an items host.</summary>
+    /// <summary>Renders the empty-state content directly into an items host, and marks the host as showing it.</summary>
     protected static void RenderEmptyPlaceholder(WebRenderContext context, IHtmlElementBuilder host)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -391,6 +391,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         if (!view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.EmptyTemplate, out UIComponentSlot? slot))
             return;
 
+        // On the host, since the stylesheet may not look down from it (no `:has()`): the empty state there takes the host's whole box.
+        _ = host.Attribute(WebAttributes.ItemsEmpty);
         _ = host.Element("div", placeholder =>
         {
             _ = placeholder.Attribute(WebAttributes.EmptyPlaceholder);

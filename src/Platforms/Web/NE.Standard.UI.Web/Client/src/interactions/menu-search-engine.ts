@@ -1,7 +1,7 @@
 // A menu's search, by the one matching rule (`search-terms.ts`) over the words an entry shows — translated, not the keys behind
 // them; one that leaves nothing says so, as a select's does. Emptied, or the menu folded, the menu is as it was.
 
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isRovingCandidate } from "./roving-focus.ts";
 import { toggleNoMatchPlaceholder } from "./search-input-engine.ts";
@@ -37,8 +37,8 @@ export class MenuSearchEngine {
         root.addEventListener("change", domEvent => this.handle(domEvent), true);
         root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent));
 
-        // Rows the server adds or refills mid-search arrive unmarked, and a fold hides the field that says what is filtered.
-        observeComponents(root, SearchableSelector, { childList: true, addedOnly: true, characterData: true, attributeFilter: [CollapsedAttribute] }, menus => this.reconcile(menus));
+        // Rows the server adds or refills mid-search arrive unmarked, and a fold or a rail (its class) hides the field that says what is filtered.
+        observeComponents(root, SearchableSelector, { childList: true, addedOnly: true, characterData: true, attributeFilter: [CollapsedAttribute, "class"] }, menus => this.reconcile(menus));
     }
 
     private handle(domEvent: Event): void {
@@ -143,11 +143,11 @@ export class MenuSearchEngine {
 
         this.active.delete(menu);
 
-        // A folded menu keeps no group open inline: its groups fly out, and the fold has already closed them.
-        const collapsed = menu.hasAttribute(CollapsedAttribute);
+        // A folded menu or a rail keeps no group open inline: its groups fly out, and the fold has already closed them.
+        const folded = isFolded(menu);
 
         for (const group of host.querySelectorAll(`[${MenuGroupAttribute}]:not([${MenuSelectAttribute}])`))
-            group.toggleAttribute(MenuOpenAttribute, !collapsed && search.openBefore.has(group.getAttribute(ComponentKeyAttribute) ?? group));
+            group.toggleAttribute(MenuOpenAttribute, !folded && search.openBefore.has(group.getAttribute(ComponentKeyAttribute) ?? group));
     }
 
     private reconcile(menus: Iterable<HTMLElement>): void {
@@ -157,8 +157,8 @@ export class MenuSearchEngine {
             if (search === undefined)
                 continue;
 
-            // Folded, the search is let go of whole rather than left filtering an icon rail with no field to show why.
-            if (menu.hasAttribute(CollapsedAttribute)) {
+            // Folded or a rail, the search is let go of whole rather than left filtering an icon rail with no field to show why.
+            if (isFolded(menu)) {
                 search.field.value = "";
                 search.field.blur();
             }
@@ -222,4 +222,9 @@ function mark(wrapper: HTMLElement, shown: boolean): void {
 function unmarkAll(host: HTMLElement): void {
     for (const entry of host.querySelectorAll<HTMLElement>(`[${MenuUnmatchedAttribute}]`))
         entry.removeAttribute(MenuUnmatchedAttribute);
+}
+
+/** Whether the menu has no room for its groups inline: folded to its icons, or a rail (one, or a list turned into one on this width). */
+function isFolded(menu: HTMLElement): boolean {
+    return menu.hasAttribute(CollapsedAttribute) || menu.classList.contains(MenuRailClass);
 }

@@ -185,33 +185,21 @@ public static class UILayout
 
     /// <summary>
     /// A list and the thing chosen in it side by side from the medium breakpoint — chats and a conversation, a tree and a note, mail
-    /// and a message — the list 280 px wide (200 to 480 where <paramref name="splitPositionPath"/> binds a splitter between them) and
-    /// 16 px of air, the list's scroller standing its overlay bar in that air (<see cref="ContainerComponent{T}.ScrollbarAir"/>), so its
+    /// and a message — the list 280 px wide (200 to 480 with a <paramref name="splitter"/> between them) and 16 px of air, the list's scroller standing its overlay bar in that air (<see cref="ContainerComponent{T}.ScrollbarAir"/>), so its
     /// rows end where a field over them does; with a splitter, the bar's room on either side of the splitter's track. Below the
     /// breakpoint one at a time, the detail in the list's place once it is in front, with a Back of its own
-    /// (<c>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</c>). The controller holds which shows at
-    /// <paramref name="listVisibilityPath"/> and <paramref name="detailVisibilityPath"/> (<see cref="PanesListVisibility"/>,
-    /// <see cref="PanesDetailVisibility"/>), and, where a <paramref name="placeholder"/> stands in the detail's place while nothing is
-    /// chosen (<see cref="UIPage.Empty"/>), at <paramref name="placeholderVisibilityPath"/> (<see cref="PanesPlaceholderVisibility"/>).
-    /// Give it the region's height where the panes scroll inside themselves.
+    /// (<c>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</c>). The controller holds a <see cref="UIPanesState"/> at
+    /// <paramref name="statePath"/> and moves it by its <c>Show</c> calls; a <paramref name="placeholder"/> stands in the detail's
+    /// place while nothing is chosen (<see cref="UIPage.Empty"/>) — without one, start the state with something chosen. The splitter
+    /// writes the state's <see cref="UIPanesState.Share"/>. Give it the region's height where the panes scroll inside themselves.
     /// </summary>
-    public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string listVisibilityPath, string detailVisibilityPath, IVisualComponent? placeholder = null, string? placeholderVisibilityPath = null, string? splitPositionPath = null)
+    public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string statePath, IVisualComponent? placeholder = null, bool splitter = false)
     {
         ArgumentNullException.ThrowIfNull(list);
         ArgumentNullException.ThrowIfNull(detail);
-        ArgumentException.ThrowIfNullOrWhiteSpace(listVisibilityPath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(detailVisibilityPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(statePath);
 
-        if ((placeholder is null) != (placeholderVisibilityPath is null))
-            throw new ArgumentException("A placeholder is shown by a visibility of its own: give both or neither.", nameof(placeholderVisibilityPath));
-
-        if (placeholderVisibilityPath is not null)
-            ArgumentException.ThrowIfNullOrWhiteSpace(placeholderVisibilityPath);
-
-        if (splitPositionPath is not null)
-            ArgumentException.ThrowIfNullOrWhiteSpace(splitPositionPath);
-
-        var detailColumn = splitPositionPath is null ? 2 : 3;
+        var detailColumn = splitter ? 3 : 2;
         UIGridPlacement whole = UIGridPlacement.At(1, 1, 24, 1);
         UIResponsive<UIGridPlacement> listPlace = UIResponsive<UIGridPlacement>.Create(whole, md: UIGridPlacement.At(1, 1, 1, 1));
         UIResponsive<UIGridPlacement> detailPlace = UIResponsive<UIGridPlacement>.Create(whole, md: UIGridPlacement.At(detailColumn, 1, 25 - detailColumn, 1));
@@ -219,30 +207,33 @@ public static class UILayout
         // The list's scroller stands its bar in the air after it: all of it without a splitter, the bar's room before a splitter's track,
         // whose grip the bar must not cover, and as much after it, so the line stands mid-air. Rejected: 4 px after the track (the line
         // stood against the detail's edge).
-        var listEnd = splitPositionPath is null ? 0 : ScrollbarRoom;
+        var listEnd = splitter ? ScrollbarRoom : 0;
         UIThickness listAir = UIThickness.All(0, 0, listEnd, 0);
-        UIThickness detailAir = UIThickness.All(splitPositionPath is null ? PanesAir : ScrollbarRoom, 0, 0, 0);
+        UIThickness detailAir = UIThickness.All(splitter ? ScrollbarRoom : PanesAir, 0, 0, 0);
 
         ContainerComponent panes = new ContainerComponent()
-            .SetColumn(1, splitPositionPath is null ? UIGridUnit.Absolute(PanesListWidth) : UIGridUnit.Absolute(PanesListWidth, min: 200, max: 480))
-            .AddChild(Pane(list, listVisibilityPath, listPlace, listAir).SetScrollbarAir(UIResponsive<double>.Create(0, md: splitPositionPath is null ? PanesAir : listEnd)));
+            .SetColumn(1, splitter ? UIGridUnit.Absolute(PanesListWidth, min: 200, max: 480) : UIGridUnit.Absolute(PanesListWidth))
+            .AddChild(Pane(list, StatePath(statePath, nameof(UIPanesState.ListVisibility)), listPlace, listAir).SetScrollbarAir(UIResponsive<double>.Create(0, md: splitter ? listEnd : PanesAir)));
 
-        if (splitPositionPath is not null)
+        if (splitter)
         {
             _ = panes
                 .SetColumn(2, UIGridUnit.Auto())
                 .AddChild(new GridSplitterComponent()
-                    .BindPosition(splitPositionPath)
+                    .BindPosition(StatePath(statePath, nameof(UIPanesState.Share)))
                     .ShownFrom(UIResponsiveTier.Md)
                     .SetPlacement(2, 1, 1, 1)
                 );
         }
 
         if (placeholder is not null)
-            _ = panes.AddChild(Pane(placeholder, placeholderVisibilityPath!, detailPlace, detailAir));
+            _ = panes.AddChild(Pane(placeholder, StatePath(statePath, nameof(UIPanesState.PlaceholderVisibility)), detailPlace, detailAir));
 
-        return panes.AddChild(Pane(detail, detailVisibilityPath, detailPlace, detailAir));
+        return panes.AddChild(Pane(detail, StatePath(statePath, nameof(UIPanesState.DetailVisibility)), detailPlace, detailAir));
     }
+
+    private static string StatePath(string statePath, string member)
+        => statePath + "." + member;
 
     private const double PanesListWidth = 280;
     private const double PanesAir = 16;
@@ -262,7 +253,10 @@ public static class UILayout
             .BindVisibility(visibilityPath)
             .AddChild(child);
 
-    /// <summary>The list's visibility in <see cref="Panes"/>: shown, but below the medium breakpoint hidden while the detail is in front.</summary>
+    /// <summary>
+    /// The list's visibility in <see cref="Panes"/>, as <see cref="UIPanesState"/> holds it: shown, but below the medium breakpoint hidden
+    /// while the detail is in front. Also for a part of the page that follows the list, such as a header over it.
+    /// </summary>
     public static UIResponsive<UIVisibility> PanesListVisibility(bool detailInFront)
         => detailInFront ? UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible) : UIVisibility.Visible;
 

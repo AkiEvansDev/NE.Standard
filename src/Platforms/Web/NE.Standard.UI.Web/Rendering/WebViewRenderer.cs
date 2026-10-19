@@ -193,11 +193,16 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         return RecursiveValueCoercion.TryCoerce(value, out UIResponsive<UILayoutLength> length) && length.Base.Kind == UILayoutLengthKind.Fill;
     }
 
-    /// <summary>Whether a side holds a rail and nothing else (<see cref="UIMenuDisplay.Rail"/>).</summary>
+    /// <summary>
+    /// Whether a side holds a rail and nothing else (<see cref="UIMenuDisplay.Rail"/>): by the menu's base tier alone, as the client
+    /// draws a side that is a drawer by it whatever a wider tier says (menu-shape.ts).
+    /// </summary>
     private static bool IsRailAlone(CompiledView view, string side)
         => SideMenu(view, side) is UIComponentNode menu
             && view.State.TryGetValue(menu.ComponentId, MenuComponent.DisplayProperty, out CompiledUIPropertyValue? display)
-            && display is { IsBind: false, Value: UIMenuDisplay.Rail };
+            && !display.IsBind
+            && RecursiveValueCoercion.TryCoerce(display.Value, out UIResponsive<UIMenuDisplay> shape)
+            && shape.Base == UIMenuDisplay.Rail;
 
     /// <summary>The menu a side holds and nothing else: the menu itself, or plain boxes each holding only the next, down to it.</summary>
     private static UIComponentNode? SideMenu(CompiledView view, string side)

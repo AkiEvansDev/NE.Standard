@@ -139,6 +139,8 @@ export const SplitModeAttribute = "data-ui-split-mode";
 /** On a split button whose menu opens anywhere but below from its end: the placement's token (`WebAttributes.SplitPlacement`). */
 export const SplitPlacementAttribute = "data-ui-split-placement";
 export const ItemsHostAttribute = "data-ui-items-host";
+/** On an items host while it shows its empty state (`WebAttributes.ItemsEmpty`). */
+export const ItemsEmptyAttribute = "data-ui-items-empty";
 /** A component whose bound collection goes to a registered sink as values rather than into an items host as rows. */
 export const CollectionSinkAttribute = "data-ui-collection-sink";
 /** On an items component's query element: the viewer's filter and sort terms as JSON. */
@@ -290,6 +292,8 @@ export function pinnedAttribute(side: string): string {
 export const BottomBarAttribute = "data-ui-bottom-bar";
 /** On a left side that is a rail alone kept a drawer (UIViewOptions.RailBottomBar off): where the view's sides are drawers its rail is a list. */
 export const RailDrawerAttribute = "data-ui-rail-drawer";
+/** On a menu whose display differs by breakpoint: the tiers it is a rail in, the rest a list (`WebAttributes.MenuRailTiers`). */
+export const MenuRailTiersAttribute = "data-ui-menu-rail-tiers";
 /** On a component that is the window's foot (WindowFoot): the phone's system bar under the page takes its colour (window-foot.ts). */
 export const WindowFootAttribute = "data-ui-window-foot";
 /** On the root where the content region's root fills the height (WebAttributes.ContentFills): content-fills.ts keeps it. */
@@ -548,6 +552,8 @@ export const TextTitleAttribute = "data-ui-text-title";
 export const TextDescriptionAttribute = "data-ui-text-description";
 /** On an element whose words are shown as written (`DescriptionPlain`): a pushed value is written as text, never read as inline markup. */
 export const PlainTextAttribute = "data-ui-plain-text";
+/** On an element whose inline markup reads a bare http(s) address as a link (`DescriptionAutolinks`): a pushed value is read so too. */
+export const AutolinksAttribute = "data-ui-autolinks";
 export const TextIconAttribute = "data-ui-text-icon";
 export const TextBadgeIconAttribute = "data-ui-text-badge-icon";
 export const TextBadgeTextAttribute = "data-ui-text-badge-text";

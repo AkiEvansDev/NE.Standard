@@ -11,6 +11,9 @@ const FootSelector = `[${WindowFootAttribute}], [${BottomBarAttribute}]`;
 const FootProperty = "--ui-window-foot";
 const InkProperty = "--ui-window-foot-ink";
 
+/** How many frames a read waits out a view transition covering the page before it gives up: past any the shell runs. */
+const CoveredFrames = 120;
+
 const TrailingAlpha = /\s*\/\s*([\d.]+)(%?)\s*\)$/;
 const LegacyAlpha = /^rgba\(([^,]+),([^,]+),([^,]+),\s*([\d.]+)(%?)\s*\)$/;
 
@@ -81,6 +84,7 @@ export type WindowFootEngineOptions = {
 
 export class WindowFootEngine {
     private scheduled = false;
+    private covered = 0;
     private probe: HTMLElement | null = null;
 
     public constructor(options: WindowFootEngineOptions = {}) {
@@ -121,6 +125,21 @@ export class WindowFootEngine {
     private update(): void {
         const feet = document.querySelectorAll<HTMLElement>(FootSelector);
         const inset = feet.length === 0 ? 0 : this.bottomInset();
+
+        // A load's view transition (reset.less) stands over the page and takes every hit, the document's alone: the colours stay as
+        // they are and are read again once it has faded, or a page reached by a link kept none. Past the budget the point is read as
+        // it stands, now and after: what covers it then is no transition.
+        const covered = feet.length > 0 && isCovered(window.innerWidth / 2, window.innerHeight - inset - 1);
+
+        if (covered && this.covered < CoveredFrames) {
+            this.covered++;
+            this.schedule();
+
+            return;
+        }
+
+        if (!covered)
+            this.covered = 0;
 
         for (const foot of feet) {
             if (foot.hasAttribute(WindowFootAttribute))
@@ -172,6 +191,11 @@ function groundAt(x: number, y: number, foot: Element | null): Element | null {
     }
 
     return null;
+}
+
+/** Whether nothing of the page is hit at a point: a view transition's picture of it stands over it. */
+function isCovered(x: number, y: number): boolean {
+    return document.elementsFromPoint(x, y).every(element => element === document.documentElement);
 }
 
 /** Writes a custom property only when it changes, and takes it off for none. */

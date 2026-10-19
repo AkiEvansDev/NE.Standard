@@ -11,7 +11,7 @@ import { isExternalLink } from "../src/rendering/url-safety.ts";
 import { webDomConverters } from "../src/rendering/web-dom-converters.ts";
 
 type CorpusSegment = { readonly text: string; readonly styles: number; readonly url: string | null; readonly icon?: string | null; readonly fold?: string | null };
-type CorpusCase = { readonly name: string; readonly input: string; readonly segments: readonly CorpusSegment[] };
+type CorpusCase = { readonly name: string; readonly input: string; readonly autolinks?: boolean; readonly segments: readonly CorpusSegment[] };
 
 const here = dirname(fileURLToPath(import.meta.url));
 const corpusPath = resolve(here, "../../../../../../eng/Tests/Shared/inline-markup-corpus.json");
@@ -22,7 +22,7 @@ assert.ok(corpus.cases.length > 0, "The inline-markup corpus is empty.");
 for (const testCase of corpus.cases) {
     test(`inline markup: ${testCase.name}`, () => {
         // `icon` and `fold` are normalised to null on both sides, or an omitted case and an undefined compare unequal.
-        const actual = parseInlineMarkup(testCase.input).map(segment => ({
+        const actual = parseInlineMarkup(testCase.input, { autolinks: testCase.autolinks === true }).map(segment => ({
             text: segment.text,
             styles: segment.styles,
             url: segment.url,
@@ -80,6 +80,18 @@ test("inline markup: plain text reads a fold unfolded", () => {
     assert.equal(inlineMarkupToPlainText("Frozen. [Why?]{The **branch** is re-cut, [and how]{by the pipeline}.}"), "Frozen. Why? The branch is re-cut, and how by the pipeline.");
 });
 
+test("inline markup: plain text keeps an address read as a link as it is written", () => {
+    for (const input of ["see https://nova.dev/__a__ now", "(at https://nova.dev/x_(y))."])
+        assert.equal(inlineMarkupToPlainText(input, { autolinks: true }), input);
+});
+
+test("inline markup: a fold reads addresses where its sentence does", () => {
+    const [fold] = parseInlineMarkup("[More]{at https://nova.dev}", { autolinks: true });
+
+    assert.ok(parseInlineMarkup(fold.text, { autolinks: true }).some(segment => segment.url === "https://nova.dev"));
+    assert.equal(inlineMarkupToPlainText("[More]{at https://nova.dev}", { autolinks: true }), "More at https://nova.dev");
+});
+
 test("inline markup: a tooltip's words name an icon-only button as plain text, never as their markup; none leaves no name", () => {
     const toName = webDomConverters.get("inlineMarkupPlainText");
 
@@ -92,8 +104,8 @@ test("inline markup: a tooltip's words name an icon-only button as plain text, n
 test("inline markup: marks left open cost a single pass", () => {
     const started = performance.now();
 
-    for (const input of ["[".repeat(200_000), "[a](".repeat(50_000), "**a ".repeat(50_000), "[a]{".repeat(50_000)])
-        parseInlineMarkup(input);
+    for (const input of ["[".repeat(200_000), "https://a ".repeat(50_000), "(http://".repeat(50_000), "(http://a.b".repeat(30_000), "[a](".repeat(50_000), "**a ".repeat(50_000), "[a]{".repeat(50_000)])
+        parseInlineMarkup(input, { autolinks: true });
 
     // Linear: a few milliseconds each. The quadratic scan this guards against took minutes on the same inputs.
     assert.ok(performance.now() - started < 5_000);

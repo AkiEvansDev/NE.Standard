@@ -5,8 +5,10 @@ import { isInert } from "./interactive-state.ts";
 import { ownMenuEntries } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList, isPointerLast } from "./popup-focus.ts";
-import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FoldingAttribute, MarkedMenuEntrySelector, MenuControlEntrySelector, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuPopupSelector, MenuRailClass, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, NestedMenuClass as NestedClass, pinnedAttribute, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, ComponentKeyAttribute, EventBoundaryAttribute, eventSuppressAttribute, FoldingAttribute, MarkedMenuEntrySelector, MenuControlEntrySelector, MenuGroupAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuPopupSelector, MenuRailClass, MenuRailTiersAttribute, MenuRootClass as RootClass, MenuSearchingAttribute, MenuSelectAttribute, NestedMenuClass as NestedClass, pinnedAttribute, RailDrawerAttribute } from "../addressing/dom-attributes.ts";
+import { fitMenuShape } from "../rendering/menu-shape.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
+import { responsiveTierQuery } from "../rendering/responsive-tier.ts";
 import { DrawerBreakpointQueries, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { markMenuCurrent } from "../updates/menu-current.ts";
@@ -22,11 +24,15 @@ const PopupMenuSelector = `[${FlyoutAttribute}], ${MenuPopupSelector}`;
 // On a menu once the reader has unfolded a section of it by hand: only then does a section slide open, never as the page arrives.
 const UnfoldedAttribute = "data-ui-menu-unfolded";
 const SelectAttribute = MenuSelectAttribute;
-// On a rail kept a drawer while it is drawn as a list there, so the rail's class can be given back.
-const RailAsListAttribute = "data-ui-menu-rail-list";
 // The side a bottom bar and a drawer's rail stand on: a rail alone is only ever the left side.
 const LeftSide = "left-side";
+// A side whose pin may turn a tiered menu in it, as the left one's does.
+const RightSide = "right-side";
 const RootSelector = "[data-ui-root]";
+// The menus whose shape can change with the width: a drawer's rail, and a menu whose display differs by breakpoint (menu-shape.ts).
+const FittedMenuSelector = `[${RailDrawerAttribute}] .${RootClass}, .${RootClass}[${MenuRailTiersAttribute}]`;
+// Every breakpoint a menu's display may change at.
+const TierQueries = [responsiveTierQuery("sm"), responsiveTierQuery("md"), responsiveTierQuery("xl"), responsiveTierQuery("xxl")];
 
 const OpenGroupSlot = "menu-open-group";
 
@@ -77,8 +83,8 @@ export class MenuGroupEngine {
 
         const menus = this.root.querySelectorAll<HTMLElement>(`.${RootClass}`);
 
-        // The shape first, so a drawer's rail drawn as a list opens the current page's group as a list does.
-        fitDrawerRails(menus);
+        // The shape first, so a rail drawn as a list opens the current page's group as a list does.
+        fitShapes(menus);
         this.reconcileEach(menus);
 
         // Rows drawn here before the engine started, and any that come or go later, may move the current entry into a group or out.
@@ -88,7 +94,7 @@ export class MenuGroupEngine {
         }
 
         observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [CollapsedAttribute] }, changed => {
-            fitDrawerRails(changed);
+            fitShapes(changed);
             this.reconcileEach(changed);
 
             for (const menu of changed) {
@@ -107,25 +113,25 @@ export class MenuGroupEngine {
         });
 
         // Across a drawer breakpoint a bottom bar turns into its column and back: a flyout placed toward the old side would hang over
-        // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts). A drawer's rail turns into a list and back.
+        // the entries beside its group, so it goes, as the drawers do (side-drawer-engine.ts). Across any breakpoint a menu may turn
+        // from a rail into a list and back: a drawer's rail, a menu whose display differs by tier.
         if (typeof matchMedia === "function") {
-            for (const query of DrawerBreakpointQueries) {
-                matchMedia(query).addEventListener("change", () => {
-                    this.closeBarFlyout();
-                    this.refitDrawerRails();
-                });
-            }
+            for (const query of DrawerBreakpointQueries)
+                matchMedia(query).addEventListener("change", () => this.closeBarFlyout());
+
+            for (const query of TierQueries)
+                matchMedia(query).addEventListener("change", () => this.refitShapes());
         }
 
-        // A pin (side-drawer-engine.ts) stands a drawer's rail in its column and back as a breakpoint does; a bottom bar takes none.
-        observeComponents(this.root, RootSelector, { attributeFilter: [pinnedAttribute(LeftSide)] }, () => this.refitDrawerRails());
+        // A pin (side-drawer-engine.ts) stands a side's menu in its column and back as a breakpoint does; a bottom bar takes none.
+        observeComponents(this.root, RootSelector, { attributeFilter: [pinnedAttribute(LeftSide), pinnedAttribute(RightSide)] }, () => this.refitShapes());
     }
 
-    /** Gives a drawer's rail the shape of the width it now stands at, its groups re-resolved for it as a fold re-resolves them. */
-    private refitDrawerRails(): void {
-        const menus = this.root.querySelectorAll<HTMLElement>(`[${RailDrawerAttribute}] .${RootClass}`);
+    /** Gives every menu whose shape can change the shape of the width it now stands at, its groups re-resolved for it as a fold re-resolves them. */
+    private refitShapes(): void {
+        const menus = this.root.querySelectorAll<HTMLElement>(FittedMenuSelector);
 
-        fitDrawerRails(menus);
+        fitShapes(menus);
         this.reconcileEach(menus);
     }
 
@@ -392,23 +398,10 @@ export function isBottomBar(menu: Element): boolean {
         && sideIsDrawer(bar.parentElement, LeftSide);
 }
 
-/**
- * Draws a rail whose side is kept a drawer (the server marks the side) as a list where the side is a drawer, and as the rail in its column.
- * Its class is all that makes a rail — every rail rule of the stylesheet, its flyouts and its cut labels' tooltips read it — so the
- * list is the menu without it, a mark kept to give it back.
- */
-function fitDrawerRails(menus: Iterable<HTMLElement>): void {
-    for (const menu of menus) {
-        const side = menu.closest(`[${RailDrawerAttribute}]`);
-
-        if ((!menu.classList.contains(MenuRailClass) && !menu.hasAttribute(RailAsListAttribute)) || side?.parentElement === null || side?.parentElement === undefined)
-            continue;
-
-        const narrow = typeof matchMedia === "function" && sideIsDrawer(side.parentElement, LeftSide);
-
-        menu.classList.toggle(MenuRailClass, !narrow);
-        menu.toggleAttribute(RailAsListAttribute, narrow);
-    }
+/** Gives each menu the shape of the width it stands at (menu-shape.ts): a drawer's rail drawn as a list, a tier's rail or list. */
+function fitShapes(menus: Iterable<HTMLElement>): void {
+    for (const menu of menus)
+        fitMenuShape(menu);
 }
 
 /**

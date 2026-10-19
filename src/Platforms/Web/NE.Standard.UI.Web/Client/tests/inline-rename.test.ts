@@ -9,7 +9,31 @@ const typeStyle = { fontFamily: "", fontSize: "", fontWeight: "", fontStyle: "",
 // What a test lays out beyond the title's type: an element's own computed width and box sizing.
 const layoutStyles = new Map<unknown, Readonly<Record<string, string>>>();
 
-installFakeDom({ getComputedStyle: (element: unknown) => layoutStyles.get(element) ?? typeStyle });
+// The observers waiting on a container to be shown: a test runs them once it has shown it.
+const observers = new Set<{ run(): void }>();
+
+installFakeDom({
+    getComputedStyle: (element: unknown) => layoutStyles.get(element) ?? typeStyle,
+    ResizeObserver: class {
+        private readonly callback: () => void;
+
+        public constructor(callback: () => void) {
+            this.callback = callback;
+        }
+
+        public observe(): void {
+            observers.add(this);
+        }
+
+        public disconnect(): void {
+            observers.delete(this);
+        }
+
+        public run(): void {
+            this.callback();
+        }
+    }
+});
 
 const { isInRenameField, openInlineRename } = await import("../src/interactions/inline-rename.ts");
 
@@ -164,4 +188,53 @@ test("the name is selected from its end back to its start, so a name wider than 
 
     assert.deepEqual(field.selection, [0, field.value.length]);
     assert.equal(field.selectionDirection, "backward");
+});
+
+test("a field opened out of sight is placed and takes the focus once its container is shown", () => {
+    const title = new FakeElement("span");
+    const container = new FakeElement().append(title);
+
+    container.hidden = true;
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(container);
+    fakeDocument.activeElement = fakeDocument.body;
+    openInlineRename({ container: real(container), title: real(title), className: "rename", value: "New note", commit: () => undefined });
+
+    const field = container.children.find(child => child instanceof FakeInput) as FakeInput;
+
+    // A hidden title measures nothing: the field waits rather than keep that width or a focus the browser would not give.
+    assert.equal(fakeDocument.activeElement, fakeDocument.body);
+    assert.equal(observers.size, 1);
+
+    for (const observer of observers)
+        observer.run();
+
+    assert.equal(observers.size, 1);
+
+    title.rect = { left: 40, top: 0, width: 280, height: 20 };
+    container.hidden = false;
+
+    for (const observer of observers)
+        observer.run();
+
+    assert.equal(field.style.width, "280px");
+    assert.equal(fakeDocument.activeElement, field);
+    assert.deepEqual(field.selection, [0, field.value.length]);
+    assert.equal(observers.size, 0);
+});
+
+test("a field closed before its container is shown stops waiting", () => {
+    const title = new FakeElement("span");
+    const container = new FakeElement().append(title);
+
+    container.hidden = true;
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(container);
+    openInlineRename({ container: real(container), title: real(title), className: "rename", value: "New note", commit: () => undefined });
+
+    const field = container.children.find(child => child instanceof FakeInput) as FakeInput;
+
+    press(field, "Escape");
+
+    assert.equal(observers.size, 0);
 });

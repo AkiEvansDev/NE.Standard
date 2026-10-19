@@ -1,0 +1,14 @@
+{
+  "name": "ne-standard",
+  "description": "NE.Standard, a server-driven UI framework for .NET: what it already has and where its documentation is, for agents writing applications on it.",
+  "owner": {
+    "name": "AkiEvansDev"
+  },
+  "plugins": [
+    {
+      "name": "ne-standard",
+      "source": "./plugins/ne-standard",
+      "description": "The framework's map: views, controllers, bindings, components, presets, interactions, items, routes, sign-in, files, words, themes, the web host, tests and the add-ons, each linked to its guide."
+    }
+  ]
+}

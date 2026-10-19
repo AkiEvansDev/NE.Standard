@@ -1,0 +1,11 @@
+{
+  "name": "ne-standard",
+  "displayName": "NE.Standard",
+  "description": "The NE.Standard UI framework's map for an agent: what exists, the API that carries it, and the guide that explains it.",
+  "author": {
+    "name": "AkiEvansDev"
+  },
+  "homepage": "https://akievansdev.github.io/NE.Standard",
+  "repository": "https://github.com/AkiEvansDev/NE.Standard",
+  "keywords": ["ne-standard", "dotnet", "server-driven-ui", "signalr"]
+}

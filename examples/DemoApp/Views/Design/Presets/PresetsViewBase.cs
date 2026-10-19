@@ -461,13 +461,11 @@ internal abstract class PresetsViewBase : DemoView
                     UIPage.BoundHeader(UIHeaderSize.Pane, UIIconButtons.Back().OnClick(nameof(PresetsController.BackToServers)).ShownBelow(UIResponsiveTier.Md), nameof(PresetsController.OpenServer)),
                     UIText.Paragraph(string.Empty).BindDescription(nameof(PresetsController.OpenServerLine))
                 ),
-                nameof(PresetsController.ServersVisibility),
-                nameof(PresetsController.ServerVisibility),
-                UIPage.Empty(DemoIcons.Outline(DemoIcons.Server), "Pick a server", "Its health opens here."),
-                nameof(PresetsController.NoServerVisibility)
+                nameof(PresetsController.ServerPanes),
+                UIPage.Empty(DemoIcons.Outline(DemoIcons.Server), "Pick a server", "Its health opens here.")
             )
             .SetHeight(UILayoutLength.Absolute(220)),
-            note: "A list and the thing chosen in it: side by side from md, the list 280 px and 16 px of air (a bound splitter between them where given); below md one at a time, the detail in the list's place with its own Back. The controller holds which shows (PanesListVisibility, PanesDetailVisibility, PanesPlaceholderVisibility); the placeholder is UIPage.Empty.",
+            note: "A list and the thing chosen in it: side by side from md, the list 280 px and 16 px of air (a bound splitter between them where given); below md one at a time, the detail in the list's place with its own Back. The controller holds a UIPanesState and moves it by ShowDetail, ShowList and ShowNothing; the placeholder is UIPage.Empty.",
             columns: 24
         );
 

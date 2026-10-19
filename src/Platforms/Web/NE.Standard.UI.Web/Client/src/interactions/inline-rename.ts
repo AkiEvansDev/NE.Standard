@@ -54,12 +54,14 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
     placeOver(input, title, container);
 
     let settled = false;
+    let stopWaiting: (() => void) | null = null;
 
     const finish = (commit: boolean, byKey: boolean): void => {
         if (settled)
             return;
 
         settled = true;
+        stopWaiting?.();
 
         const value = input.value.trim();
 
@@ -96,13 +98,40 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
     title.style.visibility = "hidden";
     container.appendChild(input);
 
+    // Opened out of sight (a hidden tree, a collapsed pane, a tab not chosen), the title has no box to take a place from and the
+    // field cannot take the focus: it is placed and focused once the container is shown, or it stays 0 px wide with no caret.
+    if (container.getClientRects().length > 0)
+        takeFocus(input);
+    else
+        stopWaiting = whenShown(container, () => {
+            placeOver(input, title, container);
+            takeFocus(input);
+        });
+
+    return true;
+}
+
+function takeFocus(input: HTMLInputElement): void {
     input.focus();
     // Selected from the end back to the start and scrolled to it, so a name wider than the title's box shows its start where the
     // title did: the focus has already scrolled the field to the caret at the end.
     input.setSelectionRange(0, input.value.length, "backward");
     input.scrollLeft = 0;
+}
 
-    return true;
+/** Runs once an element is laid out; answers what stops the wait. */
+function whenShown(element: HTMLElement, shown: () => void): () => void {
+    const observer = new ResizeObserver(() => {
+        if (element.getClientRects().length === 0)
+            return;
+
+        observer.disconnect();
+        shown();
+    });
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
 }
 
 function placeOver(element: HTMLElement, target: HTMLElement, container: HTMLElement): void {

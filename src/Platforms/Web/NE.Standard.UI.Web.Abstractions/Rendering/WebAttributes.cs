@@ -29,6 +29,12 @@ public static class WebAttributes
     /// </summary>
     public const string PlainText = "data-ui-plain-text";
 
+    /// <summary>
+    /// On an element whose inline markup reads a bare <c>http://</c> or <c>https://</c> address as a link
+    /// (<c>ITextComponent.DescriptionAutolinks</c>): a value pushed into it is read the same way.
+    /// </summary>
+    public const string Autolinks = "data-ui-autolinks";
+
     public const string TextIcon = "data-ui-text-icon";
 
     // Two marks, not one both badge properties assert: the client's tally of one mark knows nothing of the first paint, so clearing
@@ -275,6 +281,9 @@ public static class WebAttributes
 
     public const string ItemsHost = "data-ui-items-host";
 
+    /// <summary>On an items host while it shows its empty state: the stylesheet gives the placeholder the host's whole box.</summary>
+    public const string ItemsEmpty = "data-ui-items-empty";
+
     /// <summary>On a component's root: its bound collection goes to the client sink of this kind as values, not into an items host as rows.</summary>
     public const string CollectionSink = "data-ui-collection-sink";
 
@@ -433,6 +442,12 @@ public static class WebAttributes
     /// sides are drawers its rail is drawn as a list (menu-group-engine.ts).
     /// </summary>
     public const string RailDrawer = "data-ui-rail-drawer";
+
+    /// <summary>
+    /// On a menu whose display differs by breakpoint (<c>MenuComponent.Display</c>): the tiers it is a rail in — <c>base sm md xl
+    /// xxl</c> — the rest a list; the render draws the base tier's shape and the client the width's (menu-shape.ts).
+    /// </summary>
+    public const string MenuRailTiers = "data-ui-menu-rail-tiers";
 
     /// <summary>
     /// On the root where the content region's root fills the height, which keeps the regions' own scroll on a phone: the shell writes

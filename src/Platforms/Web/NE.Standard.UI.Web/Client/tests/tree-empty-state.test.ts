@@ -50,11 +50,13 @@ test("a tree with no nodes draws its empty template, and takes it out when a nod
 
     assert.equal(placeholders(host).length, 1);
     assert.equal(placeholders(host)[0].querySelector(".ui-empty-state") !== null, true);
+    assert.equal(host.hasAttribute("data-ui-items-empty"), true);
 
     host.append(row("notes"));
     sync(host);
 
     assert.equal(placeholders(host).length, 0);
+    assert.equal(host.hasAttribute("data-ui-items-empty"), false);
 
     host.children.find(child => child.hasAttribute("data-ui-key"))!.remove();
     sync(host);

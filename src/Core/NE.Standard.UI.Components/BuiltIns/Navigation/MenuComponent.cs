@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -39,6 +40,8 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     // step apart from the page's.
     private static UISurfaceStyle? DefaultSurface => null;
 
+    private static readonly UIResponsive<UIMenuDisplay> DefaultDisplay = UIMenuDisplay.List;
+
     /// <summary>The template variant key rendering <see cref="UIMenuItemKind.Header"/> entries.</summary>
     public const string HeaderTemplateKey = nameof(UIMenuItemKind.Header);
 
@@ -58,20 +61,24 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     public const string SubmenuTemplateKey = "Submenu";
 
     /// <summary>
-    /// Gets or sets how the entries are laid out: rows of icon and title, or a rail of icons each over a one-line label.
+    /// Gets or sets how the entries are laid out, per breakpoint: rows of icon and title, or a rail of icons each over a one-line label.
     /// </summary>
     /// <remarks>
-    /// Render-time only. A rail has nothing to fold, so it ignores <c>Expanded</c> and draws no collapse toggle. An entry's label
-    /// cut short shows whole as its tooltip unless the entry has one of its own; a badge stands on the icon's corner, an empty
-    /// <c>BadgeText</c> as a dot; the current entry wears its icon filled. The rail's ground is <see cref="Surface"/>'s. A rail takes no
-    /// search (<see cref="SetSearch"/>): its groups fly out, so a match among their entries would not show. A rail that is the whole of
-    /// a view's left side is the page's bottom navigation bar on a phone rather than a drawer (<see cref="UIMenuDisplay.Rail"/> says
-    /// when): its entries share the width down to a press's width each (<see cref="Size"/> says which) and then scroll sideways, the
-    /// current one marked on its top edge, over the bar's hairline — or, where the view turns <c>UIViewOptions.RailBottomBar</c> off,
-    /// it is that side's drawer drawn as a list. A rail's entries stand edge to edge, as square slices of it.
+    /// Render-time only. One menu may be a rail on one width and a list on another (<c>SetDisplay(UIMenuDisplay.Rail, xl:
+    /// UIMenuDisplay.List)</c>): the browser draws the shape of the width it stands at. Where a view's left side is a drawer, the base
+    /// tier alone says whether a menu there is the phone's bottom bar or a rail drawn as a list; a <c>sm</c> tier never does. A rail
+    /// has nothing to fold, so it ignores <c>Expanded</c> and draws no collapse toggle; the fold is kept for the widths it is a list
+    /// on. An entry's label cut short shows whole as its tooltip unless the entry has one of its own; a badge stands on the icon's
+    /// corner, an empty <c>BadgeText</c> as a dot; the current entry wears its icon filled. The rail's ground is <see cref="Surface"/>'s.
+    /// A rail takes no search (<see cref="SetSearch"/>): its groups fly out, so a match among their entries would not show; a search
+    /// typed on a list is let go of where it turns into a rail. A rail that is the whole of a view's left side is the page's bottom
+    /// navigation bar on a phone rather than a drawer (<see cref="UIMenuDisplay.Rail"/> says when): its entries share the width down to
+    /// a press's width each (<see cref="Size"/> says which) and then scroll sideways, the current one marked on its top edge, over the
+    /// bar's hairline — or, where the view turns <c>UIViewOptions.RailBottomBar</c> off, it is that side's drawer drawn as a list. A
+    /// rail's entries stand edge to edge, as square slices of it.
     /// </remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = UIMenuDisplay.List)]
-    public UIMenuDisplay? Display { get; set; }
+    [UIComponentProperty(IsBindable = false, DefaultValueMember = nameof(DefaultDisplay))]
+    public UIResponsive<UIMenuDisplay>? Display { get; set; }
 
     /// <summary>
     /// Gets or sets whether a sidebar menu that is a side's drawer offers to pin it: a pin at the end of its top row, after the switch

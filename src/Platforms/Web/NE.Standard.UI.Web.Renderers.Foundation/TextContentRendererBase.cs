@@ -673,6 +673,14 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         if (plain == true)
             _ = description.Attribute(WebAttributes.PlainText);
 
+        // Words shown as written read no address either, so the plain mark wins over this one.
+        _ = ResolveRenderValue(context, ITextComponent.DescriptionAutolinksProperty, out bool? autolinksWanted, out _);
+
+        var autolinks = plain != true && autolinksWanted == true;
+
+        if (autolinks)
+            _ = description.Attribute(WebAttributes.Autolinks);
+
         // Inline markup is allowed here but deliberately not in the title, which is a label rather than a sentence; a description
         // written as text takes a phrase's arguments unescaped, as the patch writes it.
         _ = RenderProperty<string?>(context, description, ITextComponent.DescriptionProperty, plain != true, (target, value) =>
@@ -684,7 +692,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 if (plain == true)
                     _ = target.Text(value);
                 else
-                    InlineMarkupRenderer.Render(target, value);
+                    InlineMarkupRenderer.Render(target, value, autolinks);
             }
         }, Followed(DescriptionOperations, partsShown));
     }

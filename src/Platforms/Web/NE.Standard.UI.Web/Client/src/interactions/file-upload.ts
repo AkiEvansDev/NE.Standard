@@ -1,5 +1,5 @@
 // The one way a file leaves the browser: a multipart POST beside the hub, answering with the selection id the controller reads;
-// a selection the server holds, read back; and what a field says when a pick is over its size limit.
+// a selection the server holds, read back; and what a field says when a pick is over its size limit, or a file of it did not go.
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { FileMaxSizeAttribute } from "../addressing/dom-attributes.ts";
@@ -8,22 +8,25 @@ import { formatFileSize } from "../rendering/file-tile.ts";
 import { clientStrings } from "../runtime/client-strings.ts";
 import { logElapsed, logWarn } from "../runtime/logger.ts";
 import { pageSessionKey } from "../runtime/session-key.ts";
-import type { FieldValidation } from "./validation-engine.ts";
+import type { Phrase } from "../runtime/words.ts";
+import type { UploadsInFlight } from "./uploads-in-flight.ts";
+import type { FieldMarkWords, FieldValidation } from "./validation-engine.ts";
 
 const UploadPath = "/_ne/files/upload";
 const SelectionPath = "/_ne/files/selection/";
 const UploadedPath = "/_ne/files/upload/";
 
-/** A pick refused for size, kept so a language switch writes the limit again in the new language's units. */
-type SizeRefusal = {
+/** A pick refused, for size or by a failed upload, kept so a language switch writes it again — a limit in the new language's units. */
+type Refusal = {
     readonly validation: FieldValidation;
-    readonly limit: number;
-    /** The refused files' names, for a field that takes several; null for one that takes one. */
-    readonly names: readonly string[] | null;
+    /** The pick's files left out for their size; null where none was. */
+    readonly size: (() => Phrase) | null;
+    /** The files a failed upload left out, which the next failure adds to. */
+    readonly failed: readonly string[];
 };
 
-/** The fields saying a size refusal now: a map rather than a weak one, since a language switch walks them. */
-const refusals = new Map<HTMLElement, SizeRefusal>();
+/** The fields saying a refusal now: a map rather than a weak one, since a language switch walks them. */
+const refusals = new Map<HTMLElement, Refusal>();
 
 let refusalsFollowLanguage = false;
 
@@ -56,8 +59,21 @@ export function takeWithinSizeLimit(root: HTMLElement, files: readonly File[], s
         return accepted;
     }
 
-    const refusal: SizeRefusal = { validation, limit, names: several ? refused.map(file => file.name) : null };
+    const names = several ? refused.map(file => file.name).join(", ") : null;
 
+    refuse(root, { validation, size: () => sizeWords(limit, names), failed: [] });
+
+    return accepted;
+}
+
+function sizeWords(limit: number, names: string | null): Phrase {
+    const size = formatFileSize(limit, clientStrings.language);
+
+    return names === null ? { key: "ui.file.oversized", args: { limit: size } } : { key: "ui.file.leftout", args: { limit: size, names } };
+}
+
+/** Says the refusal on the field's validation line, until the next pick that refuses nothing takes it off. */
+function refuse(root: HTMLElement, refusal: Refusal): void {
     for (const shown of refusals.keys()) {
         if (!shown.isConnected)
             refusals.delete(shown);
@@ -66,16 +82,21 @@ export function takeWithinSizeLimit(root: HTMLElement, files: readonly File[], s
     refusals.set(root, refusal);
     sayRefusal(root, refusal);
     followLanguage();
-
-    return accepted;
 }
 
-function sayRefusal(root: HTMLElement, refusal: SizeRefusal): void {
-    const limit = formatFileSize(refusal.limit, clientStrings.language);
+function sayRefusal(root: HTMLElement, refusal: Refusal): void {
+    refusal.validation.mark(root, "error", refusalWords(refusal));
+}
 
-    refusal.validation.mark(root, "error", refusal.names === null
-        ? { key: "ui.file.oversized", args: { limit } }
-        : { key: "ui.file.leftout", args: { limit, names: refusal.names.join(", ") } });
+/** The size line, the failure line, or both, one after the other (the message keeps a line break, ui-validation.less). */
+function refusalWords(refusal: Refusal): FieldMarkWords {
+    const size = refusal.size?.() ?? null;
+    const failed: Phrase | null = refusal.failed.length === 0 ? null : { key: "ui.file.notuploaded", args: { names: refusal.failed.join(", ") } };
+
+    if (size === null || failed === null)
+        return size ?? failed ?? { text: "" };
+
+    return { text: `${clientStrings.translate(size.key, size.args)}\n${clientStrings.translate(failed.key, failed.args)}` };
 }
 
 /** Writes the refusals again on a language switch, once the page's own rewrite has put the old language's limit back. */
@@ -93,6 +114,19 @@ function followLanguage(): void {
                 refusals.delete(root);
         }
     });
+}
+
+/**
+ * Names on the field's validation line a file whose upload failed — a shelf's, whose square is taken off — beside the ones a failure
+ * named before and under the pick's size refusal, until the next pick that refuses nothing takes the line off.
+ */
+export function refuseFailedUpload(root: HTMLElement, name: string, validation: FieldValidation | undefined): void {
+    if (validation === undefined)
+        return;
+
+    const shown = refusals.get(root);
+
+    refuse(root, { validation, size: shown?.size ?? null, failed: [...shown?.failed ?? [], name] });
 }
 
 export type UploadedSelection = {
@@ -195,7 +229,8 @@ export function uploadedFileUrl(fileId: string): string {
 
 /** The framework's upload, answering with a selection id; a package never posts to the endpoint, whose path and shape are its own. */
 export type FileUploads = {
-    uploadAsync(files: Iterable<File>, onProgress?: (percent: number) => void): Promise<UploadedSelection>;
+    /** Given the field, a submit of its form waits for the upload until a task after it answers, so the id written in its continuation goes first. */
+    uploadAsync(files: Iterable<File>, onProgress?: (percent: number) => void, field?: HTMLElement): Promise<UploadedSelection>;
     /** Whether a file answers an `accept` list as a dropped one is judged: a MIME family, a MIME type, or an extension; empty takes any. */
     accepts(accept: string, file: File): boolean;
     /** `takeWithinSizeLimit` for a package's field, its refusal said through the page's validation engine. */
@@ -205,9 +240,21 @@ export type FileUploads = {
 const noProgress = (): void => { };
 
 /** The uploads the plugin surface hands out: the size refusal is the file and image inputs' own, words and language switch alike. */
-export function createFileUploads(validation: FieldValidation): FileUploads {
+export function createFileUploads(validation: FieldValidation, inFlight: UploadsInFlight): FileUploads {
     return {
-        uploadAsync: (files, onProgress) => uploadFilesAsync(files, onProgress ?? noProgress),
+        uploadAsync: (files, onProgress, field) => {
+            const uploading = uploadFilesAsync(files, onProgress ?? noProgress);
+
+            if (field !== undefined) {
+                const hold = inFlight.hold(field, {});
+                // A task later, not at the answer: the package writes the id in its continuation, which the submit must find sent.
+                const release = (): void => void setTimeout(hold, 0);
+
+                uploading.then(release, release);
+            }
+
+            return uploading;
+        },
         accepts: acceptsFile,
         takeWithinSizeLimit: (root, files, several) => takeWithinSizeLimit(root, files, several, validation)
     };

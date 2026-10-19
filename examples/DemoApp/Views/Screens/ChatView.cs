@@ -111,7 +111,7 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
     }
 
     protected override IVisualComponent CreateScreen()
-        => UILayout.Panes(CreateList(), CreateConversation(), nameof(ChatController.ListVisibility), nameof(ChatController.PaneVisibility))
+        => UILayout.Panes(CreateList(), CreateConversation(), nameof(ChatController.Panes))
             .SetHeight(UILayoutLength.Fill())
             .SetPlacement(1, 1, 24, 1);
 
@@ -424,6 +424,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                         .SetAccept(string.Empty)
                         .SetMaxFileSize(5 * 1024 * 1024)
                         .SetDropTargetId(ComposerPanelId)
+                        // In the composer's form, so a send waits for a file still on its way.
+                        .SetFormId(ComposerFormId)
                         .BindSelectionIds(nameof(ChatController.AttachmentIds)),
                     new TextAreaComponent(ChatController.ComposerId)
                         .SetFormId(ComposerFormId)

@@ -54,3 +54,68 @@ test("only the window a change set changed is laid out again, whether by a row o
     engine.sync([real<Element>(second.component)]);
     assert.equal(spacerOf(second.host)?.style.height, "300px");
 });
+
+test("a window a pushed change set emptied is asked for again, as after a command; not while a read is on its way, nor again over an empty source", async () => {
+    const { component, host } = windowed("7");
+    const asked: string[] = [];
+    const answers: (() => void)[] = [];
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(component);
+
+    const engine = new ItemsWindowEngine({
+        root: real<ParentNode>(fakeDocument.body),
+        requestWindow: request => {
+            asked.push(request.anchor);
+
+            return new Promise<void>(resolve => {
+                answers.push(resolve);
+            });
+        }
+    });
+
+    // A set that changed a row of a window still holding rows asks for nothing.
+    engine.sync([real<Element>(host.children[0])]);
+    assert.deepEqual(asked, []);
+
+    // The source dropped its window from a job's write: the set is no command's answer, so nothing else would ask again.
+    host.children.length = 0;
+    host.removeAttribute("data-ui-window-offset");
+    engine.sync([real<Element>(host)]);
+    assert.deepEqual(asked, ["Start"]);
+
+    // The read's own answer lands while it is on its way: an empty one asks no second time.
+    engine.sync([real<Element>(host)]);
+    assert.deepEqual(asked, ["Start"]);
+
+    // A command answered meanwhile decides again, after the read: over the empty window the read left, an empty source, it reads no
+    // second time.
+    engine.reconsider();
+    answers[0]();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(asked, ["Start"]);
+});
+
+test("a feed anchored to its end that a change set emptied is read from its end, its newest rows", () => {
+    const { component, host } = windowed("8");
+    const asked: string[] = [];
+
+    host.setAttribute("data-ui-scroll-anchor", "End");
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(component);
+
+    const engine = new ItemsWindowEngine({
+        root: real<ParentNode>(fakeDocument.body),
+        requestWindow: request => {
+            asked.push(request.anchor);
+
+            return new Promise<void>(() => undefined);
+        }
+    });
+
+    host.children.length = 0;
+    host.removeAttribute("data-ui-window-offset");
+    engine.sync([real<Element>(host)]);
+
+    assert.deepEqual(asked, ["End"]);
+});

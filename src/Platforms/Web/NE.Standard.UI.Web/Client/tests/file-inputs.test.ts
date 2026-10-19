@@ -1,7 +1,8 @@
 // The image and file inputs as their engines keep them: a single picture the controller clears by emptying its handle, a file over
 // the size limit refused on the field's validation line in the page's words, the chooser opened from a control elsewhere, and the
 // files dropped or pasted on the component an input names as its drop target; a picture's object URL let go of once its input is
-// gone from the page. Over the stand-in DOM, an upload the test lands by hand, and a mutation observer it drives itself.
+// gone from the page; an upload on its way holding its form's submit until its handle is written, and a shelf's failed upload named.
+// Over the stand-in DOM, an upload the test lands or fails by hand, and a mutation observer it drives itself.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -38,6 +39,10 @@ class FakeRequest {
         this.response = { selectionId };
         this.listeners.get("load")?.();
     }
+
+    public fail(): void {
+        this.listeners.get("error")?.();
+    }
 }
 
 class FakeClipboardEvent extends FakeEvent {
@@ -70,6 +75,9 @@ installFakeDom({
 
         public observe(): void {
         }
+
+        public disconnect(): void {
+        }
     },
     XMLHttpRequest: FakeRequest,
     ClipboardEvent: FakeClipboardEvent,
@@ -80,6 +88,7 @@ const { clientStrings } = await import("../src/runtime/client-strings.ts");
 const { ImageInputEngine } = await import("../src/interactions/image-input-engine.ts");
 const { FileInputEngine } = await import("../src/interactions/file-input-engine.ts");
 const { formatFileSize } = await import("../src/rendering/file-tile.ts");
+const { uploadsInFlight } = await import("../src/interactions/uploads-in-flight.ts");
 
 /** A mark the engines put on a field, as the validation engine would show it. */
 type Mark = { readonly field: Element; readonly severity: FieldMarkSeverity | null; readonly words: FieldMarkWords | null | undefined };
@@ -87,13 +96,18 @@ type Mark = { readonly field: Element; readonly severity: FieldMarkSeverity | nu
 const marks: Mark[] = [];
 const validation: FieldValidation = { mark: (field, severity, words) => void marks.push({ field, severity, words }) };
 const valueChangeHandlers: ((change: PropertyValueChange) => void)[] = [];
+// The fields whose sent value is unanswered, as the value engine holds them: a shelf's list pushed meanwhile may be its own echo.
+const heldFields = new Set<unknown>();
 const root = fakeDocument.body;
 const Megabyte = 1024 * 1024;
 
 new ImageInputEngine({
     root: real<ParentNode>(root),
     validation,
-    propertyPatchEngine: real<PropertyPatchEngine>({ addValueChangeHandler: (handler: (change: PropertyValueChange) => void) => valueChangeHandlers.push(handler) })
+    propertyPatchEngine: real<PropertyPatchEngine>({
+        addValueChangeHandler: (handler: (change: PropertyValueChange) => void) => valueChangeHandlers.push(handler),
+        isHeldTarget: (target: Element) => heldFields.has(target)
+    })
 });
 
 new FileInputEngine({ root: real<ParentNode>(root), validation });
@@ -551,4 +565,333 @@ test("a picture's preview and a shelf's squares let their object URLs go once th
     finally {
         URL.revokeObjectURL = revoke;
     }
+});
+
+/** A shelf of the form `message`, with the input its list goes out on and every list it sent. */
+function formShelf(): { input: FakeElement; tiles: FakeElement; native: FakeInput; sent: string[] } {
+    const { input, tiles, native } = shelfWithComposer();
+    const selections = new FakeInput("hidden");
+    const sent: string[] = [];
+
+    selections.classes.add("ui-image-input__selections");
+    selections.setAttribute("data-ui-form-id", "message");
+    selections.addEventListener("change", () => void sent.push(selections.getAttribute("data-ui-selected-keys") ?? ""));
+    input.append(selections);
+
+    return { input, tiles, native, sent };
+}
+
+/** Whether a submit of the form would still wait, once the engines' awaits ran. */
+async function stillWaits(formId: string): Promise<boolean> {
+    let done = false;
+
+    void uploadsInFlight.whenUploadedAsync(formId).then(() => {
+        done = true;
+    });
+    await settle();
+
+    return !done;
+}
+
+test("a submit of a shelf's form waits for every square on its way, and lets go once the last one's handle went out", async () => {
+    const { native, sent } = formShelf();
+
+    pick(native, fileOf("cat.png", 10), fileOf("dog.png", 10));
+    await settle();
+
+    const lists: string[] = [];
+    const waiting = uploadsInFlight.whenUploadedAsync("message").then(() => void lists.push(...sent));
+
+    uploads[0].land("sel-cat");
+    await settle();
+
+    assert.deepEqual(lists, []);
+
+    uploads[1].land("sel-dog");
+    await waiting;
+
+    // The list with both handles had gone out when the submit was let go.
+    assert.equal(lists.at(-1), JSON.stringify(["sel-cat", "sel-dog"]));
+});
+
+test("a square whose upload failed lets the submit go without it, and the shelf names the file that did not go", async t => {
+    // The failure is logged as a warning; a build reads "Error:" in the test output as its own.
+    t.mock.method(console, "warn", () => undefined);
+    const { input, tiles, native, sent } = formShelf();
+
+    pick(native, fileOf("cat.png", 10), fileOf("dog.png", 10));
+    await settle();
+
+    uploads[0].land("sel-cat");
+    uploads[1].fail();
+
+    assert.equal(await stillWaits("message"), false);
+    assert.equal(tiles.children.length, 1);
+    assert.deepEqual(sent, [JSON.stringify(["sel-cat"])]);
+    assert.deepEqual(marks.at(-1), { field: input, severity: "error", words: { key: "ui.file.notuploaded", args: { names: "dog.png" } } });
+
+    // The next pick that refuses nothing takes the line off.
+    pick(native, fileOf("owl.png", 10));
+    await settle();
+
+    assert.deepEqual(marks.at(-1), { field: input, severity: null, words: undefined });
+
+    uploads[2].land("sel-owl");
+    await settle();
+});
+
+test("failures that land together are named together", async t => {
+    // The failure is logged as a warning; a build reads "Error:" in the test output as its own.
+    t.mock.method(console, "warn", () => undefined);
+    const { input, native } = formShelf();
+
+    pick(native, fileOf("cat.png", 10), fileOf("dog.png", 10));
+    await settle();
+
+    uploads[0].fail();
+    uploads[1].fail();
+    await settle();
+
+    assert.deepEqual(marks.at(-1), { field: input, severity: "error", words: { key: "ui.file.notuploaded", args: { names: "cat.png, dog.png" } } });
+});
+
+test("a square taken off the shelf while on its way lets the submit go, and its upload landing later writes nothing", async () => {
+    const { tiles, native, sent } = formShelf();
+
+    pick(native, fileOf("cat.png", 10));
+    await settle();
+
+    assert.equal(await stillWaits("message"), true);
+
+    tiles.children[0].querySelector(".ui-image-input__remove")?.dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(await stillWaits("message"), false);
+
+    uploads[0].land("sel-cat");
+    await settle();
+
+    // The empty list the removal sent, and nothing after it.
+    assert.deepEqual(sent, ["[]"]);
+});
+
+test("a submit of another form, and one after the shelf left the page, does not wait for the shelf's squares", async () => {
+    const { input, native } = formShelf();
+
+    pick(native, fileOf("cat.png", 10));
+    await settle();
+
+    assert.equal(await stillWaits("message"), true);
+    assert.equal(await stillWaits("search"), false);
+
+    input.remove();
+
+    assert.equal(await stillWaits("message"), false);
+});
+
+test("a file input's second pick takes the first one's hold: the submit waits for it alone", async () => {
+    const native = new FakeInput("file");
+    const field = new FakeInput("text");
+    const selection = new FakeInput("hidden");
+
+    native.classes.add("ui-file-input__native");
+    field.classes.add("ui-file-input__field");
+    field.setAttribute("data-ui-form-id", "report");
+    selection.classes.add("ui-file-input__selection");
+
+    root.children.length = 0;
+    root.append(FakeElement.of("ui-file-input", { "data-ui-id": "21" }).append(FakeElement.of("ui-file-input__row", {}, "span").append(native, field, selection)));
+    uploads.length = 0;
+
+    pick(native, fileOf("draft.pdf", 10, "application/pdf"));
+    await settle();
+    pick(native, fileOf("final.pdf", 10, "application/pdf"));
+    await settle();
+
+    uploads[1].land("sel-final");
+
+    assert.equal(await stillWaits("report"), false);
+    assert.equal(selection.value, "sel-final");
+
+    // The first pick's answer, landing last, neither holds the form again nor writes its handle.
+    uploads[0].land("sel-draft");
+
+    assert.equal(await stillWaits("report"), false);
+    assert.equal(selection.value, "sel-final");
+});
+
+test("a single picture holds its form from the upload's start to its handle, and a failure lets it go", async t => {
+    // The failure is logged as a warning; a build reads "Error:" in the test output as its own.
+    t.mock.method(console, "warn", () => undefined);
+    const { input, native, selection } = inlinePicture();
+    const value = new FakeInput("hidden");
+
+    value.classes.add("ui-image-input__value");
+    value.setAttribute("data-ui-form-id", "profile");
+    input.append(value);
+
+    pick(native, fileOf("face.png", 10));
+    await settle();
+
+    assert.equal(await stillWaits("profile"), true);
+
+    uploads[0].land("sel-face");
+
+    assert.equal(await stillWaits("profile"), false);
+    assert.equal(selection.value, "sel-face");
+
+    pick(native, fileOf("other.png", 10));
+    await settle();
+    uploads[1].fail();
+
+    assert.equal(await stillWaits("profile"), false);
+    assert.equal(selection.value, "");
+});
+
+test("a package's upload given its field holds the field's form until a task after it answers, so the id its continuation writes goes first", async () => {
+    const { createFileUploads } = await import("../src/interactions/file-upload.ts");
+    const { UploadsInFlight } = await import("../src/interactions/uploads-in-flight.ts");
+    const inFlight = new UploadsInFlight();
+    const field = FakeElement.of("my-field", { "data-ui-id": "31", "data-ui-form-id": "card" });
+    const steps: string[] = [];
+
+    root.children.length = 0;
+    root.append(field);
+    uploads.length = 0;
+
+    const uploading = createFileUploads(validation, inFlight).uploadAsync([fileOf("card.png", 10)], undefined, real<HTMLElement>(field));
+
+    void uploading.then(() => void steps.push("id written"));
+    void inFlight.whenUploadedAsync("card").then(() => void steps.push("submit let go"));
+    await settle();
+
+    assert.deepEqual(steps, []);
+
+    uploads[0].land("sel-card");
+    await settle();
+    // The task the hold lets go in.
+    await settle();
+
+    assert.deepEqual(steps, ["id written", "submit let go"]);
+});
+
+/** Writes the controller's list as a push does: an attribute already holding it is left alone, and the observer hears only a change. */
+function pushList(input: FakeElement, selections: FakeInput, json: string): void {
+    if (selections.getAttribute("data-ui-selected-keys") !== json)
+        selections.setAttribute("data-ui-selected-keys", json);
+
+    if (input.getAttribute("data-ui-selected-keys") === json)
+        return;
+
+    input.setAttribute("data-ui-selected-keys", json);
+    observe(input);
+}
+
+test("a controller clearing a shelf in the round trip that took its list, never having pushed that list, takes the squares off", async () => {
+    const { input, tiles, selections, sent } = boundShelf([]);
+    const native = input.querySelector(".ui-image-input__native");
+
+    observe(input);
+    pick(real<FakeInput>(native), fileOf("cat.png", 10));
+    await settle();
+    uploads[0].land("sel-cat");
+    await settle();
+
+    assert.deepEqual(sent, [JSON.stringify(["sel-cat"])]);
+
+    // The send in the same trip emptied the list: the controller's answer is the empty list it held before the pick.
+    pushList(input, selections, "[]");
+
+    assert.equal(tiles.children.length, 0);
+    assert.equal(input.hasAttribute("data-ui-image-tiles"), false);
+});
+
+test("a list the shelf sent and the controller later names again, after a list of its own, is drawn, not taken for an echo", async () => {
+    await withStoredSelections({ "sel-cat": { fileName: "cat.png", contentType: "image/png", size: 10 } }, async () => {
+        const { input, tiles, selections } = boundShelf([]);
+
+        observe(input);
+        pick(real<FakeInput>(input.querySelector(".ui-image-input__native")), fileOf("cat.png", 10));
+        await settle();
+        uploads[0].land("sel-cat");
+        await settle();
+
+        pushList(input, selections, "[]");
+
+        assert.equal(tiles.children.length, 0);
+
+        // A draft put back: the list the shelf sent before.
+        pushList(input, selections, JSON.stringify(["sel-cat"]));
+        await settle();
+
+        assert.equal(tiles.children.length, 1);
+    });
+});
+
+test("a list the shelf sent, answered, and named again by the controller refusing a later square takes that square off", async () => {
+    const { input, tiles, selections, sent } = boundShelf([]);
+
+    observe(input);
+    pick(real<FakeInput>(input.querySelector(".ui-image-input__native")), fileOf("cat.png", 10));
+    await settle();
+    uploads[0].land("sel-cat");
+    await settle();
+    // Answered: the controller took the list the root already holds, so its push changes nothing.
+    pushList(input, selections, JSON.stringify(["sel-cat"]));
+
+    pick(real<FakeInput>(input.querySelector(".ui-image-input__native")), fileOf("dog.png", 10));
+    await settle();
+    uploads[1].land("sel-dog");
+    await settle();
+
+    assert.deepEqual(sent, [JSON.stringify(["sel-cat"]), JSON.stringify(["sel-cat", "sel-dog"])]);
+
+    // The controller refuses the dog and keeps the list it held; the field is let go of before the answer's changes are applied.
+    pushList(input, selections, JSON.stringify(["sel-cat"]));
+
+    assert.equal(tiles.children.length, 1);
+});
+
+test("an earlier list echoed while a later one is unanswered is the shelf's own, and keeps the later square", async () => {
+    const { input, tiles, selections } = boundShelf([]);
+
+    observe(input);
+    heldFields.add(selections);
+
+    try {
+        pick(real<FakeInput>(input.querySelector(".ui-image-input__native")), fileOf("cat.png", 10), fileOf("dog.png", 10));
+        await settle();
+        uploads[0].land("sel-cat");
+        await settle();
+        uploads[1].land("sel-dog");
+        await settle();
+
+        pushList(input, selections, JSON.stringify(["sel-cat"]));
+
+        assert.equal(tiles.children.length, 2);
+
+        pushList(input, selections, JSON.stringify(["sel-cat", "sel-dog"]));
+
+        assert.equal(tiles.children.length, 2);
+    }
+    finally {
+        heldFields.clear();
+    }
+});
+
+test("a shelf pick that leaves a file out for its size and has another fail says both, one line after the other", async t => {
+    // The failure is logged as a warning; a build reads "Error:" in the test output as its own.
+    t.mock.method(console, "warn", () => undefined);
+    const { input, tiles, native } = shelfWithComposer({ "data-ui-file-max-size": String(Megabyte) });
+
+    pick(native, fileOf("cat.png", 10), fileOf("huge.png", 2 * Megabyte), fileOf("dog.png", 10));
+    await settle();
+    uploads[0].land("sel-cat");
+    uploads[1].fail();
+    await settle();
+
+    const leftOut = clientStrings.translate("ui.file.leftout", { limit: "1 MB", names: "huge.png" });
+    const failed = clientStrings.translate("ui.file.notuploaded", { names: "dog.png" });
+
+    assert.equal(tiles.children.length, 1);
+    assert.deepEqual(marks.at(-1), { field: input, severity: "error", words: { text: `${leftOut}\n${failed}` } });
 });

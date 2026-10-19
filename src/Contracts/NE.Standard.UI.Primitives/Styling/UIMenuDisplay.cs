@@ -21,8 +21,9 @@ public enum UIMenuDisplay
     /// one down to it — is no drawer and gets no button: the rail lies along the page's bottom as a horizontal rail does, the boxes
     /// around it laid aside, the content and footer ending above it; its groups fly out upward, and the arrows across it walk it. A
     /// side holding anything more, a <see cref="List"/> menu, and a right side stay drawers. A view that turns
-    /// <see cref="UIViewOptions.RailBottomBar"/> off keeps that side a drawer too, its rail drawn there as a list: icon beside title,
-    /// its groups opening inline.
+    /// <see cref="UIViewOptions.RailBottomBar"/> off keeps that side a drawer too, and the browser draws its rail there as a list while
+    /// the side is a drawer — icon beside title, its groups opening inline — and as the rail again where the side stands in its column.
+    /// A menu whose display differs by breakpoint is judged by its base tier alone.
     /// </remarks>
     Rail = 1,
 }

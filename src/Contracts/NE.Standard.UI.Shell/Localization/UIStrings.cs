@@ -114,6 +114,9 @@ public static partial class UIStrings
     /// <summary>The files a multi-file input left out for their size, named: <c>{limit}</c> and <c>{names}</c>.</summary>
     public const string FileLeftOut = "ui.file.leftout";
 
+    /// <summary>The files a shelf took off as their upload failed, named: <c>{names}</c>.</summary>
+    public const string FileNotUploaded = "ui.file.notuploaded";
+
     /// <summary>The cross over a shelf's square that holds a file rather than a picture.</summary>
     public const string FileRemove = "ui.file.remove";
     public const string ColorPicker = "ui.color.picker";
@@ -319,6 +322,7 @@ public static partial class UIStrings
         [FileFailed] = "Upload failed.",
         [FileOversized] = "The file is larger than {limit}.",
         [FileLeftOut] = "Left out as larger than {limit}: {names}.",
+        [FileNotUploaded] = "Could not upload: {names}.",
         [FileRemove] = "Remove the file",
         [ColorPicker] = "Picker",
         [ColorPalette] = "Palette",

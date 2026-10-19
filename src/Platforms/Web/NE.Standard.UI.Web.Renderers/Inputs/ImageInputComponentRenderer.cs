@@ -315,6 +315,8 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             _ = selections.Class($"{ClassName}__selections");
             _ = selections.Attribute("type", "hidden");
             _ = selections.Attribute(WebAttributes.ValueKind, WebValueKinds.SelectedKeys);
+            // A shelf's form, as a single picture's hidden value carries it: a submit of the form waits for the squares on their way.
+            NativeInputRendererBase.RenderFormId(context, selections);
             NativeInputRendererBase.RenderFieldName(context, selections, "selections");
 
             _ = RenderProperty<IReadOnlyList<string>?>(context, selections, ImageInputComponent.SelectionIdsProperty, (target, value) =>

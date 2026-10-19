@@ -9,6 +9,8 @@ import { attachFileDrop, findDropTargetField } from "./file-drop.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
 import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
+import { uploadsInFlight } from "./uploads-in-flight.ts";
+import type { UploadsInFlight } from "./uploads-in-flight.ts";
 import type { FieldValidation } from "./validation-engine.ts";
 
 const RootClass = "ui-file-input";
@@ -24,11 +26,14 @@ export type FileInputEngineOptions = {
     readonly root?: ParentNode;
     /** Where a file refused for its size is said; left out, the refusal goes to the console. */
     readonly validation?: FieldValidation;
+    /** Where an upload on its way holds its form's submit; the page's own unless a test stands in for it. */
+    readonly uploads?: UploadsInFlight;
 };
 
 export class FileInputEngine {
     private readonly root: ParentNode;
     private readonly validation: FieldValidation | undefined;
+    private readonly uploads: UploadsInFlight;
     // The number of the latest pick per field, so an upload a later pick overtook writes nothing when it lands.
     private readonly picks = new WeakMap<HTMLElement, number>();
 
@@ -38,6 +43,7 @@ export class FileInputEngine {
     public constructor(options: FileInputEngineOptions = {}) {
         this.root = options.root ?? document;
         this.validation = options.validation;
+        this.uploads = options.uploads ?? uploadsInFlight;
 
         clientStrings.onChange(() => this.rewriteShownWords());
 
@@ -148,6 +154,9 @@ export class FileInputEngine {
 
         this.picks.set(root, pick);
 
+        // Its form's submit waits until the handle is written or the upload failed; a later pick takes the hold over.
+        const hold = this.uploads.hold(root);
+
         try {
             const selection = await uploadFilesAsync(accepted, percent => {
                 if (this.picks.get(root) === pick)
@@ -169,6 +178,9 @@ export class FileInputEngine {
             // The id stays empty rather than pointing at a half-written upload.
             this.show(field, () => clientStrings.text("ui.file.failed"));
             this.publishSelection(root, "");
+        }
+        finally {
+            hold();
         }
     }
 

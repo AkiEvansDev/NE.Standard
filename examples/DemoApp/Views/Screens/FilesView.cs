@@ -26,7 +26,7 @@ internal sealed class FilesView : DemoScreenView, IUIViewDefinition
     private static readonly UIResponsive<UILayoutLength> PaneHeight = UIResponsive<UILayoutLength>.Create(UILayoutLength.Auto(), md: UILayoutLength.Fill());
 
     protected override IVisualComponent CreateScreen()
-        => UILayout.Panes(CreateExplorer(), CreateEditor(), nameof(FilesController.ExplorerVisibility), nameof(FilesController.EditorVisibility))
+        => UILayout.Panes(CreateExplorer(), CreateEditor(), nameof(FilesController.Panes))
             .SetPadding(UIThickness.All(0, 8, 0, 24))
             .SetHeight(PaneHeight)
             .SetPlacement(1, 1, 24, 1);

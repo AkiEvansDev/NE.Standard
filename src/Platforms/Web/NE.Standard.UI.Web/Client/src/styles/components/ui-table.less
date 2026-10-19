@@ -280,6 +280,13 @@
         padding: @ui-space-2 @ui-space-3;
     }
 
+    // Showing its empty state, the host's one row is an auto one stretched to its box, as an items view's (ui-items-view.less): a
+    // max-content row at the start held the placeholder at its own height.
+    .ui-table__host[data-ui-items-empty] {
+        grid-auto-rows: auto;
+        align-content: stretch;
+    }
+
     // An unfetched row's bar (ui-items-view.less's skeleton) starts where a cell's words do.
     .ui-table > .ui-table__scroll > [data-ui-host-mode="windowed"] > [data-ui-window-spacer] {
         padding-inline: @ui-space-3;

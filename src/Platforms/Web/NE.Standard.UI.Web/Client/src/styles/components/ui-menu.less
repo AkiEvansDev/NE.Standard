@@ -8,7 +8,8 @@
 @import "../core/typography.less";
 
 // Collapsed, and not mid-slide: while collapsible-engine.ts folds the menu the open layout stays, clipped, so nothing jumps ahead of the edge.
-@ui-menu-collapsed: ~".ui-menu[data-ui-collapsed]:not([data-ui-folding])";
+// Never a rail, which keeps the fold of the list it is on another width (MenuComponent.Display) without drawing it.
+@ui-menu-collapsed: ~".ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail)";
 // A collapsed menu's own entries, not those of the flyout that gives the titles back.
 @ui-menu-collapsed-entry: ~"@{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *)";
 // A rail (UIMenuDisplay.Rail) never folds, but its groups fly out as a collapsed menu's do, and its captions are rules.
@@ -606,7 +607,8 @@
     }
 
 // A rail has nothing to fold and no row beside its icons: the switch and what stands beside it are the list's that a phone's drawer
-// draws the rail as (UIViewOptions.RailBottomBar off, menu-group-engine.ts), where the switch puts the drawer away.
+// draws the rail as (UIViewOptions.RailBottomBar off, menu-shape.ts), where the switch puts the drawer away, or the list the menu is
+// on another width.
 .ui-menu--rail > .ui-collapsible__bar,
 .ui-menu--rail > .ui-collapsible__toggle {
     display: none;

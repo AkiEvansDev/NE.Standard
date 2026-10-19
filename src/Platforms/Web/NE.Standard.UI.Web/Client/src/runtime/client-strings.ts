@@ -36,6 +36,7 @@ export type ClientStringKey =
     | "ui.file.failed"
     | "ui.file.oversized"
     | "ui.file.leftout"
+    | "ui.file.notuploaded"
     | "ui.file.remove"
     | "ui.image.choose"
     | "ui.image.change"

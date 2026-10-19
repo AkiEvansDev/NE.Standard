@@ -80,6 +80,18 @@ If you installed the package `NE.Standard` — the general-purpose helpers that 
 [`NE.Common`](https://www.nuget.org/packages/NE.Common) now, MIT and in its own repository. It was never part
 of the framework, and nothing here depends on it.
 
+An application's Claude Code agents can learn the framework from a plugin this repository ships — what it already has, with
+a link per guide. Register it in the application's `.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "ne-standard": { "source": { "source": "github", "repo": "AkiEvansDev/NE.Standard" } }
+  },
+  "enabledPlugins": { "ne-standard@ne-standard": true }
+}
+```
+
 ## A first look
 
 A view declares the tree and what each part binds to:

@@ -6,10 +6,11 @@ import type { EffectRegistry } from "../effects/effect-registry.ts";
 import type { EventCatalog } from "../extensions/events.ts";
 import type { InteractionEngine } from "../interactions/interaction-engine.ts";
 import { isInert } from "../interactions/interactive-state.ts";
+import type { UploadsInFlight } from "../interactions/uploads-in-flight.ts";
 import type { ValidationEngine } from "../interactions/validation-engine.ts";
 import type { MetadataIndex, UICommandRequest } from "../metadata/metadata-index.ts";
 import { ValueSettleEventNames } from "../updates/value-binding-engine.ts";
-import type { ValueBindingEngine } from "../updates/value-binding-engine.ts";
+import type { PressedForm, ValueBindingEngine } from "../updates/value-binding-engine.ts";
 import { isBehindEventBoundary } from "./event-boundary.ts";
 import { CommandTurns } from "./command-turns.ts";
 import type { CommandTurn } from "./command-turns.ts";
@@ -39,6 +40,9 @@ export type EventPipelineOptions = {
 
     readonly valueBinding?: ValueBindingEngine;
 
+    /** The pickers' uploads on their way, which a submit of their form waits for (docs/FILES.md §7). */
+    readonly uploads?: Pick<UploadsInFlight, "whenUploadedAsync">;
+
     /** Whether a command sent now waits for the connection to attach again; a press then is marked pending at once. */
     readonly isReattaching?: () => boolean;
 };
@@ -47,6 +51,14 @@ type EventOutcome = Pick<EventCompletionContext, "dispatched" | "success" | "err
 
 /** An event the page turned away before it reached the server: nothing ran, and nothing landed. */
 const Refused: EventOutcome = { dispatched: false, success: false };
+
+/** The form a submit sends: as it stood at the press, and the pickers whose uploads it waited for. */
+type SubmittedForm = {
+    readonly formId: string;
+    /** Left out where it waited for no upload: the fields are read as they stand. Closed once the submit's answer is applied. */
+    readonly pressed?: PressedForm;
+    readonly waited: ReadonlySet<Element>;
+};
 
 /** The end of a press that shows no pending mark. */
 const NoMark = (): void => undefined;
@@ -236,14 +248,28 @@ export class EventPipeline {
         }
 
         const endMark = this.startPendingMark(eventName, element, context);
-        // Taken as raised: an .OnChange command waits for its value's answer, and one raised after it must not reach the server first.
-        const turn = this.turns.take();
+        const submitFormId = element.getAttribute(SubmitFormIdAttribute) ?? (registration.submitsForm === true ? fieldFormId(context) : null);
+
+        let form: SubmittedForm | null | undefined = null;
 
         try {
-            return await this.sendInTurnAsync(eventName, registration, element, context, request, turn);
+            form = submitFormId === null ? null : await this.waitForUploadsAsync(submitFormId, element, context);
+
+            if (form === undefined)
+                return Refused;
+
+            // Taken as raised: an .OnChange command waits for its value's answer, and one raised after it must not reach the server first.
+            const turn = this.turns.take();
+
+            try {
+                return await this.sendInTurnAsync(eventName, registration, element, context, request, form, turn);
+            }
+            finally {
+                turn.done();
+            }
         }
         finally {
-            turn.done();
+            form?.pressed?.close();
             endMark();
         }
     }
@@ -259,19 +285,42 @@ export class EventPipeline {
         return markPending(element, this.options.isReattaching?.() === true ? 0 : PendingDelayMilliseconds);
     }
 
-    /** Sends the command behind what it waits for — its form's values, its own value's answer, the commands and values before it. */
-    private async sendInTurnAsync(eventName: string, registration: RegisteredEvent, element: Element, context: EventDispatchContext, request: UICommandRequest, turn: CommandTurn): Promise<EventOutcome> {
-        const submitFormId = element.getAttribute(SubmitFormIdAttribute) ?? (registration.submitsForm === true ? fieldFormId(context) : null);
+    /**
+     * Waits for the uploads the form's pickers have on their way, ahead of the turn, not in it: an upload may take minutes, and the
+     * commands raised meanwhile must not wait for its pickers. Undefined where the press left the page or turned inert meanwhile.
+     */
+    private async waitForUploadsAsync(formId: string, element: Element, context: EventDispatchContext): Promise<SubmittedForm | undefined> {
+        // Read at the press: the reader typing the next message while a picture uploads must not change the one sent, nor lose it to
+        // the controller's answer clearing the field.
+        const pressed = this.options.valueBinding?.pressForm(formId);
+        const waited = await this.options.uploads?.whenUploadedAsync(formId) ?? new Set<Element>();
 
-        if (submitFormId !== null) {
-            if (this.options.validationEngine?.runSubmitValidation(submitFormId) === false) {
+        if (waited.size === 0) {
+            pressed?.close();
+            return { formId, waited };
+        }
+
+        const target = context.domEvent.target;
+
+        if (!element.isConnected || (target instanceof Element && (!target.isConnected || isInert(target)))) {
+            pressed?.close();
+            return undefined;
+        }
+
+        return { formId, pressed, waited };
+    }
+
+    /** Sends the command behind what it waits for — its form's values, its own value's answer, the commands and values before it. */
+    private async sendInTurnAsync(eventName: string, registration: RegisteredEvent, element: Element, context: EventDispatchContext, request: UICommandRequest, form: SubmittedForm | null, turn: CommandTurn): Promise<EventOutcome> {
+        if (form !== null) {
+            if (this.options.validationEngine?.runSubmitValidation(form.formId) === false) {
                 context.domEvent.preventDefault();
-                this.options.validationEngine.focusFirstInvalid(submitFormId);
+                this.options.validationEngine.focusFirstInvalid(form.formId);
                 return Refused;
             }
 
-            // After validation and before the command: an OnSubmit field holds its value back until here.
-            await this.options.valueBinding?.submitFormAsync(submitFormId);
+            // After validation and before the command: an OnSubmit field holds its value back until here, a waited picker's read now.
+            await this.options.valueBinding?.submitFormAsync(form.formId, form.pressed?.values, field => isInsideAny(form.waited, field));
         }
 
         if (await this.isRefusedValueEventAsync(registration, element))
@@ -310,8 +359,8 @@ export class EventPipeline {
         this.applyAfterEvent(eventName, context);
 
         // A submit the server answered with a field's error (its refusal, the controller's message) takes the reader to that field.
-        if (submitFormId !== null)
-            this.options.validationEngine?.focusFirstInvalid(submitFormId);
+        if (form !== null)
+            this.options.validationEngine?.focusFirstInvalid(form.formId);
 
         return { dispatched: true, success: result.command?.success !== false, error: result.command?.error ?? null };
     }
@@ -376,6 +425,15 @@ function isInnerBoundaryCrossing(domEvent: Event, component: Element): boolean {
 }
 
 /** The form of the field an event came from: the target's own, or the first field inside the component that declares one. */
+function isInsideAny(roots: ReadonlySet<Element>, element: Element): boolean {
+    for (const root of roots) {
+        if (root.contains(element))
+            return true;
+    }
+
+    return false;
+}
+
 function fieldFormId(context: EventDispatchContext): string | null {
     const target = context.domEvent.target;
     const field = (target instanceof Element ? target.closest(`[${FormIdAttribute}]`) : null) ?? context.component.querySelector(`[${FormIdAttribute}]`);

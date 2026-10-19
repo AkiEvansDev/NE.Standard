@@ -12,6 +12,7 @@ import { isAuthorText, isPhrase } from "../runtime/words.ts";
 import { logDebug, logError, logWarn } from "../runtime/logger.ts";
 import type { PropertyStateRow, PropertyStateStore } from "../state/property-state-store.ts";
 import type { DomOperationRegistry } from "./dom-operation-registry.ts";
+import type { ValueBindingEngine } from "./value-binding-engine.ts";
 import { markupWords, readsMarkup } from "./shown-words.ts";
 import type { MarkupWords } from "./shown-words.ts";
 
@@ -28,6 +29,11 @@ export type PropertyValueChange = {
 
 export type PropertyValueChangeHandler = (change: PropertyValueChange) => void;
 
+/** The value engine's word on a field a push lands on: whether it holds an edit, and whether it keeps this push out (docs/VALUES.md §3). */
+type HeldFields = Pick<ValueBindingEngine, "isHeld" | "holdsPush">;
+
+const NoHeldFields: HeldFields = { isHeld: () => false, holdsPush: () => false };
+
 export class PropertyPatchEngine {
     private readonly addressResolver: AddressResolver;
     private readonly operations: DomOperationRegistry;
@@ -36,7 +42,7 @@ export class PropertyPatchEngine {
     private readonly valueChangeHandlers = new Set<PropertyValueChangeHandler>();
 
     // The value engine's, set once it exists: it is built after this engine, which half the page's engines need first.
-    private isHeld: (target: Element) => boolean = () => false;
+    private held: HeldFields = NoHeldFields;
     private restoring = false;
 
     // Fields rather than parameter properties, which a type-stripping loader cannot run.
@@ -48,8 +54,13 @@ export class PropertyPatchEngine {
     }
 
     /** Names the elements a pushed value must not be written into: fields holding an edit the server has not taken yet (docs/VALUES.md §4). */
-    public setHeldTargets(isHeld: (target: Element) => boolean): void {
-        this.isHeld = isHeld;
+    public setHeldTargets(held: HeldFields): void {
+        this.held = held;
+    }
+
+    /** Whether a pushed value is kept out of the element: a field's edit still unsent or unanswered. */
+    public isHeldTarget(target: Element): boolean {
+        return this.held.isHeld(target);
     }
 
     public addValueChangeHandler(handler: PropertyValueChangeHandler): () => void {
@@ -99,7 +110,7 @@ export class PropertyPatchEngine {
 
                     for (const target of targets) {
                         // Still recorded in the state below, so going back to the server's value finds the latest one.
-                        if (!local && !this.restoring && this.holdsProperty(target, reference.propertyId)) {
+                        if (!local && !this.restoring && this.holdsProperty(target, reference.propertyId, value)) {
                             held = true;
                             continue;
                         }
@@ -129,15 +140,19 @@ export class PropertyPatchEngine {
     }
 
     /** Whether this push is the held edit: only the bound value; an element held with no binding holds every property. */
-    private holdsProperty(target: Element, propertyId: string): boolean {
-        if (!this.isHeld(target))
-            return false;
-
+    private holdsProperty(target: Element, propertyId: string, value: unknown): boolean {
         const bindingId = target.getAttribute(ValueBindingAttribute);
-        const binding = bindingId === null ? undefined : this.addressResolver.getBindingById(Number(bindingId));
+
+        if (bindingId === null)
+            return this.held.isHeld(target);
+
+        const binding = this.addressResolver.getBindingById(Number(bindingId));
 
         // A read-only pushed mid-edit must still land.
-        return binding === undefined || binding.propertyId === propertyId;
+        if (binding !== undefined && binding.propertyId !== propertyId)
+            return false;
+
+        return this.held.holdsPush(target, value);
     }
 
     /**

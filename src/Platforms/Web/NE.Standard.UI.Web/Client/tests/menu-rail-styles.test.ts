@@ -18,9 +18,9 @@ function declarations(selector: string): string | null {
     return start < 0 ? null : css.slice(start + selector.length + 3, css.indexOf("}", start));
 }
 
-const collapsedEntry = ".ui-menu[data-ui-collapsed]:not([data-ui-folding]) .ui-menu-item:not([data-ui-menu-flyout] *)";
+const collapsedEntry = ".ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail) .ui-menu-item:not([data-ui-menu-flyout] *)";
 // A folded entry's padding and line, which a caption's and a rule's are not.
-const collapsedLine = '.ui-menu[data-ui-collapsed]:not([data-ui-folding]) .ui-menu-item:not([data-ui-menu-flyout] *, [data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"])';
+const collapsedLine = '.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail) .ui-menu-item:not([data-ui-menu-flyout] *, [data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"])';
 const railEntry = '.ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:where(:not([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]))';
 const header = " > .ui-button__content > .ui-text__body > .ui-text__header";
 const dot = ".ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon])";
@@ -45,7 +45,7 @@ test("a folded entry's and a rail entry's badge stands on the icon's corner, an 
 });
 
 test("a rail's groups never unfold inline and its captions are rules, as a folded menu's", () => {
-    const folded = ":is(.ui-menu[data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail)";
+    const folded = ":is(.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail), .ui-menu--rail)";
 
     assert.match(declarations(`${folded} .ui-menu__submenu:not([data-ui-menu-flyout])`) ?? "", /display: none;/);
     assert.match(declarations(`${folded} [data-ui-menu-group] > .ui-menu-item::after`) ?? "", /display: none;/);

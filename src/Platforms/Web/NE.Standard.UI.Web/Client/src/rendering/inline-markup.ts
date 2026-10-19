@@ -29,6 +29,8 @@ export type InlineSegment = {
 export type InlineMarkupOptions = {
     // A fold drawn where nothing can be pressed (a tooltip) is written open, caption and text in the line.
     readonly staticFolds?: boolean;
+    // A bare http:// or https:// address reads as a link (`DescriptionAutolinks`, the element's `data-ui-autolinks`).
+    readonly autolinks?: boolean;
 };
 
 const Escape = "\\";
@@ -43,22 +45,22 @@ const FoldContentClass = "ui-text__fold-content";
 // Folds nest by recursion: deeper text reads as literal braces, or a few kilobytes of user text could exhaust the stack.
 const MaxFoldDepth = 8;
 
-export function parseInlineMarkup(text: string | null | undefined): InlineSegment[] {
+export function parseInlineMarkup(text: string | null | undefined, options: InlineMarkupOptions = {}): InlineSegment[] {
     if (text === null || text === undefined || text.length === 0)
         return [];
 
     const segments: InlineSegment[] = [];
     const buffer = { value: "" };
 
-    parseRange(new MarkupText(text), 0, text.length, InlineStyles.None, null, segments, buffer);
+    parseRange(new MarkupText(text, options.autolinks === true), 0, text.length, InlineStyles.None, null, segments, buffer);
     flush(segments, buffer, InlineStyles.None, null);
 
     return segments;
 }
 
-/** The text a reader would see, with a fold read unfolded: its caption, then its text. */
-export function inlineMarkupToPlainText(text: string | null | undefined): string {
-    return parseInlineMarkup(text).map(segment => isFold(segment) ? `${segment.fold} ${inlineMarkupToPlainText(segment.text)}` : segment.text).join("");
+/** The text a reader would see, with a fold read unfolded: its caption, then its text; an address read as a link stays as written. */
+export function inlineMarkupToPlainText(text: string | null | undefined, options: InlineMarkupOptions = {}): string {
+    return parseInlineMarkup(text, options).map(segment => isFold(segment) ? `${segment.fold} ${inlineMarkupToPlainText(segment.text, options)}` : segment.text).join("");
 }
 
 /** Every marker escaped, so words already shown (a label's text) read as themselves where markup is parsed; `UIInlineMarkup.Escape`'s twin. */
@@ -76,7 +78,7 @@ export function escapeInlineMarkup(text: string): string {
  * while it holds a fold, as the server's render marks it.
  */
 export function applyInlineMarkup(target: Element, text: string | null | undefined, options: InlineMarkupOptions = {}): void {
-    const segments = parseInlineMarkup(text);
+    const segments = parseInlineMarkup(text, options);
     const folds = segments.some(isFold);
 
     if (target.hasAttribute(FoldsAttribute) !== folds)
@@ -172,7 +174,7 @@ function renderFold(segment: InlineSegment, options: InlineMarkupOptions): Node 
     toggle.className = FoldToggleClass;
     toggle.textContent = segment.fold ?? "";
     content.className = FoldContentClass;
-    content.append(renderSegments(parseInlineMarkup(segment.text), options));
+    content.append(renderSegments(parseInlineMarkup(segment.text, options), options));
 
     if (options.staticFolds === true) {
         // Written open in the line, the caption and the text need the space a line break gives them when the fold is live.
@@ -252,6 +254,17 @@ function parseRange(markup: MarkupText, start: number, end: number, styles: Inli
             segments.push({ text: "", styles, url, icon: icon.name });
 
             index = icon.iconEnd;
+            continue;
+        }
+
+        // Not inside a link: its label is words, and an address there would be a link in a link.
+        const address = url === null && markup.autolinks ? readAutolink(markup, index, end) : null;
+
+        if (address !== null) {
+            flush(segments, buffer, styles, url);
+            segments.push({ text: address.address, styles, url: address.address });
+
+            index = address.addressEnd;
             continue;
         }
 
@@ -383,6 +396,117 @@ function readStyle(markup: MarkupText, index: number, end: number): StyleMatch |
     return contentEnd > contentStart ? { style, markerLength, contentEnd } : null;
 }
 
+type AutolinkMatch = { readonly address: string; readonly addressEnd: number };
+
+/**
+ * A bare address as GitHub's extended autolink: `http://` or `https://` after anything but a letter or digit, a domain with a dot,
+ * then anything up to a space or `<`, less its trailing punctuation and quotes and an unbalanced `)` or `]`. An escaped marker inside reads as the marker, so an address
+ * that went through `escapeInlineMarkup` still links.
+ */
+function readAutolink(markup: MarkupText, index: number, end: number): AutolinkMatch | null {
+    const text = markup.text;
+
+    if ((text[index] !== "h" && text[index] !== "H") || (index > 0 && !isAutolinkBoundary(text[index - 1])))
+        return null;
+
+    const scheme = text.slice(index, Math.min(index + 8, end)).toLowerCase();
+    const domainStart = scheme.startsWith("https://") ? index + 8 : scheme.startsWith("http://") ? index + 7 : -1;
+
+    if (domainStart < 0)
+        return null;
+
+    const domainEnd = readDomainEnd(text, domainStart, end);
+
+    // The domain is checked before the path is read: a failed start then costs its domain alone, not the rest of its word.
+    if (!isAutolinkDomain(text.slice(domainStart, trimAutolinkEnd(markup, domainStart, domainEnd, 0, 0))))
+        return null;
+
+    let linkEnd = domainEnd;
+    let unclosedParens = 0;
+    let unclosedBrackets = 0;
+
+    // A control character ends it as a space does, so the safety check after cannot refuse what was read.
+    while (linkEnd < end && !isWhiteSpace(text[linkEnd]) && !isControl(text[linkEnd]) && text[linkEnd] !== "<") {
+        if (text[linkEnd] === "(")
+            unclosedParens--;
+        else if (text[linkEnd] === ")")
+            unclosedParens++;
+        else if (text[linkEnd] === "[")
+            unclosedBrackets--;
+        else if (text[linkEnd] === "]")
+            unclosedBrackets++;
+
+        linkEnd++;
+    }
+
+    linkEnd = trimAutolinkEnd(markup, domainStart, linkEnd, unclosedParens, unclosedBrackets);
+
+    if (!isAutolinkDomain(text.slice(domainStart, Math.min(domainEnd, linkEnd))))
+        return null;
+
+    const address = { value: "" };
+
+    appendLiteral(text, index, linkEnd, address);
+
+    return isSafeLink(address.value) ? { address: address.value, addressEnd: linkEnd } : null;
+}
+
+// Where an address may start: the text's start, or after anything but a letter or digit, a quote as a space.
+function isAutolinkBoundary(value: string): boolean {
+    return !/^[\p{L}\p{Nd}]$/u.test(value);
+}
+
+// Where a domain's characters end; an escaped underscore is one of them, so an escaped address keeps its domain.
+function readDomainEnd(text: string, start: number, end: number): number {
+    let index = start;
+
+    while (index < end) {
+        if (isDomainCharacter(text[index]))
+            index++;
+        else if (text[index] === Escape && index + 1 < end && text[index + 1] === "_")
+            index += 2;
+        else
+            break;
+    }
+
+    return index;
+}
+
+// `char.IsLetterOrDigit`'s twin, read per UTF-16 unit as the server reads it.
+function isDomainCharacter(value: string): boolean {
+    return /^[\p{L}\p{Nd}_.-]$/u.test(value);
+}
+
+// The trailing punctuation and closing quotes off an address, and a closing parenthesis or bracket while more close than open; an
+// escaped one goes with its backslash.
+function trimAutolinkEnd(markup: MarkupText, start: number, end: number, unclosedParens: number, unclosedBrackets: number): number {
+    const text = markup.text;
+
+    while (end > start) {
+        const last = end - 1;
+        const value = text[last];
+
+        if (value === ")" && unclosedParens > 0)
+            unclosedParens--;
+        else if (value === "]" && unclosedBrackets > 0)
+            unclosedBrackets--;
+        else if (!"?!.,:;*_~'\"»”’".includes(value))
+            break;
+
+        end = markup.isEscaped(last) && isMarkerCharacter(value) ? last - 1 : last;
+    }
+
+    return end;
+}
+
+// Two or more labels split by dots, none empty but for the root's after a closing dot, and no underscore in the last two, as GitHub's
+// rule for a domain says.
+function isAutolinkDomain(domain: string): boolean {
+    const labels = (domain.endsWith(".") ? domain.slice(0, -1) : domain).split(".");
+
+    return labels.length >= 2 && labels.every(label => label.length > 0) && !labels.slice(-2).some(label => label.includes("_"));
+}
+
 type LinkMatch = { readonly labelStart: number; readonly labelEnd: number; readonly url: string; readonly linkEnd: number };
 
 function readLink(markup: MarkupText, index: number, end: number): LinkMatch | null {
@@ -448,6 +572,7 @@ function readFold(markup: MarkupText, index: number, end: number): FoldMatch | n
 // lookups start right after an opening mark, never a backslash, so escapes read from the text's start are the ones a scan would read.
 class MarkupText {
     public readonly text: string;
+    public readonly autolinks: boolean;
 
     private escaped: Uint8Array | null = null;
     private closeBrackets: Int32Array | null = null;
@@ -459,8 +584,9 @@ class MarkupText {
     private linkLabel = -1;
     private linkUrl: string | null = null;
 
-    public constructor(text: string) {
+    public constructor(text: string, autolinks: boolean) {
         this.text = text;
+        this.autolinks = autolinks;
     }
 
     // The first unescaped `]` in [start, end); -1 when there is none.
@@ -528,7 +654,7 @@ class MarkupText {
         return this.linkUrl;
     }
 
-    private isEscaped(index: number): boolean {
+    public isEscaped(index: number): boolean {
         if (this.escaped === null) {
             const escaped = new Uint8Array(this.text.length);
 
@@ -633,4 +759,16 @@ function isMarkerCharacter(value: string): boolean {
 
 function isSpace(value: string): boolean {
     return value === " " || value === "\t" || value === "\r" || value === "\n";
+}
+
+// `char.IsWhiteSpace`'s twin: Unicode's White_Space, the no-break space among it.
+function isWhiteSpace(value: string): boolean {
+    return /^\p{White_Space}$/u.test(value);
+}
+
+// `char.IsControl`'s twin: C0, DEL and C1.
+function isControl(value: string): boolean {
+    const code = value.charCodeAt(0);
+
+    return code < 0x20 || (code >= 0x7f && code <= 0x9f);
 }

@@ -18,15 +18,22 @@ public static class InlineMarkupRenderer
     /// (<see cref="WebAttributes.Folds"/>), as the client's markup operation marks it.
     /// </summary>
     public static void Render(IHtmlBuilder target, string? text)
+        => Render(target, text, autolinks: false);
+
+    /// <summary>
+    /// Replaces the target's content as <see cref="Render(IHtmlBuilder, string?)"/> does, a bare <c>http://</c> or <c>https://</c>
+    /// address written as a link when <paramref name="autolinks"/> is set (<see cref="WebAttributes.Autolinks"/>).
+    /// </summary>
+    public static void Render(IHtmlBuilder target, string? text, bool autolinks)
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        IReadOnlyList<UIInlineSegment> segments = UIInlineMarkup.Parse(text);
+        IReadOnlyList<UIInlineSegment> segments = UIInlineMarkup.Parse(text, autolinks);
 
         if (target is IHtmlElementBuilder element && HoldsFold(segments))
             _ = element.Attribute(WebAttributes.Folds);
 
-        RenderSegments(target, segments);
+        RenderSegments(target, segments, autolinks);
     }
 
     // A fold inside a fold's text is that fold's: the top runs are enough to know.
@@ -41,13 +48,13 @@ public static class InlineMarkupRenderer
         return false;
     }
 
-    private static void RenderSegments(IHtmlBuilder target, IReadOnlyList<UIInlineSegment> segments)
+    private static void RenderSegments(IHtmlBuilder target, IReadOnlyList<UIInlineSegment> segments, bool autolinks)
     {
         for (var i = 0; i < segments.Count; i++)
-            RenderSegment(target, segments[i]);
+            RenderSegment(target, segments[i], autolinks);
     }
 
-    private static void RenderSegment(IHtmlBuilder target, UIInlineSegment segment)
+    private static void RenderSegment(IHtmlBuilder target, UIInlineSegment segment, bool autolinks)
     {
         if (segment.IsPlain)
         {
@@ -76,39 +83,39 @@ public static class InlineMarkupRenderer
                     _ = anchor.Attribute("rel", "noopener noreferrer");
                 }
 
-                RenderStyles(anchor, segment);
+                RenderStyles(anchor, segment, autolinks);
             });
 
             return;
         }
 
-        RenderStyles(target, segment);
+        RenderStyles(target, segment, autolinks);
     }
 
     /// <summary>Wraps the segment outermost first: bold, italic, underline, strikethrough, then code closest to the text.</summary>
-    private static void RenderStyles(IHtmlBuilder target, UIInlineSegment segment)
+    private static void RenderStyles(IHtmlBuilder target, UIInlineSegment segment, bool autolinks)
     {
         if (segment.Styles.HasFlag(UIInlineStyles.Bold))
         {
-            _ = target.Element("strong", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Bold }));
+            _ = target.Element("strong", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Bold }, autolinks));
             return;
         }
 
         if (segment.Styles.HasFlag(UIInlineStyles.Italic))
         {
-            _ = target.Element("em", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Italic }));
+            _ = target.Element("em", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Italic }, autolinks));
             return;
         }
 
         if (segment.Styles.HasFlag(UIInlineStyles.Underline))
         {
-            _ = target.Element("u", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Underline }));
+            _ = target.Element("u", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Underline }, autolinks));
             return;
         }
 
         if (segment.Styles.HasFlag(UIInlineStyles.Strikethrough))
         {
-            _ = target.Element("s", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Strikethrough }));
+            _ = target.Element("s", element => RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Strikethrough }, autolinks));
             return;
         }
 
@@ -117,7 +124,7 @@ public static class InlineMarkupRenderer
             _ = target.Element("code", element =>
             {
                 _ = element.Class("ui-text__code");
-                RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Code });
+                RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Code }, autolinks);
             });
 
             return;
@@ -125,7 +132,7 @@ public static class InlineMarkupRenderer
 
         if (segment.IsFold)
         {
-            RenderFold(target, segment);
+            RenderFold(target, segment, autolinks);
             return;
         }
 
@@ -135,7 +142,7 @@ public static class InlineMarkupRenderer
     /// <summary>
     /// A fold is its caption as a button and its text after it, folded until the button is pressed; the text is markup of its own.
     /// </summary>
-    private static void RenderFold(IHtmlBuilder target, UIInlineSegment segment)
+    private static void RenderFold(IHtmlBuilder target, UIInlineSegment segment, bool autolinks)
         => target.Element("span", fold =>
         {
             _ = fold.Class(FoldClass);
@@ -153,7 +160,7 @@ public static class InlineMarkupRenderer
             _ = fold.Element("span", content =>
             {
                 _ = content.Class(FoldContentClass);
-                RenderSegments(content, UIInlineMarkup.Parse(segment.Text));
+                RenderSegments(content, UIInlineMarkup.Parse(segment.Text, autolinks), autolinks);
             });
         });
 

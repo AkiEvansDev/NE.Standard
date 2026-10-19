@@ -76,10 +76,7 @@ internal sealed partial class FilesController : UIControllerBase
 
     /// <summary>The tree and the editor: side by side from the medium breakpoint, on a phone the editor once a file is pressed.</summary>
     [RecursiveMember]
-    public partial UIResponsive<UIVisibility> ExplorerVisibility { get; set; } = UILayout.PanesListVisibility(false);
-
-    [RecursiveMember]
-    public partial UIResponsive<UIVisibility> EditorVisibility { get; set; } = UILayout.PanesDetailVisibility(false);
+    public partial UIPanesState Panes { get; set; } = new(chosen: true);
 
     private static List<TreeNode> CreateTree()
     {
@@ -152,8 +149,10 @@ internal sealed partial class FilesController : UIControllerBase
     /// <summary>On a phone, the editor in the tree's place, or the tree back again.</summary>
     private void BringEditorForward(bool forward)
     {
-        ExplorerVisibility = UILayout.PanesListVisibility(forward);
-        EditorVisibility = UILayout.PanesDetailVisibility(forward);
+        if (forward)
+            Panes.ShowDetail();
+        else
+            Panes.ShowList();
     }
 
     /// <summary>The editor's way back to the tree, on a phone.</summary>

@@ -3,7 +3,7 @@
 // the server takes past a moment to answer turns the field's glyph into the loading ring until the last one asked is answered.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, SelectClass } from "../addressing/dom-attributes.ts";
+import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, ItemsEmptyAttribute, SelectClass } from "../addressing/dom-attributes.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { PendingDelayMilliseconds } from "../events/pending-mark.ts";
 import { CommitPauses } from "./debounced-commit-engine.ts";
@@ -238,23 +238,29 @@ export function toggleNoMatchPlaceholder(owner: HTMLElement, list: HTMLElement, 
 
     if (!show) {
         existing?.remove();
+        list.toggleAttribute(ItemsEmptyAttribute, false);
         return;
     }
 
-    if (existing !== null)
-        return;
+    // The empty host's mark while the line stands there, as an items host wears it (items-empty-renderer.ts).
+    list.toggleAttribute(ItemsEmptyAttribute, existing !== null || appendNoMatchPlaceholder(owner, list));
+}
 
+/** Clones the owner's empty template into the list and answers whether it had one. */
+function appendNoMatchPlaceholder(owner: HTMLElement, list: HTMLElement): boolean {
     const template = owner.querySelector<HTMLTemplateElement>(`:scope > template[${EmptyTemplateAttribute}]`);
 
     if (template === null)
-        return;
+        return false;
 
     const fragment = template.content.cloneNode(true) as DocumentFragment;
     const root = fragment.firstElementChild;
 
     if (root === null)
-        return;
+        return false;
 
     root.setAttribute(EmptyPlaceholderAttribute, "");
     list.appendChild(root);
+
+    return true;
 }

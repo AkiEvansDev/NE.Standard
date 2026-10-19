@@ -32,10 +32,8 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
         => UILayout.Panes(
             CreateList(),
             CreateReadingPane(),
-            nameof(InboxController.ListVisibility),
-            nameof(InboxController.ReadingVisibility),
-            UIPage.Empty(DemoIcons.Outline(DemoIcons.Mail), "Pick a message", "It opens here, and stays open while you narrow the list."),
-            nameof(InboxController.EmptyVisibility)
+            nameof(InboxController.Panes),
+            UIPage.Empty(DemoIcons.Outline(DemoIcons.Mail), "Pick a message", "It opens here, and stays open while you narrow the list.")
         )
         .SetPadding(UIThickness.All(0, 8, 0, 0))
         .SetHeight(UILayoutLength.Fill())

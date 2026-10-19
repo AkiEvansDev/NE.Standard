@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
@@ -55,15 +57,26 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
             _ = root.Class(WebClassNames.MenuNested);
 
         // Render-time only: a rail is a shape of the page, drawn by the stylesheet and read by the group engine to fly its groups out.
-        _ = ResolveRenderValue(context, MenuComponent.DisplayProperty, out UIMenuDisplay? display, out _);
+        // The base tier's shape is drawn; a menu whose tiers differ names its rail tiers, and the client draws the width's.
+        _ = ResolveRenderValue(context, MenuComponent.DisplayProperty, out UIResponsive<UIMenuDisplay>? display, out _);
 
-        var rail = display == UIMenuDisplay.Rail;
+        UIResponsive<UIMenuDisplay> shape = display ?? UIMenuDisplay.List;
+        var rail = shape.Base == UIMenuDisplay.Rail;
+        var railTiers = RailTiers(shape);
+        var everRail = rail || railTiers is not null;
+        var everList = !rail || railTiers is not null;
 
         if (rail)
+            _ = root.Class(WebClassNames.MenuRail);
+
+        if (railTiers is not null)
+            _ = root.Attribute(WebAttributes.MenuRailTiers, railTiers);
+
+        if (everRail)
         {
-            // Render-time only, as the rail is: its measures are the stylesheet's, picked by the class.
+            // Render-time only, as the rail is: its measures are the stylesheet's, picked by the class, read only while it is a rail.
             _ = ResolveRenderValue(context, MenuComponent.SizeProperty, out UIButtonSize? size, out _);
-            _ = root.Class(WebClassNames.MenuRail).Class(WebClassNames.MenuRailSize(size ?? UIButtonSize.Medium));
+            _ = root.Class(WebClassNames.MenuRailSize(size ?? UIButtonSize.Medium));
         }
 
         _ = ResolveRenderValue(context, MenuComponent.ShowSearchProperty, out bool? search, out _);
@@ -77,8 +90,9 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (IsPopupMenu(context, context.Node) && !IsContextMenuRoot(context))
             _ = root.Attribute("role", "menu");
 
-        // A rail has nothing left to fold: no fold, no switch, and no head to carry a drawer's pin.
-        CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: !rail, pinSide: rail ? null : DrawerPinSide(context));
+        // A rail at every width has nothing left to fold: no fold, and no head to carry a drawer's pin. A menu that is a list at some
+        // width keeps both for it; the rail's styles leave them unread (ui-menu.less, ui-collapsible.less).
+        CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: everList, pinSide: everList ? DrawerPinSide(context) : null);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty, SurfaceOperations);
         RenderPopupSurface(context);
@@ -88,6 +102,23 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         RegisterItemsFilterSortMetadata(context);
 
         RenderItems(context, root);
+    }
+
+    /// <summary>The tiers the menu is a rail in, as <see cref="WebAttributes.MenuRailTiers"/> lists them; null where it is one shape at every width.</summary>
+    private static string? RailTiers(UIResponsive<UIMenuDisplay> display)
+    {
+        StringBuilder tiers = new();
+        var count = 0;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (display.Resolve(tier) != UIMenuDisplay.Rail)
+                continue;
+
+            _ = (count++ == 0 ? tiers : tiers.Append(' ')).Append(WebResponsiveCss.TierWord(tier));
+        }
+
+        return count is 0 or (int)UIResponsiveTier.Xxl + 1 ? null : tiers.ToString();
     }
 
     /// <summary>

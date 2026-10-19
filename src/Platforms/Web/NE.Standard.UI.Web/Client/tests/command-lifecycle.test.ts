@@ -92,6 +92,7 @@ function createPage(eventName: string, form: "passes" | "fails" | "none"): Page 
         valueBinding: real<ValueBindingEngine>({
             whenSent: () => Promise.resolve(),
             whenSettled: () => Promise.resolve(),
+            pressForm: () => ({ values: new Map(), close: () => undefined }),
             submitFormAsync: () => {
                 steps.push("held-values");
 

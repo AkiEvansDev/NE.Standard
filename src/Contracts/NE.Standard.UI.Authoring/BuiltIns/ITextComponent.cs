@@ -41,4 +41,20 @@ public interface ITextComponent : ITextBaseComponent, ITextModel
     /// <remarks>Render-time only: the first paint and every value pushed later are written the same way.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     bool? DescriptionPlain { get; }
+
+    /// <summary>
+    /// Gets the registered property key for <see cref="DescriptionAutolinks"/>.
+    /// </summary>
+    static UIProperty DescriptionAutolinksProperty { get; } = new(nameof(DescriptionAutolinks));
+
+    /// <summary>
+    /// Gets whether a bare <c>http://</c> or <c>https://</c> address in the description is a link, as <c>[words](address)</c> is;
+    /// unset, it is text. <see cref="DescriptionPlain"/> wins over it.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only: the first paint and every value pushed later are read the same way. An address in a phrase's argument
+    /// links too, escaped or not.
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
+    bool? DescriptionAutolinks { get; }
 }

@@ -1,8 +1,10 @@
 // Classic head script, built as one with what it imports: as the parser produces the body, applies the stored boot patches (a tree's
 // fold walked by its rows' parents), writes every moment the server painted in UTC — a timestamp, a moment in words — in the reader's
-// zone, marks a theme field's current choice, and holds every region with a part a package's engine draws, before the first paint.
+// zone, marks a theme field's current choice, gives a menu whose display differs by breakpoint the width's shape, and holds every
+// region with a part a package's engine draws, before the first paint.
 
-import { MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
+import { MenuRailTiersAttribute, MomentsAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
+import { fitMenuShape } from "./rendering/menu-shape.ts";
 import { momentsOfMark, readMomentsAttribute, readPageTemporal, serverMomentPaint } from "./rendering/moment-first-paint.ts";
 import type { PaintedMoment } from "./rendering/moment-first-paint.ts";
 import type { TemporalLanguage } from "./rendering/temporal-format.ts";
@@ -61,6 +63,12 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
     // Held before its first paint, as its region is parsed: the runtime lets it show once the engines that draw its part have started.
     jobs.push(job(AwaitsDrawSelector, element => {
         holdRegionOf(element);
+        return true;
+    }));
+
+    // A rail on one width and a list on another, drawn as the width's from its first paint rather than turned by the runtime after it.
+    jobs.push(job(`[${MenuRailTiersAttribute}]`, element => {
+        fitMenuShape(element);
         return true;
     }));
 

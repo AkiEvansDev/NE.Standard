@@ -1,6 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import type { ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
-import { PlainTextAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
+import { AutolinksAttribute, PlainTextAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
 import { isNullishValue, toDomString } from "../extensions/value-readers.ts";
 import { getDomOperationKind, getValueCondition } from "../metadata/metadata-index.ts";
 import type { WebDomOperation, WebDomOperationKind, WebValueCondition } from "../metadata/metadata-index.ts";
@@ -85,7 +85,7 @@ export class DomOperationRegistry {
                 return;
             }
 
-            applyInlineMarkup(context.target, isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue));
+            applyInlineMarkup(context.target, isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue), { autolinks: context.target.hasAttribute(AutolinksAttribute) });
             forgetWords(context.target, null);
         });
 

@@ -97,12 +97,13 @@
     .ui-pin-glyph(@ui-glyph-sm; 1);
 }
 
-// Folded, the panel is its switch alone: what stood beside it, the pin too, comes back with the panel.
-.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]) > .ui-collapsible__bar > :is(.ui-collapsible__bar-content, .ui-collapsible__pin) {
+// Folded, the panel is its switch alone: what stood beside it, the pin too, comes back with the panel. Never a menu's rail, here and
+// below, which keeps the fold of the list it is on another width (MenuComponent.Display) without drawing it.
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail) > .ui-collapsible__bar > :is(.ui-collapsible__bar-content, .ui-collapsible__pin) {
     display: none;
 }
 
-.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--left, .ui-side--right) > .ui-collapsible__bar {
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail):is(.ui-side--left, .ui-side--right) > .ui-collapsible__bar {
     justify-content: center;
 }
 
@@ -114,16 +115,16 @@
 }
 
 // Collapsed, the panel is a rail the width of its switch, over the responsive size chain.
-.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--left, .ui-side--right) {
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail):is(.ui-side--left, .ui-side--right) {
     min-width: 0;
     width: fit-content;
 }
 
-    .ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--left, .ui-side--right) > .ui-collapsible__toggle {
+    .ui-collapsible[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail):is(.ui-side--left, .ui-side--right) > .ui-collapsible__toggle {
         align-self: center;
     }
 
-.ui-collapsible[data-ui-collapsed]:not([data-ui-folding]):is(.ui-side--top, .ui-side--bottom) {
+.ui-collapsible[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail):is(.ui-side--top, .ui-side--bottom) {
     min-height: 0;
     height: fit-content;
 }

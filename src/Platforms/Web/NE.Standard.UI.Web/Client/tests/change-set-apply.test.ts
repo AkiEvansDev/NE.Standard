@@ -2,7 +2,8 @@
 // filter and group it once, and the component index reads it once. What a later update of the set may address is ready for it: the
 // rows an insert draws are indexed at once, and a virtualized host draws its rows before an update to another list. A window's trim
 // takes the cursor's row off the page alone: the cursor waits for it, where a delete moves it on. A window's rows sent whole are told to
-// its engine, which learns their sizes anew where it did not ask for them.
+// its engine, which learns their sizes anew where it did not ask for them. A row built later gives a host inside it the collection its
+// template's copies share, its empty state let go of at once.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,12 +19,16 @@ const { UpdateProcessor } = await import("../src/updates/update-processor.ts");
 type Processor = InstanceType<typeof UpdateProcessor>;
 type Registry = InstanceType<typeof DomRegistry>;
 
+// A list inside an item template, whose collection every row's copy shares.
+const TemplateList = 20;
+
 /** What a scene records: the passes that brought a host in step, by component, and what else happened, in order. */
 type Scene = {
     readonly processor: Processor;
     readonly dom: Registry;
     readonly log: string[];
     readonly invalidated: Element[];
+    readonly fillRow: (row: Element) => void;
 };
 
 function row(key: string): FakeElement {
@@ -41,6 +46,7 @@ function list(componentId: number, keys: readonly string[], mode: string | null 
 function scene(...lists: FakeElement[]): Scene {
     const log: string[] = [];
     const invalidated: Element[] = [];
+    let fillRow: (row: Element) => void = () => undefined;
 
     fakeDocument.body.replaceChildren(FakeElement.of("page").append(...lists));
 
@@ -61,7 +67,7 @@ function scene(...lists: FakeElement[]): Scene {
 
     // A plain host's pass asks for its group template once; a virtualized host's is the engine's own.
     const templates = {
-        isTemplateComponent: () => false,
+        isTemplateComponent: (componentId: number) => componentId === TemplateList,
         getEmptyTemplate: () => undefined,
         getGroupTemplate: (componentId: number) => {
             log.push(`sync ${componentId}`);
@@ -74,7 +80,9 @@ function scene(...lists: FakeElement[]): Scene {
         remove: (_host: Element, keys: readonly string[]) => log.push(`remove ${keys.join(",")}`)
     };
     const renderer = {
-        setRowFiller: () => undefined,
+        setRowFiller: (filler: (row: Element) => void) => {
+            fillRow = filler;
+        },
         getAncestorStack: () => [],
         getItemScope: () => undefined,
         getItemValue: () => undefined,
@@ -97,7 +105,7 @@ function scene(...lists: FakeElement[]): Scene {
     const rowMenus = { holds: () => false, standsInRowsOf: () => false, heldChanged: () => undefined };
     const processor = new UpdateProcessor(real(metadata), real(patches), real(state), real(renderer), real(templates), dom, real(virtualization), real({}), real(rowMenus));
 
-    return { processor, dom, log, invalidated };
+    return { processor, dom, log, invalidated, fillRow: row => fillRow(row) };
 }
 
 function change(componentId: number, action: string, ...keys: string[]): ServerUIUpdate {
@@ -179,4 +187,23 @@ test("a windowed host's rows sent whole are told to the window engine, once per 
 
     assert.deepEqual(keysOf(windowedView), ["c", "d"]);
     assert.deepEqual(refilled, [windowedView.children[0]]);
+});
+
+test("a row built later takes its list's empty state off with the placeholder, so a refill that never comes leaves no empty mark", async () => {
+    const target = scene();
+    const nested = list(TemplateList, []);
+    const host = nested.children[0];
+
+    host.setAttribute("data-ui-items-empty", "");
+    host.append(FakeElement.of("", { "data-ui-empty-placeholder": "" }));
+    apply(target, change(TemplateList, "Reset"), change(TemplateList, "Insert", "fire"));
+    target.fillRow(real(FakeElement.of("ui-items-view__item", { "data-ui-key": "r1" }).append(nested)));
+
+    assert.equal(host.children.length, 0);
+    assert.equal(host.hasAttribute("data-ui-items-empty"), false);
+
+    // The row never reached the page: the refill passes the host by, and it stays as emptied.
+    await Promise.resolve();
+
+    assert.equal(host.hasAttribute("data-ui-items-empty"), false);
 });
