@@ -169,6 +169,10 @@ internal sealed partial class UIViewCompilationContext
     /// </remarks>
     private void WarnOnUnresolvableControllerPath(IVisualComponent component, string propertyName, CompiledPath path)
     {
+        // A template no row is ever drawn with (a static menu's submenu, no entry holding sub-entries) binds nothing anyone sees.
+        if (IsNeverDrawn(component))
+            return;
+
         if (FindMissingControllerProperty(path) is (string missingProperty, Type owner))
         {
             _warnings.Add(new(
@@ -363,7 +367,7 @@ internal sealed partial class UIViewCompilationContext
     private void WarnOnRootShadowedByRow(IVisualComponent component, string propertyName, UIBinding binding, Dictionary<string, ResolvedComponentContext> componentContexts)
     {
         if (binding.Scope != UIBindingScope.Root || binding.Source.Count == 0 || binding.Source[0].Kind != PathSegmentKind.Property
-            || !componentContexts.TryGetValue(component.Id, out ResolvedComponentContext context) || !StandsInARow(context.Path))
+            || !componentContexts.TryGetValue(component.Id, out ResolvedComponentContext context) || !StandsInARow(context.Path) || IsNeverDrawn(component))
         {
             return;
         }

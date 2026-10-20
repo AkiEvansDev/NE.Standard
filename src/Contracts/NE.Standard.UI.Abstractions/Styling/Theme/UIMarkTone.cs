@@ -6,6 +6,6 @@ public enum UIMarkTone
     /// <summary>The brand's colour: the primary, or its ink where the mark is read as words are.</summary>
     Brand,
 
-    /// <summary>The mode's text colour: near-white on a dark page, near-black on a light one.</summary>
+    /// <summary>The mode's muted text colour: a light grey on a dark page, a dark grey on a light one.</summary>
     Neutral
 }

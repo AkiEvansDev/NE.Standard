@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -8,11 +9,13 @@ using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Recursive;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -242,7 +245,7 @@ internal sealed partial class UIViewCompilationContext
         if (kind == UIActionArgumentKind.CurrentItem && path.Source.Kind == CompiledUIBindingSourceKind.Controller && path.Template.Parts.Length == 0)
             throw new InvalidOperationException($"Component '{component.Id}' passes argument '{name}' as {kind}, but stands in no row and binds no context, so the item would be the controller itself.");
 
-        if (kind != UIActionArgumentKind.Binding)
+        if (kind != UIActionArgumentKind.Binding || IsNeverDrawn(component))
             return;
 
         if (FindMissingControllerProperty(path) is (string property, Type owner))
@@ -299,6 +302,64 @@ internal sealed partial class UIViewCompilationContext
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Whether the compile can prove no row of the component's template is ever drawn: it stands in the rows of a list bound to one
+    /// property of its row (a menu's submenu, bound to an entry's <c>Items</c>), and every item the host of that row declares leaves the
+    /// property empty. Such a template is walked for no warning; a host of bound items may hold any, so its templates keep theirs.
+    /// </summary>
+    private bool IsNeverDrawn(IVisualComponent component)
+    {
+        for (var id = component.Id; id is not null; id = _parentByComponentId.GetValueOrDefault(id))
+        {
+            if (_slotByRootComponentId.TryGetValue(id, out UIComponentSlot? slot) && IsItemsTemplateSlot(slot.Kind) && DrawsNoRow(_components[GetAuthoringId(slot.OwnerComponentId)]))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a list bound to one property of the row it stands in draws no row: every item the row's host declares leaves it empty.</summary>
+    private bool DrawsNoRow(IVisualComponent list)
+    {
+        if (list is not IItemsComponent items || !TryGetItemsBinding(items, out UIBinding binding) || binding.Scope != UIBindingScope.Relative
+            || binding.Source.Count != 1 || binding.Source[0].Kind != PathSegmentKind.Property)
+        {
+            return false;
+        }
+
+        // From the list itself: a submenu is the root of its host's own template.
+        for (var id = list.Id; id is not null; id = _parentByComponentId.GetValueOrDefault(id))
+        {
+            if (!_slotByRootComponentId.TryGetValue(id, out UIComponentSlot? slot) || !IsItemsTemplateSlot(slot.Kind))
+                continue;
+
+            // The row's host: only the items it declares are known; a bound host's rows are the controller's.
+            return _components[GetAuthoringId(slot.OwnerComponentId)] is IItemsComponent { HasItems: true } host
+                && !TryGetItemsBinding(host, out _)
+                && LeaveEmpty(host.Items, binding.Source[0].Property);
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether every item holds nothing under <paramref name="property"/>: no value, or a collection with no element.</summary>
+    private static bool LeaveEmpty(IReadOnlyList<object?> items, string property)
+    {
+        foreach (var item in items)
+        {
+            if (!ItemContext.TryReadProperty(item, property, out var value))
+                return false;
+
+            if (value is null)
+                continue;
+
+            if (value is string || value is not IEnumerable collection || collection.GetEnumerator().MoveNext())
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>Whether the command's press shows it is working; a built-in command, or one with no controller to read, does.</summary>

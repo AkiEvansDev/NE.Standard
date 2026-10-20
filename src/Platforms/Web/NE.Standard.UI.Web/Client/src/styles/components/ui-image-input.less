@@ -558,13 +558,14 @@
         display: none;
     }
 
-    // The shelf's own drop mark, where a file is let go on the thumbnails themselves: every drop target's edge, round them.
-    .ui-image-input--shelf[data-ui-image-dragging] > .ui-image-input__surface {
+    // The shelf's own drop mark, where a file is let go on the thumbnails themselves: every drop target's edge, round them, not on
+    // them (a picture would cover it). As live as the surface's own above, so the offset outweighs it.
+    .ui-image-input--shelf[data-ui-image-dragging]@{ui-field-live} > .ui-image-input__surface {
         .ui-drop-edge();
         outline-offset: @ui-space-1;
     }
 
-    .ui-image-input--shelf[data-ui-image-dragging="refused"] > .ui-image-input__surface {
+    .ui-image-input--shelf[data-ui-image-dragging="refused"]@{ui-field-live} > .ui-image-input__surface {
         .ui-drop-edge(var(--ui-color-danger-ink));
         outline-offset: @ui-space-1;
     }

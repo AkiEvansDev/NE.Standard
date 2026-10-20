@@ -298,7 +298,7 @@ public static class WebThemeCssBuilder
 
     /// <summary>
     /// The colours of the three marks a theme sets the tone of (<see cref="UITheme.KeyboardMark"/>, <see cref="UITheme.FieldFocus"/>,
-    /// <see cref="UITheme.SelectionMark"/>): the brand's, or the mode's text colour. A line read as words are takes the brand's ink,
+    /// <see cref="UITheme.SelectionMark"/>): the brand's, or the mode's muted text colour. A line read as words are takes the brand's ink,
     /// which reads on the page whatever the primary — not lifted on a dark page, where the ink lifted for a tint read as a white line
     /// the brand did not mean; a fill-like one (a field's edge, a glow, a drop line) the primary itself.
     /// </summary>
@@ -310,7 +310,8 @@ public static class WebThemeCssBuilder
         Append(builder, "mark-selected-fill", MarkTone(theme.SelectionMark, "var(--ui-color-primary)"));
     }
 
-    private static string MarkTone(UIMarkTone tone, string brand) => tone == UIMarkTone.Neutral ? "var(--ui-color-on-surface)" : brand;
+    // Neutral is the muted ink, not the text's own: a full-white line read as louder than the brand's it stood in for.
+    private static string MarkTone(UIMarkTone tone, string brand) => tone == UIMarkTone.Neutral ? "var(--ui-text-muted)" : brand;
 
     private static void AppendInkOnTint(StringBuilder builder, string role, string share)
         => Append(builder, $"color-{role}-ink-on-tint", $"color-mix(in srgb, var(--ui-color-{role}-ink) {share}, var(--ui-color-on-surface))");
