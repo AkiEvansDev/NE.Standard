@@ -9,12 +9,12 @@ namespace NE.Standard.UI.Authoring.Components;
 public interface IGridTracksComponent : IContainerComponent
 {
     /// <summary>
-    /// Gets the column definitions, one per grid column.
+    /// Gets the column definitions, one per grid column, each optionally per breakpoint.
     /// </summary>
-    IReadOnlyList<UIGridUnit> Columns { get; }
+    IReadOnlyList<UIResponsive<UIGridUnit>> Columns { get; }
 
     /// <summary>
-    /// Gets the row definitions, in order.
+    /// Gets the row definitions, in order, each optionally per breakpoint.
     /// </summary>
-    IReadOnlyList<UIGridUnit> Rows { get; }
+    IReadOnlyList<UIResponsive<UIGridUnit>> Rows { get; }
 }

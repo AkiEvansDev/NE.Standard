@@ -16,7 +16,10 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// <summary>A tree on the file list's model: thin rows with a glyph and title, folded by a chevron kept on the client.</summary>
 /// <remarks>
 /// Selected and pressed like an items view, opened by double click or Enter, renamed in place, with a menu by kind. Nodes are a flat
-/// keyed list in walking order, each naming the node above it.
+/// keyed list in walking order, each naming the node above it. A <c>Draggable</c> node drops onto a folder (<c>IsFolder</c>, else a
+/// node holding children), between two nodes or onto the tree's own ground: the move writes <c>DropTarget</c> and raises <c>move</c>
+/// with the node's place in that folder (<see cref="OnNodeMoveWithItemKey"/>); the controller moves the node, since nothing moves on
+/// the client. <c>Renamable</c> renames by F2 or a <c>RenameNodeEffect</c>; <c>Removable</c> gates the Delete key's <c>remove</c>.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
@@ -27,7 +30,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyDefault(nameof(IRowHoverableComponent.RowHoverable), nameof(DefaultRowHoverable))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
-public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDragSourceComponent, IEmptyStateComponent, IPressablePartsComponent
+[UIComponentPropertyBlock(typeof(IItemsHostAbilitiesComponent))]
+public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDragSourceComponent, IEmptyStateComponent, IPressablePartsComponent, IItemsHostAbilitiesComponent
     where T : TreeComponent<T>, IUIComponentDefinition
 {
     private const double DefaultIndent = 16;
@@ -42,32 +46,10 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     public double? Indent { get; set; }
 
     /// <summary>
-    /// Gets or sets whether a node's title can be renamed in place: F2, or a <c>RenameNodeEffect</c> from a menu.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? Renamable { get; set; }
-
-    /// <summary>
     /// Gets or sets whether a double click renames the node rather than opening it; Enter opens either way.
     /// </summary>
     [UIComponentProperty(DefaultValue = false)]
     public bool? RenameOnDoubleClick { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether a node can be dragged onto a folder (<c>IsFolder</c>, else a node holding children), between two nodes or
-    /// onto the tree's own ground, or moved by Alt with an arrow: the move writes <c>DropTarget</c> and raises <c>move</c> with the
-    /// node's place in that folder (<see cref="OnNodeMoveWithItemKey"/>); the controller moves the node, since nothing moves on the
-    /// client.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? Draggable { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether the Delete key raises <c>remove</c> on the keyboard's node at all; a single node refuses it with
-    /// the item's <c>CanRemove</c>.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = true)]
-    public bool? Removable { get; set; }
 
     /// <summary>
     /// Gets or sets whether a node that can unfold draws its chevron; off, folding still works from the keyboard (arrows), and a
@@ -97,12 +79,6 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// </summary>
     public T ConfigureDefaultNode(Action<TreeNodeComponent> configure)
         => Self.ConfigureTemplate(NodeTemplate, configure, "template");
-
-    /// <summary>
-    /// Configures the built-in default empty template, throwing if a different template has been set.
-    /// </summary>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
 
     /// <summary>
     /// Sets the node template a node is drawn with when no variant matches its kind.

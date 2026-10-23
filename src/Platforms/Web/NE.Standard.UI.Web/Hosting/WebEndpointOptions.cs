@@ -17,11 +17,11 @@ public sealed class WebEndpointOptions
     public string? AuthorizationPolicy { get; set; }
 
     /// <summary>
-    /// Gets or sets whether content and downloads are served inert: a <c>Content-Security-Policy</c> that runs nothing, and a
-    /// type a browser would render as a document (HTML, XML, SVG) sent as an attachment. On by default; an application that
-    /// deliberately serves active content turns it off.
+    /// Gets or sets whether content and an upload served back that run nothing — a PDF, a raster picture, plain text, audio, video —
+    /// are shown in the page's own origin rather than sandboxed, so Chromium opens a PDF inline. Off by default. Whatever it says,
+    /// HTML, XML, SVG and an unparsed type go sandboxed and as an attachment, and a type a page could run as bytes to save.
     /// </summary>
-    public bool InertContent { get; set; } = true;
+    public bool InlinePassiveContent { get; set; }
 
     /// <summary>
     /// Gets or sets whether a page may be framed only by the sources <see cref="FrameAncestors"/> names. On by default, so a sibling

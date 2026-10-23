@@ -18,6 +18,7 @@ import { ToggleButtonEngine } from "../interactions/toggle-button-engine";
 import { FieldBoxPressEngine } from "../interactions/field-box-press-engine";
 import { FieldEnterEvent, FieldKeysEngine } from "../interactions/field-keys-engine";
 import { ImageFallbackEngine } from "../interactions/image-fallback-engine";
+import { TierClassEngine } from "../rendering/tier-class";
 import { RadioGroupSyncEngine } from "../interactions/radio-group-sync-engine";
 import { SelectInteractionEngine } from "../interactions/select-interaction-engine";
 import { SearchEvent, SearchInputEngine } from "../interactions/search-input-engine";
@@ -128,6 +129,9 @@ import { ReactiveSourceRegistry } from "../updates/reactive-source-registry";
 import { UpdateProcessor } from "../updates/update-processor";
 import { EntryValidation, FieldValidation, RuleJudging, ShownValueValidation, ValidationEngine } from "../interactions/validation-engine";
 import { ValueBindingEngine } from "../updates/value-binding-engine";
+import type { UnsavedValue } from "../updates/value-binding-engine";
+import { UnsavedStash } from "./unsaved-stash";
+import type { StashedPage } from "./unsaved-stash";
 import { ExtensionRegistry } from "../extensions/extension-registry";
 import { MenuRowDecorator } from "../items/menu-row-decorator";
 import { RadioRowDecorator } from "../items/radio-row-decorator";
@@ -234,6 +238,8 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
     ["field keys", ({ root, propertyPatchEngine }) => new FieldKeysEngine({ root, propertyPatchEngine })],
     ["field box press", ({ root }) => new FieldBoxPressEngine({ root })],
+    // Ahead of the engines reading a class it sets (an orientation, a size, a list's layout), so they read the width's.
+    ["tier classes", ({ root }) => new TierClassEngine({ root })],
     ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],
     ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root })],
     ["select interaction", ({ root, validation }) => new SelectInteractionEngine({ root, validation })],
@@ -332,6 +338,9 @@ export class WebUIRuntime {
 
     private connectionLost = false;
 
+    // A reload is under way: what a reload carried over stays kept for the page that loads next.
+    private reloading = false;
+
     // Says a reconnect that outlasts its grace on the page, and that the connection is lost.
     private readonly connection: ConnectionWatch;
 
@@ -353,6 +362,18 @@ export class WebUIRuntime {
 
     // Sends what the page's fields still hold and resolves once every value given is answered; built with the value engine.
     private readonly settleValues: () => Promise<void>;
+
+    // What the fields hold that the server never took, carried over a reload the page has to make; built with the value engine.
+    private readonly unsaved = new UnsavedStash();
+    private readonly readUnsaved: () => UnsavedValue[];
+    private readonly restoreUnsaved: (values: readonly UnsavedValue[]) => number;
+    // Applies an attach's snapshot with the field the reader is typing in held; built with the value engine.
+    private readonly holdTypedDuring: (apply: () => void) => void;
+
+    // Settles once the attach after a drop has applied its snapshot: a value that waited out the drop is weighed then.
+    private current: Promise<void> = Promise.resolve();
+    private currentPending = false;
+    private markCurrent: () => void = () => { };
 
     // The change sets still waiting on a staged value, in order; null while every one has been applied.
     private inbound: Promise<void> | null = null;
@@ -554,7 +575,7 @@ export class WebUIRuntime {
         });
 
         // Value sync is independent of the event pipeline: a component with both does two round-trips on one "change".
-        const valueChangeDispatcher = new ValueChangeDispatcher(this.transport);
+        const valueChangeDispatcher = new ValueChangeDispatcher(this.transport, { whenCurrent: () => this.current });
         valueBinding = new ValueBindingEngine({
             root: this.root,
             metadata: this.metadata,
@@ -569,13 +590,19 @@ export class WebUIRuntime {
                     this.ruleWatcher.awaitAnswer(change);
             },
             // Built below; asked only on a change, which comes after both are.
-            refuses: element => validationEngine.refusesBounds(element)
+            refuses: element => validationEngine.refusesBounds(element),
+            readRecorded: (reference, dynamicParameters) => propertyState.has(reference, dynamicParameters) ? propertyState.get(reference, dynamicParameters) : undefined,
+            markConflict: (component, conflicting) => validationEngine.markConflict(component, conflicting)
         });
         propertyPatchEngine.setHeldTargets(valueBinding);
         this.settleValues = async () => {
             commitWaiting();
             await valueChangeDispatcher.whenAnsweredAsync();
         };
+        this.readUnsaved = () => valueBinding?.unsavedValues() ?? [];
+        this.holdTypedDuring = apply => valueBinding === undefined ? apply() : valueBinding.holdTypedDuring(apply);
+        // Written as a push of the binding writes it, onto the elements of the field's component that carry the binding.
+        this.restoreUnsaved = unsaved => valueBinding?.restoreUnsaved(unsaved, (element, bindingId, value) => propertyPatchEngine.writeBoundValue(element, value, bindingId)) ?? 0;
 
         // Here rather than with the registry's defaults: it needs the value engine, which is built after the registry.
         this.effects.register(ClientEffectKinds.DiscardForm, context => {
@@ -837,6 +864,7 @@ export class WebUIRuntime {
         });
         this.transport.onReconnecting(error => {
             logWarn("SignalR reconnecting.", error);
+            this.awaitSnapshot();
 
             // A result still to come would be pushed to the connection that just dropped, which the new one never hears.
             this.dispatcher.release(new Error("the connection to the server dropped before the command answered.", { cause: error }));
@@ -846,9 +874,26 @@ export class WebUIRuntime {
             logDebug("SignalR reconnected. Reattaching runtime.");
             await this.attachAsync();
         });
-        // Once the automatic reconnect has given up, or the connection was stopped: either way it does not come back.
+        // Once the reconnect has run past the server's retention, or the connection was stopped: either way it does not come back.
         this.transport.onClosed(error => this.loseConnection(error ?? new Error("the connection to the server closed.")));
+        // Said, as a refusal is: the press did nothing, and the reader presses again on the page as it now stands.
+        this.transport.onCommandExpired(() => this.notifications.show({ message: clientStrings.text("ui.command.expired"), severity: "warning" }));
         this.connection = new ConnectionWatch({ root: document.documentElement, connection: this.transport, notifications: this.notifications });
+    }
+
+    /** From a drop until the next attach's snapshot is applied, `current` waits: what the page holds until then is from before the drop. */
+    private awaitSnapshot(): void {
+        // A second drop before the attach keeps the wait already pending: whoever waits on it would otherwise wait for ever.
+        if (this.currentPending)
+            return;
+
+        this.currentPending = true;
+        this.current = new Promise<void>(resolve => {
+            this.markCurrent = () => {
+                this.currentPending = false;
+                resolve();
+            };
+        });
     }
 
     /** Holds every change set until `ready` settles — the page's words — and lets them through once it has, failed or not. */
@@ -1102,7 +1147,7 @@ export class WebUIRuntime {
         return this.dom.findAllComponents(componentId, []).filter(component => endsWithDynamicParameters(component, parameters));
     }
 
-    /** The connection is gone for good: calls fail at once and a reload is offered, as the page never reconnects itself; said once. */
+    /** The connection is gone for good — the reconnect ran past the server's retention, or the page cannot attach: calls fail at once and a reload is offered; said once. */
     private loseConnection(reason: unknown): void {
         if (this.connectionLost)
             return;
@@ -1118,20 +1163,35 @@ export class WebUIRuntime {
 
         this.transport.close(lost);
         this.dispatcher.release(lost);
+        // Kept now, as the page can send nothing more: a reload by the browser's own button finds it too.
+        this.stashUnsaved();
+        // No snapshot is coming: the values waiting for one fail on the closed gate rather than hold a leave's settle for ever.
+        this.markCurrent();
         this.notifications.show({
             message: clientStrings.text("ui.connection.lost"),
             severity: "danger",
             sticky: true,
             connection: true,
-            // Unasked: the page can save nothing now, and what reached its runtime is still there after the reload while the runtime lives.
+            // Unasked: the page can save nothing now, what reached its runtime is still there while the runtime lives, and what did not
+            // is carried over the reload.
             action: {
                 label: clientStrings.text("ui.connection.reload"),
                 run: () => {
+                    this.stashUnsaved();
                     this.leaveGuard.release();
                     this.reload();
                 }
             }
         });
+    }
+
+    /** Keeps what the fields hold that the server never took, for the reload the page is about to make (`unsaved-stash.ts`). */
+    private stashUnsaved(): void {
+        this.unsaved.save(this.stashedPage(), this.readUnsaved());
+    }
+
+    private stashedPage(): StashedPage {
+        return { windowId: this.windowId, address: `${window.location.pathname}${window.location.search}`, view: this.hydration?.view ?? null };
     }
 
     /**
@@ -1154,6 +1214,7 @@ export class WebUIRuntime {
         }
 
         logWarn("the server asked for a reload (another compile of the view, or a session it no longer holds); reloading.", { view });
+        this.stashUnsaved();
         this.leaveGuard.release();
         this.reload();
     }
@@ -1181,12 +1242,14 @@ export class WebUIRuntime {
         }
 
         logWarn("the page's runtime is gone and the server built a new one; reloading.", { view });
+        this.stashUnsaved();
         this.leaveGuard.release();
         this.reload();
     }
 
     /** Reloads the page once a sign-in's key is traded: a load ahead of the trade carries the old key, which names nothing now. */
     private reload(): void {
+        this.reloading = true;
         this.sessionKey.load(() => window.location.reload());
     }
 
@@ -1223,12 +1286,23 @@ export class WebUIRuntime {
 
         await this.attachAsync();
 
+        if (this.connectionLost || this.reloading)
+            return;
+
         // performance.now() counts from the navigation's start, so this is how long the reader waited for a page that answers.
-        if (!this.connectionLost)
-            logDebug(`page live ${formatMilliseconds(performance.now())} after the navigation started.`);
+        logDebug(`page live ${formatMilliseconds(performance.now())} after the navigation started.`);
+        this.putBackUnsaved();
     }
 
-    /** Opens the connection; the automatic reconnect covers a connection that was open, and one that never opened is lost from the start. */
+    /** Puts back what a reload of this page carried over (`stashUnsaved`), into the fields it came from, as the reader's edits. */
+    private putBackUnsaved(): void {
+        const restored = this.restoreUnsaved(this.unsaved.take(this.stashedPage()));
+
+        if (restored > 0)
+            logDebug(`${restored} unsaved value(s) carried over the reload were put back.`);
+    }
+
+    /** Opens the connection; the reconnect covers a connection that was open, and one that never opened is lost from the start. */
     private async connectAsync(): Promise<boolean> {
         try {
             const connecting = performance.now();
@@ -1482,6 +1556,7 @@ export class WebUIRuntime {
             // The snapshot says the page holds unsaved work only where it does: a runtime that saved meanwhile says nothing.
             this.leaveGuard.set(false);
             await this.applyAttachChangesAsync(result.initialChanges);
+            this.markCurrent();
 
             this.updateProcessor.initializeItemsHosts();
 
@@ -1561,7 +1636,7 @@ export class WebUIRuntime {
 
             // In the same turn as the snapshot, so no press lands between: let go of after it, the whole content would restyle twice.
             this.releaseInertContent();
-            this.applyNow(snapshot);
+            this.holdTypedDuring(() => this.applyNow(snapshot));
         }
         catch (error) {
             logError("a staged value of the attach could not be fetched; the page attaches again.", error);

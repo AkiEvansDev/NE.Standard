@@ -90,6 +90,11 @@ public interface IVisualComponent : IBindableComponent
     static UIProperty PlacementProperty { get; } = new(nameof(Placement));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="AlignWithFieldBoxes"/>.
+    /// </summary>
+    static UIProperty AlignWithFieldBoxesProperty { get; } = new(nameof(AlignWithFieldBoxes));
+
+    /// <summary>
     /// Gets the registered property key for <see cref="Loading"/>.
     /// </summary>
     static UIProperty LoadingProperty { get; } = new(nameof(Loading));
@@ -122,14 +127,14 @@ public interface IVisualComponent : IBindableComponent
     UIThemeMode? Theme { get; }
 
     /// <summary>
-    /// Gets where the component sits within its grid cell along the horizontal axis.
+    /// Gets where the component sits within its grid cell along the horizontal axis, optionally overridden per breakpoint.
     /// </summary>
-    UIAlignment? HorizontalAlignment { get; }
+    UIResponsive<UIAlignment>? HorizontalAlignment { get; }
 
     /// <summary>
-    /// Gets where the component sits within its grid cell along the vertical axis.
+    /// Gets where the component sits within its grid cell along the vertical axis, optionally overridden per breakpoint.
     /// </summary>
-    UIAlignment? VerticalAlignment { get; }
+    UIResponsive<UIAlignment>? VerticalAlignment { get; }
 
     /// <summary>
     /// Gets the component width, optionally overridden per breakpoint.
@@ -175,6 +180,17 @@ public interface IVisualComponent : IBindableComponent
     /// Gets the grid placement, optionally overridden per breakpoint.
     /// </summary>
     UIResponsive<UIGridPlacement>? Placement { get; }
+
+    /// <summary>
+    /// Gets whether the component stands level with the boxes of captioned fields beside it — a caption line down, centred on the box —
+    /// and on which boxes, per breakpoint. Unset, the compiler decides it wherever the component stands side by side with a thing that
+    /// draws a caption row (<see cref="UIFieldBoxes"/>); <see cref="UIFieldBoxAlignment.None"/> keeps it where it is laid out.
+    /// </summary>
+    /// <remarks>
+    /// Render-time only. A panel draws it as its top padding and its least height, anything else as its top margin, set down onto the
+    /// band's middle; an authored <c>Padding</c>, <c>MinHeight</c> or <c>Margin</c> replaces them.
+    /// </remarks>
+    UIResponsive<UIFieldBoxAlignment>? AlignWithFieldBoxes { get; }
 
     /// <summary>
     /// Gets whether the component is in loading state — a live state a controller turns on and off.

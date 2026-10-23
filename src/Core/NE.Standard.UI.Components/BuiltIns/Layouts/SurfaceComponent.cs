@@ -17,7 +17,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IClickableComponent))]
 [UIComponentPropertyBlock(typeof(ILinkableComponent))]
-public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedRegionComponentBase<T>(id), ISurfaceStyleComponent, IClickableComponent, ILinkableComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedRegionComponentBase<T>(id), ISurfaceStyleComponent, IClickableComponent, ILinkableComponent, IAccessibleNameComponent
     where T : SurfaceComponent<T>, IUIComponentDefinition
 {
     /// <summary>Whether a clickable surface answers hover quietly — half the wash, no lift — for a strip the pointer crosses on its way elsewhere.</summary>

@@ -3,7 +3,8 @@
 // given while a change set is in flight go together in the next, a field given twice keeping only its latest value. A change set
 // the connection dropped under goes again once the page is attached, each field once with its latest value, a large one staged anew.
 // A change set stays within the hub's message limit, the rest waiting for the next; one the server closed the connection over twice
-// is dropped rather than sent for ever; and values waiting behind an attach that failed go once its retry attaches.
+// is dropped rather than sent for ever; and values waiting behind an attach that failed go once its retry attaches. A value that
+// waited out a drop is weighed against the attach's snapshot first, and one whose field another writer changed meanwhile is not sent.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,7 +12,7 @@ import test from "node:test";
 import type { WebUIChangeSetRequest } from "../src/metadata/metadata-index.ts";
 import { AttachGate, ConnectionDropped } from "../src/transport/attach-gate.ts";
 import { LargeValueBytes } from "../src/transport/value-staging.ts";
-import { ValueChangeDispatcher } from "../src/transport/value-change-dispatcher.ts";
+import { ValueChangeDispatcher, ValueConflict } from "../src/transport/value-change-dispatcher.ts";
 
 type Post = { readonly resolve: (token: string) => void; readonly fail: (status: number) => void };
 
@@ -530,4 +531,163 @@ test("a value waiting behind an attach that failed goes once the retry attaches,
     await settle();
 
     assert.deepEqual(sets, [["typed during the reconnect"]]);
+});
+
+/** The server's value of a field as the page holds it, which the test moves as an attach's snapshot would, and the edit's check of it. */
+function serverValue(start: string): { now: string; readonly unchanged: (own: readonly unknown[]) => boolean } {
+    const held = {
+        now: start,
+        unchanged: (own: readonly unknown[]) => held.now === start || own.includes(held.now)
+    };
+
+    return held;
+}
+
+test("a dropped value whose field another writer changed meanwhile is not sent over it, and its caller hears why", async () => {
+    const hub = createHeldHub();
+    let snapshot = (): void => { };
+    const current = new Promise<void>(resolve => {
+        snapshot = resolve;
+    });
+    const dispatcher = new ValueChangeDispatcher(hub, { whenCurrent: () => current });
+    const server = serverValue("old");
+
+    const mine = dispatcher.dispatchAsync(value("mine"), undefined, server.unchanged);
+
+    hub.drop();
+    hub.attach();
+    await settle();
+
+    // Weighed only once the attach's snapshot is applied: until then the page holds what it saw before the drop.
+    assert.deepEqual(hub.sets, [["mine"]]);
+
+    server.now = "theirs";
+    snapshot();
+
+    await assert.rejects(mine, ValueConflict);
+    assert.deepEqual(hub.sets, [["mine"]]);
+});
+
+test("a dropped value goes again where the server still holds what the edit started from, or holds the value itself", async () => {
+    const hub = createHeldHub();
+    const dispatcher = new ValueChangeDispatcher(hub);
+    const unchanged = serverValue("old");
+    const taken = serverValue("old");
+
+    const first = dispatcher.dispatchAsync(value("a"), undefined, unchanged.unchanged);
+
+    hub.drop();
+    hub.attach();
+    await settle();
+    hub.answer();
+    await first;
+
+    const second = dispatcher.dispatchAsync(value("b", 2), undefined, taken.unchanged);
+
+    await settle();
+    hub.drop();
+    // The dropped send reached the server after all: its snapshot holds the reader's own value.
+    taken.now = "b";
+    hub.attach();
+    await settle();
+    hub.answer();
+    await second;
+
+    assert.deepEqual(hub.sets, [["a"], ["a"], ["b"], ["b"]]);
+});
+
+test("a value given while nothing dropped is sent whatever the server holds: a later write wins", async () => {
+    const hub = createHub();
+    const dispatcher = new ValueChangeDispatcher(hub);
+    const server = serverValue("old");
+
+    server.now = "theirs";
+    await dispatcher.dispatchAsync(value("mine"), undefined, server.unchanged);
+
+    assert.deepEqual(hub.sent, ["mine"]);
+});
+
+test("a value given while the page attaches again is weighed as a dropped one is", async () => {
+    const hub = { ...createHub(), isReattaching: true };
+    const dispatcher = new ValueChangeDispatcher(hub);
+    const server = serverValue("old");
+
+    server.now = "theirs";
+
+    await assert.rejects(dispatcher.dispatchAsync(value("mine"), undefined, server.unchanged), ValueConflict);
+    assert.deepEqual(hub.sent, []);
+});
+
+test("a field edited again while the page reconnects is not taken for another writer's when the server holds the reader's earlier value", async () => {
+    let state = "old";
+    const sets: unknown[][] = [];
+    const answers: { readonly answer: () => void; readonly drop: () => void }[] = [];
+    let waiting: (() => void)[] | null = null;
+    const hub = {
+        isReattaching: false,
+        processChangeSetAsync(request: WebUIChangeSetRequest, before?: () => void): Promise<void> {
+            const invoke = (): Promise<void> => {
+                sets.push(request.updates.map(update => update.value));
+
+                return new Promise<void>((resolve, reject) => answers.push({
+                    answer: () => {
+                        before?.();
+                        resolve();
+                    },
+                    drop: () => reject(new ConnectionDropped(new Error("the socket closed")))
+                }));
+            };
+
+            if (waiting === null)
+                return invoke();
+
+            const held = waiting;
+
+            return new Promise<void>(resume => held.push(resume)).then(invoke);
+        },
+        whenAttached: () => Promise.resolve()
+    };
+    let snapshot = (): void => { };
+    let current = Promise.resolve();
+    const dispatcher = new ValueChangeDispatcher(hub, { whenCurrent: () => current });
+    // As the value engine weighs it: the start read as the value is given, the server's value the page holds read when weighed.
+    const give = (text: string): Promise<void> => {
+        const start = state;
+
+        return dispatcher.dispatchAsync(value(text), () => {
+            state = text;
+        }, own => state === start || own.includes(state));
+    };
+
+    const first = give("x");
+
+    await settle();
+    current = new Promise<void>(resolve => {
+        snapshot = resolve;
+    });
+    waiting = [];
+    hub.isReattaching = true;
+    answers.shift()?.drop();
+    await settle();
+
+    // Typed again while the page reconnects; the dropped "x" is already waiting for the snapshot in a change set of its own.
+    const second = give("y");
+
+    await settle();
+    hub.isReattaching = false;
+
+    for (const resume of waiting)
+        resume();
+
+    waiting = null;
+    snapshot();
+    await settle();
+    answers.shift()?.answer();
+    await first;
+    await settle();
+    answers.shift()?.answer();
+    await second;
+
+    assert.deepEqual(sets, [["x"], ["x"], ["y"]]);
+    assert.equal(state, "y");
 });

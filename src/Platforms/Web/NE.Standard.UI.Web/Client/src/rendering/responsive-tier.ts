@@ -32,24 +32,34 @@ export function onTierChange(handler: () => void, tiers: readonly BreakpointTier
     if (typeof matchMedia !== "function")
         return;
 
-    for (const tier of tiers) {
-        let watch = tierWatches.get(tier);
-
-        if (watch === undefined) {
-            watch = matchMedia(responsiveTierQuery(tier));
-            tierWatches.set(tier, watch);
-        }
-
-        // A listener of its own each: one handler that throws leaves the next its turn, the browser reporting it.
-        watch.addEventListener("change", () => handler());
-    }
+    // A listener of its own each: one handler that throws leaves the next its turn, the browser reporting it.
+    for (const tier of tiers)
+        watchOf(tier).addEventListener("change", () => handler());
 }
 
-/** The tier the viewport is in now, judged the way the stylesheet's own `min-width` queries judge it. */
-export function currentResponsiveTier(matches: (query: string) => boolean = query => matchMedia(query).matches): ResponsiveTier {
-    for (const tier of [...breakpointTiers].reverse()) {
-        if (matches(responsiveTierQuery(tier)))
-            return tier;
+function watchOf(tier: BreakpointTier): MediaQueryList {
+    let watch = tierWatches.get(tier);
+
+    if (watch === undefined) {
+        watch = matchMedia(responsiveTierQuery(tier));
+        tierWatches.set(tier, watch);
+    }
+
+    return watch;
+}
+
+/**
+ * The tier the window stands at now, judged the way the stylesheet's own `min-width` queries judge it; the base where the page has no
+ * `matchMedia`. Read off the page's one watch per breakpoint, which the browser keeps current: a read per patch, per row or per column
+ * makes no media query list.
+ */
+export function currentResponsiveTier(): ResponsiveTier {
+    if (typeof matchMedia !== "function")
+        return "base";
+
+    for (let index = breakpointTiers.length - 1; index >= 0; index--) {
+        if (watchOf(breakpointTiers[index]).matches)
+            return breakpointTiers[index];
     }
 
     return "base";

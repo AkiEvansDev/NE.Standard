@@ -189,7 +189,7 @@ export class FieldKeysEngine {
     private putBack(field: HTMLInputElement | HTMLTextAreaElement, value: string): void {
         this.propertyPatchEngine?.writeBoundValue(field, value);
 
-        // A text field's value operation lands on its component, not on the field, so the field itself is written here.
+        // A field no binding writes takes the words itself.
         if (field.value !== value)
             field.value = value;
     }

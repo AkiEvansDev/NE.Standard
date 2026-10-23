@@ -2,6 +2,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
@@ -13,7 +14,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
 [UIComponentPropertyDefault(nameof(ISpacingComponent.Spacing), nameof(DefaultSpacing))]
-public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, ISpacingComponent
+public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, ISpacingComponent, ICaptionRowComponent
     where T : WrapPanelComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
@@ -31,6 +32,9 @@ public abstract partial class WrapPanelComponent<T>(string? id = null) : Contain
     /// <remarks>Authoring-only: how a set of controls is laid out is decided once by the view.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public UIResponsive<double>? ItemMinWidth { get; set; }
+
+    /// <summary>A caption row where any child draws one: the children run across.</summary>
+    public UIInputSize? CaptionRowBox(UIResponsiveTier tier) => UIFieldBoxes.FirstCaptionRowBox(Children, tier);
 }
 
 /// <summary>

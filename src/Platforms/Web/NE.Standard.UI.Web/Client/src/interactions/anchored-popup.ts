@@ -187,12 +187,22 @@ function hasConfiningAncestor(element: Element): boolean {
         if (style.transform !== "none" || style.filter !== "none" || style.perspective !== "none")
             return true;
 
+        // The individual transforms confine as `transform` does, which still reads none under them alone: a thing standing level with
+        // field boxes is set onto them by `translate` (core/runtime.less), even at 0.
+        if (isTransformed(style.translate) || isTransformed(style.scale) || isTransformed(style.rotate))
+            return true;
+
         // Only while its blur layer is drawn (mixins/surface-image.less), which a loading surface does not.
         if (current.hasAttribute(SurfaceImageBlurAttribute) && style.isolation === "isolate")
             return true;
     }
 
     return false;
+}
+
+// An engine without the individual transforms has no such property to read.
+function isTransformed(value: string | undefined): boolean {
+    return value !== undefined && value !== "" && value !== "none";
 }
 
 // The longest a lowering waits for a popup's exit to end: well past any popup's motion, for a page that stopped drawing meanwhile.

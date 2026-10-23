@@ -14,7 +14,8 @@ installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, clearTimeout, innerWidth: 900, innerHeight: 844, localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined } },
     getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none", direction: "ltr", position: "static", overflowX: "visible", overflowY: "visible" }),
     // The stylesheet's own question: a `min-width` query answered for the width this test sets.
-    matchMedia: (query: string) => ({ matches: width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0), addEventListener: (_: string, listener: () => void) => widthListeners.push(listener) }),
+    // Live, as a browser's list is: the page keeps one per breakpoint and reads it again.
+    matchMedia: (query: string) => ({ get matches() { return width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0); }, addEventListener: (_: string, listener: () => void) => widthListeners.push(listener) }),
     MutationObserver: class {
         public observe(): void {
         }

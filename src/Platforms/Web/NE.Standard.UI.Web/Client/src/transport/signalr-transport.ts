@@ -2,15 +2,21 @@ import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } fro
 import { ServerChangeSet, ThemeColorsModel, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index";
 import type { ClientState } from "../runtime/client-state";
 import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
-import { AttachGate, ConnectionDropped } from "./attach-gate";
+import { AttachGate, CommandExpired, ConnectionDropped, pressAllowance } from "./attach-gate";
 import { ChangeSink, InboundOrder } from "./inbound-order";
+import { DefaultReconnectWindowMilliseconds, ReconnectLoop } from "./reconnect-loop";
 
 // A call waiting behind the attach longer than this is said in the console.
 const AttachStallWarningMilliseconds = 500;
 
+// A press that waited across a drop longer than this, from its raising, is dropped: the page it was made on is that old by the time it
+// would run.
+const CommandWaitMilliseconds = 10_000;
+
 export type SignalRTransportOptions = {
     readonly hubUrl?: string;
-    readonly reconnectDelays?: readonly number[];
+    // How long after a drop the page keeps trying to reconnect, until an attach has said how long the server keeps the runtime.
+    readonly reconnectWindowMilliseconds?: number;
 };
 
 function withoutChanges(result: UICommandExecutionResult): UICommandExecutionResult {
@@ -32,6 +38,24 @@ export class SignalRTransport {
     private readonly windowId: string;
     private readonly connection: HubConnection;
     private started = false;
+    private connected = false;
+    private stopping = false;
+
+    // The reconnect under way after a drop; null while the connection is up or given up.
+    private reconnect: ReconnectLoop | null = null;
+    private reconnectWindow: number;
+    // Where the next reconnect goes on from: the first drop since the page last attached (`Date.now()`) and the try after the last made.
+    // Reset only by an attach, so a connection the server takes and drops again before one does not start the backoff over.
+    private reconnectSince: number | null = null;
+    private reconnectAttempt = 0;
+    // When the latest drop happened (`performance.now()`): a press raised before it and sent after it waited across it.
+    private droppedAt = Number.NEGATIVE_INFINITY;
+    private readonly reconnectingHandlers: ((error?: Error) => void)[] = [];
+    private readonly reconnectedHandlers: (() => void | Promise<void>)[] = [];
+    private readonly closedHandlers: ((error?: Error) => void)[] = [];
+    private readonly expiredHandlers: (() => void)[] = [];
+    // The presses waiting behind the gate with no bound yet, told of a drop that comes meanwhile (`waitBoundedAsync`).
+    private readonly dropWatchers = new Set<() => void>();
 
     // A hydrated page is clickable before the connection opens, so every call but the attach waits behind this.
     private readonly gate = new AttachGate();
@@ -43,21 +67,93 @@ export class SignalRTransport {
     public constructor(windowId: string, applyChanges: ChangeSink, options: SignalRTransportOptions = {}) {
         this.windowId = windowId;
         this.inbound = new InboundOrder(applyChanges);
+        this.reconnectWindow = options.reconnectWindowMilliseconds ?? DefaultReconnectWindowMilliseconds;
 
+        // Not SignalR's automatic reconnect: its retries end after a fixed list and cannot be woken, so `reconnectAsync` runs its own.
+        // A socket that drops and comes straight back keeps the connection, its calls and what was sent meanwhile (stateful reconnect).
         this.connection = new HubConnectionBuilder()
             .withUrl(options.hubUrl ?? "/_ne/hub")
-            .withAutomaticReconnect([...(options.reconnectDelays ?? [0, 1000, 3000, 10000, 30000])])
+            .withStatefulReconnect()
             .configureLogging(LogLevel.Warning)
             .build();
+        this.connection.onclose(error => this.closed(error));
+
+        // The network back or the page on screen again: a try now beats the rest of a wait of up to half a minute.
+        window.addEventListener("online", () => this.reconnect?.wake());
+        window.addEventListener("pageshow", () => this.reconnect?.wake());
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible")
+                this.reconnect?.wake();
+        });
+    }
+
+    /** A connection closed under the page is started again until the server's retention runs out; one the page closed is said closed. */
+    private closed(error?: Error): void {
+        this.started = false;
+
+        if (this.stopping || this.gate.failure !== null || !this.connected) {
+            for (const handler of this.closedHandlers)
+                handler(error);
+
+            return;
+        }
+
+        void this.reconnectAsync(error);
+    }
+
+    private async reconnectAsync(error?: Error): Promise<void> {
+        this.reconnectSince ??= Date.now();
+
+        const loop = new ReconnectLoop({ start: () => this.connection.start(), windowMilliseconds: this.reconnectWindow, startedAt: this.reconnectSince, firstAttempt: this.reconnectAttempt });
+
+        this.reconnect = loop;
+        this.droppedAt = performance.now();
+
+        for (const dropped of [...this.dropWatchers])
+            dropped();
+
+        this.dropWatchers.clear();
+
+        // Nothing may be sent until the runtime re-attaches: the new connection is attached to nothing.
+        this.gate.rearm();
+
+        for (const handler of this.reconnectingHandlers)
+            handler(error);
+
+        const back = await loop.runAsync();
+
+        this.reconnect = null;
+        this.reconnectAttempt = loop.nextAttempt;
+
+        if (back) {
+            this.started = true;
+
+            for (const handler of this.reconnectedHandlers) {
+                void Promise.resolve(handler()).catch(failure => {
+                    logError("reattach after reconnect failed.", failure);
+                });
+            }
+
+            return;
+        }
+
+        // Stopped by the page, which has said the connection is lost already.
+        if (this.gate.failure !== null)
+            return;
+
+        logWarn("reconnecting gave up: the server would have let the page's runtime go by now.", error);
+
+        for (const handler of this.closedHandlers)
+            handler(error ?? new Error("the connection to the server did not come back."));
     }
 
     public get instanceId(): string | null {
         return this.connection.connectionId ?? null;
     }
 
-    /** Whether the connection dropped and the automatic reconnect is still trying to bring it back. */
+    /** Whether the connection dropped and the reconnect is still trying to bring it back. */
     public get isReconnecting(): boolean {
-        return this.connection.state === HubConnectionState.Reconnecting;
+        return this.reconnect !== null;
     }
 
     /** Whether a call made now waits for the page to attach again after a drop or a move to another runtime (`AttachGate.reattaching`). */
@@ -75,28 +171,24 @@ export class SignalRTransport {
         this.connection.on("ui.commandResult", this.inbound.pushed((payload: unknown, sender?: unknown) => handler(payload as UICommandExecutionResult, readRuntime(sender))));
     }
 
+    /** The connection dropped — not a socket that came straight back, which keeps it — and the reconnect starts. */
     public onReconnecting(handler: (error?: Error) => void): void {
-        this.connection.onreconnecting((error?: Error) => {
-            // Nothing may be sent until the runtime re-attaches: the new connection is attached to nothing.
-            this.gate.rearm();
-
-            handler(error);
-        });
+        this.reconnectingHandlers.push(handler);
     }
 
+    /** The connection is open again: a new one, attached to nothing yet. */
     public onReconnected(handler: () => void | Promise<void>): void {
-        this.connection.onreconnected(() => {
-            void Promise.resolve(handler()).catch(error => {
-                logError("reattach after reconnect failed.", error);
-            });
-        });
+        this.reconnectedHandlers.push(handler);
     }
 
+    /** The connection is gone for good: the reconnect ran out of time, or the page closed it. */
     public onClosed(handler: (error?: Error) => void): void {
-        this.connection.onclose((error?: Error) => {
-            this.started = false;
-            handler(error);
-        });
+        this.closedHandlers.push(handler);
+    }
+
+    /** A press dropped for waiting behind a reattach longer than it may (`CommandExpired`). */
+    public onCommandExpired(handler: () => void): void {
+        this.expiredHandlers.push(handler);
     }
 
     public async startAsync(): Promise<void> {
@@ -106,6 +198,7 @@ export class SignalRTransport {
         try {
             await this.connection.start();
             this.started = true;
+            this.connected = true;
 
             logDebug("SignalR connected.", {
                 connectionId: this.connection.connectionId,
@@ -120,10 +213,20 @@ export class SignalRTransport {
     }
 
     public async stopAsync(): Promise<void> {
+        this.reconnect?.stop();
+
         if (this.connection.state === HubConnectionState.Disconnected)
             return;
 
-        await this.connection.stop();
+        this.stopping = true;
+
+        try {
+            await this.connection.stop();
+        }
+        finally {
+            this.stopping = false;
+        }
+
         this.started = false;
     }
 
@@ -140,6 +243,14 @@ export class SignalRTransport {
             // A runtime built since the page attached, or a page the server will not attach as it stands, reloads with nothing sent.
             this.gate.answered(result);
 
+            // Attached: a drop from here is a new one, tried at once and given the whole window.
+            this.reconnectSince = null;
+            this.reconnectAttempt = 0;
+
+            // The reconnect tries for as long as the server keeps the runtime after a drop, where the server says how long.
+            if (typeof result.retentionMilliseconds === "number" && result.retentionMilliseconds > 0)
+                this.reconnectWindow = result.retentionMilliseconds;
+
             return result;
         }
         catch (error) {
@@ -151,9 +262,12 @@ export class SignalRTransport {
         }
     }
 
-    /** The command's result once its changes are applied, without them. */
-    public async processEventAsync(request: UICommandRequest): Promise<UICommandExecutionResult> {
-        return await this.invokeAsync<UICommandExecutionResult>("ProcessEventAsync", [request], invoked => this.inbound.answered(invoked, result => result.changes, withoutChanges));
+    /**
+     * The command's result once its changes are applied, without them. `raisedAt`: when the reader pressed (`performance.now()`), so a
+     * press held behind values across a drop is bounded too.
+     */
+    public async processEventAsync(request: UICommandRequest, raisedAt: number = performance.now()): Promise<UICommandExecutionResult> {
+        return await this.invokeAsync<UICommandExecutionResult>("ProcessEventAsync", [request], invoked => this.inbound.answered(invoked, result => result.changes, withoutChanges), raisedAt);
     }
 
     /** Asks the controller about leaving for `target` while the page holds unsaved work: its answer once its changes are applied, without them. */
@@ -224,17 +338,61 @@ export class SignalRTransport {
         await this.invokeAsync<ServerChangeSet>("RequestItemWindowAsync", [request], invoked => this.inbound.answered(invoked, changes => changes, noChanges));
     }
 
-    private async invokeAsync<TResult>(methodName: string, args: readonly unknown[], answered?: (invoked: Promise<TResult>) => Promise<TResult>): Promise<TResult> {
+    /** `raisedAt`, a press's: one that waits across a drop is dropped as stale once `CommandWaitMilliseconds` old (`pressAllowance`). */
+    private async invokeAsync<TResult>(methodName: string, args: readonly unknown[], answered?: (invoked: Promise<TResult>) => Promise<TResult>, raisedAt?: number): Promise<TResult> {
         // A long wait behind the attach is logged, so a click that seems to go nowhere can be told from one never made.
         const stalled = window.setTimeout(() => logWarn("call waiting behind the attach.", { methodName }), AttachStallWarningMilliseconds);
 
         try {
-            await this.gate.wait();
+            const allowance = raisedAt === undefined ? null : pressAllowance(raisedAt, performance.now(), this.droppedAt, this.gate.reattaching, CommandWaitMilliseconds);
+
+            // An open gate lets the call through at once, before any drop could come: no bound to keep.
+            await (raisedAt === undefined || (allowance === null && !this.gate.isPending) ? this.gate.wait() : this.waitBoundedAsync(methodName, allowance));
         } finally {
             window.clearTimeout(stalled);
         }
 
         return await this.invokeCoreAsync<TResult>(methodName, args, answered);
+    }
+
+    /**
+     * Waits behind the gate for the `allowance` left (`pressAllowance`); with none yet — the press waits for the page's first attach and
+     * nothing has dropped since it — a drop that comes while it waits bounds it from then, `CommandWaitMilliseconds`.
+     */
+    private async waitBoundedAsync(methodName: string, allowance: number | null): Promise<void> {
+        let expiry = 0;
+        let fail: () => void = () => { };
+        const expired = new Promise<never>((_, reject) => {
+            fail = () => reject(new CommandExpired(methodName, CommandWaitMilliseconds));
+        });
+        const dropped = (): void => {
+            expiry = window.setTimeout(fail, CommandWaitMilliseconds);
+        };
+
+        if (allowance === null)
+            this.dropWatchers.add(dropped);
+        else if (allowance <= 0)
+            // Already past its bound: dropped without waiting, though the gate may be open by now.
+            fail();
+        else
+            expiry = window.setTimeout(fail, allowance);
+
+        try {
+            // The expiry first: one already past its bound loses no race to a gate already open.
+            await Promise.race([expired, this.gate.wait()]);
+        }
+        catch (error) {
+            if (error instanceof CommandExpired) {
+                for (const handler of this.expiredHandlers)
+                    handler();
+            }
+
+            throw error;
+        }
+        finally {
+            window.clearTimeout(expiry);
+            this.dropWatchers.delete(dropped);
+        }
     }
 
     // Rethrown without a log of its own: every caller already logs the failure in its own words.
@@ -261,6 +419,10 @@ export class SignalRTransport {
     private async ensureConnectedAsync(): Promise<void> {
         if (this.connection.state === HubConnectionState.Connected)
             return;
+
+        // Between a drop and its return only the reconnect starts the connection: a second start would race it.
+        if (this.reconnect !== null)
+            throw new Error("the connection to the server is reconnecting.");
 
         if (this.connection.state === HubConnectionState.Disconnected) {
             this.started = false;

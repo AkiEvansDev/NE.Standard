@@ -19,8 +19,7 @@ public sealed class ButtonGroupComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-button-group__item";
 
-    private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonGroupSizeClass)];
-    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey)];
+    private static readonly TierClassFamily<UIButtonSize> SizeFamily = new(WebAttributes.TierSize, WebDomConverters.ButtonGroupSizeClass, WebDomConverters.ButtonGroupSizeTierClasses, WebClassNames.ButtonGroupSize);
 
     public override string ComponentTypeKey => ButtonGroupComponent.ComponentTypeKey;
 
@@ -37,19 +36,10 @@ public sealed class ButtonGroupComponentRenderer : ItemsCollectionRendererBase
         ContainerStyleRenderer.RenderContainerStyle(context, root, includeOverflow: false);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
 
-        _ = RenderProperty<UIButtonSize?>(context, root, ButtonGroupComponent.SizeProperty, static (target, value) =>
-        {
-            if (value is UIButtonSize size)
-                _ = target.Class(WebClassNames.ButtonGroupSize(size));
-        }, SizeOperations);
+        TierClassRenderer.Render(context, root, ButtonGroupComponent.SizeProperty, SizeFamily);
 
         // The same reader and attribute as an items view's one key: a written value that is not a field's is read by kind.
-        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.SelectedKey);
-        _ = RenderProperty<string?>(context, root, ButtonGroupComponent.SelectedKeyProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrEmpty(value))
-                _ = target.Attribute(WebAttributes.SelectedKey, value);
-        }, SelectedKeyOperations);
+        RenderSelectedKey(context, root);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName);

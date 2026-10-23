@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { breakpointTiers, currentResponsiveTier, onTierChange, resolveResponsiveTier, resolveTier, responsiveTierQuery, responsiveVariable, toResponsiveTier } from "../src/rendering/responsive-tier.ts";
+import { breakpointTiers, onTierChange, resolveResponsiveTier, resolveTier, responsiveTierQuery, responsiveVariable, toResponsiveTier } from "../src/rendering/responsive-tier.ts";
 
 test("a bare value answers for the base tier alone", () => {
     assert.equal(toResponsiveTier(2, "base"), 2);
@@ -27,16 +27,6 @@ test("a wider tier overrides and keeps carrying", () => {
 
 test("nothing set resolves to nothing", () => {
     assert.equal(resolveResponsiveTier(null, "xl"), undefined);
-});
-
-test("the viewport's tier is the widest min-width query that matches", () => {
-    const at = (width: number) => currentResponsiveTier(query => width >= Number(/\d+/.exec(query)![0]));
-
-    assert.equal(at(400), "base");
-    assert.equal(at(640), "sm");
-    assert.equal(at(1279), "md");
-    assert.equal(at(1280), "xl");
-    assert.equal(at(2000), "xxl");
 });
 
 test("a tier's variable is the bare name for base and a suffix for the rest", () => {

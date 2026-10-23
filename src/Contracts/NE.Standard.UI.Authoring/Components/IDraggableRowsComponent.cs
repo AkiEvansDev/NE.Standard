@@ -5,16 +5,12 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
-/// A host whose rows the reader moves among themselves — dragged, or by Alt+Up and Alt+Down — an items view and a table alike; the
-/// move raises the host's <c>move</c> event.
+/// A host whose rows the reader moves among themselves — dragged, or by Alt+Up and Alt+Down — an items view and a table alike, by the
+/// whole row or by a grip; the move raises the host's <c>move</c> event. Refused while a sort orders the rows, which would put the row
+/// back.
 /// </summary>
-public interface IDraggableRowsComponent : IVisualComponent
+public interface IDraggableRowsComponent : IDraggableItemsComponent
 {
-    /// <summary>
-    /// Gets the registered property key for <see cref="Draggable"/>.
-    /// </summary>
-    static UIProperty DraggableProperty { get; } = new(nameof(Draggable));
-
     /// <summary>
     /// Gets the registered property key for <see cref="DragHandle"/>.
     /// </summary>
@@ -26,14 +22,7 @@ public interface IDraggableRowsComponent : IVisualComponent
     static UIProperty DragHandlePlacementProperty { get; } = new(nameof(DragHandlePlacement));
 
     /// <summary>
-    /// Gets whether a row whose item does not refuse it (<c>CanDrag</c>) can be dragged to another place among the rows, or moved one
-    /// place by Alt+Up and Alt+Down; the move raises <c>move</c>. Refused while a sort orders the rows, which would put the row back.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    bool? Draggable { get; }
-
-    /// <summary>
-    /// Gets or sets whether a <see cref="Draggable"/> row is dragged only by its grip (<see cref="DragHandlePlacement"/>); the rest of
+    /// Gets or sets whether a <see cref="IDraggableItemsComponent.Draggable"/> row is dragged only by its grip (<see cref="DragHandlePlacement"/>); the rest of
     /// the row keeps its text selection and its presses, and the keyboard still moves rows by Alt+Up and Alt+Down. A table draws the
     /// grips in a narrow track of their own; a wrapped items view draws none, and its tiles drag whole.
     /// </summary>

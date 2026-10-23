@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -13,7 +14,8 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 /// <summary>
 /// The tile an image input's shelf draws for a file that is no picture (<c>file-tile.ts</c>): the glyph, the name and the size, the
 /// file's facts on the root, from which the boot script writes the size in the reader's language before the first paint and
-/// <c>file-tile-engine.ts</c> the size and the glyph again as they change; pressable as a surface is.
+/// <c>file-tile-engine.ts</c> the size and the glyph again as they change; pressable as a surface is, and an anchor where it links to
+/// an address.
 /// </summary>
 public sealed class FileTileComponentRenderer : WebComponentRendererBase
 {
@@ -33,12 +35,21 @@ public sealed class FileTileComponentRenderer : WebComponentRendererBase
 
     protected override string ClassName => WebClassNames.FileTile;
 
+    /// <summary>An anchor where the tile links to its file (<see cref="ILinkableComponent.Url"/>), as a surface is.</summary>
+    protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
+        => DrawsLink(context) ? ("a", ClassName) : base.ResolveRoot(context);
+
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
         SurfaceRendererBase.RenderClickable(context, root);
+
+        if (DrawsLink(context))
+            RenderLinkAddress(context, root, ILinkableComponent.UrlProperty);
+
+        RenderAccessibleName(context, root);
 
         // The first paint's glyph, the author's or the file kind's, as the engine picks it from the same three facts (UIFileGlyphs).
         var icon = ReadRenderValue<string?>(context, FileTileComponent.IconProperty, null);

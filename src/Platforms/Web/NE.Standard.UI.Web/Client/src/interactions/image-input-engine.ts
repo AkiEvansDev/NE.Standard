@@ -10,7 +10,7 @@ import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageCropAtt
 import { componentParts } from "../addressing/dom-registry.ts";
 import { fileTileParts } from "../rendering/file-tile.ts";
 import type { FileFace } from "../rendering/file-tile.ts";
-import { clientStrings, forgetWords } from "../runtime/client-strings.ts";
+import { clientStrings, forgetWords, readWords } from "../runtime/client-strings.ts";
 import { logWarn } from "../runtime/logger.ts";
 import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
 import type { DialogEngine } from "./dialog-engine.ts";
@@ -799,12 +799,17 @@ function writeFailure(root: HTMLElement): void {
         clientStrings.write(text, null, "ui.file.failed");
 }
 
-/** The surface's name says what a press does now — choose a picture, or change the one shown — and follows a switch by its mark. */
+/**
+ * The surface's name says what a press does now — choose a picture, or change the one shown — and follows a switch by its mark; only
+ * while that word is its name: a field's caption or `AccessibleName` names it instead, unmarked.
+ */
 function nameSurface(root: HTMLElement, shows: boolean): void {
     const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
 
-    if (surface !== null)
-        clientStrings.write(surface, "aria-label", shows ? "ui.image.change" : "ui.image.choose");
+    if (surface === null || (surface.hasAttribute("aria-label") && readWords(surface, "aria-label") === null))
+        return;
+
+    clientStrings.write(surface, "aria-label", shows ? "ui.image.change" : "ui.image.choose");
 }
 
 /** The name a picture's URL ends in, for the inline row's text; a data or blob URL has none, and so has an address ending in a key. */

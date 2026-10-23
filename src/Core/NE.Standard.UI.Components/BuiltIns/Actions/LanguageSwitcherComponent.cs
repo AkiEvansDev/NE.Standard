@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
@@ -62,6 +63,9 @@ public abstract partial class LanguageSwitcherComponent<T> : VisualComponentBase
 
         return SetVariant(UISwitcherVariant.Field);
     }
+
+    /// <summary>A field's caption row over the medium box; the button draws none.</summary>
+    public UIInputSize? CaptionRowBox(UIResponsiveTier tier) => Variant == UISwitcherVariant.Field ? UIInputSize.Medium : null;
 }
 
 /// <summary>

@@ -1,3 +1,4 @@
+using System;
 using NE.Standard.UI.Primitives.Security;
 
 namespace NE.Standard.UI.Shell.Security;
@@ -38,13 +39,13 @@ public sealed class UISecurityOptions
     /// stored, as its commands do.
     /// </summary>
     /// <remarks>
-    /// An in-place navigation runs the route's view filters against the stored session whatever this says. Off by default: a session
-    /// changed through the framework already ends the pages it no longer passes. On, it also catches a
-    /// role revoked straight in the store or by another process, at the cost of one more store read per open page each
-    /// <see cref="Sessions.UISessionOptions.TouchResolution"/>, in the turn that touches the session; the page then goes back to its
-    /// own address, whose load refuses it.
+    /// An in-place navigation runs the route's view filters against the stored session whatever this says. On by default: a session
+    /// changed through the framework already ends the pages it no longer passes, and this also catches a role revoked straight in the
+    /// store or by another process. It reads the session the touch reads anyway, at most once per open page each
+    /// <see cref="Sessions.UISessionOptions.TouchResolution"/>, so it costs a check of the route's rules, never a store read; the page
+    /// then goes back to its own address, whose load refuses it.
     /// </remarks>
-    public bool RecheckRouteOnActivity { get; set; }
+    public bool RecheckRouteOnActivity { get; set; } = true;
 
     /// <summary>
     /// Gets or sets how many refusals a runtime writes to the log as warnings each minute — a value written to a hidden component;
@@ -52,4 +53,33 @@ public sealed class UISecurityOptions
     /// </summary>
     /// <remarks>Zero or less writes every one at <c>Debug</c>.</remarks>
     public int RefusalWarningsPerMinute { get; set; } = 10;
+
+    /// <summary>
+    /// Gets or sets how many elements — list items and document fields, counted through every level — a value a client writes may
+    /// hold; one past it is refused as a value its input cannot read.
+    /// </summary>
+    /// <remarks>
+    /// The bytes a value may take are the platform's bound; this one is its shape's: a megabyte of tiny elements builds a far larger
+    /// graph than a megabyte of text, so the web hub applies it as it reads a value, never building one past it. Text is never counted.
+    /// </remarks>
+    public int MaxClientValueElements
+    {
+        get;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+            field = value;
+        }
+    } = 100_000;
+
+    /// <summary>Gets or sets how deep a value a client writes may nest; one deeper is refused as a value its input cannot read.</summary>
+    public int MaxClientValueDepth
+    {
+        get;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
+            field = value;
+        }
+    } = 32;
 }

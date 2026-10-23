@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -23,7 +24,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IItemClickComponent, IOrientationComponent, ISpacingComponent
     where T : CommandBarComponent<T>, IUIComponentDefinition
 {
-    private const UIOrientation DefaultOrientation = UIOrientation.Horizontal;
+    private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Horizontal;
 
     /// <summary>
     /// Gets or sets whether items wrap onto additional lines instead of overflowing.

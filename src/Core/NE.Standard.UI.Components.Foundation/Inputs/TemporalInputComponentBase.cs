@@ -4,14 +4,14 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
 /// <summary>
-/// Base class for temporal input components with step and first-day-of-week metadata, and the period mode every one can take
-/// via <see cref="IsRange"/> and <see cref="EndValue"/>.
+/// Base class for temporal input components with step metadata, and the period mode every one can take via <see cref="IsRange"/>
+/// and <see cref="EndValue"/>.
 /// </summary>
+/// <remarks>A calendar's own properties — the week's first day, marked days — are <c>ICalendarComponent</c>'s, on the inputs that draw one.</remarks>
 public abstract partial class TemporalInputComponentBase<TComponent, TValue>(string? id = null) : MinMaxInputComponentBase<TComponent, TValue>(id), IPeriodInputComponent
     where TComponent : TemporalInputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
@@ -21,13 +21,6 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
     /// <remarks>Render-time only: the picker builds its time columns from this once.</remarks>
     [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateSetter = false)]
     public UITemporalStep? Step { get; set; }
-
-    /// <summary>
-    /// Gets or sets the first day of the week used when rendering a calendar/picker.
-    /// </summary>
-    /// <remarks>Render-time only: the weekday header is ordered once at render.</remarks>
-    [UIComponentProperty(DefaultValue = null, IsBindable = false)]
-    public UIDayOfWeek? FirstDayOfWeek { get; set; }
 
     /// <summary>
     /// Gets or sets whether the control edits a period, with <c>Value</c> as the start and <see cref="EndValue"/> as the end.

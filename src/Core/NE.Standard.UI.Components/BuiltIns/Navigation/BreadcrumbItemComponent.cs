@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Annotations;
@@ -10,18 +10,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// One step of a <see cref="BreadcrumbsComponent"/>: the button's own content, a destination, and the mark
 /// that separates it from the step before.
 /// </summary>
-/// <remarks>A <see cref="ButtonComponent{T}"/> rendered as an anchor, so a step has a real URL to middle-click or copy.</remarks>
-public abstract partial class BreadcrumbItemComponent<T> : ButtonComponent<T>
+/// <remarks>
+/// A <see cref="ButtonComponent{T}"/> rendered as an anchor, so a step has a real URL to middle-click or copy; a step may carry an
+/// address and a command both (<see cref="IEntryLinkComponent"/>).
+/// </remarks>
+[UIComponentPropertyBlock(typeof(ILinkableComponent))]
+public abstract partial class BreadcrumbItemComponent<T> : ButtonComponent<T>, IEntryLinkComponent
     where T : BreadcrumbItemComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets or sets the destination this step leads back to.
-    /// </summary>
-    [SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "The value is only ever written verbatim into an href attribute; a Uri type would require additional rendering/converter plumbing with no benefit here.")]
-    [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
-    public string? Url { get; set; }
-
     /// <summary>
     /// Initializes the step as untinted text that shrinks to its content.
     /// </summary>

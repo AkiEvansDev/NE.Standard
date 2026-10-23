@@ -10,7 +10,7 @@ namespace DemoApp.Views.Inputs.Temporal;
 /// span per clock unit, built from the <c>DisplayFormat</c> tokens.
 /// </summary>
 /// <remarks>
-/// <c>Format</c>, <c>Culture</c>, <c>FormatMessage</c>, <c>Step</c> and <c>FirstDayOfWeek</c> are unbindable and have no rows. The page's
+/// <c>Format</c>, <c>Culture</c>, <c>FormatMessage</c> and <c>Step</c> are unbindable and have no rows. The page's
 /// language is shown for the whole family on the date input's page.
 /// </remarks>
 internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition

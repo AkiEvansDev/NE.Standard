@@ -16,10 +16,11 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 /// <remarks><see cref="InputTemplatedComponentBase{TComponent, TItem, TValue, TTemplate}"/> is the same thing over an items host.</remarks>
 [UIComponentPropertyBlock(typeof(IInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextBaseComponent))]
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.IconColor), nameof(DefaultIconColor))]
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.TitleType), nameof(DefaultTitleType))]
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
-public abstract partial class InputComponentBase<TComponent, TValue> : VisualComponentBase<TComponent>, IInputComponent, ITextBaseComponent
+public abstract partial class InputComponentBase<TComponent, TValue> : VisualComponentBase<TComponent>, IInputComponent, ITextBaseComponent, IAccessibleNameComponent, ICaptionRowComponent
     where TComponent : InputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
     private readonly List<UIValidationRule> _validations = [];
@@ -53,4 +54,7 @@ public abstract partial class InputComponentBase<TComponent, TValue> : VisualCom
 
     /// <inheritdoc/>
     public void AddValidation(UIValidationRule rule) => _validations.Add(rule);
+
+    /// <inheritdoc/>
+    public virtual UIInputSize? CaptionRowBox(UIResponsiveTier tier) => InputCaptionRow.Box(this, tier);
 }

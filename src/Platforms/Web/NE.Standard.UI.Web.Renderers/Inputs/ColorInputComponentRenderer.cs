@@ -38,13 +38,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         ColorName.Flare, ColorName.Ember, ColorName.SolarGold, ColorName.Photon, ColorName.Comet, ColorName.Halo, ColorName.Vortex, ColorName.PulsarMagenta
     ];
 
-    // One operation per toggle: an operation's selector lands on the first part it matches.
-    private static readonly WebDomOperation[] ReadOnlyOperations =
-    [
-        NativeInputRendererBase.ReadOnlyMarkOperation,
-        WebDomOperation.ToggleAttribute("aria-disabled", target: ".ui-color-input__toggle", condition: WebValueCondition.IsTrue, value: "true"),
-        WebDomOperation.ToggleAttribute("aria-disabled", target: ".ui-color-input__swatch--button", condition: WebValueCondition.IsTrue, value: "true")
-    ];
+    private static readonly WebDomOperation[] ReadOnlyOperations = NativeInputRendererBase.PickReadOnlyOperations([".ui-color-input__toggle", ".ui-color-input__swatch--button"]);
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value", converter: WebDomConverters.ThemeColorCanonical)];
     private static readonly WebDomOperation[] TextFormatOperations = [WebDomOperation.Attribute(WebAttributes.ColorFormat, converter: WebDomConverters.ColorTextFormatAttribute)];
@@ -76,7 +70,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
 
         RenderRow(context, root, texts.Add, toggles.Add);
         RenderSwatchButton(context, root, texts.Add, toggles.Add);
-        RenderReadOnly(context, root, toggles);
+        NativeInputRendererBase.RenderIsReadOnlyAsPick(context, root, toggles, native: null, ReadOnlyOperations);
         RenderPopup(context, root);
         RenderValueInput(context, root, format, texts);
         RenderValidationMessage(context, root);
@@ -103,24 +97,6 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         RenderFlagAttribute(context, root, ColorInputComponent.ShowOpacityProperty, NoOpacityAttribute, WebValueCondition.IsFalse);
     }
 
-    /// <summary>
-    /// Read-only on the root, because it is the whole control that stops answering; its two toggles stay focusable, as a read-only
-    /// field does, and say they do nothing.
-    /// </summary>
-    private static void RenderReadOnly(WebRenderContext context, IHtmlElementBuilder root, List<IHtmlElementBuilder> toggles)
-    {
-        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
-        {
-            if (value != true)
-                return;
-
-            _ = target.Class(WebClassNames.ReadOnly);
-
-            foreach (IHtmlElementBuilder toggle in toggles)
-                _ = toggle.Attribute("aria-disabled", "true");
-        }, ReadOnlyOperations);
-    }
-
     /// <summary>The field variant: a swatch, the colour written beside it, and the button that opens the picker.</summary>
     private static void RenderRow(WebRenderContext context, IHtmlElementBuilder root, Action<IHtmlElementBuilder> onText, Action<IHtmlElementBuilder> onToggle)
     {
@@ -143,7 +119,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
             RenderPopupToggle(row, "ui-color-input__toggle", WebAttributes.ColorToggle, button =>
             {
                 onToggle(button);
-                WebWords.Write(context, button, "aria-label", UIStrings.ColorChoose);
+                RenderFieldLabel(context, button, UIStrings.ColorChoose);
             });
         });
     }
@@ -154,7 +130,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         RenderPopupToggle(root, "ui-color-input__swatch ui-color-input__swatch--button", WebAttributes.ColorToggle, button =>
         {
             onToggle(button);
-            WebWords.Write(context, button, "aria-label", UIStrings.ColorChoose);
+            RenderFieldLabel(context, button, UIStrings.ColorChoose);
 
             BorderStyleRenderer.RenderBorderStyle(context, button);
 

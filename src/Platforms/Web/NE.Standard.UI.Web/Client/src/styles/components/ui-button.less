@@ -1,6 +1,7 @@
 ﻿@import "../mixins/color.less";
 @import "../mixins/glyph-edge.less";
 @import "../mixins/interactive.less";
+@import "../mixins/pressable.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
 @import "../mixins/selected.less";
@@ -14,7 +15,6 @@
     justify-content: center;
     .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
     .ui-authored-border(1px; var(--ui-radius-button); transparent);
     background-color: var(--ui-surface-color, transparent);
     // The blur's layer on `::before`: `::after` is the loading veil (core/runtime.less).
@@ -36,17 +36,17 @@
     .ui-responsive-reset(--ui-padding);
 }
 
-// Small/large re-declare min-height/padding through .ui-responsive-property with their own default, so an authored value still wins.
+// Small/large re-declare min-height through .ui-responsive-property with their own default, so an authored value still wins.
 .ui-button--small {
     .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
-    // 8px, not 12: kept in proportion to the height dropping two steps instead of one.
-    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
 }
 
 .ui-button--large {
     .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-lg);
-    .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-5);
 }
+
+// The padding by size, the label's alignment, an icon alone's gap and a busy label's fade: one rule with a split button's main part.
+.ui-pressable-body(~".ui-button");
 
     // Matches only a label still at the default Body role; an author who sets an explicit TitleType is left alone. The button's own
     // label alone, on the root or in a split button's main part: a descendant rule reached the entries of a split button's list,
@@ -179,7 +179,7 @@
 
         @{ui-glyph-end}:is(@{ui-glyph-hung}),
         @{ui-glyph-end}.ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung} {
-            margin-inline-end: calc(-1 * var(--ui-glyph-inset-end, var(--ui-glyph-inset)) * var(--ui-glyph-hang-end, 1));
+            .ui-glyph-hang-end();
             flex-shrink: 0;
             .ui-responsive-property(max-width, --ui-max-width, calc(100% + var(--ui-glyph-inset-end, var(--ui-glyph-inset))));
         }
@@ -190,16 +190,6 @@
     // in overflow-clip-margin, and a calc() there clipped at 0.
     .ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end)[data-ui-id] {
         overflow-clip-margin: (unit(@ui-space-5) * 16px + @ui-keyboard-frame-reach);
-    }
-
-    // Alignment lives on the button, not only its content: .ui-button's own text-align: center otherwise makes Justify look centred.
-    // The root wears its label's alignment (ui-button--align-*, ButtonRendererBase), so nothing here reads below it.
-    .ui-button.ui-button--align-start {
-        justify-content: flex-start;
-    }
-
-    .ui-button.ui-button--align-end {
-        justify-content: flex-end;
     }
 
     // An icon with no title has nothing to align, so it stays centred regardless of TextAlignment.
@@ -215,19 +205,6 @@
     // No dimming: that is what disabled looks like; the ring below signals busy, and the client refuses the press.
     .ui-button.ui-loading {
         cursor: progress;
-    }
-
-        // No veil on a button (runtime.less says why): a label with no icon to turn into the ring fades under it instead. A press
-        // waiting on a late answer (data-ui-pending) looks the same.
-        .ui-button.ui-loading:not([data-ui-text-icon]) > .ui-button__content,
-        .ui-button[data-ui-pending]:not([data-ui-text-icon]) > .ui-button__content {
-            opacity: @ui-loading-label-opacity;
-        }
-
-    // Centred by default, but a label with a description is a row of two lines beside its icon, and a row reads from its start.
-    .ui-button[data-ui-text-description] > .ui-text--align-center {
-        justify-content: flex-start;
-        text-align: start;
     }
 
         // Replaces the glyph ligature with the loading ring, keeping width and label; a button with no icon takes the veil in runtime.less.
@@ -364,10 +341,6 @@
     justify-content: center;
 }
 
-.ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content {
-    gap: 0;
-}
-
 // The title/description gap lives in ui-text.less; a button here only needs its description kept to one line.
 .ui-button__content > .ui-text__body > .ui-text__description {
     .ui-text-nowrap();
@@ -395,8 +368,3 @@
                 justify-self: end;
                 margin-left: 0;
             }
-
-.ui-button > .ui-button__content.ui-text--align-justify {
-    width: 100%;
-    justify-content: stretch;
-}

@@ -97,6 +97,13 @@
     .ui-field-adornment();
 }
 
+// The text input's clear, under the same rule; the field's placeholder is its format, so its showing means empty.
+.ui-temporal-input__clear {
+    .ui-field-clear();
+}
+
+.ui-field-clear-host(~".ui-temporal-input"; ~".ui-temporal-input__clear"; ~".ui-temporal-input__field:placeholder-shown ~ .ui-temporal-input__clear");
+
     // The library's own calendar, so the toggle needs no icon package.
     .ui-temporal-input__toggle::before {
         .ui-calendar-glyph(@ui-glyph-sm);

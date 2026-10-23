@@ -347,7 +347,7 @@ internal abstract partial class UIRuntimeBase
             if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
                 continue;
 
-            ForgetShownInLeavingRowsNoLock(binding.Address.Component.Id, dynamicParameters, change, action);
+            ForgetLeavingRowsNoLock(binding.Address.Component.Id, dynamicParameters, change, action);
 
             UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
 
@@ -374,21 +374,46 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
-    /// Forgets what a command's show opened in the rows that leave the host: a removed or replaced one by its old key, every one on a
-    /// reset. A row back under the same key is drawn as authored, hidden.
+    /// Forgets what the rows that leave the host held (<see cref="ForgetLeftRowsNoLock"/>): a removed or replaced one by its old key,
+    /// every one on a reset. A row back under the same key is drawn as authored, hidden.
     /// </summary>
-    private void ForgetShownInLeavingRowsNoLock(UIComponentId hostId, object?[] hostKeys, RecursiveChange change, CollectionUpdateAction action)
+    private void ForgetLeavingRowsNoLock(UIComponentId hostId, object?[] hostKeys, RecursiveChange change, CollectionUpdateAction action)
     {
         if (action == CollectionUpdateAction.Reset)
         {
-            _shownByCommand.ForgetRows(View.Graph, hostId, hostKeys, rowKey: null);
+            ForgetLeftRowsNoLock(hostId, hostKeys, rowKey: null);
             return;
         }
 
         if (action is CollectionUpdateAction.Remove or CollectionUpdateAction.Replace)
         {
             foreach (var key in change.OldItemIds)
-                _shownByCommand.ForgetRows(View.Graph, hostId, hostKeys, key);
+                ForgetLeftRowsNoLock(hostId, hostKeys, key);
+        }
+    }
+
+    /// <summary>
+    /// Forgets, for the rows of <paramref name="hostId"/> at <paramref name="hostKeys"/> that left — the one keyed
+    /// <paramref name="rowKey"/>, or every one where null — what a command's show opened in them and the refusals their fields show.
+    /// </summary>
+    private void ForgetLeftRowsNoLock(UIComponentId hostId, object?[] hostKeys, string? rowKey)
+    {
+        _shownByCommand.ForgetRows(View.Graph, hostId, hostKeys, rowKey);
+        ForgetRejectionsInRowsNoLock(hostId, hostKeys, rowKey);
+    }
+
+    /// <summary>A refusal in a row gone with its row: kept, it would count toward the bound until the runtime goes.</summary>
+    private void ForgetRejectionsInRowsNoLock(UIComponentId hostId, object?[] hostKeys, string? rowKey)
+    {
+        if (_rejectedValueAddresses.Count == 0)
+            return;
+
+        for (var i = _rejectedValueAddresses.Count - 1; i >= 0; i--)
+        {
+            UIComponentAddress component = _rejectedValueAddresses.GetAt(i).Key.Component;
+
+            if (UIShownByCommand.StandsInRowsOf(View.Graph, component.Id, hostId, hostKeys.Length) && UIShownByCommand.IsUnder(component.DynamicParameters, hostKeys, rowKey))
+                _rejectedValueAddresses.RemoveAt(i);
         }
     }
 

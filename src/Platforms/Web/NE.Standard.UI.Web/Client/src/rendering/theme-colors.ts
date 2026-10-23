@@ -1,7 +1,7 @@
 // The reader's own colours over the application's palette: the stylesheet the server derives from them (WebThemeCssBuilder.BuildColors),
 // the same block a page render of the session carries, kept right after the theme's own stylesheet so it wins with the same selectors.
 
-import { ThemeColorsAttribute } from "../addressing/dom-attributes.ts";
+import { ThemeColorsAttribute, ThemeStylesheetAttribute } from "../addressing/dom-attributes.ts";
 
 /** Writes the reader's colours into the head, after the theme's stylesheet; an empty stylesheet takes them away. */
 export function applyThemeColors(head: Element, css: string): void {
@@ -24,6 +24,6 @@ export function applyThemeColors(head: Element, css: string): void {
     style.setAttribute(ThemeColorsAttribute, "");
     style.textContent = css;
 
-    // The theme's is the head's first stylesheet, as the shell writes it.
-    head.insertBefore(style, head.querySelector("style")?.nextElementSibling ?? null);
+    // Right after the theme's link, as the shell writes it: before the framework's own sheets, which read what both set.
+    head.insertBefore(style, head.querySelector(`link[${ThemeStylesheetAttribute}]`)?.nextElementSibling ?? null);
 }

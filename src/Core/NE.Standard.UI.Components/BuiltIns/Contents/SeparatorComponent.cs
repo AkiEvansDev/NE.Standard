@@ -15,7 +15,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 public abstract partial class SeparatorComponent<T>(string? id = null) : VisualComponentBase<T>(id), IOrientationComponent
     where T : SeparatorComponent<T>, IUIComponentDefinition
 {
-    private const UIOrientation DefaultOrientation = UIOrientation.Horizontal;
+    private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Horizontal;
 
     /// <summary>
     /// Gets or sets the label text shown on the separator.

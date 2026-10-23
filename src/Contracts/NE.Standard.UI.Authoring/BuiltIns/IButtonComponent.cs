@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
@@ -26,9 +27,9 @@ public interface IButtonComponent : ITextComponent
     static UIProperty SizeProperty { get; } = new UIProperty(nameof(Size));
 
     /// <summary>
-    /// Gets how much room the button takes.
+    /// Gets how much room the button takes, optionally per breakpoint.
     /// </summary>
-    UIButtonSize? Size { get; }
+    UIResponsive<UIButtonSize>? Size { get; }
 
     /// <summary>
     /// Gets the registered property key for <see cref="Shortcut"/>.

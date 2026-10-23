@@ -4,7 +4,6 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
@@ -14,8 +13,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 /// <remarks>A press on a day raises the input's change event, so <c>OnChange</c> can be what the day does. Never wider than the
 /// popup's grid, whatever room or width it is given; <c>HorizontalAlignment</c> places it in the rest.</remarks>
-[UIComponentPropertyBlock(typeof(IMarkedDaysComponent))]
-public abstract partial class CalendarComponent<T>(string? id = null) : InputComponentBase<T, DateOnly?>(id), IMarkedDaysInputComponent, IPeriodInputComponent
+[UIComponentPropertyBlock(typeof(ICalendarComponent))]
+public abstract partial class CalendarComponent<T>(string? id = null) : InputComponentBase<T, DateOnly?>(id), IMarkedDaysInputComponent, ICalendarComponent, IPeriodInputComponent
     where T : CalendarComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -29,13 +28,6 @@ public abstract partial class CalendarComponent<T>(string? id = null) : InputCom
     /// </summary>
     [UIComponentProperty(Contract = typeof(IBoundedInputComponent), DefaultValue = null, GenerateSetter = false)]
     public DateOnly? Max { get; set; }
-
-    /// <summary>
-    /// Gets or sets the first day of the week the grid's rows start on; unset, Monday.
-    /// </summary>
-    /// <remarks>Render-time only: the weekday header is ordered once at render.</remarks>
-    [UIComponentProperty(DefaultValue = null, IsBindable = false)]
-    public UIDayOfWeek? FirstDayOfWeek { get; set; }
 
     /// <summary>
     /// Gets or sets whether the calendar chooses a period, with <c>Value</c> as the start and <see cref="EndValue"/> as the end.

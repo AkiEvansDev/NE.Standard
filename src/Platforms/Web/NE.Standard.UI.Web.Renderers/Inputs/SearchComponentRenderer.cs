@@ -23,7 +23,6 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
     private static readonly WebDomOperation[] FieldAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
-    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.SearchDebounce, converter: WebDomConverters.NonNegativeCount)];
     private static readonly WebDomOperation[] MinLengthOperations = [WebDomOperation.Attribute(WebAttributes.SearchMinLength, converter: WebDomConverters.PositiveCount)];
 
     public override string ComponentTypeKey => SearchComponent.ComponentTypeKey;
@@ -114,11 +113,7 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         if (searchTextBinding is not null)
             _ = input.Attribute(WebAttributes.BindValue, searchTextBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
 
-        _ = RenderProperty<int?>(context, input, SearchComponent.DebounceMillisecondsProperty, static (target, value) =>
-        {
-            if (value is int milliseconds && milliseconds >= 0)
-                _ = target.Attribute(WebAttributes.SearchDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-        }, DebounceOperations);
+        NativeInputRendererBase.RenderSearchDebounce(context, input);
 
         _ = RenderProperty<int?>(context, input, SearchComponent.MinSearchLengthProperty, static (target, value) =>
         {

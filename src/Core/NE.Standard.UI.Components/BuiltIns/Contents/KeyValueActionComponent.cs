@@ -95,6 +95,7 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         _ = SetKeyTemplate(new DefaultKeyTemplate(binds: true));
         _ = SetValueTemplate(new DefaultValueTemplate(binds: true));
         _ = SetActionTemplate(new DefaultActionTemplate(binds: true));
+        // No empty template until ConfigureDefaultEmptyTemplate asks for one: a detail list in a card has nothing to say while empty.
     }
 
     /// <summary>
@@ -114,19 +115,6 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// </summary>
     public T ConfigureDefaultActionTemplate(Action<DefaultActionTemplate> configure)
         => Self.ConfigureTemplate(ActionTemplate as DefaultActionTemplate, configure, "template");
-
-    /// <summary>
-    /// Configures the built-in default empty template — a list that may hold no rows — putting it in where the list has none, and
-    /// throwing if a different template has been set.
-    /// </summary>
-    /// <remarks>Opt-in, not set by the constructor: a detail list in a card has nothing to say while it is empty.</remarks>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-    {
-        if (!HasEmptyTemplate)
-            _ = SetEmptyTemplate(new DefaultEmptyTemplate());
-
-        return Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
-    }
 
     /// <summary>
     /// Sets the key template.

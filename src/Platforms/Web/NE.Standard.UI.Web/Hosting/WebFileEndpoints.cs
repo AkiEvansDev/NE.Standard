@@ -298,8 +298,7 @@ internal static partial class WebFileEndpoints
         // The session's own file: nothing between here and the browser may keep a copy.
         http.Response.Headers.CacheControl = "no-store";
 
-        if (options.Value.InertContent)
-            contentType = WebInertContent.Apply(http.Response, contentType);
+        contentType = WebInertContent.Apply(http.Response, contentType, options.Value.InlinePassiveContent);
 
         return Results.Stream(content, contentType);
     }
@@ -308,7 +307,6 @@ internal static partial class WebFileEndpoints
         HttpContext http,
         string token,
         [FromServices] IUIFileStore store,
-        [FromServices] IOptions<WebEndpointOptions> options,
         [FromServices] WebUIMetrics metrics,
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
@@ -331,7 +329,8 @@ internal static partial class WebFileEndpoints
             FileNameStar = staged.FileName
         }.ToString();
 
-        var contentType = options.Value.InertContent ? WebInertContent.Apply(http.Response, staged.ContentType) : staged.ContentType;
+        // Saved, never shown: the option that shows a passive type inline has nothing to relax here.
+        var contentType = WebInertContent.Apply(http.Response, staged.ContentType, inlinePassive: false);
 
         // A stream that cannot say its length is counted as nothing rather than read twice.
         var bytes = staged.Content.CanSeek ? staged.Content.Length : 0;

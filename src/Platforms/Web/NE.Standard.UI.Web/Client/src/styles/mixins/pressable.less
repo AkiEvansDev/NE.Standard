@@ -1,0 +1,56 @@
+@import "../core/tokens.less";
+@import "./responsive.less";
+
+// The body of a press shaped as a button, by its size and what it holds, one rule for both shapes: a button, whose root is its body,
+// and a split button, whose root wears the button's classes while the padding and the label live in its main part. @body is the
+// padded element's own rule, at a class's weight so a field's padding of its buttons still wins (mixins/field.less); @path follows a
+// modifier on the root down to the body, empty where the root is the body.
+.ui-pressable-body(@body; @path: ~"") {
+    // Through .ui-responsive-property, never a flat literal, or runtime.less's var() chain is swallowed.
+    @{body} {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
+    }
+
+    // Small/large re-declare padding with their own default, so an authored value still wins.
+    .ui-button--small@{path} {
+        // 8px, not 12: kept in proportion to the height dropping two steps instead of one.
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+    }
+
+    .ui-button--large@{path} {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-5);
+    }
+
+    // Alignment lives on the body, not only its content: the button's own text-align: center otherwise makes Justify look centred.
+    // The root wears its label's alignment (ui-button--align-*, ButtonRendererBase), so nothing here reads below it.
+    .ui-button.ui-button--align-start@{path} {
+        justify-content: flex-start;
+    }
+
+    .ui-button.ui-button--align-end@{path} {
+        justify-content: flex-end;
+    }
+
+    .ui-button@{path} > .ui-button__content.ui-text--align-justify {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    // Centred by default, but a label with a description is a row of two lines beside its icon, and a row reads from its start.
+    .ui-button[data-ui-text-description]@{path} > .ui-text--align-center {
+        justify-content: flex-start;
+        text-align: start;
+    }
+
+    // An icon alone keeps no gap after it: the empty body stood a gap past the glyph and pushed it off the press's centre.
+    .ui-button[data-ui-text-icon]:not([data-ui-text-title])@{path} > .ui-button__content {
+        gap: 0;
+    }
+
+    // No veil on a button (runtime.less says why): a label with no icon to turn into the ring fades under it instead. A press
+    // waiting on a late answer (data-ui-pending) looks the same.
+    .ui-button.ui-loading:not([data-ui-text-icon])@{path} > .ui-button__content,
+    .ui-button[data-ui-pending]:not([data-ui-text-icon])@{path} > .ui-button__content {
+        opacity: @ui-loading-label-opacity;
+    }
+}

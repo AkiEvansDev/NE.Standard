@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
@@ -20,7 +21,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 public abstract partial class SliderComponent<T>(string? id = null) : InputComponentBase<T, decimal?>(id), IOrderedRangeComponent, ISizedInputComponent, IPeriodInputComponent, IOrientationComponent
     where T : SliderComponent<T>, IUIComponentDefinition
 {
-    private const UIOrientation DefaultOrientation = UIOrientation.Horizontal;
+    private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Horizontal;
 
     /// <summary>
     /// Gets or sets the minimum selectable value.

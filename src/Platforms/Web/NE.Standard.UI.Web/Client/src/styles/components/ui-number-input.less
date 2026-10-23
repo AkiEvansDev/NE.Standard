@@ -15,6 +15,13 @@
     text-align: start;
 }
 
+// The text input's clear, under the same rule; its placeholder, a blank one where the author gave none, showing means empty.
+.ui-number-input__clear {
+    .ui-field-clear();
+}
+
+.ui-field-clear-host(~".ui-number-input"; ~".ui-number-input__clear"; ~".ui-number-input__field:placeholder-shown ~ .ui-number-input__clear");
+
 // The same stepper the time input wears, from the field mixins; shown only when the author asks for one.
 .ui-number-input__stepper {
     .ui-field-stepper();

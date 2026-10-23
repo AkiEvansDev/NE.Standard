@@ -5,6 +5,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Regions;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Binding;
@@ -267,7 +268,8 @@ public static class UIPage
             case LanguageSwitcherComponent { Size: null } language:
                 _ = language.SetSize(UIButtonSize.Small);
                 break;
-            case StackPanelComponent { Orientation: UIOrientation.Horizontal } row:
+            // A row at any width: one turning across at md holds the strip's buttons there too.
+            case StackPanelComponent row when RunsAcrossAnywhere(row):
                 foreach (IVisualComponent child in row.Children)
                     SmallStripButtons(child);
 
@@ -275,6 +277,17 @@ public static class UIPage
             default:
                 break;
         }
+    }
+
+    private static bool RunsAcrossAnywhere(StackPanelComponent panel)
+    {
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (panel.Orientation?.Resolve(tier) == UIOrientation.Horizontal)
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -476,25 +489,42 @@ public static class UIPage
 
     /// <summary>
     /// A part of a page or a panel folded under its name, the collapsible sibling of <see cref="Section(UIPhrase, UIPhrase, IVisualComponent[])"/>:
-    /// the quiet expander — the name a muted caption with the chevron after it, no card — over the content in a stack. A null
-    /// <paramref name="title"/> leaves the name to the header: <c>.ConfigureDefaultHeader(header => header.BindTitle(path))</c>;
+    /// the quiet expander — the name a muted caption with the chevron after it, no card — over the content in a stack. A name the
+    /// controller holds is <see cref="BoundFold(string, bool, IVisualComponent[])"/>'s, a null <paramref name="title"/> leaves it to the header;
     /// <c>.BindExpanded(path)</c> follows the controller.
     /// </summary>
     public static ExpanderComponent Fold(UIPhrase? title, bool expanded, params IVisualComponent[] content)
     {
-        ArgumentNullException.ThrowIfNull(content);
         PresetWords.RequireIfGiven(title);
+
+        return Fold(header =>
+        {
+            if (title is not null)
+                _ = header.SetTitle(title);
+        }, expanded, content);
+    }
+
+    /// <summary>The same named by words the controller holds at <paramref name="titlePath"/>, as content.</summary>
+    public static ExpanderComponent BoundFold(string titlePath, bool expanded, params IVisualComponent[] content)
+        => BoundFold(titlePath, UIBindingScope.Root, expanded, content);
+
+    /// <summary>The same, its path read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static ExpanderComponent BoundFold(string titlePath, UIBindingScope scope, bool expanded, params IVisualComponent[] content)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
+
+        return Fold(header => header.BindTitle(titlePath, scope).AsContent(ITextBaseComponent.TitleProperty), expanded, content);
+    }
+
+    /// <summary>The quiet expander, its name a caption the words are written into, over the content in a stack.</summary>
+    private static ExpanderComponent Fold(Action<ExpanderHeaderRegion> words, bool expanded, IVisualComponent[] content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
 
         ExpanderComponent fold = new ExpanderComponent()
             .SetVariant(UIExpanderVariant.Quiet)
             // A caption rather than a title: between two fields or in a narrow panel, a heading would make it a part of its own.
-            .ConfigureDefaultHeader(header =>
-            {
-                _ = header.AsCaption();
-
-                if (title is not null)
-                    _ = header.SetTitle(title);
-            })
+            .ConfigureDefaultHeader(header => words(header.AsCaption()))
             .SetContent(UILayout.Stack(12, content));
 
         return expanded ? fold.SetExpanded() : fold.SetCollapsed();
@@ -716,19 +746,54 @@ public static class UIPage
     /// <summary>
     /// A page's state standing in for all of it — not found, refused, failed — as the framework's own not-found and error pages draw
     /// theirs (<see cref="StatusComponent"/>): the mark on a faint disc in <paramref name="tone"/>'s colour (<paramref name="icon"/>,
-    /// else the tone's own), the title, the line under it and the ways on, the safe one first, centred. A line the controller says
-    /// is bound through <see cref="StatusComponent{T}.Words"/>; what ends a form, in the form's place, is an <see cref="Outcome(string?, UIMessageSeverity, UIPhrase, UIPhrase, IVisualComponent[])"/>.
+    /// else the tone's own), the title, the line under it and the ways on, the safe one first, centred. Words the controller says
+    /// are <see cref="BoundStatus(string?, UIMessageSeverity, string, string?, IVisualComponent[])"/>'s; what ends a form, in the form's place, is an <see cref="Outcome(string?, UIMessageSeverity, UIPhrase, UIPhrase, IVisualComponent[])"/>.
     /// </summary>
     public static StatusComponent Status(string? icon, UIMessageSeverity tone, UIPhrase title, UIPhrase? line, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
         PresetWords.RequireIfGiven(line);
-        ArgumentNullException.ThrowIfNull(actions);
 
+        return WithActions(new StatusComponent(StatusMark(icon, tone), UIMessage.ColorOf(tone), title, line), actions);
+    }
+
+    /// <summary>
+    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="linePath"/> — what
+    /// was refused, why it failed — as content.
+    /// </summary>
+    public static StatusComponent BoundStatus(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, params IVisualComponent[] actions)
+        => BoundStatus(icon, tone, titlePath, linePath, UIBindingScope.Root, actions);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static StatusComponent BoundStatus(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, UIBindingScope scope, params IVisualComponent[] actions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
+
+        if (linePath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+
+        StatusComponent status = new(StatusMark(icon, tone), UIMessage.ColorOf(tone));
+
+        _ = status.Words.BindTitle(titlePath, scope).AsContent(ITextBaseComponent.TitleProperty);
+
+        if (linePath is not null)
+            _ = status.Words.BindDescription(linePath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
+
+        return WithActions(status, actions);
+    }
+
+    /// <summary>The status's glyph: the one given, else the tone's own.</summary>
+    private static string StatusMark(string? icon, UIMessageSeverity tone)
+    {
         if (icon is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(icon);
 
-        StatusComponent status = new(icon ?? UIMessage.GlyphOf(tone), UIMessage.ColorOf(tone), title, line);
+        return icon ?? UIMessage.GlyphOf(tone);
+    }
+
+    private static StatusComponent WithActions(StatusComponent status, IVisualComponent[] actions)
+    {
+        ArgumentNullException.ThrowIfNull(actions);
 
         foreach (IVisualComponent action in actions)
             _ = status.AddAction(action);

@@ -24,13 +24,8 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string PlaceholderAttribute = "data-ui-image-placeholder";
 
-    // The pick stays focusable while read-only, as a read-only field does, but says it does nothing; every variant's pick is the one
-    // [data-ui-file-pick], and the thumbnails-only shelf has none.
-    private static readonly WebDomOperation[] ReadOnlyOperations =
-    [
-        NativeInputRendererBase.ReadOnlyMarkOperation,
-        WebDomOperation.ToggleAttribute("aria-disabled", target: $"[{WebAttributes.FilePick}]", condition: WebValueCondition.IsTrue, value: "true", optional: true)
-    ];
+    // Every variant's pick is the one [data-ui-file-pick], and the thumbnails-only shelf has none.
+    private static readonly WebDomOperation[] ReadOnlyOperations = NativeInputRendererBase.PickReadOnlyOperations([$"[{WebAttributes.FilePick}]"], $".{RootClassName}__native", optional: true);
 
     // Every image input registers these same lists, so they are built once rather than per instance.
     private static readonly WebDomOperation[] FitOperations = [WebDomOperation.Class(target: $".{RootClassName}__picture", converter: WebDomConverters.ImageFitClass)];
@@ -77,8 +72,8 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         // area or circle with no room for it.
         RenderInputHeader(context, root, titleCanGoInside: variant == UIImageInputVariant.Inline);
 
-        NativeInputRendererBase.RenderMaxFileSize(context, root, ImageInputComponent.MaxFileSizeProperty);
-        NativeInputRendererBase.RenderDropTargetId(context, root, ImageInputComponent.DropTargetIdProperty);
+        NativeInputRendererBase.RenderMaxFileSize(context, root);
+        NativeInputRendererBase.RenderDropTargetId(context, root);
 
         RenderCrop(context, root, shelf: multiple == true || variant == UIImageInputVariant.Shelf);
 
@@ -148,8 +143,9 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             if (variant == UIImageInputVariant.Inline)
                 RenderInputHeaderInside(context, root, surface);
 
+            // Named by the caption as every field is; the control's own word only while the field has no name.
             _ = ResolveRenderValue(context, IInputComponent.ValueProperty, out string? value, out _);
-            WebWords.Write(context, surface, "aria-label", string.IsNullOrEmpty(value) ? UIStrings.ImageChoose : UIStrings.ImageChange);
+            RenderFieldLabel(context, surface, string.IsNullOrEmpty(value) ? UIStrings.ImageChoose : UIStrings.ImageChange);
 
             _ = surface.Element("img", picture =>
             {
@@ -199,6 +195,10 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         _ = root.Element("div", surface =>
         {
             _ = surface.Class($"{ClassName}__surface");
+
+            // The squares and the add are one answer to one caption: the shelf is the group the caption names.
+            _ = surface.Attribute("role", "group");
+            RenderFieldLabel(context, surface);
 
             BorderStyleRenderer.RenderBorderStyle(context, surface);
 
@@ -261,22 +261,18 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     /// <summary>The native picker, present but hidden: only a real file input opens the OS dialog.</summary>
     private void RenderNative(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder? pick, bool multiple)
     {
-        NativeInputRendererBase.RenderFilePicker(context, root, $"{ClassName}__native", ImageInputComponent.AcceptProperty, native =>
+        IHtmlElementBuilder? nativeInput = null;
+
+        NativeInputRendererBase.RenderFilePicker(context, root, $"{ClassName}__native", native =>
         {
+            nativeInput = native;
+
             if (multiple)
                 _ = native.Attribute("multiple");
         });
 
-        // Read-only is the root's mark: the engine refuses press and drop, the stylesheet cues the pointer; the pick stays focusable,
-        // like a read-only field, and says it does nothing.
-        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
-        {
-            if (value != true)
-                return;
-
-            _ = target.Class(WebClassNames.ReadOnly);
-            _ = pick?.Attribute("aria-disabled", "true");
-        }, ReadOnlyOperations);
+        // The stylesheet cues the pointer by the root's mark.
+        NativeInputRendererBase.RenderIsReadOnlyAsPick(context, root, pick is null ? [] : [pick], nativeInput, ReadOnlyOperations);
     }
 
     /// <summary>The picture's URL and the upload's handle, each on a hidden input the value engine writes and reads.</summary>
@@ -299,7 +295,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         });
 
         // The picture's URL above is the component's value; the handle is a second one beside it.
-        NativeInputRendererBase.RenderSelectionInput(context, root, $"{ClassName}__selection", ImageInputComponent.SelectionIdProperty, holdsValue: false);
+        NativeInputRendererBase.RenderSelectionInput(context, root, $"{ClassName}__selection", holdsValue: false);
     }
 
     /// <summary>

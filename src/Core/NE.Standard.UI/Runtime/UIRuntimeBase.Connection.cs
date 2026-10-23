@@ -142,6 +142,7 @@ internal abstract partial class UIRuntimeBase
 
         // Attached anew, a page draws what a show opened as authored: hidden, as the server holds it again.
         _shownByCommand.Forget(instance.Id);
+        MarkPageStayPresent(instance.WindowId);
 
         if (added)
             _attachedInstanceIdsSnapshot = [.. _attachedHandles.Keys];
@@ -195,6 +196,9 @@ internal abstract partial class UIRuntimeBase
 
             _attachedInstanceIdsSnapshot = [.. _attachedHandles.Keys];
 
+            if (!HoldsWindowNoLock(removed.Instance.WindowId))
+                MarkPageStayLeft(removed.Instance.WindowId, DateTime.UtcNow);
+
             if (IsViewer(removed.Instance))
             {
                 Volatile.Write(ref _viewers, _viewers - 1);
@@ -221,6 +225,18 @@ internal abstract partial class UIRuntimeBase
             if (hidden)
                 PostCore(VisibilityChangedOperation, cancellation => HearVisibilityAsync(lifecycle, cancellation));
         }
+    }
+
+    /// <summary>Whether a page of the window is still attached here.</summary>
+    private bool HoldsWindowNoLock(string windowId)
+    {
+        foreach (UIHandle handle in _attachedHandles.Values)
+        {
+            if (StringComparer.Ordinal.Equals(handle.Instance.WindowId, windowId))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>

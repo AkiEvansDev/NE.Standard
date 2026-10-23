@@ -15,12 +15,18 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// local preview shown until the controller replies — under <see cref="Crop"/>, once the reader has framed it. Nothing removes the picture on its own — offer a button that clears
 /// <c>Value</c>. With <see cref="Multiple"/>, or as the <see cref="UIImageInputVariant.Shelf"/> variant, the control becomes a shelf of
 /// pictures whose handles arrive in <see cref="SelectionIds"/>, and <c>Value</c>, <c>Caption</c> and <see cref="SelectionId"/> go unused.
+/// <see cref="SelectionId"/> set null or empty clears a single picture: its preview, name and handle go, and the control shows
+/// <c>Value</c> again — as setting <see cref="SelectionIds"/> empty clears a shelf.
 /// Only the <see cref="UIImageInputVariant.Inline"/> variant, whose row has a line of text, reads <c>Placeholder</c>.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
-public abstract partial class ImageInputComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IMaxFileSizeComponent
+[UIComponentPropertyBlock(typeof(IFilePickerInputComponent))]
+[UIComponentPropertyDefault(nameof(IFileAcceptComponent.Accept), nameof(DefaultAccept))]
+public abstract partial class ImageInputComponent<T>(string? id = null) : FieldInputComponentBase<T, string?>(id), IPlaceholderInputComponent, IFilePickerInputComponent
     where T : ImageInputComponent<T>, IUIComponentDefinition
 {
+    // Pictures unless the author widens it: empty takes any file — a shelf of attachments, a picture shown as its thumbnail and any
+    // other file as its kind's glyph (UIFileGlyphs) over its name and size.
     private const string DefaultAccept = "image/*";
 
     /// <summary>
@@ -31,24 +37,10 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     public UIImageInputVariant? Variant { get; set; }
 
     /// <summary>
-    /// Gets or sets the id of the uploaded picture, written by the client once the file has been sent.
-    /// </summary>
-    /// <remarks>
-    /// Bind this to read the file via <c>IUIUploadService.GetSelectionAsync</c>; <c>Value</c> only says what the control shows. Set it
-    /// null or empty to clear the input: the chosen picture's preview, its name and its handle go, and the control shows
-    /// <c>Value</c> again — as setting <see cref="SelectionIds"/> empty clears a shelf.
-    /// </remarks>
-    [UIComponentProperty(
-        DefaultValue = null,
-        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
-        DefaultBindingMode = UIBindingMode.TwoWay)]
-    public string? SelectionId { get; set; }
-
-    /// <summary>
     /// Gets or sets whether several pictures are taken at once, each shown as a square the viewer can remove.
     /// </summary>
     /// <remarks>
-    /// Render-time only: a shelf is a different build from a picture. Read together with <see cref="UIImageInputVariant.Picture"/>;
+    /// Render-time only, unlike a file input's: a shelf is a different build from a picture. Read together with <see cref="UIImageInputVariant.Picture"/>;
     /// <see cref="UIImageInputVariant.Shelf"/> takes several pictures without it.
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = false)]
@@ -65,35 +57,10 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : FieldI
     public IReadOnlyList<string>? SelectionIds { get; set; }
 
     /// <summary>
-    /// Gets or sets the accepted file types, expressed as a comma-separated list of extensions or MIME types; pictures by default.
-    /// </summary>
-    /// <remarks>
-    /// Empty takes any file — a shelf of attachments: a picture shows as its thumbnail, any other file as its kind's glyph
-    /// (<c>UIFileGlyphs</c>) over its name and size.
-    /// </remarks>
-    [UIComponentProperty(DefaultValue = DefaultAccept)]
-    public string? Accept { get; set; }
-
-    /// <summary>
-    /// Gets or sets the maximum allowed file size, in bytes; the client refuses a larger picture before uploading it and says so on
-    /// the field's validation line.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
-    public long? MaxFileSize { get; set; }
-
-    /// <summary>
     /// Gets or sets the glyph shown while there is no picture; unset, the variant draws its own.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? PlaceholderIcon { get; set; }
-
-    /// <summary>
-    /// Gets or sets the id of another component whose dropped files and pasted pictures go into this input — a chat's composer —
-    /// by the input's own <see cref="Accept"/>, <see cref="MaxFileSize"/> and <see cref="Multiple"/>.
-    /// </summary>
-    /// <remarks>Render-time only: the component is looked up in the same view as the page is drawn.</remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public string? DropTargetId { get; set; }
 
     /// <summary>
     /// Gets or sets how the picture fills its box.

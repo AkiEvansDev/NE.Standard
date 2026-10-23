@@ -17,6 +17,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// </summary>
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
+[UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
+[UIComponentPropertyBlock(typeof(ITextLengthComponent))]
 public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, string?>, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent
     where T : TextAreaComponent<T>, IUIComponentDefinition
 {
@@ -97,19 +99,6 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
     /// </summary>
     [UIComponentProperty(DefaultValue = UITextAreaResizeMode.Vertical)]
     public UITextAreaResizeMode? Resize { get; set; }
-
-    /// <summary>
-    /// Gets or sets the maximum number of characters allowed.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
-    public int? MaxLength { get; set; }
-
-    /// <summary>
-    /// Gets or sets how long after the viewer stops typing the value is committed, in milliseconds; unset, it
-    /// commits on blur.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
-    public int? DebounceMilliseconds { get; set; }
 
     /// <summary>
     /// Sets the number of visible text rows.

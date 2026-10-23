@@ -9,7 +9,6 @@ using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -19,38 +18,18 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// <remarks>
 /// The strip is sorted on <see cref="ITabItemModel.Order"/>, so the collection's own order never changes for a drag to stick. A
 /// right press on a caption opens <see cref="TabMenu"/> — the built-in entries <see cref="TabMenuEntries"/> chose and the
-/// application's own — unless the tab template carries a context menu of its own, which then replaces it.
+/// application's own — unless the tab template carries a context menu of its own, which then replaces it. A <c>Draggable</c> strip
+/// reorders by its captions, the server writing the orders.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
-public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent, IEmptyStateComponent, IPressablePartsComponent
+[UIComponentPropertyBlock(typeof(ISelectedKeyComponent))]
+[UIComponentPropertyBlock(typeof(IItemsHostAbilitiesComponent))]
+public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent, IEmptyStateComponent, IPressablePartsComponent, ISelectedKeyComponent, IItemsHostAbilitiesComponent
     where T : TabsViewComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions;
     private readonly List<MenuItem> _entries = [];
-
-    /// <summary>
-    /// Gets or sets the key of the tab currently shown. Two-way, as on <see cref="TabsComponent"/>.
-    /// </summary>
-    [UIComponentProperty(
-        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
-        DefaultBindingMode = UIBindingMode.TwoWay,
-        DefaultValue = null)]
-    public string? SelectedKey { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether a double click or F2 renames a caption in place. The tab menu's Rename and a <c>RenameTabEffect</c> are
-    /// the application's own asking and open the field either way.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? Renamable { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether tabs can be reordered by dragging their captions; a tab whose item says <c>CanDrag</c> false stays put,
-    /// and the server, which writes the orders, refuses its move.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? Draggable { get; set; }
 
     /// <summary>Gets or sets the built-in entries the tab menu offers, none by default.</summary>
     /// <remarks>
@@ -61,13 +40,6 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// </remarks>
     [UIComponentProperty(DefaultValue = UITabMenuEntries.None, GenerateSetter = false)]
     public UITabMenuEntries? TabMenuEntries { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether tabs can be closed at all; off, no caption shows a close and the strip reserves no room. A
-    /// single tab refuses its close via the item's <c>CanRemove</c>.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = true)]
-    public bool? Removable { get; set; }
 
     /// <summary>
     /// Gets or sets whether the captions past the strip's room go behind a "…" list; off, the strip wraps them onto the next line.
@@ -130,13 +102,6 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
 
     /// <inheritdoc/>
     public bool HasRegions => true;
-
-    /// <summary>
-    /// Configures the built-in default empty template — what stands in the pages' place while no tab is open — throwing if a different
-    /// template has been set.
-    /// </summary>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
 
     /// <summary>
     /// Sets the built-in entries the tab menu offers, refusing Close and Delete together: they are the two forms of one entry.

@@ -1,5 +1,6 @@
-// A glyph edge (StackPanel.GlyphEdge, a card header's far end) hangs the first or last quiet button it shows past the edge by what
-// stands between its box and what it shows — an icon's glyph, a label's words, a switcher's glyph — read back from the compiled
+// A glyph edge (StackPanel.GlyphEdge, and by default the core's own bands: a card header's far end, a tab strip's actions, a toast's
+// close) hangs the first or last quiet button it shows past the edge by what stands between its box and what it shows — an icon's
+// glyph, a label's words, a switcher's glyph — read back from the compiled
 // stylesheet: a drawer's own button the shell hides for its side's state is not the one shown, a row on the edge passes it on to its
 // own child, and each kind and size reads its inset from one rule.
 
@@ -14,7 +15,7 @@ const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less"
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
 /** The edge's rules, one per band: a selector reading the edge's last shown child and the declarations it hangs by. */
-const endRules = [...css.matchAll(/([^{}]*header-action\) > :nth-last-child\(1 of [^{}]*)\{([^}]*)\}/g)].map(match => ({ selector: match[1], body: match[2] }));
+const endRules = [...css.matchAll(/([^{}]*ui-tabs__actions\) > :nth-last-child\(1 of [^{}]*)\{([^}]*)\}/g)].map(match => ({ selector: match[1], body: match[2] }));
 
 /** The declarations of the rule whose selector ends with `ending`. */
 function inset(ending: string): string {
@@ -62,9 +63,35 @@ test("the switchers hang too: the theme switcher by its glyph, the language swit
     assert.match(inset(".ui-language-switcher"), /--ui-glyph-inset: 0\.75rem;/);
 });
 
-test("a card header's far end is an edge, but a header that is only a control is no band", () => {
+test("the core's own bands are edges by default: a card header's far end, but not a header that is only a control, and a tab strip's actions", () => {
     for (const rule of endRules)
-        assert.match(rule.selector, /:is\(\.ui-stack-panel--glyph-end, \.ui-card__header--content > \.ui-card__header-action\)/);
+        assert.match(rule.selector, /:is\(\.ui-stack-panel--glyph-end, \.ui-card__header--content > \.ui-card__header-action, \.ui-tabs__actions\)/);
+});
+
+test("a tab strip's action hangs by a field action's small box round its glyph, whatever the button's size", () => {
+    assert.match(css, /\.ui-tabs__actions > :is\(\.ui-button:is\(\[data-ui-text-icon\], \[data-ui-text-title\]\), \.ui-theme-switcher, \.ui-language-switcher\):is\(\.ui-button--ghost, \.ui-button--link\),\n\.ui-tabs__actions > \.ui-tabs__tab-actions > [^{]*\{\s*--ui-glyph-box: 1\.75rem;/);
+});
+
+test("a tab strip's action with words hangs by a field action's 8 px padding, not its size's own, a flyout's anchor too", () => {
+    const rule = /\n(\.ui-tabs__actions > [^{]*\[data-ui-text-title\]) \{([^}]*)\}/.exec(css);
+
+    assert.ok(rule, "no rule for a tab strip's action with words");
+    assert.match(rule[2], /--ui-glyph-inset: 0\.5rem;/);
+    assert.match(rule[1], /\.ui-tabs__actions > \.ui-tabs__tab-actions > \.ui-flyout > \.ui-flyout__anchor > :is\(/);
+    // After the button's own insets by size, which tie with it.
+    assert.ok(rule.index > css.indexOf(".ui-button--large[data-ui-text-title] {"));
+});
+
+test("a toast's close hangs past the toast's end by its 6 px inset, its cross on the content's edge", () => {
+    const close = /\n\.ui-notification__close \{([^}]*)\}/.exec(css)?.[1] ?? "";
+
+    assert.match(close, /--ui-glyph-inset: calc\(\(1\.75rem - 1rem\) \/ 2\);/);
+    assert.match(close, /margin-inline-end: calc\(-1 \* var\(--ui-glyph-inset-end, var\(--ui-glyph-inset\)\) \* var\(--ui-glyph-hang-end, 1\)\);/);
+});
+
+test("a hidden child, as a tab's actions behind another tab, is not the one shown", () => {
+    for (const rule of endRules)
+        assert.match(rule.selector, /:not\(\.ui-hidden, \[hidden\], /);
 });
 
 test("a pinned side's own drawer button is not shown where a pin holds, and no pin is below the medium breakpoint", () => {
@@ -83,7 +110,7 @@ test("a language switcher with one language, which draws nothing, is not the one
         assert.match(rule.selector, /\.ui-language-switcher--single/);
 });
 
-test("a row on the edge passes it on to its own last child", () => {
+test("a row on the edge passes it on to its own last child, as the tab in front's actions do", () => {
     for (const rule of endRules)
-        assert.match(rule.selector, /\)\)\.ui-orientation--horizontal > :nth-last-child\(1 of /);
+        assert.match(rule.selector, /\)\):is\(\.ui-orientation--horizontal, \.ui-tabs__tab-actions\) > :nth-last-child\(1 of /);
 });

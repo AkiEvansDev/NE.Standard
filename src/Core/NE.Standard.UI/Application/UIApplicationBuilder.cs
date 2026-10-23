@@ -586,6 +586,8 @@ public sealed class UIApplicationBuilder
             FlushSchedulerInterval = source.FlushSchedulerInterval,
             MaxParallelFlushes = source.MaxParallelFlushes,
             MaxQueuedChangeSets = source.MaxQueuedChangeSets,
+            MaxQueuedChangeBytes = source.MaxQueuedChangeBytes,
+            SendTimeout = source.SendTimeout,
             MaxRuntimesPerSession = source.MaxRuntimesPerSession,
             MaxUnclaimedRuntimesPerSession = source.MaxUnclaimedRuntimesPerSession,
             MaxRuntimesTotal = source.MaxRuntimesTotal,
@@ -638,7 +640,9 @@ public sealed class UIApplicationBuilder
             IdentitySource = source.IdentitySource,
             PermissionClaimType = source.PermissionClaimType,
             RecheckRouteOnActivity = source.RecheckRouteOnActivity,
-            RefusalWarningsPerMinute = source.RefusalWarningsPerMinute
+            RefusalWarningsPerMinute = source.RefusalWarningsPerMinute,
+            MaxClientValueElements = source.MaxClientValueElements,
+            MaxClientValueDepth = source.MaxClientValueDepth
         };
 
     private static UISessionOptions CloneSessionOptions(UISessionOptions source)
@@ -646,6 +650,7 @@ public sealed class UIApplicationBuilder
         {
             IdleTimeout = source.IdleTimeout,
             UnclaimedIdleTimeout = source.UnclaimedIdleTimeout,
+            MaxUnclaimedSessions = source.MaxUnclaimedSessions,
             TouchResolution = source.TouchResolution,
             CleanupInterval = source.CleanupInterval,
             ClientKey = source.ClientKey,

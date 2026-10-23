@@ -39,7 +39,7 @@ internal abstract partial class UIRuntimeBase
     /// </summary>
     private ServerChangeSet WithPageStateAhead(ServerChangeSet changes, UICommandResult result)
         => Controller is UIControllerBase && Navigates(result.Effects)
-            ? AppendUpdates(changes, new ServerChangeSet { Updates = [PageState()] })
+            ? changes.Append(new ServerChangeSet { Updates = [PageState()] })
             : changes;
 
     private static bool Navigates(ClientEffect[] effects)

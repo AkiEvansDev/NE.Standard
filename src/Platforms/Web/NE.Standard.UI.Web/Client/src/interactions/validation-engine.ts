@@ -77,6 +77,8 @@ export type FieldValidation = {
 
 const MarkSeverity: Readonly<Record<FieldMarkSeverity, WebValidationSeverityName>> = { error: "Error", warning: "Warning", info: "Info" };
 
+const ConflictMark: ValidationDisplay = { message: { key: "ui.value.conflict" }, severity: "Warning" };
+
 /** A field's rules asked about a value before the field takes it: a tag typed into a multi-select, judged before it is a chip. */
 export type EntryValidation = {
     entryRefusal(field: Element, current: unknown, next: unknown): FieldMarkWords | null;
@@ -132,6 +134,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
     private readonly boundRefused = new Set<Element>();
     private readonly boundMessageByElement = new WeakMap<Element, ValidationDisplay>();
     private readonly packageMarkByElement = new WeakMap<Element, ValidationDisplay>();
+    private readonly conflictMarkByElement = new WeakMap<Element, ValidationDisplay>();
     /** The fields whose rendered message has been read once, which is when a message the server rendered is taken as the field's. */
     private readonly renderedRead = new WeakSet<Element>();
     private readonly touchedElements = new WeakSet<Element>();
@@ -492,6 +495,19 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
     }
 
     /**
+     * Marks a field whose value was held back over another writer's (`ValueConflict`), or takes the mark off: a slot of its own, so a
+     * package's or a picker's mark on the same field neither clears it nor is cleared by it.
+     */
+    public markConflict(field: Element, conflicting: boolean): void {
+        if (conflicting)
+            this.conflictMarkByElement.set(field, ConflictMark);
+        else if (!this.conflictMarkByElement.delete(field))
+            return;
+
+        this.applyCurrentState(readComponentId(field), field);
+    }
+
+    /**
      * Why a field would refuse what it is about to take: the words of its first error rule the next value fails where the current
      * one passes — so a chip already standing that a rule refuses is not blamed on the tag being typed — or null.
      */
@@ -633,6 +649,11 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         if (packageMark !== undefined)
             candidates.push(packageMark);
 
+        const conflict = this.conflictMarkByElement.get(element);
+
+        if (conflict !== undefined)
+            candidates.push(conflict);
+
         const failing = this.failingRulesByElement.get(element);
 
         if (failing !== undefined) {
@@ -750,22 +771,24 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
      */
     public focusFirstInvalid(formId: string): boolean {
         for (const { component: resolved } of this.formFields(formId)) {
-            if (!resolved.element.classList.contains(ErrorClass))
-                continue;
-
-            // The field's own control the reader types into, not a hidden value input or a popup's.
-            const control = [...resolved.element.querySelectorAll<HTMLElement>(FieldControlSelector)].find(candidate => candidate.closest(PopupRoleSelector) === null) ?? null;
-
-            if (control === null)
-                continue;
-
-            control.focus({ preventScroll: true });
-            control.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
-
-            return true;
+            if (resolved.element.classList.contains(ErrorClass) && this.focusField(resolved.element))
+                return true;
         }
 
         return false;
+    }
+
+    /** Takes the reader to a field's own control the reader types into — not a hidden value input or a popup's — focused and brought into view. */
+    public focusField(component: Element): boolean {
+        const control = [...component.querySelectorAll<HTMLElement>(FieldControlSelector)].find(candidate => candidate.closest(PopupRoleSelector) === null) ?? null;
+
+        if (control === null)
+            return false;
+
+        control.focus({ preventScroll: true });
+        control.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+
+        return true;
     }
 
     // A controller's or a package's message gates no submit: its author judged the value and will judge it again.

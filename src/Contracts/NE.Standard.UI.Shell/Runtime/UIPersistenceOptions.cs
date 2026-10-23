@@ -67,6 +67,28 @@ public sealed class UIPersistenceOptions
     public int MaxQueuedChangeSets { get; set; } = 64;
 
     /// <summary>
+    /// Gets or sets about how many bytes of change sets may wait to reach one runtime's clients before the queue is dropped; zero or
+    /// <see langword="null"/> is no such limit.
+    /// </summary>
+    /// <remarks>
+    /// Estimated, not serialized: a text by its length, a list by its items. A set queued behind another for the same pages joins it,
+    /// a later value replacing an earlier one for the same property, so a slow link falls behind only on what it has not seen yet; past
+    /// this, as past <see cref="MaxQueuedChangeSets"/>, the runtime is asked for a full resync. A queue holding nothing takes a set of
+    /// any size.
+    /// </remarks>
+    public long? MaxQueuedChangeBytes { get; set; } = 8L * 1024 * 1024;
+
+    /// <summary>
+    /// Gets or sets how long one change set's send to one page may take before it is given up; <see langword="null"/> is no limit.
+    /// </summary>
+    /// <remarks>
+    /// A runtime's pages are sent to at once, but the next set waits for the slowest: a stalled socket would hold every other tab's
+    /// updates. A send given up counts as failed — the runtime is asked for a full resync — and on the web aborts that one connection,
+    /// whose page attaches again.
+    /// </remarks>
+    public TimeSpan? SendTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// Gets or sets how many runtimes one session may hold at once — its open pages, and the ones kept for a while after they
     /// closed.
     /// </summary>
@@ -125,6 +147,12 @@ public sealed class UIPersistenceOptions
 
         if (MaxQueuedChangeSets <= 0)
             throw new ArgumentOutOfRangeException(nameof(MaxQueuedChangeSets), MaxQueuedChangeSets, "Max queued change sets must be greater than zero.");
+
+        if (MaxQueuedChangeBytes < 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxQueuedChangeBytes), MaxQueuedChangeBytes, "Max queued change bytes must not be negative.");
+
+        if (SendTimeout is { } sendTimeout && sendTimeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(SendTimeout), sendTimeout, "Send timeout must be greater than zero.");
 
         if (MaxRuntimesPerSession <= 0)
             throw new ArgumentOutOfRangeException(nameof(MaxRuntimesPerSession), MaxRuntimesPerSession, "Max runtimes per session must be greater than zero.");

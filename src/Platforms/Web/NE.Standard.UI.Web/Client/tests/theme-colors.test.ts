@@ -1,5 +1,5 @@
-// The reader's own colours: the stylesheet the server answers stands right after the theme's in the head, is rewritten in place by a
-// later answer, and goes with an empty one, which is the application's palette again.
+// The reader's own colours: the stylesheet the server answers stands right after the theme's link in the head, is rewritten in place
+// by a later answer, and goes with an empty one, which is the application's palette again.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,14 +11,15 @@ const { applyThemeColors } = await import("../src/rendering/theme-colors.ts");
 
 const Css = "[data-ui-theme=\"light\"] {\n    --ui-color-primary: #F0DC78FF;\n}\n";
 
+// As the shell writes it: the theme's link, a block of the view's own, then the framework's sheets.
 function head(): { head: FakeElement; theme: FakeElement; link: FakeElement } {
-    const theme = new FakeElement("style");
+    const theme = FakeElement.of("", { rel: "stylesheet", "data-ui-theme-sheet": "" }, "link");
     const link = FakeElement.of("", { rel: "stylesheet" }, "link");
 
-    return { head: new FakeElement("head").append(new FakeElement("meta"), theme, link), theme, link };
+    return { head: new FakeElement("head").append(new FakeElement("meta"), theme, new FakeElement("style"), link), theme, link };
 }
 
-test("the reader's colours stand right after the theme's stylesheet", () => {
+test("the reader's colours stand right after the theme's link, ahead of the view's block and the framework's sheets", () => {
     const { head: element, theme } = head();
 
     applyThemeColors(real<Element>(element), Css);

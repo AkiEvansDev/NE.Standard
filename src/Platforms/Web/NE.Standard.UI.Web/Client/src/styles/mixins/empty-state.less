@@ -1,0 +1,30 @@
+// The empty state of every host with ShowEmptyTemplate (IEmptyStateComponent), one rule for all: called inside the host's root rule
+// with the path from its root to its items host, and the columns that host keeps while empty. EmptyStateRenderTests holds every such
+// host's stylesheet to it.
+//
+// Showing its empty state (`data-ui-items-empty`, the render's and ensureEmptyState's mark), the host is a one-cell grid, as a pane's
+// cell is: the placeholder takes the host's whole box inside its padding, so a template as tall as its room (UIPage.Empty) stands in
+// its middle and one of its own height (the default line) at its top. An auto row, not 1fr: a template taller than the box grows it,
+// the room under it kept; a host with no height of its own stays as tall as the placeholder. Across too, where rows keep the top.
+//
+// ShowEmptyTemplate off (`data-ui-no-empty` on the root, RenderEmptyStateSwitch): the host says nothing. Hidden rather than left out,
+// so a bound flag turned on shows it again; through the host alone, so a list nested in a row keeps its own.
+.ui-empty-state-host(@host; @columns: minmax(0, 1fr)) {
+    & > @{host}[data-ui-items-empty] {
+        display: grid;
+        grid-template-columns: @columns;
+        grid-auto-rows: auto;
+        align-content: stretch;
+        align-items: stretch;
+    }
+
+    // Across every track the host keeps, so a host's own columns of a later, equal rule (a key-value list's with no actions and
+    // no stretch) cannot stand it in its first.
+    & > @{host} > [data-ui-empty-placeholder] {
+        grid-column: 1 / -1;
+    }
+
+    &[data-ui-no-empty] > @{host} > [data-ui-empty-placeholder] {
+        display: none;
+    }
+}

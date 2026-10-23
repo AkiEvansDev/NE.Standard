@@ -3,7 +3,6 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -13,9 +12,6 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 public sealed class TextInputComponentRenderer : TextContentRendererBase
 {
-    // Read by the stylesheet alone, so it is this renderer's own rather than a WebAttributes constant.
-    private const string ClearShownAttribute = "data-ui-clear-shown";
-
     // On a field with no caption: its root is a <label>, whose words would name it, the names of the buttons standing in it among
     // them ("Attach Emoji Send"); its placeholder names it instead, as the page translates or patches it.
     private const string PlaceholderNamesAttribute = "data-ui-placeholder-names";
@@ -47,8 +43,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
 
-        // Whether the clear button shows, on the root: the button itself is always rendered.
-        RenderFlagAttribute(context, root, TextInputComponent.ShowClearButtonProperty, ClearShownAttribute);
+        NativeInputRendererBase.RenderClearable(context, root);
 
         FieldActionsRenderer.RenderActionsBelow(context, root, TextInputComponent.ActionsBelowProperty);
 
@@ -72,9 +67,14 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                 _ = input.Class($"{ClassName}__field");
                 _ = input.Class("ui-field");
 
-                _ = RenderProperty<UITextInputType?>(context, input, TextInputComponent.TypeProperty, static (target, value)
-                    => _ = target.Attribute("type", WebClassNames.TextInputType(value ?? UITextInputType.Text))
-                , TypeOperations);
+                _ = RenderProperty<UITextInputType?>(context, input, TextInputComponent.TypeProperty, static (target, value) =>
+                {
+                    _ = target.Attribute("type", WebClassNames.TextInputType(value ?? UITextInputType.Text));
+
+                    // Not among the patch's operations: a push turning the type to text leaves the field marked as a secret.
+                    if (value == UITextInputType.Password)
+                        _ = target.Attribute(WebAttributes.SecretField);
+                }, TypeOperations);
 
                 NativeInputRendererBase.RenderMaxLength(context, input);
 
@@ -93,7 +93,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute("inputmode", WebClassNames.InputMode(mode));
                 }, InputModeOperations);
 
-                var namedByPlaceholder = !IsNamed(context);
+                var namedByPlaceholder = !IsFieldNamed(context);
 
                 if (namedByPlaceholder)
                     _ = input.Attribute(PlaceholderNamesAttribute);
@@ -108,7 +108,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
                 RenderFlagAttribute(context, input, TextInputComponent.TrimInputProperty, WebAttributes.TrimInput);
 
-                NativeInputRendererBase.RenderDebounce(context, input, TextInputComponent.DebounceMillisecondsProperty);
+                NativeInputRendererBase.RenderDebounce(context, input);
 
                 NativeInputRendererBase.RenderRunsOnEnter(context, input);
                 NativeInputRendererBase.RenderRunsOnEscape(context, input, TextInputComponent.CancelOnEscapeProperty);
@@ -127,30 +127,13 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
-            // Always rendered: the bindable ShowClearButton shows it by the root's own mark. A pointer's shortcut and no tab stop: the
-            // keyboard empties the field in the field itself.
-            _ = row.Element("button", clear =>
-            {
-                _ = clear.Class($"{ClassName}__clear");
-                _ = clear.Attribute("type", "button");
-                _ = clear.Attribute("tabindex", "-1");
-                WebWords.Write(context, clear, "aria-label", UIStrings.InputClear);
-                _ = clear.Attribute(WebAttributes.Clear);
-            });
+            NativeInputRendererBase.RenderClearButton(context, row, $"{ClassName}__clear");
 
             // After the clear, what the field can do with its value stands past what takes it away.
             FieldActionsRenderer.RenderTrailingGroups(context, row, $"{ClassName}__action", $"{ClassName}__below");
         });
 
         RenderValidationMessage(context, root);
-    }
-
-    /// <summary>Whether a caption names the field, now or once its binding delivers one.</summary>
-    private static bool IsNamed(WebRenderContext context)
-    {
-        WebRenderValueKind title = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? caption, out _);
-
-        return title == WebRenderValueKind.Binding || (title == WebRenderValueKind.Static && !string.IsNullOrWhiteSpace(caption));
     }
 
     private static void RenderNamingPlaceholder(IHtmlElementBuilder target, string? value)

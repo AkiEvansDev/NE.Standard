@@ -10,7 +10,11 @@ public sealed class WebValueOptions
     /// <summary>
     /// Gets or sets the largest value accepted, in bytes of its JSON; refused while it arrives, not after it is buffered.
     /// </summary>
-    public long MaxValueSize { get; set; } = 16 * 1024 * 1024;
+    /// <remarks>
+    /// Taken, a value is read into objects several times its bytes. 4 MB holds a long code file or a large node sheet; an application
+    /// whose editors hold more raises it.
+    /// </remarks>
+    public long MaxValueSize { get; set; } = 4 * 1024 * 1024;
 
     /// <summary>
     /// Gets or sets how many bytes of values one session may have staged at once, counting those still arriving; a value

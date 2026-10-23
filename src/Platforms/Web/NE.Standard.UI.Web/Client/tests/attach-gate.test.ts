@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AttachGate } from "../src/transport/attach-gate.ts";
+import { AttachGate, pressAllowance } from "../src/transport/attach-gate.ts";
 
 // Settled within the turn or not at all: a gate that should hold is seen still pending after the microtasks run out.
 async function settlement(promise: Promise<void>): Promise<string> {
@@ -169,4 +169,17 @@ test("only a wait after an attach is a re-attach: the page's first is not, nor a
     gate.rearm();
     gate.close(new Error("lost"));
     assert.equal(gate.reattaching, false);
+});
+
+test("a press no drop has come between waits as any call does, unbounded", () => {
+    assert.equal(pressAllowance(1000, 60_000, 500, false, 10_000), null);
+});
+
+test("a press waiting behind the reattach has what is left of its bound from when it was raised", () => {
+    assert.equal(pressAllowance(1000, 4000, 2000, true, 10_000), 7000);
+});
+
+test("a press held behind values across a drop is past its bound once older than it, though the page is attached again", () => {
+    assert.equal(pressAllowance(1000, 12_000, 2000, false, 10_000), -1000);
+    assert.equal(pressAllowance(1000, 5000, 2000, false, 10_000), 6000);
 });

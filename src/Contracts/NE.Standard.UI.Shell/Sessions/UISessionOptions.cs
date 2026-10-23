@@ -23,6 +23,16 @@ public sealed class UISessionOptions
     public TimeSpan UnclaimedIdleTimeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
+    /// Gets or sets how many unclaimed sessions the in-memory store holds at once; zero or <see langword="null"/> is no such limit.
+    /// </summary>
+    /// <remarks>
+    /// Every page load without a cookie is a new session, so the timeout alone bounds nothing against a flood of them. Issuing one past
+    /// this gives up the oldest unclaimed one: a reader whose tab attaches after that many loads is given a new session, as after an
+    /// expiry. A session a tab attached to, or one signed in, is never counted. An application's own store bounds its own.
+    /// </remarks>
+    public int? MaxUnclaimedSessions { get; set; } = 100_000;
+
+    /// <summary>
     /// Gets or sets how far a session's last-seen time may lag behind: a page load or an attach that would change nothing but
     /// that time, moving it by less, writes nothing to the store, and an open tab's traffic touches it at most this often.
     /// </summary>
@@ -64,6 +74,9 @@ public sealed class UISessionOptions
 
         if (UnclaimedIdleTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(UnclaimedIdleTimeout), UnclaimedIdleTimeout, "Unclaimed session idle timeout must be greater than zero.");
+
+        if (MaxUnclaimedSessions < 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxUnclaimedSessions), MaxUnclaimedSessions, "Max unclaimed sessions must not be negative.");
 
         if (TouchResolution < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(TouchResolution), TouchResolution, "Session touch resolution must be zero or more.");

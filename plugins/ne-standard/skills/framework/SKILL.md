@@ -69,7 +69,7 @@ holds no application state and decides nothing; state survives a reload exactly 
   `GridSplitterComponent` lets the reader re-divide tracks (`BindPosition` keeps the share per person), `PaneContainerComponent`
   lets them move whole panes (`AddPane`, `BindLayout`).
 - `SetContextMenu(menu)` on any component (press-and-hold on a phone), `OnClick` on a surface or card (pressable with no
-  `SetClickable`), `SetUrl`/`BindUrl` on a surface, a card, a button or an action row (a link: no click command, no control inside — tabs, a pager, a switcher, an expander, a tree, chosen rows, a data grid or a chart with a legend, zoom or point click count as one, a package's own component through `IPressablePartsComponent`; a description's link inside shows as its words), `SetVisibility`,
+  `SetClickable`), `SetUrl`/`BindUrl` on a surface, a card, a file tile, a button or an action row (a link: no click command, no control inside — tabs, a pager, a switcher, an expander, a tree, chosen rows, a data grid or a chart with a legend, zoom or point click count as one, a package's own component through `IPressablePartsComponent`; a description's link inside shows as its words), `SetVisibility`,
   `SetTheme`, `TextSelectable`, inline text markup in a text's words (`SetDescriptionAutolinks(true)` links bare http(s)
   addresses, for a chat's messages; `SetDescriptionPlain(true)` shows the words as written, `SetTooltipPlain(true)` a tooltip's).
 - `WindowFoot` (`SetWindowFoot(true)`) on the composer or the last row at a window's bottom edge colours the phone's system bar.
@@ -182,10 +182,10 @@ description line alone where it shows one).
 rather than rebuilding the arrangement with your own widths and spacings. Each returns an ordinary built-in component.
 
 - `UIPage` - `Header`, `BoundHeader` (the band's name and line bound to the controller), `Section`/`BoundSection`,
-  `Heading`/`BoundHeading` (its far end on the title's line; `Heading(component, trailing)` for a heading of your own), `Fold`,
+  `Heading`/`BoundHeading` (its far end on the title's line; `Heading(component, trailing)` for a heading of your own), `Fold`/`BoundFold`,
   `Labelled`/`BoundLabelled` (its label counts as a field's caption in a form row), `Band`, `Column` (`UIColumnWidth.Reading/Form/Wide`;
   `centered: true` in the middle) with `header.InColumn(width)` for the band over it, `Banner`, `Empty`/`BoundEmpty` (nothing chosen
-  or made yet; the icon optional, the ways on in a row), `Outcome`/`BoundOutcome` (what a submit came to), `Status` (not found,
+  or made yet; the icon optional, the ways on in a row), `Outcome`/`BoundOutcome` (what a submit came to), `Status`/`BoundStatus` (not found,
   refused, failed). `UIHeaderSize` sizes a header. Words are `UIPhrase`; words the controller holds go through the `Bound*` twin.
 - `UILayout` - `Stack`, `Row`, `Columns`, `Split`, `Sidebar`, `Board`, `Ends`, and `Panes` - a list beside the thing chosen in
   it (chats and a conversation, a tree and a note), one at a time on a phone:
@@ -196,8 +196,9 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   anything else that switches with it (`"Panes.ListVisibility"`). The splitter's `Share` is seeded with `SeedShare(stored)` and
   `ShareChanged` (subscribed once) fires on any change but the seed - the reader moving it - with no share path watched in `OnNotify`. `PanesListVisibility`/
   `PanesDetailVisibility`/`PanesPlaceholderVisibility` are the values the state holds, for a part that follows a pane;
-  `band.InPanesList()` gives a band over the list the list's width. Beside a titled field, `Row` and `Ends` stand a thing with no
-  caption level with the field's box, as `UIForm.Row` does; never align it by hand. A scroller's bar room is
+  `band.InPanesList()` gives a band over the list the list's width. Beside a titled field, a control with no caption stands level
+  with the field's box in a non-wrapping arrangement side by side (`Ends`, `UIForm.Row`, a stack running across or a grid row of your
+  own; `Row` does it on every line, wrapped ones too, in cells) - the framework does it; never align it by hand. A scroller's bar room is
   `ContainerComponent.ScrollbarRoom`.
 - `UIButtons` - `Primary`, `Accent`, `Danger`, `Ghost`, `Outline`, `Link` (words, or a `UIStandardAction` in the framework's words:
   `UIButtons.Primary(UIStandardAction.Save)`), `Icon` (a glyph and name the controller holds bound on the button it returns:
@@ -219,7 +220,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   `AsBody`, `AsCaption`, `AsOverline`, `Muted` (`TextPresetExtensions`).
 - `UIForm` - `Field(input, hint?)` (or a `ParagraphComponent` hint), `BoundField(input, hintPath)`, `Row(fields)`. `UIDetails` -
   `List` (bound rows: `.BindItems(path)` of `Row`s), `Row`, `Amount`/`BoundAmount`, `Total`/`BoundTotal` (names and values to read).
-- `UICard` - `Create` (a null title leaves the name to `ConfigureDefaultHeader`), `Centered` (one card alone: sign-in, refusal).
+- `UICard` - `Create`/`BoundCreate` (a name and line the controller holds), `Centered` (one card alone: sign-in, refusal).
   Every end icon or quiet button of a band - a header, a card's header, `Ends`, a toolbar's start, a quote's or a message's × - stands
   its glyph or words on the edge, an icon by its own `IconSize`. `UIMessage` - `Create`, `BoundCreate` (words at paths),
   `Info`, `Success`, `Warning`, `Danger` (`UIMessageSeverity`): a message that stays while true; `dismissCommand` runs as its ×
@@ -254,7 +255,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 - Grouping, filtering and sorting rules, selection (`SelectedKey`, `SelectedKeys`), item abilities (`CanSelect`, `CanDrag`,
   `Renamable`...), moving rows (`OnItemMoveWithItemKey`), every row event in three shapes (`…WithItemKey`, arguments, `…Literal`:
   `OnItemOpenLiteral`, `OnNodeRenameLiteral`, `OnRowRemoveLiteral`), drag and drop between lists, virtualized hosting, the empty template
-  (`ConfigureDefaultEmptyTemplate` on every list host - on a menu and a key-value list it puts the built-in one in -,
+  (`ConfigureDefaultEmptyTemplate` on every items host, putting the built-in one in where there is none,
   `ConfigureDefaultGroupTemplate`, `SetShowEmptyTemplate(false)` - not on a select or a search, whose open list always answers -,
   or `SetEmptyTemplate(UIPage.Empty(...))`, centred in a list
   given the region's height), a

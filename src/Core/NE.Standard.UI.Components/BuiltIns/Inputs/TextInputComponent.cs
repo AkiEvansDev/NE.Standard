@@ -19,7 +19,10 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
-public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent
+[UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
+[UIComponentPropertyBlock(typeof(ITextLengthComponent))]
+[UIComponentPropertyBlock(typeof(IClearableInputComponent))]
+public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, IClearableInputComponent, ITextLengthComponent, ICaretFieldComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
     // UIStrings.SearchField: the Shell's key, written out, as the components reference no Shell.
@@ -200,25 +203,6 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     public UITextInputType? Type { get; set; }
 
     /// <summary>
-    /// Gets or sets the maximum number of characters allowed.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
-    public int? MaxLength { get; set; }
-
-    /// <summary>
-    /// Gets or sets how long after the viewer stops typing the value is committed, in milliseconds; unset, it
-    /// commits on blur or Enter.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
-    public int? DebounceMilliseconds { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether a button to clear the current value is shown.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? ShowClearButton { get; set; }
-
-    /// <summary>
     /// Gets or sets what the browser may fill the field with, in its own vocabulary (<see cref="UIAutocomplete"/>) — e.g. naming
     /// the sign-in pair for a password manager, or an address form's parts.
     /// </summary>
@@ -237,12 +221,6 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     public T SetTrimInput()
         => SetTrimInput(true);
-
-    /// <summary>
-    /// Enables the button that clears the current value.
-    /// </summary>
-    public T SetShowClearButton()
-        => SetShowClearButton(true);
 
     /// <summary>
     /// Makes the field a search box: the search type, the search glyph before the text, a clear button, and

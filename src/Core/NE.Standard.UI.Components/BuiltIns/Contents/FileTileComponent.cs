@@ -14,9 +14,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// an image input's shelf draws a file that is no picture; while <c>Loading</c>, a ring turns in the glyph's place. A message's
 /// attachments, a downloads list, an upload's result.
 /// </summary>
-/// <remarks>The size is written by the page in the reader's language, as the shelf writes it: "1.5 MB", "1,5 МБ".</remarks>
+/// <remarks>
+/// The size is written by the page in the reader's language, as the shelf writes it: "1.5 MB", "1,5 МБ". Given a <c>Url</c>, the tile
+/// is a link to the file — opened or downloaded by the address, in a new tab or copied as a surface's is.
+/// </remarks>
 [UIComponentPropertyBlock(typeof(IClickableComponent))]
-public abstract partial class FileTileComponent<T> : VisualComponentBase<T>, IClickableComponent
+[UIComponentPropertyBlock(typeof(ILinkableComponent))]
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class FileTileComponent<T> : VisualComponentBase<T>, IClickableComponent, ILinkableComponent, IAccessibleNameComponent
     where T : FileTileComponent<T>, IUIComponentDefinition
 {
     /// <summary>

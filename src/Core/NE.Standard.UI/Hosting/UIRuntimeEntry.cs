@@ -110,9 +110,11 @@ internal sealed class UIRuntimeEntry
     /// command in flight is kept regardless, collected on a later sweep once it finishes.
     /// </summary>
     public bool ShouldCleanup(DateTime utcNow, TimeSpan retention, TimeSpan unclaimedRetention)
-        => !Runtime.HasCommandsInFlight
-        && DisconnectedAtUtc is DateTime disconnectedAt
-        && disconnectedAt + (IsAdopted ? retention : unclaimedRetention) <= utcNow;
+        => !Runtime.HasCommandsInFlight && IsPastRetention(utcNow, retention, unclaimedRetention);
+
+    /// <summary>Whether every tab left this entry longer ago than its retention — the short one until a page has presented it.</summary>
+    public bool IsPastRetention(DateTime utcNow, TimeSpan retention, TimeSpan unclaimedRetention)
+        => DisconnectedAtUtc is DateTime disconnectedAt && disconnectedAt + (IsAdopted ? retention : unclaimedRetention) <= utcNow;
 
     /// <summary>
     /// Claims the right to refresh the session's last-seen time now, throttled so hub traffic does not turn into

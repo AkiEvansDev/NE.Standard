@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
@@ -14,8 +15,9 @@ public interface ITextLengthComponent
     static UIProperty MaxLengthProperty { get; } = new(nameof(MaxLength));
 
     /// <summary>
-    /// Gets or sets the maximum number of characters allowed.
+    /// Gets or sets the maximum number of characters allowed; the server refuses a longer value the page sends.
     /// </summary>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     int? MaxLength { get; set; }
 }
 

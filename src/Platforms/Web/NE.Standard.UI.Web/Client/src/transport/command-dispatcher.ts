@@ -31,7 +31,8 @@ export class CommandDispatcher {
         return this.pendingKeys.has(createPendingKey(normalizeCommandRequest(request)));
     }
 
-    public async dispatchAsync(request: UICommandRequest): Promise<UICommandExecutionResult> {
+    /** `raisedAt`: when the reader pressed (`performance.now()`), which bounds a press held across a drop (`pressAllowance`). */
+    public async dispatchAsync(request: UICommandRequest, raisedAt?: number): Promise<UICommandExecutionResult> {
         const normalizedRequest = normalizeCommandRequest(request);
         const key = createPendingKey(normalizedRequest);
 
@@ -45,7 +46,7 @@ export class CommandDispatcher {
         const pushed = this.expect(requestId);
 
         try {
-            const answer = await this.sendAsync({ ...normalizedRequest, requestId });
+            const answer = await this.sendAsync({ ...normalizedRequest, requestId }, raisedAt);
 
             return answer.accepted === true ? await pushed : answer;
         }
@@ -60,11 +61,11 @@ export class CommandDispatcher {
      * beside it, as a large value is, and the command carries their token; the commands after it wait for it to go, and one with
      * nothing staged ahead of it leaves at once.
      */
-    private sendAsync(request: UICommandRequest): Promise<UICommandExecutionResult> {
+    private sendAsync(request: UICommandRequest, raisedAt: number | undefined): Promise<UICommandExecutionResult> {
         const body = largeValueBody(request.dynamicParameters);
 
         if (body === null && this.staging === null)
-            return this.transport.processEventAsync(request);
+            return this.transport.processEventAsync(request, raisedAt);
 
         const ahead = this.staging;
         // Posted at once, in parallel with what is ahead: only the order the commands reach the hub in matters.
@@ -83,7 +84,7 @@ export class CommandDispatcher {
 
                 const token = staged === null ? null : await staged;
 
-                return this.transport.processEventAsync(token === null ? request : { ...request, dynamicParameters: [], dynamicParametersToken: token });
+                return this.transport.processEventAsync(token === null ? request : { ...request, dynamicParameters: [], dynamicParametersToken: token }, raisedAt);
             }
             finally {
                 // Once the invoke is on its way, or the post failed: either way the next command is free to go.

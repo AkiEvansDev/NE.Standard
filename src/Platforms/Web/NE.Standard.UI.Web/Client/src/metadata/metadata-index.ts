@@ -695,6 +695,8 @@ export type WebUIAttachResult = {
     readonly runtime?: string;
     /** The runtime the page held is gone (a restart, an eviction, a retention run out): what it shows belongs to nothing, so it reloads. */
     readonly fresh?: boolean;
+    /** How long the server keeps the runtime after the page's connection drops, which the reconnect tries for; none where it does not say. */
+    readonly retentionMilliseconds?: number;
 };
 
 export type WebUIValueChangeRequest = {

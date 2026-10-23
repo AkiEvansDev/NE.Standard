@@ -299,6 +299,14 @@ export const BottomBarAttribute = "data-ui-bottom-bar";
 export const RailDrawerAttribute = "data-ui-rail-drawer";
 /** On a menu whose display differs by breakpoint: the tiers it is a rail in, the rest a list (`WebAttributes.MenuRailTiers`). */
 export const MenuRailTiersAttribute = "data-ui-menu-rail-tiers";
+
+/**
+ * On a component whose orientation, size or list layout differs by breakpoint: that family's class at every tier, narrowest first
+ * (`WebAttributes.TierOrientation`, `TierSize`, `TierLayout`); tier-class.ts gives the element the width's.
+ */
+export const TierOrientationAttribute = "data-ui-tier-orientation";
+export const TierSizeAttribute = "data-ui-tier-size";
+export const TierLayoutAttribute = "data-ui-tier-layout";
 /** On a component that is the window's foot (WindowFoot): the phone's system bar under the page takes its colour (window-foot.ts). */
 export const WindowFootAttribute = "data-ui-window-foot";
 /** On the root where the content region's root fills the height (WebAttributes.ContentFills): content-fills.ts keeps it. */
@@ -437,6 +445,10 @@ export const ServiceWorkerImportedAttribute = "data-ui-service-worker-imported";
 export const ThemeAttribute = "data-ui-theme";
 /** On the head's `style` holding the reader's own colours, after the theme's (`WebAttributes.ThemeColors`). */
 export const ThemeColorsAttribute = "data-ui-theme-colors";
+/** On the head's `link` to the theme's stylesheet, which the reader's colours stand right after (`WebAttributes.ThemeStylesheet`). */
+export const ThemeStylesheetAttribute = "data-ui-theme-sheet";
+/** On a field rendered as a password, kept when its type is switched to show it (`WebAttributes.SecretField`): never stashed. */
+export const SecretFieldAttribute = "data-ui-secret";
 /** An element's chrome words with their keys (`WebWords`, `strings.write`), which a language switch writes again. */
 export const WordsAttribute = "data-ui-words";
 /** The place in a words mark that stands for the element's own text, beside the attributes it names: the server's `WebWords.TextTarget`. */

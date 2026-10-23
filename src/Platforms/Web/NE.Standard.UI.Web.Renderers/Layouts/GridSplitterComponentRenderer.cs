@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Styling;
@@ -26,9 +27,9 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        // Render-time only: which axis a bar divides is how the page is laid out.
-        _ = ResolveRenderValue(context, IOrientationComponent.OrientationProperty, out UIOrientation? orientation, out _);
-        UIOrientation resolved = orientation ?? UIOrientation.Vertical;
+        // Render-time only: which axis a bar divides is how the page is laid out, one at every width (the compiler refuses tiers).
+        _ = ResolveRenderValue(context, IOrientationComponent.OrientationProperty, out UIResponsive<UIOrientation>? orientation, out _);
+        UIOrientation resolved = orientation?.Base ?? UIOrientation.Vertical;
 
         _ = root.Class(WebClassNames.Orientation(resolved));
         _ = root.Attribute("role", "separator");

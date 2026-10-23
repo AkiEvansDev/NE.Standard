@@ -16,6 +16,12 @@ public interface IUIUpdateSink
     /// <remarks>
     /// Takes the instances explicitly rather than from <paramref name="handle"/>: a runtime can be shared,
     /// and the change set is the same for all of them.
+    /// <para>
+    /// One runtime's pages are sent to at once: calls for disjoint instances of the same runtime may run concurrently, while the next
+    /// set for an instance waits until its last call returned. <paramref name="cancellationToken"/> also fires when one call outlasts
+    /// <c>UIPersistenceOptions.SendTimeout</c>; a call given up counts as failed and the runtime is asked for a full resync, so a sink
+    /// that cannot tell whether its client got part of the set should drop that client's connection rather than leave it half-applied.
+    /// </para>
     /// </remarks>
     Task SendChangesAsync(UIHandle handle, IReadOnlyCollection<string> instanceIds, ServerChangeSet changes, CancellationToken cancellationToken = default);
 

@@ -33,7 +33,6 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     private const string PopupClassName = "ui-select__popup";
     private const string ListClassName = "ui-select__list";
 
-    private const string ClearableClassName = "ui-select--clearable";
     private const string NoChevronClassName = "ui-select--no-chevron";
 
     // The key that does the clear's work from the closed field (select-interaction-engine.ts), said on the control the reader stands on
@@ -47,7 +46,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
     private static readonly WebDomOperation[] ClearableOperations =
     [
-        WebDomOperation.ToggleClass(ClearableClassName, condition: WebValueCondition.IsTrue),
+        NativeInputRendererBase.ClearableMarkOperation,
         WebDomOperation.ToggleAttribute("aria-keyshortcuts", target: ClearKeyTarget, condition: WebValueCondition.IsTrue, value: ClearKey, optional: true)
     ];
 
@@ -81,7 +80,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
-    /// Whether the clear button and the chevron show, as two classes on the root, both always in the tree; and where the list
+    /// Whether the clear button and the chevron show, as the root's clear mark (every clearable field's) and a class, both always in the tree; and where the list
     /// opens, when that is not the default. The field's Delete clears it as well, said on its control (<see cref="RenderClearKey"/>) and
     /// kept there as the clear comes and goes.
     /// </summary>
@@ -90,11 +89,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<bool?>(context, root, SelectComponent.ShowClearButtonProperty, static (target, value) =>
-        {
-            if (value == true)
-                _ = target.Class(ClearableClassName);
-        }, ClearableOperations);
+        NativeInputRendererBase.RenderClearable(context, root, ClearableOperations);
 
         RenderFlagClass(context, root, SelectComponent.ShowChevronProperty, NoChevronClassName, WebValueCondition.IsFalse);
 
@@ -245,7 +240,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(control);
 
-        if (ReadRenderValue<bool?>(context, SelectComponent.ShowClearButtonProperty, false) == true)
+        if (ReadRenderValue<bool?>(context, IClearableInputComponent.ShowClearButtonProperty, false) == true)
             _ = control.Attribute("aria-keyshortcuts", ClearKey);
     }
 

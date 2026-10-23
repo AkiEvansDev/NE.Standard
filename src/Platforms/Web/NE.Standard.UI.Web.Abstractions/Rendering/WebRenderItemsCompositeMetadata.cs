@@ -33,9 +33,6 @@ public sealed class WebRenderItemsCompositeMetadata
         if (string.IsNullOrWhiteSpace(ItemElementName))
             throw new InvalidOperationException("Composite item element name must not be empty.");
 
-        if (Slots.Count == 0)
-            throw new InvalidOperationException("Composite item must declare at least one slot.");
-
         for (var i = 0; i < Slots.Count; i++)
             Slots[i].Validate();
     }

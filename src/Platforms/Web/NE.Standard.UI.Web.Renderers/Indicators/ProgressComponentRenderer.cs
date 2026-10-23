@@ -132,13 +132,14 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
             });
         });
 
-        // No reading is an indeterminate bar, which carries no aria-valuenow at all.
+        // No reading is an indeterminate bar: no aria-valuenow at all, and the stylesheet's own 0, as a patch to none leaves it.
         _ = RenderProperty<decimal?>(context, root, ProgressComponent.ValueProperty, static (target, value) =>
         {
-            _ = target.Style("--ui-progress-value", FormatNumber(value ?? 0m));
+            if (value is not decimal reading)
+                return;
 
-            if (value is decimal reading)
-                _ = target.Attribute("aria-valuenow", FormatNumber(reading));
+            _ = target.Style("--ui-progress-value", FormatNumber(reading));
+            _ = target.Attribute("aria-valuenow", FormatNumber(reading));
         }, ValueOperations);
     }
 

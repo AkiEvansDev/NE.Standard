@@ -31,8 +31,13 @@ public static class UILayout
 
     /// <summary>
     /// Things along a row, wrapping onto the next when the row is narrower than they are. Beside a field with a caption over its box,
-    /// a thing with none (a button, a field without a title) stands level with the box, as in a form row.
+    /// a thing with none (a button, a field without a title, words) stands level with the box on every line, a wrapped one included:
+    /// in a cell whose padding takes the caption's line, so what follows the row makes room for it.
     /// </summary>
+    /// <remarks>
+    /// The row asks for it itself: a wrapping panel of the author's own implies nothing, since a wrapped line has no field beside it
+    /// the compiler can know of; a row accepts that line's air, as its cells always did.
+    /// </remarks>
     public static StackPanelComponent Row(double spacing = 8, params IVisualComponent[] children)
     {
         ArgumentNullException.ThrowIfNull(children);
@@ -42,8 +47,8 @@ public static class UILayout
             .SetSpacing(spacing)
             .SetWrap(true);
 
-        // A row does not stack at a breakpoint, so at every width.
-        if (UIFieldBoxes.Of(children) is not UIFieldBoxAlignment boxes)
+        // A row does not stack at a breakpoint, but a field's size may change at one.
+        if (RowBoxes(children) is not UIResponsive<UIFieldBoxAlignment> boxes)
             return row.AddChildren(children);
 
         foreach (IVisualComponent child in children)
@@ -52,13 +57,33 @@ public static class UILayout
         return row;
     }
 
+    /// <summary>The boxes the row's captioned things stand on at each width, or null where none draws a caption row at any.</summary>
+    private static UIResponsive<UIFieldBoxAlignment>? RowBoxes(IVisualComponent[] children)
+    {
+        UIFieldBoxAlignment[] tiers = new UIFieldBoxAlignment[(int)UIResponsiveTier.Xxl + 1];
+        var any = false;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            tiers[(int)tier] = UIFieldBoxes.Of(children, tier) ?? UIFieldBoxAlignment.None;
+            any |= tiers[(int)tier] != UIFieldBoxAlignment.None;
+        }
+
+        return any ? UIResponsive<UIFieldBoxAlignment>.Create(tiers[0], Own(tiers, 1), Own(tiers, 2), Own(tiers, 3), Own(tiers, 4)) : null;
+    }
+
+    /// <summary>A tier's value where it differs from the one below, else unwritten.</summary>
+    private static UIFieldBoxAlignment? Own(UIFieldBoxAlignment[] tiers, int tier)
+        => tiers[tier] == tiers[tier - 1] ? null : tiers[tier];
+
     /// <summary>
     /// A thing with no caption level with captioned fields' boxes in a row: a column of its own through itself, anything else in a cell
-    /// shown as the thing is, so a thing hidden at a width leaves no gap.
+    /// shown as the thing is, so a thing hidden at a width leaves no gap. Both by their padding, never a translate: the offset takes
+    /// room, so the row's line and what follows it grow with it.
     /// </summary>
-    private static StackPanelComponent LevelWithBoxes(IVisualComponent child, UIFieldBoxAlignment boxes)
+    private static StackPanelComponent LevelWithBoxes(IVisualComponent child, UIResponsive<UIFieldBoxAlignment> boxes)
     {
-        if (UIFieldBoxes.AlignsItself(child, out StackPanelComponent? column))
+        if (child is StackPanelComponent { AlignWithFieldBoxes: null } column && RunsDown(column))
             return column.SetAlignWithFieldBoxes(boxes);
 
         StackPanelComponent cell = new StackPanelComponent()
@@ -68,6 +93,17 @@ public static class UILayout
             .AddChild(child);
 
         return FollowVisibility(cell, child);
+    }
+
+    private static bool RunsDown(StackPanelComponent panel)
+    {
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (panel.Orientation?.Resolve(tier) == UIOrientation.Horizontal)
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -97,13 +133,6 @@ public static class UILayout
     /// fields by the top, as <see cref="UIForm.Row(double, IVisualComponent[])"/> does; null lets each cell take its child's own.
     /// </summary>
     public static ContainerComponent Columns(double spacing, UIAlignment? cellAlignment, params IVisualComponent[] children)
-        => Columns(spacing, cellAlignment, children, fieldBoxes: null);
-
-    /// <summary>
-    /// As the public overload, each cell standing its child level with the field boxes <paramref name="fieldBoxes"/> names for it while
-    /// the columns stand side by side (<see cref="UIForm.Row(double, IVisualComponent[])"/>).
-    /// </summary>
-    internal static ContainerComponent Columns(double spacing, UIAlignment? cellAlignment, IVisualComponent[] children, Func<IVisualComponent, UIFieldBoxAlignment>? fieldBoxes)
     {
         ArgumentNullException.ThrowIfNull(children);
 
@@ -115,16 +144,10 @@ public static class UILayout
 
         var wide = children.Length > 3;
 
+        // A cell with no caption beside a captioned one stands level with its box only from the breakpoint they stand side by side at
+        // (the compiler's AlignWithFieldBoxes): stacked, the line would stand the control off the field above.
         for (var i = 0; i < children.Length; i++)
-        {
-            StackPanelComponent cell = Cell(children[i], i, children.Length, (i * span) + 1, span, spacing, wide, cellAlignment);
-
-            // Only from the breakpoint the cells stand side by side at: stacked, the line would stand the control off the field above.
-            if (fieldBoxes?.Invoke(children[i]) is UIFieldBoxAlignment boxes and not UIFieldBoxAlignment.None)
-                UIFieldBoxes.Align(cell, children[i], wide ? UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, xl: boxes) : UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, md: boxes));
-
-            _ = columns.AddChild(cell);
-        }
+            _ = columns.AddChild(Cell(children[i], i, children.Length, (i * span) + 1, span, spacing, wide, cellAlignment));
 
         return columns;
     }
@@ -213,8 +236,8 @@ public static class UILayout
         var firstLineOnEnd = titleLine && end.Length > 0 && !under;
 
         // Both held by the top beside a captioned start: centred, a start growing its validation line would drop the end off its box.
-        UIFieldBoxAlignment? boxes = UIFieldBoxes.Of([start]);
-        UIAlignment across = boxes is null && !firstLineOnEnd ? UIAlignment.Center : UIAlignment.Start;
+        // The end then stands level with the start's box where it stands beside it (the compiler's AlignWithFieldBoxes).
+        UIAlignment across = !UIFieldBoxes.HasCaptionRow(start) && !firstLineOnEnd ? UIAlignment.Center : UIAlignment.Start;
 
         StackPanelComponent first = new StackPanelComponent()
             .SetOrientation(UIOrientation.Vertical)
@@ -240,10 +263,6 @@ public static class UILayout
             .SetHorizontalAlignment(UIAlignment.End)
             .SetVerticalAlignment(across)
             .AddChildren(end);
-
-        // Under the start on a phone the end stands on no box: the line only from the breakpoint it stands beside the start at.
-        if (boxes is UIFieldBoxAlignment level)
-            _ = far.SetAlignWithFieldBoxes(under ? UIResponsive<UIFieldBoxAlignment>.Create(UIFieldBoxAlignment.None, md: level) : level);
 
         // In reading order: the start, its line, then the far end.
         ContainerComponent row = new ContainerComponent()
@@ -372,14 +391,14 @@ public static class UILayout
     // The cell is only as tall as its child, so the child's VerticalAlignment has no room to act in it: the cell takes it over,
     // unless the caller names one alignment for every cell.
     private static StackPanelComponent Cell(IVisualComponent child, int index, int count, int column, int span, double spacing, bool wide, UIAlignment? alignment = null)
-        => Place(new StackPanelComponent().SetOrientation(UIOrientation.Vertical).AddChild(child), index, count, column, span, spacing, wide, alignment ?? child.VerticalAlignment ?? UIAlignment.Start);
+        => Place(new StackPanelComponent().SetOrientation(UIOrientation.Vertical).AddChild(child), index, count, column, span, spacing, wide, (UIResponsive<UIAlignment>?)alignment ?? child.VerticalAlignment ?? UIAlignment.Start);
 
     /// <summary>
     /// A cell in its column from the breakpoint and under the one before it below. Beside, one of <paramref name="count"/> equal
     /// columns takes its share of the air on both sides, so every column loses the same width; with no count (a main part and a side)
     /// the air stands before the later one.
     /// </summary>
-    private static StackPanelComponent Place(StackPanelComponent cell, int index, int count, int column, int span, double spacing, bool wide, UIAlignment alignment)
+    private static StackPanelComponent Place(StackPanelComponent cell, int index, int count, int column, int span, double spacing, bool wide, UIResponsive<UIAlignment> alignment)
     {
         var air = index == 0 ? 0 : spacing;
         UIThickness under = UIThickness.All(0, air, 0, 0);

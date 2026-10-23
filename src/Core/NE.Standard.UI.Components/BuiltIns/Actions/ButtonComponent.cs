@@ -35,6 +35,7 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Body;
     private const UITextBadgePlacement DefaultBadgePlacement = UITextBadgePlacement.Trailing;
     private static readonly UITextAppearance DefaultDescriptionType = UITextAppearance.Caption;
+    private static readonly UIResponsive<UIButtonSize> DefaultSize = UIButtonSize.Medium;
 
     // Centred; a row-shaped control that wears the button (an action, a menu entry, a breadcrumb) left-aligns it in its own constructor.
     private const UITextAlignment DefaultTextAlignment = UITextAlignment.Center;
@@ -44,8 +45,8 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     public UIButtonType? Type { get; set; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = UIButtonSize.Medium)]
-    public UIButtonSize? Size { get; set; }
+    [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValueMember = nameof(DefaultSize))]
+    public UIResponsive<UIButtonSize>? Size { get; set; }
 
     /// <inheritdoc/>
     /// <remarks>Not translatable: a chord names physical keys. A literal one is checked when the view compiles.</remarks>

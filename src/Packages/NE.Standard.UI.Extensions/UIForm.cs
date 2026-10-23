@@ -68,19 +68,14 @@ public static class UIForm
     /// <summary>
     /// Fields side by side in equal columns, their tops level, <paramref name="spacing"/> apart. Among fields with a caption over their
     /// boxes, a control with none (a switch, a checkbox, a button) stands a caption line down, centred on a box of their size, while
-    /// they stand side by side; a control with its hint (<see cref="Field(IVisualComponent, UIPhrase)"/>) stands the control on it.
+    /// they stand side by side, as anything beside a captioned field does (<see cref="IVisualComponent.AlignWithFieldBoxes"/>); a control
+    /// with its hint (<see cref="Field(IVisualComponent, UIPhrase)"/>) stands the control on it.
     /// </summary>
     public static ContainerComponent Row(double spacing, params IVisualComponent[] fields)
     {
         ArgumentNullException.ThrowIfNull(fields);
 
-        // In a row with no caption, a line over a control would only be air.
-        Func<IVisualComponent, UIFieldBoxAlignment>? fieldBoxes = null;
-
-        if (UIFieldBoxes.Of(fields) is UIFieldBoxAlignment boxes)
-            fieldBoxes = field => UIFieldBoxes.HasCaptionRow(field) ? UIFieldBoxAlignment.None : boxes;
-
         // Held by the top, not centred like a plain cell: a field growing its validation line must not push its neighbour down.
-        return UILayout.Columns(spacing, UIAlignment.Start, fields, fieldBoxes);
+        return UILayout.Columns(spacing, UIAlignment.Start, fields);
     }
 }

@@ -3,7 +3,7 @@
 // `.ts` on the imports, and types imported as types: `node --test` runs this module and resolves files literally.
 import { BadgeSetAttribute, BadgeTextAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
-import { resolveResponsiveTier, responsiveTiers, toResponsiveTier } from "./responsive-tier.ts";
+import { currentResponsiveTier, resolveResponsiveTier, responsiveTiers, toResponsiveTier } from "./responsive-tier.ts";
 import { isIconClassName, toIconClassName, toIconSourceCss } from "./icon-value.ts";
 import { clampByte, onColorToken, toHexByte } from "./color-bytes.ts";
 import { toSafeImageSource, toSafeLink } from "./url-safety.ts";
@@ -232,6 +232,27 @@ function tokenClass(name: string, prefix: string, tokens: readonly string[]): [s
     return familyClass(name, toTokenClassFamily(prefix, tokens), value => `${prefix}${toToken(value, tokens)}`);
 }
 
+/**
+ * A token class of a layout value that may differ by breakpoint (TierClassRenderer): the class of the width the window has now, which
+ * tier-class.ts keeps as the width changes; a bare value is its own at every width, with no tier read.
+ */
+function tierTokenClass(name: string, prefix: string, tokens: readonly string[]): [string, WebDomConverter] {
+    return familyClass(name, toTokenClassFamily(prefix, tokens), value => `${prefix}${toToken(isTiered(value) ? resolveResponsiveTier(value, currentResponsiveTier()) : value, tokens)}`);
+}
+
+function isTiered(value: unknown): boolean {
+    return typeof value === "object" && value !== null && "base" in value;
+}
+
+/** Every tier's token class narrowest first, as the family's attribute lists them, or nothing (no attribute) where the tiers agree. */
+function tierClassList(name: string, prefix: string, tokens: readonly string[]): [string, WebDomConverter] {
+    return [name, value => {
+        const classes = responsiveTiers.map(tier => `${prefix}${toToken(resolveResponsiveTier(value, tier), tokens)}`);
+
+        return classes.every(className => className === classes[0]) ? undefined : classes.join(" ");
+    }];
+}
+
 function toTokenClassFamily(prefix: string, tokens: readonly string[]): ClassFamily {
     return toClassFamily(tokens.map(token => `${prefix}${token}`));
 }
@@ -286,7 +307,8 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["badgeTextFit", value => toBadgeTextFit(value)],
     tokenClass("buttonClass", "ui-button--", buttonTokens),
     tokenClass("surfaceStyleClass", "ui-surface--", surfaceStyleTokens),
-    tokenClass("orientationClass", "ui-orientation--", orientationTokens),
+    tierTokenClass("orientationClass", "ui-orientation--", orientationTokens),
+    tierClassList("orientationTierClasses", "ui-orientation--", orientationTokens),
     tokenClass("groupSeparatorClass", "ui-command-bar--separator-", groupSeparatorTokens),
     ["selectionModeAttribute", value => toToken(value, selectionModeTokens)],
     ["selectionBackgroundCss", value => toThemeColor(toSelectionStylePart(value, "background"))],
@@ -295,23 +317,26 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["selectionMarkCss", value => toSelectionMark(toSelectionStylePart(value, "mark"))],
     ["selectionFontWeightCss", value => toSelectionFontWeight(toSelectionStylePart(value, "bold"))],
     ["selectionActionBarBackgroundCss", value => toThemeColor(toSelectionStylePart(value, "actionBarBackground"))],
-    tokenClass("itemsViewLayoutClass", "ui-items-view--", itemsViewLayoutTokens),
+    tierTokenClass("itemsViewLayoutClass", "ui-items-view--", itemsViewLayoutTokens),
+    tierClassList("itemsViewLayoutTierClasses", "ui-items-view--", itemsViewLayoutTokens),
     tokenClass("dragHandlePlacementClass", "ui-drag-handle--", dragHandlePlacementTokens),
     tokenClass("scrollXClass", "ui-scroll-x--", scrollTokens),
     tokenClass("scrollYClass", "ui-scroll-y--", scrollTokens),
     ["hostViewport", value => toHostViewport(value)],
     tokenClass("scrollSnapClass", "ui-scroll-snap--", scrollSnapTokens),
     tokenClass("inputAppearanceClass", "ui-input--", inputAppearanceTokens),
-    tokenClass("inputSizeClass", "ui-input--", inputSizeTokens),
-    tokenClass("buttonSizeClass", "ui-button--", buttonSizeTokens),
-    tokenClass("buttonGroupSizeClass", "ui-button-group--", buttonSizeTokens),
+    tierTokenClass("inputSizeClass", "ui-input--", inputSizeTokens),
+    tierClassList("inputSizeTierClasses", "ui-input--", inputSizeTokens),
+    tierTokenClass("buttonSizeClass", "ui-button--", buttonSizeTokens),
+    tierClassList("buttonSizeTierClasses", "ui-button--", buttonSizeTokens),
+    tierTokenClass("buttonGroupSizeClass", "ui-button-group--", buttonSizeTokens),
+    tierClassList("buttonGroupSizeTierClasses", "ui-button-group--", buttonSizeTokens),
     ["textInputTypeAttribute", value => toToken(value, textInputTypeTokens)],
     ["inputModeAttribute", value => toToken(value, inputModeTokens)],
     ["colorTextFormatAttribute", value => toToken(value, colorTextFormatTokens)],
     ["colorInputVariantAttribute", value => toToken(value, colorInputVariantTokens)],
     ["themeNameCss", value => toToken(value, themeTokens)],
     ["alignmentCss", value => toToken(value, alignmentTokens)],
-    ["alignmentStretchFallbackCss", value => toToken(value, alignmentTokens) === "stretch" ? "start" : ""],
     ["overflowCss", value => toToken(value, overflowTokens)],
     ["layoutLengthCss", value => toLayoutLength(value)],
     ["thicknessCss", value => toThickness(value)],
@@ -346,6 +371,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ...tierConverters("responsiveThicknessVertical", "Css", (value, tier) => toThicknessSum(toResponsiveTier(value, tier), "vertical")),
     ...tierConverters("responsiveRadius", "Css", (value, tier) => toRadius(toResponsiveTier(value, tier))),
     ...tierConverters("responsivePixels", "Css", (value, tier) => toOptionalPixels(toResponsiveTier(value, tier))),
+    ...tierConverters("responsiveAlignment", "Css", (value, tier) => toOptionalToken(toResponsiveTier(value, tier), alignmentTokens)),
     ...tierConverters("visibility", "Attribute", (value, tier) => toVisibilityAttribute(value, tier)),
     ...tierConverters("gridPlacement", "ColumnCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "column")),
     ...tierConverters("gridPlacement", "RowCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "row")),
@@ -1287,6 +1313,11 @@ function toPixels(value: unknown): string {
 
 function toOptionalPixels(value: unknown): string {
     return value === null || value === undefined ? "" : toPixels(value);
+}
+
+/** A tier's own token, or nothing — the property taken off — where the tier is unset. */
+function toOptionalToken(value: unknown, tokens: readonly string[]): string {
+    return value === null || value === undefined ? "" : toToken(value, tokens);
 }
 
 // Mirrors `WebComponentRendererBase.RenderVisibilityTier`: a tier resolves to its own value or the nearest narrower one set.

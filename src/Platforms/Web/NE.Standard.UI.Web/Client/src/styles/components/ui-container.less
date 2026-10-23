@@ -12,21 +12,24 @@
     // columns leave, so a narrow container closes up; by 24, not 23, or the star columns get none and round into overflow.
     // The row gap has no track count to fit, so it stays uncapped.
     .ui-responsive-reset(--ui-container-spacing);
-    --ui-container-fixed-columns: initial;
+    .ui-responsive-reset(--ui-container-fixed-columns);
     .ui-responsive-property(--ui-container-gap, --ui-container-spacing, 0px);
     row-gap: var(--ui-container-gap);
-    column-gap: min(var(--ui-container-gap), calc((100% - var(--ui-container-fixed-columns, 0px)) / 24));
+    @fixed-columns: .ui-responsive-chain(--ui-container-fixed-columns; 0px)[@value];
+    column-gap: ~"min(var(--ui-container-gap), calc((100% - @{fixed-columns}) / 24))";
     .ui-authored-border();
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 
-    // The authored tracks, reset here or a nested container lays out on its parent's; a splitter's division sits over them.
-    --ui-columns: initial;
-    --ui-rows: initial;
+    // The authored tracks per tier, reset here or a nested container lays out on its parent's; a splitter's division sits over them.
+    .ui-responsive-reset(--ui-columns);
+    .ui-responsive-reset(--ui-rows);
     .ui-responsive-reset(--ui-split-columns);
     .ui-responsive-reset(--ui-split-rows);
-    .ui-responsive-property(grid-template-columns, --ui-split-columns, ~"var(--ui-columns, repeat(24, minmax(0, 1fr)))");
-    .ui-responsive-property(grid-template-rows, --ui-split-rows, ~"var(--ui-rows, minmax(0, 1fr))");
+    @columns: .ui-responsive-chain(--ui-columns; repeat(24, minmax(0, 1fr)))[@value];
+    @rows: .ui-responsive-chain(--ui-rows; minmax(0, 1fr))[@value];
+    .ui-responsive-property(grid-template-columns, --ui-split-columns, @columns);
+    .ui-responsive-property(grid-template-rows, --ui-split-rows, @rows);
 }
 
 // A child a splitter took to no width or height (grid-splitter-engine.ts): squeezed to nothing, its words stood one a line and

@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import type { AddressResolver, ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
+import type { AddressResolver, BoundElement, ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
 import { resolveOperationElements } from "../addressing/operation-targets.ts";
 import { ComponentKeyAttribute, ComponentSelector, IntoAttributePrefix, ValueBindingAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
@@ -228,9 +228,12 @@ export class PropertyPatchEngine {
         }
     }
 
-    /** Applies a property to one component element, not every element its id addresses: a part a package drew and keeps in step. */
-    public applyToComponent(component: Element, reference: WebRenderPropertyReferenceMetadata, value: unknown): boolean {
-        const resolved = this.addressResolver.resolvePropertyOn(component, reference);
+    /**
+     * Applies a property to one component element, not every element its id addresses: a part a package drew and keeps in step. Given
+     * a bound element, it lands where a push of that binding does, and on the element (a text input's value on its input, not its label).
+     */
+    public applyToComponent(component: Element, reference: WebRenderPropertyReferenceMetadata, value: unknown, bound?: BoundElement): boolean {
+        const resolved = this.addressResolver.resolvePropertyOn(component, reference, bound);
 
         if (resolved === null)
             return false;
@@ -244,15 +247,18 @@ export class PropertyPatchEngine {
         return true;
     }
 
-    /** Writes an element's bound value as a push would, on its component alone; false where no binding writes the element. */
-    public writeBoundValue(element: Element, value: unknown): boolean {
-        const binding = this.addressResolver.getBindingById(Number(element.getAttribute(ValueBindingAttribute)));
+    /**
+     * Writes an element's bound value as a push would, on its component alone: through `data-ui-bind-value`, or the binding named;
+     * false where no binding writes the element.
+     */
+    public writeBoundValue(element: Element, value: unknown, bindingId = Number(element.getAttribute(ValueBindingAttribute))): boolean {
+        const binding = this.addressResolver.getBindingById(bindingId);
         const component = element.closest(ComponentSelector);
 
         if (binding === undefined || component === null)
             return false;
 
-        return this.applyToComponent(component, { componentId: binding.componentId, propertyId: binding.propertyId }, value);
+        return this.applyToComponent(component, { componentId: binding.componentId, propertyId: binding.propertyId }, value, { bindingId, element });
     }
 
     /** Puts an element's bound value back to what the server last pushed, or clears one it never pushed: a draft let go of. */

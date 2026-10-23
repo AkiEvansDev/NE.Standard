@@ -9,6 +9,7 @@ import { formatFileSize, serverFileSizePaint, tileSizeText } from "./rendering/f
 import { PageWrittenMarkSelector, paintedOfMark, readPageTemporal, readPageWrittenAttribute, serverMomentPaint } from "./rendering/first-paint-words.ts";
 import type { PaintedValue } from "./rendering/first-paint-words.ts";
 import { fitMenuShape } from "./rendering/menu-shape.ts";
+import { fitTierClasses, TierClassSelector } from "./rendering/tier-class.ts";
 import type { TemporalLanguage } from "./rendering/temporal-format.ts";
 import { AwaitsDrawSelector, holdRegionOf } from "./rendering/region-hold.ts";
 import { declaredTheme, markThemeChoice, ThemeFieldPartSelector } from "./rendering/theme-choice.ts";
@@ -65,6 +66,12 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
     // Held before its first paint, as its region is parsed: the runtime lets it show once the engines that draw its part have started.
     jobs.push(job(AwaitsDrawSelector, element => {
         holdRegionOf(element);
+        return true;
+    }));
+
+    // An orientation, a size or a list's layout that differs by breakpoint, drawn as the width's from its first paint.
+    jobs.push(job(TierClassSelector, element => {
+        fitTierClasses(element);
         return true;
     }));
 

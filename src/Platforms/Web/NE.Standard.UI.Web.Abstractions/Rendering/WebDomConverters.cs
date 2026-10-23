@@ -53,6 +53,16 @@ public static class WebDomConverters
     public const string ButtonGroupSizeClass = "buttonGroupSizeClass";
     public const string InputAppearanceClass = "inputAppearanceClass";
     public const string InputSizeClass = "inputSizeClass";
+
+    /// <summary>
+    /// A layout value drawn by a class, per breakpoint, as the family's attribute lists it: every tier's class narrowest first, or none
+    /// where the tiers agree (<c>TierClassRenderer</c>, <c>tier-class.ts</c>). Its class converter resolves the width's tier.
+    /// </summary>
+    public const string OrientationTierClasses = "orientationTierClasses";
+    public const string ItemsViewLayoutTierClasses = "itemsViewLayoutTierClasses";
+    public const string ButtonSizeTierClasses = "buttonSizeTierClasses";
+    public const string ButtonGroupSizeTierClasses = "buttonGroupSizeTierClasses";
+    public const string InputSizeTierClasses = "inputSizeTierClasses";
     public const string TextInputTypeAttribute = "textInputTypeAttribute";
 
     /// <summary>A field's on-screen keyboard as its <c>inputmode</c> token; nothing takes the attribute off.</summary>
@@ -62,7 +72,6 @@ public static class WebDomConverters
 
     public const string ThemeNameCss = "themeNameCss";
     public const string AlignmentCss = "alignmentCss";
-    public const string AlignmentStretchFallbackCss = "alignmentStretchFallbackCss";
     public const string OverflowCss = "overflowCss";
     public const string LayoutLengthCss = "layoutLengthCss";
     public const string ThicknessCss = "thicknessCss";
@@ -216,6 +225,9 @@ public static class WebDomConverters
 
     /// <summary>A pixel tier (<c>WebCssValues.Pixels</c>): a spacing at that breakpoint.</summary>
     public static readonly WebResponsiveConverters ResponsivePixelsCss = new("responsivePixels", "Css");
+
+    /// <summary>An alignment per tier (<c>HorizontalAlignment</c>, <c>VerticalAlignment</c>): a tier's own token, nothing where it is unset.</summary>
+    public static readonly WebResponsiveConverters ResponsiveAlignmentCss = new("responsiveAlignment", "Css");
 
     /// <summary>A placement tier's parts, one custom property each (<c>WebResponsiveCss.PlacementColumnVariable</c> and its siblings).</summary>
     public static readonly WebResponsiveConverters GridPlacementColumnCss = new("gridPlacement", "ColumnCss");

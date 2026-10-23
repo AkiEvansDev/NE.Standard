@@ -35,6 +35,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IOrientationComponent, ISpacingComponent, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent, IItemClickComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIItemsLayoutType> DefaultLayoutType = UIItemsLayoutType.Stack;
+
     /// <summary>
     /// Keeps only the rows in view in the document, for a collection the client holds whole.
     /// </summary>
@@ -131,10 +133,10 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     public UIItemsLoadingLook? LoadingLook { get; set; }
 
     /// <summary>
-    /// Gets or sets the layout algorithm used to arrange items.
+    /// Gets or sets the layout algorithm used to arrange items, optionally per breakpoint: a stack on a phone, a wrap of tiles wider up.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIItemsLayoutType.Stack)]
-    public UIItemsLayoutType? LayoutType { get; set; }
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultLayoutType))]
+    public UIResponsive<UIItemsLayoutType>? LayoutType { get; set; }
 
     /// <summary>
     /// Gets or sets the room inside the view's scroll around its rows, optionally overridden per breakpoint: the rows scroll through it,
@@ -196,12 +198,6 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </summary>
     public T ConfigureDefaultTemplate(Action<DefaultTextTemplate> configure)
         => Self.ConfigureTemplate(Template as DefaultTextTemplate, configure, "template");
-
-    /// <summary>
-    /// Configures the built-in default empty template, throwing if a different template has been set.
-    /// </summary>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
 
     /// <summary>
     /// Configures the built-in default group template, throwing if a different template has been set.

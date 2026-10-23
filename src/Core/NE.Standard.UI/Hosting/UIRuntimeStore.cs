@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Runtime;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
 
@@ -145,12 +146,12 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
     /// <remarks>
     /// Past a limit the session gives up its longest-idle runtime nobody uses (<paramref name="evicted"/>) — an unclaimed one for a page
     /// render's (<paramref name="adopted"/> false) — and is refused when every one is in use; past <paramref name="maxTotal"/> (zero is
-    /// none) the process gives up its longest-disconnected runtime, whatever session holds it, and refuses likewise. The factory runs the application's
+    /// none) the process gives up its longest-disconnected runtime, whatever session holds it, one no tab ever presented first, and refuses likewise; <paramref name="eviction"/> says which rule gave one up. The factory runs the application's
     /// controller constructor, so it runs outside the lock every attach, render lookup, flush and cleanup waits on; a runtime the second
     /// look finds no place for is <paramref name="unused"/>. The caller disposes both asynchronously: a scope holding a service that is
     /// only <see cref="IAsyncDisposable"/> refuses a synchronous dispose.
     /// </remarks>
-    public UIRuntimeEntry? GetOrAdd(UIRuntimeKey key, string instanceId, Func<IUIRuntime> factory, DateTime utcNow, UIFlushOptions flush, int maxPerSession, int maxUnclaimedPerSession, int maxTotal, bool adopted, out bool created, out bool attached, out int activeInstances, out IUIRuntime? evicted, out IUIRuntime? unused)
+    public UIRuntimeEntry? GetOrAdd(UIRuntimeKey key, string instanceId, Func<IUIRuntime> factory, DateTime utcNow, UIFlushOptions flush, int maxPerSession, int maxUnclaimedPerSession, int maxTotal, bool adopted, out bool created, out bool attached, out int activeInstances, out IUIRuntime? evicted, out UIRuntimeEviction eviction, out IUIRuntime? unused)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
         ArgumentNullException.ThrowIfNull(factory);
@@ -162,6 +163,7 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
         created = false;
         evicted = null;
+        eviction = UIRuntimeEviction.None;
         unused = null;
 
         lock (_sync)
@@ -177,7 +179,7 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
                 throw SessionFull(maxPerSession);
 
             // Answered with nothing rather than thrown: the caller tells the process's refusal from a session's and reports it.
-            if (IsProcessFullNoLock(maxTotal) && !TryFindLongestDisconnectedNoLock(out _))
+            if (IsProcessFullNoLock(maxTotal) && !TryFindLongestDisconnectedNoLock(out _, out _))
             {
                 attached = false;
                 activeInstances = 0;
@@ -197,13 +199,19 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
             {
                 // A render's runtime makes room from its own kind first: a client that never attaches (a crawler, a prefetch)
                 // would otherwise fill the session's whole cap with runtimes nobody will claim. One still rendering is kept.
-                if (!adopted && CountUnclaimedNoLock(key.SessionId) >= maxUnclaimedPerSession)
-                    _ = TryEvictIdlestNoLock(key.SessionId, unclaimedOnly: true, out evicted);
+                if (!adopted && CountUnclaimedNoLock(key.SessionId) >= maxUnclaimedPerSession && TryEvictIdlestNoLock(key.SessionId, unclaimedOnly: true, out evicted))
+                    eviction = UIRuntimeEviction.SessionUnclaimed;
 
-                var sessionRoom = !IsFullNoLock(key.SessionId, maxPerSession) || (evicted is null && TryEvictIdlestNoLock(key.SessionId, unclaimedOnly: false, out evicted));
+                var sessionRoom = !IsFullNoLock(key.SessionId, maxPerSession);
+
+                if (!sessionRoom && evicted is null && TryEvictIdlestNoLock(key.SessionId, unclaimedOnly: false, out evicted))
+                {
+                    sessionRoom = true;
+                    eviction = UIRuntimeEviction.SessionFull;
+                }
 
                 // A session that gave one up made the process's room too: the count never passes the limit, so one is all it takes.
-                if (sessionRoom && (evicted is not null || !IsProcessFullNoLock(maxTotal) || TryEvictLongestDisconnectedNoLock(out evicted)))
+                if (sessionRoom && (evicted is not null || !IsProcessFullNoLock(maxTotal) || TryEvictLongestDisconnectedNoLock(out evicted, out eviction)))
                 {
                     entry = new UIRuntimeEntry(runtime, flush);
                     AddEntryNoLock(key, entry);
@@ -309,43 +317,60 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
     /// <summary>
     /// The process's runtime that has been without a page longest, of any session, that may be taken away (no tab attached, no command
-    /// running).
+    /// running) — one no tab ever presented before any a tab has.
     /// </summary>
     /// <remarks>
-    /// By the time its last tab left, not by its last-seen time, which a flush of a disconnected runtime moves on. Walks the whole store,
-    /// but only for a runtime being built at the limit.
+    /// Unclaimed first: a flood of page loads that never attach must not push out a real reader's runtime kept across a dropped
+    /// connection. By the time its last tab left, not by its last-seen time, which a flush of a disconnected runtime moves on. Walks the
+    /// whole store, but only for a runtime being built at the limit.
     /// </remarks>
-    private bool TryFindLongestDisconnectedNoLock(out UIRuntimeKey key)
+    private bool TryFindLongestDisconnectedNoLock(out UIRuntimeKey key, out bool unclaimed)
     {
-        UIRuntimeKey? oldest = null;
-        DateTime oldestAt = DateTime.MaxValue;
+        UIRuntimeKey? oldestAdopted = null;
+        UIRuntimeKey? oldestUnclaimed = null;
+        DateTime adoptedAt = DateTime.MaxValue;
+        DateTime unclaimedAt = DateTime.MaxValue;
 
         foreach (KeyValuePair<UIRuntimeKey, UIRuntimeEntry> pair in _entries)
         {
-            if (pair.Value.DisconnectedAtUtc is not DateTime disconnectedAt || disconnectedAt >= oldestAt || pair.Value.Runtime.HasCommandsInFlight)
+            if (pair.Value.DisconnectedAtUtc is not DateTime disconnectedAt || pair.Value.Runtime.HasCommandsInFlight)
                 continue;
 
-            oldest = pair.Key;
-            oldestAt = disconnectedAt;
+            if (!pair.Value.IsAdopted)
+            {
+                if (disconnectedAt < unclaimedAt)
+                {
+                    oldestUnclaimed = pair.Key;
+                    unclaimedAt = disconnectedAt;
+                }
+            }
+            else if (disconnectedAt < adoptedAt)
+            {
+                oldestAdopted = pair.Key;
+                adoptedAt = disconnectedAt;
+            }
         }
 
-        key = oldest.GetValueOrDefault();
+        unclaimed = oldestUnclaimed.HasValue;
+        key = oldestUnclaimed ?? oldestAdopted.GetValueOrDefault();
 
-        return oldest.HasValue;
+        return oldestUnclaimed.HasValue || oldestAdopted.HasValue;
     }
 
     /// <summary>The refusal of a new runtime when the process holds as many as it may and none can be given up.</summary>
     public static InvalidOperationException ProcessFull(int maxTotal)
         => new($"The server already holds {maxTotal} pages, each with a tab connected or a command running, the most it may hold (UIPersistenceOptions.MaxRuntimesTotal).");
 
-    private bool TryEvictLongestDisconnectedNoLock([NotNullWhen(true)] out IUIRuntime? evicted)
+    private bool TryEvictLongestDisconnectedNoLock([NotNullWhen(true)] out IUIRuntime? evicted, out UIRuntimeEviction eviction)
     {
         evicted = null;
+        eviction = UIRuntimeEviction.None;
 
-        if (!TryFindLongestDisconnectedNoLock(out UIRuntimeKey key) || !RemoveEntryNoLock(key, out UIRuntimeEntry? entry))
+        if (!TryFindLongestDisconnectedNoLock(out UIRuntimeKey key, out var unclaimed) || !RemoveEntryNoLock(key, out UIRuntimeEntry? entry))
             return false;
 
         evicted = entry.Runtime;
+        eviction = unclaimed ? UIRuntimeEviction.ProcessUnclaimed : UIRuntimeEviction.ProcessDisconnected;
 
         return true;
     }
@@ -563,6 +588,31 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// The runtimes a session holds but <paramref name="except"/> on which a tab keeps a stay (<see cref="UIRuntimeBase.HoldsPageStays"/>),
+    /// read off the session's own index. Asked on every attach: where no runtime holds one, nothing is allocated.
+    /// </summary>
+    public UIRuntimeBase[] GetSessionRuntimesHoldingStaysExcept(string sessionId, UIRuntimeKey except)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        lock (_sync)
+        {
+            if (!_sessionKeys.TryGetValue(sessionId, out List<UIRuntimeKey>? keys) || keys.Count < 2)
+                return [];
+
+            List<UIRuntimeBase>? holding = null;
+
+            for (var i = 0; i < keys.Count; i++)
+            {
+                if (!keys[i].Equals(except) && _entries[keys[i]].Runtime is UIRuntimeBase { HoldsPageStays: true } runtime)
+                    (holding ??= []).Add(runtime);
+            }
+
+            return holding is null ? [] : [.. holding];
+        }
+    }
+
     /// <summary>The keys of every runtime a session holds, read off the session's own index.</summary>
     public UIRuntimeKey[] GetSessionKeys(string sessionId)
     {
@@ -679,13 +729,30 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
         List<IUIRuntime> removed = [];
         List<UIRuntimeKey> removedKeys = [];
+        List<CancellationTokenSource[]>? ended = null;
 
         lock (_sync)
         {
             foreach (KeyValuePair<UIRuntimeKey, UIRuntimeEntry> pair in _entries)
             {
-                if (!pair.Value.ShouldCleanup(utcNow, retention, unclaimedRetention))
+                // Taken out under this lock, which an attach takes too: a page coming back either keeps its work or finds it ended.
+                if (!pair.Value.IsPastRetention(utcNow, retention, unclaimedRetention))
+                {
+                    // A tab away past the retention from a runtime other tabs keep: its own work ends, as the runtime's would.
+                    if (pair.Value.Runtime is UIRuntimeBase kept && kept.TakeLeftPageStays(utcNow, retention) is { } left)
+                        (ended ??= []).Add(left);
+
                     continue;
+                }
+
+                // Its retention is what the background work of its pages lived on: ended now, the runtime goes at a later sweep.
+                if (pair.Value.Runtime.HasCommandsInFlight)
+                {
+                    if (pair.Value.Runtime is UIRuntimeBase running && running.TakePageStays() is { } stays)
+                        (ended ??= []).Add(stays);
+
+                    continue;
+                }
 
                 removedKeys.Add(pair.Key);
                 removed.Add(pair.Value.Runtime);
@@ -693,6 +760,13 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 
             for (var i = 0; i < removedKeys.Count; i++)
                 _ = RemoveEntryNoLock(removedKeys[i], out _);
+        }
+
+        // Outside the lock: a cancelled command's continuations may run here, and read the store.
+        if (ended is not null)
+        {
+            for (var i = 0; i < ended.Count; i++)
+                UIRuntimeBase.CancelStays(ended[i]);
         }
 
         await DisposeAllAsync(removed).ConfigureAwait(false);

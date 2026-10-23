@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
@@ -7,6 +8,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -22,11 +24,20 @@ public static class NativeInputRendererBase
     /// </summary>
     public static WebDomOperation ReadOnlyMarkOperation { get; } = WebDomOperation.ToggleClass(WebClassNames.ReadOnly, target: "root", condition: WebValueCondition.IsTrue);
 
+    /// <summary>
+    /// The root's clear mark as a patch (<see cref="RenderClearable"/>), for an input whose <c>ShowClearButton</c> registration carries
+    /// more beside it.
+    /// </summary>
+    public static WebDomOperation ClearableMarkOperation { get; } = WebDomOperation.ToggleAttribute(WebAttributes.Clearable, target: "root", condition: WebValueCondition.IsTrue);
+
     // One per attribute a form's id is written under, its writers built once: a form id is rendered on every field of the page.
     private static readonly ConcurrentDictionary<string, FormIdMark> FormIdMarks = new(StringComparer.Ordinal);
     private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder")];
+    private static readonly WebDomOperation[] EmptyMarkingPlaceholderOperations = [WebDomOperation.Attribute("placeholder", converter: WebDomConverters.PlaceholderText, convertsNull: true)];
+    private static readonly WebDomOperation[] ClearableOperations = [ClearableMarkOperation];
     private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
-    private static readonly WebDomOperation[] DebounceOperations = [WebDomOperation.Attribute(WebAttributes.InputDebounce, converter: WebDomConverters.NonNegativeCount)];
+    private static readonly DebounceMark InputDebounceMark = new(WebAttributes.InputDebounce);
+    private static readonly DebounceMark SearchDebounceMark = new(WebAttributes.SearchDebounce);
     private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyAriaOperations = [WebDomOperation.ToggleAttribute("aria-readonly", condition: WebValueCondition.IsTrue, value: "true"), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyMarkOperations = [ReadOnlyMarkOperation];
@@ -163,17 +174,65 @@ public static class NativeInputRendererBase
         return part is null ? name : name + "-" + part;
     }
 
-    /// <summary>Writes the hint a native field shows while it holds nothing.</summary>
-    public static void RenderPlaceholder(WebRenderContext context, IHtmlElementBuilder input)
+    /// <summary>
+    /// Writes the hint a native field shows while it holds nothing; <paramref name="marksEmpty"/> writes a blank one where the author
+    /// gave none, so <c>:placeholder-shown</c> says the field is empty — what hides its clear.
+    /// </summary>
+    public static void RenderPlaceholder(WebRenderContext context, IHtmlElementBuilder input, bool marksEmpty = false)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(input);
+
+        if (marksEmpty)
+        {
+            _ = WebComponentRendererBase.RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, static (target, value)
+                => _ = target.Attribute("placeholder", string.IsNullOrEmpty(value) ? " " : value), EmptyMarkingPlaceholderOperations);
+
+            return;
+        }
 
         _ = WebComponentRendererBase.RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, static (target, value) =>
         {
             if (!string.IsNullOrEmpty(value))
                 _ = target.Attribute("placeholder", value);
         }, PlaceholderOperations);
+    }
+
+    /// <summary>
+    /// Whether the clear shows (<see cref="IClearableInputComponent"/>), as the root's mark: the button itself is always in the tree, so
+    /// the bindable property only shows it. <paramref name="operations"/> replaces the mark's patch where the input says more with it
+    /// (a select's Delete key), and holds <see cref="ClearableMarkOperation"/> among them.
+    /// </summary>
+    public static void RenderClearable(WebRenderContext context, IHtmlElementBuilder root, WebDomOperation[]? operations = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, root, IClearableInputComponent.ShowClearButtonProperty, static (target, value) =>
+        {
+            if (value == true)
+                _ = target.Attribute(WebAttributes.Clearable);
+        }, operations ?? ClearableOperations);
+    }
+
+    /// <summary>
+    /// The clear button of a field's row (<see cref="WebAttributes.Clear"/>): a pointer's shortcut out of the tab order, since the
+    /// keyboard empties the field in the field itself; the stylesheet shows it under <see cref="RenderClearable"/>'s mark while there
+    /// is a value.
+    /// </summary>
+    public static void RenderClearButton(WebRenderContext context, IHtmlElementBuilder row, string className)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(row);
+
+        _ = row.Element("button", clear =>
+        {
+            _ = clear.Class(className);
+            _ = clear.Attribute("type", "button");
+            _ = clear.Attribute("tabindex", "-1");
+            WebWords.Write(context, clear, "aria-label", UIStrings.InputClear);
+            _ = clear.Attribute(WebAttributes.Clear);
+        });
     }
 
     /// <summary>A text field's longest value (<see cref="ITextLengthComponent"/>) as its native <c>maxlength</c>.</summary>
@@ -193,16 +252,46 @@ public static class NativeInputRendererBase
     /// A field's commit delay (<see cref="IDebounceInputComponent"/>), read by <c>DebouncedCommitEngine</c> on every keystroke, so a
     /// bound value is in force at once; a negative one is written as none, by the first paint and a patch alike.
     /// </summary>
-    public static void RenderDebounce(WebRenderContext context, IHtmlElementBuilder input, UIProperty debounceProperty)
+    public static void RenderDebounce(WebRenderContext context, IHtmlElementBuilder input)
+        => RenderDebounce(context, input, InputDebounceMark);
+
+    /// <summary>
+    /// A search's pause before it asks (<see cref="IDebounceInputComponent"/>), read by the search engine as
+    /// <see cref="RenderDebounce(WebRenderContext, IHtmlElementBuilder)"/>'s is read by the commit engine.
+    /// </summary>
+    /// <remarks>Its own attribute: the commit engine raises <c>change</c> on every field carrying the other, and a search's term is no value.</remarks>
+    public static void RenderSearchDebounce(WebRenderContext context, IHtmlElementBuilder input)
+        => RenderDebounce(context, input, SearchDebounceMark);
+
+    private static void RenderDebounce(WebRenderContext context, IHtmlElementBuilder input, DebounceMark mark)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(input);
 
-        _ = WebComponentRendererBase.RenderProperty<int?>(context, input, debounceProperty, static (target, value) =>
+        _ = WebComponentRendererBase.RenderProperty(context, input, IDebounceInputComponent.DebounceMillisecondsProperty, mark.Write, mark.Operations);
+    }
+
+    /// <summary>The writer and patch of a pause under one attribute, built once.</summary>
+    private sealed class DebounceMark
+    {
+        private readonly string _attribute;
+
+        public DebounceMark(string attribute)
+        {
+            _attribute = attribute;
+            Operations = [WebDomOperation.Attribute(attribute, converter: WebDomConverters.NonNegativeCount)];
+            Write = WriteMark;
+        }
+
+        public WebDomOperation[] Operations { get; }
+
+        public Action<IHtmlElementBuilder, int?> Write { get; }
+
+        private void WriteMark(IHtmlElementBuilder target, int? value)
         {
             if (value is int milliseconds and >= 0)
-                _ = target.Attribute(WebAttributes.InputDebounce, milliseconds.ToString(CultureInfo.InvariantCulture));
-        }, DebounceOperations);
+                _ = target.Attribute(_attribute, milliseconds.ToString(CultureInfo.InvariantCulture));
+        }
     }
 
     /// <summary><c>IsReadOnly</c> as the root's mark and a native text field's own <c>readonly</c>.</summary>
@@ -255,6 +344,54 @@ public static class NativeInputRendererBase
         }, ReadOnlyMarkOperations);
     }
 
+    /// <summary>
+    /// The patches <see cref="RenderIsReadOnlyAsPick"/> registers, built once per renderer: the root's mark, <c>aria-disabled</c> on
+    /// each control a selector names — one selector a control, since an operation lands on the first part its selector matches — and
+    /// <c>disabled</c> on the native file picker where <paramref name="nativeSelector"/> names one; <paramref name="optional"/> where not
+    /// every instance draws the controls (a shelf of thumbnails alone has no pick).
+    /// </summary>
+    public static WebDomOperation[] PickReadOnlyOperations(string[] pickSelectors, string? nativeSelector = null, bool optional = false)
+    {
+        ArgumentNullException.ThrowIfNull(pickSelectors);
+
+        List<WebDomOperation> operations = [ReadOnlyMarkOperation];
+
+        foreach (var selector in pickSelectors)
+            operations.Add(WebDomOperation.ToggleAttribute("aria-disabled", target: selector, condition: WebValueCondition.IsTrue, value: "true", optional: optional));
+
+        if (nativeSelector is not null)
+            operations.Add(WebDomOperation.ToggleAttribute("disabled", target: nativeSelector, condition: WebValueCondition.IsTrue));
+
+        return [.. operations];
+    }
+
+    /// <summary>
+    /// <c>IsReadOnly</c> on a control that opens a picker — a file's pick, a picture's surface, a colour's swatch: the root's mark, the
+    /// picks saying they do nothing rather than turning disabled, which would drop a focus they hold, and the hidden native file picker
+    /// disabled, as it must be. The engines refuse a press and a drop by the mark.
+    /// </summary>
+    public static void RenderIsReadOnlyAsPick(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<IHtmlElementBuilder> picks, IHtmlElementBuilder? native, WebDomOperation[] operations)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(picks);
+        ArgumentNullException.ThrowIfNull(operations);
+
+        // One registration, every target: a property renders once per component. Applied after every pick exists.
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
+        {
+            if (value != true)
+                return;
+
+            _ = target.Class(WebClassNames.ReadOnly);
+
+            foreach (IHtmlElementBuilder pick in picks)
+                _ = pick.Attribute("aria-disabled", "true");
+
+            _ = native?.Attribute("disabled");
+        }, operations);
+    }
+
     /// <summary>The hidden input a composed control keeps its value in, named for the form like a native field.</summary>
     public static void RenderHiddenValueInput(WebRenderContext context, IHtmlElementBuilder root, string className, Action<IHtmlElementBuilder> configure, string? part = null)
     {
@@ -279,13 +416,16 @@ public static class NativeInputRendererBase
         });
     }
 
-    /// <summary>The size the client refuses before it uploads; the endpoint's own limit holds whatever this says.</summary>
-    public static void RenderMaxFileSize(WebRenderContext context, IHtmlElementBuilder root, UIProperty maxFileSizeProperty)
+    /// <summary>
+    /// The size the client refuses before it uploads (<see cref="IMaxFileSizeComponent"/>); the endpoint's own limit holds whatever this
+    /// says.
+    /// </summary>
+    public static void RenderMaxFileSize(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = WebComponentRendererBase.RenderProperty<long?>(context, root, maxFileSizeProperty, static (target, value) =>
+        _ = WebComponentRendererBase.RenderProperty<long?>(context, root, IMaxFileSizeComponent.MaxFileSizeProperty, static (target, value) =>
         {
             if (value > 0)
                 _ = target.Attribute(WebAttributes.FileMaxSize, value.Value.ToString(CultureInfo.InvariantCulture));
@@ -296,12 +436,12 @@ public static class NativeInputRendererBase
     /// The component whose dropped and pasted files the input takes, as the id the compiler gave it and the page finds it by;
     /// render-time only. The view refused an id it lacks when it compiled.
     /// </summary>
-    public static void RenderDropTargetId(WebRenderContext context, IHtmlElementBuilder root, UIProperty dropTargetIdProperty)
+    public static void RenderDropTargetId(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = WebComponentRendererBase.ResolveRenderValue(context, dropTargetIdProperty, out string? dropTarget, out _);
+        _ = WebComponentRendererBase.ResolveRenderValue(context, IFilePickerInputComponent.DropTargetIdProperty, out string? dropTarget, out _);
 
         if (string.IsNullOrWhiteSpace(dropTarget) || !context.ViewResolution.View.Graph.TryGetComponentId(dropTarget, out UIComponentId target))
             return;
@@ -310,7 +450,7 @@ public static class NativeInputRendererBase
     }
 
     /// <summary>The native file picker, present but hidden: only a real file input opens the OS dialog, and a control's own press is what is used.</summary>
-    public static void RenderFilePicker(WebRenderContext context, IHtmlElementBuilder host, string className, UIProperty acceptProperty, Action<IHtmlElementBuilder>? configure = null)
+    public static void RenderFilePicker(WebRenderContext context, IHtmlElementBuilder host, string className, Action<IHtmlElementBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
@@ -326,7 +466,7 @@ public static class NativeInputRendererBase
             _ = native.Attribute("aria-hidden", "true");
             RenderFieldName(context, native, "file");
 
-            _ = WebComponentRendererBase.RenderProperty<string?>(context, native, acceptProperty, static (target, value) =>
+            _ = WebComponentRendererBase.RenderProperty<string?>(context, native, IFileAcceptComponent.AcceptProperty, static (target, value) =>
             {
                 if (!string.IsNullOrWhiteSpace(value))
                     _ = target.Attribute("accept", value);
@@ -337,10 +477,12 @@ public static class NativeInputRendererBase
     }
 
     /// <summary>The hidden input an upload's handle lands on and syncs back from; <paramref name="holdsValue"/> where that handle is the component's value.</summary>
-    public static void RenderSelectionInput(WebRenderContext context, IHtmlElementBuilder host, string className, UIProperty selectionIdProperty, bool holdsValue)
+    public static void RenderSelectionInput(WebRenderContext context, IHtmlElementBuilder host, string className, bool holdsValue)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
+
+        UIProperty selectionIdProperty = IFilePickerInputComponent.SelectionIdProperty;
 
         _ = WebComponentRendererBase.ResolveRenderValue(context, selectionIdProperty, out string? _, out CompiledUIBinding? selectionBinding);
 

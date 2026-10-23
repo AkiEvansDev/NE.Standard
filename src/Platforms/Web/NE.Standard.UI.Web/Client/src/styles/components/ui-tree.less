@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/empty-state.less";
 @import "../mixins/interactive.less";
 @import "../mixins/loading-ring.less";
 @import "../mixins/responsive.less";
@@ -44,16 +45,9 @@
         padding: @ui-space-1 @ui-space-2;
     }
 
-    // Showing its empty state, the host is a one-cell grid, as an items view's is (ui-items-view.less): the placeholder takes its box.
-    .ui-tree__host[data-ui-items-empty] {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        align-content: stretch;
-    }
-
-    // ShowEmptyTemplate off: an empty tree says nothing; hidden, so a bound flag turned on shows it again.
-    .ui-tree--no-empty > .ui-tree__host > [data-ui-empty-placeholder] {
-        display: none;
+    // The empty state's box, and none with ShowEmptyTemplate off: every host's one rule.
+    .ui-tree {
+        .ui-empty-state-host(~".ui-tree__host");
     }
 
 .ui-tree__host.ui-scroll-x--disabled {

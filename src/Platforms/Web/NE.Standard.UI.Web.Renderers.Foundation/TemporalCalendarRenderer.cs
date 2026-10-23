@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -73,12 +74,12 @@ public static class TemporalCalendarRenderer
         }, part: end ? "end" : null);
 
     /// <summary>The first day of the week the grid's rows start on, as JavaScript counts it; unset, Monday. It ignores a binding.</summary>
-    public static void RenderFirstDay(WebRenderContext context, IHtmlElementBuilder root, UIProperty firstDayOfWeekProperty)
+    public static void RenderFirstDay(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = WebComponentRendererBase.ResolveRenderValue(context, firstDayOfWeekProperty, out UIDayOfWeek? firstDayOfWeek, out _);
+        _ = WebComponentRendererBase.ResolveRenderValue(context, ICalendarComponent.FirstDayOfWeekProperty, out UIDayOfWeek? firstDayOfWeek, out _);
 
         // UIDayOfWeek starts at Monday, JavaScript's getDay() at Sunday; the shift converts between them.
         var firstDay = firstDayOfWeek is UIDayOfWeek day ? ((int)day + 1) % 7 : 1;

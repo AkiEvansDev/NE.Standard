@@ -72,8 +72,8 @@ public sealed class UITestRow
         UITestComponent root = Root;
         UITestCommandResult? chosen = null;
 
-        if (_page.WritesBack(_host.ComponentId, ISelectableItemsComponent.SelectedKeyProperty))
-            chosen = await _page.SetValueAsync(_host.ComponentId, _hostKeys, ISelectableItemsComponent.SelectedKeyProperty, Key, cancellationToken).ConfigureAwait(false);
+        if (_page.WritesBack(_host.ComponentId, ISelectedKeyComponent.SelectedKeyProperty))
+            chosen = await _page.SetValueAsync(_host.ComponentId, _hostKeys, ISelectedKeyComponent.SelectedKeyProperty, Key, cancellationToken).ConfigureAwait(false);
 
         if (_page.HasEvent(_page.RowTemplate(_host.ComponentId, _hostKeys, _entry.Item), EventNames.Click) || chosen is null)
             return await root.ClickAsync(cancellationToken).ConfigureAwait(false);

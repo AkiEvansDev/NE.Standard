@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/empty-state.less";
 @import "../mixins/field.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
@@ -111,9 +112,9 @@
     min-width: 0;
 }
 
-// ShowEmptyTemplate off: an empty list says nothing; hidden, so a bound flag turned on shows it again.
-.ui-key-value-action--no-empty > .ui-key-value-action__host > [data-ui-empty-placeholder] {
-    display: none;
+// The empty state's box across the whole row, not the key's track, and none with ShowEmptyTemplate off: every host's one rule.
+.ui-key-value-action {
+    .ui-empty-state-host(~".ui-key-value-action__host");
 }
 
 // With StretchValue off, the value takes only what it needs and the action closes up behind it.

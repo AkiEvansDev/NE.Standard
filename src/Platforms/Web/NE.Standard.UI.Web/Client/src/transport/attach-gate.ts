@@ -1,4 +1,23 @@
-/** A call the connection dropped under while SignalR reconnects: the server may or may not have taken it, and the next attach opens again. */
+/** A press that waited behind a reattach past its bound and was never sent: it was made on a page the server has moved on from. */
+export class CommandExpired extends Error {
+    public constructor(methodName: string, bound: number) {
+        super(`${methodName} waited ${bound} ms for the page to attach again and was dropped unsent.`);
+        this.name = "CommandExpired";
+    }
+}
+
+/**
+ * How much longer a press raised at `raisedAt` may wait before it is dropped as stale, in milliseconds (none left: at most 0); null where
+ * no bound applies — the connection has not dropped since the press and the page is not attaching again, so it waits as any call does.
+ */
+export function pressAllowance(raisedAt: number, now: number, droppedAt: number, reattaching: boolean, bound: number): number | null {
+    if (!reattaching && droppedAt < raisedAt)
+        return null;
+
+    return bound - (now - raisedAt);
+}
+
+/** A call the connection dropped under while it reconnects: the server may or may not have taken it, and the next attach opens again. */
 export class ConnectionDropped extends Error {
     /** The server closed the connection over an error of its own (a message past its size limit): the call may be what it choked on. */
     public readonly byServerError: boolean;
@@ -27,6 +46,11 @@ export class AttachGate {
     /** Whether calls wait for an attach after one was answered — a reconnect, a move to another runtime — rather than the page's first. */
     public get reattaching(): boolean {
         return this.pending && this.attached;
+    }
+
+    /** Whether a call made now waits: the page has not attached yet, or attaches again. */
+    public get isPending(): boolean {
+        return this.pending;
     }
 
     /** Why the gate is closed for good; null while it can still open. */

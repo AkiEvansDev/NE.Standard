@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/empty-state.less";
 @import "../mixins/interactive.less";
 @import "../mixins/popup.less";
 @import "../mixins/responsive.less";
@@ -630,9 +631,9 @@
         display: none;
     }
 
-// ShowEmptyTemplate off: an empty menu says nothing; hidden, so a bound flag turned on shows it again.
-.ui-menu--no-empty > .ui-menu__host > [data-ui-empty-placeholder] {
-    display: none;
+// The empty state's box, and none with ShowEmptyTemplate off: every host's one rule.
+.ui-menu {
+    .ui-empty-state-host(~".ui-menu__host");
 }
 
 // A rail's measures by its size, Medium's unless the rail is another: its column's width, an entry's least height, its padding, the

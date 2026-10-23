@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
@@ -10,7 +11,7 @@ namespace NE.Standard.UI.Authoring.BuiltIns;
 /// A control that switches one of the page's settings in place — the theme, the language: a button for a page's head or a field for a
 /// settings form, the button's look, the field's caption and appearance, and the size of its glyphs.
 /// </summary>
-public interface ISwitcherComponent : IVisualComponent
+public interface ISwitcherComponent : ICaptionRowComponent
 {
     /// <summary>
     /// Gets the registered property key for <see cref="Type"/>.
@@ -21,6 +22,9 @@ public interface ISwitcherComponent : IVisualComponent
     /// Gets the registered property key for <see cref="Size"/>.
     /// </summary>
     static UIProperty SizeProperty { get; } = new(nameof(Size));
+
+    /// <summary>The button size when unset: medium.</summary>
+    static UIResponsive<UIButtonSize> DefaultSize { get; } = UIButtonSize.Medium;
 
     /// <summary>
     /// Gets the registered property key for <see cref="IconSize"/>.
@@ -57,8 +61,8 @@ public interface ISwitcherComponent : IVisualComponent
     /// <summary>
     /// Gets the button size — the box the glyph and the words sit in.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIButtonSize.Medium)]
-    UIButtonSize? Size { get; }
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultSize))]
+    UIResponsive<UIButtonSize>? Size { get; }
 
     /// <summary>
     /// Gets the size the glyphs are drawn at.

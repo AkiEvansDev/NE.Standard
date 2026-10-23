@@ -13,16 +13,9 @@
     .ui-input-field();
 }
 
-// Hidden until ShowClearButton is true, so the property is bindable rather than a render-time decision.
-.ui-text-input:not([data-ui-clear-shown]) .ui-text-input__clear {
-    display: none;
-}
-
-// Nothing to clear on a field the reader cannot change, or an empty one: every field has a placeholder, so its showing means empty.
-.ui-text-input:is(.ui-disabled, .ui-readonly) .ui-text-input__clear,
-.ui-text-input__field:placeholder-shown ~ .ui-text-input__clear {
-    display: none;
-}
+// Hidden by the stylesheet rather than left out, so ShowClearButton is bindable. Every field has a placeholder (a blank one where the
+// author gave none), so its showing means empty.
+.ui-field-clear-host(~".ui-text-input"; ~".ui-text-input__clear"; ~".ui-text-input__field:placeholder-shown ~ .ui-text-input__clear");
 
 // A search-type field carries the framework's clear, as every field does; the browser's own cancel would be a second cross beside it.
 .ui-text-input input::-webkit-search-cancel-button {
@@ -30,8 +23,7 @@
 }
 
 .ui-text-input__clear {
-    .ui-field-adornment();
-    .ui-cross-glyph(@ui-glyph-sm);
+    .ui-field-clear();
 }
 
 // The author's buttons, sized like the adornments, and the leading group (`--leading`).

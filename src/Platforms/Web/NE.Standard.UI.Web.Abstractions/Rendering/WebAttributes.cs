@@ -60,7 +60,17 @@ public static class WebAttributes
 
     public const string BindValue = "data-ui-bind-value";
 
+    /// <summary>
+    /// On a clear button: a press empties the component's field — the one <see cref="ClearTarget"/> marks, else its bound value — and
+    /// dispatches <c>input</c> and <c>change</c>, as the reader's own edit.
+    /// </summary>
     public const string Clear = "data-ui-clear";
+
+    /// <summary>On a component root whose <c>ShowClearButton</c> is on: the stylesheet shows its clear while there is a value.</summary>
+    public const string Clearable = "data-ui-clearable";
+
+    /// <summary>On the field a clear empties, where the bound value is not the one the reader edits (a date's text).</summary>
+    public const string ClearTarget = "data-ui-clear-target";
 
     public const string CollapseToggle = "data-ui-collapse-toggle";
 
@@ -458,6 +468,18 @@ public static class WebAttributes
     public const string MenuRailTiers = "data-ui-menu-rail-tiers";
 
     /// <summary>
+    /// On a component whose orientation, size or list layout differs by breakpoint: that family's class at every tier, narrowest first;
+    /// the render draws the base tier's and the client the width's (tier-class.ts).
+    /// </summary>
+    public const string TierOrientation = "data-ui-tier-orientation";
+
+    /// <inheritdoc cref="TierOrientation"/>
+    public const string TierSize = "data-ui-tier-size";
+
+    /// <inheritdoc cref="TierOrientation"/>
+    public const string TierLayout = "data-ui-tier-layout";
+
+    /// <summary>
     /// On the root where the content region's root fills the height, which keeps the regions' own scroll on a phone: the shell writes
     /// it from the first value, <c>content-fills.ts</c> as that root's <c>Height</c> changes.
     /// </summary>
@@ -752,6 +774,9 @@ public static class WebAttributes
     /// <summary>On the <c>style</c> in the head that holds the reader's own colours (<c>WebThemeCssBuilder.BuildColors</c>), after the theme's.</summary>
     public const string ThemeColors = "data-ui-theme-colors";
 
+    /// <summary>On the head's <c>link</c> to the theme's stylesheet, which the reader's own colours stand right after.</summary>
+    public const string ThemeStylesheet = "data-ui-theme-sheet";
+
     /// <summary>The hook the theme switcher's engine finds its root by; a class would be styling. <c>field</c> on the field, empty on the button.</summary>
     public const string ThemeSwitcher = "data-ui-theme-switcher";
 
@@ -770,6 +795,12 @@ public static class WebAttributes
 
     /// <summary>On a control whose tooltip is all it has to say (a caption's badge): a press shows the tooltip, and the next press hides it.</summary>
     public const string TooltipPress = "data-ui-tooltip-press";
+
+    /// <summary>
+    /// On a field rendered as a password: what it holds is a secret whatever its type is switched to later (a value shown in the
+    /// clear), so a reload never carries it over in the tab's storage.
+    /// </summary>
+    public const string SecretField = "data-ui-secret";
 
     /// <summary>On a text area that grows with its text up to its most rows; the stylesheet's, and the engine's where the browser cannot size a field to its content.</summary>
     public const string TextAreaGrow = "data-ui-text-area-grow";

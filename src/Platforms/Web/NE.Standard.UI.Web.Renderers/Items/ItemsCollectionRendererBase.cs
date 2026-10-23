@@ -31,6 +31,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 {
     private const string DefaultTemplateName = "default";
     private const string ItemsQueryClassName = "ui-items-query";
+    // ShowEmptyTemplate off, on an empty-state host's root; the stylesheet alone reads it (mixins/empty-state.less).
+    private const string NoEmptyAttribute = "data-ui-no-empty";
 
     /// <summary>The client's row decorator that gives a row it builds its grip (<see cref="RenderRowGrip"/>).</summary>
     protected const string RowGripDecorator = "grip";
@@ -39,9 +41,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     protected const int VirtualizedFirstPaintRows = 40;
 
     // Every items component registers these same lists, so they are built once rather than per instance.
-    private static readonly WebDomOperation[] LayoutTypeOperations = [WebDomOperation.Class(converter: WebDomConverters.ItemsViewLayoutClass)];
+    private static readonly TierClassFamily<UIItemsLayoutType> LayoutTypeFamily = new(WebAttributes.TierLayout, WebDomConverters.ItemsViewLayoutClass, WebDomConverters.ItemsViewLayoutTierClasses, WebClassNames.ItemsViewLayout);
     private static readonly WebDomOperation[] SelectionModeOperations = [WebDomOperation.Attribute(WebAttributes.Selection, converter: WebDomConverters.SelectionModeAttribute)];
-    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey)];
     private static readonly WebDomOperation[] ItemsQueryOperations = [WebDomOperation.Attribute(WebAttributes.ItemsQuery)];
     private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, $"[{WebAttributes.ItemsHost}]")];
 
@@ -50,11 +51,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIItemsLayoutType?>(context, root, layoutTypeProperty, static (target, value) =>
-        {
-            if (value is UIItemsLayoutType layoutType)
-                _ = target.Class(WebClassNames.ItemsViewLayout(layoutType));
-        }, LayoutTypeOperations);
+        TierClassRenderer.Render(context, root, layoutTypeProperty, LayoutTypeFamily);
 
         OrientationStyleRenderer.RenderOrientation(context, root, orientationProperty);
 
@@ -76,12 +73,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
                 _ = target.Attribute(WebAttributes.Selection, WebCssValues.SelectionMode(mode));
         }, SelectionModeOperations);
 
-        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.SelectedKey);
-        _ = RenderProperty<string?>(context, root, ISelectableItemsComponent.SelectedKeyProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrEmpty(value))
-                _ = target.Attribute(WebAttributes.SelectedKey, value);
-        }, SelectedKeyOperations);
+        RenderSelectedKey(context, root);
 
         RenderItemsQuery(context, root);
     }
@@ -228,7 +220,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
         if (mode == UISelectionMode.One)
         {
-            _ = ResolveRenderValue(context, ISelectableItemsComponent.SelectedKeyProperty, out string? selectedKey, out _);
+            _ = ResolveRenderValue(context, ISelectedKeyComponent.SelectedKeyProperty, out string? selectedKey, out _);
 
             if (!string.IsNullOrEmpty(selectedKey))
                 _ = keys.Add(selectedKey);
@@ -380,6 +372,13 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         }
     }
 
+    /// <summary>
+    /// Marks an <see cref="IEmptyStateComponent"/>'s root while <c>ShowEmptyTemplate</c> is off; the one shared stylesheet rule
+    /// (<c>.ui-empty-state-host()</c>) hides the placeholder under it, so a bound flag turned on shows it again.
+    /// </summary>
+    protected static void RenderEmptyStateSwitch(WebRenderContext context, IHtmlElementBuilder root)
+        => RenderFlagAttribute(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, NoEmptyAttribute, WebValueCondition.IsFalse);
+
     /// <summary>Renders the empty-state content directly into an items host, and marks the host as showing it.</summary>
     protected static void RenderEmptyPlaceholder(WebRenderContext context, IHtmlElementBuilder host)
     {
@@ -436,7 +435,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     /// </summary>
     protected static void RenderDraggableRows(WebRenderContext context, IHtmlElementBuilder root)
     {
-        RenderFlagAttribute(context, root, IDraggableRowsComponent.DraggableProperty, WebAttributes.RowsDraggable);
+        RenderFlagAttribute(context, root, IDraggableItemsComponent.DraggableProperty, WebAttributes.RowsDraggable);
         RenderFlagAttribute(context, root, IDraggableRowsComponent.DragHandleProperty, WebAttributes.RowsDragHandle);
 
         _ = RenderProperty<UIDragHandlePlacement?>(context, root, IDraggableRowsComponent.DragHandlePlacementProperty, static (target, value) =>
@@ -482,7 +481,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     /// and a handle each on or bound. The stylesheet shows it only while both say so, so a bound one flips it with no row drawn again.
     /// </summary>
     protected static bool DrawsRowGrip(WebRenderContext context)
-        => MayBeTrue(context, IDraggableRowsComponent.DraggableProperty) && MayBeTrue(context, IDraggableRowsComponent.DragHandleProperty);
+        => MayBeTrue(context, IDraggableItemsComponent.DraggableProperty) && MayBeTrue(context, IDraggableRowsComponent.DragHandleProperty);
 
     private static bool MayBeTrue(WebRenderContext context, UIProperty property)
         => ResolveRenderValue(context, property, out bool? value, out _) == WebRenderValueKind.Binding || value == true;

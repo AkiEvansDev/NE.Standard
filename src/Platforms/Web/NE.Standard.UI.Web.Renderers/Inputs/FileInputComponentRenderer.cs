@@ -4,7 +4,6 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -16,12 +15,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
 
-    private static readonly WebDomOperation[] ReadOnlyOperations =
-    [
-        NativeInputRendererBase.ReadOnlyMarkOperation,
-        WebDomOperation.ToggleAttribute("aria-disabled", target: $".{RootClassName}__pick", condition: WebValueCondition.IsTrue, value: "true"),
-        WebDomOperation.ToggleAttribute("disabled", target: $".{RootClassName}__native", condition: WebValueCondition.IsTrue)
-    ];
+    private static readonly WebDomOperation[] ReadOnlyOperations = NativeInputRendererBase.PickReadOnlyOperations([$".{RootClassName}__pick"], $".{RootClassName}__native");
 
     public override string ComponentTypeKey => FileInputComponent.ComponentTypeKey;
 
@@ -37,8 +31,8 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
 
-        NativeInputRendererBase.RenderMaxFileSize(context, root, FileInputComponent.MaxFileSizeProperty);
-        NativeInputRendererBase.RenderDropTargetId(context, root, FileInputComponent.DropTargetIdProperty);
+        NativeInputRendererBase.RenderMaxFileSize(context, root);
+        NativeInputRendererBase.RenderDropTargetId(context, root);
 
         RenderRow(context, root);
         RenderValidationMessage(context, root);
@@ -48,7 +42,6 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
     private void RenderRow(WebRenderContext context, IHtmlElementBuilder root)
     {
         IHtmlElementBuilder? native = null;
-        IHtmlElementBuilder? field = null;
         IHtmlElementBuilder? pick = null;
 
         _ = root.Element("span", row =>
@@ -61,7 +54,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
-            NativeInputRendererBase.RenderFilePicker(context, row, $"{ClassName}__native", FileInputComponent.AcceptProperty, input =>
+            NativeInputRendererBase.RenderFilePicker(context, row, $"{ClassName}__native", input =>
             {
                 native = input;
 
@@ -70,8 +63,6 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
             _ = row.Element("input", input =>
             {
-                field = input;
-
                 _ = input.Class($"{ClassName}__field");
                 _ = input.Class("ui-field");
                 _ = input.Attribute("type", "text");
@@ -94,7 +85,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
             // The selection id needs its own hidden element, since the field's own value is the file names; it's the component's
             // value for a reader, as other fields come first in the markup.
-            NativeInputRendererBase.RenderSelectionInput(context, row, $"{ClassName}__selection", FileInputComponent.SelectionIdProperty, holdsValue: true);
+            NativeInputRendererBase.RenderSelectionInput(context, row, $"{ClassName}__selection", holdsValue: true);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
 
@@ -109,20 +100,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
             });
         });
 
-        IHtmlElementBuilder nativeInput = native!;
-        IHtmlElementBuilder pickButton = pick!;
-
-        // IsReadOnly marks the root, says the pick does nothing rather than disabling it, which would drop a focus it holds, and
-        // disables the hidden native picker, which must be; applied after both exist. The names field is display-only and stays
-        // focusable either way.
-        _ = RenderProperty<bool?>(context, field!, IInputComponent.IsReadOnlyProperty, (target, value) =>
-        {
-            if (value != true)
-                return;
-
-            _ = root.Class(WebClassNames.ReadOnly);
-            _ = pickButton.Attribute("aria-disabled", "true");
-            _ = nativeInput.Attribute("disabled");
-        }, ReadOnlyOperations);
+        // The names field is display-only and stays focusable either way.
+        NativeInputRendererBase.RenderIsReadOnlyAsPick(context, root, [pick!], native, ReadOnlyOperations);
     }
 }

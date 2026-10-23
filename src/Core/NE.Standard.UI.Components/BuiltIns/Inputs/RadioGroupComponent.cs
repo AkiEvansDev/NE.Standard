@@ -37,13 +37,6 @@ public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase
     }
 
     /// <summary>
-    /// Configures the built-in default empty template — what the group says while it shows no option — throwing if a different template
-    /// has been set.
-    /// </summary>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
-
-    /// <summary>
     /// Configures the built-in default group template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)

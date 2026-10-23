@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/empty-state.less";
 @import "../mixins/interactive.less";
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
@@ -39,9 +40,10 @@
     min-height: 0;
 }
 
-// ShowEmptyTemplate off: a tabs view with no tab open says nothing; hidden, so a bound flag turned on shows it again.
-.ui-tabs-view--no-empty > .ui-tabs-view__host > [data-ui-empty-placeholder] {
-    display: none;
+// The empty state's box, so UIPage.Empty stands in the pages' middle, not under the strip, and none with ShowEmptyTemplate off:
+// every host's one rule.
+.ui-tabs-view {
+    .ui-empty-state-host(~".ui-tabs-view__host");
 }
 
 // Both __item and .ui-tab-item stay contents, or either would trap the caption and page out of the host's flex line.

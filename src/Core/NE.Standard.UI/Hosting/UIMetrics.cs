@@ -30,6 +30,11 @@ internal sealed class UIMetrics : IDisposable
     private readonly Histogram<double> _commandDuration;
     private readonly Histogram<double> _flushDuration;
     private readonly Counter<long> _flushFailures;
+    private readonly Counter<long> _runtimesEvicted;
+    private readonly Counter<long> _runtimesRefused;
+    private readonly Counter<long> _resyncs;
+    private readonly Counter<long> _valuesRefused;
+    private readonly Counter<long> _sessionsEvicted;
 
     public UIMetrics(IMeterFactory? factory, UIRuntimeStore runtimes, UIUpdateDispatcher dispatcher, IServiceProvider services)
     {
@@ -51,18 +56,16 @@ internal sealed class UIMetrics : IDisposable
         _commandDuration = _meter.CreateHistogram<double>("ne.ui.command.duration", "s", "How long a command took, from the client's event to its answer.");
         _flushDuration = _meter.CreateHistogram<double>("ne.ui.flush.duration", "s", "How long one scheduled flush pass over every runtime took.");
         _flushFailures = _meter.CreateCounter<long>("ne.ui.flush.failures", "{runtime}", "Runtimes whose scheduled flush failed.");
+        _runtimesEvicted = _meter.CreateCounter<long>("ne.ui.runtimes.evicted", "{runtime}", "Runtimes given up to make room for a new one, by the limit that gave them up.");
+        _runtimesRefused = _meter.CreateCounter<long>("ne.ui.runtimes.refused", "{runtime}", "New runtimes refused because the session or the process held as many as it may, none of which could go.");
+        _resyncs = _meter.CreateCounter<long>("ne.ui.resyncs", "{resync}", "Full resyncs a runtime was asked for: a client fallen behind, a send that failed, a handler's call.");
+        _valuesRefused = _meter.CreateCounter<long>("ne.ui.values.refused", "{value}", "Client value writes not taken: refused by a gate, rejected by the input's format, forged, or stale (a row no longer held).");
+        _sessionsEvicted = _meter.CreateCounter<long>("ne.ui.sessions.evicted", "{session}", "Sessions no client used, given up oldest first past the process's limit on them.");
     }
 
     private static IEnumerable<Measurement<int>> ObserveSessions(IServiceProvider services)
     {
-        UserSessionMemoryStore? memory = services.GetService<IUserSessionStore>() switch
-        {
-            UserSessionMemoryStore store => store,
-            UserSessionSplitStore split => split.Anonymous,
-            _ => null
-        };
-
-        if (memory is not null)
+        if (UserSessionMemoryStore.Of(services.GetService<IUserSessionStore>()) is { } memory)
             yield return new Measurement<int>(memory.Count);
     }
 
@@ -84,8 +87,32 @@ internal sealed class UIMetrics : IDisposable
     public void RuntimeStarted(TimeSpan elapsed)
         => _runtimeStartDuration.Record(elapsed.TotalSeconds);
 
-    public void CommandCompleted(string route, bool succeeded, TimeSpan elapsed)
-        => _commandDuration.Record(elapsed.TotalSeconds, new KeyValuePair<string, object?>("ne.ui.route", route), new KeyValuePair<string, object?>("ne.ui.command.outcome", succeeded ? "ok" : "failed"));
+    /// <summary>Records a command's run; <paramref name="outcome"/> is <c>ok</c>, <c>failed</c>, or <c>cancelled</c> by its page leaving.</summary>
+    public void CommandCompleted(string route, string outcome, TimeSpan elapsed)
+        => _commandDuration.Record(elapsed.TotalSeconds, new KeyValuePair<string, object?>("ne.ui.route", route), new KeyValuePair<string, object?>("ne.ui.command.outcome", outcome));
+
+    public void RuntimeEvicted(UIRuntimeEviction eviction)
+        => _runtimesEvicted.Add(1, new KeyValuePair<string, object?>("ne.ui.eviction.reason", eviction switch
+        {
+            UIRuntimeEviction.SessionUnclaimed => "session_unclaimed",
+            UIRuntimeEviction.SessionFull => "session_full",
+            UIRuntimeEviction.ProcessUnclaimed => "process_unclaimed",
+            _ => "process_disconnected"
+        }));
+
+    /// <summary>Records a new runtime refused, by the process's limit or by the session's.</summary>
+    public void RuntimeRefused(bool processFull)
+        => _runtimesRefused.Add(1, new KeyValuePair<string, object?>("ne.ui.refusal.reason", processFull ? "process_full" : "session_full"));
+
+    public void ResyncRequested()
+        => _resyncs.Add(1);
+
+    /// <summary>Records a client value not taken; <paramref name="outcome"/> is <c>refused</c>, <c>rejected</c>, <c>forged</c> or <c>stale</c>.</summary>
+    public void ValueRefused(string outcome)
+        => _valuesRefused.Add(1, new KeyValuePair<string, object?>("ne.ui.value.outcome", outcome));
+
+    public void SessionsEvicted(int count)
+        => _sessionsEvicted.Add(count);
 
     public void FlushCompleted(TimeSpan elapsed, int failedRuntimes)
     {

@@ -17,6 +17,9 @@ public sealed class UserSessionMemoryStore : IUserSessionStore
 {
     private readonly ConcurrentDictionary<string, UserSessionState> _sessions = new(StringComparer.Ordinal);
 
+    // The unclaimed sessions the host issued, oldest first; an id here may since be claimed or gone. Filled only by AdmitUnclaimed.
+    private readonly ConcurrentQueue<string> _issuedUnclaimed = new();
+
     /// <summary>Gets how many sessions the store holds, for the host's meter.</summary>
     public int Count => _sessions.Count;
 
@@ -146,4 +149,36 @@ public sealed class UserSessionMemoryStore : IUserSessionStore
     /// <summary>Adds a session under an id the store does not hold.</summary>
     internal bool TryAdd(UserSessionState session)
         => _sessions.TryAdd(session.SessionId, session);
+
+    /// <summary>
+    /// Counts a session just issued unclaimed, then gives up the oldest still unclaimed past <paramref name="max"/>; answers how many
+    /// went.
+    /// </summary>
+    /// <remarks>
+    /// Issue order, not last-seen time: a queue makes it O(1) a load where a scan would be O(sessions). An id in the queue that a tab
+    /// claimed or the sweep removed since only leaves it, so the queue never holds more than <paramref name="max"/> ids.
+    /// </remarks>
+    internal int AdmitUnclaimed(string sessionId, int max)
+    {
+        _issuedUnclaimed.Enqueue(sessionId);
+
+        var evicted = 0;
+
+        while (_issuedUnclaimed.Count > max && _issuedUnclaimed.TryDequeue(out var oldest))
+        {
+            if (_sessions.TryGetValue(oldest, out UserSessionState? session) && session.IsUnclaimed && _sessions.TryRemove(new KeyValuePair<string, UserSessionState>(oldest, session)))
+                evicted++;
+        }
+
+        return evicted;
+    }
+
+    /// <summary>The in-memory store a store keeps its anonymous sessions in: itself, a split store's; none for an application's own.</summary>
+    internal static UserSessionMemoryStore? Of(IUserSessionStore? store)
+        => store switch
+        {
+            UserSessionMemoryStore memory => memory,
+            UserSessionSplitStore split => split.Anonymous,
+            _ => null
+        };
 }

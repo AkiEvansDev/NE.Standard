@@ -23,17 +23,10 @@
     flex-shrink: 1;
 }
 
-// A control with no caption over it beside captioned fields (StackPanel.AlignWithFieldBoxes, UIForm.Row) stands level with their boxes:
-// down by a caption's line and the input root's gap under it, then centred on a band as tall as their box, in the tiers written (the
-// renderer writes each tier's line, 0 or 1, and its box, one of the three below). Through the padding's and the least height's chains,
-// so an authored Padding or MinHeight wins.
-.ui-stack-panel--field-aligned[data-ui-id] {
-    .ui-responsive-reset(--ui-field-aligned);
-    .ui-responsive-reset(--ui-field-aligned-box);
-    // A field's box by its Size (ui-input.less).
-    --ui-field-box-small: @ui-control-height-sm;
-    --ui-field-box-medium: @ui-control-height;
-    --ui-field-box-large: @ui-control-height-lg;
+// A panel standing level with captioned fields' boxes (AlignWithFieldBoxes; runtime.less holds the tiers and the boxes) stands its
+// content down by a caption's line and the input root's gap under it, then centred on a band as tall as their box, in the tiers
+// written. Through the padding's and the least height's chains, so an authored Padding or MinHeight wins.
+.ui-stack-panel.ui-field-aligned[data-ui-id] {
     @lines: .ui-responsive-chain(--ui-field-aligned; 0)[@value];
     @box: .ui-responsive-chain(--ui-field-aligned-box; 0px)[@value];
     @caption: ~"calc(@{lines} * (var(--ui-text-caption-line-height) + @{ui-space-1}))";
@@ -42,26 +35,26 @@
 }
 
     // A row's children centred across the band, an authored VerticalAlignment still theirs.
-    .ui-stack-panel--field-aligned.ui-orientation--horizontal > [data-ui-id] {
+    .ui-stack-panel.ui-field-aligned.ui-orientation--horizontal > [data-ui-id] {
         align-self: var(--ui-align-v, center);
     }
 
     // A column's first child centred on the band and the rest after it, as a field's message hangs under its box: a control and its
     // note (UIForm.Field) keep the control level with the boxes, where centring the two together stood it half the note high. A grid
     // whose first row is at least the box; HorizontalAlignment is then the row's own axis.
-    .ui-stack-panel--field-aligned.ui-orientation--vertical {
+    .ui-stack-panel.ui-field-aligned.ui-orientation--vertical {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: minmax(.ui-responsive-chain(--ui-field-aligned-box; 0px)[@value], auto);
         align-content: start;
     }
 
-        .ui-stack-panel.ui-stack-panel--field-aligned.ui-orientation--vertical > [data-ui-id] {
+        .ui-stack-panel.ui-stack-panel.ui-field-aligned.ui-orientation--vertical > [data-ui-id] {
             align-self: start;
             justify-self: var(--ui-align-h, normal);
         }
 
-        .ui-stack-panel.ui-stack-panel--field-aligned.ui-orientation--vertical > [data-ui-id]:first-child {
+        .ui-stack-panel.ui-stack-panel.ui-field-aligned.ui-orientation--vertical > [data-ui-id]:first-child {
             align-self: center;
         }
 

@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { BindingAttributePrefix, ComponentSelector, cssAttributeValue, FormIdAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import { BindingAttributePrefix, ComponentSelector, cssAttributeValue, FormIdAttribute, SecretFieldAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
 import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
@@ -11,9 +11,12 @@ import { getBindingMode } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, WebBindingMode, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import { logError, logWarn } from "../runtime/logger.ts";
 import { areValuesEqual } from "../state/value-equality.ts";
-import type { ValueChangeDispatcher } from "../transport/value-change-dispatcher.ts";
+import { ValueConflict } from "../transport/value-change-dispatcher.ts";
+import type { UnchangedSince, ValueChangeDispatcher } from "../transport/value-change-dispatcher.ts";
 
 const ClearAttribute = "data-ui-clear";
+// The field a clear empties where the bound value is not what the reader edits: a date's text, which its engine reads into the value.
+const ClearTargetAttribute = "data-ui-clear-target";
 
 export const ValueSyncEventNames: readonly string[] = ["change", "toggle"];
 
@@ -73,6 +76,21 @@ export type ValueBindingEngineOptions = {
     readonly recordSent: (reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown) => void;
     /** Whether the page refuses a field's value before it goes — one past its bounds stays the reader's, refused in words. */
     readonly refuses?: (element: Element) => boolean;
+    /** The property's latest value the page holds (`PropertyStateStore`), undefined where it holds none. */
+    readonly readRecorded?: (reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[]) => unknown;
+    /** Marks a field whose value was not sent because another writer changed it during a drop (`ValueConflict`), or takes the mark off. */
+    readonly markConflict?: (component: Element, conflicting: boolean) => void;
+};
+
+/** A field's value the server has not taken, by its binding and row, as a reload carries it over (`unsaved-stash.ts`). */
+export type UnsavedValue = {
+    readonly bindingId: string;
+    readonly dynamicParameters: readonly unknown[];
+    readonly value: unknown;
+    // The server's value the edit started from, where the page held one: another after the reload was written meanwhile.
+    readonly start?: unknown;
+    // Held over another writer's value already (`ValueConflict`): put back held and marked, never sent unasked.
+    readonly conflicted?: boolean;
 };
 
 /** A form's buffered fields and the values they held when read. */
@@ -102,6 +120,15 @@ export class ValueBindingEngine {
     // reader typed since rather than over it (docs/VALUES.md §3).
     private readonly pressedText = new Map<Element, { readonly text: string; readonly press: object }>();
 
+    // Fields typed in since their last send: a reload carries what they hold over though no `change` has sent it yet.
+    private readonly typed = new Set<Element>();
+
+    // Fields holding a value that waited out a drop and was not sent over another writer's, by their component, which wears the mark.
+    private readonly conflicted = new Map<Element, Element>();
+
+    // An attach's snapshot is being applied: a field the reader is typing in holds its words against it (`holdTypedDuring`).
+    private holdingTyped = false;
+
     public constructor(options: ValueBindingEngineOptions) {
         this.options = options;
         this.root = options.root ?? document;
@@ -127,8 +154,22 @@ export class ValueBindingEngine {
     }
 
     private holdEdited(domEvent: Event): void {
+        if (!(domEvent.target instanceof Element))
+            return;
+
+        // Any field with a writable value, not only `data-ui-bind-value`: a text input writes through its `data-ui-bind-<id>`.
+        if (!this.typed.has(domEvent.target) && resolveWritableBinding(domEvent.target, this.options.metadata) !== null) {
+            // A row taken off the page takes its field out of the set too, or a long list typed in would keep every row alive.
+            for (const element of this.typed) {
+                if (!element.isConnected)
+                    this.typed.delete(element);
+            }
+
+            this.typed.add(domEvent.target);
+        }
+
         // A field with no form is left to `change`, which says once that it can never be submitted, not at every keystroke.
-        if (!(domEvent.target instanceof Element) || this.bufferedElements.has(domEvent.target) || !domEvent.target.hasAttribute(FormIdAttribute))
+        if (this.bufferedElements.has(domEvent.target) || !domEvent.target.hasAttribute(FormIdAttribute))
             return;
 
         if (resolveWritableBinding(domEvent.target, this.options.metadata)?.buffered === true)
@@ -141,8 +182,10 @@ export class ValueBindingEngine {
             return;
 
         for (const element of [...this.bufferedElements]) {
-            if (domEvent.target.contains(element) || !element.isConnected)
+            if (domEvent.target.contains(element) || !element.isConnected) {
                 this.bufferedElements.delete(element);
+                this.endConflict(element);
+            }
         }
     }
 
@@ -154,6 +197,7 @@ export class ValueBindingEngine {
             // A field its row took off the page is let go of here too, rather than held for a submit that can never reach it.
             if (!element.isConnected) {
                 this.bufferedElements.delete(element);
+                this.endConflict(element);
                 continue;
             }
 
@@ -161,6 +205,7 @@ export class ValueBindingEngine {
                 continue;
 
             this.bufferedElements.delete(element);
+            this.endConflict(element);
             released.push(element);
         }
 
@@ -175,12 +220,36 @@ export class ValueBindingEngine {
 
     /** Lets a held element go; true when it was held, for the caller to put the server's value back into it. */
     public release(element: Element): boolean {
+        this.endConflict(element);
+
         return this.bufferedElements.delete(element);
     }
 
-    /** Whether an element holds a value the server has not taken yet (unsent or unanswered); a push is not written into it. */
+    /**
+     * Whether an element holds a value the server has not taken yet (unsent or unanswered); a push is not written into it. While an
+     * attach's snapshot is applied, a field the reader is typing in holds its uncommitted words too.
+     */
     public isHeld(element: Element): boolean {
-        return this.bufferedElements.has(element) || this.unanswered.has(element);
+        return this.bufferedElements.has(element) || this.unanswered.has(element) || (this.holdingTyped && this.isBeingTyped(element));
+    }
+
+    private isBeingTyped(element: Element): boolean {
+        return this.typed.has(element) && element.isConnected && document.activeElement === element;
+    }
+
+    /**
+     * Applies an attach's snapshot with the field the reader is typing in held: the snapshot is the server's whole page again, and its
+     * value of that field is what the reader is typing over, not news. A push outside a snapshot still lands, a later write winning.
+     */
+    public holdTypedDuring(apply: () => void): void {
+        this.holdingTyped = true;
+
+        try {
+            apply();
+        }
+        finally {
+            this.holdingTyped = false;
+        }
     }
 
     /**
@@ -221,6 +290,7 @@ export class ValueBindingEngine {
             return;
 
         if (writable.buffered) {
+            this.endConflict(element);
             this.bufferValue(element);
             return;
         }
@@ -241,7 +311,9 @@ export class ValueBindingEngine {
         const componentRoot = trigger.closest(ComponentSelector);
 
         // An unbound field still clears its own control: its change is what a rule or interaction reading the field listens for.
-        const target = componentRoot?.querySelector(`[${ValueBindingAttribute}]`) ?? componentRoot?.querySelector("input, textarea, select");
+        const target = componentRoot?.querySelector(`[${ClearTargetAttribute}]`)
+            ?? componentRoot?.querySelector(`[${ValueBindingAttribute}]`)
+            ?? componentRoot?.querySelector("input, textarea, select");
 
         if (target === null || target === undefined || isUneditable(target))
             return;
@@ -276,6 +348,8 @@ export class ValueBindingEngine {
             return;
 
         if (writable.buffered) {
+            // The reader's next edit: held for the next submit as any edit is, the conflict over.
+            this.endConflict(domEvent.target);
             this.bufferValue(domEvent.target);
             return;
         }
@@ -304,6 +378,11 @@ export class ValueBindingEngine {
             if (!element.isConnected)
                 this.bufferedElements.delete(element);
         }
+
+        for (const element of this.conflicted.keys()) {
+            if (!element.isConnected)
+                this.conflicted.delete(element);
+        }
     }
 
     /**
@@ -316,7 +395,7 @@ export class ValueBindingEngine {
         const fields: Element[] = [];
 
         for (const element of this.bufferedElements) {
-            if (element.isConnected && element.getAttribute(FormIdAttribute) === formId)
+            if (element.isConnected && element.getAttribute(FormIdAttribute) === formId && !this.conflicted.has(element))
                 values.set(element, this.options.valueReaders.readBound(element));
         }
 
@@ -349,7 +428,8 @@ export class ValueBindingEngine {
         const pending: Promise<void>[] = [];
 
         for (const element of [...this.bufferedElements]) {
-            if (element.getAttribute(FormIdAttribute) !== formId)
+            // Held over another writer's value, it goes only with the reader's next edit of it; the submit is refused (`conflictedField`).
+            if (element.getAttribute(FormIdAttribute) !== formId || this.conflicted.has(element))
                 continue;
 
             const current = pressed === undefined || readsNow?.(element) === true;
@@ -392,6 +472,11 @@ export class ValueBindingEngine {
         if (resolved === null)
             return;
 
+        this.typed.delete(element);
+
+        // Sent now by the reader's next edit, over another writer's value deliberately: the conflict is said no longer.
+        this.endConflict(element);
+
         // Published before it is awaited, so a command raised by the same edit can wait on it.
         const sync = this.dispatchAndApplyAsync(element, propertyName, resolved, binding, value);
 
@@ -420,11 +505,67 @@ export class ValueBindingEngine {
             }, () => {
                 answer();
                 this.options.recordSent(binding, resolved.dynamicParameters, value);
-            });
+            }, this.unchangedSince(binding, resolved.dynamicParameters));
+        }
+        catch (error) {
+            if (!(error instanceof ValueConflict))
+                throw error;
+
+            this.holdConflicted(element, resolved.element);
         }
         finally {
             answer();
         }
+    }
+
+    /**
+     * The reader's words stay in the field, held from the server's value, and the field says why. Only the reader's next edit of the
+     * field sends them; a submit of its form leaves them out and is refused (`conflictedField`).
+     */
+    private holdConflicted(element: Element, component: Element): void {
+        this.bufferedElements.add(element);
+        this.conflicted.set(element, component);
+        this.options.markConflict?.(component, true);
+    }
+
+    /** Takes a field out of its conflict, and its mark off: the reader edited it, or its edit was let go of. */
+    private endConflict(element: Element): void {
+        const marked = this.conflicted.get(element);
+
+        if (marked === undefined)
+            return;
+
+        this.conflicted.delete(element);
+        this.options.markConflict?.(marked, false);
+    }
+
+    /** The component of a field of the form held over another writer's value, which refuses the form's submit; null where none is. */
+    public conflictedField(formId: string): Element | null {
+        for (const [element, component] of this.conflicted) {
+            if (element.isConnected && element.getAttribute(FormIdAttribute) === formId)
+                return component;
+        }
+
+        return null;
+    }
+
+    /**
+     * What the edit started from — the server's value the page held when it was sent — weighed again after a drop: unchanged where the
+     * server still holds it, or holds one of the reader's own values (a dropped send reached it after all); none where the page held no
+     * value.
+     */
+    private unchangedSince(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[]): UnchangedSince | undefined {
+        const read = this.options.readRecorded;
+        const start = read?.(reference, dynamicParameters);
+
+        if (read === undefined || start === undefined)
+            return undefined;
+
+        return own => {
+            const now = read(reference, dynamicParameters);
+
+            return now === undefined || areValuesEqual(now, start) || own.some(value => areValuesEqual(now, value));
+        };
     }
 
     private holdUnanswered(element: Element): number {
@@ -465,6 +606,122 @@ export class ValueBindingEngine {
     public whenSent(): Promise<void> {
         return this.options.dispatcher.whenSent();
     }
+
+    /**
+     * Every value a field holds that the server has not taken — unsent, unanswered, held over another writer's, or typed in and not
+     * committed yet — for a reload to carry over. A password and a value that is not plain JSON (a picker's uploads) are left out.
+     */
+    public unsavedValues(): UnsavedValue[] {
+        const values: UnsavedValue[] = [];
+        const fields = new Set<Element>([...this.bufferedElements, ...this.unanswered.keys(), ...this.typed]);
+
+        for (const element of fields) {
+            if (!element.isConnected || isSensitive(element))
+                continue;
+
+            const writable = resolveWritableBinding(element, this.options.metadata);
+            const resolved = this.options.dom.resolveNearestComponent(element, () => true);
+
+            if (writable === null || writable.binding === undefined || resolved === null)
+                continue;
+
+            const value = this.options.valueReaders.readBound(element);
+
+            if (!isPlainValue(value))
+                continue;
+
+            const start = this.options.readRecorded?.(writable.binding, resolved.dynamicParameters);
+
+            // Typed and left as the server has it, or written over by a push since: nothing of the reader's to carry over.
+            if (!this.isHeld(element) && areValuesEqual(value, start))
+                continue;
+
+            values.push({
+                bindingId: writable.bindingId,
+                dynamicParameters: resolved.dynamicParameters,
+                value,
+                ...(start !== undefined && isPlainValue(start) ? { start } : {}),
+                ...(this.conflicted.has(element) ? { conflicted: true } : {})
+            });
+        }
+
+        return values;
+    }
+
+    /**
+     * Puts carried-over values back into their fields and has each go as the reader's edit: written, then `input` and `change` raised,
+     * so a TwoWay field sends it, an OnSubmit field holds it and the field's rules judge it. One whose field another writer changed
+     * since the edit started, or that was held over another's already, is written but held and marked, as a value that waited out a
+     * drop is (`ValueConflict`). A field gone, closed to the reader, or already holding the value is left as it is; answers how many
+     * were put back.
+     */
+    public restoreUnsaved(values: readonly UnsavedValue[], write: (element: Element, bindingId: number, value: unknown) => boolean): number {
+        let restored = 0;
+
+        for (const unsaved of values) {
+            const field = this.findField(unsaved);
+            const binding = this.options.metadata.getBindingById(Number(unsaved.bindingId));
+
+            if (field === null || binding === undefined || isReadOnly(field.element) || isInert(field.element) || isSensitive(field.element))
+                continue;
+
+            if (areValuesEqual(this.options.valueReaders.readBound(field.element), unsaved.value) || !write(field.element, Number(unsaved.bindingId), unsaved.value))
+                continue;
+
+            restored++;
+
+            if (unsaved.conflicted === true || this.changedSince(unsaved, binding)) {
+                this.holdConflicted(field.element, field.component);
+                continue;
+            }
+
+            field.element.dispatchEvent(new Event("input", { bubbles: true }));
+            field.element.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+
+        return restored;
+    }
+
+    /** The field whose writable value goes through the binding, in the row the keys name; a control or a `data-ui-bind-value` element. */
+    private findField(unsaved: UnsavedValue): { readonly element: Element; readonly component: Element } | null {
+        for (const element of this.root.querySelectorAll(`input, textarea, select, [${ValueBindingAttribute}]`)) {
+            if (resolveWritableBinding(element, this.options.metadata)?.bindingId !== unsaved.bindingId)
+                continue;
+
+            const resolved = this.options.dom.resolveNearestComponent(element, () => true);
+
+            if (resolved !== null && areValuesEqual(resolved.dynamicParameters, unsaved.dynamicParameters))
+                return { element, component: resolved.element };
+        }
+
+        return null;
+    }
+
+    /** Whether the server now holds neither what the carried-over edit started from nor the edit itself; false where either is unknown. */
+    private changedSince(unsaved: UnsavedValue, binding: WebRenderPropertyReferenceMetadata): boolean {
+        const now = this.options.readRecorded?.(binding, unsaved.dynamicParameters);
+
+        return "start" in unsaved && now !== undefined && !areValuesEqual(now, unsaved.start) && !areValuesEqual(now, unsaved.value);
+    }
+}
+
+// A password, a one-time code or a card's field never goes into the tab's storage, which outlives the page. Matched per token:
+// `autocomplete` is a list ("section-pay billing cc-number").
+const SensitiveAutocompleteToken = /password$|^one-time-code$|^cc-/;
+
+function isSensitive(element: Element): boolean {
+    // What the field is, not its type now: a password shown in the clear has type "text" and keeps the renderer's mark.
+    if (element.hasAttribute(SecretFieldAttribute) || (element as HTMLInputElement).type === "password")
+        return true;
+
+    return (element.getAttribute("autocomplete") ?? "").toLowerCase().split(/\s+/).some(token => SensitiveAutocompleteToken.test(token));
+}
+
+/** Whether a value is what a reload can carry in the tab's storage and put back: a string, number, flag or null, or a list of them. */
+function isPlainValue(value: unknown): boolean {
+    const plain = (item: unknown): boolean => item === null || typeof item === "string" || typeof item === "boolean" || (typeof item === "number" && Number.isFinite(item));
+
+    return plain(value) || (Array.isArray(value) && value.every(plain));
 }
 
 /** Writes a field's words, a caret the reader holds in it kept as far from the end as it was. */

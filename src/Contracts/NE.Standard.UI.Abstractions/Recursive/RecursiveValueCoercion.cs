@@ -136,6 +136,58 @@ public static class RecursiveValueCoercion
     }
 
     /// <summary>
+    /// Whether a value a client sent — the lists and documents it arrives as — holds at most <paramref name="maxElements"/> elements
+    /// (list items and document fields, counted through every level) and nests at most <paramref name="maxDepth"/> deep.
+    /// </summary>
+    /// <remarks>
+    /// The caller's limits, not the coercion's own: they belong to the host that takes the value. A scalar or a text answers at once;
+    /// a walk stops at the first limit, so a refused value costs no more than the limits. A value its reader already stopped building
+    /// (<see cref="RecursiveValuePastLimits"/>) is refused as it stands.
+    /// </remarks>
+    public static bool IsWithinLimits(object? value, int maxElements, int maxDepth)
+    {
+        if (value is not (IDictionary<string, object?> or object?[]))
+            return value is not RecursiveValuePastLimits;
+
+        var budget = maxElements;
+
+        return FitsWithin(value, 1, maxDepth, ref budget);
+    }
+
+    private static bool FitsWithin(object? value, int depth, int maxDepth, ref int budget)
+    {
+        switch (value)
+        {
+            case IDictionary<string, object?> document:
+                if (depth > maxDepth || (budget -= document.Count) < 0)
+                    return false;
+
+                foreach (var entry in document.Values)
+                {
+                    if (!FitsWithin(entry, depth + 1, maxDepth, ref budget))
+                        return false;
+                }
+
+                return true;
+
+            case object?[] items:
+                if (depth > maxDepth || (budget -= items.Length) < 0)
+                    return false;
+
+                for (var i = 0; i < items.Length; i++)
+                {
+                    if (!FitsWithin(items[i], depth + 1, maxDepth, ref budget))
+                        return false;
+                }
+
+                return true;
+
+            default:
+                return true;
+        }
+    }
+
+    /// <summary>
     /// Compiles a <c>UIResponsive&lt;T&gt;.FromValue</c> call for one element type, or <see langword="null"/> when
     /// the target is not a responsive type at all.
     /// </summary>

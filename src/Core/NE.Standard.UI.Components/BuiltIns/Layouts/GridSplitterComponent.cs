@@ -21,6 +21,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>, IGridSplitterComponent, IOrientationComponent
     where T : GridSplitterComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Vertical;
+
     protected GridSplitterComponent(string? id = null) : base(id)
     {
         HorizontalAlignment = UIAlignment.Stretch;
@@ -31,8 +33,8 @@ public abstract partial class GridSplitterComponent<T> : VisualComponentBase<T>,
     /// Gets or sets which way the bar runs: <c>Vertical</c> moves the columns either side, <c>Horizontal</c> the rows.
     /// </summary>
     // Declared here, not by the block: it says whether the placement names a column or a row, checked once at compile, so it never binds.
-    [UIComponentProperty(Contract = typeof(IOrientationComponent), IsBindable = false, DefaultValue = UIOrientation.Vertical)]
-    public UIOrientation? Orientation { get; set; }
+    [UIComponentProperty(Contract = typeof(IOrientationComponent), IsBindable = false, DefaultValueMember = nameof(DefaultOrientation))]
+    public UIResponsive<UIOrientation>? Orientation { get; set; }
 
     /// <summary>
     /// Gets or sets how far an arrow key moves the boundary, in the platform's device-independent units.

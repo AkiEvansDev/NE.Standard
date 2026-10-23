@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
@@ -28,6 +29,23 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 public abstract class WebComponentRendererBase : IWebComponentRenderer
 {
     private const string VisualComponentPropertyOwnerTypeKey = "standard.visual";
+
+    private const string FieldAlignedVariable = "--ui-field-aligned";
+    private const string FieldAlignedBoxVariable = "--ui-field-aligned-box";
+    // Read by runtime.less alone, so not a WebAttributes constant: the tiers the component stands level with captioned fields' boxes in.
+    private const string FieldAlignedAttribute = "data-ui-field-aligned";
+
+    private static readonly Func<UIFieldBoxAlignment, string> FieldAlignedFormatter = static boxes => boxes == UIFieldBoxAlignment.None ? "0" : "1";
+    private static readonly Func<UIFieldBoxAlignment, string> FieldAlignedBoxFormatter = static boxes => boxes switch
+    {
+        UIFieldBoxAlignment.Small => "var(--ui-field-box-small)",
+        UIFieldBoxAlignment.Medium => "var(--ui-field-box-medium)",
+        UIFieldBoxAlignment.Large => "var(--ui-field-box-large)",
+        _ => "0px"
+    };
+
+    // The tier words of every set of tiers a component stands level in, by the set's bits (base first): one string per set, not per component.
+    private static readonly string[] FieldAlignedTierWords = LevelTierWords();
 
     /// <summary>
     /// On a component root: whether the words inside may be selected (<c>TextSelectable</c>), <c>true</c> or <c>false</c>; absent, the
@@ -73,13 +91,10 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     private static readonly WebDomOperation[] ShowContextMenuOperations = [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)];
     private static readonly WebDomOperation[] ScrollGroupOperations = [WebDomOperation.Attribute(WebAttributes.ScrollGroup)];
     private static readonly WebDomOperation[] TextSelectOperations = [WebDomOperation.Attribute(TextSelectAttribute)];
-    private static readonly WebDomOperation[] HorizontalAlignmentOperations = [WebDomOperation.Style("--ui-align-h", converter: WebDomConverters.AlignmentCss)];
-
-    private static readonly WebDomOperation[] VerticalAlignmentOperations =
-    [
-        WebDomOperation.Style("--ui-align-v", converter: WebDomConverters.AlignmentCss),
-        WebDomOperation.Style("--ui-align-v-stretch-fallback", converter: WebDomConverters.AlignmentStretchFallbackCss)
-    ];
+    private const string HorizontalAlignmentVariable = "--ui-align-h";
+    private const string VerticalAlignmentVariable = "--ui-align-v";
+    private static readonly WebDomOperation[] HorizontalAlignmentOperations = ResponsiveRenderer.TierOperations(HorizontalAlignmentVariable, WebDomConverters.ResponsiveAlignmentCss);
+    private static readonly WebDomOperation[] VerticalAlignmentOperations = ResponsiveRenderer.TierOperations(VerticalAlignmentVariable, WebDomConverters.ResponsiveAlignmentCss);
 
     private static readonly WebDomOperation[] ZIndexOperations = [WebDomOperation.Style("z-index", target: "root", converter: WebDomConverters.NonZeroCount)];
 
@@ -99,6 +114,10 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     private static readonly WebDomOperation[] DataOperations = [WebDomOperation.Data()];
     private static readonly WebDomOperation[] LinkAddressOperations = [WebDomOperation.Attribute(WebAttributes.Href, converter: WebDomConverters.SafeUrl)];
     private static readonly WebDomOperation[] AccessibleNameOperations = [WebDomOperation.Attribute("aria-label")];
+    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey)];
+
+    // A chosen key's writer per attribute it is written under, built once: every row host, strip and tab bar draws one.
+    private static readonly ConcurrentDictionary<string, Action<IHtmlElementBuilder, string?>> SelectedKeyWriters = new(StringComparer.Ordinal);
 
     // A binding attribute's and a patch mark's name per property name, since kebab-casing builds a string each time.
     private static readonly ConcurrentDictionary<string, string> BindingAttributeNames = new(StringComparer.Ordinal);
@@ -207,22 +226,18 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         if (ResolveRenderValue(context, IVisualComponent.WindowFootProperty, out bool? windowFoot, out _) == WebRenderValueKind.Static && windowFoot == true)
             _ = html.Attribute(WebAttributes.WindowFoot);
 
-        _ = RenderProperty<UIAlignment?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HorizontalAlignmentProperty, static (target, value) =>
+        // One custom property per tier, the base under the one name every rule reads; runtime.less lifts a wider tier's into it from its
+        // breakpoint up, and derives a stretch's fallback (a collapsed expander) from the tier in force.
+        _ = RenderProperty<UIResponsive<UIAlignment>?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.HorizontalAlignmentProperty, static (target, value) =>
         {
-            if (value is UIAlignment alignment)
-                _ = target.Style("--ui-align-h", WebCssValues.Alignment(alignment));
+            if (value is UIResponsive<UIAlignment> alignment)
+                WebResponsiveCss.WriteTiers(target, alignment, HorizontalAlignmentVariable, WebCssValues.Alignment);
         }, HorizontalAlignmentOperations);
 
-        // Stretch needs a fallback: in a grid track with no height to stretch into the item would collapse.
-        _ = RenderProperty<UIAlignment?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.VerticalAlignmentProperty, static (target, value) =>
+        _ = RenderProperty<UIResponsive<UIAlignment>?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.VerticalAlignmentProperty, static (target, value) =>
         {
-            if (value is UIAlignment alignment)
-            {
-                _ = target.Style("--ui-align-v", WebCssValues.Alignment(alignment));
-
-                if (alignment == UIAlignment.Stretch)
-                    _ = target.Style("--ui-align-v-stretch-fallback", "start");
-            }
+            if (value is UIResponsive<UIAlignment> alignment)
+                WebResponsiveCss.WriteTiers(target, alignment, VerticalAlignmentVariable, WebCssValues.Alignment);
         }, VerticalAlignmentOperations);
 
         ResponsiveRenderer.ApplyResponsiveSize(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.WidthProperty, WebResponsiveCss.WidthVariable, UIOrientation.Horizontal);
@@ -241,6 +256,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         ResponsiveRenderer.ApplyResponsiveMargin(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.MarginProperty);
 
         ApplyPlacement(context, html);
+        ApplyFieldBoxes(context, html);
     }
 
     /// <summary>The attributes the client finds a component by; a presentation copy carries no identity, only appearance.</summary>
@@ -375,6 +391,53 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             WebResponsiveCss.WriteTiers(target, responsive, WebResponsiveCss.PlacementColumnSpanVariable, static placement => placement.ColumnSpan.ToString(CultureInfo.InvariantCulture));
             WebResponsiveCss.WriteTiers(target, responsive, WebResponsiveCss.PlacementRowSpanVariable, static placement => placement.RowSpan.ToString(CultureInfo.InvariantCulture));
         }, PlacementOperations);
+    }
+
+    /// <summary>
+    /// Each tier's caption line (0 or 1) and the box it centres on, read by <c>runtime.less</c> and <c>ui-stack-panel.less</c> on the
+    /// class that fences them, and the tiers it stands level in, for the rule a custom property cannot switch (its own alignment).
+    /// Render-time only: the compiler decides it from the siblings where the author did not.
+    /// </summary>
+    private static void ApplyFieldBoxes(WebRenderContext context, IHtmlElementBuilder html)
+    {
+        if (ReadRenderValue<UIResponsive<UIFieldBoxAlignment>?>(context, IVisualComponent.AlignWithFieldBoxesProperty, null) is not UIResponsive<UIFieldBoxAlignment> boxes)
+            return;
+
+        var level = 0;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (boxes.Resolve(tier) != UIFieldBoxAlignment.None)
+                level |= 1 << (int)tier;
+        }
+
+        if (level == 0)
+            return;
+
+        _ = html.Class(WebClassNames.FieldAligned).Attribute(FieldAlignedAttribute, FieldAlignedTierWords[level]);
+        WebResponsiveCss.WriteTiers(html, boxes, FieldAlignedVariable, FieldAlignedFormatter);
+        WebResponsiveCss.WriteTiers(html, boxes, FieldAlignedBoxVariable, FieldAlignedBoxFormatter);
+    }
+
+    private static string[] LevelTierWords()
+    {
+        var words = new string[1 << ((int)UIResponsiveTier.Xxl + 1)];
+        StringBuilder set = new();
+
+        for (var bits = 1; bits < words.Length; bits++)
+        {
+            _ = set.Clear();
+
+            for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+            {
+                if ((bits & (1 << (int)tier)) != 0)
+                    _ = (set.Length == 0 ? set : set.Append(' ')).Append(WebResponsiveCss.TierWord(tier));
+            }
+
+            words[bits] = set.ToString();
+        }
+
+        return words;
     }
 
     private static void ApplyMetadata(WebRenderContext context)
@@ -523,6 +586,32 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             if (!string.IsNullOrWhiteSpace(value))
                 _ = element.Attribute("aria-label", value);
         }, AccessibleNameOperations);
+    }
+
+    /// <summary>
+    /// Writes an <see cref="ISelectedKeyComponent"/>'s chosen key on the root as a row host's and a strip of segments' one key: one
+    /// element holds one writable value, read back by its kind.
+    /// </summary>
+    public static void RenderSelectedKey(WebRenderContext context, IHtmlElementBuilder root)
+        => RenderSelectedKey(context, root, WebValueKinds.SelectedKey, WebAttributes.SelectedKey, SelectedKeyOperations);
+
+    /// <summary>
+    /// Writes an <see cref="ISelectedKeyComponent"/>'s chosen key on the root under <paramref name="attribute"/>, read back as
+    /// <paramref name="valueKind"/> — a tab strip's, whose engine reads a key of its own.
+    /// </summary>
+    public static void RenderSelectedKey(WebRenderContext context, IHtmlElementBuilder root, string valueKind, string attribute, WebDomOperation[] operations)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        _ = root.Attribute(WebAttributes.ValueKind, valueKind);
+        Action<IHtmlElementBuilder, string?> write = SelectedKeyWriters.GetOrAdd(attribute, static name => (target, value) =>
+        {
+            if (!string.IsNullOrEmpty(value))
+                _ = target.Attribute(name, value);
+        });
+
+        _ = RenderProperty<string?>(context, root, ISelectedKeyComponent.SelectedKeyProperty, write, operations);
     }
 
     /// <summary>Writes the tooltip markup and placement attributes <c>tooltip-engine.ts</c> reads.</summary>

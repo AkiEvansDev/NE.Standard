@@ -115,7 +115,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
             NativeInputRendererBase.RenderMaxLength(context, textarea);
 
-            NativeInputRendererBase.RenderDebounce(context, textarea, TextAreaComponent.DebounceMillisecondsProperty);
+            NativeInputRendererBase.RenderDebounce(context, textarea);
 
             // Read by `readBoundElementValue` off whichever element carries it, textarea or input alike.
             RenderFlagAttribute(context, textarea, TextAreaComponent.TrimInputProperty, WebAttributes.TrimInput);

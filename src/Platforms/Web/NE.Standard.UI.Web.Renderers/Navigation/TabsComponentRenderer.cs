@@ -25,7 +25,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
 
-        TabsSelectionRenderer.RenderSelectedKey(context, root, TabsComponent.SelectedKeyProperty);
+        TabsSelectionRenderer.RenderSelectedKey(context, root);
 
         RenderFlagClass(context, root, TabsComponent.ShowOverflowProperty, "ui-tabs--no-overflow", WebValueCondition.IsFalse);
 

@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -6,7 +7,6 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -20,23 +20,17 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IButtonModel, IButtonComponent>, ISurfaceComponent, IBorderedComponent, ISelectionStyleComponent, IItemClickComponent
+[UIComponentPropertyBlock(typeof(ISelectedKeyComponent))]
+public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IButtonModel, IButtonComponent>, ISurfaceComponent, IBorderedComponent, ISelectionStyleComponent, ISelectedKeyComponent, IItemClickComponent
     where T : ButtonGroupComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets or sets the key of the current segment; two-way, so a press writes the new key back.
-    /// </summary>
-    [UIComponentProperty(
-        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
-        DefaultBindingMode = UIBindingMode.TwoWay,
-        DefaultValue = null)]
-    public string? SelectedKey { get; set; }
+    private static readonly UIResponsive<UIButtonSize> DefaultSize = UIButtonSize.Medium;
 
     /// <summary>
-    /// Gets or sets how much room the strip takes; every segment follows it.
+    /// Gets or sets how much room the strip takes, optionally per breakpoint; every segment follows it.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIButtonSize.Medium)]
-    public UIButtonSize? Size { get; set; }
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultSize))]
+    public UIResponsive<UIButtonSize>? Size { get; set; }
 
     /// <summary>
     /// Initializes the group with its segment template: a ghost button, since the strip draws the ground.

@@ -246,7 +246,7 @@ internal abstract partial class UIRuntimeBase
         var run = maxRuns > 0 ? command : null;
 
         if (detach)
-            return Detach(invoker, request, command, arguments, operation, run, offerTaken: offered is not null, cancellationToken);
+            return Detach(invoker, request, command, arguments, operation, run, offerTaken: offered is not null);
 
         UICommandExecutionResult result;
 
@@ -491,10 +491,11 @@ internal abstract partial class UIRuntimeBase
     /// <remarks>
     /// A connection runs one hub call at a time, so a command awaited on the invoke would hold back every value, window and
     /// command of its tab until it ends — a Cancel button included. The run starts here, in the invoke's flow, so the command
-    /// reads the state its tab pressed it on before its first await, as an awaited one does. It keeps the invoke's token, which
-    /// the hub ties to the connection: a closed connection cancels it, and a runtime asked to go waits for it.
+    /// reads the state its tab pressed it on before its first await, as an awaited one does. It keeps the tab's stay on this runtime
+    /// (<see cref="PageStay"/>), not the invoke's token: a dropped connection does not cancel it — the page attaching again from the
+    /// same window hears its result — while the tab going to another runtime, the retention running out or the runtime going does.
     /// </remarks>
-    private UICommandExecutionResult Detach(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, bool offerTaken, CancellationToken cancellationToken)
+    private UICommandExecutionResult Detach(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, bool offerTaken)
     {
         // The run holds the runtime as a command of its own, taken before the invoke lets go of its hold.
         _ = Interlocked.Increment(ref _commandsInFlight);
@@ -504,15 +505,15 @@ internal abstract partial class UIRuntimeBase
             Command = AcceptedCommand,
             Changes = ServerChangeSet.Empty,
             Accepted = true,
-            Completion = RunDetachedAsync(invoker, request, command, arguments, operation, run, offerTaken, cancellationToken)
+            Completion = RunDetachedAsync(invoker, request, command, arguments, operation, run, offerTaken, PageStay(invoker.Instance.WindowId))
         };
     }
 
     /// <summary>
-    /// Runs an accepted command to its end and pushes its result to the tab that raised it, answering whether it succeeded;
+    /// Runs an accepted command to its end and pushes its result to the tab that raised it, answering how it ended;
     /// never faults, so nothing it throws goes unobserved; <paramref name="run"/> is the counted run it lets go of at its end.
     /// </summary>
-    private async Task<bool> RunDetachedAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, bool offerTaken, CancellationToken cancellationToken)
+    private async Task<UICommandRunOutcome> RunDetachedAsync(UIHandle invoker, UICommandRequest request, string command, IReadOnlyDictionary<string, object?> arguments, string operation, string? run, bool offerTaken, CancellationToken cancellationToken)
     {
         var succeeded = false;
         var pushed = false;
@@ -530,7 +531,7 @@ internal abstract partial class UIRuntimeBase
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // The connection closed under it: there is no one left to answer.
+            // The tab's stay ended under it: there is no one left to answer.
         }
         catch (Exception exception)
         {
@@ -547,7 +548,8 @@ internal abstract partial class UIRuntimeBase
             await LeaveOrLogAsync(operation, 1).ConfigureAwait(false);
         }
 
-        return succeeded;
+        // Its own token, not the connection's: the run outlives a dropped socket, and its stay ending is what cancels it.
+        return succeeded ? UICommandRunOutcome.Succeeded : cancellationToken.IsCancellationRequested ? UICommandRunOutcome.Cancelled : UICommandRunOutcome.Failed;
     }
 
     /// <summary>
@@ -573,7 +575,7 @@ internal abstract partial class UIRuntimeBase
         return result with
         {
             Command = new UICommandResult(result.Command.Success, [.. result.Command.Effects, new NavigateEffect(invoker.Instance.Navigation)], result.Command.Error),
-            Changes = AppendUpdates(result.Changes, new ServerChangeSet { Updates = [new ServerPageUIUpdate { HoldsUnsavedWork = false }] })
+            Changes = result.Changes.Append(new ServerChangeSet { Updates = [new ServerPageUIUpdate { HoldsUnsavedWork = false }] })
         };
     }
 
@@ -650,17 +652,57 @@ internal abstract partial class UIRuntimeBase
 
     /// <summary>Sends a command's result to the tab that raised it, through the sink every pushed result takes.</summary>
     /// <remarks>
-    /// The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it. A tab no longer attached
-    /// hears nothing: its connection may hold another runtime of the route now, whose page this result would write over.
+    /// The invoking handle, not the connection snapshot: a command's effects belong to the tab that raised it. A connection no longer
+    /// attached hears nothing — it may hold another runtime of the route now, whose page this result would write over — but the same
+    /// window attached again over a new one does, with only the page's state of the changes: the rest were the old connection's copy,
+    /// and the new one has it from its own snapshot and the flushes after it.
     /// </remarks>
     protected Task PushCommandResultAsync(UIHandle invoker, UICommandExecutionResult result, CancellationToken cancellationToken)
     {
         if (Array.IndexOf(Volatile.Read(ref _attachedInstanceIdsSnapshot), invoker.Instance.Id) < 0)
-            return Task.CompletedTask;
+        {
+            if (FindAttachedWindow(invoker.Instance.WindowId) is not { } reattached)
+                return Task.CompletedTask;
+
+            invoker = reattached;
+            result = result with { Changes = PageStateOf(result.Changes) };
+        }
 
         FollowShownByCommand(invoker, result.Command.Effects);
 
         return Connection.ClientServices.Updates.SendCommandResultAsync(invoker, result, cancellationToken);
+    }
+
+    /// <summary>The handle a window is attached under now, over whichever connection; null where it is not.</summary>
+    private UIHandle? FindAttachedWindow(string windowId)
+    {
+        lock (_connectionsLock)
+        {
+            foreach (UIHandle handle in _attachedHandles.Values)
+            {
+                if (string.Equals(handle.Instance.WindowId, windowId, StringComparison.Ordinal))
+                    return handle;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The last page-state update of a result's changes, alone: the state the result's navigation is decided by, carried ahead of it
+    /// (<see cref="WithPageStateAhead"/>), which the page's snapshot from before the command ended does not hold.
+    /// </summary>
+    private static ServerChangeSet PageStateOf(ServerChangeSet changes)
+    {
+        ServerPageUIUpdate? page = null;
+
+        foreach (ServerUIUpdate update in changes.Updates)
+        {
+            if (update is ServerPageUIUpdate state)
+                page = state;
+        }
+
+        return page is null ? ServerChangeSet.Empty : new ServerChangeSet { Updates = [page] };
     }
 
     private void TryLogDetachedCommandFailure(string operation, Exception exception)

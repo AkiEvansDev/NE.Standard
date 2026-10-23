@@ -1,3 +1,4 @@
+@import "../mixins/empty-state.less";
 @import "../mixins/field.less";
 @import "../core/tokens.less";
 @import "../mixins/focus.less";
@@ -35,9 +36,9 @@
         flex-basis: 100%;
     }
 
-// ShowEmptyTemplate off: a group with no option says nothing; hidden, so a bound flag turned on shows it again.
-.ui-radio-group--no-empty > .ui-radio-group__host > [data-ui-empty-placeholder] {
-    display: none;
+// The empty state's box, and none with ShowEmptyTemplate off: every host's one rule.
+.ui-radio-group {
+    .ui-empty-state-host(~".ui-radio-group__host");
 }
 
 // An option is the same shape a checkbox is and carries the same text body: its template is a whole TextComponent.

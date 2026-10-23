@@ -43,6 +43,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     private static UISurfaceStyle? DefaultSurface => null;
 
     private static readonly UIResponsive<UIMenuDisplay> DefaultDisplay = UIMenuDisplay.List;
+    private static readonly UIResponsive<UIButtonSize> DefaultSize = UIButtonSize.Medium;
 
     /// <summary>The template variant key rendering <see cref="UIMenuItemKind.Header"/> entries.</summary>
     public const string HeaderTemplateKey = nameof(UIMenuItemKind.Header);
@@ -95,7 +96,8 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     public bool? DrawerPin { get; set; }
 
     /// <summary>
-    /// Gets or sets how much room a rail takes — its column, its glyphs and labels — and the bottom bar it becomes on a phone.
+    /// Gets or sets how much room a rail takes — its column, its glyphs and labels — and the bottom bar it becomes on a phone, optionally
+    /// per breakpoint.
     /// </summary>
     /// <remarks>
     /// Render-time only, and a rail's alone (<see cref="UIMenuDisplay.Rail"/>): a list menu's rows keep their size. Large is a 72 px
@@ -103,8 +105,8 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// 48 px of 20 px glyphs alone, each label kept as the entry's name and shown as its tooltip. On the bar an entry is squeezed no
     /// narrower than 64, 56 or 48 px.
     /// </remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = UIButtonSize.Medium)]
-    public UIButtonSize? Size { get; set; }
+    [UIComponentProperty(IsBindable = false, DefaultValueMember = nameof(DefaultSize))]
+    public UIResponsive<UIButtonSize>? Size { get; set; }
 
     /// <summary>
     /// Gets whether this menu is another entry's sub-entries: it folds and flies out with that entry, and has no sub-entries of its own.
@@ -176,17 +178,6 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     {
         if (!HasEmptyTemplate)
             _ = SetEmptyTemplate(new DefaultEmptyTemplate());
-    }
-
-    /// <summary>
-    /// Configures the built-in default empty template — a menu that may hold no entries, its line in a panel — putting it in where the
-    /// menu has none, and throwing if a different template has been set.
-    /// </summary>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-    {
-        EnsureDefaultEmptyTemplate();
-
-        return Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
     }
 
     /// <summary>

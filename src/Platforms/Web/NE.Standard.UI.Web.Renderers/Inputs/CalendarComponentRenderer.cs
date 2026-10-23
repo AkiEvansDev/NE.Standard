@@ -32,7 +32,7 @@ public sealed class CalendarComponentRenderer : TextContentRendererBase
 
         RenderTooltip(context, root);
         TemporalCalendarRenderer.RenderBounds<DateOnly?>(context, root, CalendarComponent.MinProperty, CalendarComponent.MaxProperty, CanonicalDay);
-        TemporalCalendarRenderer.RenderFirstDay(context, root, CalendarComponent.FirstDayOfWeekProperty);
+        TemporalCalendarRenderer.RenderFirstDay(context, root);
         TemporalCalendarRenderer.RenderMarkedDays(context, root);
 
         // The page's culture, followed at a language switch as a date input's is.

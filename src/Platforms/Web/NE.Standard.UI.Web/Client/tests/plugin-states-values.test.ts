@@ -10,6 +10,8 @@ installFakeDom();
 
 const { componentStates } = await import("../src/interactions/interactive-state.ts");
 const { PropertyPatchEngine } = await import("../src/updates/property-patch-engine.ts");
+const { AddressResolver } = await import("../src/addressing/address-resolver.ts");
+const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
 
 test("states.setDisabled marks a control disabled and says so to a screen reader, and takes both off again", () => {
     const button = new FakeElement("button");
@@ -78,4 +80,26 @@ test("values.write answers false for an element no binding writes, and writes no
     assert.equal(patches.writeBoundValue(real(unbound), "ada"), false);
     assert.equal(patches.writeBoundValue(real(otherBinding), "ada"), false);
     assert.equal(written.length, 0);
+});
+
+test("values.write lands a text input's value on its input, not on the label its component is, as the page renders it", () => {
+    // As the text input renders: the component a label carrying its own properties' bindings, the value's binding on the input.
+    const field = FakeElement.of("ui-text-input__field ui-field", { "data-ui-bind-type": "369", "data-ui-bind-placeholder": "373", "data-ui-bind-is-read-only": "342", "data-ui-bind-value": "341" }, "input");
+    const component = FakeElement.of("ui-text-input", { "data-ui-id": "31", "data-ui-bind-theme": "334", "data-ui-bind-visibility": "332", "data-ui-bind-enabled": "333", "data-ui-bind-tooltip": "360" }, "label").append(field);
+    const bindings = new Map([[341, { bindingId: 341, componentId: 31, propertyId: "p-value" }]]);
+    const metadata = {
+        getBindingById: (id: number) => bindings.get(id),
+        getPropertyDefinition: (propertyId: string) => propertyId === "p-value" ? { propertyId, propertyName: "Value", operations: [{ kind: "Property", name: "value" }] } : undefined,
+        isTranslatable: () => false
+    };
+    const extensions = { converters: { convert: (_: string, value: unknown) => value } };
+    const patches = new PropertyPatchEngine(new AddressResolver(real({}), real(metadata)), new DomOperationRegistry(), real(extensions), real({}));
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(component);
+    (field as unknown as { value: string }).value = "Billing worker";
+
+    assert.equal(patches.writeBoundValue(real(field), "Typed offline A", 341), true);
+    assert.equal((field as unknown as { value: string }).value, "Typed offline A");
+    assert.equal((component as unknown as { value?: unknown }).value, undefined);
 });

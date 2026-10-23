@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/drag-bar.less";
+@import "../mixins/empty-state.less";
 @import "../mixins/focus.less";
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
@@ -280,21 +281,15 @@
         padding: @ui-space-2 @ui-space-3;
     }
 
-    // Showing its empty state, the host's one row is an auto one stretched to its box, as an items view's (ui-items-view.less): a
-    // max-content row at the start held the placeholder at its own height.
-    .ui-table__host[data-ui-items-empty] {
-        grid-auto-rows: auto;
-        align-content: stretch;
+    // The empty state's box, and none with ShowEmptyTemplate off: every host's one rule. Its row is an auto one, where a max-content
+    // row at the start held the placeholder at its own height; the columns stay the table's.
+    .ui-table {
+        .ui-empty-state-host(~".ui-table__scroll > .ui-table__host"; subgrid);
     }
 
     // An unfetched row's bar (ui-items-view.less's skeleton) starts where a cell's words do.
     .ui-table > .ui-table__scroll > [data-ui-host-mode="windowed"] > [data-ui-window-spacer] {
         padding-inline: @ui-space-3;
-    }
-
-    // ShowEmptyTemplate off: an empty table says nothing; hidden, so a bound flag turned on shows it again.
-    .ui-table--no-empty > .ui-table__scroll > .ui-table__host > [data-ui-empty-placeholder] {
-        display: none;
     }
 
 .ui-table__host.ui-scroll-x--disabled {

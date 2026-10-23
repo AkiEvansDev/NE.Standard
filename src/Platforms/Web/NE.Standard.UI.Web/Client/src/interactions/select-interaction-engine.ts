@@ -38,7 +38,7 @@ const OptionClass = "ui-select__option";
 const ValueInputClass = "ui-select__value-input";
 const ClearAttribute = "data-ui-select-clear";
 // On a select, multi-select or search that shows its clear (ShowClearButton).
-const ClearableClass = "ui-select--clearable";
+const ClearableAttribute = "data-ui-clearable";
 // A select whose open list carries a text field over its options; the field holds the keyboard while the list is open.
 const SearchClass = "ui-search";
 const SearchInputClass = "ui-search__input";
@@ -987,7 +987,7 @@ export class SelectInteractionEngine {
 
         const select = domEvent.target.closest<HTMLElement>(`.${SelectClass}`);
 
-        if (select === null || select === this.openSelect || !select.classList.contains(ClearableClass) || isFixed(select))
+        if (select === null || select === this.openSelect || !select.hasAttribute(ClearableAttribute) || isFixed(select))
             return false;
 
         if (domEvent.target !== controlOf(select) || (domEvent.key === "Backspace" && isMultiple(select)) || (entryOf(select)?.value ?? "") !== "")

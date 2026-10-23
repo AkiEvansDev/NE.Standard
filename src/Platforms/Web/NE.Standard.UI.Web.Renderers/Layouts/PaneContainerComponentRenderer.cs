@@ -101,12 +101,15 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
     /// </summary>
     private static UIGridPlacement[][] RenderCarriedTracks(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<UIPanePlace> places, string[] panes)
     {
-        _ = ResolveRenderValue(context, ContainerComponent.ColumnsProperty, out IReadOnlyList<UIGridUnit>? columns, out _);
-        _ = ResolveRenderValue(context, ContainerComponent.RowsProperty, out IReadOnlyList<UIGridUnit>? rows, out _);
+        // The base tier's tracks: the panes move between them per tier, so the compiler refuses tracks that change by width here.
+        _ = ResolveRenderValue(context, ContainerComponent.ColumnsProperty, out IReadOnlyList<UIResponsive<UIGridUnit>>? columnTracks, out _);
+        _ = ResolveRenderValue(context, ContainerComponent.RowsProperty, out IReadOnlyList<UIResponsive<UIGridUnit>>? rowTracks, out _);
+        UIGridUnit[]? columns = columnTracks is null ? null : ContainerComponentRenderer.AtTier(columnTracks, UIResponsiveTier.Base);
+        UIGridUnit[]? rows = rowTracks is null ? null : ContainerComponentRenderer.AtTier(rowTracks, UIResponsiveTier.Base);
 
         (var columnsSplit, var rowsSplit) = SplitAxes(context, root);
-        var columnsCarry = !columnsSplit && columns is { Count: > 0 };
-        var rowsCarry = !rowsSplit && rows is { Count: > 0 };
+        var columnsCarry = !columnsSplit && columns is { Length: > 0 };
+        var rowsCarry = !rowsSplit && rows is { Length: > 0 };
         UIGridPlacement[][] cells = new UIGridPlacement[places.Count][];
         IReadOnlyList<int>?[] columnOrders = new IReadOnlyList<int>?[Tiers.Length];
         IReadOnlyList<int>?[] rowOrders = new IReadOnlyList<int>?[Tiers.Length];
@@ -116,7 +119,7 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
 
         foreach (UIResponsiveTier tier in Tiers)
         {
-            UIPaneArrangement arrangement = UIPaneLayout.Arrange(places, panes, tier, columns?.Count ?? 0, rows?.Count ?? 0, columnsCarry, rowsCarry);
+            UIPaneArrangement arrangement = UIPaneLayout.Arrange(places, panes, tier, columns?.Length ?? 0, rows?.Length ?? 0, columnsCarry, rowsCarry);
 
             for (var i = 0; i < places.Count; i++)
                 cells[i][(int)tier] = arrangement.Cells[i];
@@ -147,9 +150,9 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
             if (node.TypeKey != GridSplitterComponent.ComponentTypeKey)
                 continue;
 
-            _ = ResolveRenderValue(context.ForNode(node, root), IOrientationComponent.OrientationProperty, out UIOrientation? orientation, out _);
+            _ = ResolveRenderValue(context.ForNode(node, root), IOrientationComponent.OrientationProperty, out UIResponsive<UIOrientation>? orientation, out _);
 
-            if ((orientation ?? UIOrientation.Vertical) == UIOrientation.Vertical)
+            if ((orientation?.Base ?? UIOrientation.Vertical) == UIOrientation.Vertical)
                 columns = true;
             else
                 rows = true;
@@ -162,11 +165,11 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
     /// The authored tracks as CSS for the engine, and, where a tier lays them in another order, every tier's order: a tier left unwritten
     /// would read a narrower one's in the stylesheet's chain.
     /// </summary>
-    private static void RenderTrackOrder(IHtmlElementBuilder root, IReadOnlyList<UIGridUnit> units, IReadOnlyList<int>?[] orders, string attribute, string variable)
+    private static void RenderTrackOrder(IHtmlElementBuilder root, UIGridUnit[] units, IReadOnlyList<int>?[] orders, string attribute, string variable)
     {
-        var tracks = new string[units.Count];
+        var tracks = new string[units.Length];
 
-        for (var i = 0; i < units.Count; i++)
+        for (var i = 0; i < units.Length; i++)
             tracks[i] = WebCssValues.GridUnit(units[i]);
 
         _ = root.Attribute(attribute, JsonSerializer.Serialize(tracks));
@@ -177,7 +180,7 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
         foreach (UIResponsiveTier tier in Tiers)
         {
             IReadOnlyList<int>? order = orders[(int)tier];
-            UIGridUnit[] ordered = new UIGridUnit[units.Count];
+            UIGridUnit[] ordered = new UIGridUnit[units.Length];
 
             for (var i = 0; i < ordered.Length; i++)
                 ordered[i] = units[order?[i] ?? i];

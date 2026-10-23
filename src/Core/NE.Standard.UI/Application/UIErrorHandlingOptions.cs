@@ -46,8 +46,8 @@ public sealed class UIErrorHandlingOptions
     public string CommandFailedMessage { get; set; } = UIStrings.CommandFailed;
 
     /// <summary>
-    /// Gets or sets what the error page's <c>message</c> parameter carries when <see cref="IncludeExceptionDetail"/>
-    /// is off.
+    /// Gets or sets what the default error page shows: always, unless <see cref="IncludeExceptionDetail"/> is on and the failure
+    /// handed over its own text.
     /// </summary>
     public string ErrorPageMessage { get; set; } = UIStrings.ErrorMessage;
 }

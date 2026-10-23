@@ -59,6 +59,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
+        NativeInputRendererBase.RenderClearable(context, root);
 
         _ = root.Element("span", row =>
         {
@@ -111,7 +112,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute(WebAttributes.NumberMax, max.ToString(CultureInfo.InvariantCulture));
                 }, MaxOperations);
 
-                NativeInputRendererBase.RenderPlaceholder(context, input);
+                NativeInputRendererBase.RenderPlaceholder(context, input, marksEmpty: true);
                 NativeInputRendererBase.RenderFormId(context, input);
                 NativeInputRendererBase.RenderFieldName(context, input);
                 NativeInputRendererBase.RenderIsReadOnly(context, root, input);
@@ -131,6 +132,8 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
             _ = row.Element("span", suffix => RenderInputAffixText(context, suffix, suffix: true));
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
+
+            NativeInputRendererBase.RenderClearButton(context, row, $"{ClassName}__clear");
 
             // Custom step buttons: a text input has no spinner, and the native one could not be themed.
             _ = row.Element("span", stepper =>

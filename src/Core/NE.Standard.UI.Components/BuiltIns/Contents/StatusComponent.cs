@@ -27,9 +27,8 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
     /// Initializes the status with its mark in <paramref name="tone"/>'s colour, its title and, where given, the line under it; a string
     /// is the author's text, a key with arguments a phrase.
     /// </summary>
-    protected StatusComponent(string icon, UIColorStyle tone, UIPhrase title, UIPhrase? description = null) : base()
+    protected StatusComponent(string icon, UIColorStyle tone, UIPhrase title, UIPhrase? description = null) : this(icon, tone)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(icon);
         ArgumentNullException.ThrowIfNull(title);
 
         // A status with no title says nothing of what happened.
@@ -39,6 +38,20 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
         if (description is not null && !UIPhrase.HasWords(description))
             throw new ArgumentException("A line given needs words; leave it out for none.", nameof(description));
 
+        _ = Words.SetTitle(title);
+
+        if (description is not null)
+            _ = Words.SetDescription(description);
+    }
+
+    /// <summary>
+    /// Initializes the status with its mark in <paramref name="tone"/>'s colour and its words left to <see cref="Words"/>: a title and
+    /// a line the controller says, bound there.
+    /// </summary>
+    protected StatusComponent(string icon, UIColorStyle tone) : base()
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(icon);
+
         Mark = new IconComponent()
             .SetIcon(icon)
             .SetShape(UIIconShape.Circle)
@@ -47,16 +60,12 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
             .SetHorizontalAlignment(UIAlignment.Center);
 
         Words = new TextComponent()
-            .SetTitle(title)
             .SetTitleType(UITextAppearance.Title)
             .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.OnBackground))
             .SetDescriptionType(UITextAppearance.Body)
             .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
             .SetTextAlignment(UITextAlignment.Center)
             .SetWrapMode(UITextWrapMode.Wrap);
-
-        if (description is not null)
-            _ = Words.SetDescription(description);
 
         _ = SetOrientation(UIOrientation.Vertical)
             .SetSpacing(16)
@@ -102,8 +111,18 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
 /// <summary>
 /// A page's state standing in for its content — not found, refused, failed.
 /// </summary>
-public sealed class StatusComponent(string icon, UIColorStyle tone, UIPhrase title, UIPhrase? description = null) : StatusComponent<StatusComponent>(icon, tone, title, description), IUIComponentDefinition
+public sealed class StatusComponent : StatusComponent<StatusComponent>, IUIComponentDefinition
 {
+    /// <summary>Initializes the status with its mark, its title and, where given, the line under it.</summary>
+    public StatusComponent(string icon, UIColorStyle tone, UIPhrase title, UIPhrase? description = null) : base(icon, tone, title, description)
+    {
+    }
+
+    /// <summary>Initializes the status with its mark alone, its words bound on <see cref="StatusComponent{T}.Words"/>.</summary>
+    public StatusComponent(string icon, UIColorStyle tone) : base(icon, tone)
+    {
+    }
+
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.status";
 }

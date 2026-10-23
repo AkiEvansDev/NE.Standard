@@ -105,6 +105,42 @@ public sealed class ServerChangeSet
         return new ServerChangeSet { Updates = updates, Sequences = kept };
     }
 
+    /// <summary>The place an update the runtime never queued takes in <see cref="Sequences"/>: newer than any snapshot a client started from.</summary>
+    internal const long Unnumbered = long.MaxValue;
+
+    /// <summary>
+    /// Gets this change set followed by <paramref name="additional"/>; either alone where the other is empty. Where one of them is
+    /// numbered, the other's updates count as <see cref="Unnumbered"/>.
+    /// </summary>
+    public ServerChangeSet Append(ServerChangeSet additional)
+    {
+        ArgumentNullException.ThrowIfNull(additional);
+
+        if (additional.IsEmpty)
+            return this;
+
+        if (IsEmpty)
+            return additional;
+
+        ServerUIUpdate[] updates = [.. Updates, .. additional.Updates];
+
+        return Sequences is null && additional.Sequences is null
+            ? new ServerChangeSet { Updates = updates }
+            : new ServerChangeSet { Updates = updates, Sequences = [.. SequencesOrUnnumbered(), .. additional.SequencesOrUnnumbered()] };
+    }
+
+    private long[] SequencesOrUnnumbered()
+    {
+        if (Sequences is { } sequences)
+            return sequences;
+
+        var unnumbered = new long[Updates.Length];
+
+        Array.Fill(unnumbered, Unnumbered);
+
+        return unnumbered;
+    }
+
     /// <summary>
     /// Gets whether any update in the change set is withheld from one client instance.
     /// </summary>

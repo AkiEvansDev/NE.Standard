@@ -226,6 +226,12 @@ public static partial class UIStrings
     /// <summary>The passing notice while the page's connection is coming back, after a grace a short drop never outlasts.</summary>
     public const string ConnectionReconnecting = "ui.connection.reconnecting";
 
+    /// <summary>A press that waited for the page to reconnect past its bound and was dropped unsent.</summary>
+    public const string CommandExpired = "ui.command.expired";
+
+    /// <summary>A field's value not sent after a drop, because another writer changed the field meanwhile; the reader's next edit sends it.</summary>
+    public const string ValueConflict = "ui.value.conflict";
+
     /// <summary>The framework's own question before a page holding unsaved work is left (<c>ConfirmLeaveEffect</c>).</summary>
     public const string LeaveTitle = "ui.leave.title";
     public const string LeaveMessage = "ui.leave.message";
@@ -396,6 +402,8 @@ public static partial class UIStrings
         [ConnectionLost] = "The connection to the server was lost. Reload the page to go on.",
         [ConnectionReload] = "Reload",
         [ConnectionReconnecting] = "Reconnecting…",
+        [CommandExpired] = "The connection was away too long, so that was not done. Try again.",
+        [ValueConflict] = "Changed elsewhere meanwhile. Edit to keep yours.",
         [LeaveTitle] = "Leave without saving?",
         [LeaveMessage] = "The changes on this page are not saved and will be lost.",
         [LeaveConfirm] = "Leave",

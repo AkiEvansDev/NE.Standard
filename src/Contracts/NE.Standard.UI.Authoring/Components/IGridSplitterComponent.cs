@@ -1,3 +1,4 @@
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.Components;
@@ -8,7 +9,8 @@ namespace NE.Standard.UI.Authoring.Components;
 public interface IGridSplitterComponent : IVisualComponent
 {
     /// <summary>
-    /// Gets which way the bar runs: <c>Vertical</c> moves the columns either side, <c>Horizontal</c> the rows; unset is vertical.
+    /// Gets which way the bar runs: <c>Vertical</c> moves the columns either side, <c>Horizontal</c> the rows; unset is vertical. One way
+    /// at every width: the compiler refuses tiers that differ, since the tracks it moves are one axis's.
     /// </summary>
-    UIOrientation? Orientation { get; }
+    UIResponsive<UIOrientation>? Orientation { get; }
 }

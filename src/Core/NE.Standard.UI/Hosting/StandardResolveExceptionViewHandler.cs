@@ -45,7 +45,7 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
 
         if (context.Exception is not UnauthorizedAccessException
             && !RouteEquals(context.Route?.Route, _application.ErrorHandling.ErrorRoute)
-            && TryBuildRedirect(_application, _application.ErrorHandling.ErrorRoute, "message", ResolveErrorMessage(context), out UINavigationRequest? errorRedirect))
+            && TryBuildRedirect(_application, _application.ErrorHandling.ErrorRoute, UIErrorDetail.ParameterName, ResolveErrorDetail(context), out UINavigationRequest? errorRedirect))
         {
             return ValueTask.FromResult<UINavigationRequest?>(errorRedirect);
         }
@@ -54,16 +54,11 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
     }
 
     /// <summary>
-    /// Resolves the error page's <c>message</c> parameter: the raw exception text only when opted into detail.
+    /// The error page's <c>message</c> parameter: the exception's own text, in-process, only when opted into detail; otherwise none, and
+    /// the page shows its own words.
     /// </summary>
-    private string ResolveErrorMessage(ResolveExceptionViewContext context)
-    {
-        if (_application.ErrorHandling.IncludeExceptionDetail)
-            return context.Exception.Message;
-
-        var language = context.Session?.Language ?? _application.Translator.DefaultLanguage;
-        return _application.Translator.Translate(language, _application.ErrorHandling.ErrorPageMessage) ?? _application.ErrorHandling.ErrorPageMessage;
-    }
+    private UIErrorDetail? ResolveErrorDetail(ResolveExceptionViewContext context)
+        => _application.ErrorHandling.IncludeExceptionDetail ? new UIErrorDetail(context.Exception.Message) : null;
 
     /// <summary>
     /// Redirects to sign-in or to the forbidden page, depending on why access was refused.
@@ -106,7 +101,7 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
     }
 
     [SuppressMessage("Usage", "CA2234:Pass system uri objects instead of strings", Justification = "Route paths are opaque route-table keys, not URIs.")]
-    private static bool TryBuildRedirect(UIApplication application, string? targetRoute, string parameterKey, string parameterValue, [NotNullWhen(true)] out UINavigationRequest? request)
+    private static bool TryBuildRedirect(UIApplication application, string? targetRoute, string parameterKey, object? parameterValue, [NotNullWhen(true)] out UINavigationRequest? request)
     {
         if (targetRoute is null || !application.RouteRegistry.TryGet(targetRoute, out _))
         {
@@ -117,7 +112,7 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
         request = new UINavigationRequest
         {
             Route = targetRoute,
-            Parameters = new Dictionary<string, object?> { [parameterKey] = parameterValue }
+            Parameters = parameterValue is null ? null : new Dictionary<string, object?> { [parameterKey] = parameterValue }
         };
 
         return true;

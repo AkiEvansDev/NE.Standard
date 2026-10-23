@@ -18,7 +18,8 @@ import type { EventCompletionContext, EventDispatchContext, EventRegistration, R
 import { EventRegistry } from "./event-registry.ts";
 import { EventRequestFactory } from "./event-request-factory.ts";
 import { markPending, PendingDelayMilliseconds, PendingEventName } from "./pending-mark.ts";
-import { logError } from "../runtime/logger.ts";
+import { logDebug, logError } from "../runtime/logger.ts";
+import { CommandExpired } from "../transport/attach-gate.ts";
 
 export type EventPipelineOptions = {
     readonly root?: ParentNode;
@@ -114,6 +115,7 @@ export class EventPipeline {
             return false;
 
         const turn = this.turns.take();
+        const raisedAt = performance.now();
 
         try {
             await turn.ahead;
@@ -123,7 +125,7 @@ export class EventPipeline {
             if (this.options.dispatcher.isPending(request))
                 return false;
 
-            const dispatched = this.options.dispatcher.dispatchAsync(request);
+            const dispatched = this.options.dispatcher.dispatchAsync(request, raisedAt);
 
             turn.done();
 
@@ -154,7 +156,11 @@ export class EventPipeline {
                 return;
 
             void this.handleDomEventAsync(registered.name, domEvent).catch(error => {
-                logError("event pipeline failed.", error);
+                // Expected, and said to the reader already (`SignalRTransport.onCommandExpired`): no error of the page's.
+                if (error instanceof CommandExpired)
+                    logDebug("a press waited past its bound for the page to attach again and was dropped.", error);
+                else
+                    logError("event pipeline failed.", error);
             });
         };
 
@@ -314,12 +320,18 @@ export class EventPipeline {
 
     /** Sends the command behind what it waits for — its form's values, its own value's answer, the commands and values before it. */
     private async sendInTurnAsync(eventName: string, registration: RegisteredEvent, element: Element, context: EventDispatchContext, request: UICommandRequest, form: SubmittedForm | null, turn: CommandTurn): Promise<EventOutcome> {
+        // The press's moment, past its uploads: one held behind the values before it across a drop is as stale as one behind the gate.
+        const raisedAt = performance.now();
+
         if (form !== null) {
             if (this.options.validationEngine?.runSubmitValidation(form.formId) === false) {
                 context.domEvent.preventDefault();
                 this.options.validationEngine.focusFirstInvalid(form.formId);
                 return Refused;
             }
+
+            if (this.refusesConflicted(form.formId, context))
+                return Refused;
 
             // After validation and before the command: an OnSubmit field holds its value back until here, a waited picker's read now.
             await this.options.valueBinding?.submitFormAsync(form.formId, form.pressed?.values, field => isInsideAny(form.waited, field));
@@ -332,6 +344,10 @@ export class EventPipeline {
         await turn.ahead;
         await this.options.valueBinding?.whenSent();
 
+        // A value of the form weighed after a drop may have met another writer's on its way: the command would run without it.
+        if (form !== null && this.refusesConflicted(form.formId, context))
+            return Refused;
+
         // Re-checked after the awaits: the identical request may have been dispatched while this one waited.
         if (this.options.dispatcher.isPending(request))
             return Refused;
@@ -343,7 +359,7 @@ export class EventPipeline {
             domEvent: context.domEvent
         });
 
-        const dispatched = this.options.dispatcher.dispatchAsync(request);
+        const dispatched = this.options.dispatcher.dispatchAsync(request, raisedAt);
 
         turn.done();
 
@@ -365,6 +381,22 @@ export class EventPipeline {
             this.options.validationEngine?.focusFirstInvalid(form.formId);
 
         return { dispatched: true, success: result.command?.success !== false, error: result.command?.error ?? null };
+    }
+
+    /**
+     * Refuses a submit whose form holds a field kept over another writer's value (`ValueBindingEngine.conflictedField`), as a failed
+     * validation is, and takes the reader to it: the value goes only with their next edit, and the command would run without it.
+     */
+    private refusesConflicted(formId: string, context: EventDispatchContext): boolean {
+        const conflicted = this.options.valueBinding?.conflictedField(formId) ?? null;
+
+        if (conflicted === null)
+            return false;
+
+        context.domEvent.preventDefault();
+        this.options.validationEngine?.focusField(conflicted);
+
+        return true;
     }
 
     // An .OnChange command waits for its value's round-trip, never running for one the controller refused; a package says `settlesValue`.

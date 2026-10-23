@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
+@import "../mixins/glyph-edge.less";
 @import "../mixins/interactive.less";
 @import "../mixins/placement.less";
 @import "../mixins/responsive.less";
@@ -54,6 +55,24 @@
     .ui-tabs__actions,
     .ui-tabs__actions > .ui-tabs__tab-actions {
         .ui-field-action-buttons();
+    }
+
+    // The last quiet action stands its glyph on the band's end (mixins/glyph-edge.less), its box a field action's small one at any
+    // size, so it hangs past by what that box leaves round the glyph.
+    .ui-tabs__actions > @{ui-glyph-hung},
+    .ui-tabs__actions > .ui-tabs__tab-actions > @{ui-glyph-hung},
+    .ui-tabs__actions > .ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung},
+    .ui-tabs__actions > .ui-tabs__tab-actions > .ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung} {
+        --ui-glyph-box: @ui-button-height-sm;
+    }
+
+    // A label's words after a field action's padding (mixins/field.less), not its size's own: a medium label hung by 16 px stood its
+    // words 7 px past the band's end. A split button's end is its toggle, which keeps its own padding here.
+    .ui-tabs__actions > @{ui-glyph-hung}[data-ui-text-title],
+    .ui-tabs__actions > .ui-tabs__tab-actions > @{ui-glyph-hung}[data-ui-text-title],
+    .ui-tabs__actions > .ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung}[data-ui-text-title],
+    .ui-tabs__actions > .ui-tabs__tab-actions > .ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung}[data-ui-text-title] {
+        --ui-glyph-inset: @ui-space-2;
     }
 
 .ui-tabs__pages {

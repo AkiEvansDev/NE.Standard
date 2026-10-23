@@ -273,7 +273,7 @@ internal abstract partial class UIRuntimeBase
             || IsBeyondNoLock(checks.Max, checks.ValueType, value, dynamicParameters, below: false)
             || (checks.MarkedOnly is { } only
                 && checks.MarkedDays is { } days
-                && value is DateOnly day
+                && DayOf(value) is DateOnly day
                 && IsClosedNoLock(only, dynamicParameters)
                 && !IsMarkedNoLock(days, day, dynamicParameters))
             || (checks.Ends is { } ends && IsPastOtherEndNoLock(ends, property == IPeriodInputComponent.EndValueProperty, value, dynamicParameters))
@@ -322,6 +322,18 @@ internal abstract partial class UIRuntimeBase
 
         return value is IComparable comparable ? comparable.CompareTo(bound) : 0;
     }
+
+    /// <summary>
+    /// The day a written value falls on: a day input's own, a moment's by the clock it carries, as the page marks it.
+    /// </summary>
+    private static DateOnly? DayOf(object value)
+        => value switch
+        {
+            DateOnly day => day,
+            DateTimeOffset moment => DateOnly.FromDateTime(moment.DateTime),
+            DateTime moment => DateOnly.FromDateTime(moment),
+            _ => null
+        };
 
     /// <summary>
     /// Whether a day is among the marked ones; a set the server cannot read refuses nothing, as a gate it cannot read closes nothing,
@@ -389,7 +401,7 @@ internal abstract partial class UIRuntimeBase
     }
 
     private static bool IsChoice(UIProperty property)
-        => property == ISelectableItemsComponent.SelectedKeyProperty || property == ISelectableItemsComponent.SelectedKeysProperty;
+        => property == ISelectedKeyComponent.SelectedKeyProperty || property == ISelectableItemsComponent.SelectedKeysProperty;
 
     /// <summary>
     /// Whether a choice takes a row that may not be chosen or is disabled; only a row newly chosen counts, since one chosen before it

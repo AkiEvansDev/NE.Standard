@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
@@ -15,10 +16,13 @@ public interface ISizedInputComponent : IInputComponent
     /// </summary>
     static UIProperty SizeProperty { get; } = new(nameof(Size));
 
+    /// <summary>The size an input takes when unset: medium.</summary>
+    static UIResponsive<UIInputSize> DefaultSize { get; } = UIInputSize.Medium;
+
     /// <summary>
-    /// Gets how much room the input takes: a field's height, side padding and text; a toggle's box and text; a slider's track and
-    /// handle.
+    /// Gets how much room the input takes, optionally per breakpoint: a field's height, side padding and text; a toggle's box and text;
+    /// a slider's track and handle.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIInputSize.Medium)]
-    UIInputSize? Size { get; }
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultSize))]
+    UIResponsive<UIInputSize>? Size { get; }
 }

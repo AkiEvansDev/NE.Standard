@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -14,7 +15,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 [UIComponentPropertyBlock(typeof(IOrientationComponent))]
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
 [UIComponentPropertyDefault(nameof(ISpacingComponent.Spacing), nameof(DefaultSpacing))]
-public abstract partial class StackPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, IOrientationComponent, ISpacingComponent
+public abstract partial class StackPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, IOrientationComponent, ISpacingComponent, ICaptionRowComponent
     where T : StackPanelComponent<T>, IUIComponentDefinition
 {
     // A field, not an attribute literal: an attribute argument cannot be a UIResponsive<double>.
@@ -39,23 +40,12 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
     }
 
     /// <summary>
-    /// Stands the panel level with the boxes of captioned fields of this size beside it — a caption line down, centred on the box — at
-    /// the widths it is set for.
-    /// </summary>
-    /// <remarks>
-    /// Render-time only. Drawn as the panel's top padding and its least height, which an authored <c>Padding</c> and <c>MinHeight</c>
-    /// replace.
-    /// </remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public UIResponsive<UIFieldBoxAlignment>? AlignWithFieldBoxes { get; set; }
-
-    /// <summary>
     /// Stands the panel's first child's first line on the middle of a button of this size beside it — a name that wraps, its first line
-    /// level with the buttons at its row's end — whatever the theme's line.
+    /// level with the buttons at its row's end — whatever the theme's line; per breakpoint where the buttons' size is.
     /// </summary>
     /// <remarks>Render-time only. Drawn as the first child's top margin, half the button's height less its own line's.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public UIButtonSize? FirstLineOnControl { get; set; }
+    public UIResponsive<UIButtonSize>? FirstLineOnControl { get; set; }
 
     /// <summary>
     /// Gets or sets whether the panel's first child stands in a field's caption row — at least a caption's line tall — so a label over a
@@ -64,6 +54,32 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
     /// <remarks>Render-time only. Drawn as the first child's least height, which an authored <c>MinHeight</c> replaces.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool? FirstChildAsCaption { get; set; }
+
+    /// <summary>
+    /// A caption row where its first child stands in one (a label over a control), where it runs across and a child draws one (a field
+    /// and its Add), or where it runs down as one field: a cell round it, or it and the words under it (its hint). A column of more is
+    /// a form, not a field: what stands beside it stays where it is laid out.
+    /// </summary>
+    public UIInputSize? CaptionRowBox(UIResponsiveTier tier)
+    {
+        if (FirstChildAsCaption == true)
+            return UIFieldBoxes.FirstCaptionRowBox(Children, tier) ?? UIInputSize.Medium;
+
+        if (Children.Count == 0)
+            return null;
+
+        if (Orientation?.Resolve(tier) == UIOrientation.Horizontal)
+            return UIFieldBoxes.FirstCaptionRowBox(Children, tier);
+
+        for (var i = 1; i < Children.Count; i++)
+        {
+            // Words alone: an input and a button are text components too, and under the field they make a form.
+            if (Children[i] is (not ITextComponent) or IInputComponent or IButtonComponent)
+                return null;
+        }
+
+        return UIFieldBoxes.CaptionRowBox(Children[0], tier);
+    }
 }
 
 /// <summary>

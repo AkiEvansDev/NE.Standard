@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
@@ -8,8 +9,10 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A date input that lets the user pick a calendar date.
 /// </summary>
-[UIComponentPropertyBlock(typeof(IMarkedDaysComponent))]
-public abstract partial class DateInputComponent<T>(string? id = null) : TemporalInputComponentBase<T, DateOnly?>(id), IMarkedDaysInputComponent
+/// <remarks>Its clear (<c>ShowClearButton</c>) stands in a single date's row; a period draws none.</remarks>
+[UIComponentPropertyBlock(typeof(ICalendarComponent))]
+[UIComponentPropertyBlock(typeof(IClearableInputComponent))]
+public abstract partial class DateInputComponent<T>(string? id = null) : TemporalInputComponentBase<T, DateOnly?>(id), IMarkedDaysInputComponent, ICalendarComponent, IClearableInputComponent
     where T : DateInputComponent<T>, IUIComponentDefinition
 {
     /// <summary>

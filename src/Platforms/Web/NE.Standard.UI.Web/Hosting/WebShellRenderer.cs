@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
@@ -30,9 +29,6 @@ public static class WebShellRenderer
 
     // An icon of no bytes: the browser shows its own blank and fetches nothing.
     private const string EmptyIcon = "data:,";
-
-    // The theme's stylesheet once per theme rather than once a page: a theme is an immutable record the application holds for good.
-    private static readonly ConditionalWeakTable<UITheme, string> ThemeCss = [];
 
     /// <summary>The document as a string; a response is better served by <see cref="Render(WebShellContext, TextWriter)"/>.</summary>
     public static string Render(WebShellContext context)
@@ -118,21 +114,6 @@ public static class WebShellRenderer
             });
         }
 
-        _ = head.Element("style", style => style.Raw(ThemeCss.GetValue(context.Theme, WebThemeCssBuilder.Build)));
-
-        // The reader's own, after the application's and apart from it: that one stays the same text for every reader. Colours and
-        // numbers alone, so nothing in it needs escaping.
-        if (WebThemeColorsCss.For(context.Theme, context.ThemeColors) is { Length: > 0 } colors)
-        {
-            _ = head.Element("style", style =>
-            {
-                _ = style.Attribute(WebAttributes.ThemeColors);
-                _ = style.Raw(colors);
-            });
-        }
-        // The view's own, beside the theme's: a number the options checked, so nothing in it needs escaping.
-        _ = head.Element("style", style => style.Raw(string.Create(CultureInfo.InvariantCulture, $":root{{--ui-notification-width:{context.NotificationWidth}px}}")));
-
         // A face is otherwise asked for only once a rule using it is matched, after its stylesheet: a glyph face is `font-display:
         // block`, so every icon would be a blank box for that extra round trip. `crossorigin`, as a font is always fetched in CORS
         // mode: a preload without it is not the request the `@font-face` makes, and the face would download twice.
@@ -150,6 +131,27 @@ public static class WebShellRenderer
                 _ = link.Attribute("crossorigin");
             });
         }
+
+        // An asset rather than a block: the same text for every reader, cached for good, where the document is private and revalidated.
+        _ = head.Element("link", link =>
+        {
+            _ = link.Attribute("rel", "stylesheet");
+            _ = link.Attribute("href", WebThemeStylesheet.For(context.Theme).ResolveVersionedPublicPath());
+            _ = link.Attribute(WebAttributes.ThemeStylesheet);
+        });
+
+        // The reader's own, right after the application's and apart from it, so it wins with the same selectors. Colours and numbers
+        // alone, so nothing in it needs escaping.
+        if (WebThemeColorsCss.For(context.Theme, context.ThemeColors) is { Length: > 0 } colors)
+        {
+            _ = head.Element("style", style =>
+            {
+                _ = style.Attribute(WebAttributes.ThemeColors);
+                _ = style.Raw(colors);
+            });
+        }
+        // The view's own, beside the theme's: a number the options checked, so nothing in it needs escaping.
+        _ = head.Element("style", style => style.Raw(string.Create(CultureInfo.InvariantCulture, $":root{{--ui-notification-width:{context.NotificationWidth}px}}")));
 
         foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.Css))
         {

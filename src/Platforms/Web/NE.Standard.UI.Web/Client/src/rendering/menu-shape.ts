@@ -40,9 +40,7 @@ function isRailNow(menu: Element, tiers: string | null): boolean {
     if (tiers === null)
         return true;
 
-    const tier = typeof matchMedia === "function" ? currentResponsiveTier() : "base";
-
-    return tiers.split(" ").includes(tier);
+    return tiers.split(" ").includes(currentResponsiveTier());
 }
 
 /** The side of its view the menu stands in where that side is a drawer at this width, or null. */

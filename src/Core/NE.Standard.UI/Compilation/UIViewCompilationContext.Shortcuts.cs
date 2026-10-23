@@ -52,11 +52,14 @@ internal sealed partial class UIViewCompilationContext
 
             if (component is IBindableItemsComponent items)
             {
-                // The menu's own place: a context menu's entries act on the row under the keyboard, and are no page-wide claim.
+                // The menu's own place: a context menu's entries act on the row under the keyboard, and are no page-wide claim; an
+                // owner's own menu keeps the chords its owner answers in its own focus, in every row's copy as outside one.
+                ShortcutScope entries = scope == ShortcutScope.Template && IsShortcutOwnersMenu(component.Id) ? ShortcutScope.Page : scope;
+
                 for (var j = 0; j < items.Items.Count; j++)
                 {
                     if (items.Items[j] is IMenuItemModel entry)
-                        ClaimMenuShortcuts(claims, component.Id, entry, scope);
+                        ClaimMenuShortcuts(claims, component.Id, entry, entries);
                 }
             }
         }
@@ -85,6 +88,11 @@ internal sealed partial class UIViewCompilationContext
 
         return ShortcutScope.Page;
     }
+
+    /// <summary>Whether a menu is a region of a control that answers its menus' chords itself (<see cref="IShortcutOwnerComponent"/>).</summary>
+    private bool IsShortcutOwnersMenu(string menuId)
+        => _slotByRootComponentId.TryGetValue(menuId, out UIComponentSlot? slot) && slot.Kind == UIComponentSlotKind.Region
+            && _components[GetAuthoringId(slot.OwnerComponentId)] is IShortcutOwnerComponent;
 
     private static void ClaimShortcut(Dictionary<string, ShortcutClaim> claims, string chord, ShortcutClaim claim, bool pageWide)
     {

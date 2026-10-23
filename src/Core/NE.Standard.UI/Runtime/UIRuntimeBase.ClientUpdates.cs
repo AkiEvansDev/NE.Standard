@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
@@ -22,10 +23,14 @@ namespace NE.Standard.UI.Runtime;
 
 internal abstract partial class UIRuntimeBase
 {
+    // A page shows a handful of refused fields at once; past this the oldest refusal is given up, and only its later clear is not sent.
+    private const int MaxRejectedValueAddresses = 256;
+
     /// <summary>
-    /// Addresses currently showing a refusal, so a later valid value sends exactly one "clear". Guarded by <c>_stateLock</c>.
+    /// Addresses currently showing a refusal, oldest first, so a later valid value sends exactly one "clear"; a row leaving its list
+    /// takes its own with it (<c>ForgetRejectionsInRowsNoLock</c>). The value is unused. Guarded by <c>_stateLock</c>.
     /// </summary>
-    private readonly HashSet<UIPropertyAddress> _rejectedValueAddresses = [];
+    private readonly OrderedDictionary<UIPropertyAddress, bool> _rejectedValueAddresses = [];
 
     /// <summary>
     /// The values clients wrote that no controller change has been turned into updates for yet. Guarded by <c>_stateLock</c>.
@@ -120,6 +125,7 @@ internal abstract partial class UIRuntimeBase
                 // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
                 if (IsWriteRefusedNoLock(valueUpdate, resolution, invoker.Instance.Id, ref read))
                 {
+                    _host.Metrics.ValueRefused("refused");
                     (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
 
                     // The field goes back to the server's value, so a refusal of an earlier text no longer speaks for what it shows.
@@ -131,13 +137,14 @@ internal abstract partial class UIRuntimeBase
 
                 if (TryHoldSourceWriteNoLock(valueUpdate, resolution, out PendingSourceWrite? sourceWrite))
                 {
-                    // Read as an inline write is: by the input's format, an emptied number or day as no value, unreadable text refused.
+                    // Read as an inline write is: by the input's format, an emptied number or day as no value, unreadable text refused
+                    // for a row the window holds and skipped for one it does not.
                     ClientValueRead value = read ?? ReadClientValue(resolution.Binding, valueUpdate.Value);
 
-                    if (value.Normalization == UIFormattedValueNormalization.Rejected)
-                        (refusals ??= []).Add(RejectValueNoLock(valueUpdate, resolution.Binding));
-                    else
+                    if (value.Normalization != UIFormattedValueNormalization.Rejected)
                         (sourceWrites ??= []).Add(sourceWrite.Value with { Value = value.Value });
+                    else if (IsWriteRowHeldNoLock(resolution))
+                        (refusals ??= []).Add(RejectValueNoLock(valueUpdate, resolution.Binding));
 
                     continue;
                 }
@@ -196,9 +203,14 @@ internal abstract partial class UIRuntimeBase
     /// send — no binding there, or fewer row keys than it reads — is a forged call, refused as one rather than failed with a stack.
     /// </summary>
     private CompiledUIBindingResolution ResolveClientWrite(UIPropertyAddress address)
-        => View.Bindings.TryResolveWrite(address, out CompiledUIBindingResolution resolution)
-            ? resolution
-            : throw new UnauthorizedAccessException($"No value of this page is written at '{address}', or not under the row keys it names.");
+    {
+        if (View.Bindings.TryResolveWrite(address, out CompiledUIBindingResolution resolution))
+            return resolution;
+
+        _host.Metrics.ValueRefused("forged");
+
+        throw new UnauthorizedAccessException($"No value of this page is written at '{address}', or not under the row keys it names.");
+    }
 
     /// <summary>
     /// Holds aside a write that belongs to a windowed source. Everything else is applied inline.
@@ -214,8 +226,55 @@ internal abstract partial class UIRuntimeBase
     }
 
     /// <summary>
+    /// Whether the row a write lands in is still held. Only a write under its own row's key answers false — that row removed while the
+    /// write was on its way, or one a script made up: the write lands nowhere and the rest of the set goes on. The row is the path up
+    /// to the binding's innermost row key; a field past it the path cannot read (a null on the way) is the binding's fault, not a
+    /// stale row.
+    /// </summary>
+    /// <remarks>
+    /// Skipped rather than thrown: a throw ended the set there, and the values after it, which the writer shows, were lost unseen.
+    /// A removed row and a made-up one look alike here, and neither is recorded.
+    /// </remarks>
+    private bool IsWriteRowHeldNoLock(CompiledUIBindingResolution resolution)
+    {
+        var row = InnermostRowSlot(resolution.Binding.Parameters);
+
+        // The field read first: where it reads, its row is held, and no row path is built.
+        if (row == 0 || Controller.TryGetRecursiveValue(resolution.Path, out _) || Controller.TryGetRecursiveValue(RowPath(resolution.Path, row), out _))
+            return true;
+
+        _host.Metrics.ValueRefused("stale");
+
+        return false;
+    }
+
+    /// <summary>
+    /// The place, among the path's keys and indexes counted from the outermost, of the binding's innermost row key; zero where it is
+    /// bound under none (a Root-scoped binding in a row).
+    /// </summary>
+    private static int InnermostRowSlot(CompiledUIBindingParameter[] parameters)
+    {
+        var slot = 0;
+        var row = 0;
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            // A scope parameter fills no slot of the path; a fixed one fills a key or an index, as a row key does.
+            if (parameters[i].Kind == CompiledUIBindingParameterKind.Scope)
+                continue;
+
+            slot++;
+
+            if (parameters[i].Kind == CompiledUIBindingParameterKind.Dynamic)
+                row = slot;
+        }
+
+        return row;
+    }
+
+    /// <summary>
     /// Applies a client value update, its text read by the input's format where a gate has not read it already; a value the format
-    /// cannot read is rejected, not thrown, while a malformed update still throws.
+    /// cannot read is rejected, not thrown, one for a row no longer held is skipped, while a malformed update still throws.
     /// </summary>
     private ServerValidationUIUpdate? ApplyValueUpdate(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ClientValueRead? read, out ClientValueUIUpdate? applied)
     {
@@ -229,8 +288,9 @@ internal abstract partial class UIRuntimeBase
 
         ClientValueRead value = read ?? ReadClientValue(resolution.Binding, update.Value);
 
+        // Read first, so a refusal is recorded only for a field in a row the controller holds, never for a row key a script made up.
         if (value.Normalization == UIFormattedValueNormalization.Rejected)
-            return RejectValueNoLock(update, resolution.Binding);
+            return IsWriteRowHeldNoLock(resolution) ? RejectValueNoLock(update, resolution.Binding) : null;
 
         if (Controller.TrySetRecursiveValue(resolution.Path, value.Value))
         {
@@ -238,7 +298,11 @@ internal abstract partial class UIRuntimeBase
             return ClearRejectionNoLock(update);
         }
 
-        // A path that reads but refuses the value comes back as a refusal; one that cannot even read is a broken address and still throws.
+        if (!IsWriteRowHeldNoLock(resolution))
+            return null;
+
+        // A path that reads but refuses the value comes back as a refusal; one that cannot even read, in a row that is held, is a
+        // broken binding, as it is outside any row.
         if (!Controller.TryGetRecursiveValue(resolution.Path, out _))
             throw new InvalidOperationException($"Binding '{resolution.Binding.Id}' target path '{resolution.Path}' cannot be resolved on the controller.");
 
@@ -259,8 +323,9 @@ internal abstract partial class UIRuntimeBase
     {
         normalized = value;
 
+        // A list or document past the application's limits is refused as unreadable, before any setter or source sees it.
         if (value is not string text)
-            return UIFormattedValueNormalization.Untouched;
+            return RecursiveValueCoercion.IsWithinLimits(value, _application.Security.MaxClientValueElements, _application.Security.MaxClientValueDepth) ? UIFormattedValueNormalization.Untouched : UIFormattedValueNormalization.Rejected;
 
         // An emptied field sends its empty text: written to a value that is no text — a number, a day — it is no value at all.
         if (string.IsNullOrWhiteSpace(text) && binding.TargetValueType is { IsValueType: true })
@@ -287,7 +352,13 @@ internal abstract partial class UIRuntimeBase
     {
         UIPropertyAddress address = update.Address;
 
-        _ = _rejectedValueAddresses.Add(address);
+        _host.Metrics.ValueRefused("rejected");
+
+        // Past the bound the oldest gives way: the newest is the one its reader is fixing now.
+        if (_rejectedValueAddresses.Count >= MaxRejectedValueAddresses && !_rejectedValueAddresses.ContainsKey(address))
+            _rejectedValueAddresses.RemoveAt(0);
+
+        _rejectedValueAddresses[address] = true;
 
         // The author's text compiles to its plain string; a phrase stays one, always translated.
         UIPhrase? message = View.State.TryGetValue(binding.Address.Component.Id, IFormattedInputComponent.FormatMessageProperty, out CompiledUIPropertyValue? authored) && authored is { IsBind: false }
@@ -365,32 +436,4 @@ internal abstract partial class UIRuntimeBase
     }
 
     private readonly record struct HeldValue(ClientValueUIUpdate Update, string InstanceId);
-
-    /// <remarks>An update never queued carries no number, and counts as newer than any snapshot a client started from.</remarks>
-    private static ServerChangeSet AppendUpdates(ServerChangeSet changes, ServerChangeSet additional)
-    {
-        if (additional.IsEmpty)
-            return changes;
-
-        if (changes.IsEmpty)
-            return additional;
-
-        ServerUIUpdate[] updates = [.. changes.Updates, .. additional.Updates];
-
-        return changes.Sequences is null && additional.Sequences is null
-            ? new ServerChangeSet { Updates = updates }
-            : new ServerChangeSet { Updates = updates, Sequences = [.. SequencesOf(changes), .. SequencesOf(additional)] };
-    }
-
-    private static long[] SequencesOf(ServerChangeSet changes)
-    {
-        if (changes.Sequences is { } sequences)
-            return sequences;
-
-        var unnumbered = new long[changes.Updates.Length];
-
-        Array.Fill(unnumbered, long.MaxValue);
-
-        return unnumbered;
-    }
 }

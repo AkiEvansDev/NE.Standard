@@ -155,63 +155,70 @@ internal sealed partial class UIViewCompilationContext
         return builder.ToString();
     }
 
+    /// <summary>Warns when a bound path resolves to nothing (<see cref="CheckControllerPath"/>): the component keeps the value it was authored with.</summary>
+    private void WarnOnUnresolvableControllerPath(IVisualComponent component, string propertyName, CompiledPath path)
+        => CheckControllerPath(component, $"binds '{propertyName}' to", path, CertainPath.Warns, ". The binding resolves to nothing and the component keeps the value it was authored with.");
+
+    /// <summary>What a path the walk is certain of does when it names nothing: a binding's an unresolved warning, an argument's a refusal.</summary>
+    private enum CertainPath
+    {
+        Warns,
+        Refuses
+    }
+
     /// <summary>
-    /// Warns when a bound path resolves to nothing: a property the controller's types don't have — a typo the component would otherwise
-    /// show silently — a step the server cannot read (no <c>[RecursiveMember]</c>, or no <c>RecursiveObservable</c>), or a property no
-    /// declared item of the list has. The path is the compiled one, from the controller down, so a relative or parent binding is checked
-    /// as well.
+    /// The one walk of a path a component binds or passes from the controller down — a relative or parent one compiled to it — for the
+    /// first way it names nothing: a property the types it walks lack (a typo the component would otherwise show silently), a step the
+    /// server cannot read (no <c>[RecursiveMember]</c>, or no <c>RecursiveObservable</c>), or a property no declared item of the list has.
     /// </summary>
     /// <remarks>
-    /// Skips type-less walks, and a property a type derived from the one reached declares: an item template chosen per item type
-    /// binds what only its own variant has. Unresolved — what a test page refuses — only where the walk is certain, as an argument's
-    /// path is refused (<see cref="MayGoUndrawn"/>): the type walked is the one every row reads, in a template every row is drawn
-    /// with; anywhere else it is advice.
+    /// Skips type-less walks, a property a type derived from the one reached declares (an item template chosen per item type binds
+    /// what only its own variant has), and a template no row is ever drawn with (<see cref="IsNeverDrawn"/>). Only where the walk is
+    /// certain — the type walked is the one every row reads, in a template every row is drawn with (<see cref="MayGoUndrawn"/>) — does
+    /// it do what <paramref name="certain"/> says; anywhere else it is advice, since a false refusal stops a valid application at its start.
     /// </remarks>
-    private void WarnOnUnresolvableControllerPath(IVisualComponent component, string propertyName, CompiledPath path)
+    private void CheckControllerPath(IVisualComponent component, string reads, CompiledPath path, CertainPath certain, string consequence, string? missingHint = null)
     {
-        // A template no row is ever drawn with (a static menu's submenu, no entry holding sub-entries) binds nothing anyone sees.
-        if (IsNeverDrawn(component))
+        // A template no row is ever drawn with (a static menu's submenu, no entry holding sub-entries) reads nothing anyone sees.
+        if (IsNeverDrawn(component) || FindUnresolvedStep(path) is not (string cause, bool exact, bool missing, string advice))
             return;
 
-        if (FindMissingControllerProperty(path) is (string missingProperty, Type owner))
-        {
-            _warnings.Add(new(
-                BindingWarningKind(component, owner == _controllerType || owner.IsSealed || owner.IsValueType),
-                $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but " +
-                $"'{owner.Name}' has no public property '{missingProperty}'. The binding resolves to nothing and the " +
-                "component keeps the value it was authored with."
-            ));
+        var message = $"Component '{component.Id}' {reads} '{path.Template.Template}', but {cause}{consequence}{advice}{(missing ? missingHint : null)}";
 
+        if (!exact || MayGoUndrawn(component))
+        {
+            _warnings.Add(new(UICompileWarningKind.Advisory, $"{message} It may be meant: no row may ever be drawn there, or it holds an item of a type the walk does not know."));
             return;
         }
+
+        if (certain == CertainPath.Refuses)
+            throw new InvalidOperationException(message);
+
+        _warnings.Add(new(UICompileWarningKind.UnresolvedBinding, message));
+    }
+
+    /// <summary>
+    /// The first step of a controller path that names nothing, said as the clause after "but"; whether the walk is certain of it, whether
+    /// it is a property missing (rather than one the server cannot read), and the advice that goes with it; null where every step reads.
+    /// </summary>
+    private (string Cause, bool Exact, bool Missing, string Advice)? FindUnresolvedStep(CompiledPath path)
+    {
+        // A row's declared type that is not sealed may hold a derived item that has the property, from an assembly the walk never read.
+        if (FindMissingControllerProperty(path) is (string property, Type owner))
+            return ($"'{owner.Name}' has no public property '{property}'", owner == _controllerType || owner.IsSealed || owner.IsValueType, true, string.Empty);
 
         if (FindUnreadControllerSegment(path) is (string segment, Type reader))
         {
             var why = typeof(RecursiveObservable).IsAssignableFrom(reader) ? "where it is no [RecursiveMember]" : "which is no RecursiveObservable";
 
-            _warnings.Add(new(
-                BindingWarningKind(component, exact: true),
-                $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but the server reads '{segment}' " +
-                $"through '{reader.Name}', {why}, so the binding resolves to nothing and the component keeps the value it was authored " +
-                "with. Make each step of the path a [RecursiveMember] of a RecursiveObservable."
-            ));
-
-            return;
+            return ($"the server reads '{segment}' through '{reader.Name}', {why}", true, false, " Make each step of the path a [RecursiveMember] of a RecursiveObservable.");
         }
 
         if (FindMissingStaticItemProperty(path) is (string itemProperty, string host))
-        {
-            _warnings.Add(new(
-                BindingWarningKind(component, exact: true),
-                $"Component '{component.Id}' binds '{propertyName}' to '{path.Template.Template}', but no item '{host}' holds has a " +
-                $"public property '{itemProperty}'. The binding resolves to nothing and the component keeps the value it was authored with."
-            ));
-        }
-    }
+            return ($"no item '{host}' holds has a public property '{itemProperty}'", true, true, string.Empty);
 
-    /// <summary>A binding naming nothing is unresolved where the walk is certain, else advice, as an argument's path is refused or warned of.</summary>
-    private UICompileWarningKind BindingWarningKind(IVisualComponent component, bool exact)
-        => exact && !MayGoUndrawn(component) ? UICompileWarningKind.UnresolvedBinding : UICompileWarningKind.Advisory;
+        return null;
+    }
 
     /// <summary>
     /// The property a controller path names that the type it reaches lacks, with that type; null where the walk finds every segment

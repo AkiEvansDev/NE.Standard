@@ -18,6 +18,9 @@ public static class WebClassNames
     /// <summary>On a wrap panel's root when it lays its children in even columns (<c>ItemMinWidth</c>).</summary>
     public const string WrapPanelColumns = "ui-wrap-panel--columns";
 
+    /// <summary>A component standing level with captioned fields' boxes beside it (<c>AlignWithFieldBoxes</c>).</summary>
+    public const string FieldAligned = "ui-field-aligned";
+
     /// <summary>
     /// On reading words — a Text's or a Paragraph's body, a validation message, a package's rendered document: what the reader may select
     /// where nothing around it is a row, a menu or a control (<c>TextSelectable</c> decides where set).

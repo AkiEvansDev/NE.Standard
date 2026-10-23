@@ -1,6 +1,7 @@
 @import "../core/tokens.less";
 @import "../mixins/elevation.less";
 @import "../mixins/focus.less";
+@import "../mixins/glyph-edge.less";
 @import "../mixins/interactive.less";
 
 .ui-notification-host {
@@ -98,8 +99,8 @@
     overflow-wrap: anywhere;
 }
 
-// Under the message, at the toast's end, flush with the cross above it: beside the message, a label as long as "Reload" took half
-// its width.
+// Under the message, its box on the toast's end where the cross above it stands its glyph: beside the message, a label as long as
+// "Reload" took half its width.
 .ui-notification__action {
     grid-column: 1 / -1;
     justify-self: end;
@@ -107,13 +108,16 @@
 
 // On the first line, the title's where there is one: placed by the flow, it took the message's row, the second. The dialog's ×, a
 // small ghost icon button (notification-engine.ts), drawing the core's cross: square as an icon-only button is, its glyph the small
-// one's. Its box overhangs the line by as much as it is taller, so the line keeps its height and the cross the middle it had.
+// one's. Its box overhangs the line by as much as it is taller, so the line keeps its height and the cross the middle it had; at the
+// toast's end it hangs past by its glyph's inset, the cross on the content's edge as every quiet control ending a band (glyph-edge.less).
 .ui-notification__close {
+    --ui-glyph-inset: calc((@{ui-button-height-sm} - @{ui-glyph-md}) / 2);
     grid-column: 2;
     grid-row: 1;
     aspect-ratio: 1;
     padding: @ui-space-1;
     margin: calc((var(--ui-text-body-line-height) - @ui-button-height-sm) / 2);
+    .ui-glyph-hang-end();
     .ui-cross-glyph(@ui-glyph-md);
 }
 

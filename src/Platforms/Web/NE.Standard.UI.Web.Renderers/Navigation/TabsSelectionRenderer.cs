@@ -1,5 +1,3 @@
-using System;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -13,16 +11,6 @@ internal static class TabsSelectionRenderer
 {
     private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root")];
 
-    public static void RenderSelectedKey(WebRenderContext context, IHtmlElementBuilder root, UIProperty selectedKeyProperty)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(root);
-
-        _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.TabsSelected);
-        _ = WebComponentRendererBase.RenderProperty<string?>(context, root, selectedKeyProperty, static (target, value) =>
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                _ = target.Attribute(WebAttributes.TabsSelected, value);
-        }, SelectedKeyOperations);
-    }
+    public static void RenderSelectedKey(WebRenderContext context, IHtmlElementBuilder root)
+        => WebComponentRendererBase.RenderSelectedKey(context, root, WebValueKinds.TabsSelected, WebAttributes.TabsSelected, SelectedKeyOperations);
 }

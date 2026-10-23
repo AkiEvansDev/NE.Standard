@@ -19,11 +19,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 // No spacing default of its own: the stylesheet's zero stands, and a container that is given none writes nothing.
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
-public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>, IOverflowComponent, IGridTracksComponent, ISpacingComponent
+public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>, IOverflowComponent, IGridTracksComponent, ISpacingComponent, ICaptionRowComponent
     where T : ContainerComponent<T>, IUIComponentDefinition
 {
-    private readonly UIGridUnit[] _columns = new UIGridUnit[UIGridPlacement.GridColumns];
-    private readonly List<UIGridUnit> _rows = new(1);
+    private readonly UIResponsive<UIGridUnit>[] _columns = new UIResponsive<UIGridUnit>[UIGridPlacement.GridColumns];
+    private readonly List<UIResponsive<UIGridUnit>> _rows = new(1);
 
     /// <summary>
     /// Initializes a new container with a full set of star-sized columns and a single star-sized row.
@@ -40,16 +40,16 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     }
 
     /// <summary>
-    /// Gets the grid column definitions.
+    /// Gets the grid column definitions, each optionally per breakpoint.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
-    public IReadOnlyList<UIGridUnit> Columns => _columns;
+    public IReadOnlyList<UIResponsive<UIGridUnit>> Columns => _columns;
 
     /// <summary>
-    /// Gets the grid row definitions.
+    /// Gets the grid row definitions, each optionally per breakpoint.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
-    public IReadOnlyList<UIGridUnit> Rows => _rows;
+    public IReadOnlyList<UIResponsive<UIGridUnit>> Rows => _rows;
 
     /// <summary>
     /// Gets or sets the free air its parent leaves after the container's end, optionally per breakpoint, which the scroller along that
@@ -66,44 +66,66 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     public UIResponsive<double>? ScrollbarAir { get; set; }
 
     /// <summary>
-    /// Sets a grid column definition. <paramref name="index"/> is 1-based, matching <see cref="UIGridPlacement.Column"/>.
+    /// Sets a grid column definition, optionally per breakpoint (an auto column on a phone, a fixed one wider up). <paramref name="index"/>
+    /// is 1-based, matching <see cref="UIGridPlacement.Column"/>.
     /// </summary>
-    public T SetColumn(int index, UIGridUnit unit)
+    public T SetColumn(int index, UIGridUnit unit, UIGridUnit? sm = null, UIGridUnit? md = null, UIGridUnit? xl = null, UIGridUnit? xxl = null)
     {
         if (index is < 1 or > UIGridPlacement.GridColumns)
             throw new ArgumentOutOfRangeException(nameof(index));
 
-        unit.Validate();
-        _columns[index - 1] = unit;
+        _columns[index - 1] = Track(unit, sm, md, xl, xxl);
         return Self;
     }
 
     /// <summary>
-    /// Sets a grid row definition. <paramref name="index"/> is 1-based, matching <see cref="UIGridPlacement.Row"/>.
+    /// Sets a grid row definition, optionally per breakpoint. <paramref name="index"/> is 1-based, matching <see cref="UIGridPlacement.Row"/>.
     /// </summary>
     /// <remarks>
     /// A container starts with one star row, so <c>SetRow(1, …)</c> sets it and <see cref="AddRow"/> adds the second: a three-row
     /// container is <c>SetRow(1, Auto).AddRow(Star).AddRow(Auto)</c>.
     /// </remarks>
-    public T SetRow(int index, UIGridUnit unit)
+    public T SetRow(int index, UIGridUnit unit, UIGridUnit? sm = null, UIGridUnit? md = null, UIGridUnit? xl = null, UIGridUnit? xxl = null)
     {
         if (index < 1 || index > _rows.Count)
             throw new ArgumentOutOfRangeException(nameof(index), index, $"Container '{Id}' has {_rows.Count} row(s), its first one from the start; set row 1 to {_rows.Count}, or add one with AddRow first.");
 
-        unit.Validate();
-        _rows[index - 1] = unit;
+        _rows[index - 1] = Track(unit, sm, md, xl, xxl);
         return Self;
     }
 
     /// <summary>
-    /// Adds a grid row definition after the ones there are — after the star row a container starts with, which <see cref="SetRow"/>
+    /// Adds a grid row definition, optionally per breakpoint, after the ones there are — after the star row a container starts with, which <see cref="SetRow"/>
     /// sets.
     /// </summary>
-    public T AddRow(UIGridUnit unit)
+    public T AddRow(UIGridUnit unit, UIGridUnit? sm = null, UIGridUnit? md = null, UIGridUnit? xl = null, UIGridUnit? xxl = null)
+    {
+        _rows.Add(Track(unit, sm, md, xl, xxl));
+        return Self;
+    }
+
+    /// <summary>A track's definition per breakpoint, each tier written checked.</summary>
+    private static UIResponsive<UIGridUnit> Track(UIGridUnit unit, UIGridUnit? sm, UIGridUnit? md, UIGridUnit? xl, UIGridUnit? xxl)
     {
         unit.Validate();
-        _rows.Add(unit);
-        return Self;
+        sm?.Validate();
+        md?.Validate();
+        xl?.Validate();
+        xxl?.Validate();
+
+        return UIResponsive<UIGridUnit>.Create(unit, sm, md, xl, xxl);
+    }
+
+    /// <summary>A caption row where a child on its first row draws one: a field and its Add, side by side.</summary>
+    public UIInputSize? CaptionRowBox(UIResponsiveTier tier)
+    {
+        foreach (IVisualComponent child in Children)
+        {
+            if ((child.Placement?.Resolve(tier).Row ?? 1) == 1 && UIFieldBoxes.CaptionRowBox(child, tier) is UIInputSize box)
+                return box;
+        }
+
+        return null;
     }
 }
 

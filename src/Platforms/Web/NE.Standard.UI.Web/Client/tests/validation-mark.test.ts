@@ -1,6 +1,7 @@
 // A package's own field marked through the validation engine (`validation.mark` on the plugin surface): the severity's class and
 // colour on the field's root, `aria-invalid` on its controls for an error only, the words on its message line or its mark's
-// tooltip — as text, never read as markup — all taken off by null, and weighed with the field's other messages.
+// tooltip — as text, never read as markup — all taken off by null, and weighed with the field's other messages. A value held over
+// another writer's wears a mark of its own beside it, neither clearing the other.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -106,6 +107,26 @@ test("a warning wears its own class and leaves the value acceptable to a reader"
     assert.equal(root.style["--ui-validation-color"], "var(--ui-color-warning-ink)");
     assert.equal(input.getAttribute("aria-invalid"), null);
     engine.mark(real(root), null);
+});
+
+test("a conflict's mark stands in a slot of its own: a package's mark taken off leaves it, and it taken off leaves the package's", () => {
+    const { root } = field();
+
+    engine.markConflict(real(root), true);
+    engine.mark(real(root), "error", { text: "Bad" });
+    engine.mark(real(root), null);
+
+    assert.ok(root.classes.has("ui-validation--warning"));
+
+    engine.mark(real(root), "error", { text: "Bad" });
+    engine.markConflict(real(root), false);
+
+    assert.ok(root.classes.has("ui-invalid"));
+    assert.ok(!root.classes.has("ui-validation--warning"));
+
+    engine.mark(real(root), null);
+
+    assert.ok(!root.classes.has("ui-invalid"));
 });
 
 test("a field standing in a cell speaks its words in its mark's tooltip", () => {

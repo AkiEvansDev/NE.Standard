@@ -182,6 +182,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
 
         ValidateItemCollections(componentContexts, rootPath);
         ValidateSelectionBindings();
+        WarnOnClearOfAPeriod();
         ValidateShortcuts();
         EnsureFormsAreSubmitted();
 

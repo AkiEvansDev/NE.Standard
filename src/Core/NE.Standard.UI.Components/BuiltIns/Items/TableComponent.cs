@@ -98,12 +98,6 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
     }
 
-    /// <summary>
-    /// Configures the built-in default empty template, throwing if a different template has been set.
-    /// </summary>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
-
     /// <summary>Adds a column rendering <paramref name="template"/> against the row, bound relatively to the row's properties.</summary>
     /// <remarks>
     /// Defaults to <see cref="UIGridUnit.Auto"/> width and a positional key; a <paramref name="pinned"/> column stays fixed while the

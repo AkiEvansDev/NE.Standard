@@ -70,7 +70,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] BadgePlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.TextBadgePlacementHostClass)];
     private static readonly WebDomOperation[] AffixTextOperations = [WebDomOperation.Text()];
     private static readonly WebDomOperation[] InputAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
-    private static readonly WebDomOperation[] InputSizeOperations = [WebDomOperation.Class(converter: WebDomConverters.InputSizeClass)];
+    private static readonly TierClassFamily<UIInputSize> InputSizeFamily = new(WebAttributes.TierSize, WebDomConverters.InputSizeClass, WebDomConverters.InputSizeTierClasses, WebClassNames.InputSize);
     private static readonly WebDomOperation[] PrefixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(PrefixIconShownAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
     private static readonly WebDomOperation[] SuffixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(SuffixIconShownAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
     private static readonly WebDomOperation[] WrapModeOperations = [WebDomOperation.Class(converter: WebDomConverters.TextWrapClass)];
@@ -261,7 +261,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
     /// <summary>
     /// A caption's help badge: no tab stop, so the keyboard, a dialog's first focus included, lands on the field, which its words
-    /// describe (<see cref="RenderFieldLabel"/>); the pointer's hover shows them, and outside the field's box a press or a touch.
+    /// describe (<see cref="RenderFieldLabel(WebRenderContext, IHtmlElementBuilder)"/>); the pointer's hover shows them, and outside the field's box a press or a touch.
     /// </summary>
     private static void RenderHelpBadge(WebRenderContext context, IHtmlElementBuilder badge, bool pressable)
     {
@@ -414,6 +414,33 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     }
 
     /// <summary>
+    /// <see cref="RenderFieldLabel(WebRenderContext, IHtmlElementBuilder)"/> on a control that also has a word of its own — a colour's
+    /// "Choose colour", a picture's "Choose picture" — which names it while the field has neither a caption nor an <c>AccessibleName</c>.
+    /// </summary>
+    public static void RenderFieldLabel(WebRenderContext context, IHtmlElementBuilder field, string fallbackKey)
+    {
+        RenderFieldLabel(context, field);
+
+        if (!IsFieldNamed(context))
+            WebWords.Write(context, field, "aria-label", fallbackKey);
+    }
+
+    /// <summary>Whether a caption or an <c>AccessibleName</c> names the field, now or once its binding delivers one.</summary>
+    public static bool IsFieldNamed(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return IsNamedBy(context, IAccessibleNameComponent.AccessibleNameProperty) || IsNamedBy(context, ITextBaseComponent.TitleProperty);
+    }
+
+    private static bool IsNamedBy(WebRenderContext context, UIProperty property)
+    {
+        WebRenderValueKind kind = ResolveRenderValue(context, property, out string? words, out _);
+
+        return kind == WebRenderValueKind.Binding || (kind == WebRenderValueKind.Static && !string.IsNullOrWhiteSpace(words));
+    }
+
+    /// <summary>
     /// The caption inside the field's own box, at its leading edge, for a field whose <see cref="IFieldInputComponent.TitlePlacement"/>
     /// is <see cref="UIInputTitlePlacement.Inside"/>; called first thing in the box, and nothing for a caption on top.
     /// </summary>
@@ -477,11 +504,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIInputSize?>(context, root, ISizedInputComponent.SizeProperty, static (target, value) =>
-        {
-            if (value is UIInputSize size)
-                _ = target.Class(WebClassNames.InputSize(size));
-        }, InputSizeOperations);
+        TierClassRenderer.Render(context, root, ISizedInputComponent.SizeProperty, InputSizeFamily);
     }
 
     /// <summary>A glyph beside the text inside the field; icon name only, the field decides size and colour.</summary>

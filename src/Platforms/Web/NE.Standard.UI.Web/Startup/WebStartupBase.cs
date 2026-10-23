@@ -65,6 +65,9 @@ public abstract class WebStartupBase<TStartup>
         {
             options.AddFilter<WebHubCallLimiter>();
             options.AddFilter<WebHubLatency>();
+            // What a stateful reconnect replays: past it a push waits for the client's ack, so it holds about thirty messages at the
+            // 32 KB cap rather than SignalR's 100 KB, three — a push to a page whose socket blinked would stall the runtime's sends.
+            options.StatefulReconnectBufferSize = 1024 * 1024;
         }).AddJsonProtocol(WebHubProtocol.Configure);
 
         services.TryAddSingleton<IWebAssetRegistry, WebAssetRegistry>();

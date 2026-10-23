@@ -17,6 +17,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Hosting;
@@ -76,6 +77,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         RouteGroupBuilder group = endpoints.MapGroup(string.Empty).AddEndpointFilter(AddNoSniffHeaderAsync);
 
         MapAssets(group);
+        MapThemeStylesheet(group);
 
         WebFileEndpoints.Map(group);
         WebValueEndpoint.Map(group);
@@ -88,7 +90,9 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
 
-        HubEndpointConventionBuilder hub = endpoints.MapHub<WebUIHub>(HubPath);
+        // A socket that drops and comes straight back keeps its connection, its calls and what was sent meanwhile: a background
+        // command is not cancelled and an awaited one is not failed by a blip (the client's `withStatefulReconnect`).
+        HubEndpointConventionBuilder hub = endpoints.MapHub<WebUIHub>(HubPath, static options => options.AllowStatefulReconnects = true);
 
         hub.Add(RefuseCrossSiteRequests);
         RequireAuthorization(hub, options);
@@ -138,6 +142,18 @@ public static partial class WebEndpointRouteBuilderExtensions
 
             _ = endpoints.MapGet(asset.PublicPath, (HttpContext http) => ServeAsset(http, asset, compression));
         }
+    }
+
+    /// <summary>
+    /// The theme's stylesheet (<see cref="WebThemeStylesheet"/>), served as any asset is: for good at the version a page links, else
+    /// revalidated.
+    /// </summary>
+    private static void MapThemeStylesheet(IEndpointRouteBuilder endpoints)
+    {
+        UITheme theme = endpoints.ServiceProvider.GetRequiredService<UIApplication>().Theme;
+        WebAssetCompression compression = endpoints.ServiceProvider.GetRequiredService<WebAssetCompression>();
+
+        _ = endpoints.MapGet(WebThemeStylesheet.PublicPath, (HttpContext http) => ServeAsset(http, WebThemeStylesheet.Resolve(http.Request.Query["v"].ToString(), theme), compression));
     }
 
     /// <summary>

@@ -66,6 +66,8 @@ export type ClientStringKey =
     | "ui.connection.lost"
     | "ui.connection.reload"
     | "ui.connection.reconnecting"
+    | "ui.command.expired"
+    | "ui.value.conflict"
     | "ui.leave.title"
     | "ui.leave.message"
     | "ui.leave.confirm"

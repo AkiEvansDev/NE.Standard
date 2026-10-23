@@ -10,7 +10,10 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Layouts;
 
-/// <summary>The chrome every bordered surface wears: padding, background, border, overflow, fill, the click and the address it links to.</summary>
+/// <summary>
+/// The chrome every bordered surface wears: padding, background, border, overflow, fill, the click, the address it links to and the
+/// name it is announced by.
+/// </summary>
 public abstract class SurfaceRendererBase : WebComponentRendererBase
 {
     private const string ClickableClassName = "ui-surface--clickable";
@@ -38,6 +41,8 @@ public abstract class SurfaceRendererBase : WebComponentRendererBase
 
         if (DrawsLink(context))
             RenderLinkAddress(context, root, ILinkableComponent.UrlProperty);
+
+        RenderAccessibleName(context, root);
     }
 
     /// <summary>

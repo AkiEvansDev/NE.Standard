@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
@@ -32,6 +33,10 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
 
     // A track list's first paint and its one operation per variable, built once rather than per container (a row template's too).
     private static readonly ConcurrentDictionary<(string Variable, string LimitsAttribute), TrackRender> TrackRenders = new();
+
+    // A track list's CSS, worked out once per list: a compiled view hands every render of the container, and every row a row template
+    // draws, the same authored list.
+    private static readonly ConditionalWeakTable<IReadOnlyList<UIResponsive<UIGridUnit>>, TrackCss> TrackCssByList = [];
 
     public override string ComponentTypeKey => ContainerComponent.ComponentTypeKey;
 
@@ -64,34 +69,68 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
         if (kind == WebRenderValueKind.Missing || (kind == WebRenderValueKind.Static && spacing is null))
             return;
 
-        _ = ResolveRenderValue(context, ContainerComponent.ColumnsProperty, out IReadOnlyList<UIGridUnit>? columns, out _);
+        _ = ResolveRenderValue(context, ContainerComponent.ColumnsProperty, out IReadOnlyList<UIResponsive<UIGridUnit>>? columns, out _);
 
-        // What the columns take at any width: an absolute column's size and any other's floor. An auto column's content is unknown here.
-        double room = 0;
+        if (columns is null)
+            return;
 
-        foreach (UIGridUnit column in columns ?? [])
-            room += column.Unit == UIGridUnitType.Absolute ? column.Value : Math.Max(column.MinValue ?? 0, 0);
+        // What the columns take at each width: an absolute column's size and any other's floor. An auto column's content is unknown here.
+        double? below = null;
 
-        if (room > 0)
-            _ = root.Style(FixedColumnsVariable, WebCssValues.Pixels(room));
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            double room = 0;
+
+            foreach (UIResponsive<UIGridUnit> track in columns)
+            {
+                UIGridUnit column = track.Resolve(tier);
+
+                room += column.Unit == UIGridUnitType.Absolute ? column.Value : Math.Max(column.MinValue ?? 0, 0);
+            }
+
+            if (room != (below ?? 0))
+                _ = root.Style(WebResponsiveCss.TierName(FixedColumnsVariable, tier), WebCssValues.Pixels(room));
+
+            below = room;
+        }
     }
 
     internal static void RenderTracks(WebRenderContext context, IHtmlElementBuilder root, UIProperty property, string variable, string limitsAttribute)
     {
         TrackRender tracks = TrackRenders.GetOrAdd((variable, limitsAttribute), static key => new TrackRender((target, value) =>
         {
-            if (value is not { Count: > 0 } units)
+            if (value is not { Count: > 0 } list)
                 return;
 
-            _ = target.Style(key.Variable, ToCssGridTemplate(units));
+            TrackCss css = TrackCssByList.GetValue(list, static list => new TrackCss(list));
 
-            var limits = WebCssValues.GridTrackLimits(units);
+            _ = target.Style(key.Variable, css.Template);
 
-            if (limits.Length > 0)
-                _ = target.Attribute(key.LimitsAttribute, limits);
+            if (css.Limits.Length > 0)
+                _ = target.Attribute(key.LimitsAttribute, css.Limits);
+
+            // Each wider tier whose tracks differ from the one below, read through the stylesheet's chain (ui-container.less).
+            for (UIResponsiveTier tier = UIResponsiveTier.Sm; tier <= UIResponsiveTier.Xxl; tier++)
+            {
+                if (css.Tiers[(int)tier] is string own)
+                    _ = target.Style(WebResponsiveCss.TierName(key.Variable, tier), own);
+            }
         }, [WebDomOperation.Style(key.Variable, converter: WebDomConverters.GridTemplateCss)]));
 
-        _ = RenderProperty<IReadOnlyList<UIGridUnit>?>(context, root, property, tracks.Render, tracks.Operations);
+        _ = RenderProperty<IReadOnlyList<UIResponsive<UIGridUnit>>?>(context, root, property, tracks.Render, tracks.Operations);
+    }
+
+    /// <summary>The tracks in force at <paramref name="tier"/>.</summary>
+    internal static UIGridUnit[] AtTier(IReadOnlyList<UIResponsive<UIGridUnit>> tracks, UIResponsiveTier tier)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+
+        UIGridUnit[] units = new UIGridUnit[tracks.Count];
+
+        for (var i = 0; i < units.Length; i++)
+            units[i] = tracks[i].Resolve(tier);
+
+        return units;
     }
 
     /// <summary>The track list as CSS, a run of equal tracks folded into <c>repeat()</c>; the table's columns, and a package's grid, take the same road.</summary>
@@ -141,5 +180,37 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
         return true;
     }
 
-    private sealed record TrackRender(Action<IHtmlElementBuilder, IReadOnlyList<UIGridUnit>?> Render, WebDomOperation[] Operations);
+    private sealed record TrackRender(Action<IHtmlElementBuilder, IReadOnlyList<UIResponsive<UIGridUnit>>?> Render, WebDomOperation[] Operations);
+
+    /// <summary>
+    /// A track list as CSS: the base tier's template and a splitter's bounds (the compiler refuses a splitter over tracks that change by
+    /// width), and each wider tier's template where it differs from the one below, else null.
+    /// </summary>
+    private sealed class TrackCss
+    {
+        public TrackCss(IReadOnlyList<UIResponsive<UIGridUnit>> tracks)
+        {
+            UIGridUnit[] units = AtTier(tracks, UIResponsiveTier.Base);
+
+            Template = ToCssGridTemplate(units);
+            Limits = WebCssValues.GridTrackLimits(units);
+            Tiers = new string?[(int)UIResponsiveTier.Xxl + 1];
+
+            var below = Template;
+
+            for (UIResponsiveTier tier = UIResponsiveTier.Sm; tier <= UIResponsiveTier.Xxl; tier++)
+            {
+                var own = ToCssGridTemplate(AtTier(tracks, tier));
+
+                Tiers[(int)tier] = string.Equals(own, below, StringComparison.Ordinal) ? null : own;
+                below = own;
+            }
+        }
+
+        public string Template { get; }
+
+        public string Limits { get; }
+
+        public string?[] Tiers { get; }
+    }
 }

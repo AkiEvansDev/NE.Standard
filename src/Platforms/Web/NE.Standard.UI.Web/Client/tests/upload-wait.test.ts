@@ -1,7 +1,9 @@
 // A submit waits for the uploads its form's pickers have on their way, ahead of its turn: the commands raised meanwhile go, a submit
 // of another form does not wait, a second press of the same submit while it waits sends nothing more, a press that left the page or
 // turned inert meanwhile sends nothing, a picker that left the page lets it go, and the form goes as it stood at the press, but for
-// the picker's selection, read once it landed; what the reader typed after the press outlives the answer's push into the field.
+// the picker's selection, read once it landed; what the reader typed after the press outlives the answer's push into the field. A
+// submit whose form holds a field kept over another writer's value is refused and takes the reader to it, whether the mark stood at
+// the press or arose as the form's values went.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,6 +12,7 @@ import type { CommandDispatcher } from "../src/transport/command-dispatcher.ts";
 import type { EffectRegistry } from "../src/effects/effect-registry.ts";
 import type { EventCatalog } from "../src/extensions/events.ts";
 import type { InteractionEngine } from "../src/interactions/interaction-engine.ts";
+import type { ValidationEngine } from "../src/interactions/validation-engine.ts";
 import type { MetadataIndex, UICommandExecutionResult, UICommandRequest } from "../src/metadata/metadata-index.ts";
 
 /** The removal watch's observer, fired by hand as the browser fires it once a child leaves. */
@@ -57,6 +60,7 @@ type Page = {
 type PageOptions = {
     readonly uploads?: Pick<InstanceType<typeof UploadsInFlight>, "whenUploadedAsync">;
     readonly valueBinding?: InstanceType<typeof ValueBindingEngine>;
+    readonly validationEngine?: ValidationEngine;
     readonly isReattaching?: () => boolean;
     /** The changes a command's answer carries, applied before its result comes back. */
     readonly answer?: () => void;
@@ -114,6 +118,7 @@ function createPage(buttons: readonly FakeElement[], uploadingForm: string, opti
             whenUploadedAsync: (formId: string) => formId === uploadingForm ? landed.then(() => new Set([picker])) : Promise.resolve(new Set<HTMLElement>())
         },
         valueBinding: options.valueBinding,
+        validationEngine: options.validationEngine,
         isReattaching: options.isReattaching
     });
 
@@ -459,4 +464,46 @@ test("words added after a waited submit's press stay in an OnSubmit field the an
     assert.equal(page.text.value, " typed-tail");
     assert.deepEqual(page.values, ["cat-second"]);
     assert.equal(page.valueBinding.isHeld(real(page.text)), true);
+});
+
+/** A form whose field `field` is held over another writer's value — from the press, or only once the form's values went. */
+function conflictedPage(field: FakeElement, markedAtPress: boolean): { readonly page: Page; readonly send: FakeElement; readonly submitted: string[]; readonly focused: unknown[] } {
+    const send = submitButton(1, "profile");
+    const submitted: string[] = [];
+    const focused: unknown[] = [];
+    const page = createPage([send], "another form", {
+        valueBinding: real<InstanceType<typeof ValueBindingEngine>>({
+            pressForm: () => ({ values: new Map(), close: () => undefined }),
+            submitFormAsync: async (formId: string) => {
+                submitted.push(formId);
+            },
+            whenSent: () => Promise.resolve(),
+            conflictedField: () => markedAtPress || submitted.length > 0 ? real(field) : null
+        }),
+        validationEngine: real<ValidationEngine>({ runSubmitValidation: () => true, focusFirstInvalid: () => false, focusField: (component: Element) => focused.push(component) > 0 })
+    });
+
+    return { page, send, submitted, focused };
+}
+
+test("a submit whose form holds a field kept over another writer's value is refused before its values go, the reader taken to the field", async () => {
+    const field = FakeElement.of("ui-text-input", { "data-ui-id": "5" });
+    const { page, send, submitted, focused } = conflictedPage(field, true);
+
+    await page.press(send);
+
+    assert.deepEqual(page.sent, []);
+    assert.deepEqual(submitted, []);
+    assert.deepEqual(focused, [field]);
+});
+
+test("a submit whose form's value meets another writer's on its way is refused: the command never runs without it", async () => {
+    const field = FakeElement.of("ui-text-input", { "data-ui-id": "5" });
+    const { page, send, submitted, focused } = conflictedPage(field, false);
+
+    await page.press(send);
+
+    assert.deepEqual(submitted, ["profile"]);
+    assert.deepEqual(page.sent, []);
+    assert.deepEqual(focused, [field]);
 });

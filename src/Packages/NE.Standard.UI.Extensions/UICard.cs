@@ -1,7 +1,10 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Regions;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -15,13 +18,48 @@ public static class UICard
 {
     /// <summary>
     /// A card with its name, an optional line and an optional mark in the default header, one component as its content, and
-    /// <paramref name="trailing"/> (an icon button, a switcher) at the header's far end, its glyph on the card's edge. A null
-    /// <paramref name="title"/> leaves the name to the header: <c>.ConfigureDefaultHeader(header => header.BindTitle(path))</c>.
+    /// <paramref name="trailing"/> (an icon button, a switcher) at the header's far end, its glyph on the card's edge. A name the
+    /// controller holds is <see cref="BoundCreate(string, string, IVisualComponent, string, IVisualComponent[])"/>'s; a null <paramref name="title"/> leaves it to the header.
     /// </summary>
     public static CardComponent Create(UIPhrase? title, UIPhrase? description, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
     {
         PresetWords.RequireIfGiven(title);
         PresetWords.RequireIfGiven(description);
+
+        return Create(header =>
+        {
+            if (title is not null)
+                _ = header.SetTitle(title);
+
+            if (description is not null)
+                _ = header.SetDescription(description);
+        }, content, icon, trailing);
+    }
+
+    /// <summary>The same with a name and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    public static CardComponent BoundCreate(string titlePath, string? descriptionPath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+        => BoundCreate(titlePath, descriptionPath, UIBindingScope.Root, content, icon, trailing);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static CardComponent BoundCreate(string titlePath, string? descriptionPath, UIBindingScope scope, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
+
+        if (descriptionPath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
+
+        return Create(header =>
+        {
+            _ = header.BindTitle(titlePath, scope).AsContent(ITextBaseComponent.TitleProperty);
+
+            if (descriptionPath is not null)
+                _ = header.BindDescription(descriptionPath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
+        }, content, icon, trailing);
+    }
+
+    /// <summary>The card, its words written into the default header beside the mark, the content, and the trailing at the header's end.</summary>
+    private static CardComponent Create(Action<CardHeaderRegion> words, IVisualComponent content, string? icon, IVisualComponent[] trailing)
+    {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(trailing);
 
@@ -31,11 +69,7 @@ public static class UICard
         CardComponent card = new CardComponent()
             .ConfigureDefaultHeader(header =>
             {
-                if (title is not null)
-                    _ = header.SetTitle(title);
-
-                if (description is not null)
-                    _ = header.SetDescription(description);
+                words(header);
 
                 if (icon is not null)
                     _ = header.SetIcon(icon);

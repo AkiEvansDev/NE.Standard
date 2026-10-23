@@ -45,9 +45,9 @@ public sealed record UICommandExecutionResult
     public int? RequestId { get; init; }
 
     /// <summary>
-    /// Gets the run an accepted command goes on with, answering whether it succeeded; never faults. Not serialized.
+    /// Gets the run an accepted command goes on with, answering how it ended; never faults. Not serialized.
     /// </summary>
-    internal Task<bool>? Completion { get; init; }
+    internal Task<UICommandRunOutcome>? Completion { get; init; }
 
     /// <summary>
     /// Validates the command execution result.

@@ -191,7 +191,12 @@ internal abstract partial class UIRuntimeBase : IUIRuntime, IUIRuntimeConnection
     {
         // The first request alone tells the runtime's own jobs: a later one finds their token's source disposed.
         if (Interlocked.Exchange(ref _disposeRequested, 1) == 0)
+        {
             CancelLifetime();
+
+            // Its background commands too, which it would otherwise wait for: no tab stays on a runtime that goes.
+            EndPageStays();
+        }
 
         // After the request, so a subscription racing it is either dropped here or refused by it.
         LeaveBroadcast();

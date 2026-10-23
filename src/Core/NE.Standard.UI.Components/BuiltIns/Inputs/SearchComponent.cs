@@ -20,6 +20,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// Closed, it is a select's field and shows the chosen option; the term is kept between openings and selected as the list opens, so
 /// typing replaces it and the list always answers what the field says. After a pick the list closes and the keyboard is back on the field.
 /// </remarks>
+[UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
 public abstract partial class SearchComponent<T, TItem>(string? id = null) : SelectComponent<T, TItem>(id), IDebounceInputComponent, ICaretFieldComponent
     where T : SearchComponent<T, TItem>, IUIComponentDefinition
     where TItem : class, IOptionModel
@@ -36,12 +37,6 @@ public abstract partial class SearchComponent<T, TItem>(string? id = null) : Sel
     /// </summary>
     [UIComponentProperty(DefaultValue = UIInputAppearance.Ghost)]
     public UIInputAppearance? SearchFieldAppearance { get; set; }
-
-    /// <summary>
-    /// Gets or sets the delay, in milliseconds, before a search is triggered after the last keystroke.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
-    public int? DebounceMilliseconds { get; set; }
 
     /// <summary>
     /// Gets or sets the minimum number of characters required before a search is triggered.

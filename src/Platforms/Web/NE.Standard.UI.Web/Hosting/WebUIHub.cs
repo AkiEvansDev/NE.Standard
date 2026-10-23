@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
@@ -12,6 +12,7 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Navigation;
@@ -22,6 +23,7 @@ using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -96,6 +98,9 @@ internal sealed partial class WebUIHub : Hub
         /// <summary>The runtime the page attached to, which its later attaches present.</summary>
         public string? Runtime { get; init; }
 
+        /// <summary>How long the runtime is kept for a page whose connection dropped: the page keeps reconnecting that long.</summary>
+        public long? RetentionMilliseconds { get; init; }
+
         /// <summary>
         /// The page held another runtime, which is gone — a restart, an eviction, a retention run out, another tab that rebuilt it — so
         /// what it shows belongs to nothing: it reloads rather than applies anything, and carries no changes.
@@ -112,7 +117,11 @@ internal sealed partial class WebUIHub : Hub
         [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
         public object?[] DynamicParameters { get; init; } = [];
 
-        public object? Value { get; init; }
+        /// <summary>
+        /// The value as the wire carried it, read into objects by the hub within the application's limits
+        /// (<see cref="ObjectToInferredTypesConverter.ToInferredValue(JsonElement, int, int)"/>), not by the protocol whatever its size.
+        /// </summary>
+        public JsonElement Value { get; init; }
 
         /// <summary>The token of a value staged beside the hub, carried instead of <see cref="Value"/> when the value is large.</summary>
         public string? ValueToken { get; init; }
@@ -280,7 +289,6 @@ internal sealed partial class WebUIHub : Hub
     }
 
     private const string HandleContextItemKey = "NE.Standard.UI.Web.Handle";
-    private const string AttachmentContextItemKey = "NE.Standard.UI.Web.Attachment";
 
     // Shared: an answer that carries nothing but the reload.
     private static readonly WebUIAttachResult ReloadResult = new()
@@ -340,21 +348,8 @@ internal sealed partial class WebUIHub : Hub
         Log.ConnectionOpened(_logger, Context.ConnectionId);
         _metrics.ConnectionOpened();
 
-        BeginAttachment();
-
         return base.OnConnectedAsync();
     }
-
-    /// <summary>Opens the page's stay on a runtime: the token a background command it raises keeps, ended by <see cref="ReleaseRuntime"/>.</summary>
-    private void BeginAttachment()
-        => Context.Items[AttachmentContextItemKey] = CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
-
-    /// <summary>
-    /// Cancelled once the page leaves its runtime — its connection closing, or the page going to another runtime of its route — which
-    /// ends a background command it raised there, as a closed connection always has.
-    /// </summary>
-    private CancellationToken AttachmentAborted
-        => Context.Items.TryGetValue(AttachmentContextItemKey, out var value) && value is CancellationTokenSource attachment ? attachment.Token : Context.ConnectionAborted;
 
     public async Task<WebUIAttachResult> AttachAsync(WebUIAttachRequest request)
     {
@@ -362,6 +357,25 @@ internal sealed partial class WebUIHub : Hub
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ClientWindowId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Route);
 
+        WebUIAttachResult result;
+
+        try
+        {
+            result = await AttachOrSwitchAsync(request).ConfigureAwait(false);
+        }
+        catch
+        {
+            _metrics.Attached("failed");
+            throw;
+        }
+
+        _metrics.Attached(result.Reload ? "reload" : result.Fresh ? "fresh" : "attached");
+
+        return result;
+    }
+
+    private async Task<WebUIAttachResult> AttachOrSwitchAsync(WebUIAttachRequest request)
+    {
         if (!request.SwitchRuntime)
             return await AttachCoreAsync(request).ConfigureAwait(false);
 
@@ -489,7 +503,8 @@ internal sealed partial class WebUIHub : Hub
         return new WebUIAttachResult
         {
             InitialChanges = _outgoing.StageAttach(initialChanges, runtime.Handle.Session.SessionId, Context.ConnectionId),
-            Runtime = runtime.RuntimeId
+            Runtime = runtime.RuntimeId,
+            RetentionMilliseconds = (long)_application.Persistence.DisconnectedRetention.TotalMilliseconds
         };
     }
 
@@ -504,35 +519,25 @@ internal sealed partial class WebUIHub : Hub
             && string.Equals(UIRoutePath.Normalize(held.Instance.Navigation.Route), UIRoutePath.Normalize(view.Navigation.Route), StringComparison.Ordinal);
 
     /// <summary>
-    /// Lets go of the runtime this connection holds as its closing does — its staged values, its handle, the background commands the
-    /// page raised there — the connection staying open for the next.
+    /// Lets go of the runtime this connection holds as its closing does — its staged values, its handle — the connection staying open
+    /// for the next. The background commands the page raised there end once it attaches to the other runtime (the host's page stays).
     /// </summary>
     private void LeaveRuntime()
     {
         _ = ReleaseRuntime();
         _ = Context.Items.Remove(HandleContextItemKey);
-
-        BeginAttachment();
     }
 
     /// <summary>
-    /// What a page's stay on its runtime holds, let go of — its staged values, its attach, the background commands it raised there —
-    /// whether it goes to another runtime or its connection closes; answers whether a runtime was detached.
+    /// What this connection holds of its runtime, let go of — its staged values, its attach — whether the page goes to another runtime
+    /// or its connection closes; answers whether a runtime was detached. A background command the page raised keeps running: it lives on
+    /// the page's stay on the runtime, which a page attaching again from the same window takes back.
     /// </summary>
     private bool ReleaseRuntime()
     {
         _stagedValues.ReleaseAttach(Context.ConnectionId);
 
-        var detached = _host.DetachRuntime(Context.ConnectionId);
-
-        // Cancelled, then let go: a command still finishing reads only whether it was cancelled, which a disposed source still answers.
-        if (Context.Items.TryGetValue(AttachmentContextItemKey, out var value) && value is CancellationTokenSource attachment)
-        {
-            attachment.Cancel();
-            attachment.Dispose();
-        }
-
-        return detached;
+        return _host.DetachRuntime(Context.ConnectionId);
     }
 
     /// <summary>The handle the attach left on this connection, if it attached.</summary>
@@ -795,9 +800,9 @@ internal sealed partial class WebUIHub : Hub
 
         command.Validate();
 
-        // The attachment's token: a background command keeps it, and ends with the page's stay on this runtime.
+        // The connection's token for an awaited command, which fails with it; a background one keeps the page's stay on the runtime instead.
         UICommandExecutionResult result = await _host
-            .ProcessEventAsync(handle, command, AttachmentAborted)
+            .ProcessEventAsync(handle, command, Context.ConnectionAborted)
             .ConfigureAwait(false);
 
         return _outgoing.Stage(result, handle.Session.SessionId, [Context.ConnectionId]);
@@ -809,7 +814,7 @@ internal sealed partial class WebUIHub : Hub
         var parameters = request.DynamicParameters;
 
         // Staged by this session; one that expired or is not its own fails the command rather than run it with no keys.
-        if (request.DynamicParametersToken is not null && !_stagedValues.TryTakeParameters(handle.Session.SessionId, request.DynamicParametersToken, out parameters))
+        if (request.DynamicParametersToken is not null && !_stagedValues.TryTakeParameters(handle.Session.SessionId, request.DynamicParametersToken, _application.Security.MaxClientValueElements, out parameters))
             throw new InvalidOperationException("The staged command keys were not found; they may have expired.");
 
         return new UICommandRequest { EventId = request.EventId, Action = request.Action, DynamicParameters = parameters, RequestId = request.RequestId };
@@ -898,11 +903,18 @@ internal sealed partial class WebUIHub : Hub
 
     private ClientValueUIUpdate CreateClientValueUpdate(UIHandle handle, WebUIValueChangeRequest update, UIPropertyAddress address)
     {
-        var value = update.Value;
+        UISecurityOptions security = _application.Security;
+        object? value;
 
-        // A large value was staged beside the hub by this session; one that expired or is not its own is a failed update, not null.
-        if (update.ValueToken is not null && !_stagedValues.TryTake(handle.Session.SessionId, update.ValueToken, out value))
+        if (update.ValueToken is null)
+        {
+            value = ObjectToInferredTypesConverter.ToInferredValue(update.Value, security.MaxClientValueElements, security.MaxClientValueDepth);
+        }
+        else if (!_stagedValues.TryTake(handle.Session.SessionId, update.ValueToken, security.MaxClientValueElements, security.MaxClientValueDepth, out value))
+        {
+            // A large value was staged beside the hub by this session; one that expired or is not its own is a failed update, not null.
             throw new InvalidOperationException("The staged value was not found; it may have expired.");
+        }
 
         return new ClientValueUIUpdate
         {

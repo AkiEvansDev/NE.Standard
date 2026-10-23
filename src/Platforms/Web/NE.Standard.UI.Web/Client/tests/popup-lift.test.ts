@@ -7,6 +7,7 @@ import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 const transitions = new Map<FakeElement, { transitionProperty: string; transitionDuration: string }>();
 const transformed = new Set<FakeElement>();
+const individual = new Map<FakeElement, { translate?: string; scale?: string; rotate?: string }>();
 
 installFakeDom({
     window: { innerWidth: 1000, innerHeight: 800, addEventListener: () => undefined },
@@ -21,6 +22,10 @@ installFakeDom({
         transform: transformed.has(element) ? "scale(0.5)" : "none",
         filter: "none",
         perspective: "none",
+        translate: "none",
+        scale: "none",
+        rotate: "none",
+        ...individual.get(element),
         getPropertyValue: () => "auto",
         ...transitions.get(element) ?? { transitionProperty: "all", transitionDuration: "0s" }
     })
@@ -65,4 +70,38 @@ test("a lifted popup with no overlay among its transitions is shown as it stands
 
     assert.equal(atShowing, undefined);
     assert.equal(after, undefined);
+});
+
+/** Places a popup under an ancestor wearing `style` and tells whether it was lifted into the top layer. */
+function liftedUnder(style: { translate?: string; scale?: string; rotate?: string }): boolean {
+    const box = FakeElement.of("box");
+    const anchor = FakeElement.of("anchor");
+    const popup = FakeElement.of("popup");
+    let shown = false;
+
+    Object.assign(popup, {
+        showPopover: () => {
+            shown = true;
+        }
+    });
+
+    anchor.rect = { left: 100, top: 300, width: 80, height: 30 };
+    popup.rect = { left: 0, top: 0, width: 120, height: 34 };
+    individual.set(box, style);
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(box.append(anchor.append(popup)));
+
+    placeAnchoredPopup(real(anchor), real(popup), { placement: "bottom", gap: 6 });
+
+    return shown;
+}
+
+test("a popup under an ancestor moved by an individual transform is lifted, even one moved by nothing", () => {
+    assert.equal(liftedUnder({ translate: "0px 0%" }), true);
+    assert.equal(liftedUnder({ scale: "0.5" }), true);
+    assert.equal(liftedUnder({ rotate: "45deg" }), true);
+});
+
+test("a popup under an ancestor with no transform of any kind stays where it stands", () => {
+    assert.equal(liftedUnder({}), false);
 });

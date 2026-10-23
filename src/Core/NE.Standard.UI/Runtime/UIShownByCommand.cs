@@ -179,7 +179,7 @@ internal sealed class UIShownByCommand
     }
 
     /// <summary>Whether the component stands in the rows of <paramref name="hostId"/>, whose key is the one at <paramref name="depth"/>.</summary>
-    private static bool StandsInRowsOf(UIComponentGraph graph, UIComponentId componentId, UIComponentId hostId, int depth)
+    internal static bool StandsInRowsOf(UIComponentGraph graph, UIComponentId componentId, UIComponentId hostId, int depth)
     {
         IReadOnlyList<UIComponentId> scopes = graph.GetItemScopes(componentId);
 
@@ -190,14 +190,14 @@ internal sealed class UIShownByCommand
     {
         for (var i = rows.Count - 1; i >= 0; i--)
         {
-            var keys = rows[i];
-
-            if (keys.Length > hostKeys.Length
-                && keys.AsSpan(0, hostKeys.Length).SequenceEqual(hostKeys)
-                && (rowKey is null || Equals(keys[hostKeys.Length], rowKey)))
-            {
+            if (IsUnder(rows[i], hostKeys, rowKey))
                 rows.RemoveAt(i);
-            }
         }
     }
+
+    /// <summary>Whether row keys name a row under <paramref name="hostKeys"/>: the one keyed <paramref name="rowKey"/>, or any where null.</summary>
+    internal static bool IsUnder(object?[] keys, object?[] hostKeys, string? rowKey)
+        => keys.Length > hostKeys.Length
+        && keys.AsSpan(0, hostKeys.Length).SequenceEqual(hostKeys)
+        && (rowKey is null || Equals(keys[hostKeys.Length], rowKey));
 }

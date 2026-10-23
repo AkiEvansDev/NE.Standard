@@ -16,10 +16,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// choice at length go under the toggle as the field's hint — <c>UIForm.Field(toggle, hint)</c> — which wraps.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(ITextComponent))]
-[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
 [UIComponentPropertyBlock(typeof(ISizedInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextMarkAlignmentComponent))]
-public abstract partial class CheckboxComponent<T> : TextInputComponentBase<T, bool?>, ITextComponent, ISizedInputComponent, IAccessibleNameComponent, ITextMarkAlignmentComponent
+public abstract partial class CheckboxComponent<T> : TextInputComponentBase<T, bool?>, ITextComponent, ISizedInputComponent, ITextMarkAlignmentComponent
     where T : CheckboxComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -34,6 +33,9 @@ public abstract partial class CheckboxComponent<T> : TextInputComponentBase<T, b
         IconAlignment = UITextIconAlignment.Title;
         BadgeAlignment = UITextBadgeAlignment.Title;
     }
+
+    /// <summary>None: its words stand beside its box, not over it.</summary>
+    public override UIInputSize? CaptionRowBox(UIResponsiveTier tier) => null;
 }
 
 /// <summary>

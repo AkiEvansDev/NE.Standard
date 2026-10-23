@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -14,9 +15,13 @@ public interface IOrientationComponent : IVisualComponent
     /// </summary>
     static UIProperty OrientationProperty { get; } = new UIProperty(nameof(Orientation));
 
+    /// <summary>The way a component runs when it says nothing else: down.</summary>
+    static UIResponsive<UIOrientation> DefaultOrientation { get; } = UIOrientation.Vertical;
+
     /// <summary>
-    /// Gets which way the component runs; vertical unless the component says otherwise.
+    /// Gets which way the component runs, optionally per breakpoint (a column on a phone, a row wider up); vertical unless the component
+    /// says otherwise.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIOrientation.Vertical)]
-    UIOrientation? Orientation { get; }
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultOrientation))]
+    UIResponsive<UIOrientation>? Orientation { get; }
 }

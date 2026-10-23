@@ -18,16 +18,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IAffixedInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(IPopupPlacementComponent))]
-public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IAffixedInputComponent, IPlaceholderInputComponent, IPopupPlacementComponent
+[UIComponentPropertyBlock(typeof(IClearableInputComponent))]
+public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IAffixedInputComponent, IPlaceholderInputComponent, IPopupPlacementComponent, IClearableInputComponent
     where T : SelectComponentBase<T, TItem, TValue>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
-    /// <summary>
-    /// Gets or sets whether the button that clears the selection is shown.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = false)]
-    public bool? ShowClearButton { get; set; }
-
     /// <summary>
     /// Gets or sets whether the field draws the mark that says it opens a list.
     /// </summary>
@@ -46,21 +41,8 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     }
 
     /// <summary>
-    /// Configures the built-in default empty template — what the list says while it shows no option — throwing if a different template
-    /// has been set.
-    /// </summary>
-    public T ConfigureDefaultEmptyTemplate(Action<DefaultEmptyTemplate> configure)
-        => Self.ConfigureTemplate(EmptyTemplate as DefaultEmptyTemplate, configure, "template");
-
-    /// <summary>
     /// Configures the built-in default group template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
         => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
-
-    /// <summary>
-    /// Shows the button that clears the selection.
-    /// </summary>
-    public T SetShowClearButton()
-        => SetShowClearButton(true);
 }

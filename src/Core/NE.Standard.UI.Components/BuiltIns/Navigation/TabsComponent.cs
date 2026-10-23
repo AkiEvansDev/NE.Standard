@@ -6,7 +6,6 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -16,7 +15,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// </summary>
 /// <remarks>Pages are regions known when the view is written; pages from a collection are <see cref="TabsViewComponent"/>.</remarks>
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
-public abstract partial class TabsComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), ISelectionStyleComponent
+[UIComponentPropertyBlock(typeof(ISelectedKeyComponent))]
+public abstract partial class TabsComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), ISelectionStyleComponent, ISelectedKeyComponent
     where T : TabsComponent<T>, IUIComponentDefinition
 {
     // Whose actions a flyout's anchor is refused among.
@@ -30,15 +30,6 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
     /// Gets the tab keys, in the order their captions appear.
     /// </summary>
     public IReadOnlyList<string> TabKeys => _keys;
-
-    /// <summary>
-    /// Gets or sets the key of the page currently shown; two-way, so a click writes the new key back.
-    /// </summary>
-    [UIComponentProperty(
-        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
-        DefaultBindingMode = UIBindingMode.TwoWay,
-        DefaultValue = null)]
-    public string? SelectedKey { get; set; }
 
     /// <summary>
     /// Gets or sets whether the captions past the strip's room go behind a "…" list; off, the strip wraps them onto the next line.

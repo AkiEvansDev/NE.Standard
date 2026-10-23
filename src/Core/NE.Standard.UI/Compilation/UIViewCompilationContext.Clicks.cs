@@ -5,8 +5,11 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Items;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
@@ -21,10 +24,15 @@ internal sealed partial class UIViewCompilationContext
     /// <summary>
     /// The value a component implies where its author left a property unset: a clickable component with a click of its own — a command
     /// or an interaction on its click, or an address it links to — is clickable, as if its author had said so; a set or bound
-    /// <c>Clickable</c> stays the gate.
+    /// <c>Clickable</c> stays the gate. A thing beside captioned fields stands level with their boxes (<see cref="ImpliedFieldBoxes"/>).
     /// </summary>
-    private bool? ImpliedValue(IVisualComponent component, UIProperty property)
-        => property.Equals(IClickableComponent.ClickableProperty) && component is IClickableComponent && HasClickOfItsOwn(component) ? true : null;
+    private object? ImpliedValue(IVisualComponent component, UIProperty property)
+    {
+        if (property.Equals(IClickableComponent.ClickableProperty))
+            return component is IClickableComponent && HasClickOfItsOwn(component) ? true : null;
+
+        return property.Equals(IVisualComponent.AlignWithFieldBoxesProperty) ? ImpliedFieldBoxes(component) : null;
+    }
 
     private bool HasClickOfItsOwn(IVisualComponent component)
         => HasEvent(component, EventNames.Click) || ClickInteractionSources().Contains(component.Id) || IsLink(component);
@@ -64,12 +72,16 @@ internal sealed partial class UIViewCompilationContext
     /// takes none. Its right-click menu is a popup of its own, not a control it holds, but no input stands in it: the page keeps every
     /// press in a link's menu from the link, a box's own tick or a picker's chooser with it.
     /// </summary>
+    /// <remarks>
+    /// A menu's entry and a trail's step (<see cref="IEntryLinkComponent"/>) take a click command beside their address only as their
+    /// host's template (<see cref="IsHostsEntry"/>); one placed with an address of its own and a click of its own races as any link does.
+    /// </remarks>
     private void ValidateLink(IVisualComponent component)
     {
         if (!IsLink(component))
             return;
 
-        if (HasEvent(component, EventNames.Click))
+        if (HasEvent(component, EventNames.Click) && !IsHostsEntry(component))
             throw new InvalidOperationException($"'{component.Id}' links to an address and runs a command on its click; the press would race the navigation, so drop the Url or the click command.");
 
         if (SetOrBound(component, ButtonComponent.PressedProperty) || SetOrBound(component, ButtonComponent.OpensDrawerProperty) || SetOrBound(component, ButtonComponent.PinsDrawerProperty))
@@ -83,6 +95,23 @@ internal sealed partial class UIViewCompilationContext
             if (slot.Kind == UIComponentSlotKind.ContextMenu && FindInput(slot.Root) is IVisualComponent input)
                 throw new InvalidOperationException($"'{component.Id}' links to an address and its right-click menu holds '{input.Id}', an input; a press in a link's menu is kept from the link, the input's own toggle or chooser with it, so drop the Url or the input.");
         }
+    }
+
+    /// <summary>
+    /// Whether a link is an entry its host draws every entry with: its address bound per entry (Relative, the row's own), or it is the
+    /// template the host's item click (<see cref="IItemClickComponent"/>) is registered on, so the command is the host's for the entries
+    /// with no address. An address bound to the controller is one address for every press, which races as a written one does.
+    /// </summary>
+    private bool IsHostsEntry(IVisualComponent component)
+    {
+        if (component is not IEntryLinkComponent)
+            return false;
+
+        if (FindBinding(component, ILinkableComponent.UrlProperty) is { Scope: UIBindingScope.Relative })
+            return true;
+
+        return _slotByRootComponentId.TryGetValue(component.Id, out UIComponentSlot? slot) && IsItemsTemplateSlot(slot.Kind)
+            && _components[GetAuthoringId(slot.OwnerComponentId)] is IItemClickComponent;
     }
 
     /// <summary>Whether the component's type has the property and the component sets or binds it: a button's or an action row's alike.</summary>

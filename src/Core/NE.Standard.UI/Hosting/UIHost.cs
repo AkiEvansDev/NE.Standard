@@ -158,7 +158,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
     private readonly IUserSessionResolver _sessionResolver;
     private readonly IUIAuthorizationService _authorization;
     private readonly IResolveExceptionViewHandler _resolveViewExceptionHandler;
-    private readonly UIMetrics _metrics;
+
+    /// <summary>The host's instruments, for a runtime to record what only it sees.</summary>
+    internal UIMetrics Metrics { get; }
 
     // Set by the first refusal on MaxRuntimesTotal, cleared by the next runtime built: a burst of refusals is logged once.
     private int _runtimesFullReported;
@@ -184,11 +186,11 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
 
         _scheduler = new RuntimeScheduler(logger);
 
-        Dispatcher = new UIUpdateDispatcher(() => ResolveClientServices().Updates, _logger, maxQueued: application.Persistence.MaxQueuedChangeSets);
+        Dispatcher = new UIUpdateDispatcher(() => ResolveClientServices().Updates, _logger, maxQueued: application.Persistence.MaxQueuedChangeSets, maxQueuedBytes: application.Persistence.MaxQueuedChangeBytes ?? 0, sendTimeout: application.Persistence.SendTimeout ?? Timeout.InfiniteTimeSpan);
 
-        _metrics = new UIMetrics(services.GetService<IMeterFactory>(), RuntimeStore, Dispatcher, services);
+        Metrics = new UIMetrics(services.GetService<IMeterFactory>(), RuntimeStore, Dispatcher, services);
 
-        _scheduler.Add(new UIFlushTask(RuntimeStore, Dispatcher, _logger, interval: application.Persistence.FlushSchedulerInterval, maxParallelFlushes: application.Persistence.MaxParallelFlushes, metrics: _metrics));
+        _scheduler.Add(new UIFlushTask(RuntimeStore, Dispatcher, _logger, interval: application.Persistence.FlushSchedulerInterval, maxParallelFlushes: application.Persistence.MaxParallelFlushes, metrics: Metrics));
         // As often as the unclaimed timeout at least, or a crawler's sessions would wait out the long interval anyway.
         _scheduler.Add(new UISessionCleanupTask(() => _services.GetRequiredService<IUserSessionStore>(), (sessionId, _) => EndRemovedSessionAsync(sessionId, except: null), _logger, interval: Min(application.Sessions.CleanupInterval, application.Sessions.UnclaimedIdleTimeout), application.Sessions));
         _scheduler.Add(new UIFileCleanupTask(() => _services.GetRequiredService<IUIFileStore>(), _logger, interval: application.Files.CleanupInterval, uploadRetention: application.Files.UploadRetention, downloadRetention: application.Files.DownloadRetention));
@@ -473,9 +475,29 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
 
         session = WithTimeZone(session, reportedZone ?? session.TimeZone);
 
-        await store.SaveAsync(ToStoredSession(session, stored: null, phase, utcNow), cancellationToken).ConfigureAwait(false);
+        UserSessionState saved = ToStoredSession(session, stored: null, phase, utcNow);
+
+        await store.SaveAsync(saved, cancellationToken).ConfigureAwait(false);
+
+        if (saved.IsUnclaimed)
+            AdmitUnclaimedSession(store, saved.SessionId);
 
         return new ResolvedSession(session, issued);
+    }
+
+    /// <summary>
+    /// Holds the in-memory store to <see cref="UISessionOptions.MaxUnclaimedSessions"/>, oldest first. A session given up keeps its
+    /// runtimes no tab presented for their short retention, rather than ending them on this load: a flood is what fills it.
+    /// </summary>
+    private void AdmitUnclaimedSession(IUserSessionStore store, string sessionId)
+    {
+        if (_application.Sessions.MaxUnclaimedSessions is not int max || max <= 0 || UserSessionMemoryStore.Of(store) is not { } memory)
+            return;
+
+        var evicted = memory.AdmitUnclaimed(sessionId, max);
+
+        if (evicted > 0)
+            Metrics.SessionsEvicted(evicted);
     }
 
     /// <summary>The zone the client reported, where this host knows it; an unknown one leaves the session's as it was.</summary>
@@ -798,7 +820,10 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         var adopted = !IsRendersOwn(handle.Instance);
 
         var maxTotal = _application.Persistence.MaxRuntimesTotal ?? 0;
-        UIRuntimeEntry? added = RuntimeStore.GetOrAdd(key, handle.Instance.Id, () => CreateRuntime(handle, resolution.Route, resolution.View), DateTime.UtcNow, ResolveFlushOptions(resolution.Route), _application.Persistence.MaxRuntimesPerSession, _application.Persistence.MaxUnclaimedRuntimesPerSession, maxTotal, adopted, out var created, out var attached, out var activeInstances, out IUIRuntime? evicted, out IUIRuntime? unused);
+        UIRuntimeEntry? added = RuntimeStore.GetOrAdd(key, handle.Instance.Id, () => CreateRuntime(handle, resolution.Route, resolution.View), DateTime.UtcNow, ResolveFlushOptions(resolution.Route), _application.Persistence.MaxRuntimesPerSession, _application.Persistence.MaxUnclaimedRuntimesPerSession, maxTotal, adopted, out var created, out var attached, out var activeInstances, out IUIRuntime? evicted, out UIRuntimeEviction eviction, out IUIRuntime? unused);
+
+        if (evicted is not null)
+            Metrics.RuntimeEvicted(eviction);
 
         // Built for a key another attach filled first, or a session or the process that filled meanwhile; never started, so disposing is all of it.
         await DisposeIfAnyAsync(unused).ConfigureAwait(false);
@@ -814,7 +839,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
                 if (Volatile.Read(ref _runtimesFullReported) != 0)
                     Volatile.Write(ref _runtimesFullReported, 0);
 
-                _metrics.RuntimeCreated();
+                Metrics.RuntimeCreated();
 
                 Log.CreatedRuntime(_logger, resolution.Route.Route, handle.Instance.WindowId, handle.Instance.Id, activeInstances);
 
@@ -829,7 +854,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
 
                     TimeSpan startElapsed = Stopwatch.GetElapsedTime(starting);
 
-                    _metrics.RuntimeStarted(startElapsed);
+                    Metrics.RuntimeStarted(startElapsed);
                     Log.RuntimeStarted(_logger, resolution.Route.Route, startElapsed.TotalMilliseconds);
                 }
                 catch (Exception error)
@@ -872,6 +897,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
 
         await DropLeftPageRuntimesAsync(key).ConfigureAwait(false);
 
+        if (adopted)
+            EndLeftPageStays(key, handle.Instance.WindowId);
+
         RuntimeResolution runtimeResolution = new()
         {
             ViewResolution = resolution,
@@ -899,7 +927,11 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
     /// </summary>
     private InvalidOperationException RefuseRuntime(int maxTotal)
     {
-        if (!RuntimeStore.IsProcessFull(maxTotal))
+        var processFull = RuntimeStore.IsProcessFull(maxTotal);
+
+        Metrics.RuntimeRefused(processFull);
+
+        if (!processFull)
             return UIRuntimeStore.SessionFull(_application.Persistence.MaxRuntimesPerSession);
 
         if (Interlocked.Exchange(ref _runtimesFullReported, 1) == 0)
@@ -980,6 +1012,18 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
 
         for (var i = 0; i < left.Length; i++)
             await DisposeRuntimeAsync(left[i]).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Ends the tab's stay on every other runtime of its session: it went to this one — a switch, a load of another page, an attach
+    /// answered fresh — and the background commands it raised there are cancelled. A runtime it attaches to again keeps them.
+    /// </summary>
+    private void EndLeftPageStays(UIRuntimeKey key, string windowId)
+    {
+        UIRuntimeBase[] others = RuntimeStore.GetSessionRuntimesHoldingStaysExcept(key.SessionId, key);
+
+        for (var i = 0; i < others.Length; i++)
+            others[i].EndPageStay(windowId);
     }
 
     private static UIRuntimeKey CreateRuntimeKey(UIPersistenceOptions persistence, UIRouteDefinition route, string sessionId, UINavigationRequest navigation, string clientWindowId)
@@ -1401,7 +1445,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
 
         var started = Stopwatch.GetTimestamp();
         var succeeded = false;
-        Task<bool>? completion = null;
+        Task<UICommandRunOutcome>? completion = null;
 
         try
         {
@@ -1415,7 +1459,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         {
             // An accepted background command is measured to its pushed result, not to the answer that it was accepted.
             if (completion is null)
-                CompleteCommand(activity, route, command, succeeded, started);
+                CompleteCommand(activity, route, command, CommandOutcome(succeeded, cancellationToken), started);
             else
                 _ = CompleteDetachedCommandAsync(completion, activity, route, command, started);
         }
@@ -1509,24 +1553,35 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         }
     }
 
-    private void CompleteCommand(Activity? activity, string route, string? command, bool succeeded, long started)
+    /// <summary>A command's outcome for the meter: a failure under a cancelled token is its page leaving, not the command failing.</summary>
+    private static string CommandOutcome(bool succeeded, CancellationToken cancellationToken)
+        => succeeded ? "ok" : cancellationToken.IsCancellationRequested ? "cancelled" : "failed";
+
+    private void CompleteCommand(Activity? activity, string route, string? command, string outcome, long started)
     {
         TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
+        var succeeded = outcome == "ok";
 
-        _metrics.CommandCompleted(route, succeeded, elapsed);
+        Metrics.CommandCompleted(route, outcome, elapsed);
         _ = activity?.SetStatus(succeeded ? ActivityStatusCode.Ok : ActivityStatusCode.Error);
         activity?.Dispose();
 
         if (command is not null)
-            Log.CommandCompleted(_logger, command, route, succeeded ? "succeeded" : "failed", elapsed.TotalMilliseconds);
+            Log.CommandCompleted(_logger, command, route, succeeded ? "succeeded" : outcome, elapsed.TotalMilliseconds);
     }
 
-    private async Task CompleteDetachedCommandAsync(Task<bool> completion, Activity? activity, string route, string? command, long started)
+    /// <remarks>The run's own outcome: it lives on its tab's stay, so the invoke's connection token says nothing of how it ended.</remarks>
+    private async Task CompleteDetachedCommandAsync(Task<UICommandRunOutcome> completion, Activity? activity, string route, string? command, long started)
     {
         // The run never faults: its failures are its result.
-        var succeeded = await completion.ConfigureAwait(false);
+        var outcome = await completion.ConfigureAwait(false) switch
+        {
+            UICommandRunOutcome.Succeeded => "ok",
+            UICommandRunOutcome.Cancelled => "cancelled",
+            _ => "failed"
+        };
 
-        CompleteCommand(activity, route, command, succeeded, started);
+        CompleteCommand(activity, route, command, outcome, started);
     }
 
     /// <inheritdoc />
@@ -2005,7 +2060,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         }
         finally
         {
-            _metrics.Dispose();
+            Metrics.Dispose();
         }
     }
 
@@ -2021,7 +2076,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         }
         finally
         {
-            _metrics.Dispose();
+            Metrics.Dispose();
         }
     }
 }

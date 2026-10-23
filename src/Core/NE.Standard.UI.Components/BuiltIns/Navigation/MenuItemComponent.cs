@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Annotations;
@@ -11,8 +11,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// One entry of a <see cref="MenuComponent"/>: the button's own content plus a destination and a current
 /// state.
 /// </summary>
-/// <remarks>Rendered as an anchor; an entry with a command and no <see cref="Url"/> is still one, just without an <c>href</c>.</remarks>
-public abstract partial class MenuItemComponent<T> : ButtonComponent<T>
+/// <remarks>
+/// Rendered as an anchor; an entry with a command and no <c>Url</c> is still one, just without an <c>href</c>. An entry may carry an
+/// address and a command both (<see cref="IEntryLinkComponent"/>).
+/// </remarks>
+[UIComponentPropertyBlock(typeof(ILinkableComponent))]
+public abstract partial class MenuItemComponent<T> : ButtonComponent<T>, IEntryLinkComponent
     where T : MenuItemComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -21,14 +25,6 @@ public abstract partial class MenuItemComponent<T> : ButtonComponent<T>
     /// <remarks>Render-time only, not bindable: the menu already picks a template variant from <c>IMenuItemModel.Kind</c>.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = UIMenuItemKind.Item)]
     public UIMenuItemKind? Kind { get; set; }
-
-    /// <summary>
-    /// Gets or sets the destination this entry navigates to.
-    /// </summary>
-    [SuppressMessage("Design", "CA1056:URI-like properties should not be strings", Justification = "The value is only ever written verbatim into an href attribute; a Uri type would require additional rendering/converter plumbing with no benefit here.")]
-    [Translatable]
-    [UIComponentProperty(DefaultValue = null)]
-    public string? Url { get; set; }
 
     /// <summary>
     /// Gets or sets whether this entry is the current one.

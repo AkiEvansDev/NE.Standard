@@ -358,7 +358,7 @@ internal abstract partial class UIRuntimeBase
 
         ServerChangeSet reloaded = await InSendOrderAsync(() => TakeReloadedTurnAsync(target, publish, cancellationToken), cancellationToken).ConfigureAwait(false);
 
-        return AppendUpdates(changes, reloaded);
+        return changes.Append(reloaded);
     }
 
     /// <summary>
@@ -496,6 +496,7 @@ internal abstract partial class UIRuntimeBase
             {
                 if (!accepted)
                 {
+                    _host.Metrics.ValueRefused("refused");
                     (refusals ??= []).Add(BuildServerValueNoLock(write.Binding, write.Path, BindingKeys(write.Update, write.Binding)));
                     continue;
                 }

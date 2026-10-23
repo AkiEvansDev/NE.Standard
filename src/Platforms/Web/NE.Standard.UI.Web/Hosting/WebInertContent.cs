@@ -39,11 +39,16 @@ internal static class WebInertContent
 
     /// <summary>
     /// Writes the policy, marks a type a browser would render as a document or a page could run to be saved instead of shown, and
-    /// answers the type to serve: the one given, or <c>application/octet-stream</c> for a type a page could run.
+    /// answers the type to serve: the one given, or <c>application/octet-stream</c> for a type a page could run. With
+    /// <paramref name="inlinePassive"/>, a type that runs nothing (<see cref="IsPassive"/>) goes out as it is, shown in the page's origin.
     /// </summary>
-    public static string Apply(HttpResponse response, string contentType)
+    public static string Apply(HttpResponse response, string contentType, bool inlinePassive)
     {
         ArgumentNullException.ThrowIfNull(response);
+
+        // No sandbox for these alone: Chromium opens no PDF viewer in a sandboxed response, and under nosniff none of them runs script.
+        if (inlinePassive && IsPassive(contentType))
+            return contentType;
 
         response.Headers.ContentSecurityPolicy = Policy;
 
@@ -86,6 +91,24 @@ internal static class WebInertContent
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Whether a browser shows this type without running anything of it: a PDF, a raster picture, plain text, audio or video — never
+    /// SVG, HTML or another document type, and never a type that does not parse.
+    /// </summary>
+    public static bool IsPassive(string? contentType)
+    {
+        if (RendersAsDocument(contentType) || RunsAsSubresource(contentType) || !MediaTypeHeaderValue.TryParse(contentType, out MediaTypeHeaderValue? parsed))
+            return false;
+
+        ReadOnlySpan<char> type = parsed.MediaType.AsSpan();
+
+        return type.Equals("application/pdf", StringComparison.OrdinalIgnoreCase)
+            || type.Equals("text/plain", StringComparison.OrdinalIgnoreCase)
+            || type.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+            || type.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
+            || type.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

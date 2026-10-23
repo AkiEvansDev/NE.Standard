@@ -432,7 +432,11 @@ internal abstract partial class UIRuntimeBase
     void IUIRuntimeAccess.RequestFullResync()
     {
         ThrowIfDisposed();
-        _ = Interlocked.Exchange(ref _fullResyncRequested, 1);
+
+        // Counted once a resync: asked again before it is taken, it is the same one.
+        if (Interlocked.Exchange(ref _fullResyncRequested, 1) == 0)
+            _host.Metrics.ResyncRequested();
+
         OnFullResyncRequested();
     }
 

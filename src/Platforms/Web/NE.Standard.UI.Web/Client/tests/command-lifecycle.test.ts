@@ -94,6 +94,7 @@ function createPage(eventName: string, form: "passes" | "fails" | "none", rowsOw
             whenSent: () => Promise.resolve(),
             whenSettled: () => Promise.resolve(),
             pressForm: () => ({ values: new Map(), close: () => undefined }),
+            conflictedField: () => null,
             submitFormAsync: () => {
                 steps.push("held-values");
 

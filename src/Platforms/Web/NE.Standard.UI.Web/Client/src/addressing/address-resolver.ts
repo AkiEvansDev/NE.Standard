@@ -1,15 +1,16 @@
-import { BindingAttributePrefix, IntoAttributePrefix, cssAttributeValue, toKebabCase } from "./dom-attributes";
-import { DomRegistry } from "./dom-registry";
-import { resolveOperationElements } from "./operation-targets";
-import {
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { BindingAttributePrefix, IntoAttributePrefix, cssAttributeValue, toKebabCase } from "./dom-attributes.ts";
+import type { DomRegistry } from "./dom-registry.ts";
+import { resolveOperationElements } from "./operation-targets.ts";
+import { getIdValue } from "../metadata/metadata-index.ts";
+import type {
     MetadataIndex,
     UIPropertyAddress,
     WebDomOperation,
     WebRenderBindingMetadata,
     WebRenderPropertyDefinitionMetadata,
-    WebRenderPropertyReferenceMetadata,
-    getIdValue
-} from "../metadata/metadata-index";
+    WebRenderPropertyReferenceMetadata
+} from "../metadata/metadata-index.ts";
 
 export type ResolvedPropertyAddress = {
     readonly componentId: number;
@@ -21,6 +22,14 @@ export type ResolvedPropertyAddress = {
     readonly address: UIPropertyAddress;
     readonly bindingId: number;
     readonly bindingSelector: string | null;
+    // The element a caller writes through its binding (`PropertyPatchEngine.writeBoundValue`): a target beside the binding's own.
+    readonly boundElement?: Element;
+};
+
+/** An element and the binding it is written through. */
+export type BoundElement = {
+    readonly bindingId: number;
+    readonly element: Element;
 };
 
 export class AddressResolver {
@@ -28,10 +37,12 @@ export class AddressResolver {
     private readonly bindingSelectors = new Map<number, string>();
     private readonly intoSelectors = new Map<string, string>();
 
-    public constructor(
-        private readonly dom: DomRegistry,
-        private readonly metadata: MetadataIndex
-    ) {
+    private readonly dom: DomRegistry;
+    private readonly metadata: MetadataIndex;
+
+    public constructor(dom: DomRegistry, metadata: MetadataIndex) {
+        this.dom = dom;
+        this.metadata = metadata;
     }
 
     public getBindingById(bindingId: number): WebRenderBindingMetadata | undefined {
@@ -97,8 +108,11 @@ export class AddressResolver {
         return selector;
     }
 
-    /** The property on one component element the caller holds — a part a package drew, perhaps one of several clones of a template. */
-    public resolvePropertyOn(component: Element, reference: WebRenderPropertyReferenceMetadata): ResolvedPropertyAddress | null {
+    /**
+     * The property on one component element the caller holds — a part a package drew, perhaps one of several clones of a template.
+     * Given a bound element, it lands where a push of the binding does and on that element; else on the marked or root element.
+     */
+    public resolvePropertyOn(component: Element, reference: WebRenderPropertyReferenceMetadata, bound?: BoundElement): ResolvedPropertyAddress | null {
         const componentId = getIdValue(reference.componentId);
         const definition = this.metadata.getPropertyDefinition(reference.propertyId);
 
@@ -112,8 +126,9 @@ export class AddressResolver {
             dynamicParameters: [],
             component,
             definition,
-            bindingId: 0,
-            bindingSelector: null,
+            bindingId: bound?.bindingId ?? 0,
+            bindingSelector: bound === undefined ? null : this.bindingSelector(bound.bindingId, definition.propertyName),
+            boundElement: bound?.element,
             address: { component: { id: componentId, dynamicParameters: [] }, property: definition.propertyName }
         };
     }
@@ -132,6 +147,10 @@ export class AddressResolver {
 
             if (resolved.component.matches(resolved.bindingSelector))
                 elements.unshift(resolved.component);
+
+            // An element marked `data-ui-bind-value` for a property of another name carries no attribute of that name.
+            if (resolved.boundElement !== undefined && !elements.includes(resolved.boundElement))
+                elements.unshift(resolved.boundElement);
 
             return elements;
         });

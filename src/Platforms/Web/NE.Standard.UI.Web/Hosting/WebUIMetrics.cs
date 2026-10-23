@@ -24,6 +24,7 @@ internal sealed class WebUIMetrics : IDisposable
     private readonly Histogram<double> _renderDuration;
     private readonly Histogram<long> _renderLength;
     private readonly Counter<long> _filesTransferred;
+    private readonly Counter<long> _attaches;
 
     public WebUIMetrics(IServiceProvider services, WebValueStagingStore values)
     {
@@ -39,6 +40,7 @@ internal sealed class WebUIMetrics : IDisposable
         _renderDuration = _meter.CreateHistogram<double>("ne.ui.web.render.duration", "s", "How long a page render took, from the resolved view to the finished document.");
         _renderLength = _meter.CreateHistogram<long>("ne.ui.web.render.length", "{char}", "How long a rendered page is, in characters, before compression.");
         _filesTransferred = _meter.CreateCounter<long>("ne.ui.web.files.transferred", "By", "Bytes of files uploaded to and downloaded from the file endpoints.");
+        _attaches = _meter.CreateCounter<long>("ne.ui.web.attaches", "{attach}", "Hub attaches by outcome: attached, fresh (its runtime gone, the page reloads), reload, or failed.");
 
         _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held", () => ObserveHeld(services, static cache => cache.HeldCount), "{render}", "The renders the render cache holds in memory.");
         _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held.size", () => ObserveHeld(services, static cache => cache.HeldBytes), "By", "The bytes the renders the render cache holds in memory take.");
@@ -75,6 +77,10 @@ internal sealed class WebUIMetrics : IDisposable
         _renderDuration.Record(elapsed.TotalSeconds, tag);
         _renderLength.Record(length, tag);
     }
+
+    /// <summary>Records an attach's outcome: <c>attached</c>, <c>fresh</c>, <c>reload</c> or <c>failed</c>.</summary>
+    public void Attached(string outcome)
+        => _attaches.Add(1, new KeyValuePair<string, object?>("ne.ui.attach.outcome", outcome));
 
     public void FileUploaded(long bytes)
         => _filesTransferred.Add(bytes, new KeyValuePair<string, object?>("ne.ui.io.direction", "upload"));

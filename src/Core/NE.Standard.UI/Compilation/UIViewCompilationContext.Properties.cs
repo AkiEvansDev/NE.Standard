@@ -4,8 +4,10 @@ using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Items;
@@ -212,8 +214,27 @@ internal sealed partial class UIViewCompilationContext
 
     /// <summary>Whether a component says <c>SubmitOnEnter</c>, set or bound.</summary>
     private bool SubmitsOnEnter(IVisualComponent component)
-        => TryGetPropertyDefinition(component.TypeKey, TextAreaComponent.SubmitOnEnterProperty, out UIPropertyDefinition? definition)
+        => IsTrueOrBound(component, TextAreaComponent.SubmitOnEnterProperty);
+
+    /// <summary>Whether the component's type has the flag and the component sets it true or binds it.</summary>
+    private bool IsTrueOrBound(IVisualComponent component, UIProperty property)
+        => TryGetPropertyDefinition(component.TypeKey, property, out UIPropertyDefinition? definition)
             && (definition.Getter(component) is true || FindBinding(component, definition.Property) is not null);
+
+    /// <summary>
+    /// Advises a clear asked of a field that edits a period, which draws none: its row keeps its end for the picker's toggle, and two
+    /// fields under one caption have no one value to empty.
+    /// </summary>
+    private void WarnOnClearOfAPeriod()
+    {
+        for (var i = 0; i < _componentOrder.Count; i++)
+        {
+            IVisualComponent component = _componentOrder[i];
+
+            if (component is IClearableInputComponent and IPeriodInputComponent && IsTrueOrBound(component, IPeriodInputComponent.IsRangeProperty) && IsTrueOrBound(component, IClearableInputComponent.ShowClearButtonProperty))
+                _warnings.Add(new(UICompileWarningKind.Advisory, $"Component '{component.Id}' asks for '{nameof(IClearableInputComponent.ShowClearButton)}' but edits a period, which draws no clear; the reader empties each part in its own field."));
+        }
+    }
 
     private UIPropertyDefinition GetRequiredPropertyDefinition(string typeKey, UIProperty property)
         => TryGetPropertyDefinition(typeKey, property, out UIPropertyDefinition? definition)

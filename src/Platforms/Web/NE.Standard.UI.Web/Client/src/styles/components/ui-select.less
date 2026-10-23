@@ -40,18 +40,16 @@
     color: var(--ui-text-placeholder);
 }
 
-// The text input's clear cross, a step smaller beside the chevron; only with a value, never on a read-only select.
+// The text input's clear cross, a step smaller beside the chevron, under the same rule as every field's: a select (and a search)
+// is empty without a chosen value on its root; a multi-select says it by its chips (ui-multi-select.less).
 .ui-select__clear {
     .ui-field-adornment();
     .ui-cross-glyph(@ui-glyph-xs);
-    display: none;
     width: 1rem;
     height: 1rem;
 }
 
-.ui-select--clearable[data-ui-select-value]:not([data-ui-select-value=""]):not(.ui-readonly) .ui-select__trigger .ui-select__clear {
-    display: inline-flex;
-}
+.ui-field-clear-host(~".ui-select:not(.ui-multi-select)"; ~".ui-select__trigger .ui-select__clear"; ~".ui-select:not(.ui-multi-select):is(:not([data-ui-select-value]), [data-ui-select-value='']) .ui-select__trigger .ui-select__clear");
 
 .ui-select--no-chevron .ui-select__chevron {
     display: none;

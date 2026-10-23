@@ -163,6 +163,42 @@
     transition: @ui-root-transition;
 }
 
+// A control with no caption over it beside a captioned field (AlignWithFieldBoxes, which the compiler decides where the author did
+// not) stands level with its box, in the tiers written: the renderer writes each tier's line, 0 or 1, and the box it centres on. A
+// panel draws it as its padding and least height (ui-stack-panel.less); anything else is set down by a caption's line and the input
+// root's gap under it as its top margin's default (the compiler implies none over an authored Margin), and its middle onto the
+// band's by `translate`, never up: a thing taller than the box stands with its top on the box's. The translate only in the tiers it
+// stands level in, so elsewhere it is no containing block or stacking context; it stays inside its line, which a captioned neighbour
+// on the same line (never a wrapping panel's) makes caption and box tall. Rejected: a cell around it (a hidden thing left its cell's
+// gap, and every arrangement wrapped its children by hand).
+.ui-field-aligned[data-ui-id] {
+    .ui-responsive-reset(--ui-field-aligned);
+    .ui-responsive-reset(--ui-field-aligned-box);
+    // A field's box by its Size (ui-input.less).
+    --ui-field-box-small: @ui-control-height-sm;
+    --ui-field-box-medium: @ui-control-height;
+    --ui-field-box-large: @ui-control-height-lg;
+}
+
+.ui-field-aligned[data-ui-id]:not(.ui-stack-panel) {
+    @lines: .ui-responsive-chain(--ui-field-aligned; 0)[@value];
+    .ui-responsive-property(margin, --ui-margin, ~"calc(@{lines} * (var(--ui-text-caption-line-height) + @{ui-space-1})) 0 0");
+}
+
+// Held by its top where it stands level, as a form row holds its fields: centred or stretched, a field growing its message would
+// drop it off the box. Its own alignment is no custom property, so per band by the tiers named, above the rule a field-aligned row
+// holds its children by (ui-stack-panel.less, 0,4,0).
+.ui-responsive-bands(base sm md xl xxl; {
+    [data-ui-id].ui-field-aligned.ui-field-aligned.ui-field-aligned[data-ui-field-aligned~="@{tier}"] {
+        align-self: start;
+    }
+
+    [data-ui-id].ui-field-aligned.ui-field-aligned.ui-field-aligned[data-ui-field-aligned~="@{tier}"]:not(.ui-stack-panel) {
+        @box: .ui-responsive-chain(--ui-field-aligned-box; 0px)[@value];
+        translate: 0 ~"max(0px, calc(@{box} / 2 - 50%))";
+    }
+});
+
 // A centred item is centred safely (`safe center`): one taller or wider than its room keeps its start in view and overflows at its end
 // alone, where a plain centre cut it at both (an empty state in a short pane). The plain centre first, for an engine without `safe`;
 // a custom property takes any value, so the safe one waits on @supports rather than following it. Rejected: centring by hand in
@@ -186,6 +222,46 @@
 [data-ui-id][style*="--ui-align-v: center"] {
     --ui-align-v: var(--ui-center) !important;
 }
+
+// A stretch has a fallback where there is no height to stretch into (a collapsed expander): start, read from the tier in force.
+[data-ui-id][style*="--ui-align-v: stretch"] {
+    --ui-align-v-stretch-fallback: start;
+}
+
+// An alignment per breakpoint (HorizontalAlignment, VerticalAlignment) is written inline a custom property per tier, the base under
+// the one name every rule reads; from its breakpoint up a wider tier is lifted into that name, its centre the safe one and its
+// stretch's fallback its own. Important, over the inline base; the widest tier written wins, being last. Rejected: a chain in every
+// rule reading the name (thirty of them, and the safe centre matches the inline text); a class per tier (an alignment is a value
+// the rules read, not a shape the stylesheet draws).
+.ui-align-tier(@tier; @breakpoint) {
+    @media (min-width: @breakpoint) {
+        [data-ui-id][style*="--ui-align-h-@{tier}:"] {
+            --ui-align-h: var(~"--ui-align-h-@{tier}") !important;
+        }
+
+        [data-ui-id][style*="--ui-align-h-@{tier}: center"] {
+            --ui-align-h: var(--ui-center) !important;
+        }
+
+        [data-ui-id][style*="--ui-align-v-@{tier}:"] {
+            --ui-align-v: var(~"--ui-align-v-@{tier}") !important;
+            --ui-align-v-stretch-fallback: initial !important;
+        }
+
+        [data-ui-id][style*="--ui-align-v-@{tier}: center"] {
+            --ui-align-v: var(--ui-center) !important;
+        }
+
+        [data-ui-id][style*="--ui-align-v-@{tier}: stretch"] {
+            --ui-align-v-stretch-fallback: start !important;
+        }
+    }
+}
+
+.ui-align-tier(sm; @ui-breakpoint-sm);
+.ui-align-tier(md; @ui-breakpoint-md);
+.ui-align-tier(xl; @ui-breakpoint-xl);
+.ui-align-tier(xxl; @ui-breakpoint-xxl);
 
 :where([data-ui-id]) {
     color: inherit;

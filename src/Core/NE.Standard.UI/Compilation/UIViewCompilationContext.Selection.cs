@@ -18,7 +18,7 @@ internal sealed partial class UIViewCompilationContext
 
             UISelectionMode mode = selectable.SelectionMode ?? UISelectionMode.None;
 
-            if (mode != UISelectionMode.One && FindBinding(selectable, ISelectableItemsComponent.SelectedKeyProperty) is not null)
+            if (mode != UISelectionMode.One && FindBinding(selectable, ISelectedKeyComponent.SelectedKeyProperty) is not null)
                 _warnings.Add(new(UICompileWarningKind.Advisory, $"Component '{selectable.Id}' binds '{nameof(ISelectableItemsComponent.SelectedKey)}' but its selection mode is {mode}, which never reads it."));
 
             if (mode != UISelectionMode.Many && FindBinding(selectable, ISelectableItemsComponent.SelectedKeysProperty) is not null)

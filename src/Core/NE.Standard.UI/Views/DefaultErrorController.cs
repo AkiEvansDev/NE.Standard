@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Controllers;
+using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Shell.Commands;
 
@@ -46,9 +47,11 @@ internal sealed partial class DefaultErrorController : UIControllerBase
     public static UICommandResult GoHome()
         => DefaultNotFoundController.GoHomeResult();
 
-    // The page is open to anyone at its own address, so a free-text message in the query would be shown on the application's origin.
+    // Only the detail the failure handed over in-process: the page is open to anyone at its own address, and a text in the query
+    // would be shown on the application's origin. A navigation without one — the page's own attach — leaves what it shows.
     private void ShowMessageOf(UINavigationRequest navigation)
-        => Message = _errors.IncludeExceptionDetail && navigation.Parameters?.TryGetValue("message", out var value) == true && value is string message && !string.IsNullOrWhiteSpace(message)
-            ? message
-            : _errors.ErrorPageMessage;
+    {
+        if (navigation.Parameters?.TryGetValue(UIErrorDetail.ParameterName, out var value) == true && value is UIErrorDetail detail)
+            Message = _errors.IncludeExceptionDetail && !string.IsNullOrWhiteSpace(detail.Message) ? detail.Message : _errors.ErrorPageMessage;
+    }
 }

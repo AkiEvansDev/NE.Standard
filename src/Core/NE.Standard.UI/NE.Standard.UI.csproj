@@ -17,6 +17,10 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>NE.Benchmarks.Standard.UI</_Parameter1>
     </AssemblyAttribute>
+    <!-- The presets' field-box alignment is the compiler's: their tests read it off a compiled view. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Test.Standard.UI.Extensions</_Parameter1>
+    </AssemblyAttribute>
     <!-- The same slice: the test host builds the application as UIStartupBase does, with its scheduler parked, and hands a flush to
          the pages the way the scheduled one does. -->
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">

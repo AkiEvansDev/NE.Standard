@@ -7,10 +7,17 @@ with the item models and the enums on their own pages beside it.
 
 ## Layouts
 
-- `ContainerComponent` - the 24-column grid: `SetColumn`/`SetRow`/`AddRow`, a child's `SetPlacement`, `SetScrollbarAir`.
-- `StackPanelComponent` - children along one axis with `Spacing`; `GlyphEdge` (an end icon or quiet words on the edge),
-  `AlignWithFieldBoxes` (level with captioned fields' boxes), `FirstLineOnControl` (its first child's first line on a button's middle),
-  `FirstChildAsCaption` (its first child in a field's caption row: a label over a control).
+- `ContainerComponent` - the 24-column grid: `SetColumn`/`SetRow`/`AddRow` (each track per breakpoint: `md:`…), a child's
+  `SetPlacement`, `SetScrollbarAir`.
+- `StackPanelComponent` - children along one axis (`SetOrientation(Vertical, md: Horizontal)`) with `Spacing`; `GlyphEdge` (an end
+  icon or quiet words on the edge), `FirstLineOnControl` (its first child's first line on a button's middle), `FirstChildAsCaption`
+  (its first child in a field's caption row: a label over a control).
+- Layout values are responsive: `Orientation`, a button's or an input's `Size`, an items view's `LayoutType`, a grid's tracks,
+  `HorizontalAlignment`/`VerticalAlignment` take per-breakpoint values. A control with no caption (a button, an untitled input, a
+  switch, a button group, a panel of them) beside a field that is captioned itself (a titled input, a field switcher, a labelled
+  panel, a field and its hint) stands level with its box automatically, in a non-wrapping stack running across or on a grid's row;
+  never a card or a list, never beside a column of fields, never in a wrapping panel of your own - `UILayout.Row` does it itself
+  (`AlignWithFieldBoxes`; `None` or an authored `Margin` opts out).
 - `WrapPanelComponent` - children flowing onto further lines; `ItemMinWidth` keeps them in even columns.
 - `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another.
 - `SurfaceComponent` - one framed region (fill, edge, radius; `OnClick`/`OnClickWithItemKey` makes it pressable, `OnClickShowImage`,
@@ -33,7 +40,7 @@ with the item models and the enums on their own pages beside it.
 - `LinkComponent` - an address the platform opens (only safe schemes survive).
 - `StatusComponent` - a page's state in place of its content (not found, refused, failed); `UIPage.Status` builds it.
 - `TimestampComponent` - a moment in the reader's zone and language, a day, a time or how long ago, kept current by the page.
-- `FileTileComponent` - a file as a tile: glyph, name, size; `OnClickWithItemKey(command)` for a row's tile. The same size in any
+- `FileTileComponent` - a file as a tile: glyph, name, size; `OnClickWithItemKey(command)` for a row's tile, `SetUrl` a link to the file. The same size in any
   other text is a `UIFileSize` phrase argument.
 - `KeyValueActionComponent` - key/value rows with an optional trailing action (`KeyValueActionItem`); `UIDetails` builds lists.
 

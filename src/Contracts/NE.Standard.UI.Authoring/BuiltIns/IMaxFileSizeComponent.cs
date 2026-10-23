@@ -1,4 +1,6 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Authoring.BuiltIns;
 
@@ -8,8 +10,15 @@ namespace NE.Standard.UI.Authoring.BuiltIns;
 public interface IMaxFileSizeComponent
 {
     /// <summary>
-    /// Gets or sets the maximum allowed file size, in bytes.
+    /// Gets the registered property key for <see cref="MaxFileSize"/>.
     /// </summary>
+    static UIProperty MaxFileSizeProperty { get; } = new(nameof(MaxFileSize));
+
+    /// <summary>
+    /// Gets or sets the largest file taken, in bytes; the client refuses a larger one before uploading it and says so on the field's
+    /// validation line.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null, GenerateSetter = false)]
     long? MaxFileSize { get; set; }
 }
 

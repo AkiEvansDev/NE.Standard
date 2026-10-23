@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
@@ -71,6 +72,10 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
+
+        if (IsClearable(context))
+            NativeInputRendererBase.RenderClearable(context, root);
+
         RenderRow(context, root, culture, defaultDisplayFormat);
 
         if (HasPicker)
@@ -87,7 +92,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
     /// <summary>
     /// Writes what the client needs to build the grid; <c>Step</c>, <c>FirstDayOfWeek</c> and <c>Culture</c> ignore a binding, and no
-    /// <c>Culture</c> is the page's own. A day input's marked days go with them.
+    /// <c>Culture</c> is the page's own. A calendar's week and marked days go with them, on an input that draws one.
     /// </summary>
     private WebTemporalCulturePack RenderPickerMetadata(WebRenderContext context, IHtmlElementBuilder root, UITemporalStep? step, string defaultDisplayFormat, CultureInfo inputCulture, bool ownCulture)
     {
@@ -112,11 +117,12 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             _ = root.Attribute(WebAttributes.TemporalStepUnit, StepUnitName(resolvedStep.Unit));
         }
 
-        TemporalCalendarRenderer.RenderFirstDay(context, root, TemporalInputComponentBase<TComponent, TValue>.FirstDayOfWeekProperty);
-
         // A type test on the component type, not the instance: a property the type does not declare cannot be rendered.
-        if (typeof(IMarkedDaysComponent).IsAssignableFrom(typeof(TComponent)))
+        if (typeof(ICalendarComponent).IsAssignableFrom(typeof(TComponent)))
+        {
+            TemporalCalendarRenderer.RenderFirstDay(context, root);
             TemporalCalendarRenderer.RenderMarkedDays(context, root);
+        }
 
         return TemporalCalendarRenderer.RenderCulturePack(root, inputCulture);
     }
@@ -129,6 +135,13 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             UITemporalStepUnit.Second => "second",
             _ => "day"
         };
+
+    /// <summary>
+    /// Whether the row draws a clear: an input that offers one (<see cref="IClearableInputComponent"/>), editing one value in a text field.
+    /// A period's row keeps room at its end for the toggle alone, and a clock's segments are emptied by their own keys.
+    /// </summary>
+    private bool IsClearable(WebRenderContext context)
+        => HasPicker && typeof(IClearableInputComponent).IsAssignableFrom(typeof(TComponent)) && !IsRange(context);
 
     /// <summary>Whether the control edits a period: two fields under one caption, the end behind the second.</summary>
     protected static bool IsRange(WebRenderContext context)
@@ -192,6 +205,9 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             }
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: true));
+
+            if (IsClearable(context))
+                NativeInputRendererBase.RenderClearButton(context, row, $"{SharedClassName}__clear");
 
             if (HasPicker)
             {
@@ -259,6 +275,9 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         _ = input.Attribute("autocomplete", "off");
         // The format in the page's letters; the client writes it again after a switch or a patched format.
         _ = input.Attribute("placeholder", WebTemporalFormat.Placeholder(format, WebTemporalLetters.FromWords(context.Translate)));
+
+        // The text is what a clear empties: the engine reads the emptied text into the value, as a reader's own edit.
+        _ = input.Attribute(WebAttributes.ClearTarget);
 
         RenderPartLabel(context, input, end);
     }

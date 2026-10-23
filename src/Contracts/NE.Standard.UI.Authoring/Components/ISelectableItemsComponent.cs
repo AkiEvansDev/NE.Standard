@@ -8,19 +8,14 @@ namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
 /// Represents an items host whose rows the viewer can choose, one or many, and whose choice a controller can
-/// read and drive.
+/// read and drive; the one chosen row's key is <see cref="ISelectedKeyComponent.SelectedKey"/>.
 /// </summary>
-public interface ISelectableItemsComponent : IItemsComponent
+public interface ISelectableItemsComponent : IItemsComponent, ISelectedKeyComponent
 {
     /// <summary>
     /// Gets the registered property key for <see cref="SelectionMode"/>.
     /// </summary>
     static UIProperty SelectionModeProperty { get; } = new UIProperty(nameof(SelectionMode));
-
-    /// <summary>
-    /// Gets the registered property key for <see cref="SelectedKey"/>.
-    /// </summary>
-    static UIProperty SelectedKeyProperty { get; } = new UIProperty(nameof(SelectedKey));
 
     /// <summary>
     /// Gets the registered property key for <see cref="SelectedKeys"/>.
@@ -32,12 +27,6 @@ public interface ISelectableItemsComponent : IItemsComponent
     /// </summary>
     [UIComponentProperty(DefaultValue = UISelectionMode.None)]
     UISelectionMode? SelectionMode { get; }
-
-    /// <summary>
-    /// Gets the key of the chosen row under <see cref="UISelectionMode.One"/>.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = null, BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
-    string? SelectedKey { get; }
 
     /// <summary>
     /// Gets the keys of the chosen rows under <see cref="UISelectionMode.Many"/>, in the order they were

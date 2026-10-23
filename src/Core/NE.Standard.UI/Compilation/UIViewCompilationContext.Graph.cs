@@ -12,11 +12,21 @@ namespace NE.Standard.UI.Compilation;
 
 internal sealed partial class UIViewCompilationContext
 {
+    // How deep components may nest, each slot a level: far past any real view, and far short of where a recursive walk of the tree (this
+    // one, a render) overflows the stack, which kills the process rather than failing the compile.
+    private const int MaxDepth = 256;
+
+    private int _depth;
+
     private void AddComponent(IVisualComponent component, string? parentId)
     {
         ArgumentNullException.ThrowIfNull(component);
         ArgumentException.ThrowIfNullOrWhiteSpace(component.Id);
         ArgumentException.ThrowIfNullOrWhiteSpace(component.TypeKey);
+
+        // A counter rather than EnsureSufficientExecutionStack: the same limit on every thread, and one the walks after this one keep to.
+        if (++_depth > MaxDepth)
+            throw new InvalidOperationException($"'{component.Id}' stands {_depth} components deep; a view nests at most {MaxDepth}. Flatten the tree, or draw a deep structure as items (a tree view's nodes nest in its data, not in its components).");
 
         if (!_components.TryAdd(component.Id, component))
             throw new InvalidOperationException($"Component id '{component.Id}' is already used.");
@@ -33,7 +43,10 @@ internal sealed partial class UIViewCompilationContext
         ValidateSplitButton(component);
         ValidateKeyValueEditing(component);
         ValidateActionBar(component);
+        ValidatePaneTracks(component);
         AddComponentContent(component);
+
+        _depth--;
     }
 
     // A menu button's whole face opens the menu, so a click of its own would never run: refused here rather than left to fail silently.

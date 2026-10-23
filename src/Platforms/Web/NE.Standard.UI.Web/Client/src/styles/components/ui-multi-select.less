@@ -143,10 +143,9 @@
     outline: none;
 }
 
-// The clear button shows once a chip stands in the field, which the chips' host says (`data-ui-select-chips`, the render and the engine).
-.ui-multi-select.ui-select--clearable:not(.ui-readonly) > .ui-select__trigger > .ui-multi-select__chips[data-ui-select-chips] ~ .ui-select__clear {
-    display: inline-flex;
-}
+// Every field's clear rule; empty while no chip stands in the field, which the chips' host says (`data-ui-select-chips`, the render
+// and the engine).
+.ui-field-clear-host(~".ui-multi-select"; ~"> .ui-select__trigger > .ui-select__clear"; ~".ui-multi-select > .ui-select__trigger > .ui-multi-select__chips:not([data-ui-select-chips]) ~ .ui-select__clear");
 
 // Read-only: the chips stay readable and lose their remove (ui-select.less), so each keeps even air on both sides.
 .ui-multi-select.ui-readonly .ui-multi-select__chip:not(.ui-badge) {

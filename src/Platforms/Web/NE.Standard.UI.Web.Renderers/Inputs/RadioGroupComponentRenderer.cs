@@ -49,7 +49,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-radio-group-spacing");
 
         OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
-        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-radio-group--no-empty", WebValueCondition.IsFalse);
+        RenderEmptyStateSwitch(context, root);
 
         // One RenderProperty drives one element, but this value has to reach N radios: the initial `checked` is
         // decided here, and live changes fan out from a root attribute RadioGroupSyncEngine watches.

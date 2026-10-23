@@ -36,6 +36,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
     /// </summary>
     public const string MenuSurfaceOperationKind = "menu-surface";
 
+    // Read only while it is a rail, render-time only: its tiers fitted on the client as an orientation's are.
+    private static readonly TierClassFamily<UIButtonSize> RailSizeFamily = new(WebAttributes.TierSize, WebClassNames.MenuRailSize);
     private static readonly WebDomOperation[] SurfaceOperations = [SurfaceStyleRenderer.SurfaceClassOperation, WebDomOperation.Custom(MenuSurfaceOperationKind)];
 
 
@@ -75,8 +77,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (everRail)
         {
             // Render-time only, as the rail is: its measures are the stylesheet's, picked by the class, read only while it is a rail.
-            _ = ResolveRenderValue(context, MenuComponent.SizeProperty, out UIButtonSize? size, out _);
-            _ = root.Class(WebClassNames.MenuRailSize(size ?? UIButtonSize.Medium));
+            _ = ResolveRenderValue(context, MenuComponent.SizeProperty, out UIResponsive<UIButtonSize>? size, out _);
+            TierClassRenderer.Write(root, size ?? UIButtonSize.Medium, RailSizeFamily);
         }
 
         _ = ResolveRenderValue(context, MenuComponent.ShowSearchProperty, out bool? search, out _);
@@ -94,7 +96,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         // width keeps both for it; the rail's styles leave them unread (ui-menu.less, ui-collapsible.less).
         CollapsibleChromeRenderer.RenderCollapsible(context, root, folds: everList, pinSide: everList ? DrawerPinSide(context) : null);
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
-        RenderFlagClass(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, "ui-menu--no-empty", WebValueCondition.IsFalse);
+        RenderEmptyStateSwitch(context, root);
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty, SurfaceOperations);
         RenderPopupSurface(context);
 

@@ -48,6 +48,7 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     private static bool _propertiesRegistered;
 
     private static readonly UIResponsive<UIVisibility> DefaultVisibility = UIVisibility.Visible;
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Stretch;
 
     /// <summary>
     /// Gets the current component instance typed as the fluent component type.
@@ -81,12 +82,12 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     public UIThemeMode? Theme { get; set; }
 
     /// <inheritdoc />
-    [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = UIAlignment.Stretch)]
-    public UIAlignment? HorizontalAlignment { get; set; }
+    [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValueMember = nameof(DefaultAlignment))]
+    public UIResponsive<UIAlignment>? HorizontalAlignment { get; set; }
 
     /// <inheritdoc />
-    [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = UIAlignment.Stretch)]
-    public UIAlignment? VerticalAlignment { get; set; }
+    [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValueMember = nameof(DefaultAlignment))]
+    public UIResponsive<UIAlignment>? VerticalAlignment { get; set; }
 
     /// <inheritdoc />
     [UIComponentProperty(Contract = typeof(IVisualComponent))]
@@ -123,6 +124,10 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// <inheritdoc />
     [UIComponentProperty(Contract = typeof(IVisualComponent))]
     public UIResponsive<UIGridPlacement>? Placement { get; set; }
+
+    /// <inheritdoc />
+    [UIComponentProperty(Contract = typeof(IVisualComponent), IsBindable = false, DefaultValue = null)]
+    public UIResponsive<UIFieldBoxAlignment>? AlignWithFieldBoxes { get; set; }
 
     /// <inheritdoc />
     [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = false)]

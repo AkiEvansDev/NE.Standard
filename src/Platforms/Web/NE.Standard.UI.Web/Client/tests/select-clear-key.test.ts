@@ -32,11 +32,11 @@ new SelectInteractionEngine({ root: real<ParentNode>(fakeDocument.body) });
 
 type Scene = { readonly select: FakeElement; readonly trigger: FakeElement };
 
-function single(classes = "ui-select ui-select--clearable"): Scene {
+function single(classes = "ui-select", clearable = true): Scene {
     const trigger = FakeElement.of("ui-select__trigger", { role: "combobox" }, "button");
     const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" })
         .append(FakeElement.of("ui-select__option", { "data-ui-key": "a", role: "option" }));
-    const select = FakeElement.of(classes, { "data-ui-id": "3", "data-ui-select-value": "a" }).append(trigger, popup);
+    const select = FakeElement.of(classes, { "data-ui-id": "3", "data-ui-select-value": "a", ...(clearable ? { "data-ui-clearable": "" } : {}) }).append(trigger, popup);
 
     return place(select, trigger);
 }
@@ -52,7 +52,7 @@ function multiple(): Scene {
         option.dataset.uiKey = key;
         return option;
     }));
-    const select = FakeElement.of("ui-select ui-multi-select ui-select--clearable", { "data-ui-id": "4", "data-ui-selected-keys": "[\"a\",\"b\"]" }).append(trigger, popup);
+    const select = FakeElement.of("ui-select ui-multi-select", { "data-ui-id": "4", "data-ui-selected-keys": "[\"a\",\"b\"]", "data-ui-clearable": "" }).append(trigger, popup);
 
     return place(select, trigger);
 }
@@ -87,8 +87,8 @@ test("Delete on a closed select that shows its clear empties it, and so does Bac
 });
 
 test("a select without the clear, or read-only, keeps its value under both keys", () => {
-    for (const classes of ["ui-select", "ui-select ui-select--clearable ui-readonly"]) {
-        const at = single(classes);
+    for (const [classes, clearable] of [["ui-select", false], ["ui-select ui-readonly", true]] as const) {
+        const at = single(classes, clearable);
 
         press(at, "Delete");
         press(at, "Backspace");

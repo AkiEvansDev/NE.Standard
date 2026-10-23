@@ -6,6 +6,7 @@ using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Files;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -163,13 +164,22 @@ internal sealed class WebValueStagingStore
     /// Takes the value a token names, once, when the token belongs to the session and has not expired.
     /// </summary>
     public bool TryTake(string sessionId, string token, out object? value)
+        => TryTake(sessionId, token, int.MaxValue, int.MaxValue, out value);
+
+    /// <summary>
+    /// Takes the value a token names, as <see cref="TryTake(string, string, out object?)"/>, read into objects only within the limits
+    /// (<see cref="ObjectToInferredTypesConverter.ToInferredValue(JsonElement, int, int)"/>): a value past them is never built.
+    /// </summary>
+    public bool TryTake(string sessionId, string token, int maxElements, int maxDepth, out object? value)
     {
         value = null;
 
         if (!TryTakeJson(sessionId, token, out ReadOnlyMemory<byte> json))
             return false;
 
-        value = JsonSerializer.Deserialize<object?>(json.Span, _json);
+        using JsonDocument document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = _json.MaxDepth });
+
+        value = ObjectToInferredTypesConverter.ToInferredValue(document.RootElement, maxElements, maxDepth);
         return true;
     }
 
@@ -178,6 +188,15 @@ internal sealed class WebValueStagingStore
     /// and has not expired: a drop of many rows carries more than the hub takes.
     /// </summary>
     public bool TryTakeParameters(string sessionId, string token, out object?[] parameters)
+        => TryTakeParameters(sessionId, token, int.MaxValue, out parameters);
+
+    /// <summary>
+    /// Takes the keys of a command a token names, as <see cref="TryTakeParameters(string, string, out object?[])"/>, only where they are
+    /// at most <paramref name="maxElements"/> (<c>UISecurityOptions.MaxClientValueElements</c>): more are refused as malformed keys are,
+    /// counted before any is built. Keys are flat, so no depth applies.
+    /// </summary>
+    /// <exception cref="JsonException">The staged keys are not a flat list of keys, or are more than <paramref name="maxElements"/>.</exception>
+    public bool TryTakeParameters(string sessionId, string token, int maxElements, out object?[] parameters)
     {
         parameters = [];
 
@@ -187,8 +206,31 @@ internal sealed class WebValueStagingStore
         Utf8JsonReader reader = new(json.Span);
 
         _ = reader.Read();
+
+        if (CountTopLevelItems(reader) > maxElements)
+            throw new JsonException($"The staged command keys are more than the {maxElements} a client's value may hold.");
+
         parameters = ParametersConverter.Read(ref reader, typeof(object?[]), _json);
         return true;
+    }
+
+    /// <summary>How many items the array the reader stands at holds, read off a copy of it; a nested one counts as one, refused after.</summary>
+    private static int CountTopLevelItems(Utf8JsonReader reader)
+    {
+        var count = 0;
+
+        if (reader.TokenType != JsonTokenType.StartArray)
+            return count;
+
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
+        {
+            count++;
+
+            if (reader.TokenType is JsonTokenType.StartArray or JsonTokenType.StartObject)
+                reader.Skip();
+        }
+
+        return count;
     }
 
     private bool TryTakeJson(string sessionId, string token, out ReadOnlyMemory<byte> json)
