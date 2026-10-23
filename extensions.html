@@ -1,0 +1,1246 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Presets — NE.Standard</title>
+    <meta name="description" content="One-call shorthands over the built-in components for the page parts, panes, cards, empty states, outcomes, folds, inline messages, dialogs, quotes, people, form rows, button pairs, text roles and show-when rules a screen writes again and again.">
+    <link rel="stylesheet" href="site.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <script src="site.js" defer></script>
+</head>
+<body>
+<div class="page">
+
+    <header class="site">
+        <a class="name" href="index.html">NE.Standard</a>
+        <button class="pages-toggle" type="button" aria-controls="sidebar" aria-expanded="false">Pages</button>
+        <nav>
+            <a href="getting-started.html">Guides</a>
+            <a href="components/index.html">Components</a>
+            <a href="addons.html">Add-ons</a>
+            <a href="packages.html">Packages</a>
+            <a href="https://github.com/AkiEvansDev/NE.Standard">GitHub</a>
+        </nav>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <input class="nav-filter" type="search" placeholder="Filter pages" aria-label="Filter pages" autocomplete="off" hidden>
+            <h3>Guides</h3>
+            <ul>
+                <li><a href="index.html" title="What NE.Standard is, how a view and a controller fit together, and where to start.">Overview</a></li>
+                <li><a href="getting-started.html" title="Set up an application as a library and a web host, and get a first view on screen.">Getting Started</a></li>
+                <li><a href="views.html" title="The component tree, its regions, the placement grid, and the fluent authoring style.">Views</a></li>
+                <li class="current"><a href="extensions.html" title="One-call shorthands over the built-in components for the page parts, panes, cards, empty states, outcomes, folds, inline messages, dialogs, quotes, people, form rows, button pairs, text roles and show-when rules a screen writes again and again.">Presets</a></li>
+                <li><a href="design.html" title="Which component for which job, and the choices that keep a page readable on a phone, a tablet and a desktop.">Designing a page</a></li>
+                <li><a href="controllers.html" title="Observable state, commands, the request context, and what a controller has to know about the runtime.">Controllers</a></li>
+                <li><a href="binding.html" title="Paths, scopes, modes, responsive values, validation on inputs, and forms.">Binding</a></li>
+                <li><a href="interactions-and-effects.html" title="Client-side reactions between components, and what a command can ask the client to do.">Interactions and Effects</a></li>
+                <li><a href="items.html" title="Items views, tables and trees — static and bound collections, templates, selection, hosting modes and windowed sources.">Items</a></li>
+                <li><a href="routing.html" title="Registering routes, reading navigation parameters, navigating from a command, and view/command filters.">Routing</a></li>
+                <li><a href="security.html" title="Sessions, signing in, role and permission checks on a route or a command, and how a refusal is routed.">Security</a></li>
+                <li><a href="localization.html" title="Translation keys and content, UIPhrase and plurals, switching the page&#39;s language in place, the framework&#39;s own words, and missing translations.">Localization</a></li>
+                <li><a href="files.html" title="Uploading and downloading files, and serving protected content the application keeps.">Files</a></li>
+                <li><a href="dialogs-and-notifications.html" title="Declaring dialogs on a view, opening and closing them, notifications, and how a failed command or page is reported.">Dialogs and notifications</a></li>
+                <li><a href="theming.html" title="The theme contract — palettes, typography, shape, the three looks a component takes, and switching light and dark per session.">Theming</a></li>
+                <li><a href="testing.html" title="Test a view and its controller together without a browser — boot the application&#39;s startup, open a page, act on its components and read what it shows.">Testing an application</a></li>
+                <li><a href="web-hosting.html" title="The ASP.NET Core host in depth — startup wiring, endpoints, compression, the render cache, assets, sessions and extending the platform.">Web hosting</a></li>
+                <li><a href="platforms.html" title="How the core stays independent of the web, and what a second platform has to implement.">Platforms</a></li>
+                <li><a href="packages.html" title="What each NE.Standard package carries, how they layer, and where the add-ons and dependencies come from.">Packages</a></li>
+                <li><a href="addons.html" title="The official packages beside the framework — Material icons, a code editor, a data grid, charts and node graphs — what each does and how to install it.">Add-ons</a></li>
+            </ul>
+            <h3>Reference</h3>
+            <ul>
+                <li><a href="components/index.html">All components</a></li>
+                <li><a href="components/enums.html">Enums and value types</a></li>
+                <li><a href="components/models.html">Item models</a></li>
+            </ul>
+            <h3>Layouts</h3>
+            <ul>
+                <li><a href="components/accordion.html" title="A column of ExpanderComponents of which at most one is open at a time.">Accordion</a></li>
+                <li><a href="components/card.html" title="A bordered surface with an optional header and footer region, optionally clickable as a whole.">Card</a></li>
+                <li><a href="components/collapsible-panel.html" title="A panel that folds away toward one edge and back, with a switch of its own.">Collapsible panel</a></li>
+                <li><a href="components/container.html" title="A grid-based layout container that positions its children using column/row definitions and per-child placement.">Container</a></li>
+                <li><a href="components/expander.html" title="A collapsible bordered region with a header that toggles the visibility of its content.">Expander</a></li>
+                <li><a href="components/flyout.html" title="A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.">Flyout</a></li>
+                <li><a href="components/grid-splitter.html" title="A track boundary the viewer can drag.">Grid splitter</a></li>
+                <li><a href="components/pane-container.html" title="A container whose panes the viewer moves between their places.">Pane container</a></li>
+                <li><a href="components/scroll-container.html" title="A layout container that scrolls its content horizontally and/or vertically.">Scroll container</a></li>
+                <li><a href="components/stack-panel.html" title="A layout container that stacks its children along a single axis with configurable spacing and wrapping.">Stack panel</a></li>
+                <li><a href="components/surface.html" title="A bordered surface holding one content region, optionally clickable as a whole or a link.">Surface</a></li>
+                <li><a href="components/wrap-panel.html" title="A layout container that flows its children left to right, wrapping onto additional lines as needed.">Wrap panel</a></li>
+            </ul>
+            <h3>Contents</h3>
+            <ul>
+                <li><a href="components/badge.html" title="A small status/tag indicator combining an optional icon and short text.">Badge</a></li>
+                <li><a href="components/file-tile.html" title="A file as a square tile: its kind&#39;s glyph, its name and its size.">File tile</a></li>
+                <li><a href="components/icon.html" title="A standalone icon glyph, rendered by name from the registered icon font/set.">Icon</a></li>
+                <li><a href="components/image.html" title="A visual component that renders a bitmap image from a source URL.">Image</a></li>
+                <li><a href="components/key-value-action.html" title="A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.">Key value action</a></li>
+                <li><a href="components/link.html" title="An address the platform opens: a name that navigates to a URL when activated.">Link</a></li>
+                <li><a href="components/paragraph.html" title="Text meant to be read: a title, and a description that may run to several lines.">Paragraph</a></li>
+                <li><a href="components/separator.html" title="A thin dividing line, optionally with a centered label, used to separate content groups.">Separator</a></li>
+                <li><a href="components/status.html" title="A page&#39;s state standing in for its content — not found, refused, failed.">Status</a></li>
+                <li><a href="components/text.html" title="Text content: an optional leading icon, a title, a description and a badge, each on one line unless it is told to wrap.">Text</a></li>
+                <li><a href="components/timestamp.html" title="A moment shown in the reader&#39;s own time zone and language, formatted by the page.">Timestamp</a></li>
+            </ul>
+            <h3>Actions</h3>
+            <ul>
+                <li><a href="components/action.html" title="A full-width row that invokes a command: content on the left, a trailing chevron on the right — or, given a Url, the row&#39;s look on a link to that address.">Action</a></li>
+                <li><a href="components/button.html" title="A clickable bordered region that invokes UI commands and hosts text/icon content, or — given a Url — the button&#39;s look on a link to that address.">Button</a></li>
+                <li><a href="components/command-bar.html" title="A horizontal or vertical bar of button items, typically used for toolbars and action rows.">Command bar</a></li>
+                <li><a href="components/language-switcher.html" title="A button that switches the page to another language in place, and tells the session.">Language switcher</a></li>
+                <li><a href="components/split-button.html" title="A button whose end is a second control opening a menu of commands.">Split button</a></li>
+                <li><a href="components/theme-switcher.html" title="A button that switches the page between the light and dark theme, and wears the theme it offers.">Theme switcher</a></li>
+            </ul>
+            <h3>Inputs</h3>
+            <ul>
+                <li><a href="components/badge-select.html" title="A multi-select whose options are badges — a ticket&#39;s labels, a contact&#39;s tags — chosen into the field as the badges themselves.">Badge select</a></li>
+                <li><a href="components/calendar.html" title="A month&#39;s calendar drawn in place, whose press on a day chooses it.">Calendar</a></li>
+                <li><a href="components/checkbox.html" title="A checkbox input that toggles a boolean value.">Checkbox</a></li>
+                <li><a href="components/color-input.html" title="A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.">Color input</a></li>
+                <li><a href="components/date-input.html" title="A date input that lets the user pick a calendar date.">Date input</a></li>
+                <li><a href="components/date-time-input.html" title="A date-time input that lets the user pick a calendar date combined with a time of day.">Date time input</a></li>
+                <li><a href="components/file-input.html" title="A file input that lets the user select one or more files to upload.">File input</a></li>
+                <li><a href="components/image-input.html" title="A picture the viewer replaces by choosing a file.">Image input</a></li>
+                <li><a href="components/multi-select.html" title="A dropdown input that holds several options out of a bound list.">Multi select</a></li>
+                <li><a href="components/number-input.html" title="A numeric input with configurable step, sign, and decimal/formatting constraints.">Number input</a></li>
+                <li><a href="components/radio-group.html" title="A group of radio buttons that lets the user select a single option from a list.">Radio group</a></li>
+                <li><a href="components/search.html" title="A select whose open list carries a search field pinned over its options.">Search</a></li>
+                <li><a href="components/select.html" title="A dropdown input that lets the user select a single option from a bound list.">Select</a></li>
+                <li><a href="components/slider.html" title="A slider input that lets the user pick a numeric value, or a band of two, by dragging handles along a track.">Slider</a></li>
+                <li><a href="components/switch.html" title="A toggle switch input that represents a boolean value.">Switch</a></li>
+                <li><a href="components/text-area.html" title="A multi-line text input for entering longer free-form text.">Text area</a></li>
+                <li><a href="components/text-input.html" title="A single-line text input for entering free-form text.">Text input</a></li>
+                <li><a href="components/time-input.html" title="A time input that lets the user pick a time of day.">Time input</a></li>
+            </ul>
+            <h3>Items</h3>
+            <ul>
+                <li><a href="components/items-view.html" title="An items view that lays out a collection, held whole, virtualized or windowed from a source.">Items view</a></li>
+                <li><a href="components/pager.html" title="The pages of a paged items view or table.">Pager</a></li>
+                <li><a href="components/table.html" title="A table that shows the rows of a keyed collection under a header, one template per column.">Table</a></li>
+                <li><a href="components/tree.html" title="A tree on the file list&#39;s model, over a flat keyed list of nodes in walking order.">Tree</a></li>
+                <li><a href="components/tree-node.html" title="The face of one tree node: the chevron, the glyph and the title.">Tree node</a></li>
+            </ul>
+            <h3>Navigation</h3>
+            <ul>
+                <li><a href="components/breadcrumb-item.html" title="One step of a BreadcrumbsComponent.">Breadcrumb item</a></li>
+                <li><a href="components/breadcrumbs.html" title="The trail back to where the current page sits.">Breadcrumbs</a></li>
+                <li><a href="components/button-group.html" title="A strip of segments pressed flush against each other, one of them current.">Button group</a></li>
+                <li><a href="components/menu.html" title="A list of navigation entries, vertical or horizontal, that can collapse to icons alone.">Menu</a></li>
+                <li><a href="components/menu-item.html" title="One entry of a MenuComponent.">Menu item</a></li>
+                <li><a href="components/tab-caption.html" title="One caption in a TabsComponent&#39;s strip.">Tab caption</a></li>
+                <li><a href="components/tab-item.html" title="One tab of a TabsViewComponent.">Tab item</a></li>
+                <li><a href="components/tabs.html" title="A strip of captions over a set of fixed pages.">Tabs</a></li>
+                <li><a href="components/tabs-view.html" title="A strip of captions over pages that come from a collection.">Tabs view</a></li>
+            </ul>
+            <h3>Indicators</h3>
+            <ul>
+                <li><a href="components/progress.html" title="A linear or circular progress indicator showing a value within a min/max range.">Progress</a></li>
+                <li><a href="components/spinner.html" title="An indeterminate loading indicator, optionally shown alongside a label.">Spinner</a></li>
+            </ul>
+            <h3>Regions</h3>
+            <ul>
+                <li><a href="components/card-header-region.html" title="The built-in header region rendering a card&#39;s title, description and badge.">Card header region</a></li>
+                <li><a href="components/expander-header-region.html" title="The built-in header region rendering an expander&#39;s title, description and badge.">Expander header region</a></li>
+                <li><a href="components/tab-caption-region.html" title="The built-in caption region rendering a tab&#39;s icon, title, description and badge.">Tab caption region</a></li>
+            </ul>
+            <h3>Templates</h3>
+            <ul>
+                <li><a href="components/default-action-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Action button.">Default action template</a></li>
+                <li><a href="components/default-breadcrumb-item-template.html" title="The built-in template rendering an IBreadcrumbItemModel as one step of a trail.">Default breadcrumb item template</a></li>
+                <li><a href="components/default-button-template.html" title="The built-in template rendering an IButtonModel&#39;s bound icon, title, description and badge as a button.">Default button template</a></li>
+                <li><a href="components/default-empty-template.html" title="The built-in template rendered in place of items when an items view&#39;s collection is empty.">Default empty template</a></li>
+                <li><a href="components/default-file-template.html" title="The built-in template drawing an IFileModel as a file&#39;s tile.">Default file template</a></li>
+                <li><a href="components/default-group-template.html" title="The built-in template rendering a group header&#39;s label as a separator, bound to the group&#39;s key.">Default group template</a></li>
+                <li><a href="components/default-key-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Key text.">Default key template</a></li>
+                <li><a href="components/default-menu-item-template.html" title="The built-in template rendering an IMenuItemModel as a menu entry.">Default menu item template</a></li>
+                <li><a href="components/default-row-template.html" title="The identity of a composite row.">Default row template</a></li>
+                <li><a href="components/default-tab-item-template.html" title="The built-in template rendering an ITabItemModel as a tab.">Default tab item template</a></li>
+                <li><a href="components/default-text-template.html" title="The built-in template rendering an ITextModel&#39;s bound icon, title, description and badge as text.">Default text template</a></li>
+                <li><a href="components/default-value-template.html" title="The built-in template rendering a IKeyValueActionModel&#39;s IKeyValueActionModel.Value text.">Default value template</a></li>
+            </ul>
+        </aside>
+        <main>
+<article class="guide">
+<h1>Presets</h1>
+<p><code>NE.Standard.UI.Extensions</code> is a package of presets: static classes and extension methods that build the
+arrangements a screen writes over and over — a header band, a titled section, a list beside the thing chosen in it, a card alone on a
+page, a message that stays in the page, two fields on one line, a pair of buttons at a form's foot — out of the built-in components.
+A preset holds a look in one place: where a width, a breakpoint or a spacing has to be chosen, the preset chooses it, so two screens
+built with it stand alike and an author does not pick one of their own. It adds no component of its own. Each preset returns an
+ordinary built-in — a stack panel, a container, a card, an expander, a surface, a status, a dialog, a button, a split button, a
+menu item, a text, a paragraph, a key-value list or one of its rows — so everything
+they build is already rendered by the platform, and the package is server-only. A returned component takes the usual <code>Set*</code>,
+<code>Bind*</code> and <code>On*</code> calls after it, like any other.</p>
+<p>It is installed separately:</p>
+<pre><code class="language-bash">dotnet add package NE.Standard.UI.Extensions
+</code></pre>
+<p>Like every package here it brings its namespace, <code>NE.Standard.UI.Extensions</code>, as a global using, so nothing below
+needs a <code>using</code> line; a project that sets <code>NEStandardUIImplicitUsings</code> to <code>false</code> writes its own.</p>
+<h2 id="a-screen-written-with-them">A screen written with them</h2>
+<p>The same form without presets is a tree of stack panels, spacings and placements. With them it reads as the page
+it describes: sections down a column, two fields to a line, the address folded away while a box is ticked, and the
+buttons at the foot.</p>
+<pre><code class="language-csharp">internal sealed class ShippingView : UIViewBase, IUIViewDefinition
+{
+    private const string FormId = &quot;shipping&quot;;
+    private const string SameAddressId = &quot;shipping-same-address&quot;;
+
+    public static string ViewKey =&gt; &quot;shipping&quot;;
+
+    protected override IVisualComponent? CreateHeader()
+        =&gt; UIPage.Header(&quot;Shipping&quot;, &quot;Where the parcel goes, and who signs for it.&quot;);
+
+    protected override IVisualComponent CreateContent()
+        =&gt; UILayout.Split(CreateForm(), CreateSummary(), sideSpan: 9);
+
+    private static StackPanelComponent CreateForm()
+        =&gt; UILayout.Stack(28,
+            UIPage.Section(&quot;Recipient&quot;, null,
+                UIForm.Row(
+                    new TextInputComponent().SetTitle(&quot;First name&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.FirstName)),
+                    new TextInputComponent().SetTitle(&quot;Last name&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.LastName))
+                )
+            ),
+            UIPage.Section(&quot;Invoice address&quot;, &quot;Only when it differs from the delivery address.&quot;,
+                new CheckboxComponent(SameAddressId)
+                    .SetTitle(&quot;Invoice goes to the delivery address&quot;)
+                    .BindValue(nameof(ShippingController.SameAddress)),
+                UILayout.Stack(16,
+                    new TextInputComponent().SetTitle(&quot;Street and number&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.Street)),
+                    UIForm.Row(
+                        new TextInputComponent().SetTitle(&quot;City&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.City)),
+                        new TextInputComponent().SetTitle(&quot;Postcode&quot;).SetFormId(FormId).BindValue(nameof(ShippingController.Postcode))
+                    )
+                )
+                .ShownWhen(SameAddressId, false)
+            ),
+            UIButtons.Pair(
+                UIButtons.Ghost(&quot;Back&quot;),
+                UIButtons.Primary(&quot;Continue&quot;).OnSubmit(FormId, nameof(ShippingController.ContinueAsync))
+            )
+        );
+
+    private static CardComponent CreateSummary()
+        =&gt; UICard.Create(&quot;Your order&quot;, &quot;Shipped within two working days.&quot;, UIDetails.List(
+            (&quot;Items&quot;, &quot;3&quot;),
+            (&quot;Weight&quot;, &quot;2.4 kg&quot;),
+            (&quot;Delivery&quot;, &quot;Standard&quot;)
+        ));
+}
+</code></pre>
+<p><code>examples/DemoApp/Views/Screens/CheckoutView.cs</code> in the repository is a full screen built this way.</p>
+<h2 id="uipage-the-regions-of-a-page"><code>UIPage</code> — the regions of a page</h2>
+<p>A bound twin with things after its paths (<code>trailing</code>, <code>content</code>, <code>actions</code>) has two overloads: one without a scope, reading the
+controller's paths, and one with <code>UIBindingScope scope</code> after the words' paths, written <code>[UIBindingScope scope,]</code> below — a row's own
+words in an item template. A twin with nothing after its paths takes <code>scope = Root</code> as an optional parameter.</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Header(UIPhrase title, UIPhrase? description = null, params IVisualComponent[] trailing)</code></td>
+<td>The band a page is headed by: the title, a muted line under it, and whatever is passed as <code>trailing</code> (a theme switcher, the signed-in person, the page's buttons) at the far end of the title's row — on a phone, buttons with words (<code>ButtonComponent</code> with a title) stand on a row of their own under the line, at the far edge, since two of them beside the title left it a few letters a line; icons stay on the title's row. From the medium breakpoint the title is in the display role on one line and the line runs to three lines under the title's columns. On a phone (below the medium breakpoint) the title is a title's size and wraps under itself between words when it is too long for its row (a single word longer than the row ends in an ellipsis, never breaks), its first line level with the far end, and the line is one line, cut — its whole words its tooltip, a long press away — under the whole band — so the band stays about a title's height (74 px at 390 px with two switchers) and leaves the screen to the page; its top padding there puts the title on the middle of the shell's drawer toggle. Keep a phone's far end to two or three controls: whatever it takes, the title gives up. Returns a <code>ContainerComponent</code>, usually from <code>CreateHeader()</code>.</td>
+</tr>
+<tr>
+<td><code>Header(IVisualComponent leading, UIPhrase title, UIPhrase? description = null, params IVisualComponent[] trailing)</code></td>
+<td>The same band led by an action before the title — <code>UIIconButtons.Back()</code> on a page reached from another — on the title's row at every width; the title and the line start after it, and its glyph stands on the content's 24 px edge. The action's cell is shown as the action is, so a Back shown only on a phone (<code>ShownBelow(UIResponsiveTier.Md)</code>) leaves the title on the content's edge from <code>md</code>. On a phone it follows the shell's drawer toggle where the view has one: the toggle, a step of 8 px, Back, then the title. The leading action comes first in the band's order, so the keyboard reaches it before the far end.</td>
+</tr>
+<tr>
+<td><code>BoundHeader(IVisualComponent? leading, string titlePath, string? descriptionPath = null, [UIBindingScope scope,] params IVisualComponent[] trailing)</code></td>
+<td>The band with a title and a line the controller holds — a note's name, its status — bound at the two paths (the phone's cut line's tooltip too) as the thing's own words, never looked up as a key (a path holding a <code>UIPhrase</code> still translates) and the line drawn as written, not read as markup; led by <code>leading</code> where one is given.</td>
+</tr>
+<tr>
+<td><code>Header(UIHeaderSize size, IVisualComponent? leading, UIPhrase title, UIPhrase? description = null, params IVisualComponent[] trailing)</code>, <code>BoundHeader(UIHeaderSize size, …)</code></td>
+<td><code>UIHeaderSize.Strip</code> is a panel's caption over the list or the tree in it — an explorer's &quot;Files&quot;: the name a muted label (the overline role), set in by a list row's 8 px so it stands over a list's words and a tree's chevrons, the far end on its row — its buttons with no size said small: an icon button, a menu button, a switcher, one with words, and those in a row. <code>UIHeaderSize.Page</code> is the band above. <code>UIHeaderSize.Pane</code> is the title row of a pane beside a list or a tree — a conversation's, an open note's — the same at every width: the name one line in the subtitle role, cut with its whole words as its tooltip; the description a muted caption beside it (a status: &quot;Not saved&quot;); the far end on the same row; no edge of its own, the pane's padding being it. <code>leading</code> stands before the name: <code>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</code> where a phone has no list beside the pane, a round picture (an <code>ImageComponent</code> with <code>UIImageShape.Circle</code>, 32 px, the person glyph where it has no picture), or both in a <code>UILayout.Row</code>. A bound name and caption are the thing's own words, never looked up as a key; a caption path holding a <code>UIPhrase</code> still translates (&quot;Not saved&quot; in the reader's language).</td>
+</tr>
+<tr>
+<td><code>Section(UIPhrase title, UIPhrase? description, params IVisualComponent[] content)</code>, <code>BoundSection(string titlePath, string? descriptionPath, [UIBindingScope scope,] params IVisualComponent[] content)</code></td>
+<td>A titled part of a page: the heading, an optional muted line, and the content below it. The heading and its note sit closer to each other than to the content; a long title wraps. The bound one takes the words the controller holds, as content.</td>
+</tr>
+<tr>
+<td><code>Heading(UIPhrase title, UIPhrase? description = null, params IVisualComponent[] trailing)</code>, <code>BoundHeading(string titlePath, string? descriptionPath = null, [UIBindingScope scope,] params IVisualComponent[] trailing)</code>, <code>Heading(IVisualComponent heading, params IVisualComponent[] trailing)</code>, <code>Section(IVisualComponent heading, params IVisualComponent[] content)</code></td>
+<td>A section's heading with things at its far end — the <code>+</code> that adds to the list under it, a menu, a sample's source — the title taking the rest of the row and the far end on its line, the muted line under both: under the far end too on a phone, beside it from <code>md</code>, as a page header's; buttons with words go under the line on a phone. <code>BoundHeading</code> binds the words as content; the component overload is <code>UILayout.Ends</code> round a heading of your own (a title with a badge). <code>Section(heading, …)</code> stands it over the content.</td>
+</tr>
+<tr>
+<td><code>Fold(UIPhrase? title, bool expanded, params IVisualComponent[] content)</code>, <code>BoundFold(string titlePath, [UIBindingScope scope,] bool expanded, params IVisualComponent[] content)</code></td>
+<td>The collapsible sibling of <code>Section</code>: the quiet expander (<code>UIExpanderVariant.Quiet</code>) — the name a muted caption with the chevron after it, no card — over the content in a stack 12 px apart, open or folded to begin with. For the advanced part of a form, a step of a narrow panel, a model's thinking under a message. Returns the <code>ExpanderComponent</code>: <code>.BindExpanded(path)</code> follows the controller, <code>ConfigureDefaultHeader(header =&gt; header.SetIcon(…))</code> adds a mark, and a <code>null</code> title leaves the name to a binding — <code>ConfigureDefaultHeader(header =&gt; header.BindTitle(path))</code>.</td>
+</tr>
+<tr>
+<td><code>Labelled(UIPhrase label, IVisualComponent content, bool wrap = false)</code>, <code>BoundLabelled(string labelPath, [UIBindingScope scope,] IVisualComponent content, bool wrap = false)</code></td>
+<td>A component under an overline label: a value, a sample, a control with no title of its own. The label keeps one line; <code>wrap</code> lets a label that is a sentence run on. Its label and gap stand as tall as a field's caption, so in <code>UIForm.Row</code> it counts as captioned and its content stands level with the fields' boxes.</td>
+</tr>
+<tr>
+<td><code>Empty(string? icon, UIPhrase title, UIPhrase? line = null, params IVisualComponent[] actions)</code>, <code>BoundEmpty(string? icon, string titlePath, string? linePath = null, [UIBindingScope scope,] params IVisualComponent[] actions)</code></td>
+<td>Where something would be and nothing is yet — a pane before a row is chosen, a page with nothing made, a chat with no messages: the list's own empty state, the same component (<code>DefaultEmptyTemplate</code>: the icon in the brand's colour where one is given, the words at its side — words alone, centred, with none — the body title in the text's own ink, the muted caption under it, both wrapping), the ways on in a row centred under the words, each as wide as it is, the block in the middle of the room it is given (a <code>ContainerComponent</code> as tall as its parent), running on past its end, never its top, where the room is shorter than it. No surface of its own. The bound one takes the words the controller holds, as content.</td>
+</tr>
+<tr>
+<td><code>Outcome(string? icon, UIMessageSeverity tone, UIPhrase title, [UIPhrase line,] params IVisualComponent[] actions)</code>, <code>Outcome(…, ParagraphComponent line, …)</code>, <code>BoundOutcome(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, [UIBindingScope scope,] params IVisualComponent[] actions)</code></td>
+<td>What came of a press, in place of the form it ends — &quot;Check your inbox&quot;, &quot;Order placed&quot;, &quot;Not for this account&quot;: a raised panel, 24 px in, the mark in the tone's colour (<code>icon</code>, else the tone's own) before the title in the title role, the line a muted caption under it (a paragraph of your own in the second overload, the controller's words in <code>BoundOutcome</code>), and the ways on at the far end, the safe one first, wrapping as <code>UIButtons.Pair</code> does. A status to a screen reader, an alert for Warning and Danger, so it is read as it replaces the form. One on an empty page is <code>UICard.Centered(outcome)</code>.</td>
+</tr>
+<tr>
+<td><code>Status(string? icon, UIMessageSeverity tone, UIPhrase title, UIPhrase? line, params IVisualComponent[] actions)</code>, <code>BoundStatus(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, [UIBindingScope scope,] params IVisualComponent[] actions)</code></td>
+<td>A page's state standing in for all of it — not found, refused, failed — as the framework's own not-found and error pages draw theirs (<code>StatusComponent</code>): the mark on a faint disc in the tone's colour (<code>icon</code>, else the tone's own), the title, the line under it and the ways on, the safe one first, centred. A line the controller says is bound through the returned component's <code>Words</code>.</td>
+</tr>
+<tr>
+<td><code>Band(IVisualComponent content)</code></td>
+<td>A band across the content in the brand's faint tint (<code>UISurfaceStyle.Tinted</code>), 16 px in and 12 down: the filters over a list, the question at an article's foot.</td>
+</tr>
+<tr>
+<td><code>Column(UIColumnWidth width, IVisualComponent content, bool centered = false)</code></td>
+<td>The content kept to a column from the content's edge, or in the middle where <code>centered</code>, however wide the page: <code>UIColumnWidth.Reading</code> (720 px — an article, a settings page of cards), <code>Form</code> (440 px — a short form; <code>UICard.Centered</code> and <code>UIDialogs.Form</code> take it) or <code>Wide</code> (1080 px — a form beside its summary). One of three, never a width of the page's own.</td>
+</tr>
+<tr>
+<td><code>InColumn(this ContainerComponent band, UIColumnWidth width)</code></td>
+<td>A header band over a centred column — <code>UIPage.Header(…).InColumn(UIColumnWidth.Reading)</code> — the column's width with the band's own side padding outside it, in the middle, so the band's words stand over the column's edge at every width. The header region and the content share an axis only where no side stands beside one and not the other (full-height sides, or no pinned side), and the content region keeps its scrollbar's gutter.</td>
+</tr>
+<tr>
+<td><code>Banner(SurfaceComponent message)</code></td>
+<td>A message from <code>UIMessage</code> laid across the top of the content: edge to edge, square, a rule under it, its mark in line with the header's name. Make it the content's first child, outside any padding of the content's own; it scrolls with the page. In the header region of a view with <code>StickyHeader</code> it stays as the page scrolls — on a phone it stands beside the drawer toggle there, and a tall one takes the screen from the page.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">protected override IVisualComponent? CreateHeader()
+    =&gt; UIPage.Header(&quot;Projects&quot;, &quot;Everything the team is building.&quot;, new ThemeSwitcherComponent());
+</code></pre>
+<p>A page reached from another leads its header with Back. <code>NavigateBackEffect</code> is the browser's own Back where a page of this site
+stands behind, and its fallback address where none does — a bookmark, a link from elsewhere; it runs in the press, with no round
+trip (<a href="interactions-and-effects.html#going-back">interactions and effects</a>). Where back means a place of the application's — the
+tree a note was opened from — give the button a command instead.</p>
+<pre><code class="language-csharp">protected override IVisualComponent? CreateHeader()
+    =&gt; UIPage.BoundHeader(
+        UIIconButtons.Back().InteractOn(EventNames.Click, new NavigateBackEffect(&quot;/notes&quot;)),
+        nameof(NoteController.Name),
+        nameof(NoteController.Status),
+        UIIconButtons.Delete().OnClick(nameof(NoteController.Delete))
+    );
+</code></pre>
+<p>A pane's row is the same call at <code>UIHeaderSize.Pane</code>:</p>
+<pre><code class="language-csharp">UIPage.BoundHeader(
+    UIHeaderSize.Pane,
+    UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md).OnClick(nameof(NotesController.BackToTree)),
+    nameof(NotesController.NoteName),
+    nameof(NotesController.Status),
+    UIIconButtons.Share().OnClick(nameof(NotesController.Share)),
+    UIIconButtons.Save().OnClick(nameof(NotesController.Save))
+)
+</code></pre>
+<h2 id="uicard-a-card-and-one-alone-on-a-page"><code>UICard</code> — a card, and one alone on a page</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Create(UIPhrase? title, UIPhrase? description, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)</code>, <code>BoundCreate(string titlePath, string? descriptionPath, [UIBindingScope scope,] IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)</code></td>
+<td>A <code>CardComponent</code> with its name (and optional line and icon) in the default header, one component as its content, and <code>trailing</code> — an icon button, a switcher — at the header's far end (several stand in a row 4 px apart), the last one's glyph or quiet words on the card's edge as every band's end. The line is prose and wraps, however long; the name keeps one line. A null <code>title</code> leaves the name to the header: <code>.ConfigureDefaultHeader(header =&gt; header.BindTitle(path))</code>.</td>
+</tr>
+<tr>
+<td><code>Centered(IVisualComponent card)</code></td>
+<td>One card alone on an otherwise empty page — a sign-in, a refusal, an outcome, or a stack of a form and what replaces it: a form's column (440 px, the whole width on a phone) in the middle, 24 px under the top on a phone and 96 px from the medium breakpoint, where a card at a wide screen's top edge reads as pushed up.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">protected override IVisualComponent CreateContent()
+    =&gt; UICard.Centered(UILayout.Stack(16, CreateForm(), CreateDone()));
+
+private static SurfaceComponent CreateDone()
+    =&gt; UIPage.BoundOutcome(
+        AppIcons.MailCheck,
+        UIMessageSeverity.Success,
+        nameof(SignUpController.DoneTitle),
+        nameof(SignUpController.DoneLine),
+        UIButtons.Ghost(&quot;Start over&quot;).OnClick(nameof(SignUpController.StartOver)),
+        UIButtons.Primary(&quot;Open the inbox&quot;).OnClick(nameof(SignUpController.OpenInbox))
+    )
+    .BindVisibility(nameof(SignUpController.DoneVisibility));
+</code></pre>
+<h2 id="uimessage-a-message-that-stays-in-the-page"><code>UIMessage</code> — a message that stays in the page</h2>
+<p>A toast leaves on its own and a validation line belongs to one field; a message the page keeps until it is no longer true —
+&quot;Your trial ends in 3 days&quot;, &quot;This workspace is read-only during maintenance&quot;, &quot;2 errors in the form below&quot; — is a
+<code>UIMessage</code>. It returns a <code>SurfaceComponent</code> drawn <code>Tinted</code> in the palette's colour for its severity, holding the
+severity's mark, a title, a body, an optional action and an optional ×.</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Info</code>, <code>Success</code>, <code>Warning</code>, <code>Danger</code> <code>(UIPhrase? title, UIPhrase? body = null, ButtonComponent? action = null, bool dismissible = false, string? dismissCommand = null)</code></td>
+<td>A message in that severity. A title, a body or both: a message with neither throws.</td>
+</tr>
+<tr>
+<td><code>Create(UIMessageSeverity severity, UIPhrase? title, UIPhrase? body, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)</code></td>
+<td>The same with the severity as an argument, and <code>icon</code> in place of the severity's mark.</td>
+</tr>
+<tr>
+<td><code>BoundCreate(UIMessageSeverity severity, string? titlePath, string? bodyPath, UIBindingScope scope = Root, …)</code></td>
+<td>The words the controller holds, for words that change: bound as its own words and drawn plain — data, never markup (a path holding a <code>UIPhrase</code> still translates) — in the message's role and ink.</td>
+</tr>
+<tr>
+<td><code>Create(UIMessageSeverity severity, TextComponent? title, ParagraphComponent? body, …)</code></td>
+<td>A title or a body of your own beyond words alone — a body with a link or an emphasis; the preset gives it the message's role and ink.</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Colour</th>
+<th>Mark</th>
+<th>To a screen reader</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Info</code></td>
+<td><code>UIColorStyle.Info</code></td>
+<td><code>UIGlyphs.Info</code></td>
+<td><code>role=&quot;status&quot;</code>: read when it is free</td>
+</tr>
+<tr>
+<td><code>Success</code></td>
+<td><code>UIColorStyle.Success</code></td>
+<td><code>UIGlyphs.CheckCircle</code></td>
+<td><code>role=&quot;status&quot;</code></td>
+</tr>
+<tr>
+<td><code>Warning</code></td>
+<td><code>UIColorStyle.Warning</code></td>
+<td><code>UIGlyphs.Warning</code></td>
+<td><code>role=&quot;alert&quot;</code>: read at once</td>
+</tr>
+<tr>
+<td><code>Danger</code></td>
+<td><code>UIColorStyle.Danger</code></td>
+<td><code>UIGlyphs.Error</code></td>
+<td><code>role=&quot;alert&quot;</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>The marks are the framework's own glyphs</strong>, drawn with no icon pack installed; <code>icon</code> takes any pack's name instead.</li>
+<li><strong>The role is the surface's <code>LiveRegion</code></strong> (<code>UILiveRegion.Status</code> or <code>Alert</code>), so a message shown later — its
+<code>Visibility</code> bound — is read out as it appears, and a bound title or body as it changes. <code>SetLiveRegion(null)</code> on the
+result takes the role off a message that should only be read where the reader reaches it.</li>
+<li><strong>The action is your button</strong>, with its own command. It stands at the message's bottom end, as a toast's does: from the
+medium breakpoint beside the words, level with their last line; on a phone under them. An outlined one
+(<code>UIButtons.Outline</code>) reads on every tint.</li>
+<li><strong>The × stands on the words' first line</strong>, its glyph on the message's far edge as the mark stands on the near one; the stylesheet
+sets the first line on the small × button's middle, whatever line the theme gives the title or the body.</li>
+<li><strong>The × hides the message in the browser</strong> through one interaction from its click to the message's <code>Visibility</code> — nothing
+is sent, so a reload shows it again. The keyboard's focus goes on to the next control after the message, so a screen
+reader keeps its place. Its name is the framework's word &quot;Dismiss&quot; (<code>ui.message.dismiss</code>, shipped in
+Russian and Chinese). <strong>A message the server should stop showing for good</strong> takes a <code>dismissCommand</code>: the × still hides it at
+once, and runs the command beside the hide, where the controller records the choice and keeps its bound <code>Visibility</code> collapsed.</li>
+<li>The title is in the subtitle role and the body in the body role, both in the page's own ink, which reads 4.5:1 on
+every severity's tint in both themes, the mark 3:1 or more.</li>
+</ul>
+<pre><code class="language-csharp">UIMessage.Warning(&quot;Your trial ends in 3 days&quot;, &quot;Billing starts on the 14th.&quot;,
+    UIButtons.Outline(&quot;Upgrade&quot;).OnClick(nameof(BillingController.Upgrade)),
+    dismissible: true)
+</code></pre>
+<p>A verdict the server gives, read out as it arrives:</p>
+<pre><code class="language-csharp">UIMessage.BoundCreate(UIMessageSeverity.Success, null, nameof(CheckoutController.PromoVerdict))
+    .BindVisibility(nameof(CheckoutController.PromoAppliedVisibility))
+</code></pre>
+<h2 id="uidialogs-a-dialog-with-a-header-a-form-and-a-confirmation"><code>UIDialogs</code> — a dialog with a header, a form, and a confirmation</h2>
+<p>A dialog headed by its mark, its title and an × at the far end, over its content.</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Create(string key, UIPhrase title, IVisualComponent content, string? icon = null, UIColumnWidth? width = null)</code></td>
+<td>A <code>UIDialog</code> named by its title, the header over the content; a <code>width</code> keeps the content to that column from the medium breakpoint (<code>Wide</code>, more than a tablet holds, from the extra-large one), the screen's width below. The rest keeps the dialog's defaults: change it with <code>with { CloseOnBackdrop = false }</code>, <code>UIDialog</code> being a record.</td>
+</tr>
+<tr>
+<td><code>BoundCreate(string key, string titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null)</code></td>
+<td>The same with the title the controller holds — the thing's name, Add or Edit — bound as its own words (a path holding a <code>UIPhrase</code> still translates); it still names the dialog as it changes.</td>
+</tr>
+<tr>
+<td><code>Content(…)</code>, <code>BoundContent(…)</code></td>
+<td>The header over the content, for a dialog laid out or set otherwise — a sheet, a height: <code>new UIDialog { Key = key, TitleId = UIDialogs.TitleId(key), Content = UIDialogs.Content(key, title, body), … }</code>.</td>
+</tr>
+<tr>
+<td><code>Header(string key, UIPhrase title, string? icon = null)</code>, <code>BoundHeader(string key, string titlePath, string? icon = null)</code></td>
+<td>The header alone: the title in the title role with the mark as its own icon, the × at the far end, its glyph on the content's edge. The title carries <code>UIDialogs.TitleId(key)</code>, which a dialog built around it names itself by.</td>
+</tr>
+<tr>
+<td><code>CloseButton(string key, UIStandardAction? action = null, UIButtonType type = Ghost)</code></td>
+<td>The dialog's own answer that closes it as the viewer does — Cancel, or Close or Done — in the framework's words: the held edits of the dialog's form go back, then the dialog closes on the page and raises its <code>OnClose</code>.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>A dialog is named by the title it shows</strong> (<code>UIDialog.TitleId</code>, <code>aria-labelledby</code>), so a bound title names it as it changes;
+<code>Label</code> names a dialog with no title of its own. The view does not compile where <code>TitleId</code> names nothing inside the dialog's
+content, or a component in a template. A dialog stands at the view's root, never in a row, so its <code>Bound*</code> twins bind the
+controller's paths and take no <code>UIBindingScope</code>.</li>
+<li><strong>The × closes the dialog as Escape does</strong>: on the page, through interactions alone (<code>DiscardFormEffect</code> then
+<code>CloseDialogEffect</code> with <code>RaisesClose</code>), raising the dialog's <code>OnClose</code>, so a controller that cancels on Escape cancels on the ×
+too. It is <code>UIIconButtons.Close()</code>, named by the standard action's word &quot;Close&quot; (<code>ui.action.close</code>, shipped in Russian and
+Chinese).</li>
+</ul>
+<pre><code class="language-csharp">UIDialogs.Create(&quot;edit&quot;, &quot;Edit message&quot;, UILayout.Stack(12, field, UIButtons.Pair(UIDialogs.CloseButton(&quot;edit&quot;), save)), AppIcons.Edit, UIColumnWidth.Form)
+    .OnClose(nameof(ChatController.CloseEdit))
+</code></pre>
+<h3 id="a-form">A form</h3>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Form(string key, UIPhrase title, UIPhrase? description, IVisualComponent content, ButtonComponent primary)</code></td>
+<td>A form in a dialog — rename it, invite someone, change a password: the title in the title role and an optional muted line under it, the content, and the standard Cancel (<code>CloseButton</code>) and <code>primary</code> at its foot, 16 px apart. No ×, since Cancel says it; a press on the backdrop loses nothing typed (<code>CloseOnBackdrop</code> is off), Escape closes it. A form's column wide (<code>UIColumnWidth.Form</code>, 440 px) from the medium breakpoint, the dialog's whole width on a phone.</td>
+</tr>
+<tr>
+<td><code>Form(…, ButtonComponent safe, ButtonComponent primary)</code></td>
+<td>The same with a safe answer of your own in Cancel's place.</td>
+</tr>
+<tr>
+<td><code>BoundForm(string key, string titlePath, string? descriptionPath, IVisualComponent content, [ButtonComponent safe,] ButtonComponent primary)</code></td>
+<td>The title and the line the controller holds — &quot;Add a phrase&quot; or &quot;Edit the phrase&quot;, the folder an import goes into — as its own words, the line drawn plain; a title that stays the same is a key the controller holds (a path holding a <code>UIPhrase</code> still translates).</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>The dialog is a form, its key the form's id.</strong> Every field of the content with no <code>FormId</code> of its own, written or bound, is
+given the key, and the primary submits it (its <code>SubmitFormId</code>, unless it already submits another form) — so give the primary its
+command with <code>OnClick</code> or <code>OnClickShowingLoading</code>. What that does: <strong>Enter</strong> in a one-line field (one with no <code>OnEnter</code>) commits
+it and presses the primary; the primary's <strong>press judges the fields' <code>Submit</code> rules first</strong> and stops on any error, its focus on
+the first field in error; it <strong>waits for the fields' uploads</strong>; a field bound <strong><code>OnSubmit</code></strong> holds its value until the press and
+sends it then, while a field bound two-way still writes as it changes; the fields join one browser form, as a password manager
+reads them. <strong>Cancel puts the held values back</strong> and clears what the rules said, so the form opens again untouched.</li>
+</ul>
+<h3 id="a-confirmation">A confirmation</h3>
+<p>The question asked before something is done — &quot;Delete this note?&quot; — is the other kind of dialog: no header and no ×, only its
+question, its words and its answers.</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Confirm(string key, UIPhrase question, UIPhrase? body, UIPhrase confirmWord, string confirmCommand, UIButtonType confirmType = Danger, string? cancelCommand = null, ButtonComponent? middle = null)</code></td>
+<td>A <code>UIDialog</code> named by its question: the question in the subtitle role, wrapping; its words a body line 8 px under it; 16 px under those, Cancel, <code>middle</code> where given, and the committing button, pushed to the far edge (<code>UIButtons.Pair</code>). <code>Confirm(key, question, confirmWord, confirmCommand, …)</code> asks the question alone.</td>
+</tr>
+<tr>
+<td><code>Confirm(string key, UIPhrase question, ParagraphComponent? body, …)</code></td>
+<td>The same with words of your own beyond words alone — a link to what goes, an emphasis — given the body role and the page's ink.</td>
+</tr>
+<tr>
+<td><code>BoundConfirm(string key, UIPhrase question, string bodyPath, …)</code></td>
+<td>The words the controller holds at <code>bodyPath</code> under a written question — &quot;Delete «Groceries» and its 12 notes?&quot; — kept as written (<code>AsContent</code>) and drawn plain: a name in them is the thing's own, never a key that happens to match it, nor markup; a path holding a <code>UIPhrase</code> still translates.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Cancel is <code>UIDialogs.CloseButton(key)</code></strong>: the standard action's word &quot;Cancel&quot; (<code>ui.action.cancel</code>, shipped in Russian and
+Chinese), a ghost button and the first, where the focus lands as the dialog opens. It closes the dialog on the page as the
+viewer's close (<code>CloseDialogEffect</code> with <code>RaisesClose</code>) and raises its <code>OnClose</code>, which runs <code>cancelCommand</code> where one is given.</li>
+<li><strong>Escape is Cancel</strong>: it closes the dialog and raises the same <code>OnClose</code>, so a controller hears both alike. <strong>A press on the
+backdrop is no answer</strong> and leaves the dialog open (<code>CloseOnBackdrop</code> is off).</li>
+<li><strong>The committing button</strong> is a primary or a danger one (<code>confirmType</code>; any other type throws) in the words given, running
+<code>confirmCommand</code>. The command closes the dialog itself — <code>CloseDialogEffect(key)</code> among its effects — so a refused one leaves
+the question standing.</li>
+<li><strong>A middle answer</strong> is your button — &quot;Don't save&quot; for unsaved work — standing between Cancel and the committing one; an
+outlined one (<code>UIButtons.Outline</code>) reads as the other way.</li>
+<li>The measures are the framework's own leave dialog's, so an application's question and the framework's read alike.</li>
+</ul>
+<pre><code class="language-csharp">protected override IReadOnlyList&lt;UIDialog&gt; CreateDialogs()
+    =&gt; [
+        UIDialogs.BoundConfirm(
+            &quot;delete-note&quot;,
+            &quot;Delete this note?&quot;,
+            nameof(NotesController.DeleteQuestion),
+            &quot;Delete&quot;,
+            nameof(NotesController.DeleteNote)
+        ),
+        UIDialogs.Confirm(
+            &quot;unsaved&quot;,
+            &quot;Save your changes?&quot;,
+            &quot;They are lost if you leave without saving.&quot;,
+            &quot;Save&quot;,
+            nameof(NotesController.SaveAndLeave),
+            UIButtonType.Primary,
+            cancelCommand: nameof(NotesController.Stay),
+            middle: UIButtons.Outline(&quot;Don't save&quot;).OnClick(nameof(NotesController.DiscardAndLeave))
+        )
+    ];
+</code></pre>
+<h2 id="uimenuitems-and-uiiconbuttons-the-standard-actions"><code>UIMenuItems</code> and <code>UIIconButtons</code> — the standard actions</h2>
+<p>The actions screens share, one name and one glyph each, so one screen's &quot;Delete&quot; reads as another's. <strong>Prefer these to an entry
+or an icon button written by hand.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Menu entry</th>
+<th>Icon button</th>
+<th>Glyph</th>
+<th>Name (<code>ui.action.*</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pin</td>
+<td><code>UIMenuItems.Pin(id = &quot;pin&quot;)</code></td>
+<td><code>UIIconButtons.Pin()</code></td>
+<td><code>UIGlyphs.PinOutlined</code></td>
+<td>Pin</td>
+</tr>
+<tr>
+<td>Unpin</td>
+<td><code>Unpin</code></td>
+<td><code>Unpin</code></td>
+<td><code>UIGlyphs.PinOff</code></td>
+<td>Unpin</td>
+</tr>
+<tr>
+<td>Open</td>
+<td><code>Open</code></td>
+<td><code>Open</code></td>
+<td><code>UIGlyphs.OpenInNew</code></td>
+<td>Open</td>
+</tr>
+<tr>
+<td>Edit</td>
+<td><code>Edit</code></td>
+<td><code>Edit</code></td>
+<td><code>UIGlyphs.Edit</code></td>
+<td>Edit</td>
+</tr>
+<tr>
+<td>Copy</td>
+<td><code>Copy</code></td>
+<td><code>Copy</code></td>
+<td><code>UIGlyphs.Copy</code></td>
+<td>Copy</td>
+</tr>
+<tr>
+<td>Save</td>
+<td><code>Save</code></td>
+<td><code>Save</code></td>
+<td><code>UIGlyphs.Save</code></td>
+<td>Save</td>
+</tr>
+<tr>
+<td>Done</td>
+<td><code>Done</code></td>
+<td><code>Done</code></td>
+<td><code>UIGlyphs.Check</code></td>
+<td>Done</td>
+</tr>
+<tr>
+<td>Cancel</td>
+<td><code>Cancel</code></td>
+<td><code>Cancel</code></td>
+<td><code>UIGlyphs.Close</code></td>
+<td>Cancel</td>
+</tr>
+<tr>
+<td>Close</td>
+<td><code>Close</code></td>
+<td><code>Close</code></td>
+<td><code>UIGlyphs.Close</code></td>
+<td>Close</td>
+</tr>
+<tr>
+<td>Back</td>
+<td><code>Back</code></td>
+<td><code>Back</code></td>
+<td><code>UIGlyphs.ArrowBack</code></td>
+<td>Back</td>
+</tr>
+<tr>
+<td>New</td>
+<td><code>New</code></td>
+<td><code>New</code></td>
+<td><code>UIGlyphs.Add</code></td>
+<td>New</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td><code>Delete</code></td>
+<td><code>Delete</code></td>
+<td><code>UIGlyphs.Delete</code>, in the danger colour</td>
+<td>Delete</td>
+</tr>
+<tr>
+<td>More</td>
+<td><code>More(items, id = &quot;more&quot;)</code>, a submenu; <code>More(id)</code> its entries added later</td>
+<td><code>More(items)</code>, a ⋮ menu button; <code>More().BindItems(path)</code> for the controller's</td>
+<td><code>UIGlyphs.MoreVertical</code></td>
+<td>More</td>
+</tr>
+<tr>
+<td>Refresh</td>
+<td><code>Refresh</code></td>
+<td><code>Refresh</code></td>
+<td><code>UIGlyphs.Refresh</code></td>
+<td>Refresh</td>
+</tr>
+<tr>
+<td>Search</td>
+<td><code>Search</code></td>
+<td><code>Search</code></td>
+<td><code>UIGlyphs.Search</code></td>
+<td>Search</td>
+</tr>
+<tr>
+<td>Filter</td>
+<td><code>Filter</code></td>
+<td><code>Filter</code></td>
+<td><code>UIGlyphs.Filter</code></td>
+<td>Filter</td>
+</tr>
+<tr>
+<td>Settings</td>
+<td><code>Settings</code></td>
+<td><code>Settings</code></td>
+<td><code>UIGlyphs.Settings</code></td>
+<td>Settings</td>
+</tr>
+<tr>
+<td>Share</td>
+<td><code>Share</code></td>
+<td><code>Share</code></td>
+<td><code>UIGlyphs.Share</code></td>
+<td>Share</td>
+</tr>
+<tr>
+<td>Download</td>
+<td><code>Download</code></td>
+<td><code>Download</code></td>
+<td><code>UIGlyphs.Download</code></td>
+<td>Download</td>
+</tr>
+<tr>
+<td>Upload</td>
+<td><code>Upload</code></td>
+<td><code>Upload</code></td>
+<td><code>UIGlyphs.Upload</code></td>
+<td>Upload</td>
+</tr>
+<tr>
+<td>Rename</td>
+<td><code>Rename</code></td>
+<td><code>Rename</code></td>
+<td><code>UIGlyphs.Rename</code></td>
+<td>Rename</td>
+</tr>
+<tr>
+<td>Add</td>
+<td><code>Add</code></td>
+<td><code>Add</code></td>
+<td><code>UIGlyphs.Add</code></td>
+<td>Add</td>
+</tr>
+<tr>
+<td>Remove</td>
+<td><code>Remove</code></td>
+<td><code>Remove</code></td>
+<td><code>UIGlyphs.Remove</code></td>
+<td>Remove</td>
+</tr>
+<tr>
+<td>Send</td>
+<td><code>Send</code></td>
+<td><code>Send</code></td>
+<td><code>UIGlyphs.Send</code></td>
+<td>Send</td>
+</tr>
+<tr>
+<td>Attach</td>
+<td><code>Attach</code></td>
+<td><code>Attach</code></td>
+<td><code>UIGlyphs.AttachFile</code></td>
+<td>Attach</td>
+</tr>
+<tr>
+<td>Menu</td>
+<td><code>Menu</code></td>
+<td><code>Menu</code></td>
+<td><code>UIGlyphs.Menu</code></td>
+<td>Menu</td>
+</tr>
+<tr>
+<td>Stop</td>
+<td><code>Stop</code></td>
+<td><code>Stop</code></td>
+<td><code>UIGlyphs.Stop</code></td>
+<td>Stop</td>
+</tr>
+<tr>
+<td>Undo</td>
+<td><code>Undo</code></td>
+<td><code>Undo</code></td>
+<td><code>UIGlyphs.Undo</code></td>
+<td>Undo</td>
+</tr>
+<tr>
+<td>Redo</td>
+<td><code>Redo</code></td>
+<td><code>Redo</code></td>
+<td><code>UIGlyphs.Redo</code></td>
+<td>Redo</td>
+</tr>
+<tr>
+<td>Sign out</td>
+<td><code>SignOut</code></td>
+<td><code>SignOut</code></td>
+<td><code>UIGlyphs.Logout</code></td>
+<td>Sign out</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><p><strong>Save writes a document out; Done ends an edit made in place</strong> — a message's words edited where they stand, a cell, a title —
+with a check beside Cancel's ×. <strong>Back</strong> leads a page's header (<code>UIPage.Header(leading, …)</code>) with a <code>NavigateBackEffect</code> or a
+command of its own; <strong>New</strong> makes one more of what a list or a chooser holds, where <strong>Add</strong> puts an existing one in it (both the
+plus); <strong>Remove</strong> takes one out of a list and keeps it, where <strong>Delete</strong> destroys it. <strong>More</strong> is the ⋮ that holds the rest: a
+menu button with no chevron (a <code>SplitButtonComponent</code>), its entries the standard ones where they fit.</p>
+</li>
+<li><p><strong>A menu entry is a <code>MenuItem</code></strong> whose id is the action's name unless given (<code>UIMenuItems.Delete(&quot;delete-file&quot;)</code>): the id the
+menu's click reports. Set anything else on it as on any entry (<code>InActionBar</code>, <code>Items</code>).</p>
+</li>
+<li><p><strong>An icon button is a ghost <code>ButtonComponent</code></strong> whose tooltip is its name; give it its command with <code>OnClick</code>.</p>
+</li>
+<li><p><strong>A command bar's or a button group's item is <code>UIStandardAction.Delete.ToButtonItem(id, type, iconOnly)</code></strong> (the core): its glyph,
+its words on the button or as its tooltip, and its danger as these buttons draw it — a filled one's fill, a bare one's ink.</p>
+</li>
+<li><p>The names are the framework's words, shipped in Russian and Chinese. They come from <code>UIStandardAction</code> (the core), which the
+built-in tab menu and a key-value row's buttons take too, so renaming <code>ui.action.delete</code> renames every &quot;Delete&quot;.</p>
+</li>
+<li><p><strong>The glyphs are the framework's own, mostly filled.</strong> An application drawing its icons outlined maps them onto its pack once at
+startup — <code>services.MapUIGlyph(UIGlyphs.Copy, MaterialIcons.Outlined(MaterialIcons.ContentCopy))</code> — and every entry, button and
+built-in that wears the glyph follows (<a href="web-hosting.html#framework-glyphs-drawn-by-an-icon-pack">web hosting</a>).</p>
+</li>
+</ul>
+<pre><code class="language-csharp">menu.SetItems([UIMenuItems.Edit(), UIMenuItems.Copy(), UIMenuItems.Delete()]);
+UILayout.Row(4, UIIconButtons.Edit().OnClick(nameof(NotesController.Edit)), UIIconButtons.Delete().OnClick(nameof(NotesController.Delete)))
+UIIconButtons.More([UIMenuItems.Rename(), UIMenuItems.Share(), UIMenuItems.Delete()]).OnItemClickWithItemKey(nameof(NotesController.Run))
+</code></pre>
+<h2 id="uitext.withbadges-a-title-over-its-badges"><code>UIText.WithBadges</code> — a title over its badges</h2>
+<p>A title with a row of badges under it in place of a description — a release's environment and replicas, a contact's labels — and
+an optional mark before both, centred across the two lines. The badges wrap onto further lines.</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WithBadges(UIPhrase title, IEnumerable&lt;BadgeItem&gt; badges, string? icon = null)</code></td>
+<td>The title in the body's role over one <code>BadgeComponent</code> per <code>BadgeItem</code>: its style, colour, fill, icon, text and tooltip.</td>
+</tr>
+<tr>
+<td><code>BoundWithBadges(string titlePath, string badgesPath, UIBindingScope scope = Root, string? icon = null)</code></td>
+<td>The title the controller holds — in a list's row — as content, over the collection of <code>BadgeItem</code>s at <code>badgesPath</code>, kept in step as it changes.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">UIText.WithBadges(&quot;billing · #481&quot;, [
+    new BadgeItem { BadgeText = &quot;production&quot;, BadgeStyle = UIBadgeType.Success },
+    new BadgeItem { BadgeText = &quot;8 of 8&quot;, BadgeIcon = AppIcons.Check }
+], AppIcons.Server)
+</code></pre>
+<h2 id="uitext.quote-a-quote"><code>UIText.Quote</code> — a quote</h2>
+<p>A quote as a messenger draws a reply or an edit: a 3 px stroke at its start in an accent colour, a title as a caption in that
+colour — who wrote it, or &quot;Editing&quot; — and one muted line under it, the start of the words, cut with an ellipsis. It returns a
+<code>SurfaceComponent</code> with no fill of its own, so it stands on whatever holds it, a message's tint included.</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Quote(UIPhrase title, UIPhrase line, UIThemeColor? accent = null, string? clickCommand = null, string? closeCommand = null)</code></td>
+<td>A quote in <code>accent</code>, or in the brand (<code>UIThemeColor.Primary</code>) where none is given.</td>
+</tr>
+<tr>
+<td><code>BoundQuote(string titlePath, string linePath, UIBindingScope scope = Root, string? accentPath = null, string? clickCommand = null, string? closeCommand = null)</code></td>
+<td>The same bound to what the controller holds — a reply line over a composer, a quote in a message's row — its colour at <code>accentPath</code> where one is given, the brand while that is null.</td>
+</tr>
+<tr>
+<td><code>Quote(IVisualComponent content, UIThemeColor? accent = null, string? clickCommand = null, string? closeCommand = null)</code></td>
+<td>The same stroke round content of your own — a paragraph, a picture and its caption, a whole message — in <code>accent</code>, or in the neutral border colour a quotation inside text is drawn in (<code>UIThemeColor.Border</code>) where none is given; pressable and closed as the others.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>The title and the line are content</strong>: a person's name and words are shown as written, never looked up as a key. A
+<code>UIPhrase.Of(key)</code> — &quot;Editing&quot; in the reader's language — is still translated.</li>
+<li><strong><code>clickCommand</code> makes the whole quote pressable</strong>, by the keyboard too, with a press's wash — a jump to the message it quotes.
+A jump that names what it quotes takes its argument on the result instead: <code>.OnClick(command, arguments)</code>.</li>
+<li><strong><code>closeCommand</code> ends the quote in an ×</strong> — <code>UIIconButtons.Close()</code>, named &quot;Close&quot; (<code>ui.action.close</code>) — for the reply line the
+reader can drop, its glyph on the quote's end as every band's end icon. A press on the × is the ×'s alone, never the quote's; it
+hides the quote at once and runs the command beside the hide, as a message's × does.</li>
+<li>The stroke is as wide as a Markdown display's blockquote (the CodeInput package), so a quote in a message and the reply over it
+are drawn alike.</li>
+</ul>
+<pre><code class="language-csharp">// Over the composer: who is answered, the start of their words, and an × that drops the reply.
+UIText.BoundQuote(nameof(ChatController.ReplyTitle), nameof(ChatController.ReplyLine), closeCommand: nameof(ChatController.CancelReply))
+    .BindVisibility(nameof(ChatController.ReplyVisibility))
+
+// Inside a message's row: in its author's colour, pressed to go to the message it quotes.
+UIText.BoundQuote(nameof(MessageItem.ReplyAuthor), nameof(MessageItem.ReplyLine), UIBindingScope.Relative, nameof(MessageItem.ReplyAccent))
+    .OnClick(nameof(ChatController.JumpToAsync), UIAction.ArgRelative(&quot;id&quot;, nameof(MessageItem.ReplyId)))
+</code></pre>
+<h2 id="uitext.person-a-person"><code>UIText.Person</code> — a person</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Person(string? avatar, UIPhrase name, UIPhrase? line = null, UIPersonSize size = Medium)</code></td>
+<td>A person as a list's row or a byline shows one: the round picture (the person glyph where <code>avatar</code> is null or fails), and 12 px after it, on its middle, the name in the body's role over a muted caption — a role, how long ago, the last words. Both are content, a person's own words as written; a <code>UIPhrase.Of</code> key still translates. The picture has no words of its own for a screen reader: the name stands beside it.</td>
+</tr>
+<tr>
+<td><code>Person(string? avatar, IVisualComponent words, UIPersonSize size = Medium)</code></td>
+<td>The same beside words of your own — a name with a badge, a line with a timestamp — standing where the name would.</td>
+</tr>
+<tr>
+<td><code>BoundPerson(string? avatarPath, string namePath, string? linePath = null, UIBindingScope scope = Root, UIPersonSize size = Medium)</code></td>
+<td>The same bound to what the controller holds — a chat's row (<code>UIBindingScope.Relative</code>), the person a conversation is with — the person glyph where no avatar path is given or it holds nothing.</td>
+</tr>
+</tbody>
+</table>
+<p>Two sizes, never one a page picks: <code>UIPersonSize.Medium</code> (40 px — a list's row, a byline) and <code>Small</code> (32 px — a dense row, a menu,
+a table's cell). A pane's title row with a person in it is <code>UIPage.Header(UIHeaderSize.Pane, …)</code> with the round picture as its
+<code>leading</code>.</p>
+<pre><code class="language-csharp">.SetTemplate(UILayout.Ends(
+    UIText.BoundPerson(nameof(ChatItem.Avatar), nameof(ChatItem.Title), nameof(ChatItem.LastWords), UIBindingScope.Relative),
+    new TimestampComponent().BindValue(nameof(ChatItem.At), UIBindingScope.Relative).SetFormat(UITimestampFormat.Relative)
+))
+</code></pre>
+<h2 id="uiform-the-parts-of-a-form-besides-its-fields"><code>UIForm</code> — the parts of a form besides its fields</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Field(IVisualComponent input, UIPhrase? hint = null)</code>, <code>Field(IVisualComponent input, ParagraphComponent hint)</code>, <code>BoundField(IVisualComponent input, string hintPath, UIBindingScope scope = Root)</code></td>
+<td>The input with a muted, wrapping hint under it: what may be typed, what it is for — or the input alone in the same column, so a form writes every field one way; a paragraph of your own (inline links) or the line the controller holds (how much is left), as content. The hint starts where the field's words do — under a switch or a checkbox, with its label's words past the box, never under the box's edge.</td>
+</tr>
+<tr>
+<td><code>Row(params IVisualComponent[] fields)</code>, <code>Row(double spacing, params IVisualComponent[] fields)</code></td>
+<td>Fields side by side in equal columns — a city and its postcode, a first and a last name — their tops level, so a field that grows a validation line does not move its neighbour; 16 pixels apart unless <code>spacing</code> says otherwise. Among fields with a caption over their boxes, a control with none — a switch, a checkbox, a button — stands a caption line down, centred on a box of their size, while they stand side by side; with its hint (<code>Field</code>) the control stands on the box and the hint under it. A thing under its label (<code>UIPage.Labelled</code>), or a row or a grid holding a titled field (a field and its Add), counts as captioned.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">UIForm.Field(new TextAreaComponent()
+    .SetTitle(&quot;Invoice note&quot;)
+    .SetMaxLength(200)
+    .BindValue(nameof(CheckoutController.InvoiceNote)),
+    &quot;Printed on every invoice, two hundred characters at most.&quot;)
+</code></pre>
+<p><code>Row</code> divides the twenty-four columns of the placement grid evenly, so it takes two, three, four or six fields and
+throws for any other count. It is <code>UILayout.Columns(spacing, UIAlignment.Start, fields)</code> underneath, so on a narrow screen
+the fields stand one under another, as below. A row of fields is <code>UIForm.Row</code> rather than <code>UILayout.Columns</code>, which centres a
+field against a taller neighbour. A control with no caption stands a caption line down, centred on the fields' box, from the
+width the cells stand side by side at (<code>md</code>, <code>xl</code> for four or six), at the captioned fields' <code>Size</code> — medium where they differ;
+stacked, it stays where it is. That is not the row's doing: wherever a control with no caption — a button, an untitled field, a
+switch, a button group, a panel of them — stands beside a field that is captioned itself, in a horizontal stack of your own that
+does not wrap or on a grid's row, the framework stands it level with the box, per width as the arrangement turns
+(<code>AlignWithFieldBoxes</code>, which the compiler sets where you leave it unset). A card, a list or words alone stay put, as does anything
+beside a whole column of fields or in a wrapping panel of your own, whose later line has no field beside it. <code>UILayout.Row</code> asks
+for it itself: a thing with no caption stands in a cell whose padding takes the caption's line, on every line, a wrapped one too. A panel takes it as its top padding
+and least height, anything else as its top margin; with an authored <code>Padding</code> or <code>Margin</code> nothing is implied, and
+<code>UIFieldBoxAlignment.None</code> keeps a thing where it is laid out:</p>
+<pre><code class="language-csharp">new StackPanelComponent()
+    .SetOrientation(UIOrientation.Vertical, md: UIOrientation.Horizontal)
+    .AddChild(new TextInputComponent().SetTitle(&quot;City&quot;))
+    .AddChild(new ButtonComponent().SetTitle(&quot;Find&quot;))
+</code></pre>
+<p>Two more of a panel's own say where what it holds stands beside buttons, both drawn by the stylesheet from its tokens and the
+theme's lines, never a number of yours: <code>GlyphEdge</code> (<code>UIAlignment.Start</code> or <code>End</code>) hangs the first or last quiet button past the
+panel's edge, so its glyph or its words stand on the content's edge (an icon by its own <code>IconSize</code>), <code>FirstLineOnControl(UIButtonSize)</code>
+sets its first child down so that child's first line stands on a button's middle — a name that wraps beside the buttons at its row's
+end, as a page header's does on a phone — and <code>FirstChildAsCaption</code> stands its first child in a field's caption row, so a label over
+a control (<code>UIPage.Labelled</code>) stands the control level with captioned fields' boxes.</p>
+<h2 id="uilayout-the-arrangements"><code>UILayout</code> — the arrangements</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Stack(double spacing = 12, params IVisualComponent[] children)</code></td>
+<td>Children down a column with the same spacing between each pair.</td>
+</tr>
+<tr>
+<td><code>Row(double spacing = 8, params IVisualComponent[] children)</code></td>
+<td>Children along a row, wrapping onto the next line when the row is too narrow. Beside a field with a caption over its box, a thing with none — a button, a field without a title — stands level with the box at every width, as in <code>UIForm.Row</code> (the filters in a <code>UIPage.Band</code>).</td>
+</tr>
+<tr>
+<td><code>Columns(double spacing = 16, params IVisualComponent[] children)</code></td>
+<td>Children in equal columns — two, three, four or six of them; any other count throws.</td>
+</tr>
+<tr>
+<td><code>Columns(double spacing, UIAlignment? cellAlignment, params IVisualComponent[] children)</code></td>
+<td>The same, every cell standing at <code>cellAlignment</code> — <code>UIAlignment.Start</code> holds the cells by the top, as <code>UIForm.Row</code> does; <code>null</code> lets each cell take its child's own.</td>
+</tr>
+<tr>
+<td><code>Split(IVisualComponent main, IVisualComponent side, int sideSpan = 8, double spacing = 24)</code></td>
+<td>A main part with a side part to its right, the side taking <code>sideSpan</code> of the twenty-four columns.</td>
+</tr>
+<tr>
+<td><code>Sidebar(IVisualComponent side, IVisualComponent main, int sideSpan = 8, double spacing = 24)</code></td>
+<td>The other way round: the side part first (a list, a tree, a filter rail), the main part beside it.</td>
+</tr>
+<tr>
+<td><code>Ends(IVisualComponent start, params IVisualComponent[] end)</code></td>
+<td>Something at the start of a row and things at its far end — a title and its buttons, a line and its action, a search and its Add: the end as wide as it is (an <code>Auto</code> column), never half the row, the start the rest, both on the row's middle, 12 px apart and the end's things 8 px apart. Beside a start with a caption over its box — a titled select and its New and Copy — the end stands level with the box, as <code>UIForm.Row</code> stands a control with no caption. On a phone buttons with words stand under the start at the far end, as a page header's do; icons and the rest keep the row. An icon or quiet words at either end stand their glyph on the row's edge, so rows under an <code>Ends</code> row that end in icons are <code>Ends</code> rows too, or a hand-built grid's icons stand inside the edge the <code>Ends</code> row's hang on.</td>
+</tr>
+<tr>
+<td><code>Board(IVisualComponent[] start, IVisualComponent[] end, double spacing = 16)</code></td>
+<td>Cards on two columns, each a stack read top to bottom — a settings page's panels, an account's — held by their tops, <code>spacing</code> apart down a column and across; below <code>xl</code> the columns stand one under the other, the start's first. Either column empty throws.</td>
+</tr>
+<tr>
+<td><code>Panes(IVisualComponent list, IVisualComponent detail, string statePath, IVisualComponent? placeholder = null, bool splitter = false)</code></td>
+<td>A list and the thing chosen in it — chats and a conversation, a tree and a note, mail and a message: side by side from <code>md</code>, the list 280 px wide and 16 px of air; with <code>splitter</code> a <code>GridSplitterComponent</code> between them, the list from 200 to 480 px. The controller's <code>UIPanesState</code> at <code>statePath</code> says which shows. Below <code>md</code> one at a time, in one cell: the detail in the list's place once it is in front. A <code>placeholder</code> (<code>UIPage.Empty</code>) stands in the detail's place while nothing is chosen.</td>
+</tr>
+</tbody>
+</table>
+<p>Each of <code>Columns</code>, <code>Split</code> and <code>Sidebar</code> stands its parts one under another on a narrow screen: two or three columns go
+side by side from the <code>md</code> tier, four or six columns, a split and a sidebar from <code>xl</code>. Side by side, a part keeps its own
+<code>VerticalAlignment</code> against a taller neighbour — a text, an input or a button is centred by default — and one that must
+stay at the top says <code>SetVerticalAlignment(UIAlignment.Start)</code>.</p>
+<p><code>Panes</code> leaves which pane shows to the controller, which holds a <code>UIPanesState</code> and moves it: <code>ShowDetail()</code> brings the chosen
+thing to the front, <code>ShowList()</code> goes back to the list with the chosen thing still beside it from <code>md</code>, <code>ShowNothing()</code> goes back
+with nothing chosen, the placeholder beside. A state starts with the list in front and nothing chosen — <code>new(chosen: true)</code> for
+panes with no placeholder, whose detail always stands beside. Its <code>Share</code> is the splitter's: seed what the person kept with
+<code>SeedShare</code>, and <code>ShareChanged</code> says when they moved it. <code>UILayout.PanesListVisibility</code>, <code>PanesDetailVisibility</code> and
+<code>PanesPlaceholderVisibility</code> are the values the state holds, for a part of the page that follows a pane, and <code>band.InPanesList()</code>
+gives a band over the list (its header in the header region) the list's width from <code>md</code>, its own padding outside — without a
+splitter, since a list the reader widens is wider than any band can know. The detail brings its own way back, shown on a phone only:</p>
+<pre><code class="language-csharp">// View
+UILayout.Panes(
+    CreateChats(),
+    CreateConversation(),
+    nameof(ChatController.Panes),
+    UIPage.Empty(AppIcons.Chat, &quot;Pick a chat&quot;, &quot;The conversation opens here.&quot;),
+    splitter: true
+)
+.SetHeight(UILayoutLength.Fill())
+
+UIPage.BoundHeader(UIHeaderSize.Pane, UIIconButtons.Back().OnClick(nameof(ChatController.Back)).ShownBelow(UIResponsiveTier.Md), nameof(ChatController.Partner))
+
+// Controller
+[RecursiveMember]
+public partial UIPanesState Panes { get; set; } = new();
+
+// Opening a chat, and its Back
+Panes.ShowDetail();
+Panes.ShowNothing();
+
+// The division the person keeps: stored when they move it, subscribed once (the constructor)…
+Panes.ShareChanged += (_, _) =&gt; Context.Runtime.Post(token =&gt; Accounts.SetChatSplitAsync(AccountId, Panes.Share, token));
+
+// …and read on every show
+Panes.SeedShare(account.ChatSplit);
+</code></pre>
+<p>The spacing comes first, so a stack with children always names it:</p>
+<pre><code class="language-csharp">UILayout.Sidebar(CreateFilters(), UILayout.Stack(16,
+    UIText.Title(&quot;Results&quot;),
+    CreateResults()
+), sideSpan: 6)
+</code></pre>
+<h2 id="uibuttons-a-button-in-its-type-and-the-rows-buttons-go-in"><code>UIButtons</code> — a button in its type, and the rows buttons go in</h2>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Builds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Primary</code>, <code>Accent</code>, <code>Outline</code>, <code>Ghost</code>, <code>Danger</code>, <code>Link</code> <code>(UIPhrase title, string? icon = null)</code></td>
+<td>A <code>ButtonComponent</code> of that type; the words a key with its arguments where they need them (<code>UIPhrase.Of(&quot;cart.pay&quot;, (&quot;total&quot;, total))</code>).</td>
+</tr>
+<tr>
+<td><code>Primary</code>, <code>Accent</code>, <code>Outline</code>, <code>Ghost</code>, <code>Danger</code>, <code>Link</code> <code>(UIStandardAction action, bool glyph = false)</code></td>
+<td>The button naming a standard action in the framework's words — Save, Copy, Done — its glyph before them where <code>glyph</code>. Delete fills in the danger colour on a filled type and takes the danger ink on a bare one. A dialog's own Cancel is <code>UIDialogs.CloseButton</code>.</td>
+</tr>
+<tr>
+<td><code>Icon(string icon, UIPhrase tooltip)</code></td>
+<td>An icon-only ghost button; the tooltip is its only name, so it is required. A glyph and a name the controller holds — Send that turns into Stop while a reply is written — are bound on the button it returns, <code>Icon(send, word).BindIcon(path).BindTooltip(path)</code>, the written ones the bindings' fallback while the paths hold nothing.</td>
+</tr>
+<tr>
+<td><code>Pair(ButtonComponent safe, ButtonComponent primary)</code></td>
+<td>The pair at a form's foot: the safe answer first, the committing one last, both pushed to the far edge.</td>
+</tr>
+<tr>
+<td><code>Toolbar(params IButtonComponent[] buttons)</code></td>
+<td>A row of buttons with a toolbar's tight spacing, from the near edge, the first one's glyph or quiet words on it — under a message, over an editor — its box hanging past it into the padding.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-csharp">UIButtons.Pair(
+    UIButtons.Ghost(&quot;Keep it&quot;),
+    UIButtons.Danger(&quot;Delete project&quot;).OnClick(nameof(ProjectController.DeleteAsync))
+)
+
+UIButtons.Toolbar(
+    UIButtons.Icon(MaterialIcons.Undo, &quot;Undo&quot;),
+    UIButtons.Icon(MaterialIcons.Delete, &quot;Delete&quot;)
+)
+</code></pre>
+<p>(<code>MaterialIcons</code> comes from the icon package; any icon name works.)</p>
+<h2 id="uitext-a-line-in-its-role"><code>UIText</code> — a line in its role</h2>
+<p><code>Display</code>, <code>Title</code>, <code>Subtitle</code>, <code>Body</code> and <code>Caption</code> take <code>(UIPhrase? title = null, UIPhrase? description = null)</code> and return
+a <code>TextComponent</code> in that role. <code>Label(UIPhrase? label = null)</code> is the muted overline a thing is labelled by. <code>Paragraph(UIPhrase? text = null)</code> is prose that wraps, and <code>Note(UIPhrase? text = null)</code> a muted caption that wraps — the line under a heading that
+explains rather than names; both return a <code>ParagraphComponent</code>. Words left out are bound after — <code>UIText.Note().BindDescription(path)</code>
+— and blank words are refused: null is the one spelling of &quot;none written&quot;. A heading keeps one line and ends in an ellipsis, and so does
+its description: a <code>TextComponent</code> is a label, so <code>SetWrapMode(UITextWrapMode.Wrap)</code> lets its description run on and
+<code>SetTitleWrap(true)</code> its title — a heading in prose, an article's headline. A card's and an expander's default header wrap their
+description on their own.</p>
+<p>The same roles exist as extension methods on any text component — a template's, one of your own: <code>AsDisplay()</code>, <code>AsTitle()</code>,
+<code>AsSubtitle()</code>, <code>AsBody()</code>, <code>AsCaption()</code>, <code>AsOverline()</code>, and <code>Muted()</code>, which puts both lines in the muted colour.</p>
+<pre><code class="language-csharp">UILayout.Stack(4,
+    UIText.Title(&quot;Storage&quot;),
+    UIText.Caption().Muted().BindTitle(nameof(AccountController.StorageLine))
+)
+</code></pre>
+<h2 id="uidetails-names-and-values-to-read"><code>UIDetails</code> — names and values to read</h2>
+<p><code>UIDetails.List(params (UIPhrase Key, UIPhrase Value)[] rows)</code> is a <code>KeyValueActionComponent</code> without the action
+column or a border of its own — an order's summary, a record's facts — for a card or a surface to hold. Rows are
+keyed by name, so a list that repeats a name throws.</p>
+<pre><code class="language-csharp">UIDetails.List((&quot;Plan&quot;, &quot;Standard&quot;), (&quot;Region&quot;, &quot;Europe West&quot;), (&quot;Billed&quot;, &quot;Monthly&quot;))
+</code></pre>
+<p>For values that change, bind the items instead — the list is the component that holds them, so it has no bound twin — and build
+each row with <code>UIDetails.Row(string id, UIPhrase key, UIPhrase? value)</code>, which returns a <code>KeyValueActionItem</code> whose key is in the muted colour:</p>
+<pre><code class="language-csharp">// Controller
+public RecursiveCollection&lt;KeyValueActionItem&gt; Lines { get; } =
+[
+    UIDetails.Row(&quot;plan&quot;, &quot;Plan&quot;, string.Empty),
+    UIDetails.Row(&quot;region&quot;, &quot;Region&quot;, string.Empty)
+];
+
+// View
+UIDetails.List().BindItems(nameof(CheckoutController.Lines))
+</code></pre>
+<p>The sums under a summary are a line each: <code>UIDetails.Amount(UIPhrase label, string valuePath)</code> — the name muted at the start, the
+amount the controller holds at the far end, as wide as it is, one line at every width — and <code>UIDetails.Total(UIPhrase label, string valuePath)</code>, the line they come to, both in the subtitle role. <code>BoundAmount</code> and <code>BoundTotal</code> take the name's path too, for a rate
+that changes. The amount is content, shown as the controller holds it; each takes a <code>UIBindingScope</code> after its paths, for a row's
+own sums.</p>
+<pre><code class="language-csharp">UILayout.Stack(12,
+    UIDetails.Amount(&quot;Subtotal&quot;, nameof(CheckoutController.SubtotalLine)),
+    UIDetails.Amount(&quot;VAT, 21%&quot;, nameof(CheckoutController.VatLine)),
+    UIDetails.Total(&quot;Total a month&quot;, nameof(CheckoutController.TotalLine))
+)
+</code></pre>
+<h2 id="shown-on-one-side-of-a-breakpoint">Shown on one side of a breakpoint</h2>
+<p><code>ShownBelow(UIResponsiveTier tier)</code> shows any component below the tier and collapses it from there on — a Back that a phone
+needs and a desktop, with the list beside the pane, does not; a drawer's toggle — and <code>ShownFrom(tier)</code> is the other way round.
+Both set <code>Visibility</code>, so they replace a visibility set before them.</p>
+<h2 id="shown-hidden-or-enabled-by-another-component">Shown, hidden or enabled by another component</h2>
+<p><code>ShownWhen</code>, <code>HiddenWhen</code> and <code>EnabledWhen</code> extend any component and watch the value of another one, named by
+its component id — so the source is created with an id (<code>new CheckboxComponent(SameAddressId)</code>). Each is one
+<code>Interact</code> (see <a href="interactions-and-effects.html">interactions and effects</a>), so the rule runs in the browser
+without a round trip to the server.</p>
+<table>
+<thead>
+<tr>
+<th>Call</th>
+<th>Holds while</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ShownWhen(sourceId)</code> / <code>HiddenWhen(sourceId)</code> / <code>EnabledWhen(sourceId)</code></td>
+<td>The source has a value: a switch on, a box ticked, a select with a choice.</td>
+</tr>
+<tr>
+<td><code>...When(sourceId, object? value)</code></td>
+<td>The source's <code>Value</code> equals <code>value</code>.</td>
+</tr>
+<tr>
+<td><code>...When(sourceId, UIProperty source, UIComparisonOperator @operator, object? value)</code></td>
+<td>The named property of the source satisfies the comparison.</td>
+</tr>
+</tbody>
+</table>
+<p><code>ShownWhen</code> and <code>HiddenWhen</code> collapse the component when it is not shown; <code>EnabledWhen</code> disables it. The rule follows
+the reader's own edit of the source as well as a value the server pushes, so a switch turned on reveals its panel at once. It
+holds from the first paint too: a source the view sets (or leaves at its default) is read as the page is rendered, so a note
+under a switch that is off arrives hidden; a bound source's rule runs as the page takes its values. The server never sees the
+rule's state, and a property a rule writes closes nothing there: a Subscribe enabled by <code>EnabledWhen(TermsId)</code> takes a press from
+a page whose terms box is not ticked. The command checks what it needs (<code>TermsAccepted</code>) itself, or the gate is bound to the
+controller (<code>BindEnabled</code>), which the server reads.</p>
+<pre><code class="language-csharp">UILayout.Stack(28,
+    new RadioGroupComponent(BilledId)
+        .SetTitle(&quot;Billed&quot;)
+        .SetOptions(
+        [
+            new OptionItem { Id = &quot;direct&quot;, Title = &quot;Directly&quot; },
+            new OptionItem { Id = &quot;reseller&quot;, Title = &quot;Through a reseller&quot; }
+        ])
+        .BindValue(nameof(SubscribeController.Billed)),
+    UIPage.Section(&quot;Company address&quot;, null, CreateAddress())
+        .HiddenWhen(BilledId, &quot;reseller&quot;),
+    new CheckboxComponent(TermsId)
+        .SetTitle(&quot;I accept the terms&quot;)
+        .BindValue(nameof(SubscribeController.TermsAccepted)),
+    UIButtons.Primary(&quot;Subscribe&quot;)
+        .EnabledWhen(TermsId)
+)
+</code></pre>
+
+</article>
+        </main>
+    </div>
+
+    <footer class="site">
+        <span class="version">Documents 1.14.0</span> ·
+        <a href="https://github.com/AkiEvansDev/NE.Standard">github.com/AkiEvansDev/NE.Standard</a> ·
+        the Prosperity Public License 3.0.0 — free for noncommercial use. Issues are the way to report a bug or ask
+        for a change; the repository is a read-only mirror and takes no pull requests.
+    </footer>
+
+</div>
+</body>
+</html>
